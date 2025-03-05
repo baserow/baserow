@@ -1,6 +1,7 @@
 from baserow.contrib.database.views.registries import view_filter_type_registry
 
 from .exceptions import AirtableSkipFilter
+from .helpers import to_import_select_option_id
 from .registry import AirtableFilterOperator
 from .utils import airtable_date_filter_value_to_baserow
 
@@ -37,6 +38,7 @@ class AirtableDoesNotContainOperator(AirtableFilterOperator):
             return view_filter_type_registry.get("link_row_not_contains"), value
 
         if raw_airtable_column["type"] in ["multiSelect"]:
+            value = [f"{raw_airtable_column['id']}_{v}" for v in value]
             value = ",".join(value)
             return view_filter_type_registry.get("multiple_select_has_not"), value
 
@@ -71,9 +73,11 @@ class AirtableEqualOperator(AirtableFilterOperator):
             )
 
         if raw_airtable_column["type"] in ["select"]:
+            value = to_import_select_option_id(raw_airtable_column["id"], value)
             return view_filter_type_registry.get("single_select_equal"), value
 
         if raw_airtable_column["type"] in ["multiSelect"]:
+            value = [f"{raw_airtable_column['id']}_{v}" for v in value]
             value = ",".join(value)
             return view_filter_type_registry.get("multiple_select_has"), value
 
@@ -116,6 +120,7 @@ class AirtableNotEqualOperator(AirtableFilterOperator):
             return view_filter_type_registry.get("not_equal"), str(value)
 
         if raw_airtable_column["type"] in ["select"]:
+            value = to_import_select_option_id(raw_airtable_column["id"], value)
             return view_filter_type_registry.get("single_select_not_equal"), value
 
         if raw_airtable_column["type"] in ["collaborator"]:
@@ -206,6 +211,9 @@ class AirtableIsAnyOfOperator(AirtableFilterOperator):
         value,
     ):
         if raw_airtable_column["type"] in ["select"]:
+            value = [
+                to_import_select_option_id(raw_airtable_column["id"], v) for v in value
+            ]
             value = ",".join(value)
             return view_filter_type_registry.get("single_select_is_any_of"), value
 
@@ -224,6 +232,9 @@ class AirtableIsNoneOfOperator(AirtableFilterOperator):
         value,
     ):
         if raw_airtable_column["type"] in ["select"]:
+            value = [
+                to_import_select_option_id(raw_airtable_column["id"], v) for v in value
+            ]
             value = ",".join(value)
             return view_filter_type_registry.get("single_select_is_none_of"), value
 
