@@ -1,3 +1,5 @@
+import re
+
 from django.conf import settings
 from django.db.models import F
 
@@ -204,6 +206,9 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                         code="invalid_field",
                     )
 
+                if group_by["field_id"] is None:
+                    return True
+
                 field = next(
                     (
                         field
@@ -366,36 +371,90 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         if prop_name == "filters":
             return self.serialize_filters(service)
 
-        # FIXME: aggregation_series, aggregation_group_bys
+        if prop_name == "service_aggregation_series":
+            return [
+                {
+                    "field_id": series.field_id,
+                    "aggregation_type": series.aggregation_type,
+                }
+                for series in service.service_aggregation_series.all()
+            ]
+
+        if prop_name == "service_aggregation_group_bys":
+            return [
+                {
+                    "field_id": group_by.field_id,
+                }
+                for group_by in service.service_aggregation_group_bys.all()
+            ]
+
+        if prop_name == "service_aggregation_sorts":
+            return [
+                {
+                    "sort_on": sort.sort_on,
+                    "reference": sort.reference,
+                    "direction": sort.direction,
+                }
+                for sort in service.service_aggregation_sorts.all()
+            ]
 
         return super().serialize_property(
             service, prop_name, files_zip=files_zip, storage=storage, cache=cache
         )
 
-    def deserialize_property(
+    def create_instance_from_serialized(
         self,
-        prop_name: str,
-        value: any,
-        id_mapping: dict[str, any],
+        serialized_values,
+        id_mapping,
         files_zip=None,
         storage=None,
         cache=None,
         **kwargs,
-    ):
-        if prop_name == "filters":
-            return self.deserialize_filters(value, id_mapping)
+    ) -> "LocalBaserowGroupedAggregateRowsUserServiceType":
+        series = serialized_values.pop("service_aggregation_series", [])
+        group_bys = serialized_values.pop("service_aggregation_group_bys", [])
+        sorts = serialized_values.pop("service_aggregation_sorts", [])
 
-        # FIXME: aggregation_series, aggregation_group_bys
-
-        return super().deserialize_property(
-            prop_name,
-            value,
+        service = super().create_instance_from_serialized(
+            serialized_values,
             id_mapping,
             files_zip=files_zip,
             storage=storage,
             cache=cache,
             **kwargs,
         )
+
+        if "database_fields" in id_mapping:
+            for current_series in series:
+                if current_series["field_id"] is not None:
+                    current_series["field_id"] = id_mapping["database_fields"].get(
+                        current_series["field_id"], None
+                    )
+            for group_by in group_bys:
+                if group_by["field_id"] is not None:
+                    group_by["field_id"] = id_mapping["database_fields"].get(
+                        group_by["field_id"], None
+                    )
+            for sort in sorts:
+                match = re.search(r"\d+", sort["reference"])
+                sort_field_id = match.group()
+                remapped_id = id_mapping["database_fields"].get(
+                    int(sort_field_id), None
+                )
+                if remapped_id is not None:
+                    sort["reference"] = sort["reference"].replace(
+                        sort_field_id, str(remapped_id)
+                    )
+                else:
+                    sort["reference"] = None
+
+        self._update_service_aggregation_series(service, series)
+        self._update_service_aggregation_group_bys(service, group_bys)
+        self._update_service_sorts(
+            service, [sort for sort in sorts if sort["reference"] is not None]
+        )
+
+        return service
 
     def dispatch_data(
         self,
