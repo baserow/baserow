@@ -92,6 +92,9 @@ export default {
       this.activeIndex = index
       this.$emit('update:activeIndex', index)
     },
+    reset() {
+      this.activeIndex = this.initialActiveIndex
+    },
   },
 }
 </script>

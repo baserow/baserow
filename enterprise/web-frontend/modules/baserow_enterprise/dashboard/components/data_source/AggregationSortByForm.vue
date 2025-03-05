@@ -25,6 +25,8 @@
       </DropdownItem>
     </Dropdown>
     <SegmentControl
+      v-if="aggregationSorts.length > 0"
+      ref="sortDirectionSegment"
       :active-index="orderDirectionIndex"
       :segments="orderDirectionOptions"
       :initial-active-index="orderDirectionIndex"
@@ -80,6 +82,9 @@ export default {
           this.orderDirectionIndex = this.orderDirectionOptions.findIndex(
             (item) => item.value === aggregationSorts[0].direction
           )
+          if (this.$refs.sortDirectionSegment) {
+            this.$refs.sortDirectionSegment.reset()
+          }
         } else {
           this.sortReference = null
           this.orderDirectionIndex = 0
