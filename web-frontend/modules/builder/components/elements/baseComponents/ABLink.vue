@@ -39,7 +39,7 @@ export default {
       },
     },
     /**
-     * @type {string} - Wheter the button should be full width.
+     * @type {Boolean} - Wheter the button should be full width.
      */
     fullWidth: {
       type: Boolean,
@@ -65,7 +65,7 @@ export default {
       required: true,
     },
     /**
-     * @type {string} - Whether the active class should be applied to the link.
+     * @type {Boolean} - Whether the active class should be applied to the link.
      */
     forceActive: {
       type: Boolean,
