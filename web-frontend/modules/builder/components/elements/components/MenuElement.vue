@@ -93,7 +93,7 @@
         </div>
       </template>
       <template v-else-if="item.type === 'button'">
-        <ABButton @click="onButtonClick(item)">
+        <ABButton @click="onButtonClick(item)" :style="getStyleOverride('menu')">
           {{
             item.name
               ? item.name ||
