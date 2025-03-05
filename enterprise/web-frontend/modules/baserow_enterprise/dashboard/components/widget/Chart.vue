@@ -6,15 +6,12 @@
     :data="chartData"
     class="chart"
   />
-  <div v-else>
-    <div class="chart__no-data">
-      <img
-        src="@baserow/modules/dashboard/assets/images/widgets/empty_chart_placeholder.png"
-        srcset="
-          @baserow/modules/dashboard/assets/images/widgets/empty_chart_placeholder@2x.png 2x
-        "
-      />
-    </div>
+
+  <div v-else class="chart__no-data">
+    <span class="chart__no-data-dashed-line"></span>
+    <span class="chart__no-data-dashed-line"></span>
+    <span class="chart__no-data-dashed-line"></span>
+    <span class="chart__no-data-plain-line"></span>
   </div>
 </template>
 

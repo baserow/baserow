@@ -1,26 +1,15 @@
 <template>
   <div class="dashboard-chart-widget">
-    <div class="widget-header">
-      <div class="widget-header__main">
-        <div class="widget-header__title-wrapper">
-          <div class="widget-header__title">{{ widget.title }}</div>
-          <div
-            v-if="dataSourceMisconfigured"
-            class="widget-header__fix-configuration"
-          >
-            <svg
-              width="5"
-              height="6"
-              viewBox="0 0 5 6"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle cx="2.5" cy="3" r="2.5" fill="#FF5A44" />
-            </svg>
-            {{ $t('widget.fixConfiguration') }}
-          </div>
+    <div class="widget__header">
+      <div class="widget__header-main">
+        <div class="widget__header-title-wrapper">
+          <div class="widget__header-title">{{ widget.title }}</div>
+
+          <Badge v-if="dataSourceMisconfigured" color="red" indicator rounded>{{
+            $t('widget.fixConfiguration')
+          }}</Badge>
         </div>
-        <div v-if="widget.description" class="widget-header__description">
+        <div v-if="widget.description" class="widget__header-description">
           {{ widget.description }}
         </div>
       </div>
@@ -32,9 +21,15 @@
       ></WidgetContextMenu>
     </div>
 
-    <div class="widget-content">
-      <Chart :data-source="dataSource" :data-source-data="dataForDataSource">
+    <div class="dashboard-chart-widget__content widget__content">
+      <Chart
+        v-if="!loading"
+        :data-source="dataSource"
+        :data-source-data="dataForDataSource"
+      >
       </Chart>
+
+      <div v-else class="dashboard-chart-widget__loading loading-spinner"></div>
     </div>
   </div>
 </template>
@@ -59,6 +54,11 @@ export default {
       type: String,
       required: false,
       default: '',
+    },
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   computed: {

@@ -1,11 +1,11 @@
 <template>
-  <div ref="contextButton" class="widget-header__context-menu">
+  <div ref="contextButton" class="widget__header-context-menu">
     <ButtonIcon
       icon="iconoir-more-vert"
       type="secondary"
       size="regular"
       @click.stop="
-        $refs.context.toggle($refs.contextButton, 'bottom', 'right', 8, 0)
+        $refs.context.toggle($refs.contextButton, 'bottom', 'right', 8, -8)
       "
     ></ButtonIcon>
     <WidgetContext
