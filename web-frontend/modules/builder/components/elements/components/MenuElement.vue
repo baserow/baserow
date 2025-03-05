@@ -171,7 +171,7 @@ export default {
      * correct menu item.
      */
     const found = resolveApplicationRoute(
-      this.$store.getters['page/getVisiblePages'](this.builder),
+      this.pages,
       this.$route.params.pathMatch
     )
 
