@@ -258,13 +258,13 @@ export default {
       return this.activeItem?.uid === item.uid
     },
     getActiveParentClass(item) {
-      if (item.children?.some((child) => child.id === this.activeItem?.id))
+      if (item.children?.some((child) => child.uid === this.activeItem?.uid))
         return LINK_ACTIVE_CLASSES[item.variant] || ''
 
       return ''
     },
     sublinkIsActive(item) {
-      if (item.children?.some((child) => child.id === this.activeItem?.id))
+      if (item.children?.some((child) => child.uid === this.activeItem?.uid))
         return true
 
       return false
