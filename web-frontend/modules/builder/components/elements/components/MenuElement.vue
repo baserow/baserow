@@ -42,7 +42,7 @@
             class="menu-element__sub-link-menu--container"
             :style="getStyleOverride('menu')"
           >
-            <a :class="getActiveParentClass(item)">{{ item.name }}</a>
+            <a class="ab-link" :class="getActiveParentClass(item)">{{ item.name }}</a>
 
             <div class="menu-element__sub-link-menu-spacer"></div>
 
