@@ -21,7 +21,7 @@
             :variant="item.variant"
             :url="getItemUrl(item)"
             :target="getMenuItem(item).target"
-            :class="getActiveItemClass(item)"
+            :force-active="menuItemIsActive(item)"
           >
             {{
               item.name
@@ -76,7 +76,7 @@
                   :url="getItemUrl(child)"
                   :target="getMenuItem(child).target"
                   class="menu-element__sub-link"
-                  :class="getActiveItemClass(child)"
+                  :force-active="menuItemIsActive(child)"
                 >
                   {{
                     child.name
@@ -248,16 +248,14 @@ export default {
         this.menuElementType.getEventByName(this.element, eventName)
       )
     },
-    getActiveItemClass(item) {
-      if (this.activeItem?.id !== item.id) return ''
-
-      return LINK_ACTIVE_CLASSES[item.variant] || ''
+    menuItemIsActive(item) {
+      return this.activeItem?.id === item.id
     },
     getActiveParentClass(item) {
-      if (!item.children?.some((child) => child.id === this.activeItem?.id))
-        return ''
+      if (item.children?.some((child) => child.id === this.activeItem?.id))
+        return LINK_ACTIVE_CLASSES[item.variant] || ''
 
-      return LINK_ACTIVE_CLASSES[item.variant] || ''
+      return ''
     },
   },
 }
