@@ -424,30 +424,32 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             **kwargs,
         )
 
-        for current_series in series:
-            if current_series["field_id"] is not None:
-                current_series["field_id"] = id_mapping["database_fields"].get(
-                    current_series["field_id"], None
+        if "database_fields" in id_mapping:
+            for current_series in series:
+                if current_series["field_id"] is not None:
+                    current_series["field_id"] = id_mapping["database_fields"].get(
+                        current_series["field_id"], None
+                    )
+            for group_by in group_bys:
+                if group_by["field_id"] is not None:
+                    group_by["field_id"] = id_mapping["database_fields"].get(
+                        group_by["field_id"], None
+                    )
+            for sort in sorts:
+                match = re.search(r"\d+", sort["reference"])
+                sort_field_id = match.group()
+                remapped_id = id_mapping["database_fields"].get(
+                    int(sort_field_id), None
                 )
+                if remapped_id is not None:
+                    sort["reference"] = sort["reference"].replace(
+                        sort_field_id, str(remapped_id)
+                    )
+                else:
+                    sort["reference"] = None
+
         self._update_service_aggregation_series(service, series)
-
-        for group_by in group_bys:
-            if group_by["field_id"] is not None:
-                group_by["field_id"] = id_mapping["database_fields"].get(
-                    group_by["field_id"], None
-                )
         self._update_service_aggregation_group_bys(service, group_bys)
-
-        for sort in sorts:
-            match = re.search(r"\d+", sort["reference"])
-            sort_field_id = match.group()
-            remapped_id = id_mapping["database_fields"].get(int(sort_field_id), None)
-            if remapped_id is not None:
-                sort["reference"] = sort["reference"].replace(
-                    sort_field_id, str(remapped_id)
-                )
-            else:
-                sort["reference"] = None
         self._update_service_sorts(
             service, [sort for sort in sorts if sort["reference"] is not None]
         )
