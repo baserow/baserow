@@ -5,6 +5,8 @@ from unittest.mock import patch
 
 from dotenv import dotenv_values
 
+from baserow.config.settings.utils import str_to_bool
+
 # Create a .env.testing file in the backend directory to store different test settings and
 # override the default ones. For different test settings, provide the TEST_ENV_FILE
 # environment variable with the name of the file to use. Everything that starts with
@@ -36,11 +38,15 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 
-# Disable default optimizations for the tests because they make tests slower.
-DATABASES["default"]["OPTIONS"] = {
-    "server_side_binding": False,
-    "prepare_threshold": None,
+# Set to 'off' to runs all migrations and disable the custom setup fixture that installs
+# all pgPSQL functions. Default is 'on' for faster setup by skipping migrations.
+BASEROW_TESTS_SETUP_DB_FIXTURE = str_to_bool(
+    os.getenv("BASEROW_TESTS_SETUP_DB_FIXTURE", "on")
+)
+DATABASES["default"]["TEST"] = {
+    "MIGRATE": not BASEROW_TESTS_SETUP_DB_FIXTURE,
 }
+
 # Open a second database connection that can be used to test transactions.
 DATABASES["default-copy"] = deepcopy(DATABASES["default"])
 
@@ -101,7 +107,6 @@ STORAGES["default"] = {"BACKEND": BASE_FILE_STORAGE}
 BASEROW_LOGIN_ACTION_LOG_LIMIT = RateLimit.from_string("1000/s")
 
 BASEROW_WEBHOOKS_ALLOW_PRIVATE_ADDRESS = False
-
 
 CACHALOT_ENABLED = str_to_bool(os.getenv("CACHALOT_ENABLED", "false"))
 if CACHALOT_ENABLED:

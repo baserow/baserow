@@ -28,6 +28,8 @@ from rest_framework.test import APIRequestFactory
 from sqlparse import format
 
 from baserow.contrib.database.application_types import DatabaseApplicationType
+from baserow.contrib.database.fields.fields import SerialField
+from baserow.contrib.database.fields.models import LinkRowField
 from baserow.core.cache import local_cache
 from baserow.core.context import clear_current_workspace_id
 from baserow.core.exceptions import PermissionDenied
@@ -38,6 +40,7 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.trash.trash_types import WorkspaceTrashableItemType
 from baserow.core.user_sources.registries import UserSourceCount
 from baserow.core.utils import get_value_at_path
+from baserow.test_utils.setup_formulas import iter_formula_pgsql_functions
 
 SKIP_FLAGS = ["disabled-in-ci", "once-per-day-in-ci"]
 COMMAND_LINE_FLAG_PREFIX = "--run-"
@@ -899,6 +902,34 @@ def test_thread():
             sys.setswitchinterval(orig_switch_interval)
 
     yield run_callable
+
+
+@pytest.fixture(scope="session", autouse=True)
+def baserow_db_setup(django_db_setup, django_db_blocker):
+    """
+    Initialize the Baserow database for tests by installing custom pgSQL functions
+    and sequences. Disable this fixture with BASEROW_TESTS_SETUP_DB_FIXTURE=off if
+    running a subset of tests with `--no-migrations --reuse-db` and the pgSQL
+    functions are not needed or if you want to run all migrations.
+    """
+
+    if django_settings.BASEROW_TESTS_SETUP_DB_FIXTURE is False:
+        return
+
+    def init_link_row_sequence():
+        db_table = LinkRowField._meta.db_table
+        db_column = "link_row_relation_id"
+
+        sequence_name = SerialField.get_sequence_name(db_table, db_column)
+        with connection.cursor() as cursor:
+            cursor.execute(f"CREATE SEQUENCE IF NOT EXISTS {sequence_name};")
+
+    all_formula_functions = "\n".join(iter_formula_pgsql_functions())
+    with django_db_blocker.unblock():
+        with connection.cursor() as cursor:
+            cursor.execute(all_formula_functions)
+
+        init_link_row_sequence()
 
 
 @pytest.fixture()
