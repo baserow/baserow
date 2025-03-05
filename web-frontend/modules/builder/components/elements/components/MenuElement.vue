@@ -1,7 +1,6 @@
 <template>
   <div
     :style="{
-      ...getStyleOverride('menu'),
       '--alignment': menuAlignment,
     }"
     :class="[
@@ -17,7 +16,7 @@
       :class="`menu-element__menu-item-${item.type}`"
     >
       <template v-if="item.type === 'link' && !item.parent_menu_item">
-        <template v-if="!item.children?.length">
+        <div v-if="!item.children?.length" :style="getStyleOverride('menu')">
           <ABLink
             :variant="item.variant"
             :url="getItemUrl(item)"
@@ -33,13 +32,16 @@
                 : $t('menuElement.missingLinkValue')
             }}
           </ABLink>
-        </template>
+        </div>
         <div
           v-else
           ref="menuSubLinkContainer"
           @click="showSubMenu($event, item.id)"
         >
-          <div class="menu-element__sub-link-menu--container">
+          <div
+            class="menu-element__sub-link-menu--container"
+            :style="getStyleOverride('menu')"
+          >
             <a :class="getActiveParentClass(item)">{{ item.name }}</a>
 
             <div class="menu-element__sub-link-menu-spacer"></div>

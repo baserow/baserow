@@ -181,7 +181,7 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
     )
 
 
-class ButtonThemeConfigBlock(ThemeConfigBlock):
+class ButtonThemeConfigBlockMixin(models.Model):
     button_font_family = models.CharField(
         max_length=250,
         default="inter",
@@ -275,8 +275,15 @@ class ButtonThemeConfigBlock(ThemeConfigBlock):
         help_text="The border color of buttons when active",
     )
 
+    class Meta:
+        abstract = True
 
-class LinkThemeConfigBlock(ThemeConfigBlock):
+
+class ButtonThemeConfigBlock(ButtonThemeConfigBlockMixin, ThemeConfigBlock):
+    pass
+
+
+class LinkThemeConfigBlockMixin(models.Model):
     link_font_family = models.CharField(
         max_length=250,
         default="inter",
@@ -311,6 +318,13 @@ class LinkThemeConfigBlock(ThemeConfigBlock):
         blank=True,
         help_text="The hover color of links when active",
     )
+
+    class Meta:
+        abstract = True
+
+
+class LinkThemeConfigBlock(LinkThemeConfigBlockMixin, ThemeConfigBlock):
+    pass
 
 
 class ImageThemeConfigBlock(ThemeConfigBlock):
@@ -559,3 +573,9 @@ class TableThemeConfigBlock(ThemeConfigBlock):
     table_horizontal_separator_size = models.SmallIntegerField(
         default=1, help_text="Table horizontal separator size"
     )
+
+
+class MenuThemeConfigBlock(
+    LinkThemeConfigBlockMixin, ButtonThemeConfigBlockMixin, ThemeConfigBlock
+):
+    pass
