@@ -38,26 +38,27 @@
           ref="menuSubLinkContainer"
           @click="showSubMenu($event, item.id)"
         >
-          <div
-            class="menu-element__sub-link-menu--container"
-            :style="getStyleOverride('menu')"
-          >
-            <a class="ab-link" :class="getActiveParentClass(item)">{{
-              item.name
-            }}</a>
-
-            <div class="menu-element__sub-link-menu-spacer"></div>
-
-            <div>
-              <i
-                class="menu-element__sub-link--expanded-icon"
-                :class="
-                  isExpanded(item.id)
-                    ? 'iconoir-nav-arrow-up'
-                    : 'iconoir-nav-arrow-down'
-                "
-              ></i>
-            </div>
+          <div :style="getStyleOverride('menu')">
+            <ABLink
+              :variant="item.variant"
+              url=""
+              :force-active="sublinkIsActive(item)"
+            >
+              <div class="menu-element__sub-link-menu--container">
+                {{ item.name }}
+                <div class="menu-element__sub-link-menu-spacer"></div>
+                <div>
+                  <i
+                    class="menu-element__sub-link--expanded-icon"
+                    :class="
+                      isExpanded(item.id)
+                        ? 'iconoir-nav-arrow-up'
+                        : 'iconoir-nav-arrow-down'
+                    "
+                  ></i>
+                </div>
+              </div>
+            </ABLink>
           </div>
 
           <Context
@@ -261,6 +262,12 @@ export default {
         return LINK_ACTIVE_CLASSES[item.variant] || ''
 
       return ''
+    },
+    sublinkIsActive(item) {
+      if (item.children?.some((child) => child.id === this.activeItem?.id))
+        return true
+
+      return false
     },
   },
 }
