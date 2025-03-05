@@ -42,7 +42,9 @@
             class="menu-element__sub-link-menu--container"
             :style="getStyleOverride('menu')"
           >
-            <a class="ab-link" :class="getActiveParentClass(item)">{{ item.name }}</a>
+            <a class="ab-link" :class="getActiveParentClass(item)">{{
+              item.name
+            }}</a>
 
             <div class="menu-element__sub-link-menu-spacer"></div>
 
@@ -93,7 +95,10 @@
         </div>
       </template>
       <template v-else-if="item.type === 'button'">
-        <ABButton @click="onButtonClick(item)" :style="getStyleOverride('menu')">
+        <ABButton
+          :style="getStyleOverride('menu')"
+          @click="onButtonClick(item)"
+        >
           {{
             item.name
               ? item.name ||

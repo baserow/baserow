@@ -67,7 +67,7 @@ export default {
     /**
      * @type {string} - Whether the active class should be applied to the link.
      */
-     forceActive: {
+    forceActive: {
       type: Boolean,
       required: false,
       default: false,
