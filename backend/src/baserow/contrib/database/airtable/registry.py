@@ -331,6 +331,12 @@ class AirtableViewType(Instance):
         filter_groups=None,
         parent_group=None,
     ):
+        """
+        Recursive method that either loops over the filters in the `filter_object`, and
+        converts it to two flat lists containing the Baserow ViewFilter and
+        ViewFilterGroup objects.
+        """
+
         if filter_groups is None:
             filter_groups = []
 
@@ -613,16 +619,17 @@ class AirtableFilterOperator(Instance):
         value,
     ) -> Union[ViewFilterType, str]:
         """
-        @TODO docs
+        Converts the given Airtable value into the matching Baserow filter type and
+        correct value.
 
-        :param raw_airtable_table:
-        :param raw_airtable_column:
-        :param baserow_field:
-        :param config:
-        :param import_report:
-        :param value:
+        :param raw_airtable_table: The raw Airtable table data related to the filter.
+        :param raw_airtable_column: The raw Airtable column data related to the filter.
+        :param baserow_field: The Baserow field related to the filter.
+        :param import_report: Used to collect what wasn't imported to report to the
+            user.
+        :param value: The value that must be converted.
         :raises AirtableSkipFilter: If no compatible Baserow filter can be found.
-        :return:
+        :return: The matching Baserow filter type and value.
         """
 
         raise NotImplementedError(
