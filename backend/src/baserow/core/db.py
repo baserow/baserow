@@ -471,7 +471,7 @@ class MultiFieldPrefetchQuerysetMixin(Generic[ModelInstance]):
         if (
             self._multi_field_prefetch_related_funcs
             and not self._multi_field_prefetch_done
-            and isinstance(self._iterable_class, ModelIterable)
+            and issubclass(self._iterable_class, ModelIterable)
         ):
             for f in self._multi_field_prefetch_related_funcs:
                 f(self, self._result_cache)
