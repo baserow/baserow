@@ -255,7 +255,7 @@ export default {
       )
     },
     menuItemIsActive(item) {
-      return this.activeItem?.id === item.id
+      return this.activeItem?.uid === item.uid
     },
     getActiveParentClass(item) {
       if (item.children?.some((child) => child.id === this.activeItem?.id))
