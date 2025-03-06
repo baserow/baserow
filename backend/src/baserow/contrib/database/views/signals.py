@@ -31,6 +31,10 @@ view_decoration_deleted = Signal()
 
 view_field_options_updated = Signal()
 
+view_results_updated = Signal()
+rows_entered_view = Signal()
+rows_exited_view = Signal()
+
 
 @receiver(field_signals.field_deleted)
 def field_deleted(sender, field, **kwargs):

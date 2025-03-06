@@ -436,6 +436,10 @@ class HigherThanOrEqualViewFilterType(NumericComparisonViewFilterType):
 
 
 class TimezoneAwareDateViewFilterType(ViewFilterType):
+    @property
+    def time_sensitive(self) -> bool:
+        return True
+
     compatible_field_types = [
         DateFieldType.type,
         LastModifiedFieldType.type,
@@ -1776,6 +1780,10 @@ DATE_FILTER_OPERATOR_DELTA_MAP = {
 
 class BaseDateMultiStepViewFilterType(ViewFilterType):
     incompatible_operators = []
+
+    @property
+    def time_sensitive(self) -> bool:
+        return True
 
     def get_filter_date(
         self,

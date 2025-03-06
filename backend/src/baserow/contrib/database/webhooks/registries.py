@@ -1,10 +1,13 @@
 import uuid
+from typing import Optional
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
+from django.db.models import Q
 from django.dispatch.dispatcher import Signal
 
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.webhooks.models import TableWebhook, TableWebhookEvent
 from baserow.core.registry import Instance, ModelRegistryMixin, Registry
 
 from .exceptions import SkipWebhookCall, WebhookPayloadTooLarge
@@ -97,6 +100,17 @@ class WebhookEventType(Instance):
 
         return table
 
+    def get_additional_filters_for_webhooks_to_call(
+        self, **kwargs: dict
+    ) -> Optional[Q]:
+        """
+        Filters to pass to WebhookHandler.find_webhooks_to_call. By default, no
+        additional filters are applied.
+
+        :param kwargs: The arguments of the signal.
+        :return: A dictionary of additional filters.
+        """
+
     def listener(self, **kwargs: dict):
         """
         The method that is called when the signal is triggered. By default it will
@@ -107,7 +121,9 @@ class WebhookEventType(Instance):
 
         transaction.on_commit(lambda: self.listener_after_commit(**kwargs))
 
-    def _paginate_payload(self, payload) -> tuple[dict, dict | None]:
+    def _paginate_payload(
+        self, webhook: TableWebhook, event_id: str, payload: dict[str, any]
+    ) -> tuple[dict, dict | None]:
         """
         This method is called in the celery task and can be overwritten to paginate the
         payload, if it's too large to send all the data at once. The default
@@ -144,7 +160,9 @@ class WebhookEventType(Instance):
                 f"the batch limit of ({webhook.batch_limit} batches)."
             )
 
-        prepared_payload, remaining_payload = self._paginate_payload(payload)
+        prepared_payload, remaining_payload = self._paginate_payload(
+            webhook, event_id, payload
+        )
 
         if remaining_payload is not None:
             prepared_payload["batch_id"] = batch_id
@@ -168,7 +186,8 @@ class WebhookEventType(Instance):
 
         table = self.get_table_object(**kwargs)
         webhook_handler = WebhookHandler()
-        webhooks = webhook_handler.find_webhooks_to_call(table.id, self.type)
+        filters = self.get_additional_filters_for_webhooks_to_call(**kwargs)
+        webhooks = webhook_handler.find_webhooks_to_call(table.id, self.type, filters)
         event_id = uuid.uuid4()
         for webhook in webhooks:
             try:
@@ -188,6 +207,22 @@ class WebhookEventType(Instance):
             # we don't want to fail, but rather don't do anything.
             except SkipWebhookCall:
                 pass
+
+    def after_create(self, webhook_event: TableWebhookEvent):
+        """
+        This method is called after a webhook event has been created. By default it
+        does nothing, but can be overwritten to add additional functionality.
+
+        :param webhook_event: The created webhook event.
+        """
+
+    def after_update(self, webhook_event: TableWebhookEvent):
+        """
+        This method is called after a webhook event has been updated. By default it
+        does nothing, but can be overwritten to add additional functionality.
+
+        :param webhook_event: The updated webhook event.
+        """
 
 
 class WebhookEventTypeRegistry(ModelRegistryMixin, Registry[WebhookEventType]):

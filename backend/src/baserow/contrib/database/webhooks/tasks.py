@@ -139,7 +139,7 @@ def call_webhook(
                     webhook, event_id, event_type, method, url, headers, payload
                 )
                 # enqueue the next call if there is still remaining payload
-                if success and remaining is not None:
+                if success and remaining:
                     args = (
                         webhook_id,
                         event_id,

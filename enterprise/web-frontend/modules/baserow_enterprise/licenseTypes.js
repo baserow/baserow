@@ -46,6 +46,7 @@ export class EnterpriseWithoutSupportLicenseType extends LicenseType {
       EnterpriseFeaturesObject.DATA_SYNC,
       EnterpriseFeaturesObject.CHART_WIDGET,
       EnterpriseFeaturesObject.BUILDER_SSO,
+      EnterpriseFeaturesObject.ADVANCED_WEBHOOKS,
     ]
   }
 

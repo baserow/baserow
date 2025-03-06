@@ -18,6 +18,7 @@ describe('Webhook form Input Tests', () => {
         table: { id: 1 },
         database: { id: 2, workspace: { id: 3 } },
         fields: [{ id: 1, name: 'Name', type: 'text' }],
+        views: [],
       },
     })
   }

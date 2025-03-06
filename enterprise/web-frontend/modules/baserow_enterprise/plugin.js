@@ -73,6 +73,7 @@ import {
   MedianViewAggregationType,
 } from '@baserow/modules/database/viewAggregationTypes'
 import { PeriodicDataSyncDeactivatedNotificationType } from '@baserow_enterprise/notificationTypes'
+import { RowsEnterViewWebhookEventType } from '@baserow_enterprise/webhookEventTypes'
 import {
   TextFieldType,
   LongTextFieldType,
@@ -301,9 +302,15 @@ export default (context) => {
     new PeriodicIntervalFieldsConfigureDataSyncType(context)
   )
 
+  app.$registry.register(
+    'webhookEvent',
+    new RowsEnterViewWebhookEventType(context)
+  )
+
   app.$registry.register('dashboardWidget', new ChartWidgetType(context))
   app.$registry.register(
     'chartFieldFormatting',
     new SingleSelectFormattingType(context)
   )
+  
 }
