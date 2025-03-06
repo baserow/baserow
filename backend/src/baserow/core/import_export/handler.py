@@ -63,7 +63,7 @@ from baserow.core.user_files.exceptions import (
     InvalidFileStreamError,
 )
 from baserow.core.user_files.handler import UserFileHandler
-from baserow.core.utils import ChildProgressBuilder, Progress, grouper, stream_size
+from baserow.core.utils import ChildProgressBuilder, grouper, stream_size
 from baserow.version import VERSION
 
 tracer = trace.get_tracer(__name__)
@@ -780,7 +780,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         import_export_config: ImportExportConfig,
         zip_file: ZipFile,
         storage: Storage,
-        progress: Progress,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> Application:
         """
         Imports a single application into a workspace from the provided data.
@@ -815,7 +815,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             id_mapping,
             zip_file,
             storage,
-            progress_builder=progress.create_child_builder(represents_progress=1),
+            progress_builder=progress_builder,
         )
         return imported_application
 
@@ -828,7 +828,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         import_export_config: ImportExportConfig,
         zip_file: ZipFile,
         storage: Storage,
-        progress: Progress,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Application]:
         """
         Imports multiple applications into a workspace from the provided application
@@ -866,6 +866,14 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             manifest["applications"].keys(), key=application_priority_sort, reverse=True
         )
 
+        application_count = sum(
+            len(manifest["applications"][application_type]["items"])
+            for application_type in prioritized_applications
+        )
+        progress = ChildProgressBuilder.build(
+            progress_builder, child_total=application_count
+        )
+
         for application_type in prioritized_applications:
             for application_manifest in manifest["applications"][application_type][
                 "items"
@@ -880,7 +888,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                             import_export_config,
                             zip_file,
                             storage,
-                            progress,
+                            progress.create_child_builder(represents_progress=1),
                         )
                 except Exception as exc:  # noqa
                     # Trash the already imported applications so the user won't see
@@ -1011,7 +1019,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                     import_export_config,
                     zip_file,
                     storage,
-                    progress,
+                    progress.create_child_builder(represents_progress=80),
                 )
 
                 for application in imported_applications:
