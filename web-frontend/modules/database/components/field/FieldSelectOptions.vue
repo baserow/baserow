@@ -82,10 +82,15 @@ export default {
       return Array.from(colors)
     },
   },
-  mounted() {
-    this.$nextTick(() => {
-      this.values.value = this.value
-    })
+  watch: {
+    value: {
+      handler(newVal) {
+        this.values.value = newVal
+      },
+    },
+  },
+  created() {
+    this.values.value = this.value
   },
   methods: {
     remove(index) {
@@ -123,7 +128,7 @@ export default {
       this.$emit('input', this.value)
     },
     order(newOrder, oldOrder) {
-      const sortedValue = this.value
+      const sortedValue = this.values.value
         .slice()
         .sort(
           (a, b) =>
