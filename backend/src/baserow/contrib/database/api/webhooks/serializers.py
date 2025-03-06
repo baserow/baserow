@@ -26,8 +26,15 @@ class TableWebhookEventConfig(serializers.Serializer):
         choices=webhook_event_type_registry.get_types(),
     )
     fields = serializers.ListField(
+        required=False,
         child=serializers.IntegerField(),
         help_text="A list of field IDs that are related to the event.",
+        allow_empty=True,
+    )
+    views = serializers.ListField(
+        required=False,
+        child=serializers.IntegerField(),
+        help_text="A list of view IDs that are related to the event.",
     )
 
 
@@ -186,13 +193,15 @@ class TableWebhookSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(TableWebhookEventConfig(many=True))
     def get_event_config(self, instance):
-        events = [
-            {
-                "event_type": event.event_type,
-                "fields": [f.id for f in event.fields.all()],
-            }
-            for event in instance.events.all()
-        ]
+        events = []
+        for event in instance.events.all():
+            evt = {"event_type": event.event_type}
+            if fields := [f.id for f in event.fields.all()]:
+                evt["fields"] = fields
+            if views := [v.id for v in event.views.all()]:
+                evt["views"] = views
+            events.append(evt)
+
         return [TableWebhookEventConfig(event).data for event in events]
 
     @extend_schema_field(OpenApiTypes.OBJECT)

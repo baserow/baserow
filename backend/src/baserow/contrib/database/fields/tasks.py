@@ -95,10 +95,14 @@ def _run_periodic_field_type_update_per_workspace(
 
     all_updated_fields = []
 
-    fields = qs.filter(
-        table__database__workspace_id=workspace.id,
-        table__trashed=False,
-        table__database__trashed=False,
+    fields = (
+        qs.filter(
+            table__database__workspace_id=workspace.id,
+            table__trashed=False,
+            table__database__trashed=False,
+        )
+        .select_related("table")
+        .prefetch_related("table__view_set")
     )
     # noinspection PyBroadException
     try:
@@ -114,6 +118,8 @@ def _run_periodic_field_type_update_per_workspace(
             tb=tb,
         )
 
+    from baserow.contrib.database.views.handler import ViewSubscriptionHandler
+
     # After a successful periodic update of all fields, we would need to update the
     # search index for all of them in one function per table to avoid ending up in a
     # deadlock because rows are updated simultaneously.
@@ -122,6 +128,11 @@ def _run_periodic_field_type_update_per_workspace(
         fields_per_table[field.table_id].append(field)
     for _, fields in fields_per_table.items():
         SearchHandler().entire_field_values_changed_or_created(fields[0].table, fields)
+
+        with transaction.atomic():
+            ViewSubscriptionHandler().notify_table_views_updates(
+                fields[0].table.view_set.all()
+            )
 
 
 @app.task(bind=True)

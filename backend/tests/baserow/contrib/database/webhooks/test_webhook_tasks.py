@@ -448,7 +448,7 @@ class PaginatedWebhookEventType(WebhookEventType):
     def __init__(self):
         self.i = 1
 
-    def _paginate_payload(self, payload) -> tuple[dict, dict | None]:
+    def _paginate_payload(self, webhook, event_id, payload) -> tuple[dict, dict | None]:
         payload["data"] = f"part {self.i}"
         self.i += 1
         return payload, {"data": f"part {self.i}"}

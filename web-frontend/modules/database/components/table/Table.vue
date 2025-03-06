@@ -76,6 +76,7 @@
             :database="database"
             :view="view"
             :table="table"
+            :views="views"
             @enable-rename="$refs.rename.edit()"
           >
           </ViewContext>

@@ -1,11 +1,13 @@
 import uuid
 
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericRelation
 from django.core.validators import MaxLengthValidator
 from django.db import models
 
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.views.models import View
 from baserow.core.models import CreatedAndUpdatedOnMixin
 
 from .validators import header_name_validator, header_value_validator, url_validator
@@ -81,6 +83,17 @@ class TableWebhookEvent(CreatedAndUpdatedOnMixin, models.Model):
     )
     event_type = models.CharField(max_length=50)
     fields = models.ManyToManyField(Field)
+    views = models.ManyToManyField(View)
+    view_subscriptions = GenericRelation(
+        "ViewSubscription",
+        content_type_field="subscriber_content_type",
+        object_id_field="subscriber_id",
+    )
+
+    def get_type(self):
+        from .registries import webhook_event_type_registry
+
+        return webhook_event_type_registry.get(self.event_type)
 
     class Meta:
         ordering = ("id",)

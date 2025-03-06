@@ -21,6 +21,7 @@
         :database="database"
         :table="table"
         :fields="tableFields"
+        :views="views"
         :webhooks="webhooks"
         @updated="updated"
         @deleted="deleted"
@@ -30,6 +31,7 @@
         :database="database"
         :table="table"
         :fields="tableFields"
+        :views="views"
         @created="created"
       />
     </template>
@@ -64,6 +66,10 @@ export default {
       type: [Array, null],
       required: false,
       default: null,
+    },
+    views: {
+      type: Array,
+      required: true,
     },
   },
   data() {

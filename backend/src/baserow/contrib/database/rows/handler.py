@@ -816,6 +816,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_webhook_events=send_webhook_events,
             rows_values_refreshed_from_db=False,
             m2m_change_tracker=m2m_change_tracker,
+            fields=fields,
+            dependant_fields=dependant_fields,
         )
 
         return instance
@@ -1005,6 +1007,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             before_return=before_return,
             updated_field_ids=updated_field_ids,
             m2m_change_tracker=m2m_change_tracker,
+            fields=[f for f in updated_fields if f.id in updated_field_ids],
+            dependant_fields=dependant_fields,
         )
 
         return row
@@ -1215,6 +1219,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_webhook_events=send_webhook_events,
             prepared_rows_values=prepared_rows_values,
             m2m_change_tracker=m2m_change_tracker,
+            fields=updated_fields,
+            dependant_fields=dependant_fields,
         )
 
         if generate_error_report:
@@ -1895,6 +1901,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if not skip_search_update:
             SearchHandler.field_value_updated_or_created(table)
 
+        # Reload rows from the database to get the updated values for formulas
         updated_rows_to_return = list(
             model.objects.all().enhance_by_fields().filter(id__in=row_ids)
         )
@@ -1910,6 +1917,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             m2m_change_tracker=m2m_change_tracker,
             send_realtime_update=send_realtime_update,
             send_webhook_events=send_webhook_events,
+            fields=[f for f in updated_fields if f.id in updated_field_ids],
+            dependant_fields=dependant_fields,
         )
 
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
@@ -2103,6 +2112,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             updated_field_ids=[],
             prepared_rows_values=None,
             send_webhook_events=send_webhook_events,
+            fields=[],
+            dependant_fields=dependant_fields,
         )
 
         return row
@@ -2204,6 +2215,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             before_return=before_return,
             send_realtime_update=send_realtime_update,
             send_webhook_events=send_webhook_events,
+            fields=updated_fields,
+            dependant_fields=dependant_fields,
         )
 
     def update_dependencies_of_rows_deleted(self, table, row, model):
@@ -2265,7 +2278,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             triggered. Defaults to true.
         :param permanently_delete: If `true` the rows will be permanently deleted
             instead of trashed.
-        :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
         workspace = table.database.workspace
@@ -2275,8 +2287,46 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             workspace=workspace,
             context=table,
         )
+        return self.force_delete_rows(
+            user,
+            table,
+            row_ids,
+            model=model,
+            send_realtime_update=send_realtime_update,
+            send_webhook_events=send_webhook_events,
+            permanently_delete=permanently_delete,
+        )
 
-        if not model:
+    def force_delete_rows(
+        self,
+        user: AbstractUser,
+        table: Table,
+        row_ids: List[int],
+        model: Optional[Type[GeneratedTableModel]] = None,
+        send_realtime_update: bool = True,
+        send_webhook_events: bool = True,
+        permanently_delete: bool = False,
+    ) -> TrashedRows:
+        """
+        Trashes existing rows of the given table based on row_ids, without checking
+        user permissions.
+
+        :param user: The user of whose behalf the change is made.
+        :param table: The table for which the row must be deleted.
+        :param row_ids: The ids of the rows that must be deleted.
+        :param model: If the correct model has already been generated, it can be
+            provided so that it does not have to be generated for a second time.
+         :param send_realtime_update: If set to false then it is up to the caller to
+            send the rows_created or similar signal. Defaults to True.
+        :param send_webhook_events: If set the false then the webhooks will not be
+            triggered. Defaults to true.
+        :param permanently_delete: If `true` the rows will be permanently deleted
+            instead of trashed.
+        :raises RowDoesNotExist: When the row with the provided id does not exist.
+        """
+
+        workspace = table.database.workspace
+        if model is None:
             model = table.get_model()
 
         non_unique_ids = get_non_unique_values(row_ids)
@@ -2310,9 +2360,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
             TrashHandler.trash(user, workspace, table.database, trashed_rows)
 
-        rows_deleted_counter.add(
-            len(row_ids),
-        )
+        rows_deleted_counter.add(len(row_ids))
 
         updated_field_ids = []
         updated_fields = []
@@ -2359,6 +2407,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             before_return=before_return,
             send_realtime_update=send_realtime_update,
             send_webhook_events=send_webhook_events,
+            fields=updated_fields,
+            dependant_fields=dependant_fields,
         )
 
         return trashed_rows

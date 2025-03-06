@@ -131,6 +131,7 @@
       :database="database"
       :table="table"
       :fields="fields"
+      :views="views"
     />
   </Context>
 </template>
@@ -163,6 +164,10 @@ export default {
     },
     table: {
       type: Object,
+      required: true,
+    },
+    views: {
+      type: Array,
       required: true,
     },
   },

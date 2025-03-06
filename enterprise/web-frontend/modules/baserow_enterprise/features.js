@@ -8,6 +8,7 @@ const EnterpriseFeatures = {
   DATA_SYNC: 'DATA_SYNC',
   CHART_WIDGET: 'CHART_WIDGET',
   BUILDER_SSO: 'BUILDER_SSO',
+  ADVANCED_WEBHOOKS: 'ADVANCED_WEBHOOKS',
 }
 
 export default EnterpriseFeatures

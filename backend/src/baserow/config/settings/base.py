@@ -985,6 +985,13 @@ BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK = (
 # unlimited batches (use with caution).
 BASEROW_WEBHOOKS_BATCH_LIMIT = int(os.getenv("BASEROW_WEBHOOKS_BATCH_LIMIT", 10))
 
+# The number of rows that can be sent in a single webhook call. This is used to
+# prevent the webhook call from being too large and potentially causing issues
+# while serializing the data or sending it over the network to the webhook endpoint.
+BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE = int(
+    os.getenv("BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE", BATCH_ROWS_SIZE_LIMIT)
+)
+
 # ======== WARNING ========
 # Please read and understand everything at:
 # https://docs.djangoproject.com/en/3.2/ref/settings/#secure-proxy-ssl-header
