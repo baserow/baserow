@@ -22,6 +22,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import DEFAULT_DB_ALIAS, connection, transaction
 from django.db.models import ForeignKey, ManyToManyField, Max, Model, Prefetch, QuerySet
 from django.db.models.functions import Collate
+from django.db.models.query import ModelIterable
 from django.db.models.sql.query import LOOKUP_SEP
 from django.db.transaction import Atomic, get_connection
 
@@ -470,6 +471,7 @@ class MultiFieldPrefetchQuerysetMixin(Generic[ModelInstance]):
         if (
             self._multi_field_prefetch_related_funcs
             and not self._multi_field_prefetch_done
+            and issubclass(self._iterable_class, ModelIterable)
         ):
             for f in self._multi_field_prefetch_related_funcs:
                 f(self, self._result_cache)
