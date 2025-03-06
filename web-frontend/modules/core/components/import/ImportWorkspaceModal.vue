@@ -284,7 +284,6 @@ export default {
         const { data: job } = await ImportWorkspaceService(
           this.$client
         ).triggerImport(this.workspace.id, this.resourceId)
-        this.job = job
         await this.createAndMonitorJob(job)
       } catch (error) {
         this.importing = false
