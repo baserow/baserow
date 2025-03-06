@@ -74,8 +74,8 @@ export default {
         this.dataSource.schema.properties
       ).find((item) => item.metadata?.primary === true)
       const labels = this.result.map((item) => {
-        if (item[`field_${groupByFieldId}`]) {
-          return item[`field_${groupByFieldId}`]
+        if (item[`field_${groupByFieldId}`] !== undefined) {
+          return item[`field_${groupByFieldId}`] ?? ''
         }
         return item[`field_${primaryField.metadata.id}`]
       })
