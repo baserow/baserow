@@ -11,6 +11,8 @@
     <span class="chart__no-data-dashed-line"></span>
     <span class="chart__no-data-dashed-line"></span>
     <span class="chart__no-data-dashed-line"></span>
+    <span class="chart__no-data-dashed-line"></span>
+    <span class="chart__no-data-dashed-line"></span>
     <span class="chart__no-data-plain-line"></span>
   </div>
 </template>

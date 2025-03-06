@@ -5,9 +5,14 @@
         <div class="widget__header-title-wrapper">
           <div class="widget__header-title">{{ widget.title }}</div>
 
-          <Badge v-if="dataSourceMisconfigured" color="red" indicator rounded>{{
-            $t('widget.fixConfiguration')
-          }}</Badge>
+          <Badge
+            v-if="dataSourceMisconfigured"
+            color="red"
+            size="small"
+            indicator
+            rounded
+            >{{ $t('widget.fixConfiguration') }}</Badge
+          >
         </div>
         <div v-if="widget.description" class="widget__header-description">
           {{ widget.description }}
