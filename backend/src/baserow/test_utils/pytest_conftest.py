@@ -913,7 +913,7 @@ def baserow_db_setup(django_db_setup, django_db_blocker):
     functions are not needed or if you want to run all migrations.
     """
 
-    if django_settings.BASEROW_TESTS_SETUP_DB_FIXTURE is False:
+    if getattr(django_settings, "BASEROW_TESTS_SETUP_DB_FIXTURE", False) is False:
         return
 
     def init_link_row_sequence():
