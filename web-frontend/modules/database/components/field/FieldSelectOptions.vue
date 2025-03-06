@@ -84,13 +84,11 @@ export default {
   },
   watch: {
     value: {
+      immediate: true,
       handler(newVal) {
         this.values.value = newVal
       },
     },
-  },
-  created() {
-    this.values.value = this.value
   },
   methods: {
     remove(index) {
