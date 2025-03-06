@@ -47,6 +47,7 @@ class FileWriter(abc.ABC):
         self,
         queryset: QuerySet,
         write_row: Callable[[Any, bool], None],
+        progress_weight: int,
     ):
         """
         A specialized method which knows how to write an entire queryset to the file
@@ -54,6 +55,7 @@ class FileWriter(abc.ABC):
         :param queryset: The queryset to write to the file.
         :param write_row: A callable function which takes each row from the queryset in
             turn and writes to the file.
+        :param progress_weight: The weight of the progress of the job.
         """
 
     def get_csv_dict_writer(self, headers, **kwargs):
@@ -95,23 +97,22 @@ class PaginatedExportJobFileWriter(FileWriter):
         :param queryset: The queryset to write to the file.
         :param write_row: A callable function which takes each row from the queryset in
             turn and writes to the file.
+        :param progress_weight: The weight of the progress of the job.
         """
 
         self.update_check()
         paginator = Paginator(queryset.all(), 2000)
         i = 0
-        result = []
+        results = []
         for page in paginator.page_range:
             for row in paginator.page(page).object_list:
                 i = i + 1
                 is_last_row = i == paginator.count
                 result = write_row(row, is_last_row)
-                if isinstance(result, list):
-                    result.extend(result)
-                elif result is not None:
-                    result.append(result)
+                if result is not None:
+                    results.append(result)
                 self._check_and_update_job(i, paginator.count, progress_weight)
-        return result
+        return results
 
     def _check_and_update_job(self, current_row, total_rows, progress_weight=100):
         """

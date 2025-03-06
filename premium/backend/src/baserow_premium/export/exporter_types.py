@@ -270,9 +270,9 @@ class FileQuerysetSerializer(QuerysetSerializer):
         progress = 0
 
         def write_row(row, is_last):
-            file_data = []
-
+            file_data = {}
             row_folder = f"row_{row.id}/" if organize_files else ""
+
             for file_field_data in file_fields:
                 file_field = file_field_data["type"]
 
@@ -286,16 +286,16 @@ class FileQuerysetSerializer(QuerysetSerializer):
                     storage,
                     row_folder,
                 )
-                file_data.extend(file_serialized_data)
+                for file in file_serialized_data:
+                    file_data[file["name"]] = file["size"]
             return file_data
 
         # processing rows is 15% of total progress
         processed_files = file_writer.write_rows(
             self.queryset, write_row, progress_weight=15
         )
-
-        items = {item["name"]: item["size"] for item in processed_files}
-        total_size = sum(items.values()) or 1
+        unique_files = {key: value for d in processed_files for key, value in d.items()}
+        total_size = sum(unique_files.values()) or 1
 
         # 85% for writing chunks
         for chunk in zip_file:
