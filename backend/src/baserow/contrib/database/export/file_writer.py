@@ -47,6 +47,7 @@ class FileWriter(abc.ABC):
         self,
         queryset: QuerySet,
         write_row: Callable[[Any, bool], None],
+        progress_weight: int,
     ):
         """
         A specialized method which knows how to write an entire queryset to the file
@@ -54,6 +55,10 @@ class FileWriter(abc.ABC):
         :param queryset: The queryset to write to the file.
         :param write_row: A callable function which takes each row from the queryset in
             turn and writes to the file.
+        :param progress_weight: Indicates how much of the progress should count for
+            writing the rows in total. This can be used to reduce the total
+            percentage if there is some post-processing after writing to the rows
+            that must use some of the progress.
         """
 
     def get_csv_dict_writer(self, headers, **kwargs):
@@ -74,13 +79,16 @@ class PaginatedExportJobFileWriter(FileWriter):
         self.job = job
         self.last_check = None
 
+    def update_check(self):
+        self.last_check = time.perf_counter()
+
     def write_bytes(self, value: bytes):
         self._file.write(value)
 
     def write(self, value: str, encoding="utf-8"):
         self._file.write(value.encode(encoding))
 
-    def write_rows(self, queryset, write_row):
+    def write_rows(self, queryset, write_row, progress_weight=100):
         """
         Writes the queryset to the file using the provided write_row callback.
         Every EXPORT_JOB_UPDATE_FREQUENCY_SECONDS will check if the job has been
@@ -92,19 +100,27 @@ class PaginatedExportJobFileWriter(FileWriter):
         :param queryset: The queryset to write to the file.
         :param write_row: A callable function which takes each row from the queryset in
             turn and writes to the file.
+        :param progress_weight: Indicates how much of the progress should count for
+            writing the rows in total. This can be used to reduce the total
+            percentage if there is some post-processing after writing to the rows
+            that must use some of the progress.
         """
 
-        self.last_check = time.perf_counter()
+        self.update_check()
         paginator = Paginator(queryset.all(), 2000)
         i = 0
+        results = []
         for page in paginator.page_range:
             for row in paginator.page(page).object_list:
                 i = i + 1
                 is_last_row = i == paginator.count
-                write_row(row, is_last_row)
-                self._check_and_update_job(i, paginator.count)
+                result = write_row(row, is_last_row)
+                if result is not None:
+                    results.append(result)
+                self._check_and_update_job(i, paginator.count, progress_weight)
+        return results
 
-    def _check_and_update_job(self, current_row, total_rows):
+    def _check_and_update_job(self, current_row, total_rows, progress_weight=100):
         """
         Checks if enough time has passed and if so checks the state of the job and
         updates its progress percentage.
@@ -124,12 +140,17 @@ class PaginatedExportJobFileWriter(FileWriter):
         )
         is_last_row = current_row == total_rows
         if enough_time_has_passed or is_last_row:
-            self.last_check = time.perf_counter()
+            self.update_check()
             self.job.refresh_from_db()
             if self.job.is_cancelled_or_expired():
                 raise ExportJobCanceledException()
             else:
-                self.job.progress_percentage = current_row / total_rows * 100
+                # min is used here because in case of files we get total size from
+                # files, but for progress measurement we use size of chunks that might
+                # be slightly bigger than the total size of the files
+                self.job.progress_percentage = min(
+                    current_row / total_rows * progress_weight, 100
+                )
                 self.job.save()
 
 
@@ -144,6 +165,7 @@ class QuerysetSerializer(abc.ABC):
     def __init__(self, queryset, ordered_field_objects):
         self.queryset = queryset
         self.field_serializers = [lambda row: ("id", "id", row.id)]
+        self.ordered_field_objects = ordered_field_objects
 
         for field_object in ordered_field_objects:
             self.field_serializers.append(self._get_field_serializer(field_object))

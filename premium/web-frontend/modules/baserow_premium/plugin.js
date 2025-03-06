@@ -3,6 +3,7 @@ import {
   JSONTableExporter,
   XMLTableExporter,
   ExcelTableExporterType,
+  FileTableExporter,
 } from '@baserow_premium/tableExporterTypes'
 import { LicensesAdminType } from '@baserow_premium/adminTypes'
 import rowCommentsStore from '@baserow_premium/store/row_comments'
@@ -103,6 +104,7 @@ export default (context) => {
   app.$registry.register('exporter', new JSONTableExporter(context))
   app.$registry.register('exporter', new XMLTableExporter(context))
   app.$registry.register('exporter', new ExcelTableExporterType(context))
+  app.$registry.register('exporter', new FileTableExporter(context))
   app.$registry.register('field', new AIFieldType(context))
   app.$registry.register('field', new PremiumFormulaFieldType(context))
   app.$registry.register('view', new KanbanViewType(context))

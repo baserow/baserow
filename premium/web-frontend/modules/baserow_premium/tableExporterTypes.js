@@ -5,6 +5,7 @@ import TableXMLExporter from '@baserow_premium/components/exporter/TableXMLExpor
 import PremiumModal from '@baserow_premium/components/PremiumModal'
 import PremiumFeatures from '@baserow_premium/features'
 import TableExcelExporter from '@baserow_premium/components/exporter/TableExcelExporter'
+import TableFileExporter from '@baserow_premium/components/exporter/TableFileExporter'
 
 class PremiumTableExporterType extends TableExporterType {
   getDeactivatedText() {
@@ -99,6 +100,37 @@ export class ExcelTableExporterType extends PremiumTableExporterType {
 
   getFormComponent() {
     return TableExcelExporter
+  }
+
+  getCanExportTable() {
+    return true
+  }
+
+  getSupportedViews() {
+    return [GridViewType.getType()]
+  }
+}
+
+export class FileTableExporter extends PremiumTableExporterType {
+  static getType() {
+    return 'file'
+  }
+
+  getFileExtension() {
+    return 'zip'
+  }
+
+  getIconClass() {
+    return 'baserow-icon-file-code'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('premium.exporterType.file')
+  }
+
+  getFormComponent() {
+    return TableFileExporter
   }
 
   getCanExportTable() {

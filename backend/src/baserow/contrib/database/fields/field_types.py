@@ -93,7 +93,6 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_NOT_IN_TABLE,
 )
 from baserow.contrib.database.db.functions import RandomUUID
-from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
 from baserow.contrib.database.fields.filter_support.formula import (
     FormulaFieldTypeArrayFilterSupport,
 )
@@ -143,7 +142,6 @@ from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
-from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
@@ -190,6 +188,7 @@ from .field_filters import (
     filename_contains_filter,
     parse_ids_from_csv_string,
 )
+from .field_helpers import prepare_files_for_export
 from .field_sortings import OptionallyAnnotatedOrderBy
 from .fields import BaserowExpressionField, BaserowLastModifiedField
 from .fields import DurationField as DurationModelField
@@ -3729,43 +3728,15 @@ class FileFieldType(FieldType):
         cache: Dict[str, Any],
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
+        name_prefix: str = "",
     ) -> List[Dict[str, Any]]:
-        file_names = []
-        user_file_handler = UserFileHandler()
-
-        for file in self.get_internal_value_from_db(row, field_name):
-            # Check if the user file object is already in the cache and if not,
-            # it must be fetched and added to it.
-            cache_entry = f"user_file_{file['name']}"
-            if cache_entry not in cache:
-                if files_zip is not None and file["name"] not in [
-                    item["name"] for item in files_zip.info_list()
-                ]:
-                    file_path = user_file_handler.user_file_path(file["name"])
-                    # Create chunk generator for the file content and add it to the zip
-                    # stream. That file will be read when zip stream is being
-                    # written to final zip file
-                    chunk_generator = file_chunk_generator(storage, file_path)
-                    files_zip.add(chunk_generator, file["name"])
-
-                # This is just used to avoid writing the same file twice.
-                cache[cache_entry] = True
-
-            if files_zip is None:
-                # If the zip file is `None`, it means we're duplicating this row. To
-                # avoid unnecessary queries, we jump add the complete file, and will
-                # use that during import instead of fetching the user file object.
-                file_names.append(file)
-            else:
-                file_names.append(
-                    DatabaseExportSerializedStructure.file_field_value(
-                        name=file["name"],
-                        visible_name=file["visible_name"],
-                        original_name=file["name"],
-                    )
-                )
-
-        return file_names
+        return prepare_files_for_export(
+            self.get_internal_value_from_db(row, field_name),
+            cache,
+            files_zip,
+            storage,
+            name_prefix,
+        )
 
     def set_import_serialized_value(
         self,

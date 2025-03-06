@@ -2,19 +2,24 @@ import json
 from collections import OrderedDict
 from typing import List, Optional, Type
 
+import zipstream
 from baserow_premium.license.handler import LicenseHandler
 from openpyxl import Workbook
 
+from baserow.config.settings.base import BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL
 from baserow.contrib.database.api.export.serializers import (
     BaseExporterOptionsSerializer,
 )
 from baserow.contrib.database.export.file_writer import FileWriter, QuerysetSerializer
 from baserow.contrib.database.export.registries import TableExporter
 from baserow.contrib.database.export.utils import view_is_publicly_exportable
+from baserow.contrib.database.fields.field_helpers import prepare_files_for_export
+from baserow.contrib.database.fields.field_types import FileFieldType
 from baserow.contrib.database.views.view_types import GridViewType
+from baserow.core.storage import ExportZipFile, get_default_storage
 
 from ..license.features import PREMIUM
-from .serializers import ExcelExporterOptionsSerializer
+from .serializers import ExcelExporterOptionsSerializer, FileExporterOptionsSerializer
 from .utils import get_unique_name, safe_xml_tag_name, to_xml
 
 
@@ -225,3 +230,100 @@ class ExcelTableExporter(PremiumTableExporter):
     @property
     def queryset_serializer_class(self):
         return ExcelQuerysetSerializer
+
+
+class FileQuerysetSerializer(QuerysetSerializer):
+    can_handle_rich_value = True
+
+    def write_to_file(
+        self,
+        file_writer: FileWriter,
+        export_charset: str = "utf-8",
+        organize_files: bool = True,
+    ):
+        """
+        Writes files from the queryset to a zip archive. Will create a directory
+        structure based on field names and include all files found in the rows.
+
+        :param file_writer: The FileWriter instance to write to.
+        :param export_charset: The charset to use for writing metadata.
+        :param organize_files: Whether or not to group files by row id in the export
+        """
+
+        file_writer.update_check()
+
+        storage = get_default_storage()
+        field_serializers = []
+
+        zip_file = ExportZipFile(
+            compress_level=BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
+            compress_type=zipstream.ZIP_DEFLATED,
+        )
+
+        file_fields = []
+        # Get list of file-type fields
+        for field_object in self.ordered_field_objects:
+            if isinstance(field_object["type"], FileFieldType):
+                file_fields.append(field_object)
+                field_serializers.append(self._get_field_serializer(field_object))
+
+        progress = 0
+
+        def write_row(row, is_last):
+            file_data = {}
+            row_folder = f"row_{row.id}/" if organize_files else ""
+
+            for file_field_data in file_fields:
+                file_field = file_field_data["type"]
+
+                records = file_field.get_internal_value_from_db(
+                    row, file_field_data["name"]
+                )
+                file_serialized_data = prepare_files_for_export(
+                    records,
+                    {},
+                    zip_file,
+                    storage,
+                    row_folder,
+                )
+                for file in file_serialized_data:
+                    file_data[file["name"]] = file["size"]
+            return file_data
+
+        # processing rows is 15% of total progress
+        processed_files = file_writer.write_rows(
+            self.queryset, write_row, progress_weight=15
+        )
+        unique_files = {key: value for d in processed_files for key, value in d.items()}
+        total_size = sum(unique_files.values()) or 1
+
+        # 85% for writing chunks
+        for chunk in zip_file:
+            size = len(chunk)
+            progress += size / total_size * 85
+            file_writer._file.write(chunk)
+            file_writer._check_and_update_job(15 + progress, 100)
+
+
+class FileTableExporter(PremiumTableExporter):
+    type = "file"
+
+    @property
+    def option_serializer_class(self) -> Type[BaseExporterOptionsSerializer]:
+        return FileExporterOptionsSerializer
+
+    @property
+    def can_export_table(self) -> bool:
+        return True
+
+    @property
+    def supported_views(self) -> List[str]:
+        return [GridViewType.type]
+
+    @property
+    def file_extension(self) -> str:
+        return ".zip"
+
+    @property
+    def queryset_serializer_class(self):
+        return FileQuerysetSerializer
