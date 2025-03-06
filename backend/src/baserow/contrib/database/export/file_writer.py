@@ -55,7 +55,10 @@ class FileWriter(abc.ABC):
         :param queryset: The queryset to write to the file.
         :param write_row: A callable function which takes each row from the queryset in
             turn and writes to the file.
-        :param progress_weight: The weight of the progress of the job.
+        :param progress_weight: Indicates how much of the progress should count for
+            writing the rows in total. This can be used to reduce the total
+            percentage if there is some post-processing after writing to the rows
+            that must use some of the progress.
         """
 
     def get_csv_dict_writer(self, headers, **kwargs):
@@ -97,7 +100,10 @@ class PaginatedExportJobFileWriter(FileWriter):
         :param queryset: The queryset to write to the file.
         :param write_row: A callable function which takes each row from the queryset in
             turn and writes to the file.
-        :param progress_weight: The weight of the progress of the job.
+        :param progress_weight: Indicates how much of the progress should count for
+            writing the rows in total. This can be used to reduce the total
+            percentage if there is some post-processing after writing to the rows
+            that must use some of the progress.
         """
 
         self.update_check()
