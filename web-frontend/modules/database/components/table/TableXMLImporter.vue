@@ -27,7 +27,7 @@
         </div>
       </template>
       <div class="control__elements">
-        <div class="file-upload">
+        <div class="file-upload margin-top-1">
           <input
             v-show="false"
             ref="file"

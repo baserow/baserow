@@ -35,6 +35,7 @@ from baserow.contrib.database.table.exceptions import (
 from baserow.core.action.registries import action_type_registry
 from baserow.core.jobs.registries import JobType
 
+from ..rows.constants import DataImportDict
 from .models import FileImportJob
 from .serializers import ReportSerializer
 
@@ -91,6 +92,7 @@ class FileImportJobType(JobType):
 
         filtered_dict = dict(**values)
         filtered_dict.pop("data")
+        filtered_dict.pop("configuration", None)
         return filtered_dict
 
     def after_job_creation(self, job, values):
@@ -99,7 +101,10 @@ class FileImportJobType(JobType):
         """
 
         data_file = ContentFile(
-            json.dumps(values["data"], ensure_ascii=False).encode("utf8")
+            json.dumps(
+                {"data": values["data"], "configuration": values.get("configuration")},
+                ensure_ascii=False,
+            ).encode("utf8")
         )
         job.data_file.save(None, data_file)
 
@@ -154,8 +159,7 @@ class FileImportJobType(JobType):
         """
 
         with job.data_file.open("r") as fin:
-            data = json.load(fin)
-
+            data: DataImportDict = json.load(fin)
         try:
             if job.table is None:
                 new_table, error_report = action_type_registry.get_by_type(
@@ -164,7 +168,7 @@ class FileImportJobType(JobType):
                     job.user,
                     job.database,
                     name=job.name,
-                    data=data,
+                    data=data["data"],
                     first_row_header=job.first_row_header,
                     progress=progress,
                 )
@@ -186,7 +190,7 @@ class FileImportJobType(JobType):
         except ReportMaxErrorCountExceeded as err:
             self.cleanup_job(job, err.report)
             raise
-        except Exception:
+        except Exception as err:
             raise
 
         def after_commit():

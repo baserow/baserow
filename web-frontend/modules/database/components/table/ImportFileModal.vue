@@ -464,9 +464,14 @@ export default {
       this.showProgressBar = false
       this.reset(false)
       let data = null
-      // at the moment we use only one field, but the key may be composed of several
-      // fields.
-      const upsert = this.upsertField ? { fields: [this.upsertField] } : null
+      const importConfiguration = {}
+
+      if (this.upsertField) {
+        // at the moment we use only one field, but the key may be composed of several
+        // fields.
+        importConfiguration.upsert_fields = [this.upsertField]
+        importConfiguration.upsert_values = []
+      }
 
       if (typeof this.getData === 'function') {
         try {
@@ -475,6 +480,17 @@ export default {
           await this.$ensureRender()
 
           data = await this.getData()
+          const upsertFields = importConfiguration.upsert_fields || []
+          const upsertValues = importConfiguration.upsert_values || []
+          const upsertFieldIndexes = []
+
+          Object.entries(this.mapping).forEach(
+            ([importIndex, targetFieldId]) => {
+              if (upsertFields.includes(targetFieldId)) {
+                upsertFieldIndexes.push(importIndex)
+              }
+            }
+          )
 
           const fieldMapping = Object.entries(this.mapping)
             .filter(
@@ -507,22 +523,41 @@ export default {
 
           // Processes the data by chunk to avoid UI freezes
           const result = []
+
           for (const chunk of _.chunk(data, 1000)) {
             result.push(
               chunk.map((row) => {
                 const newRow = clone(defaultRow)
+                const upsertRow = []
                 fieldMapping.forEach(([importIndex, targetIndex]) => {
                   newRow[targetIndex] = prepareValueByField[targetIndex](
                     row[importIndex]
                   )
+                  if (upsertFieldIndexes.includes(importIndex)) {
+                    upsertRow.push(newRow[targetIndex])
+                  }
                 })
 
+                if (upsertFields.length > 0 && upsertRow.length > 0) {
+                  if (upsertFields.length !== upsertRow.length) {
+                    throw new Error(
+                      "upsert row length doesn't match required fields"
+                    )
+                  }
+                  upsertValues.push(upsertRow)
+                }
                 return newRow
               })
             )
             await this.$ensureRender()
           }
           data = result.flat()
+          if (upsertFields.length > 0) {
+            if (upsertValues.length !== data.length) {
+              throw new Error('upsert values lenght mismatch')
+            }
+            importConfiguration.upsert_values = upsertValues
+          }
         } catch (error) {
           this.reset()
           this.handleError(error, 'application')
@@ -545,7 +580,7 @@ export default {
           {
             onUploadProgress,
           },
-          upsert
+          importConfiguration.upsert_fields ? importConfiguration : null
         )
         this.startJobPoller(job)
       } catch (error) {

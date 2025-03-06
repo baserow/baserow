@@ -1,11 +1,50 @@
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.database.api.data_sync.serializers import DataSyncSerializer
 from baserow.contrib.database.table.models import Table
 
 
-class UpsertConfiguration(serializers.Serializer):
-    fields = serializers.ListField(child=serializers.IntegerField(min_value=1), allow_null=False, allow_empty=False)
+class TableImportConfiguration(serializers.Serializer):
+    upsert_fields = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        min_length=1,
+        allow_null=True,
+        allow_empty=True,
+        default=None,
+        help_text=(
+            (
+                "A list of field ids in the table, that should"
+                " be used to create a value identifying a row."
+            )
+        ),
+    )
+    upsert_values = serializers.ListField(
+        allow_empty=True,
+        allow_null=True,
+        default=None,
+        child=serializers.ListField(
+            min_length=1,
+            help_text=(
+                (
+                    "A list of list of values that are "
+                    "indentifying a row in imported data."
+                )
+            ),
+        ),
+    )
+
+    def validate(self, attrs):
+        if attrs.get("upsert_fields") and not len(attrs.get("upsert_values") or []):
+            raise ValidationError(
+                {
+                    "upsert_value": (
+                        "upsert_values must not be empty "
+                        "when upsert_fields are provided."
+                    )
+                }
+            )
+        return attrs
 
 
 class TableSerializer(serializers.ModelSerializer):
@@ -78,7 +117,7 @@ class TableImportSerializer(serializers.Serializer):
             "for adding two rows to a table with two writable fields."
         ),
     )
-    upsert = UpsertConfiguration(required=False, write_only=True, default=None)
+    configuration = TableImportConfiguration(required=False, default=None)
 
     class Meta:
         fields = ("data",)

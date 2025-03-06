@@ -1,6 +1,8 @@
 from collections import defaultdict
 from copy import deepcopy
 from decimal import Decimal
+from functools import cached_property
+from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -17,6 +19,7 @@ from typing import (
     cast,
 )
 
+from django import db
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
@@ -26,6 +29,7 @@ from django.db.models.fields.related import ForeignKey, ManyToManyField
 from django.db.models.functions import RowNumber
 from django.utils.encoding import force_str
 
+from celery.utils import chunks
 from opentelemetry import metrics, trace
 
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
@@ -60,7 +64,7 @@ from ..table.constants import (
     LAST_MODIFIED_BY_COLUMN_NAME,
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
 )
-from .constants import ROW_IMPORT_CREATION, ROW_IMPORT_VALIDATION
+from .constants import ROW_IMPORT_CREATION, ROW_IMPORT_VALIDATION, DataImportDict
 from .error_report import RowErrorReport
 from .exceptions import RowDoesNotExist, RowIdsNotUnique
 from .operations import (
@@ -79,7 +83,10 @@ from .signals import (
 )
 
 if TYPE_CHECKING:
+    from django.db.backends.utils import CursorWrapper
+
     from baserow.contrib.database.fields.models import Field
+    from baserow.contrib.database.views.models import View
 
 tracer = trace.get_tracer(__name__)
 
@@ -1088,7 +1095,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_webhook_events: bool = True,
         generate_error_report: bool = False,
         skip_search_update: bool = False,
-    ) -> List[GeneratedTableModel]:
+    ) -> List[GeneratedTableModel] | tuple[List[GeneratedTableModel], dict]:
         """
         Creates new rows for a given table without checking permissions. It also calls
         the rows_created signal.
@@ -1503,11 +1510,63 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         return all_created_rows, report
 
+    def update_rows_by_batch(
+        self,
+        user: AbstractUser,
+        table: Table,
+        rows: List[Dict[str, Any]],
+        progress: Optional[Progress] = None,
+        model: Optional[Type[GeneratedTableModel]] = None,
+    ) -> Tuple[List[GeneratedTableModel], Dict[str, Dict[str, Any]]]:
+        """
+        Creates rows by batch and generates an error report instead of failing on first
+        error.
+
+        :param user: The user of whose behalf the rows are created.
+        :param table: The table for which the rows should be created.
+        :param rows: List of rows values for rows that need to be created.
+        :param progress: Give a progress instance to track the progress of the import.
+        :param model: Optional model to prevent recomputing table model.
+        :return: The created rows and the error report.
+        """
+
+        if not rows:
+            return [], {}
+
+        if progress:
+            progress.increment(state=ROW_IMPORT_CREATION)
+
+        if model is None:
+            model = table.get_model()
+
+        report = {}
+        all_created_rows = []
+        for count, chunk in enumerate(grouper(BATCH_SIZE, rows)):
+            row_start_index = count * BATCH_SIZE
+            update_rows = self.update_rows(
+                user=user,
+                table=table,
+                model=model,
+                rows_values=chunk,
+                send_realtime_update=False,
+                send_webhook_events=False,
+                # Don't trigger loads of search updates for every batch of rows we
+                # create but instead a single one for this entire table at the end.
+                skip_search_update=True,
+            )
+
+            if progress:
+                progress.increment(len(chunk))
+
+        SearchHandler.field_value_updated_or_created(table)
+
+        return all_created_rows, report
+
     def import_rows(
         self,
         user: AbstractUser,
         table: Table,
-        data: List[List[Any]],
+        data: DataImportDict,
         validate: bool = True,
         progress: Optional[Progress] = None,
         send_realtime_update: bool = True,
@@ -1540,7 +1599,15 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             context=table,
         )
 
+        configuration = data.get("configuration") or {}
+        data = data["data"]
+
         error_report = RowErrorReport(data)
+        update_handler = ImportRowsMappingHandler(
+            table=table,
+            upsert_fields=configuration.get("upsert_fields") or [],
+            upsert_values=configuration.get("upsert_values") or [],
+        )
 
         model = table.get_model()
 
@@ -1578,41 +1645,75 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         # STEP 1: pre-validate data with serializer
         if validate:
             (
-                valid_rows,
-                original_row_index_mapping,
+                valid_rows_to_insert,
+                original_row_to_insert_index_mapping,
             ) = error_report.get_valid_rows_and_mapping()
 
             validation_sub_progress = (
-                progress.create_child(50, len(valid_rows)) if progress else None
+                progress.create_child(50, len(valid_rows_to_insert))
+                if progress
+                else None
             )
 
             validation_report = self.validate_rows(
-                table, valid_rows, progress=validation_sub_progress
+                table, valid_rows_to_insert, progress=validation_sub_progress
             )
 
             for index, error in validation_report.items():
-                error_report.add_error(original_row_index_mapping[int(index)], error)
+                error_report.add_error(
+                    original_row_to_insert_index_mapping[int(index)], error
+                )
 
         (
-            valid_rows,
-            original_row_index_mapping,
+            valid_rows_to_insert,
+            original_row_to_insert_index_mapping,
         ) = error_report.get_valid_rows_and_mapping()
 
         # STEP 2: create rows in DB
         creation_sub_progress = (
-            progress.create_child(50 if validate else 100, len(valid_rows))
+            progress.create_child(50 if validate else 100, len(valid_rows_to_insert))
             if progress
             else None
         )
 
+        # split rows to insert and update lists. If there's no upsert field selected,
+        # this will not populate to_update.
+        update_map = update_handler.process_map
+
+        to_insert = []
+        to_update = []
+        if update_map:
+            for current_idx, import_idx in original_row_to_insert_index_mapping.items():
+                row = valid_rows_to_insert[current_idx]
+                if update_idx := update_map.get(import_idx):
+                    row["id"] = update_idx
+                    to_update.append(row)
+                else:
+                    to_insert.append(row)
+        else:
+            to_insert = valid_rows_to_insert
+
         created_rows, creation_report = self.create_rows_by_batch(
-            user, table, valid_rows, progress=creation_sub_progress, model=model
+            user,
+            table,
+            to_insert,
+            progress=creation_sub_progress,
+            model=model,
         )
+
+        if to_update:
+            updated_rows, updated_report = self.update_rows_by_batch(
+                user,
+                table,
+                to_update,
+                progress=creation_sub_progress,
+                model=model,
+            )
 
         # Add errors to global report
         for index, error in creation_report.items():
             error_report.add_error(
-                original_row_index_mapping[int(index)],
+                original_row_to_insert_index_mapping[int(index)],
                 error,
             )
 
@@ -1684,7 +1785,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
         skip_search_update: bool = False,
-    ) -> UpdatedRowsWithOldValuesAndMetadata:
+        generate_error_report: bool = False,
+    ) -> (
+        UpdatedRowsWithOldValuesAndMetadata
+        | tuple[UpdatedRowsWithOldValuesAndMetadata, dict]
+    ):
         """
         Updates field values in batch based on provided rows with the new
         values.
@@ -1704,6 +1809,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param skip_search_update: If you want to instead trigger the search handler
             cells update later on after many create_rows calls then set this to True
             but make sure you trigger it eventually.
+        :param generate_error_report: When set to True the return
         :raises RowIdsNotUnique: When trying to update the same row multiple
             times.
         :raises RowDoesNotExist: When any of the rows don't exist.
@@ -1716,9 +1822,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         user_id = user and user.id
 
-        prepared_rows_values, _ = self.prepare_rows_in_bulk(
-            model._field_objects, rows_values
+        report = {}
+        prepared_rows_values, errors = self.prepare_rows_in_bulk(
+            model._field_objects,
+            rows_values,
+            generate_error_report=generate_error_report,
         )
+        report.update({index: err for index, err in errors.items()})
         row_ids = [r["id"] for r in prepared_rows_values]
 
         non_unique_ids = get_non_unique_values(row_ids)
@@ -1924,12 +2034,15 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
             updated_rows_to_return, updated_fields, fields_metadata_by_row_id
         )
-
-        return UpdatedRowsWithOldValuesAndMetadata(
+        updated_rows = UpdatedRowsWithOldValuesAndMetadata(
             updated_rows_to_return,
             original_row_values_by_id,
             fields_metadata_by_row_id,
         )
+        if generate_error_report:
+            return updated_rows, report
+
+        return updated_rows
 
     def update_rows(
         self,
@@ -1941,6 +2054,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
         skip_search_update: bool = False,
+        generate_error_report: bool = False,
     ) -> UpdatedRowsWithOldValuesAndMetadata:
         """
         Updates field values in batch based on provided rows with the new
@@ -1984,6 +2098,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_realtime_update,
             send_webhook_events,
             skip_search_update,
+            generate_error_report=generate_error_report,
         )
 
     def get_rows(
@@ -2436,3 +2551,126 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             self,
             table=table,
         )
+
+
+class ImportRowsMappingHandler:
+    """
+    Helper class to handle filtering rows that should be used to insert new data from
+    rows that should be used to update existing rows.
+
+    Usage:
+
+    >>> importrows = ImportRowsMappingHandler([1234],
+                                              [['a'], ['b',]],)
+    """
+
+    SEPARATOR: str = "__-__"
+    PER_CHUNK = 100
+
+    def __init__(
+        self, upsert_fields: list[int], upsert_values: list[list[Any]], table: Table
+    ):
+        self.table_name = table.get_database_table_name()
+        self.field_names = [f"field_{fidx}" for fidx in upsert_fields]
+        self.upsert_values = upsert_values
+
+    @cached_property
+    def process_map(self) -> dict[int, int]:
+        """
+        Calculates a map between import row indexes and table row ids.
+        :return:
+        """
+        # no upsert value fields, no need for mapping
+        if not self.field_names:
+            return {}
+
+        script_template = f"""
+        create temp table table_upsert_indexes (id int, upsert_value text, group_index int);
+
+        create temp table table_import (id int, upsert_value text);
+
+        create temp view table_import_indexes as
+                select id, upsert_value, rank()
+                        over (partition by upsert_value order by id, upsert_value )
+                        as group_index
+                from table_import order by id ;
+        """
+
+        self.execute(script_template)
+        self.insert_table_values()
+        self.insert_imported_values()
+        # this is just a list of pairs, not very usable.
+        calculated = self.calculate_map()
+
+        # map import row idx -> update row_id in table
+        return {r[1]: r[0] for r in calculated}
+
+    @cached_property
+    def cursor(self):
+        return db.connection.cursor()
+
+    def execute(self, query, *args, **kwargs) -> "CursorWrapper":
+        self.cursor.execute(query, *args, **kwargs)
+        return self.cursor
+
+    def insert_table_values(self):
+        columns = f" || {self.SEPARATOR} || ".join(
+            [f"coalesce({field}, '')" for field in self.field_names]
+        )
+        query = f"""with subq as (select r.id,  {columns} as upsert_value from {self.table_name} r where not trashed)
+
+                insert into table_upsert_indexes (id, upsert_value, group_index)
+                select id, upsert_value, rank()
+                        over (partition by upsert_value order by id, upsert_value )
+                        as group_index
+                from subq order by id """
+        self.execute(query)
+
+    def insert_imported_values(self):
+        def merge_values(row):
+            return self.SEPARATOR.join(
+                [str(val) if val is not None else "" for val in row]
+            )
+
+        for _chunk in chunks(enumerate(self.upsert_values), self.PER_CHUNK):
+            chunk = list(_chunk)
+            rows_to_add = list(
+                chain(*[[rowidx, merge_values(row)] for rowidx, row in chunk])
+            )
+            rows_placeholder = ",\n".join(["(%s, %s)" for _ in range(0, len(_chunk))])
+            script_template = f"""insert into table_import (id, upsert_value) values {rows_placeholder};"""
+            self.execute(script_template, rows_to_add)
+
+    def calculate_map(self) -> list[tuple[int, int]]:
+        q = """
+        select t.id, i.id
+            from table_upsert_indexes t
+            join table_import_indexes i
+                on (i.upsert_value = t.upsert_value
+                    and i.group_index = t.group_index);
+        """
+        return self.execute(q).fetchall()
+
+    #
+    # def get_processed_rows(self) -> tuple[list, list]:
+    #     """
+    #     :return:
+    #     """
+    #     upsert_map = self.process_map
+    #     to_insert = []
+    #     to_update = []
+    #     for rowidx, row in enumerate(self.import_rows):
+    #         table_row_id = upsert_map.get(rowidx)
+    #         if table_row_id is None:
+    #             to_insert.append(row)
+    #         else:
+    #             to_update.append(
+    #                 (
+    #                     table_row_id,
+    #                     row,
+    #                 )
+    #             )
+    #     return (
+    #         to_insert,
+    #         to_update,
+    #     )

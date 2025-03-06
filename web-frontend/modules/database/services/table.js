@@ -29,10 +29,15 @@ export default (client) => {
 
       return client.post(`/database/tables/database/${databaseId}/`, values)
     },
-    importData(tableId, data, config = null, upsert = null) {
+    importData(tableId, data, config = null, importConfiguration = null) {
+      const payload = { data }
+      if (importConfiguration) {
+        payload.configuration = importConfiguration
+      }
+
       return client.post(
         `/database/tables/${tableId}/import/async/`,
-        { data, upsert },
+        payload,
         config
       )
     },

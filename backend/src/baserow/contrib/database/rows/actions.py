@@ -10,6 +10,7 @@ from baserow.contrib.database.action.scopes import (
     TABLE_ACTION_CONTEXT,
     TableActionScopeType,
 )
+from baserow.contrib.database.rows.constants import DataImportDict
 from baserow.contrib.database.rows.exceptions import (
     CannotCreateRowsInTable,
     CannotDeleteRowsInTable,
@@ -244,7 +245,7 @@ class ImportRowsActionType(UndoableActionType):
         cls,
         user: AbstractUser,
         table: Table,
-        data=List[List[Any]],
+        data: DataImportDict,
         progress: Optional[Progress] = None,
     ) -> Tuple[List[GeneratedTableModel], Dict[str, Any]]:
         """
