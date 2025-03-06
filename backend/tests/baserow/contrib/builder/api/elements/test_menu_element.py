@@ -115,7 +115,7 @@ def test_create_menu_element(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_can_update_a_table_element_fields(api_client, menu_element_fixture):
+def test_can_update_menu_element_items(api_client, menu_element_fixture):
     menu_element = menu_element_fixture["menu_element"]
     token = menu_element_fixture["token"]
 

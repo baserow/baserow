@@ -9,6 +9,7 @@ from django.db.models import SET_NULL, QuerySet
 from baserow.contrib.builder.constants import (
     BACKGROUND_IMAGE_MODES,
     COLOR_FIELD_MAX_LENGTH,
+    HorizontalAlignments,
     VerticalAlignments,
 )
 from baserow.core.constants import DATE_FORMAT_CHOICES, DATE_TIME_FORMAT_CHOICES
@@ -1056,6 +1057,12 @@ class MenuElement(Element):
         max_length=10,
         default=ORIENTATIONS.HORIZONTAL,
         db_default=ORIENTATIONS.HORIZONTAL,
+    )
+
+    alignment = models.CharField(
+        choices=HorizontalAlignments.choices,
+        max_length=10,
+        default=HorizontalAlignments.LEFT,
     )
 
     menu_items = models.ManyToManyField(MenuItemElement)

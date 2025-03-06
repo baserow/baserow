@@ -51,6 +51,7 @@ from baserow.contrib.builder.elements.models import (
     FormContainerElement,
     HeaderElement,
     HeadingElement,
+    HorizontalAlignments,
     IFrameElement,
     ImageElement,
     InputTextElement,
@@ -1981,14 +1982,15 @@ class MenuElementType(ElementType):
 
     type = "menu"
     model_class = MenuElement
-    serializer_field_names = ["orientation", "menu_items"]
-    allowed_fields = ["orientation"]
+    serializer_field_names = ["orientation", "alignment", "menu_items"]
+    allowed_fields = ["orientation", "alignment"]
 
     serializer_mixins = [NestedMenuItemsMixin]
     request_serializer_mixins = []
 
     class SerializedDict(ElementDict):
         orientation: str
+        alignment: str
         menu_items: List[Dict]
 
     @property
@@ -1997,15 +1999,15 @@ class MenuElementType(ElementType):
             DynamicConfigBlockSerializer,
         )
         from baserow.contrib.builder.theme.theme_config_block_types import (
-            ButtonThemeConfigBlockType,
+            MenuThemeConfigBlockType,
         )
 
         overrides = {
             **super().serializer_field_overrides,
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="button",
-                theme_config_block_type_name=ButtonThemeConfigBlockType.type,
+                property_name="menu",
+                theme_config_block_type_name=MenuThemeConfigBlockType.type,
                 serializer_kwargs={"required": False},
             ),
         }
@@ -2138,7 +2140,10 @@ class MenuElementType(ElementType):
         super().after_update(instance, values, changes)
 
     def get_pytest_params(self, pytest_data_fixture):
-        return {"orientation": RepeatElement.ORIENTATIONS.VERTICAL}
+        return {
+            "orientation": RepeatElement.ORIENTATIONS.VERTICAL,
+            "alignment": HorizontalAlignments.LEFT,
+        }
 
     def deserialize_property(
         self,
@@ -2281,4 +2286,11 @@ class MenuElementType(ElementType):
                 new_formula = yield data["value"]
                 if new_formula is not None:
                     item.query_parameters[index]["value"] = new_formula
+                    yield item
+
+            for formula_field in NavigationElementManager.simple_formula_fields:
+                formula = getattr(item, formula_field, "")
+                new_formula = yield formula
+                if new_formula is not None:
+                    setattr(item, formula_field, new_formula)
                     yield item

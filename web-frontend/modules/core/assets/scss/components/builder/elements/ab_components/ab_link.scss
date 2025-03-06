@@ -11,4 +11,9 @@
     color: var(--link-hover-text-color, $black);
     text-decoration: var(--link-hover-text-decoration, underline);
   }
+
+  &--force-active {
+    color: var(--link-active-text-color, $black);
+    text-decoration: var(--link-active-text-decoration, underline);
+  }
 }

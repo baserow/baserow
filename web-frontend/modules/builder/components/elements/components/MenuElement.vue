@@ -1,21 +1,27 @@
 <template>
   <div
-    :style="getStyleOverride(element.variant)"
+    :style="{
+      '--alignment': menuAlignment,
+    }"
     :class="[
       'menu-element__container',
-      element.orientation === 'horizontal' ? 'horizontal' : 'vertical',
+      element.orientation === 'horizontal'
+        ? 'menu-element__container--horizontal'
+        : 'menu-element__container--vertical',
     ]"
   >
-    <div v-for="item in element.menu_items" :key="item.id">
-      <template v-if="item.type === 'separator'">
-        <div class="menu-element__menu-item-separator"></div>
-      </template>
-      <template v-else-if="item.type === 'link' && !item.parent_menu_item">
-        <div v-if="!item.children?.length">
+    <div
+      v-for="item in element.menu_items"
+      :key="item.id"
+      :class="`menu-element__menu-item-${item.type}`"
+    >
+      <template v-if="item.type === 'link' && !item.parent_menu_item">
+        <div v-if="!item.children?.length" :style="getStyleOverride('menu')">
           <ABLink
             :variant="item.variant"
             :url="getItemUrl(item)"
             :target="getMenuItem(item).target"
+            :force-active="menuItemIsActive(item)"
           >
             {{
               item.name
@@ -32,21 +38,27 @@
           ref="menuSubLinkContainer"
           @click="showSubMenu($event, item.id)"
         >
-          <div class="menu-element__sub-link-menu--container">
-            <a>{{ item.name }}</a>
-
-            <div class="menu-element__sub-link-menu--spacer"></div>
-
-            <div>
-              <i
-                class="menu-element__sub-link--expanded-icon"
-                :class="
-                  isExpanded(item.id)
-                    ? 'iconoir-nav-arrow-up'
-                    : 'iconoir-nav-arrow-down'
-                "
-              ></i>
-            </div>
+          <div :style="getStyleOverride('menu')">
+            <ABLink
+              :variant="item.variant"
+              url=""
+              :force-active="sublinkIsActive(item)"
+            >
+              <div class="menu-element__sub-link-menu--container">
+                {{ item.name }}
+                <div class="menu-element__sub-link-menu-spacer"></div>
+                <div>
+                  <i
+                    class="menu-element__sub-link--expanded-icon"
+                    :class="
+                      isExpanded(item.id)
+                        ? 'iconoir-nav-arrow-up'
+                        : 'iconoir-nav-arrow-down'
+                    "
+                  ></i>
+                </div>
+              </div>
+            </ABLink>
           </div>
 
           <Context
@@ -60,13 +72,14 @@
                 v-for="child in item.children"
                 :key="child.id"
                 class="menu-element__sub-links"
-                :style="getStyleOverride(child.variant)"
+                :style="getStyleOverride('menu')"
               >
                 <ABLink
                   :variant="child.variant"
                   :url="getItemUrl(child)"
                   :target="getMenuItem(child).target"
                   class="menu-element__sub-link"
+                  :force-active="menuItemIsActive(child)"
                 >
                   {{
                     child.name
@@ -83,7 +96,10 @@
         </div>
       </template>
       <template v-else-if="item.type === 'button'">
-        <ABButton @click="onButtonClick(item)">
+        <ABButton
+          :style="getStyleOverride('menu')"
+          @click="onButtonClick(item)"
+        >
           {{
             item.name
               ? item.name ||
@@ -103,9 +119,19 @@
 </template>
 
 <script>
+import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
 import element from '@baserow/modules/builder/mixins/element'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
+import { HORIZONTAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
+
+/**
+ * CSS classes to force a Link variant to appear as active.
+ */
+const LINK_ACTIVE_CLASSES = {
+  link: 'ab-link--force-active',
+  button: 'ab-button--force-active',
+}
 
 /**
  * @typedef MenuElement
@@ -125,6 +151,7 @@ export default {
   data() {
     return {
       expandedItems: {},
+      activeItem: {},
     }
   },
   computed: {
@@ -134,6 +161,42 @@ export default {
     menuElementType() {
       return this.$registry.get('element', 'menu')
     },
+    menuAlignment() {
+      const alignmentsCSS = {
+        [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
+        [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
+        [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
+      }
+      return alignmentsCSS[this.element.alignment]
+    },
+  },
+  mounted() {
+    /**
+     * If the current page matches a menu item, that menu item is set as the
+     * active item. This ensures that the active CSS style is applied to the
+     * correct menu item.
+     */
+    const found = resolveApplicationRoute(
+      this.pages,
+      this.$route.params.pathMatch
+    )
+
+    if (!found?.length) return
+
+    const currentPageId = found[0].id
+
+    for (const item of this.element.menu_items) {
+      if (!item.children.length && item.navigate_to_page_id === currentPageId) {
+        this.activeItem = item
+        break
+      }
+      for (const child of item.children) {
+        if (child.navigate_to_page_id === currentPageId) {
+          this.activeItem = child
+          break
+        }
+      }
+    }
   },
   methods: {
     showSubMenu(event, itemId) {
@@ -190,6 +253,21 @@ export default {
       this.fireEvent(
         this.menuElementType.getEventByName(this.element, eventName)
       )
+    },
+    menuItemIsActive(item) {
+      return this.activeItem?.uid === item.uid
+    },
+    getActiveParentClass(item) {
+      if (item.children?.some((child) => child.uid === this.activeItem?.uid))
+        return LINK_ACTIVE_CLASSES[item.variant] || ''
+
+      return ''
+    },
+    sublinkIsActive(item) {
+      if (item.children?.some((child) => child.uid === this.activeItem?.uid))
+        return true
+
+      return false
     },
   },
 }

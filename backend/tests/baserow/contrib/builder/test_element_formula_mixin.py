@@ -10,6 +10,7 @@ from baserow.contrib.builder.elements.element_types import (
     ImageElementType,
     InputTextElementType,
     LinkElementType,
+    MenuElementType,
     TableElementType,
     TextElementType,
 )
@@ -208,3 +209,54 @@ def test_table_element_formula_generator(data_fixture, formula_generator_fixture
         "label": "get('current_record.field_111')"
     }
     assert table_element.data_source_id == data_source.id
+
+
+@pytest.mark.django_db
+def test_menu_element_formula_generator(data_fixture, formula_generator_fixture):
+    """
+    Test the MenuElementType's formula_generator().
+
+    The MenuElement can have one or more MenuItemElements. The MenuItemElement
+    has several formula fields but doesn't have a distinct type of its own.
+    Therefore its formula_generator() is overridden and must be tested.
+    """
+
+    page = formula_generator_fixture["page"]
+    menu_element = data_fixture.create_builder_menu_element_items(
+        user=formula_generator_fixture["user"],
+        page=page,
+    )
+    menu_item = menu_element.menu_items.first()
+    menu_item.page_parameters = [
+        {
+            "name": "foo_param",
+            "value": formula_generator_fixture["formula_1"],
+        }
+    ]
+    menu_item.query_parameters = [
+        {
+            "name": "bar_query",
+            "value": formula_generator_fixture["formula_1"],
+        },
+    ]
+    menu_item.navigate_to_url = formula_generator_fixture["formula_1"]
+    menu_item.save()
+
+    serialized_element = MenuElementType().export_serialized(menu_element)
+
+    imported_element = MenuElementType().import_serialized(
+        formula_generator_fixture["page"],
+        serialized_element,
+        formula_generator_fixture["id_mapping"],
+    )
+
+    imported_menu_item = imported_element.menu_items.first()
+    assert (
+        imported_menu_item.page_parameters[0]["value"]
+        == formula_generator_fixture["formula_2"]
+    )
+    assert (
+        imported_menu_item.query_parameters[0]["value"]
+        == formula_generator_fixture["formula_2"]
+    )
+    assert imported_menu_item.navigate_to_url == formula_generator_fixture["formula_2"]

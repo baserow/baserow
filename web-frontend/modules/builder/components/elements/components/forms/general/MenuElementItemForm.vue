@@ -2,18 +2,14 @@
   <Expandable>
     <template #header="{ toggle, expanded }">
       <div
-        :class="
-          isStyle
-            ? 'menu-element__form--expandable-item-header-outline'
-            : 'menu-element__form--expandable-item-header'
-        "
+        class="menu-element-form__item-header"
+        :class="{
+          'menu-element-form__item-header--outline': isStyle,
+        }"
         @click.stop="!isStyle ? toggle() : null"
       >
-        <div
-          class="menu-element__form--expandable-item-handle"
-          data-sortable-handle
-        />
-        <div class="menu-element__form--expandable-item-name">
+        <div class="menu-element-form__item-handle" data-sortable-handle />
+        <div class="menu-element-form__item-name">
           <template v-if="values.type === 'separator'">
             {{ $t('menuElement.separator') }}
           </template>
@@ -24,11 +20,12 @@
             {{ values.name }}
           </template>
         </div>
+
         <template v-if="isStyle">
           <ButtonIcon
             size="small"
             icon="iconoir-bin"
-            @click="removeMenuItem()"
+            @click="removeMenuItem(values)"
           />
         </template>
         <template v-else>
@@ -41,33 +38,58 @@
       </div>
     </template>
     <template v-if="!isStyle" #default>
-      <div class="menu-element__form--expanded-item">
-        <FormGroup
-          small-label
-          horizontal
-          required
-          class="margin-bottom-2"
-          :label="$t('menuElementForm.menuItemLabelLabel')"
-          :error="fieldHasErrors('name')"
-        >
-          <FormInput
-            v-model="v$.values.name.$model"
-            :placeholder="$t('menuElementForm.namePlaceholder')"
+      <div
+        class="menu-element-form__item"
+        :class="{ 'menu-element-form__item-child': preventItemNesting }"
+      >
+        <div v-if="values.type === 'button'">
+          <FormGroup
+            small-label
+            horizontal
+            required
+            class="margin-bottom-2"
+            :label="$t('menuElementForm.menuItemLabelLabel')"
             :error="fieldHasErrors('name')"
-          />
-          <template #error>
-            {{ v$.values.name.$errors[0]?.$message }}
-          </template>
-          <template #after-input>
-            <ButtonIcon icon="iconoir-bin" @click="removeMenuItem()" />
-          </template>
-        </FormGroup>
-        <template v-if="values.type === 'button'">
+          >
+            <FormInput
+              v-model="v$.values.name.$model"
+              :placeholder="$t('menuElementForm.namePlaceholder')"
+              :error="fieldHasErrors('name')"
+            />
+            <template #error>
+              {{ v$.values.name.$errors[0]?.$message }}
+            </template>
+            <template #after-input>
+              <ButtonIcon icon="iconoir-bin" @click="removeMenuItem()" />
+            </template>
+          </FormGroup>
           <Alert type="info-neutral">
             <p>{{ $t('menuElementForm.eventDescription') }}</p>
           </Alert>
-        </template>
-        <template v-else>
+        </div>
+
+        <div v-else>
+          <FormGroup
+            small-label
+            horizontal
+            required
+            class="margin-bottom-2"
+            :label="$t('menuElementForm.menuItemLabelLabel')"
+            :error="fieldHasErrors('name')"
+          >
+            <FormInput
+              v-model="v$.values.name.$model"
+              :placeholder="$t('menuElementForm.namePlaceholder')"
+              :error="fieldHasErrors('name')"
+            />
+            <template #error>
+              {{ v$.values.name.$errors[0]?.$message }}
+            </template>
+            <template #after-input>
+              <ButtonIcon icon="iconoir-bin" @click="removeMenuItem()" />
+            </template>
+          </FormGroup>
+
           <FormGroup
             small-label
             horizontal
@@ -88,22 +110,36 @@
               />
             </Dropdown>
           </FormGroup>
+
           <LinkNavigationSelectionForm
             v-if="!values.children.length"
             :default-values="defaultValues"
             @values-changed="values = { ...values, ...$event }"
           />
-          <div v-for="child in values.children" :key="child.uid">
+          <div class="menu-element-item-form__children">
             <MenuElementItemForm
+              v-for="(child, index) in values.children"
+              :key="`${child.uid}-${index}`"
+              v-sortable="{
+                id: child.uid,
+                update: orderChildItems,
+                enabled: $hasPermission(
+                  'builder.page.element.update',
+                  element,
+                  workspace.id
+                ),
+                handle: '[data-sortable-handle]',
+              }"
               prevent-item-nesting
               :default-values="child"
               @remove-item="removeChildItem($event)"
               @values-changed="updateChildItem"
             ></MenuElementItemForm>
           </div>
+
           <div
             v-if="!preventItemNesting"
-            class="menu-element__add-sub-link-container"
+            class="menu-element-form__add-sub-link-container"
           >
             <ButtonText
               type="primary"
@@ -114,13 +150,14 @@
               {{ $t('menuElementForm.addSubLink') }}
             </ButtonText>
           </div>
-        </template>
+        </div>
       </div>
     </template>
   </Expandable>
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import LinkNavigationSelectionForm from '@baserow/modules/builder/components/elements/components/forms/general/LinkNavigationSelectionForm'
 import { useVuelidate } from '@vuelidate/core'
@@ -139,9 +176,9 @@ export default {
   mixins: [elementForm],
   props: {
     /**
-     * Controls whether ror not this menu item can nest other menu items.
-     * By default, this is allowed, but if we are already in a nested menu,
-     * item we should prevent further nesting.
+     * Controls whether this menu item can nest other menu items. This is
+     * allowed by default. Since we only allow one level of nesting for
+     * sublinks, this should be false when rendering sublinks.
      */
     preventItemNesting: {
       type: Boolean,
@@ -164,8 +201,14 @@ export default {
     }
   },
   computed: {
+    ...mapGetters({
+      getElementSelected: 'element/getSelected',
+    }),
     isStyle() {
       return ['separator', 'spacer'].includes(this.values.type)
+    },
+    element() {
+      return this.getElementSelected(this.builder)
     },
     menuItemVariants() {
       return [
@@ -222,6 +265,15 @@ export default {
         type: 'link',
         uid: uuid(),
       })
+    },
+    /**
+     * Responsible for sorting the child items of this menu item.
+     */
+    orderChildItems(newOrder) {
+      const itemsByUid = Object.fromEntries(
+        this.values.children.map((item) => [item.uid, item])
+      )
+      this.values.children = newOrder.map((uid) => itemsByUid[uid])
     },
   },
   validations() {

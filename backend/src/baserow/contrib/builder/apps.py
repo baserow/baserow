@@ -1,7 +1,5 @@
 from django.apps import AppConfig
 
-from baserow.core.feature_flags import FF_MENU_ELEMENT, feature_flag_is_enabled
-
 
 class BuilderConfig(AppConfig):
     name = "baserow.contrib.builder"
@@ -210,9 +208,7 @@ class BuilderConfig(AppConfig):
         element_type_registry.register(DateTimePickerElementType())
         element_type_registry.register(HeaderElementType())
         element_type_registry.register(FooterElementType())
-
-        if feature_flag_is_enabled(FF_MENU_ELEMENT):
-            element_type_registry.register(MenuElementType())
+        element_type_registry.register(MenuElementType())
 
         from .domains.domain_types import CustomDomainType, SubDomainType
         from .domains.registries import domain_type_registry
@@ -259,6 +255,7 @@ class BuilderConfig(AppConfig):
             ImageThemeConfigBlockType,
             InputThemeConfigBlockType,
             LinkThemeConfigBlockType,
+            MenuThemeConfigBlockType,
             PageThemeConfigBlockType,
             TableThemeConfigBlockType,
             TypographyThemeConfigBlockType,
@@ -272,6 +269,7 @@ class BuilderConfig(AppConfig):
         theme_config_block_registry.register(PageThemeConfigBlockType())
         theme_config_block_registry.register(InputThemeConfigBlockType())
         theme_config_block_registry.register(TableThemeConfigBlockType())
+        theme_config_block_registry.register(MenuThemeConfigBlockType())
 
         from .workflow_actions.registries import builder_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (

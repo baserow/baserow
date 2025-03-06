@@ -1,0 +1,84 @@
+/**
+ Menu Element Form styles.
+ */
+
+.menu-element-form__add-item-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.menu-element-form__add-item-context {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 10px;
+  padding: 10px;
+}
+
+%menu-element-form-expandable-item {
+  display: flex;
+  align-items: center;
+  margin: 5px 0;
+  user-select: none;
+  cursor: pointer;
+}
+
+.menu-element-form__item-header {
+  @extend %menu-element-form-expandable-item;
+
+  background-color: $palette-neutral-100;
+}
+
+.menu-element-form__item-error {
+  font-size: 20px;
+  color: #ffbdb4;
+  pointer-events: none;
+  padding-right: 3px;
+}
+
+.menu-element-form__item-name {
+  flex: 1;
+  padding-right: 5px;
+
+  @extend %ellipsis;
+}
+
+.menu-element-form__item-handle {
+  width: 8px;
+  height: 36px;
+  background-image: radial-gradient($color-neutral-200 40%, transparent 40%);
+  background-size: 4px 4px;
+  background-repeat: repeat;
+  margin: 2px;
+  margin-right: 12px;
+  cursor: grab;
+  visibility: hidden;
+
+  .menu-element-form__item-header:hover & {
+    visibility: visible;
+  }
+}
+
+.menu-element-form__item-header--outline {
+  @extend %menu-element-form-expandable-item;
+
+  background-color: $color-neutral-10;
+  border: 1px dashed $color-neutral-200;
+}
+
+.menu-element-form__item {
+  margin: 5px 10px;
+  width: 100%;
+}
+
+.menu-element-form__item-child {
+  margin-right: -10px;
+  width: calc(100% - 10px);
+}
+
+.menu-element-form__add-sub-link-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-left: 15px;
+}

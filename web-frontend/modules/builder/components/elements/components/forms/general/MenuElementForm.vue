@@ -1,5 +1,12 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
+    <CustomStyle
+      v-model="values.styles"
+      style-key="menu"
+      :config-block-types="['button', 'link']"
+      :theme="builder.theme"
+      :extra-args="{ noAlignment: true, noWidth: true }"
+    />
     <FormGroup
       :label="$t('orientations.label')"
       small-label
@@ -13,9 +20,20 @@
       >
       </RadioGroup>
     </FormGroup>
+
+    <FormGroup
+      v-if="values.orientation === ORIENTATIONS.HORIZONTAL"
+      :label="$t('menuElementForm.alignment')"
+      small-label
+      required
+      class="margin-bottom-2"
+    >
+      <HorizontalAlignmentsSelector v-model="values.alignment" />
+    </FormGroup>
+
     <div
       ref="menuItemAddContainer"
-      class="menu-element__form--add-item-container"
+      class="menu-element-form__add-item-container"
     >
       <div>
         {{ $t('menuElementForm.menuItemsLabel') }}
@@ -37,8 +55,11 @@
         </ButtonText>
       </div>
     </div>
+    <p v-if="!values.menu_items.length">
+      {{ $t('menuElementForm.noMenuItemsMessage') }}
+    </p>
     <Context ref="menuItemAddContext" :hide-on-click-outside="true">
-      <div class="menu-element__form--add-item-context">
+      <div class="menu-element-form__add-item-context">
         <ButtonText
           v-for="(menuItemType, index) in addMenuItemTypes"
           :key="index"
@@ -51,30 +72,51 @@
         </ButtonText>
       </div>
     </Context>
-    <div v-for="item in values.menu_items" :key="item.uid">
-      <MenuElementItemForm
-        :default-values="item"
-        @remove-item="removeMenuItem($event)"
-        @values-changed="updateMenuItem"
-      ></MenuElementItemForm>
+    <div>
+      <div class="menu-element-form__items">
+        <MenuElementItemForm
+          v-for="(item, index) in values.menu_items"
+          :key="`${item.uid}-${index}`"
+          v-sortable="{
+            id: item.uid,
+            update: orderRootItems,
+            enabled: $hasPermission(
+              'builder.page.element.update',
+              element,
+              workspace.id
+            ),
+            handle: '[data-sortable-handle]',
+          }"
+          :default-values="item"
+          @remove-item="removeMenuItem($event)"
+          @values-changed="updateMenuItem"
+        ></MenuElementItemForm>
+      </div>
     </div>
   </form>
 </template>
 
 <script>
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import { ORIENTATIONS } from '@baserow/modules/builder/enums'
+import {
+  HORIZONTAL_ALIGNMENTS,
+  ORIENTATIONS,
+} from '@baserow/modules/builder/enums'
 import {
   getNextAvailableNameInSequence,
   uuid,
 } from '@baserow/modules/core/utils/string'
 import { mapGetters } from 'vuex'
 import MenuElementItemForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementItemForm'
+import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 
 export default {
   name: 'MenuElementForm',
   components: {
     MenuElementItemForm,
+    CustomStyle,
+    HorizontalAlignmentsSelector,
   },
   mixins: [elementForm],
   data() {
@@ -83,9 +125,16 @@ export default {
         value: '',
         styles: {},
         orientation: ORIENTATIONS.VERTICAL,
+        alignment: HORIZONTAL_ALIGNMENTS.LEFT,
         menu_items: [],
       },
-      allowedValues: ['value', 'styles', 'menu_items', 'orientation'],
+      allowedValues: [
+        'value',
+        'styles',
+        'menu_items',
+        'orientation',
+        'alignment',
+      ],
       addMenuItemTypes: [
         {
           icon: 'iconoir-link',
@@ -101,6 +150,11 @@ export default {
           icon: 'baserow-icon-separator',
           label: this.$t('menuElementForm.menuItemAddSeparator'),
           type: 'separator',
+        },
+        {
+          icon: 'baserow-icon-spacer',
+          label: this.$t('menuElementForm.menuItemAddSpacer'),
+          type: 'spacer',
         },
       ],
     }
@@ -148,6 +202,7 @@ export default {
           type,
           uid: uuid(),
           children: [],
+          parent_menu_item: null, // This is the root menu item.
         },
       ]
       this.$refs.menuItemAddContext.hide()
@@ -172,6 +227,15 @@ export default {
         }
         return item
       })
+    },
+    /**
+     * Responsible for sorting the root items of this menu item.
+     */
+    orderRootItems(newOrder) {
+      const itemsByUid = Object.fromEntries(
+        this.values.menu_items.map((item) => [item.uid, item])
+      )
+      this.values.menu_items = newOrder.map((uid) => itemsByUid[uid])
     },
   },
 }

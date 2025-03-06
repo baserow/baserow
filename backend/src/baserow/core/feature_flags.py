@@ -3,7 +3,6 @@ from django.conf import settings
 from baserow.core.exceptions import FeatureDisabledException
 
 FF_DASHBOARDS = "dashboards"
-FF_MENU_ELEMENT = "menu_element"
 FF_ENABLE_ALL = "*"
 
 

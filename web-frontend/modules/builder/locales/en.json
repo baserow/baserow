@@ -207,6 +207,7 @@
   "menuElementForm": {
     "menuItemsLabel": "Menu items",
     "addMenuItemLink": "Add...",
+    "alignment": "Alignment",
     "menuItemDefaultName": "Page",
     "menuItemLabelLabel": "Label",
     "menuItemTypeLabel": "Type",
@@ -222,7 +223,8 @@
     "menuItemAddButton": "Button",
     "menuItemAddSeparator": "Separator",
     "menuItemAddSpacer": "Spacer",
-    "eventDescription": "To configure actions for this button, open the Events tab of this element."
+    "eventDescription": "To configure actions for this button, open the Events tab of this element.",
+    "noMenuItemsMessage": "Click 'Add' to add your first menu item."
   },
   "imageElement": {
     "missingValue": "Missing alt text...",
@@ -566,6 +568,7 @@
     "button": "Button",
     "defaultState": "Default state",
     "hoverState": "Hover state",
+    "activeState": "Active state",
     "textAlignment": "Text alignment",
     "alignment": "Alignment",
     "width": "Width",
@@ -583,6 +586,7 @@
     "link": "Link",
     "defaultState": "Default state",
     "hoverState": "Hover state",
+    "activeState": "Active state",
     "alignment": "Alignment",
     "fontFamily": "Font",
     "size": "Font size",
