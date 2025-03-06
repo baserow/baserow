@@ -158,7 +158,10 @@ import FieldLookupSubForm from '@baserow/modules/database/components/field/Field
 import FieldCountSubForm from '@baserow/modules/database/components/field/FieldCountSubForm'
 import FieldRollupSubForm from '@baserow/modules/database/components/field/FieldRollupSubForm'
 import RowEditFieldFormula from '@baserow/modules/database/components/row/RowEditFieldFormula'
-import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database/constants'
+import {
+  DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY,
+  DEFAULT_SORT_TYPE_KEY,
+} from '@baserow/modules/database/constants'
 import ViewService from '@baserow/modules/database/services/view'
 import FormService from '@baserow/modules/database/services/view/form'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
@@ -522,6 +525,18 @@ export class FieldType extends Registerable {
    */
   getSortIndicator() {
     return ['text', 'A', 'Z']
+  }
+
+  /**
+   * @TODO docs
+   */
+  getSortTypes(field, registry) {
+    return {
+      [DEFAULT_SORT_TYPE_KEY]: {
+        function: this.getSort,
+        indicator: this.getSortIndicator(field, registry),
+      },
+    }
   }
 
   /**
@@ -3264,6 +3279,15 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       const stringB = b[name] === null ? '' : '' + b[name].value
       return collatedStringCompare(stringA, stringB, order)
     }
+  }
+
+  getSortTypes() {
+    const defaultTypes = super.getSortTypes()
+    defaultTypes.order = {
+      function: () => null,
+      indicator: ['text', 'First', 'Last'],
+    }
+    return defaultTypes
   }
 
   parseFromLinkedRowItemValue(field, value) {

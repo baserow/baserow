@@ -60,57 +60,15 @@
               ></DropdownItem>
             </Dropdown>
           </div>
-          <div
-            class="sortings__order"
-            :class="{ 'sortings__order--disabled': disableSort }"
-          >
-            <a
-              class="sortings__order-item"
-              :class="{ active: sort.order === 'ASC' }"
-              @click="updateSort(sort, { order: 'ASC' })"
-            >
-              <template v-if="getSortIndicator(field, 0) === 'text'"
-                >{{ getSortIndicator(field, 1) }}
-              </template>
-              <i
-                v-if="getSortIndicator(field, 0) === 'icon'"
-                :class="getSortIndicator(field, 1)"
-              ></i>
-
-              <i class="iconoir-arrow-right"></i>
-
-              <template v-if="getSortIndicator(field, 0) === 'text'"
-                >{{ getSortIndicator(field, 2) }}
-              </template>
-              <i
-                v-if="getSortIndicator(field, 0) === 'icon'"
-                :class="getSortIndicator(field, 2)"
-              ></i>
-            </a>
-            <a
-              class="sortings__order-item"
-              :class="{ active: sort.order === 'DESC' }"
-              @click="updateSort(sort, { order: 'DESC' })"
-            >
-              <template v-if="getSortIndicator(field, 0) === 'text'"
-                >{{ getSortIndicator(field, 2) }}
-              </template>
-              <i
-                v-if="getSortIndicator(field, 0) === 'icon'"
-                :class="getSortIndicator(field, 2)"
-              ></i>
-
-              <i class="iconoir-arrow-right"></i>
-
-              <template v-if="getSortIndicator(field, 0) === 'text'"
-                >{{ getSortIndicator(field, 1) }}
-              </template>
-              <i
-                v-if="getSortIndicator(field, 0) === 'icon'"
-                :class="getSortIndicator(field, 1)"
-              ></i>
-            </a>
-          </div>
+          <ViewSortOrder
+            :disabled="disableSort"
+            :sort-types="getSortTypes(field)"
+            :type="'default'"
+            :order="sort.order"
+            @update-order="
+              updateSort(sort, { order: $event.order, type: $event.type })
+            "
+          ></ViewSortOrder>
         </div>
       </div>
       <div
@@ -148,9 +106,11 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import context from '@baserow/modules/core/mixins/context'
+import ViewSortOrder from '@baserow/modules/database/components/view/ViewSortOrder'
 
 export default {
   name: 'ViewSortContext',
+  components: { ViewSortOrder },
   mixins: [context],
   props: {
     fields: {
@@ -242,10 +202,8 @@ export default {
         notifyIf(error, 'view')
       }
     },
-    getSortIndicator(field, index) {
-      return this.getFieldType(field).getSortIndicator(field, this.$registry)[
-        index
-      ]
+    getSortTypes(field) {
+      return this.getFieldType(field).getSortTypes(field, this.$registry)
     },
   },
 }
