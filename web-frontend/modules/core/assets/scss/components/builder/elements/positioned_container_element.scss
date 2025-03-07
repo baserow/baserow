@@ -1,0 +1,17 @@
+.positioned-container-element {
+  &__page-alignment {
+    position: sticky !important;
+    z-index: 1;
+    background-color: var(--element-background-color, white);
+    
+    &-top {
+      @extend .positioned-container-element__page-alignment;
+      top: 0;
+    }
+    
+    &-bottom {
+      @extend .positioned-container-element__page-alignment;
+      bottom: 0;
+    }
+  }
+}
