@@ -30,6 +30,7 @@ BASEROW_BOOLEAN_FIELD_FALSE_VALUES = [
     "unchecked",
     False
 ]
+SINGLE_SELECT_SORT_BY_ORDER = "order"
 
 
 class DeleteFieldStrategyEnum(Enum):

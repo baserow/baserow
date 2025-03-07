@@ -126,6 +126,7 @@ from .exceptions import (
     ViewSortNotSupported,
 )
 from .models import (
+    DEFAULT_SORT_TYPE_KEY,
     OWNERSHIP_TYPE_COLLABORATIVE,
     View,
     ViewDecoration,
@@ -317,6 +318,7 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
                 field_object["field"],
                 field_object["name"],
                 view_sort_or_group_by.order,
+                view_sort_or_group_by.type,
                 table_model=model,
             )
 
@@ -1331,7 +1333,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             for f in fields
             if not field_type_registry.get_by_model(
                 f.specific_class
-            ).check_can_order_by(f)
+            ).check_can_order_by(f, DEFAULT_SORT_TYPE_KEY)
         ]
 
         # If it's a primary field, we also need to remove any sortings on the
@@ -1885,6 +1887,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 field,
                 field_name,
                 view_sort_or_group_by.order,
+                # @TODO make the groups compatible.
+                DEFAULT_SORT_TYPE_KEY,
                 table_model=queryset.model,
             )
             field_annotation = field_annotated_order_by.annotation
@@ -2016,6 +2020,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         field: Field,
         order: str,
         primary_key: Optional[int] = None,
+        sort_type: Optional[str] = None,
     ) -> ViewSort:
         """
         Creates a new view sort.
@@ -2026,6 +2031,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param order: The desired order, can either be ascending (A to Z) or
             descending (Z to A).
         :param primary_key: An optional primary key to give to the new view sort.
+        :param sort_type: @TODO docs
         :raises ViewSortNotSupported: When the provided view does not support sorting.
         :raises FieldNotInTable:  When the provided field does not belong to the
             provided view's table.
@@ -2042,6 +2048,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             user, CreateViewSortOperationType.type, workspace=workspace, context=view
         )
 
+        if not sort_type:
+            sort_type = DEFAULT_SORT_TYPE_KEY
+
         # Check if view supports sorting.
         view_type = view_type_registry.get_by_model(view.specific_class)
         if not view_type.can_sort:
@@ -2051,9 +2060,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Check if the field supports sorting.
         field_type = field_type_registry.get_by_model(field.specific_class)
-        if not field_type.check_can_order_by(field):
+        if not field_type.check_can_order_by(field, sort_type):
             raise ViewSortFieldNotSupported(
-                f"The field {field.pk} does not support sorting."
+                f"The field {field.pk} does not support sorting with type {sort_type}."
             )
 
         # Check if field belongs to the grid views table
@@ -2069,7 +2078,11 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         view_sort = ViewSort.objects.create(
-            pk=primary_key, view=view, field=field, order=order
+            pk=primary_key,
+            view=view,
+            field=field,
+            order=order,
+            type=sort_type,
         )
 
         view_sort_created.send(self, view_sort=view_sort, user=user)
@@ -2082,6 +2095,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         view_sort: ViewSort,
         field: Optional[Field] = None,
         order: Optional[str] = None,
+        sort_type: Optional[str] = None,
     ) -> ViewSort:
         """
         Updates the values of an existing view sort.
@@ -2103,6 +2117,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         workspace = view_sort.view.table.database.workspace
         field = field if field is not None else view_sort.field
         order = order if order is not None else view_sort.order
+        sort_type = sort_type if sort_type is not None else view_sort.type
 
         CoreHandler().check_permissions(
             user, ReadFieldOperationType.type, workspace=workspace, context=field
@@ -2127,7 +2142,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         # If the field has changed we need to check if the new field type supports
         # sorting.
         field_type = field_type_registry.get_by_model(field.specific_class)
-        if field.id != view_sort.field_id and not field_type.check_can_order_by(field):
+        if (
+            field.id != view_sort.field_id or sort_type != view_sort.type
+        ) and not field_type.check_can_order_by(
+            field,
+            sort_type,
+        ):
             raise ViewSortFieldNotSupported(
                 f"The field {field.pk} does not support sorting."
             )
@@ -2144,6 +2164,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         view_sort.field = field
         view_sort.order = order
+        view_sort.type = sort_type
         view_sort.save()
 
         view_sort_updated.send(self, view_sort=view_sort, user=user)
@@ -2363,7 +2384,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         # grouping.
         field_type = field_type_registry.get_by_model(field.specific_class)
         if field.id != view_group_by.field_id and not field_type.check_can_order_by(
-            field
+            field, DEFAULT_SORT_TYPE_KEY
         ):
             raise ViewGroupByFieldNotSupported(
                 f"The field {field.pk} does not support grouping."

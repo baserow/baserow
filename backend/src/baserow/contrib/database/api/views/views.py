@@ -1540,7 +1540,11 @@ class ViewSortingsView(APIView):
         field = FieldHandler().get_field(data["field"])
 
         view_sort = action_type_registry.get_by_type(CreateViewSortActionType).do(
-            request.user, view, field, data["order"]
+            request.user,
+            view,
+            field,
+            data["order"],
+            data.get("type"),
         )
 
         serializer = ViewSortSerializer(view_sort)
@@ -1645,6 +1649,7 @@ class ViewSortView(APIView):
             view_sort,
             data.get("field"),
             data.get("order"),
+            data.get("type"),
         )
 
         serializer = ViewSortSerializer(view_sort)

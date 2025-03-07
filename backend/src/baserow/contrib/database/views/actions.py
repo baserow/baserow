@@ -755,6 +755,7 @@ class CreateViewSortActionType(UndoableActionType):
         "database_id",
         "view_sort_id",
         "sort_order",
+        "sort_type",
     ]
 
     @dataclasses.dataclass
@@ -769,10 +770,16 @@ class CreateViewSortActionType(UndoableActionType):
         database_name: str
         view_sort_id: int
         sort_order: str
+        sort_type: str
 
     @classmethod
     def do(
-        cls, user: AbstractUser, view: View, field: Field, sort_order: str
+        cls,
+        user: AbstractUser,
+        view: View,
+        field: Field,
+        sort_order: str,
+        sort_type: Optional[str] = None,
     ) -> ViewSort:
         """
         Creates a new view sort.
@@ -785,9 +792,12 @@ class CreateViewSortActionType(UndoableActionType):
         :param field: The field that needs to be sorted.
         :param sort_order: The desired order, can either be ascending (A to Z) or
             descending (Z to A).
+        :param sort_type: @TODO docs
         """
 
-        view_sort = ViewHandler().create_sort(user, view, field, sort_order)
+        view_sort = ViewHandler().create_sort(
+            user, view, field, sort_order, sort_type=sort_type
+        )
 
         params = cls.Params(
             field.id,
@@ -800,6 +810,7 @@ class CreateViewSortActionType(UndoableActionType):
             view.table.database.name,
             view_sort.id,
             sort_order,
+            sort_type,
         )
         workspace = view.table.database.workspace
         cls.register_action(user, params, cls.scope(view.id), workspace)
@@ -840,6 +851,7 @@ class UpdateViewSortActionType(UndoableActionType):
         "database_id",
         "view_sort_id",
         "sort_order",
+        "sort_type",
         "original_field_id",
         "original_sort_order",
     ]
@@ -856,6 +868,7 @@ class UpdateViewSortActionType(UndoableActionType):
         database_name: str
         view_sort_id: int
         sort_order: str
+        sort_type: str
         original_field_id: int
         original_field_name: str
         original_sort_order: str
@@ -867,6 +880,7 @@ class UpdateViewSortActionType(UndoableActionType):
         view_sort: ViewSort,
         field: Optional[Field] = None,
         order: Optional[str] = None,
+        sort_type: Optional[str] = None,
     ) -> ViewSort:
         """
         Updates the values of an existing view sort.
@@ -878,6 +892,7 @@ class UpdateViewSortActionType(UndoableActionType):
         :param view_sort: The view sort that needs to be updated.
         :param field: The field that must be sorted on.
         :param order: Indicates the sort order direction.
+        :param sort_type: @TODO docs
         """
 
         original_field_id = view_sort.field.id
@@ -887,7 +902,9 @@ class UpdateViewSortActionType(UndoableActionType):
         original_sort_order = view_sort.order
 
         handler = ViewHandler()
-        updated_view_sort = handler.update_sort(user, view_sort, field, order)
+        updated_view_sort = handler.update_sort(
+            user, view_sort, field, order, sort_type
+        )
 
         cls.register_action(
             user=user,
@@ -902,6 +919,7 @@ class UpdateViewSortActionType(UndoableActionType):
                 updated_view_sort.view.table.database.name,
                 updated_view_sort.id,
                 updated_view_sort.order,
+                updated_view_sort.type,
                 original_field_id,
                 original_field_name,
                 original_sort_order,

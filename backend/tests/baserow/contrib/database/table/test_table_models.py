@@ -691,6 +691,67 @@ def test_order_by_fields_string_queryset_with_user_field_names(data_fixture):
 
 
 @pytest.mark.django_db
+def test_order_by_fields_string_queryset_with_type(data_fixture):
+    table = data_fixture.create_database_table(name="Cars")
+    name_field = data_fixture.create_text_field(table=table, order=0, name="Name")
+    single_select_field = data_fixture.create_single_select_field(
+        table=table, name="Single"
+    )
+    option_a = data_fixture.create_select_option(
+        field=single_select_field, value="A", color="blue", order=2
+    )
+    option_b = data_fixture.create_select_option(
+        field=single_select_field, value="B", color="red", order=1
+    )
+
+    row_1, row_2 = RowHandler().force_create_rows(
+        user=None,
+        table=table,
+        rows_values=[
+            {
+                name_field.db_column: "BMW",
+                single_select_field.db_column: option_a.id,
+            },
+            {
+                name_field.db_column: "Audi",
+                single_select_field.db_column: option_b.id,
+            },
+        ],
+    )
+
+    model = table.get_model()
+
+    with pytest.raises(OrderByFieldNotPossible):
+        model.objects.all().order_by_fields_string(
+            f"field_{single_select_field.id}[unknown]"
+        )
+
+    results = model.objects.all().order_by_fields_string(
+        f"field_{single_select_field.id}[default]"
+    )
+    assert results[0].id == row_1.id
+    assert results[1].id == row_2.id
+
+    results = model.objects.all().order_by_fields_string(
+        f"-field_{single_select_field.id}[default]"
+    )
+    assert results[0].id == row_2.id
+    assert results[1].id == row_1.id
+
+    results = model.objects.all().order_by_fields_string(
+        f"field_{single_select_field.id}[order]"
+    )
+    assert results[0].id == row_2.id
+    assert results[1].id == row_1.id
+
+    results = model.objects.all().order_by_fields_string(
+        f"-field_{single_select_field.id}[order]"
+    )
+    assert results[0].id == row_1.id
+    assert results[1].id == row_2.id
+
+
+@pytest.mark.django_db
 def test_filter_by_fields_object_queryset(data_fixture):
     table = data_fixture.create_database_table(name="Cars")
     data_fixture.create_database_table(database=table.database)

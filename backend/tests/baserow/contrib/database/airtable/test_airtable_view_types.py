@@ -340,7 +340,7 @@ def test_import_grid_view_sort_field_not_found():
 def test_import_grid_view_sort_field_unsupported():
     view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
     field_mapping = deepcopy(FIELD_MAPPING)
-    field_mapping["fldwSc9PqedIhTSqhi1"]["baserow_field_type"]._can_order_by = False
+    field_mapping["fldwSc9PqedIhTSqhi1"]["baserow_field_type"]._can_order_by_types = []
 
     view_data["lastSortsApplied"] = RAW_VIEW_DATA_SORTS
     airtable_view_type = airtable_view_type_registry.get("grid")
