@@ -16,6 +16,7 @@
       :widget="widget"
       :store-prefix="storePrefix"
       :loading="isLoading"
+      :edit-mode="isEditMode"
     />
   </div>
 </template>

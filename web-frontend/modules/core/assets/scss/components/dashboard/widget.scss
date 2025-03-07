@@ -6,11 +6,22 @@
   padding: 20px 24px;
   border-bottom: 1px solid $palette-neutral-200;
   position: relative;
+  height: auto;
 
   &--no-border {
     border-bottom: none;
     padding-bottom: 0;
   }
+
+  &--edit-mode {
+    padding: 20px 55px 20px 24px;
+  }
+}
+
+.widget__header-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .widget__header-context-menu {
@@ -38,13 +49,12 @@
 }
 
 .widget__header-description {
+  @extend %ellipsis;
+
   color: #6a6b70;
   font-size: 12px;
   font-weight: 400;
   margin-top: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .widget__content {

@@ -1,35 +1,45 @@
 <template>
-  <div class="dashboard-summary-widget">
-    <div class="widget__header widget__header--no-border">
-      <div class="widget__header-main">
-        <div class="widget__header-title-wrapper">
-          <div class="widget__header-title">{{ widget.title }}</div>
+  <div
+    class="dashboard-summary-widget"
+    :class="{
+      'dashboard-summary-widget--with-header-description': widget.description,
+    }"
+  >
+    <template v-if="!loading">
+      <div class="widget__header widget__header--no-border">
+        <div class="widget__header-main">
+          <div class="widget__header-title-wrapper">
+            <div class="widget__header-title">{{ widget.title }}</div>
 
-          <Badge v-if="dataSourceMisconfigured" color="red" indicator rounded>{{
-            $t('widget.fixConfiguration')
-          }}</Badge>
+            <Badge
+              v-if="dataSourceMisconfigured"
+              color="red"
+              indicator
+              rounded
+              >{{ $t('widget.fixConfiguration') }}</Badge
+            >
+          </div>
+          <div v-if="widget.description" class="widget__header-description">
+            {{ widget.description }}
+          </div>
         </div>
-        <div v-if="widget.description" class="widget__header-description">
-          {{ widget.description }}
-        </div>
+        <WidgetContextMenu
+          v-if="isEditMode"
+          :widget="widget"
+          :dashboard="dashboard"
+          @delete-widget="$emit('delete-widget', $event)"
+        ></WidgetContextMenu>
       </div>
-      <WidgetContextMenu
-        v-if="isEditMode"
-        :widget="widget"
-        :dashboard="dashboard"
-        @delete-widget="$emit('delete-widget', $event)"
-      ></WidgetContextMenu>
-    </div>
-    <div
-      v-if="!loading"
-      class="widget__content dashboard-summary-widget__summary"
-      :class="{
-        'dashboard-summary-widget__summary--misconfigured':
-          dataSourceMisconfigured,
-      }"
-    >
-      {{ result }}
-    </div>
+      <div
+        class="widget__content dashboard-summary-widget__summary"
+        :class="{
+          'dashboard-summary-widget__summary--misconfigured':
+            dataSourceMisconfigured,
+        }"
+      >
+        {{ result }}
+      </div>
+    </template>
     <div v-else class="dashboard-summary-widget__loading loading-spinner"></div>
   </div>
 </template>

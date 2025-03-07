@@ -1,41 +1,48 @@
 <template>
-  <div class="dashboard-chart-widget">
-    <div class="widget__header">
-      <div class="widget__header-main">
-        <div class="widget__header-title-wrapper">
-          <div class="widget__header-title">{{ widget.title }}</div>
-
-          <Badge
-            v-if="dataSourceMisconfigured"
-            color="red"
-            size="small"
-            indicator
-            rounded
-            >{{ $t('widget.fixConfiguration') }}</Badge
-          >
-        </div>
-        <div v-if="widget.description" class="widget__header-description">
-          {{ widget.description }}
-        </div>
-      </div>
-      <WidgetContextMenu
-        v-if="isEditMode"
-        :widget="widget"
-        :dashboard="dashboard"
-        @delete-widget="$emit('delete-widget', $event)"
-      ></WidgetContextMenu>
-    </div>
-
-    <div class="dashboard-chart-widget__content widget__content">
-      <Chart
-        v-if="!loading"
-        :data-source="dataSource"
-        :data-source-data="dataForDataSource"
+  <div
+    class="dashboard-chart-widget"
+    :class="{
+      'dashboard-chart-widget--with-header-description': widget.description,
+    }"
+  >
+    <template v-if="!loading">
+      <div
+        class="widget__header"
+        :class="{
+          'widget__header--edit-mode': editMode,
+        }"
       >
-      </Chart>
+        <div class="widget__header-main">
+          <div class="widget__header-title-wrapper">
+            <div class="widget__header-title">{{ widget.title }}</div>
 
-      <div v-else class="dashboard-chart-widget__loading loading-spinner"></div>
-    </div>
+            <Badge
+              v-if="dataSourceMisconfigured"
+              color="red"
+              size="small"
+              indicator
+              rounded
+              >{{ $t('widget.fixConfiguration') }}</Badge
+            >
+          </div>
+          <div v-if="widget.description" class="widget__header-description">
+            {{ widget.description }}
+          </div>
+        </div>
+        <WidgetContextMenu
+          v-if="isEditMode"
+          :widget="widget"
+          :dashboard="dashboard"
+          @delete-widget="$emit('delete-widget', $event)"
+        ></WidgetContextMenu>
+      </div>
+
+      <div class="dashboard-chart-widget__content widget__content">
+        <Chart :data-source="dataSource" :data-source-data="dataForDataSource">
+        </Chart>
+      </div>
+    </template>
+    <div v-else class="dashboard-chart-widget__loading loading-spinner"></div>
   </div>
 </template>
 
@@ -61,6 +68,11 @@ export default {
       default: '',
     },
     loading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    editMode: {
       type: Boolean,
       required: false,
       default: false,
