@@ -51,7 +51,6 @@ from baserow.contrib.builder.elements.models import (
     FormContainerElement,
     HeaderElement,
     HeadingElement,
-    HorizontalAlignments,
     IFrameElement,
     ImageElement,
     InputTextElement,
@@ -59,12 +58,17 @@ from baserow.contrib.builder.elements.models import (
     MenuElement,
     MenuItemElement,
     NavigationElementMixin,
+    PositionedContainerElement,
     RecordSelectorElement,
     RepeatElement,
     TableElement,
     TextElement,
-    VerticalAlignments,
     get_default_table_orientation,
+)
+from baserow.contrib.builder.constants import (
+    HorizontalAlignments,
+    PageAlignments,
+    VerticalAlignments,
 )
 from baserow.contrib.builder.elements.registries import (
     ElementType,
@@ -2294,3 +2298,50 @@ class MenuElementType(ElementType):
                 if new_formula is not None:
                     setattr(item, formula_field, new_formula)
                     yield item
+
+
+class PositionedContainerElementType(ContainerElementTypeMixin, ElementType):
+    """
+    A Positioned Container element is a container element that is aligned to
+    a specific side of the page.
+    """
+
+    type = "positioned_container"
+    model_class = PositionedContainerElement
+
+    class SerializedDict(ContainerElementTypeMixin.SerializedDict):
+        alignment: str
+
+    @property
+    def serializer_field_names(self):
+        return super().serializer_field_names + [
+            "alignment",
+        ]
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + [
+            "alignment",
+        ]
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {
+            "alignment": PageAlignments.TOP,
+        }
+
+    @property
+    def child_types_allowed(self) -> List[str]:
+        """
+        The positioned container only forbids itself as a child.
+        :return: a list of element types, without the positioned container type.
+        """
+
+        return [
+            element_type
+            for element_type in super().child_types_allowed
+            if element_type.type != self.type
+        ]
+
+    def after_update(self, instance: PositionedContainerElement, values, changes: Dict[str, Tuple]):
+
+        super().after_update(instance, values, changes)
