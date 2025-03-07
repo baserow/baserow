@@ -1,5 +1,20 @@
 <template>
-  <Bar id="chart-id" :options="chartOptions" :data="chartData" class="chart" />
+  <Bar
+    v-if="chartData.datasets.length > 0"
+    id="chart-id"
+    :options="chartOptions"
+    :data="chartData"
+    class="chart"
+  />
+
+  <div v-else class="chart__no-data">
+    <span class="chart__no-data-dashed-line"></span>
+    <span class="chart__no-data-dashed-line"></span>
+    <span class="chart__no-data-dashed-line"></span>
+    <span class="chart__no-data-dashed-line"></span>
+    <span class="chart__no-data-dashed-line"></span>
+    <span class="chart__no-data-plain-line"></span>
+  </div>
 </template>
 
 <script>
@@ -50,6 +65,36 @@ export default {
             display: true,
             align: 'start',
             position: 'bottom',
+            labels: {
+              usePointStyle: true,
+              boxWidth: 14,
+              pointStyle: 'circle',
+              padding: 20,
+            },
+          },
+          tooltip: {
+            backgroundColor: '#202128',
+            padding: 10,
+            bodyFont: {
+              size: 12,
+            },
+            titleFont: {
+              size: 12,
+            },
+          },
+        },
+        elements: {
+          bar: {
+            borderRadius: {
+              topLeft: 4,
+              topRight: 4,
+              bottomLeft: 0,
+              bottomRight: 0,
+            },
+            borderWidth: 1,
+            borderColor: '#5190ef',
+            backgroundColor: '#5190ef',
+            hoverBackgroundColor: '#5190ef',
           },
         },
       }
@@ -88,7 +133,7 @@ export default {
         datasets.push({
           data: seriesData,
           label,
-          backgroundColor: this.chartColors[index],
+          ...this.chartColors[index],
         })
       }
       return {
@@ -107,7 +152,7 @@ export default {
         datasets.push({
           data: seriesData,
           label,
-          backgroundColor: this.chartColors[index],
+          ...this.chartColors[index],
         })
       }
       return {
@@ -124,7 +169,33 @@ export default {
       })
     },
     chartColors() {
-      return ['#4E5CFE', '#2BC3F1', '#FFC744', '#E26AB0', '#3E4ACB']
+      return [
+        {
+          backgroundColor: '#5190ef',
+          borderColor: '#5190ef',
+          hoverBackgroundColor: '#5190ef',
+        },
+        {
+          backgroundColor: '#2BC3F1',
+          borderColor: '#2BC3F1',
+          hoverBackgroundColor: '#2BC3F1',
+        },
+        {
+          backgroundColor: '#FFC744',
+          borderColor: '#FFC744',
+          hoverBackgroundColor: '#FFC744',
+        },
+        {
+          backgroundColor: '#E26AB0',
+          borderColor: '#E26AB0',
+          hoverBackgroundColor: '#E26AB0',
+        },
+        {
+          backgroundColor: '#3E4ACB',
+          borderColor: '#3E4ACB',
+          hoverBackgroundColor: '#3E4ACB',
+        },
+      ]
     },
   },
   methods: {
