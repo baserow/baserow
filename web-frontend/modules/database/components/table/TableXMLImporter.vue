@@ -148,7 +148,9 @@ export default {
       }
     },
     async reload() {
+      const fileName = this.values.filename
       this.resetImporterState()
+      this.values.filename = fileName
       this.state = 'parsing'
       await this.$ensureRender()
 

@@ -167,7 +167,9 @@ export default {
     },
     async reload() {
       let json
+      const fileName = this.values.filename
       this.resetImporterState()
+      this.values.filename = fileName
 
       try {
         const decoder = new TextDecoder(this.encoding)
