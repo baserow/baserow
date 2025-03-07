@@ -87,15 +87,11 @@ export default {
      * It's up to a component to call appropriate service/endpoint to trigger/schedule
      * a job.
      *
-     * Since job with the same id can be added to store from other places (i.e. websocket)
-     * we make sure that we to get proper job object from store.
-     *
      * @param job a Job object
      * @returns {Promise<void>}
      */
     async createAndMonitorJob(job) {
-      await this.$store.dispatch('job/create', job)
-      this.job = this.$store.getters['job/get'](job.id)
+      this.job = await this.$store.dispatch('job/create', job)
     },
     /**
      * Called from a component to cancel any job currently running.

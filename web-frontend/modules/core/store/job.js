@@ -189,6 +189,7 @@ export const actions = {
   create({ dispatch }, job) {
     dispatch('forceCreate', job)
     dispatch('tryScheduleNextUpdate')
+    return this.getters['job/get'](job.id)
   },
 
   /**
