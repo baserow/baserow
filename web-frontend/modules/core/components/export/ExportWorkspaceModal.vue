@@ -122,7 +122,6 @@ export default {
         const { data: job } = await ExportWorkspaceService(
           this.$client
         ).exportApplications(this.workspace.id, values)
-        this.job = job
         await this.createAndMonitorJob(job)
       } catch (error) {
         this.createLoading = false

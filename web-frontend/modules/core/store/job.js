@@ -31,8 +31,17 @@ export const mutations = {
   SET_ITEMS(state, items) {
     state.items = items
   },
+  /**
+   * Adds new job to the store.
+   * Adding job might be triggered from various places i.e. backend POST response
+   * or from websocket message. In those cases we want to make sure we don't add
+   * the same job multiple times.
+   */
   ADD_ITEM(state, item) {
-    state.items.push(item)
+    const existingJobIndex = state.items.findIndex((job) => job.id === item.id)
+    if (existingJobIndex === -1) {
+      state.items.push(item)
+    }
   },
   UPDATE_ITEM(state, { id, values }) {
     const index = state.items.findIndex((item) => item.id === id)
@@ -180,6 +189,7 @@ export const actions = {
   create({ dispatch }, job) {
     dispatch('forceCreate', job)
     dispatch('tryScheduleNextUpdate')
+    return this.getters['job/get'](job.id)
   },
 
   /**

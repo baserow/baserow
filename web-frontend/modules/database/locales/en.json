@@ -830,7 +830,8 @@
     "snapshot": "Snapshot",
     "importingState": "Creating",
     "reset": "Create another",
-    "noSnapshots": "No snapshots for this application yet."
+    "noSnapshots": "No snapshots for this application yet.",
+    "nameAlreadyExists": "A snapshot with this name already exists."
   },
   "deleteSnapshotModal": {
     "title": "Delete snapshot",
