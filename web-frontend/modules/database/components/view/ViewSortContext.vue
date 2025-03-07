@@ -63,7 +63,7 @@
           <ViewSortOrder
             :disabled="disableSort"
             :sort-types="getSortTypes(field)"
-            :type="'default'"
+            :type="sort.type"
             :order="sort.order"
             @update-order="
               updateSort(sort, { order: $event.order, type: $event.type })
@@ -107,6 +107,7 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import context from '@baserow/modules/core/mixins/context'
 import ViewSortOrder from '@baserow/modules/database/components/view/ViewSortOrder'
+import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
 export default {
   name: 'ViewSortContext',
@@ -166,6 +167,7 @@ export default {
           values: {
             field: fieldId,
             value: 'ASC',
+            type: DEFAULT_SORT_TYPE_KEY,
           },
           readOnly: this.readOnly,
         })
@@ -189,6 +191,18 @@ export default {
     async updateSort(sort, values) {
       if (this.disableSort) {
         return
+      }
+
+      // If the field has changed, the type might not be compatible anymore. If so,
+      // then we're falling back on the default sort type.
+      if (values.field) {
+        const sortType = values.type || sort.type
+        const field = this.getField(values.field)
+        const fieldType = this.getFieldType(field)
+        const sortTypes = fieldType.getSortTypes(field, this.$registry)
+        if (!Object.prototype.hasOwnProperty.call(sortTypes, sortType)) {
+          values.type = DEFAULT_SORT_TYPE_KEY
+        }
       }
 
       try {

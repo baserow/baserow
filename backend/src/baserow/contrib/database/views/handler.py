@@ -1887,8 +1887,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 field,
                 field_name,
                 view_sort_or_group_by.order,
-                # @TODO make the groups compatible.
-                DEFAULT_SORT_TYPE_KEY,
+                view_sort_or_group_by.type,
                 table_model=queryset.model,
             )
             field_annotation = field_annotated_order_by.annotation

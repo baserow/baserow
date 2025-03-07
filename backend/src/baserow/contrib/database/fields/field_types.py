@@ -3874,10 +3874,7 @@ class SelectOptionBaseFieldType(FieldType):
         field_name: str,
         sort_type: str,
     ) -> Expression | F:
-        if sort_type == SINGLE_SELECT_SORT_BY_ORDER:
-            return F(f"{field_name}__order")
-        else:
-            return F(f"{field_name}__value")
+        return F(f"{field_name}__value")
 
     def parse_filter_value(self, field, model_field, value) -> List[int]:
         """
@@ -4151,6 +4148,17 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             connection, from_field, to_field
         )
 
+    def get_sortable_column_expression(
+        self,
+        field: Field,
+        field_name: str,
+        sort_type: str,
+    ) -> Expression | F:
+        if sort_type == SINGLE_SELECT_SORT_BY_ORDER:
+            return F(f"{field_name}__order")
+        else:
+            return super().get_sortable_column_expression(field, field_name, sort_type)
+
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
@@ -4168,7 +4176,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         if sort_type == SINGLE_SELECT_SORT_BY_ORDER:
             order = column_expression
         else:
-            order = order = collate_expression(column_expression)
+            order = collate_expression(column_expression)
 
         if order_direction == "ASC":
             order = order.asc(nulls_first=True)
