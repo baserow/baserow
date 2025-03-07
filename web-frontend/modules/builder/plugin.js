@@ -230,7 +230,7 @@ export default (context) => {
   app.$registry.register('element', new RecordSelectorElementType(context))
   app.$registry.register('element', new RepeatElementType(context))
   app.$registry.register('element', new MenuElementType(context))
-  app.$registry.register('element', new PositionedContainerElementType(context))  
+  app.$registry.register('element', new PositionedContainerElementType(context))
 
   app.$registry.register('device', new DesktopDeviceType(context))
   app.$registry.register('device', new TabletDeviceType(context))

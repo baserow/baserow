@@ -9,7 +9,7 @@
       'element-preview--first-element': isFirstElement,
       'element-preview--not-visible':
         !isVisible && !isSelected && !isParentOfSelectedElement,
-      [this.pageAlignmentClass]: this.isPositionedContainer(),
+      [pageAlignmentClass]: isPositionedContainer(),
     }"
     @click="onSelect"
   >
@@ -87,8 +87,8 @@ export default {
     InsertElementButton,
     PageElement,
   },
-  inject: ['workspace', 'builder', 'mode', 'currentPage'],
   mixins: [pageStyleMixin],
+  inject: ['workspace', 'builder', 'mode', 'currentPage'],
   props: {
     element: {
       type: Object,

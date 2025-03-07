@@ -2068,7 +2068,6 @@ export class MenuElementType extends ElementType {
   }
 }
 
-
 export class PositionedContainerElementType extends ContainerElementTypeMixin(
   ElementType
 ) {

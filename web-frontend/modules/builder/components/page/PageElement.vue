@@ -169,7 +169,7 @@ export default {
             this.element.style_width === WIDTH_TYPES.MEDIUM.value,
           'element__wrapper--small-width':
             this.element.style_width === WIDTH_TYPES.SMALL.value,
-          [this.pageAlignmentClass]: this.isPositionedContainer()
+          [this.pageAlignmentClass]: this.isPositionedContainer(),
         }
       }
     },

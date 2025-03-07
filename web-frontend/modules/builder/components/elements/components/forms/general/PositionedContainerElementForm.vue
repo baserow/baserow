@@ -27,12 +27,10 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions, mapGetters } from 'vuex'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
 import { PAGE_ALIGNMENTS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'PositionedContainerElementForm',
-  components: { CustomStyle },
   mixins: [elementForm],
   data() {
     return {
@@ -40,10 +38,7 @@ export default {
         alignment: '',
         styles: {},
       },
-      allowedValues: [
-        'alignment',
-        'styles',
-      ],
+      allowedValues: ['alignment', 'styles'],
     }
   },
   computed: {
@@ -79,7 +74,7 @@ export default {
       if (event === PAGE_ALIGNMENTS.TOP) {
         beforeElementId = this.rootElements.at(0).id
       }
-      
+
       try {
         await this.actionMoveElement({
           builder: this.builder,
@@ -91,7 +86,7 @@ export default {
       } catch (error) {
         notifyIf(error)
       }
-    }
-  }
+    },
+  },
 }
 </script>

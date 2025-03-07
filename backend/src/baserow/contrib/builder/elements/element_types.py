@@ -26,6 +26,11 @@ from baserow.contrib.builder.api.elements.serializers import (
     MenuItemSerializer,
     NestedMenuItemsMixin,
 )
+from baserow.contrib.builder.constants import (
+    HorizontalAlignments,
+    PageAlignments,
+    VerticalAlignments,
+)
 from baserow.contrib.builder.data_providers.exceptions import (
     FormDataProviderChunkInvalidException,
 )
@@ -64,11 +69,6 @@ from baserow.contrib.builder.elements.models import (
     TableElement,
     TextElement,
     get_default_table_orientation,
-)
-from baserow.contrib.builder.constants import (
-    HorizontalAlignments,
-    PageAlignments,
-    VerticalAlignments,
 )
 from baserow.contrib.builder.elements.registries import (
     ElementType,
@@ -2342,6 +2342,7 @@ class PositionedContainerElementType(ContainerElementTypeMixin, ElementType):
             if element_type.type != self.type
         ]
 
-    def after_update(self, instance: PositionedContainerElement, values, changes: Dict[str, Tuple]):
-
+    def after_update(
+        self, instance: PositionedContainerElement, values, changes: Dict[str, Tuple]
+    ):
         super().after_update(instance, values, changes)
