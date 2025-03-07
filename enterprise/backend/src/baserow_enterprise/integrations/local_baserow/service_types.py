@@ -128,6 +128,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         with atomic_if_not_already():
             table_fields = service.table.field_set.all()
             table_field_ids = [field.id for field in table_fields]
+            series_agg_used = set()
 
             def validate_agg_series(agg_series):
                 if agg_series["aggregation_type"]:
@@ -163,6 +164,18 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                             f"with aggregation type {agg_series['aggregation_type']}.",
                             code="invalid_aggregation_raw_type",
                         )
+
+                series_aggregation_reference = (
+                    f"field_{agg_series['field_id']}_{agg_series['aggregation_type']}"
+                )
+                if series_aggregation_reference in series_agg_used:
+                    raise DRFValidationError(
+                        detail=f"The series with the field ID {agg_series['field_id']} and "
+                        f"aggregation type {agg_series['aggregation_type']} can only be defined once.",
+                        code="invalid_aggregation_raw_type",
+                    )
+                else:
+                    series_agg_used.add(series_aggregation_reference)
 
                 return True
 
@@ -505,6 +518,8 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             raise ServiceImproperlyConfigured(
                 f"There are no aggregation series defined."
             )
+
+        series_agg_used = set()
         for agg_series in defined_agg_series:
             if agg_series.field is None:
                 raise ServiceImproperlyConfigured(
@@ -526,6 +541,17 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     f"The field with ID {agg_series.field.id} is not compatible "
                     f"with the aggregation type {agg_series.aggregation_type}."
                 )
+
+            series_aggregation_reference = (
+                f"field_{agg_series.field.id}_{agg_series.aggregation_type}"
+            )
+            if series_aggregation_reference in series_agg_used:
+                raise ServiceImproperlyConfigured(
+                    f"The series with field ID {agg_series.field.id} and "
+                    f"aggregation type {agg_series.aggregation_type} can only be defined once."
+                )
+            else:
+                series_agg_used.add(series_aggregation_reference)
 
             combined_agg_dict |= agg_type._get_aggregation_dict(
                 queryset, model_field, agg_series.field, include_agg_type=True

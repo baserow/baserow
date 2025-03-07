@@ -256,6 +256,41 @@ def test_create_grouped_aggregate_rows_service_group_by_field_not_compatible(
 
 
 @pytest.mark.django_db
+def test_create_grouped_aggregate_rows_service_duplicate_series(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    values = service_type.prepare_values(
+        {
+            "view_id": view.id,
+            "table_id": view.table_id,
+            "integration_id": integration.id,
+            "service_aggregation_series": [
+                {"field_id": field.id, "aggregation_type": "sum"},
+                {"field_id": field_2.id, "aggregation_type": "sum"},
+                {"field_id": field_2.id, "aggregation_type": "sum"},
+            ],
+        },
+        user,
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=f"The series with the field ID {field_2.id} and aggregation type sum can only be defined once.",
+    ):
+        ServiceHandler().create_service(service_type, **values)
+
+
+@pytest.mark.django_db
 def test_create_grouped_aggregate_rows_service_max_series_exceeded(
     data_fixture,
 ):
@@ -1315,6 +1350,41 @@ def test_grouped_aggregate_rows_service_dispatch_incompatible_aggregation(data_f
     assert (
         exc.value.args[0]
         == f"The field with ID {field.id} is not compatible with the aggregation type not_checked_percentage."
+    )
+
+
+@pytest.mark.django_db
+def test_dispatch_grouped_aggregate_rows_service_duplicate_series(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="sum", order=1
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="sum", order=1
+    )
+
+    dispatch_context = FakeDispatchContext()
+
+    with pytest.raises(ServiceImproperlyConfigured) as exc:
+        ServiceHandler().dispatch_service(service, dispatch_context)
+    assert (
+        exc.value.args[0]
+        == f"The series with field ID {field.id} and aggregation type sum can only be defined once."
     )
 
 

@@ -85,6 +85,7 @@
         v-for="(series, index) in values.aggregation_series"
         :key="index"
         :table-fields="tableFields"
+        :aggregation-series="values.aggregation_series"
         :series-index="index"
         :default-values="series"
         @delete-series="deleteSeries"
