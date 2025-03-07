@@ -906,7 +906,11 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         return imported_applications
 
     def extract_files_from_zip(
-        self, tmp_import_path: str, zip_file: ZipFile, storage: Storage
+        self,
+        tmp_import_path: str,
+        zip_file: ZipFile,
+        storage: Storage,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ):
         """
         Extracts files from a zip archive to a specified temporary import path.
@@ -918,13 +922,20 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             extracted.
         :param zip_file: The ZipFile instance containing the files to be extracted.
         :param storage: The storage instance used to save the extracted files.
+        :param progress_builder: A progress builder that allows for publishing progress.
         """
 
-        for file_info in zip_file.infolist():
+        file_list = zip_file.infolist()
+        progress = ChildProgressBuilder.build(
+            progress_builder, child_total=len(file_list)
+        )
+
+        for file_info in file_list:
             extracted_file_path = join(tmp_import_path, file_info.filename)
             with zip_file.open(file_info) as extracted_file:
                 file_content = extracted_file.read()
                 storage.save(extracted_file_path, ContentFile(file_content))
+            progress.increment()
 
     def import_workspace_applications(
         self,
@@ -991,9 +1002,12 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                     self.mark_resource_invalid(resource)
                     raise
 
-                self.extract_files_from_zip(import_tmp_path, zip_file, storage)
-
-                progress.set_progress(15)
+                self.extract_files_from_zip(
+                    import_tmp_path,
+                    zip_file,
+                    storage,
+                    progress.create_child_builder(represents_progress=10),
+                )
 
                 try:
                     self.validate_checksums(manifest_data, import_tmp_path, storage)
