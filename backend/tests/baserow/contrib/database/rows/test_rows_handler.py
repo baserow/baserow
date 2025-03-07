@@ -967,23 +967,25 @@ def test_import_rows(
     rows, report = handler.import_rows(
         user=user,
         table=table,
-        data=[
-            [
-                "Tesla",
-                240,
-                59999.99,
-            ],
-            [
-                "Giulietta",
-                210,
-                34999.99,
-            ],
-            [
-                "Panda",
-                160,
-                8999.99,
-            ],
-        ],
+        data={
+            "data": [
+                [
+                    "Tesla",
+                    240,
+                    59999.99,
+                ],
+                [
+                    "Giulietta",
+                    210,
+                    34999.99,
+                ],
+                [
+                    "Panda",
+                    160,
+                    8999.99,
+                ],
+            ]
+        },
         send_realtime_update=False,
     )
     assert len(rows) == 3
@@ -1001,23 +1003,25 @@ def test_import_rows(
     rows, report = handler.import_rows(
         user=user,
         table=table,
-        data=[
-            [
-                "Tesla",
-                240,
-                59999.999999,
-            ],
-            [
-                "Giulietta",
-                210.888,
-                34999.99,
-            ],
-            [
-                "Panda",
-                160,
-                8999.99,
-            ],
-        ],
+        data={
+            "data": [
+                [
+                    "Tesla",
+                    240,
+                    59999.999999,
+                ],
+                [
+                    "Giulietta",
+                    210.888,
+                    34999.99,
+                ],
+                [
+                    "Panda",
+                    160,
+                    8999.99,
+                ],
+            ]
+        },
     )
 
     assert len(rows) == 1
@@ -1037,18 +1041,20 @@ def test_import_rows(
     rows, report = handler.import_rows(
         user=user,
         table=table,
-        data=[
-            [
-                "Panda",
-                160,
-                8999.99,
-            ],
-            ["Tesla", 240, 59999.999999, "bli bloup"],
-            [
-                "Giulietta",
-                210.888,
-            ],
-        ],
+        data={
+            "data": [
+                [
+                    "Panda",
+                    160,
+                    8999.99,
+                ],
+                ["Tesla", 240, 59999.999999, "bli bloup"],
+                [
+                    "Giulietta",
+                    210.888,
+                ],
+            ]
+        },
     )
 
     assert len(rows) == 1
@@ -1070,11 +1076,13 @@ def test_import_rows_with_read_only_field(
     rows, report = handler.import_rows(
         user=user,
         table=table,
-        data=[
-            [
-                "Tesla",
-            ],
-        ],
+        data={
+            "data": [
+                [
+                    "Tesla",
+                ],
+            ]
+        },
         send_realtime_update=False,
     )
 

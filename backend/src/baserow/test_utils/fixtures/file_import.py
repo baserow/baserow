@@ -33,6 +33,7 @@ class FileImportFixtures:
                 for field_index in range(column_count):
                     row.append(f"data_{index}_{field_index}")
                 data.append(row)
+            data = {"data": data}
         else:
             data = kwargs.pop("data")
 

@@ -248,7 +248,7 @@ def test_create_table_with_data(
     with patch_filefield_storage():
         with job.data_file.open("r") as fin:
             data = json.load(fin)
-            assert data == [
+            assert data.get("data") == [
                 ["A", "B", "C", "D"],
                 ["1-1", "1-2", "1-3", "1-4", "1-5"],
                 ["2-1", "2-2", "2-3"],

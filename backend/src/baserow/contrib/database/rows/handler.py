@@ -86,7 +86,6 @@ if TYPE_CHECKING:
     from django.db.backends.utils import CursorWrapper
 
     from baserow.contrib.database.fields.models import Field
-    from baserow.contrib.database.views.models import View
 
 tracer = trace.get_tracer(__name__)
 
@@ -1542,8 +1541,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         report = {}
         all_created_rows = []
         for count, chunk in enumerate(grouper(BATCH_SIZE, rows)):
-            row_start_index = count * BATCH_SIZE
-            update_rows = self.update_rows(
+            self.update_rows(
                 user=user,
                 table=table,
                 model=model,
@@ -2580,11 +2578,12 @@ class ImportRowsMappingHandler:
         Calculates a map between import row indexes and table row ids.
         :return:
         """
+
         # no upsert value fields, no need for mapping
         if not self.field_names:
             return {}
 
-        script_template = f"""
+        script_template = """
         create temp table table_upsert_indexes (id int, upsert_value text, group_index int);
 
         create temp table table_import (id int, upsert_value text);
@@ -2614,8 +2613,8 @@ class ImportRowsMappingHandler:
         return self.cursor
 
     def insert_table_values(self):
-        columns = f" || {self.SEPARATOR} || ".join(
-            [f"coalesce({field}, '')" for field in self.field_names]
+        columns = f" || '{self.SEPARATOR}' || ".join(
+            [f"coalesce(cast({field} as text), '')::text" for field in self.field_names]
         )
         query = f"""with subq as (select r.id,  {columns} as upsert_value from {self.table_name} r where not trashed)
 

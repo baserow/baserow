@@ -190,7 +190,7 @@ class FileImportJobType(JobType):
         except ReportMaxErrorCountExceeded as err:
             self.cleanup_job(job, err.report)
             raise
-        except Exception as err:
+        except Exception:
             raise
 
         def after_commit():

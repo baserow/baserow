@@ -376,7 +376,7 @@ def test_import_rows_assign_new_values(data_fixture):
     RowHandler().import_rows(
         user=user,
         table=table,
-        data=[[], [], []],
+        data={"data": [[], [], []]},
     )
 
     model = table.get_model()
