@@ -27,7 +27,7 @@
 <script>
 import { resolveColor } from '@baserow/modules/core/utils/colors'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
-
+import pageStyleMixin from '@baserow/modules/builder/mixins/pageStyle'
 import {
   BACKGROUND_TYPES,
   CHILD_WIDTH_TYPES,
@@ -46,7 +46,7 @@ import { mapGetters } from 'vuex'
 
 export default {
   name: 'PageElement',
-  mixins: [applicationContextMixin],
+  mixins: [applicationContextMixin, pageStyleMixin],
   inject: ['builder', 'mode', 'currentPage'],
   provide() {
     return { mode: this.elementMode, elementPage: this.elementPage }
@@ -169,6 +169,7 @@ export default {
             this.element.style_width === WIDTH_TYPES.MEDIUM.value,
           'element__wrapper--small-width':
             this.element.style_width === WIDTH_TYPES.SMALL.value,
+          [this.pageAlignmentClass]: this.isPositionedContainer()
         }
       }
     },
