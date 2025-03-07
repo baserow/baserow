@@ -38,9 +38,11 @@ export default {
     return {
       values: {
         alignment: '',
+        styles: {},
       },
       allowedValues: [
         'alignment',
+        'styles',
       ],
     }
   },
