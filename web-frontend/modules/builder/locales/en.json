@@ -125,7 +125,9 @@
     "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
     "notAllowedLocation": "This element is not allowed at this location",
     "menu": "Menu",
-    "menuDescription": "Menu element"
+    "menuDescription": "Menu element",
+    "positionedContainer": "Positioned container",
+    "positionedContainerDescription": "A container that aligns to a side of the page"
   },
   "addElementButton": {
     "label": "Element"
@@ -225,6 +227,11 @@
     "menuItemAddSpacer": "Spacer",
     "eventDescription": "To configure actions for this button, open the Events tab of this element.",
     "noMenuItemsMessage": "Click 'Add' to add your first menu item."
+  },
+  "positionedContainerElementForm": {
+    "alignmentLabel": "Page alignment",
+    "alignmentTop": "Top",
+    "alignmentBottom": "Bottom"
   },
   "imageElement": {
     "missingValue": "Missing alt text...",
