@@ -6,7 +6,7 @@
       class="select-options select-options--scrollable"
     >
       <div
-        v-for="(item, index) in values.value"
+        v-for="(item, index) in options"
         :key="item.id"
         v-sortable="{
           id: item.id,
@@ -27,9 +27,9 @@
         <FormInput
           ref="inputs"
           v-model="item.value"
-          :error="v$.values.value.$each.$response?.$data[index].value.$error"
+          :error="v$.options.$each.$response?.$data[index].value.$error"
           @input="$emit('input', value)"
-          @blur="v$.values.value.$touch"
+          @blur="v$.options.$touch"
         />
         <ButtonIcon
           tag="a"
@@ -70,36 +70,37 @@ export default {
     return {
       colorContextSelected: -1,
       lastSeenId: -1,
-      values: {
-        value: [],
-      },
+      options: [],
     }
   },
   computed: {
     usedColors() {
       const colors = new Set()
-      this.values.value.forEach((option) => colors.add(option.color))
+      this.options.forEach((option) => colors.add(option.color))
       return Array.from(colors)
     },
   },
-  mounted() {
-    this.$nextTick(() => {
-      this.values.value = this.value
-    })
+  watch: {
+    value: {
+      immediate: true,
+      handler(newVal) {
+        this.options = newVal
+      },
+    },
   },
   methods: {
     remove(index) {
       this.$refs.colorContext.hide()
-      this.values.value.splice(index, 1)
-      this.$emit('input', this.values.value)
+      this.options.splice(index, 1)
+      this.$emit('input', this.options)
     },
     add(optionValue = '') {
-      this.values.value.push({
+      this.options.push({
         value: optionValue,
         color: randomColor(this.usedColors),
         id: this.lastSeenId,
       })
-      this.$emit('input', this.values.value)
+      this.$emit('input', this.options)
       this.lastSeenId -= 1
       this.$nextTick(() => {
         this.$refs.options.scrollTop = this.$refs.options.scrollHeight
@@ -110,7 +111,7 @@ export default {
     },
     openColor(index) {
       this.colorContextSelected = index
-      this.$refs.colorContext.setActive(this.values.value[index].color)
+      this.$refs.colorContext.setActive(this.options[index].color)
       this.$refs.colorContext.toggle(
         this.$refs['color-select-' + index][0],
         'bottom',
@@ -119,11 +120,11 @@ export default {
       )
     },
     updateColor(index, color) {
-      this.values.value[index].color = color
+      this.options[index].color = color
       this.$emit('input', this.value)
     },
     order(newOrder, oldOrder) {
-      const sortedValue = this.value
+      const sortedValue = this.options
         .slice()
         .sort(
           (a, b) =>
@@ -135,12 +136,10 @@ export default {
   },
   validations() {
     return {
-      values: {
-        value: {
-          $each: helpers.forEach({
-            value: { required },
-          }),
-        },
+      options: {
+        $each: helpers.forEach({
+          value: { required },
+        }),
       },
     }
   },
