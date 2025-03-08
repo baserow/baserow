@@ -125,7 +125,9 @@
     "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
     "notAllowedLocation": "This element is not allowed at this location",
     "menu": "Menu",
-    "menuDescription": "Menu element"
+    "menuDescription": "Menu element",
+    "simpleContainer": "Container",
+    "simpleContainerDescription": "A container for other elements"
   },
   "addElementButton": {
     "label": "Element"

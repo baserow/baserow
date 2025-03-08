@@ -1066,3 +1066,9 @@ class MenuElement(Element):
     )
 
     menu_items = models.ManyToManyField(MenuItemElement)
+
+
+class SimpleContainerElement(ContainerElement):
+    """
+    A simple container to group elements
+    """

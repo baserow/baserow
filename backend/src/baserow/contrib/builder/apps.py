@@ -186,6 +186,7 @@ class BuilderConfig(AppConfig):
             MenuElementType,
             RecordSelectorElementType,
             RepeatElementType,
+            SimpleContainerElementType,
             TableElementType,
             TextElementType,
         )
@@ -209,6 +210,7 @@ class BuilderConfig(AppConfig):
         element_type_registry.register(HeaderElementType())
         element_type_registry.register(FooterElementType())
         element_type_registry.register(MenuElementType())
+        element_type_registry.register(SimpleContainerElementType())
 
         from .domains.domain_types import CustomDomainType, SubDomainType
         from .domains.registries import domain_type_registry

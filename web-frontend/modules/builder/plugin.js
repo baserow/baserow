@@ -45,6 +45,7 @@ import {
   HeaderElementType,
   FooterElementType,
   MenuElementType,
+  SimpleContainerElementType,
 } from '@baserow/modules/builder/elementTypes'
 import {
   DesktopDeviceType,
@@ -218,6 +219,7 @@ export default (context) => {
   app.$registry.register('element', new LinkElementType(context))
   app.$registry.register('element', new ButtonElementType(context))
   app.$registry.register('element', new TableElementType(context))
+  app.$registry.register('element', new SimpleContainerElementType(context))
   app.$registry.register('element', new ColumnElementType(context))
   app.$registry.register('element', new HeaderElementType(context))
   app.$registry.register('element', new FooterElementType(context))
