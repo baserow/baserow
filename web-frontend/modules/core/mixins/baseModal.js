@@ -2,6 +2,13 @@ import MoveToBody from '@baserow/modules/core/mixins/moveToBody'
 
 export default {
   mixins: [MoveToBody],
+  props: {
+    canClose: {
+      type: Boolean,
+      default: true,
+      required: false,
+    },
+  },
   data() {
     return {
       open: false,
@@ -96,7 +103,10 @@ export default {
      */
     keyup(event) {
       if (event.key === 'Escape' && this.canClose) {
-        this.hide()
+        const elements = document.getElementsByClassName('modal__wrapper')
+        if (elements.item(elements.length - 1) === this.$refs.modalWrapper) {
+          this.hide()
+        }
       }
     },
   },

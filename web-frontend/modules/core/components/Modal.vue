@@ -158,11 +158,6 @@ export default {
       default: false,
       required: false,
     },
-    canClose: {
-      type: Boolean,
-      default: true,
-      required: false,
-    },
     collapsibleRightSidebar: {
       type: Boolean,
       default: false,

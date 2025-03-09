@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fix pressing ESC in 'File field modal' over the 'Edit file modal' close both modals.",
+    "issue_number": 3495,
+    "bullet_points": [],
+    "created_at": "2025-03-09"
+}
