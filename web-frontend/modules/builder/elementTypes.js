@@ -2101,7 +2101,7 @@ export class PositionedContainerElementType extends ContainerElementTypeMixin(
 
   /**
    * Override the base implementation to disallow moving the element.
-   * 
+   *
    * The element's position can be swapped between top and bottom, but this is
    * handled via its `alignment` property.
    */
@@ -2140,7 +2140,8 @@ export class PositionedContainerElementType extends ContainerElementTypeMixin(
     const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
 
     if (page.id !== sharedPage.id) {
-      const orderedElements = this.app.store.getters['element/getElementsOrdered'](page)
+      const orderedElements =
+        this.app.store.getters['element/getElementsOrdered'](page)
 
       // Allow the Positioned Container element to only be placed either at the
       // top or bottom of the page.
