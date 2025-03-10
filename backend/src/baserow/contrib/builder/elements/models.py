@@ -1077,12 +1077,12 @@ class PositionedContainerElement(ContainerElement):
 
     alignment = models.CharField(
         choices=PageAlignments.choices,
-        max_length=10,
+        max_length=15,
         default=PageAlignments.TOP,
     )
 
     behaviour = models.CharField(
         choices=PageBehaviours.choices,
-        max_length=10,
+        max_length=15,
         default=PageBehaviours.FIXED,
     )

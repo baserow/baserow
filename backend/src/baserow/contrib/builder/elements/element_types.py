@@ -2346,8 +2346,3 @@ class PositionedContainerElementType(ContainerElementTypeMixin, ElementType):
             for element_type in super().child_types_allowed
             if element_type.type != self.type
         ]
-
-    def after_update(
-        self, instance: PositionedContainerElement, values, changes: Dict[str, Tuple]
-    ):
-        super().after_update(instance, values, changes)

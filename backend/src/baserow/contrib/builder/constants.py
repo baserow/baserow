@@ -22,9 +22,8 @@ class VerticalAlignments(models.TextChoices):
 class PageAlignments(models.TextChoices):
     TOP = "top"
     BOTTOM = "bottom"
-    LEFT = "left"
-    RIGHT = "right"
-    CENTER = "center"
+    LEFT_SIDEBAR = "left_sidebar"
+    RIGHT_SIDEBAR = "right_sidebar"
 
 
 class PageBehaviours(models.TextChoices):

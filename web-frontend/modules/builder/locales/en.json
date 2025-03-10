@@ -233,6 +233,8 @@
     "alignmentLabel": "Page alignment",
     "alignmentTop": "Top",
     "alignmentBottom": "Bottom",
+    "alignmentLeftSidebar": "Left sidebar",
+    "alignmentRightSidebar": "Right sidebar",
     "behaviourLabel": "Page Behaviour",
     "behaviourFixed": "Fixed",
     "behaviourSticky": "Sticky"
