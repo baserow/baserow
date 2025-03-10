@@ -8,6 +8,7 @@
   font-size: 11px;
   font-weight: 500;
   list-style: none;
+  cursor: pointer;
 
   @include rounded($rounded);
 
@@ -15,6 +16,7 @@
   &--active:not(.data-variable--error),
   &--disabled {
     background-color: $palette-neutral-200;
+    cursor: default;
   }
 
   &:hover:not(.data-variable--error):not(.data-variable--disabled) {
@@ -23,6 +25,10 @@
 
   &--error {
     background-color: $palette-red-50;
+  }
+
+  &--rounded {
+    @include rounded($rounded-2xl);
   }
 }
 

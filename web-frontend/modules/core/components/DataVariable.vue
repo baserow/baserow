@@ -5,6 +5,7 @@
       'data-variable--disabled': disabled,
       'data-variable--active': active,
       'data-variable--error': error,
+      'data-variable--rounded': rounded,
     }"
   >
     <template v-for="(variable, index) in variables">
@@ -45,6 +46,10 @@ export default {
       default: false,
     },
     removeIcon: {
+      type: Boolean,
+      default: false,
+    },
+    rounded: {
       type: Boolean,
       default: false,
     },
