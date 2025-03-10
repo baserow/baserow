@@ -231,7 +231,10 @@
   "positionedContainerElementForm": {
     "alignmentLabel": "Page alignment",
     "alignmentTop": "Top",
-    "alignmentBottom": "Bottom"
+    "alignmentBottom": "Bottom",
+    "behaviourLabel": "Page Behaviour",
+    "behaviourFixed": "Fixed",
+    "behaviourSticky": "Sticky"
   },
   "imageElement": {
     "missingValue": "Missing alt text...",

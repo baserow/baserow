@@ -2,7 +2,6 @@
   <form @submit.prevent @keydown.enter.prevent>
     <FormGroup
       small-label
-      horizontal
       required
       :label="$t('positionedContainerElementForm.alignmentLabel')"
       class="margin-bottom-2"
@@ -10,7 +9,7 @@
       <Dropdown
         :value="values.alignment"
         :show-search="false"
-        @input="onValuesChanged"
+        @input="onAlignmentChanged"
       >
         <DropdownItem
           v-for="alignment in alignmentTypes"
@@ -20,6 +19,19 @@
         />
       </Dropdown>
     </FormGroup>
+
+    <FormGroup
+      :label="$t('positionedContainerElementForm.behaviourLabel')"
+      small-label
+      required
+      class="margin-bottom-2"
+    >
+      <RadioGroup
+        v-model="values.behaviour"
+        :options="behaviourTypes"
+        type="button"
+      />
+    </FormGroup>
   </form>
 </template>
 
@@ -27,7 +39,7 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions, mapGetters } from 'vuex'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import { PAGE_ALIGNMENTS } from '@baserow/modules/builder/enums'
+import { PAGE_ALIGNMENT_BEHAVIOURS, PAGE_ALIGNMENTS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'PositionedContainerElementForm',
@@ -36,9 +48,10 @@ export default {
     return {
       values: {
         alignment: '',
+        behaviour: '',
         styles: {},
       },
-      allowedValues: ['alignment', 'styles'],
+      allowedValues: ['alignment', 'behaviour', 'styles'],
     }
   },
   computed: {
@@ -64,12 +77,24 @@ export default {
         },
       ]
     },
+    behaviourTypes() {
+      return [
+        {
+          label: this.$t('positionedContainerElementForm.behaviourFixed'),
+          value: PAGE_ALIGNMENT_BEHAVIOURS.FIXED,
+        },
+        {
+          label: this.$t('positionedContainerElementForm.behaviourSticky'),
+          value: PAGE_ALIGNMENT_BEHAVIOURS.STICKY,
+        },
+      ]
+    }
   },
   methods: {
     ...mapActions({
       actionMoveElement: 'element/move',
     }),
-    async onValuesChanged(event) {
+    async onAlignmentChanged(event) {
       let beforeElementId = null
       if (event === PAGE_ALIGNMENTS.TOP) {
         beforeElementId = this.rootElements.at(0).id

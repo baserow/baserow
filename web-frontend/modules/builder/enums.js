@@ -213,3 +213,8 @@ export const PAGE_ALIGNMENTS = {
   TOP: 'top',
   BOTTOM: 'bottom',
 }
+
+export const PAGE_ALIGNMENT_BEHAVIOURS = {
+  FIXED: 'fixed',
+  STICKY: 'sticky',
+}
