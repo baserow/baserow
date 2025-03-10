@@ -30,6 +30,7 @@
         </Dropdown>
       </div>
       <ButtonIcon
+        tag="a"
         class="filters__remove page-settings-query-params__remove"
         icon="iconoir-bin"
         @click="deleteQueryParam(index)"
