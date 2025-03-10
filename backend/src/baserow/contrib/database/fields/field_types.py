@@ -6008,7 +6008,10 @@ class LookupFieldType(FormulaFieldType):
 
 
 class MultipleCollaboratorsFieldType(
-    CollationSortMixin, ManyToManyFieldTypeSerializeToInputValueMixin, FieldType
+    CollationSortMixin,
+    ManyToManyFieldTypeSerializeToInputValueMixin,
+    ManyToManyGroupByMixin,
+    FieldType,
 ):
     type = "multiple_collaborators"
     model_class = MultipleCollaboratorsField
@@ -6024,6 +6027,7 @@ class MultipleCollaboratorsFieldType(
         "notify_user_when_added": serializers.BooleanField(required=False),
     }
     is_many_to_many_field = True
+    _can_group_by = True
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.pop("required", False)

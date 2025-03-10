@@ -5,9 +5,11 @@ from django.apps.registry import apps
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
+from django.urls import reverse
 
 import pytest
 from faker import Faker
+from pytest_unordered import unordered
 
 from baserow.contrib.database.fields.field_types import MultipleCollaboratorsFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -937,3 +939,164 @@ def test_multiple_collaborators_formula_field_cache_users_query(data_fixture):
             export_row(row)
 
     assert len(queries_for_all_others.captured_queries) == 0
+
+
+@pytest.mark.django_db
+def test_get_group_by_metadata_in_rows_with_multiple_collaborators_field(data_fixture):
+    user = data_fixture.create_user(first_name="A")
+    user_2 = data_fixture.create_user(first_name="B")
+    workspace = data_fixture.create_workspace(members=[user, user_2])
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+    multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
+        table=table
+    )
+
+    RowHandler().force_create_rows(
+        user=user,
+        table=table,
+        rows_values=[
+            {
+                f"field_{text_field.id}": "Row 1",
+                f"field_{multiple_collaborators_field.id}": [],
+            },
+            {
+                f"field_{text_field.id}": "Row 2",
+                f"field_{multiple_collaborators_field.id}": [],
+            },
+            {
+                f"field_{text_field.id}": "Row 3",
+                f"field_{multiple_collaborators_field.id}": [{"id": user.id}],
+            },
+            {
+                f"field_{text_field.id}": "Row 4",
+                f"field_{multiple_collaborators_field.id}": [{"id": user.id}],
+            },
+            {
+                f"field_{text_field.id}": "Row 5",
+                f"field_{multiple_collaborators_field.id}": [{"id": user_2.id}],
+            },
+            {
+                f"field_{text_field.id}": "Row 6",
+                f"field_{multiple_collaborators_field.id}": [{"id": user_2.id}],
+            },
+            {
+                f"field_{text_field.id}": "Row 7",
+                f"field_{multiple_collaborators_field.id}": [
+                    {"id": user.id},
+                    {"id": user_2.id},
+                ],
+            },
+            {
+                f"field_{text_field.id}": "Row 8",
+                f"field_{multiple_collaborators_field.id}": [
+                    {"id": user.id},
+                    {"id": user_2.id},
+                ],
+            },
+            {
+                f"field_{text_field.id}": "Row 9",
+                f"field_{multiple_collaborators_field.id}": [
+                    {"id": user_2.id},
+                    {"id": user.id},
+                ],
+            },
+        ],
+    )
+
+    model = table.get_model()
+
+    queryset = model.objects.all().enhance_by_fields()
+    rows = list(queryset)
+
+    handler = ViewHandler()
+    counts = handler.get_group_by_metadata_in_rows(
+        [multiple_collaborators_field], rows, queryset
+    )
+
+    # Resolve the queryset, so that we can do a comparison.
+    for c in counts.keys():
+        counts[c] = list(counts[c])
+
+    assert counts == {
+        multiple_collaborators_field: unordered(
+            [
+                {"count": 2, f"field_{multiple_collaborators_field.id}": []},
+                {
+                    "count": 2,
+                    f"field_{multiple_collaborators_field.id}": [user.id],
+                },
+                {
+                    "count": 2,
+                    f"field_{multiple_collaborators_field.id}": [
+                        user.id,
+                        user_2.id,
+                    ],
+                },
+                {
+                    "count": 2,
+                    f"field_{multiple_collaborators_field.id}": [user_2.id],
+                },
+                {
+                    "count": 1,
+                    f"field_{multiple_collaborators_field.id}": [
+                        user_2.id,
+                        user.id,
+                    ],
+                },
+            ]
+        )
+    }
+
+
+@pytest.mark.django_db
+def test_list_rows_with_group_by_and_multiple_collaborators_field(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="password", first_name="A"
+    )
+    user_2 = data_fixture.create_user(first_name="B")
+    user_3 = data_fixture.create_user(first_name="C")
+    workspace = data_fixture.create_workspace(members=[user, user_2, user_3])
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
+        table=table
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=multiple_collaborators_field)
+
+    RowHandler().create_row(
+        user=user,
+        table=table,
+        values={
+            f"field_{multiple_collaborators_field.id}": [
+                {"id": user.id},
+                {"id": user_2.id},
+                {"id": user_3.id},
+            ],
+        },
+    )
+
+    url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
+    response = api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token}"})
+    response_json = response.json()
+
+    assert response_json["group_by_metadata"] == {
+        f"field_{multiple_collaborators_field.id}": unordered(
+            [
+                {
+                    f"field_{multiple_collaborators_field.id}": [
+                        user.id,
+                        user_2.id,
+                        user_3.id,
+                    ],
+                    "count": 1,
+                },
+            ]
+        ),
+    }

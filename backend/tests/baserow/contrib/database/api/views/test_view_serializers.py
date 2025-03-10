@@ -65,7 +65,8 @@ def test_serialize_group_by_metadata(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fixture):
-    table, *_ = setup_interesting_test_table(data_fixture)
+    table, _, _, _, context = setup_interesting_test_table(data_fixture)
+    user2, user3 = context["user2"], context["user3"]
     model = table.get_model()
     queryset = model.objects.all()
     rows = list(queryset)
@@ -283,6 +284,14 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
         "decimal_link_row": [
             {"field_decimal_link_row": [], "count": 1},
             {"field_decimal_link_row": [1, 2, 3], "count": 1},
+        ],
+        "multiple_collaborators_link_row": [
+            {"field_multiple_collaborators_link_row": [], "count": 1},
+            {"field_multiple_collaborators_link_row": [1, 2], "count": 1},
+        ],
+        "multiple_collaborators": [
+            {"field_multiple_collaborators": [], "count": 1},
+            {"field_multiple_collaborators": [user2.id, user3.id], "count": 1},
         ],
     }
     for key, actual_value in actual_result_per_field_name.items():
