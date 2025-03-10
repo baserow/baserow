@@ -2084,7 +2084,7 @@ export class PositionedContainerElementType extends ContainerElementTypeMixin(
   }
 
   get iconClass() {
-    return 'iconoir-position-align'
+    return 'iconoir-pin'
   }
 
   get component() {
