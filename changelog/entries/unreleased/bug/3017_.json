@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug that prevented duplicating views filtered by a collaborator correctly.",
+    "domain": "database",
+    "issue_number": 3017,
+    "bullet_points": [],
+    "created_at": "2025-03-10"
+}

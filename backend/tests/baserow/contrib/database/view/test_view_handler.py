@@ -4383,3 +4383,40 @@ def test_get_queryset_apply_sorts(data_fixture):
 
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_2.id, row_1.id]
+
+
+@pytest.mark.django_db
+def test_can_duplicate_views_with_multiple_collaborator_has_filter(data_fixture):
+    user_1 = data_fixture.create_user()
+    user_2 = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(users=[user_1, user_2])
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_multiple_collaborators_field(table=table)
+    grid = data_fixture.create_public_password_protected_grid_view(table=table, order=1)
+    view_filter = data_fixture.create_view_filter(
+        view=grid, field=field, type="multiple_collaborators_has", value=user_1.id
+    )
+
+    rows = RowHandler().force_create_rows(
+        user_1,
+        table,
+        [
+            {field.db_column: []},
+            {field.db_column: [{"id": user_1.id, "name": user_1.first_name}]},
+            {field.db_column: [{"id": user_2.id, "name": user_2.first_name}]},
+        ],
+    )
+
+    results = ViewHandler().get_queryset(grid)
+    assert len(results) == 1
+    assert list(getattr(results[0], field.db_column).values_list("id", flat=True)) == [
+        user_1.id
+    ]
+
+    new_grid = ViewHandler().duplicate_view(user_1, grid)
+    new_results = ViewHandler().get_queryset(new_grid)
+    assert len(new_results) == 1
+    assert list(
+        getattr(new_results[0], field.db_column).values_list("id", flat=True)
+    ) == [user_1.id]
