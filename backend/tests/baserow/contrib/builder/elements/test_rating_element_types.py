@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import pytest
 
-from baserow.contrib.builder.elements.models import RatingElement, RatingStyles
+from baserow.contrib.builder.elements.models import RatingElement, RatingStyleChoices
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.core.utils import MirrorDict
 
@@ -16,7 +16,7 @@ def test_rating_element_type_export_import(data_fixture):
         value="4",
         max_value=5,
         color="#FF0000",
-        style=RatingStyles.STAR,
+        style=RatingStyleChoices.STAR,
     )
 
     exported = element_type_registry.get_by_model(element).export_serialized(element)
@@ -26,7 +26,7 @@ def test_rating_element_type_export_import(data_fixture):
     assert exported["value"] == "4"
     assert exported["max_value"] == 5
     assert exported["color"] == "#FF0000"
-    assert exported["style"] == RatingStyles.STAR
+    assert exported["style"] == RatingStyleChoices.STAR
 
     id_mapping = defaultdict(lambda: MirrorDict())
     imported = element_type_registry.get("rating").import_serialized(

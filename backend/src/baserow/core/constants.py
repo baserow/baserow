@@ -59,4 +59,3 @@ class RatingStyleChoices(models.TextChoices):
     THUMBS_UP = "thumbs-up"
     FLAG = "flag"
     SMILE = "smile"
-

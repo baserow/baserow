@@ -8,13 +8,13 @@ from baserow.contrib.builder.elements.element_types import NavigationElementMana
 from baserow.contrib.builder.elements.models import CollectionField, LinkElement
 from baserow.contrib.builder.elements.registries import CollectionFieldType
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.core.constants import RatingStyleChoices
 from baserow.core.formula.serializers import (
     FormulaSerializerField,
     OptionalFormulaSerializerField,
 )
 from baserow.core.formula.types import BaserowFormula
 from baserow.core.registry import Instance
-from core.constants import RatingStyleChoices
 
 
 class BooleanCollectionFieldType(CollectionFieldType):

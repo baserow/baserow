@@ -27,6 +27,7 @@ from baserow.contrib.database.table.constants import (
     MULTIPLE_SELECT_THROUGH_TABLE_PREFIX,
     get_tsv_vector_field_name,
 )
+from baserow.core.constants import RatingStyleChoices
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
@@ -42,7 +43,6 @@ from baserow.core.mixins import (
     WithRegistry,
 )
 from baserow.core.utils import remove_special_characters, to_snake_case
-from core.constants import RatingStyleChoices
 
 from .fields import SerialField
 
@@ -401,7 +401,7 @@ class RatingField(Field):
         Check if the max_value, color and style have a valid value.
         """
 
-        if not any(self.style in _tuple for _tuple in RATING_STYLE_CHOICES):
+        if not any(self.style in _tuple for _tuple in RatingStyleChoices):
             raise ValueError(f"{self.style} is not a valid choice.")
         if not self.color:
             raise ValueError(f"color should be defined.")
