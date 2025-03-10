@@ -33,7 +33,6 @@
         <Dropdown
           v-model="values.field_id"
           :error="fieldHasErrors('field_id')"
-          :disabled="fieldsAvailableForSelection.length === 0"
           @change="v$.values.field_id.$touch"
         >
           <DropdownItem
@@ -188,7 +187,10 @@ export default {
       const field = this.tableFields.find(
         (field) => field.id === this.values.field_id
       )
-      if (field && !aggType.fieldIsCompatible(field)) {
+      if (
+        (field && !aggType.fieldIsCompatible(field)) ||
+        this.fieldHasErrors('field_id')
+      ) {
         this.values.field_id = null
       }
       this.v$.values.aggregation_type.$touch()

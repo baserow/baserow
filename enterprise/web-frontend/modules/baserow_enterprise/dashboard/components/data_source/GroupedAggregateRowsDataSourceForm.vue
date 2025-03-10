@@ -220,7 +220,12 @@ export default {
     },
     allowedSortReferences() {
       const seriesSortReferences = this.values.aggregation_series
-        .filter((item) => item.field_id && item.aggregation_type)
+        .filter(
+          (item) =>
+            item.field_id &&
+            item.aggregation_type &&
+            this.getTableFieldById(item.field_id)
+        )
         .map((item) => {
           const field = this.getTableFieldById(item.field_id)
           return {
@@ -232,19 +237,25 @@ export default {
             )})`,
           }
         })
-      const groupBySortReferences = this.values.aggregation_group_bys.map(
-        (item) => {
+      const groupBySortReferences = this.values.aggregation_group_bys.reduce(
+        (acc, item) => {
           const field =
             item.field_id === null
               ? this.primaryTableField
               : this.getTableFieldById(item.field_id)
-          return {
-            sort_on: 'GROUP_BY',
-            reference: `field_${field.id}`,
-            field,
-            name: field.name,
+
+          if (field !== undefined) {
+            acc.push({
+              sort_on: 'GROUP_BY',
+              reference: `field_${field.id}`,
+              field,
+              name: field.name,
+            })
           }
-        }
+
+          return acc
+        },
+        []
       )
       return seriesSortReferences.concat(groupBySortReferences)
     },
