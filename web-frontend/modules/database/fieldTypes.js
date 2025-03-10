@@ -528,7 +528,9 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * @TODO docs
+   * Should return a mapping containing all the available sort types for this field
+   * type. It always returns the default type, which uses the `getSort` and
+   * `getSortIndicator` by default.
    */
   getSortTypes(field, registry) {
     return {
@@ -539,6 +541,11 @@ export class FieldType extends Registerable {
     }
   }
 
+  /**
+   * This hook is called before the field's value is copied to the clipboard.
+   * Optionally formatting can be done here. By default the value is always
+   * converted to a string.
+   */
   /**
    * This hook is called before the field's value is copied to the clipboard.
    * Optionally formatting can be done here. By default the value is always

@@ -168,13 +168,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             field_name, value, model_field, field
         )
 
-    def check_can_order_by(self, field: Field, order_type: str) -> bool:
+    def check_can_order_by(self, field: Field, sort_type: str) -> bool:
         baserow_field_type = self.get_baserow_field_type(field)
-        return baserow_field_type.check_can_order_by(field, order_type)
+        return baserow_field_type.check_can_order_by(field, sort_type)
 
-    def check_can_group_by(self, field: Field, order_type: str) -> bool:
+    def check_can_group_by(self, field: Field, sort_type: str) -> bool:
         baserow_field_type = self.get_baserow_field_type(field)
-        return baserow_field_type.check_can_group_by(field, order_type)
+        return baserow_field_type.check_can_group_by(field, sort_type)
 
     def get_search_expression(self, field: Field, queryset):
         baserow_field_type = self.get_baserow_field_type(field)

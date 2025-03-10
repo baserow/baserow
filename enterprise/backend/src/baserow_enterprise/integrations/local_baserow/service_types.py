@@ -630,7 +630,8 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     field=field_obj["field"],
                     field_name=sort_by.reference,
                     order_direction=sort_by.direction,
-                    # @TODO make the application builder sort compatible.
+                    # The application builder does not yet have compatibility with
+                    # different sort types, so it uses the default one instead.
                     sort_type=DEFAULT_SORT_TYPE_KEY,
                 )
                 if field_annotated_order_by.annotation is not None:

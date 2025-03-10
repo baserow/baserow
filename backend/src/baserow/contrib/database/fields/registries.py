@@ -128,7 +128,10 @@ class FieldType(
     """
 
     _can_order_by_types = [DEFAULT_SORT_TYPE_KEY]
-    """Indicates by which types can be ordered. Leave empty if can't sort."""
+    """
+    Indicates by which types can be ordered. Leave empty if it's not possible to sort
+    by the field type.
+    """
 
     _can_be_primary_field = True
     """Some field types cannot be the primary field."""
@@ -873,7 +876,7 @@ class FieldType(
         :param field: The related field object instance.
         :param field_name: The name of the field.
         :param order_direction: The sort order direction (either "ASC" or "DESC").
-        :param sort_type:
+        :param sort_type: The sort type that must be used, `default` by default.
         :param table_model: The table model instance that the field is part of,
             if available.
         :return: Either the expression that is added directly to the
@@ -1605,35 +1608,32 @@ class FieldType(
 
         return self._can_filter_by
 
-    def check_can_order_by(self, field: Field, order_type: str) -> bool:
+    def check_can_order_by(self, field: Field, sort_type: str) -> bool:
         """
         Override this method if this field type can sometimes be ordered or sometimes
-        cannot be ordered depending on the individual field state. By default will just
-        return the bool property _can_order_by so if your field type doesn't depend
-        on the field state and is always just True or False just set _can_order_by
-        to the desired value.
+        cannot be ordered depending on the individual field state. By default, it will
+        check if the provided `sort_type` is in the `_can_order_by_types` property.
 
         :param field: The field to check to see if it can be ordered by or not.
-        :param order_type: @TODO docs
+        :param sort_type: The sort type to check if it's compatible.
         :return: True if a view can be ordered by this field, False otherwise.
         """
 
-        return order_type in self._can_order_by_types
+        return sort_type in self._can_order_by_types
 
-    def check_can_group_by(self, field: Field, order_type: str) -> bool:
+    def check_can_group_by(self, field: Field, sort_type: str) -> bool:
         """
         Override this method if this field type can sometimes be grouped or sometimes
         cannot be grouped depending on the individual field state. By default will just
-        return the bool property _can_group_by so if your field type doesn't depend
-        on the field state and is always just True or False just set _can_group_by
-        to the desired value.
+        return the bool property _can_group_by and checks if the sort_type is in the
+        `_can_order_by_types` property.
 
         :param field: The field to check to see if it can be grouped by or not.
-        :param order_type: @TODO docs
+        :param sort_type: The sort type to check if it's compatible.
         :return: True if a view can be grouped by this field, False otherwise.
         """
 
-        return self._can_group_by and self.check_can_order_by(field, order_type)
+        return self._can_group_by and self.check_can_order_by(field, sort_type)
 
     def get_sortable_column_expression(
         self,
@@ -1648,7 +1648,7 @@ class FieldType(
 
         :param field: The field where to get the sortable column expression for.
         :param field_name: The name of the field in the table.
-        :param sort_type: @TODO docs
+        :param sort_type: The sort type that must be used, `default` by default.
         :return: The expression that can be used to sort the field in the database.
         """
 
