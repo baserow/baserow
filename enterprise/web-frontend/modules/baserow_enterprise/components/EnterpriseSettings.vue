@@ -80,6 +80,7 @@ import UserFilesModal from '@baserow/modules/core/components/files/UserFilesModa
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import { useVuelidate } from '@vuelidate/core'
+
 export default {
   name: 'EnterpriseSettings',
   components: { UserFilesModal },
