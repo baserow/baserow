@@ -11,6 +11,7 @@ from baserow.contrib.builder.constants import (
     COLOR_FIELD_MAX_LENGTH,
     HorizontalAlignments,
     PageAlignments,
+    PageBehaviours,
     VerticalAlignments,
 )
 from baserow.core.constants import DATE_FORMAT_CHOICES, DATE_TIME_FORMAT_CHOICES
@@ -1078,4 +1079,10 @@ class PositionedContainerElement(ContainerElement):
         choices=PageAlignments.choices,
         max_length=10,
         default=PageAlignments.TOP,
+    )
+
+    behaviour = models.CharField(
+        choices=PageBehaviours.choices,
+        max_length=10,
+        default=PageBehaviours.FIXED,
     )

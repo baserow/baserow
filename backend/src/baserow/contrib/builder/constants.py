@@ -27,6 +27,11 @@ class PageAlignments(models.TextChoices):
     CENTER = "center"
 
 
+class PageBehaviours(models.TextChoices):
+    FIXED = "fixed"
+    STICKY = "sticky"
+
+
 class WIDTHS(models.TextChoices):
     AUTO = "auto"
     FULL = "full"

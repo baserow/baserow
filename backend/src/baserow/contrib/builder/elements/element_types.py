@@ -29,6 +29,7 @@ from baserow.contrib.builder.api.elements.serializers import (
 from baserow.contrib.builder.constants import (
     HorizontalAlignments,
     PageAlignments,
+    PageBehaviours,
     VerticalAlignments,
 )
 from baserow.contrib.builder.data_providers.exceptions import (
@@ -2311,22 +2312,26 @@ class PositionedContainerElementType(ContainerElementTypeMixin, ElementType):
 
     class SerializedDict(ContainerElementTypeMixin.SerializedDict):
         alignment: str
+        behaviour: str
 
     @property
     def serializer_field_names(self):
         return super().serializer_field_names + [
             "alignment",
+            "behaviour",
         ]
 
     @property
     def allowed_fields(self):
         return super().allowed_fields + [
             "alignment",
+            "behaviour",
         ]
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "alignment": PageAlignments.TOP,
+            "behaviour": PageBehaviours.FIXED,
         }
 
     @property
