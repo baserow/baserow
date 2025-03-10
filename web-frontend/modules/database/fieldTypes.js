@@ -3281,10 +3281,35 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     }
   }
 
-  getSortTypes() {
+  getSortByOptionOrder(name, order, field) {
+    const getOrder = function (row, name, field) {
+      let id = null
+
+      try {
+        id = row[name].id || null
+      } catch (e) {
+        return -1
+      }
+
+      return field.select_options.findIndex((o) => o.id === id) || -1
+    }
+
+    return (a, b) => {
+      const aOrder = getOrder(a, name, field)
+      const bOrder = getOrder(b, name, field)
+
+      if (order === 'ASC') {
+        return aOrder - bOrder
+      } else if (order === 'DESC') {
+        return bOrder - aOrder
+      }
+    }
+  }
+
+  getSortTypes(field, registry) {
     const defaultTypes = super.getSortTypes()
     defaultTypes.order = {
-      function: () => null,
+      function: this.getSortByOptionOrder,
       indicator: ['text', 'First', 'Last'],
     }
     return defaultTypes

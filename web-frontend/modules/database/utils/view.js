@@ -20,7 +20,12 @@ export function getRowSortFunction($registry, sortings, fields, groupBys = []) {
     if (field !== undefined) {
       const fieldName = `field_${field.id}`
       const fieldType = $registry.get('field', field.type)
-      const fieldSortFunction = fieldType.getSort(fieldName, sort.order, field)
+      const sortTypes = fieldType.getSortTypes(field, $registry)
+      const fieldSortFunction = sortTypes[sort.type].function(
+        fieldName,
+        sort.order,
+        field
+      )
       sortFunction = sortFunction.thenBy(fieldSortFunction)
     }
   })
