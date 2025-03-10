@@ -1,5 +1,7 @@
 <template>
-  <form @submit.prevent @keydown.enter.prevent></form>
+  <form @submit.prevent @keydown.enter.prevent>
+    <p>{{ $t('simpleContainerElementForm.noConfigurationOptions') }}</p>
+  </form>
 </template>
 
 <script>

@@ -33,11 +33,11 @@
 </template>
 
 <script>
-import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone.vue'
+import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
-import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal.vue'
-import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview.vue'
-import PageElement from '@baserow/modules/builder/components/page/PageElement.vue'
+import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
+import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
+import PageElement from '@baserow/modules/builder/components/page/PageElement'
 
 export default {
   name: 'SimpleContainerElement',
@@ -49,18 +49,11 @@ export default {
   },
   mixins: [containerElement],
   props: {
-    /**
-     * @type {Object}
-     * @property submit_button_label - The label of the submit button
-     * @property reset_initial_values_post_submission - Whether to reset the form
-     *  elements to their initial value or not, following a successful submission.
-     */
     element: {
       type: Object,
       required: true,
     },
   },
-  computed: {},
   methods: {
     showAddElementModal() {
       this.$refs.addElementModal.show({
