@@ -19,6 +19,11 @@ export default function () {
   // Register new alias to the web-frontend directory.
   this.options.alias['@baserow_enterprise'] = path.resolve(__dirname, './')
 
+  if (this.options.publicRuntimeConfig) {
+    this.options.publicRuntimeConfig.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES =
+      process.env.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES || 3
+  }
+
   // Remove the existing index route and add our own routes.
   this.extendRoutes((configRoutes) => {
     const settingsRoute = configRoutes.find(

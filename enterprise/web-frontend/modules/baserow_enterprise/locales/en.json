@@ -450,7 +450,8 @@
     "data": "Data",
     "sourceFieldLabel": "Source",
     "viewFieldLabel": "View",
-    "notSelected": "Not selected"
+    "notSelected": "Not selected",
+    "maxSeriesReached": "You have reached the maximum number of series."
   },
   "aggregationSeriesForm": {
     "aggregationFieldLabel": "Field",
