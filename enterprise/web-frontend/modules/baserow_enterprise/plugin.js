@@ -51,6 +51,7 @@ import {
   HubspotContactsDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
 import { ChartWidgetType } from '@baserow_enterprise/dashboard/widgetTypes'
+import { SingleSelectFormattingType } from '@baserow_enterprise/dashboard/chartFieldFormatting'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 import {
   CountViewAggregationType,
@@ -308,5 +309,9 @@ export default (context) => {
 
   if (app.$featureFlagIsEnabled(FF_DASHBOARDS)) {
     app.$registry.register('dashboardWidget', new ChartWidgetType(context))
+    app.$registry.register(
+      'chartFieldFormatting',
+      new SingleSelectFormattingType(context)
+    )
   }
 }

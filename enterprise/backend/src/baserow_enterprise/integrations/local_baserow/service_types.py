@@ -5,7 +5,9 @@ from django.db.models import F
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.contrib.database.api.fields.serializers import FieldSerializer
 from baserow.contrib.database.fields.exceptions import FieldTypeDoesNotExist
+from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.views.exceptions import AggregationTypeDoesNotExist
 from baserow.contrib.database.views.utils import AnnotatedAggregation
 from baserow.contrib.integrations.local_baserow.integration_types import (
@@ -470,6 +472,32 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         )
 
         return service
+
+    def get_context_data(
+        self,
+        service: LocalBaserowGroupedAggregateRows,
+        allowed_fields: list[str] | None = None,
+    ) -> dict:
+        context_data = {}
+
+        if service.table:
+            model = service.table.get_model()
+
+            def get_group_by_field(field):
+                return model.get_primary_field() if field is None else field
+
+            def serialize_field(field):
+                return field_type_registry.get_serializer(field, FieldSerializer).data
+
+            fields = [
+                get_group_by_field(group_by.field)
+                for group_by in service.service_aggregation_group_bys.all()
+            ]
+            context_data["fields"] = {
+                field.db_column: serialize_field(field) for field in fields
+            }
+
+        return context_data
 
     def dispatch_data(
         self,
