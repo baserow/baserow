@@ -97,6 +97,14 @@ export default {
     ...mapActions({
       actionMoveElement: 'element/move',
     }),
+    /**
+     * The Positioned Container is only allowed at the top or bottom of the
+     * page. When the alignment is changed, the following happens:
+     *
+     * - Element is moved to the first or last position.
+     * - The `alignment` property is updated to ensure that the correct CSS
+     *   classes are applied.
+     */
     async onAlignmentChanged(event) {
       let beforeElementId = null
       if (event === PAGE_ALIGNMENTS.TOP) {
