@@ -186,9 +186,6 @@ export default {
     },
 
     getCustomHumanReadableJobState(jobState) {
-      if (jobState === EXPORT_SERIALIZED_EXPORTING) {
-        return this.$t('exportWorkspaceModal.exportingState')
-      }
       if (jobState.startsWith(EXPORT_SERIALIZED_EXPORTING_TABLE)) {
         return this.$t('exportWorkspaceModal.exportingTableState', {
           table: jobState.replace(EXPORT_SERIALIZED_EXPORTING_TABLE, ''),
@@ -196,6 +193,9 @@ export default {
       }
       if (jobState === EXPORT_WORKSPACE_CREATE_ARCHIVE) {
         return this.$t('exportWorkspaceModal.exportingCreateArchiveState')
+      }
+      if (jobState === EXPORT_SERIALIZED_EXPORTING) {
+        return this.$t('exportWorkspaceModal.exportingState')
       }
       return ''
     },

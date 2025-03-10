@@ -111,7 +111,11 @@ import ImportWorkspaceForm from '@baserow/modules/core/components/import/ImportW
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { ImportApplicationsJobType } from '@baserow/modules/core/jobTypes'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
-import { IMPORT_SERIALIZED_IMPORTING } from '@baserow/modules/core/constants'
+import {
+  IMPORT_SERIALIZED_IMPORTING,
+  IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE,
+  IMPORT_SERIALIZED_IMPORTING_TABLE_DATA,
+} from '@baserow/modules/core/constants'
 
 const STAGES = {
   UPLOAD: 'upload',
@@ -292,6 +296,19 @@ export default {
     },
 
     getCustomHumanReadableJobState(jobState) {
+      if (jobState.startsWith(IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE)) {
+        return this.$t('importWorkspaceModal.importingTableStructure', {
+          table: jobState.replace(
+            IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE,
+            ''
+          ),
+        })
+      }
+      if (jobState.startsWith(IMPORT_SERIALIZED_IMPORTING_TABLE_DATA)) {
+        return this.$t('importWorkspaceModal.importingTableData', {
+          table: jobState.replace(IMPORT_SERIALIZED_IMPORTING_TABLE_DATA, ''),
+        })
+      }
       if (jobState.startsWith(IMPORT_SERIALIZED_IMPORTING)) {
         return this.$t('importWorkspaceModal.importingState')
       }
