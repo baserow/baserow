@@ -175,7 +175,9 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                         code="invalid_aggregation_raw_type",
                     )
                 else:
-                    series_agg_used.add(series_aggregation_reference)
+                    # It is still possible to have multiple undefined series
+                    if series_aggregation_reference != "field_None_":
+                        series_agg_used.add(series_aggregation_reference)
 
                 return True
 
