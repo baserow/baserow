@@ -85,10 +85,7 @@ import {
   PhoneNumberFieldType,
   AutonumberFieldType,
 } from '@baserow/modules/database/fieldTypes'
-import {
-  FF_AB_SSO,
-  FF_DASHBOARDS,
-} from '@baserow/modules/core/plugins/featureFlags'
+import { FF_DASHBOARDS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -159,16 +156,14 @@ export default (context) => {
     new LocalBaserowPasswordAppAuthProviderType(context)
   )
 
-  if (app.$featureFlagIsEnabled(FF_AB_SSO)) {
-    app.$registry.register(
-      'appAuthProvider',
-      new SamlAppAuthProviderType(context)
-    )
-    app.$registry.register(
-      'appAuthProvider',
-      new OpenIdConnectAppAuthProviderType(context)
-    )
-  }
+  app.$registry.register(
+    'appAuthProvider',
+    new SamlAppAuthProviderType(context)
+  )
+  app.$registry.register(
+    'appAuthProvider',
+    new OpenIdConnectAppAuthProviderType(context)
+  )
 
   app.$registry.register('roles', new EnterpriseAdminRoleType(context))
   app.$registry.register('roles', new EnterpriseMemberRoleType(context))
