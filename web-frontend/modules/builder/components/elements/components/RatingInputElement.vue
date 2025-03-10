@@ -1,18 +1,18 @@
 <template>
-  <div class="rating-element">
+  <div class="rating-element" :key="this.resolvedValue">
     <ABFormGroup
       :label="labelResolved"
       :required="!readOnly && element.required"
       :error-message="displayFormDataError ? $t('error.requiredField') : ''"
     >
-      <div class="rating" :style="{ '--rating-color': element.color }">
+      <div>
         <Rating
           :value="displayValue"
           :max-value="maxValue"
-          :color="'custom'"
+          :custom-color="element.color"
           :rating-style="element.style || 'star'"
           :read-only="readOnly"
-          :show-unselected-in-read-only="true"
+          :show-max-value-in-read-only="true"
           @update="onUpdate"
         />
       </div>
@@ -78,10 +78,10 @@ export default {
     rules() {
       return {
         formElementData: {
-          value: this.element.required ? { required } : {}
-        }
+          value: this.element.required ? { required } : {},
+        },
       }
-    }
+    },
   },
   validations() {
     return this.rules
@@ -89,7 +89,7 @@ export default {
   watch: {
     resolvedValue: {
       handler(newValue) {
-        if (!this.readOnly && this.formElementData?.value === undefined) {
+        if (!this.readOnly) {
           this.setFormData(newValue)
         }
       },

@@ -43,6 +43,7 @@ import InjectedFormulaInput from '@baserow/modules/core/components/formula/Injec
 import Checkbox from '@baserow/modules/core/components/Checkbox'
 import RatingFormFields from '@baserow/modules/builder/components/elements/components/forms/RatingFormFields.vue'
 import { useVuelidate } from '@vuelidate/core'
+import { required } from '@vuelidate/validators'
 
 export default {
   name: 'RatingInputElementForm',
@@ -75,16 +76,13 @@ export default {
       }
       return this.$t('error.requiredField')
     },
-    rules() {
-      return {
-        values: {
-          value: {},
-        }
-      }
-    }
   },
   validations() {
-    return this.rules
+    return {
+      values: {
+        value: { required },
+      },
+    }
   },
 }
 </script>

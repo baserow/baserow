@@ -125,12 +125,11 @@
     "notAllowedUnlessFooter": "This element is allowed only inside the page footer",
     "notAllowedInsideContainer": "This element is not allowed inside a container",
     "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
-    "notAllowedLocation": "This element is not allowed at this location",
     "ratingInput": "Rating input",
     "ratingInputDescription": "A rating input element",
     "rating": "Rating",
     "ratingDescription": "A rating element",
-    "invalidElementValue": "Invalid element value: {value}"
+    "invalidElementValue": "Invalid element value: {value}",
     "notAllowedLocation": "This element is not allowed at this location",
     "menu": "Menu",
     "menuDescription": "Menu element",

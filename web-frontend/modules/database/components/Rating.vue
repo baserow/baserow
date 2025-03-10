@@ -1,14 +1,14 @@
 <template functional>
   <div
-    class="rating"
     :class="[
       data.staticClass,
-      `color--${props.color}`,
+      props.customColor ? 'custom-rating' : `rating color--${props.color}`,
       props.readOnly ? '' : 'editing',
     ]"
+    :style="{ '--rating-color': props.customColor }"
   >
     <i
-      v-for="index in props.readOnly && !props.showUnselectedInReadOnly
+      v-for="index in props.readOnly && !props.showMaxValueInReadOnly
         ? props.value
         : props.maxValue"
       :key="index"
@@ -46,11 +46,17 @@ export default {
       default: 'star',
       type: String,
     },
+    // to use one of predefined colors classes
     color: {
       default: 'dark-orange',
       type: String,
     },
-    showUnselectedInReadOnly: {
+    // to use custom color
+    customColor: {
+      default: '',
+      type: String,
+    },
+    showMaxValueInReadOnly: {
       type: Boolean,
       default: false,
     },
