@@ -1,4 +1,7 @@
-import { PAGE_ALIGNMENT_BEHAVIOURS, PAGE_ALIGNMENTS } from '@baserow/modules/builder/enums'
+import {
+  PAGE_ALIGNMENT_BEHAVIOURS,
+  PAGE_ALIGNMENTS,
+} from '@baserow/modules/builder/enums'
 
 export default {
   props: {
@@ -9,7 +12,10 @@ export default {
   },
   computed: {
     pageAlignmentClass() {
-      const isSticky = this.element.behaviour === PAGE_ALIGNMENT_BEHAVIOURS.STICKY ? '--sticky' : ''
+      const isSticky =
+        this.element.behaviour === PAGE_ALIGNMENT_BEHAVIOURS.STICKY
+          ? '--sticky'
+          : ''
       return Object.values(PAGE_ALIGNMENTS).includes(this.element.alignment)
         ? `positioned-container-element__page-alignment-${this.element.alignment}${isSticky}`
         : ''

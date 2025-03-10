@@ -39,7 +39,10 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions, mapGetters } from 'vuex'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import { PAGE_ALIGNMENT_BEHAVIOURS, PAGE_ALIGNMENTS } from '@baserow/modules/builder/enums'
+import {
+  PAGE_ALIGNMENT_BEHAVIOURS,
+  PAGE_ALIGNMENTS,
+} from '@baserow/modules/builder/enums'
 
 export default {
   name: 'PositionedContainerElementForm',
@@ -88,7 +91,7 @@ export default {
           value: PAGE_ALIGNMENT_BEHAVIOURS.STICKY,
         },
       ]
-    }
+    },
   },
   methods: {
     ...mapActions({

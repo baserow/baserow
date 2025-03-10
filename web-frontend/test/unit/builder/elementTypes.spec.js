@@ -619,7 +619,11 @@ describe('elementTypes tests', () => {
         .get('element', 'positioned_container')
 
       const page = { id: 123 }
-      const ancestor = { id: 111, type: 'positioned_container', page_id: page.id }
+      const ancestor = {
+        id: 111,
+        type: 'positioned_container',
+        page_id: page.id,
+      }
 
       page.elementMap = { 111: ancestor }
 
@@ -1002,7 +1006,9 @@ describe('elementTypes tests', () => {
 
   describe('PositionedContainerElementType isInError tests', () => {
     test('Returns true if Positioned Container Element has errors, false otherwise', () => {
-      const elementType = testApp.getRegistry().get('element', 'positioned_container')
+      const elementType = testApp
+        .getRegistry()
+        .get('element', 'positioned_container')
 
       const page = {
         id: 1,
