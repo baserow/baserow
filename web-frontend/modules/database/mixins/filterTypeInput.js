@@ -43,8 +43,10 @@ export default {
       clearTimeout(delayTimeout)
     },
   },
-  mounted() {
+  created() {
     this.copy = this.prepareCopy(this.filter.value)
+  },
+  mounted() {
     if (this.copy) {
       this.v$.$touch()
     }
