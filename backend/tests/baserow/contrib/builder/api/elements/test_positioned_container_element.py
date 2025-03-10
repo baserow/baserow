@@ -14,7 +14,9 @@ def positioned_container_fixture(data_fixture):
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(builder=builder, path="/page/")
 
-    element = data_fixture.create_builder_positioned_container_element(user=user, page=page)
+    element = data_fixture.create_builder_positioned_container_element(
+        user=user, page=page
+    )
 
     return {
         "token": token,
@@ -67,7 +69,9 @@ def test_create_positioned_container_element(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_can_update_positioned_container_element(api_client, positioned_container_fixture):
+def test_can_update_positioned_container_element(
+    api_client, positioned_container_fixture
+):
     element = positioned_container_fixture["element"]
     token = positioned_container_fixture["token"]
 
@@ -87,7 +91,7 @@ def test_can_update_positioned_container_element(api_client, positioned_containe
 
     assert response.status_code == HTTP_200_OK
     data = response.json()
-    
+
     assert data["id"] == element.id
     assert data["alignment"] == PageAlignments.BOTTOM
     assert data["behaviour"] == PageBehaviours.STICKY

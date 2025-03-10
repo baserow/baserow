@@ -3,13 +3,10 @@ from collections import defaultdict
 
 import pytest
 
+from baserow.contrib.builder.constants import PageAlignments, PageBehaviours
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import PositionedContainerElement
 from baserow.core.utils import MirrorDict
-from baserow.contrib.builder.constants import PageAlignments, PageBehaviours
-from baserow.contrib.builder.elements.models import (
-    PositionedContainerElement,
-)
 
 
 @pytest.fixture
@@ -20,7 +17,9 @@ def positioned_container_fixture(data_fixture):
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(builder=builder, path="/page/")
 
-    element = data_fixture.create_builder_positioned_container_element(user=user, page=page)
+    element = data_fixture.create_builder_positioned_container_element(
+        user=user, page=page
+    )
 
     return {
         "token": token,
@@ -37,7 +36,7 @@ def positioned_container_fixture(data_fixture):
         (PageAlignments.BOTTOM, PageBehaviours.FIXED),
         (PageAlignments.TOP, PageBehaviours.STICKY),
         (PageAlignments.BOTTOM, PageBehaviours.STICKY),
-    ]
+    ],
 )
 def test_import_export(positioned_container_fixture, alignment, behaviour):
     page = positioned_container_fixture["page"]
