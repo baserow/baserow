@@ -3214,7 +3214,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         return view
 
     def submit_form_view(
-        self, user, form, values, model=None, enabled_field_options=None
+        self,
+        user,
+        form,
+        values,
+        model: GeneratedTableModel | None = None,
+        enabled_field_options=None,
     ):
         """
         Handles when a form is submitted. It will validate the data by checking if
@@ -3827,7 +3832,9 @@ class ViewSubscriptionHandler:
                 cls._notify_table_views_updates(view_ids)
 
     @classmethod
-    def notify_table_views_updates(cls, views: list[View], model=None):
+    def notify_table_views_updates(
+        cls, views: list[View], model: GeneratedTableModel | None = None
+    ):
         """
         Verify if the views have subscribers and notify them of any changes in the view
         results.
@@ -3844,7 +3851,9 @@ class ViewSubscriptionHandler:
             cls._notify_table_views_updates(view_ids_with_subscribers, model)
 
     @classmethod
-    def _notify_table_views_updates(cls, view_ids: list[int], model=None):
+    def _notify_table_views_updates(
+        cls, view_ids: list[int], model: GeneratedTableModel | None = None
+    ):
         """
         Notify subscribers of any changes in the view results, emitting the appropriate
         signals and updating the ViewRows state.

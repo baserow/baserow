@@ -1035,9 +1035,11 @@ class ViewFilterTypeRegistry(Registry):
 
     def get_time_sensitive_filter_types(self) -> List[str]:
         """
-        Returns a list of filter types that are time-dependent.
+        Returns a list of filter types that are time-dependent. For example, filters
+        like `date_is` with operators like `today` or `yesterday` will return different
+        results as time passes, even if the underlying data hasn't changed.
 
-        :returns: A list of filter types that are time-dependent
+        :returns: A list of filter types that are time-sensitive
         """
 
         return [
