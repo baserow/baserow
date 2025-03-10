@@ -2114,9 +2114,6 @@ export class PositionedContainerElementType extends ContainerElementTypeMixin(
     }
   }
 
-  /**
-   * This element is not allowed in another positioned container.
-   */
   isDisallowedReason({
     builder,
     page,
@@ -2125,6 +2122,7 @@ export class PositionedContainerElementType extends ContainerElementTypeMixin(
     placeInContainer,
     pagePlace,
   }) {
+    // This element is not allowed in another positioned container.
     if (parentElement) {
       const hasSameTypeAncestor = !!this.app.store.getters[
         'element/getAncestors'
@@ -2143,7 +2141,7 @@ export class PositionedContainerElementType extends ContainerElementTypeMixin(
       const orderedElements =
         this.app.store.getters['element/getElementsOrdered'](page)
 
-      // Allow the Positioned Container element to only be placed either at the
+      // The Positioned Container element can only be placed either at the
       // top or bottom of the page.
       if (
         beforeElement !== null &&
