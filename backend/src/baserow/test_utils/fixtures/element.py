@@ -13,6 +13,7 @@ from baserow.contrib.builder.elements.models import (
     LinkElement,
     MenuElement,
     MenuItemElement,
+    PositionedContainerElement,
     RecordSelectorElement,
     RepeatElement,
     TableElement,
@@ -149,6 +150,9 @@ class ElementFixtures:
         menu_element.menu_items.add(*created_items)
 
         return menu_element
+
+    def create_builder_positioned_container_element(self, user=None, page=None, **kwargs):
+        return self.create_builder_element(PositionedContainerElement, user, page, **kwargs)
 
     def create_builder_element(self, model_class, user=None, page=None, **kwargs):
         if user is None:
