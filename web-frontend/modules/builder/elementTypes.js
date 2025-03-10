@@ -2100,6 +2100,21 @@ export class PositionedContainerElementType extends ContainerElementTypeMixin(
   }
 
   /**
+   * Override the base implementation to disallow moving the element.
+   * 
+   * The element's position can be swapped between top and bottom, but this is
+   * handled via its `alignment` property.
+   */
+  getNextPlaces(args) {
+    return {
+      [DIRECTIONS.BEFORE]: null,
+      [DIRECTIONS.AFTER]: null,
+      [DIRECTIONS.LEFT]: null,
+      [DIRECTIONS.RIGHT]: null,
+    }
+  }
+
+  /**
    * This element is not allowed in another positioned container.
    */
   isDisallowedReason({
@@ -2119,6 +2134,21 @@ export class PositionedContainerElementType extends ContainerElementTypeMixin(
       }).length
       if (hasSameTypeAncestor) {
         return this.app.i18n.t('elementType.notAllowedInsideSameType')
+      }
+    }
+
+    const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
+
+    if (page.id !== sharedPage.id) {
+      const orderedElements = this.app.store.getters['element/getElementsOrdered'](page)
+
+      // Allow the Positioned Container element to only be placed either at the
+      // top or bottom of the page.
+      if (
+        beforeElement !== null &&
+        beforeElement.id !== orderedElements[0]?.id
+      ) {
+        return this.app.i18n.t('elementType.notAllowedUnlessTopOrBottom')
       }
     }
 

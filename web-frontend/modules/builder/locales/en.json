@@ -121,6 +121,7 @@
     "notAllowedUnlessBottom": "This element is allowed only at the bottom of the page",
     "notAllowedUnlessHeader": "This element is allowed only inside the page header",
     "notAllowedUnlessFooter": "This element is allowed only inside the page footer",
+    "notAllowedUnlessTopOrBottom": "This element is allowed only at the top or the bottom of the page",
     "notAllowedInsideContainer": "This element is not allowed inside a container",
     "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
     "notAllowedLocation": "This element is not allowed at this location",
