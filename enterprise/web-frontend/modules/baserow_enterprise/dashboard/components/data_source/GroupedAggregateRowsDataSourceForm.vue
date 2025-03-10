@@ -237,21 +237,26 @@ export default {
             )})`,
           }
         })
-      const groupBySortReferences = this.values.aggregation_group_bys
-        .map((item) => {
-          return item.field_id === null
-            ? this.primaryTableField
-            : this.getTableFieldById(item.field_id)
-        })
-        .filter((field) => field !== undefined)
-        .map((field) => {
-          return {
-            sort_on: 'GROUP_BY',
-            reference: `field_${field.id}`,
-            field,
-            name: field.name,
+      const groupBySortReferences = this.values.aggregation_group_bys.reduce(
+        (acc, item) => {
+          const field =
+            item.field_id === null
+              ? this.primaryTableField
+              : this.getTableFieldById(item.field_id)
+
+          if (field !== undefined) {
+            acc.push({
+              sort_on: 'GROUP_BY',
+              reference: `field_${field.id}`,
+              field,
+              name: field.name,
+            })
           }
-        })
+
+          return acc
+        },
+        []
+      )
       return seriesSortReferences.concat(groupBySortReferences)
     },
   },
