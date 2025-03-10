@@ -89,7 +89,6 @@ def test_can_undo_redo_creating_view_sort_with_type(data_fixture):
     view_sort = action_type_registry.get_by_type(CreateViewSortActionType).do(
         user, grid_view, field, "DESC", sort_type="order"
     )
-    original_view_sort_id = view_sort.id
 
     assert ViewSort.objects.filter(pk=view_sort.id).count() == 1
     assert view_sort.type == "order"
