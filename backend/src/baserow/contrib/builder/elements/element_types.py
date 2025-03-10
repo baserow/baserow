@@ -2346,3 +2346,13 @@ class PositionedContainerElementType(ContainerElementTypeMixin, ElementType):
             for element_type in super().child_types_allowed
             if element_type.type != self.type
         ]
+
+    def after_create(self, instance: MenuItemElement, values: Dict[str, Any]) -> None:
+        """
+        When the element is created at the bottom of the page, ensure the
+        alignment is set correctly.
+        """
+
+        if instance.order > 1:
+            instance.alignment = PageAlignments.BOTTOM
+            instance.save()
