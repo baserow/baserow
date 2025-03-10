@@ -4,6 +4,7 @@ import { maxPossibleOrderValue } from '@baserow/modules/database/viewTypes'
 import { escapeRegExp, isSecureURL } from '@baserow/modules/core/utils/string'
 import { SearchModes } from '@baserow/modules/database/utils/search'
 import { convertStringToMatchBackendTsvectorData } from '@baserow/modules/database/search/regexes'
+import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
 export const DEFAULT_VIEW_ID_COOKIE_NAME = 'defaultViewId'
 
@@ -522,7 +523,11 @@ export function canRowsBeOptimisticallyUpdatedInView(
 export function getOrderBy(view, adhocSorting) {
   if (adhocSorting) {
     const serializeSort = (sort) => {
-      return `${sort.order === 'DESC' ? '-' : ''}field_${sort.field}`
+      let serialized = `${sort.order === 'DESC' ? '-' : ''}field_${sort.field}`
+      if (sort.type !== DEFAULT_SORT_TYPE_KEY) {
+        serialized += `[${sort.type}]`
+      }
+      return serialized
     }
     // Group bys first, then sorts to ensure that the order is correct.
     const groupBys = view.group_bys ? view.group_bys.map(serializeSort) : []
