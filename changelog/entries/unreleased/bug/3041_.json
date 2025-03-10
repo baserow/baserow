@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fixed unscrollable timezone dropdown issue when creating/editing a field.",
+    "domain": "database",
+    "issue_number": 3041,
+    "bullet_points": [],
+    "created_at": "2025-03-10"
+}
