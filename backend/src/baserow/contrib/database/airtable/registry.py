@@ -306,7 +306,9 @@ class AirtableViewType(Instance):
             mapping_entry = field_mapping[group["columnId"]]
             baserow_field_type = mapping_entry["baserow_field_type"]
             baserow_field = mapping_entry["baserow_field"]
-            can_order_by = baserow_field_type.check_can_group_by(baserow_field)
+            can_order_by = baserow_field_type.check_can_group_by(
+                baserow_field, DEFAULT_SORT_TYPE_KEY
+            )
 
             if not can_order_by:
                 import_report.add_failed(

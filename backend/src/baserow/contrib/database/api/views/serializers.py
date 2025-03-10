@@ -254,6 +254,7 @@ class ViewGroupBySerializer(serializers.ModelSerializer):
             "field",
             "order",
             "width",
+            "type",
         )
         extra_kwargs = {"id": {"read_only": True}}
 
@@ -265,10 +266,12 @@ class CreateViewGroupBySerializer(serializers.ModelSerializer):
             "field",
             "order",
             "width",
+            "type",
         )
         extra_kwargs = {
             "order": {"default": ViewGroupBy._meta.get_field("order").default},
             "width": {"default": ViewGroupBy._meta.get_field("width").default},
+            "type": {"default": ViewGroupBy._meta.get_field("type").default},
         }
 
 
@@ -279,11 +282,13 @@ class UpdateViewGroupBySerializer(serializers.ModelSerializer):
             "field",
             "order",
             "width",
+            "type",
         )
         extra_kwargs = {
             "field": {"required": False},
             "order": {"required": False},
             "width": {"required": False},
+            "type": {"required": False},
         }
 
 
@@ -556,6 +561,7 @@ class PublicViewGroupBySerializer(serializers.ModelSerializer):
             "field",
             "order",
             "width",
+            "type",
         )
         extra_kwargs = {"id": {"read_only": True}}
 

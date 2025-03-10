@@ -548,6 +548,13 @@ class ViewGroupBy(HierarchicalModelMixin, models.Model):
         "and DESC (Descending) is from Z to A.",
         default=SORT_ORDER_ASC,
     )
+    type = models.CharField(
+        max_length=32,
+        default=DEFAULT_SORT_TYPE_KEY,
+        db_default=DEFAULT_SORT_TYPE_KEY,
+        help_text=f"Indicates the sort type. Will automatically fall back to `"
+        f"{DEFAULT_SORT_TYPE_KEY}` if incompatible with field type.",
+    )
     width = models.PositiveIntegerField(
         default=200,
         help_text="The pixel width of the group by in the related view.",

@@ -1620,7 +1620,7 @@ class FieldType(
 
         return order_type in self._can_order_by_types
 
-    def check_can_group_by(self, field: Field) -> bool:
+    def check_can_group_by(self, field: Field, order_type: str) -> bool:
         """
         Override this method if this field type can sometimes be grouped or sometimes
         cannot be grouped depending on the individual field state. By default will just
@@ -1629,10 +1629,11 @@ class FieldType(
         to the desired value.
 
         :param field: The field to check to see if it can be grouped by or not.
+        :param order_type: @TODO docs
         :return: True if a view can be grouped by this field, False otherwise.
         """
 
-        return self._can_group_by
+        return self._can_group_by and self.check_can_order_by(field, order_type)
 
     def get_sortable_column_expression(
         self,

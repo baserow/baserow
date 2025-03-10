@@ -48,6 +48,7 @@ from baserow.contrib.database.views.handler import (
     ViewIndexingHandler,
 )
 from baserow.contrib.database.views.models import (
+    DEFAULT_SORT_TYPE_KEY,
     OWNERSHIP_TYPE_COLLABORATIVE,
     FormView,
     GridView,
@@ -4093,7 +4094,9 @@ def test_get_group_by_on_all_fields_in_interesting_table(data_fixture):
     fields_to_group_by = [
         field
         for field in all_fields
-        if field_type_registry.get_by_model(field).check_can_group_by(field)
+        if field_type_registry.get_by_model(field).check_can_group_by(
+            field, DEFAULT_SORT_TYPE_KEY
+        )
     ]
 
     actual_result_per_field_name = {}

@@ -27,7 +27,7 @@
         @click="$emit('update-order', { order: 'DESC', type })"
       >
         <template v-if="sortIndicator[0] === 'text'"
-          >{{ sortIndicator[1] }}
+          >{{ sortIndicator[2] }}
         </template>
         <i v-if="sortIndicator[0] === 'icon'" :class="sortIndicator[2]"></i>
 

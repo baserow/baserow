@@ -457,7 +457,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     allowed_fields = ["long_text_enable_rich_text"]
     serializer_field_names = ["long_text_enable_rich_text"]
 
-    def check_can_group_by(self, field: Field) -> bool:
+    def check_can_group_by(self, field: Field, order_type: str) -> bool:
         return not field.long_text_enable_rich_text
 
     def can_be_primary_field(self, field_or_values: Union[Field, dict]) -> bool:
@@ -2212,7 +2212,7 @@ class LinkRowFieldType(
             related_primary_field.specific, order_type
         )
 
-    def check_can_group_by(self, field):
+    def check_can_group_by(self, field, order_type):
         related_primary_field = self._get_related_table_primary_field(field)
         if related_primary_field is None:
             return False
@@ -2220,7 +2220,9 @@ class LinkRowFieldType(
         related_primary_field_type = field_type_registry.get_by_model(
             related_primary_field
         )
-        return related_primary_field_type.check_can_group_by(related_primary_field)
+        return related_primary_field_type.check_can_group_by(
+            related_primary_field, order_type
+        )
 
     def _get_group_by_agg_expression(self, field_name: str) -> dict:
         return ArrayAgg(
@@ -5305,7 +5307,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             return False
         return self.to_baserow_formula_type(field.specific).can_order_by
 
-    def check_can_group_by(self, field):
+    def check_can_group_by(self, field, order_type):
+        # The formula types are not compatible with the order type. Therefore,
+        # if the `order_type` is not the default, it will always return False.
         return self.to_baserow_formula_type(field.specific).can_group_by
 
     def get_order(

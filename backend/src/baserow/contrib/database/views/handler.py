@@ -1359,7 +1359,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             for f in fields
             if not field_type_registry.get_by_model(
                 f.specific_class
-            ).check_can_group_by(f)
+            ).check_can_group_by(f, DEFAULT_SORT_TYPE_KEY)
         ]
         if fields_to_delete_groupings:
             deleted_count, _ = ViewGroupBy.objects.filter(
@@ -1432,7 +1432,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             field_type = field_type_registry.get_by_model(field.specific_class)
             # Check whether the updated field is still compatible with the group by.
             # If not, it must be deleted.
-            if not field_type.check_can_group_by(field):
+            if not field_type.check_can_group_by(field, DEFAULT_SORT_TYPE_KEY):
                 ViewGroupBy.objects.filter(field=field).delete()
 
     def get_filter_builder(
@@ -2266,6 +2266,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         field: Field,
         order: str,
         width: int,
+        sort_type: str = None,
         primary_key: Optional[int] = None,
     ) -> ViewGroupBy:
         """
@@ -2276,6 +2277,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param field: The field that needs to be grouped.
         :param order: The desired order, can either be ascending (A to Z) or
             descending (Z to A).
+        :param width: @TODO docs
+        :param sort_type: @TODO docs
         :param primary_key: An optional primary key to give to the new view group_by.
         :raises ViewGroupByNotSupported: When the provided view does not support
             grouping.
@@ -2292,6 +2295,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             user, CreateViewGroupByOperationType.type, workspace=workspace, context=view
         )
 
+        if not sort_type:
+            sort_type = DEFAULT_SORT_TYPE_KEY
+
         # Check if view supports grouping.
         view_type = view_type_registry.get_by_model(view.specific_class)
         if not view_type.can_group_by:
@@ -2301,9 +2307,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Check if the field supports grouping.
         field_type = field_type_registry.get_by_model(field.specific_class)
-        if not field_type.check_can_group_by(field):
+        if not field_type.check_can_group_by(field, sort_type):
             raise ViewGroupByFieldNotSupported(
-                f"The field {field.pk} does not support grouping."
+                f"The field {field.pk} does not support grouping with type {sort_type}."
             )
 
         # Check if field belongs to the grid views table
@@ -2319,7 +2325,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         view_group_by = ViewGroupBy.objects.create(
-            pk=primary_key, view=view, field=field, order=order, width=width
+            pk=primary_key,
+            view=view,
+            field=field,
+            order=order,
+            width=width,
+            type=sort_type,
         )
 
         view_group_by_created.send(self, view_group_by=view_group_by, user=user)
@@ -2333,6 +2344,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         field: Optional[Field] = None,
         order: Optional[str] = None,
         width: Optional[int] = None,
+        sort_type: Optional[str] = None,
     ) -> ViewGroupBy:
         """
         Updates the values of an existing view group_by.
@@ -2342,6 +2354,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param field: The field that must be grouped on.
         :param order: Indicates the group by order direction.
         :param width: The visual width of the group by.
+        :param sort_type: @TODO docs
         :raises ViewGroupByDoesNotExist: When the view used by the filter is trashed.
         :raises ViewGroupByFieldNotSupported: When the field does not support grouping.
         :raises FieldNotInTable:  When the provided field does not belong to the
@@ -2358,6 +2371,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         field = field if field is not None else view_group_by.field
         order = order if order is not None else view_group_by.order
         width = width if width is not None else view_group_by.width
+        sort_type = sort_type if sort_type is not None else view_group_by.type
 
         CoreHandler().check_permissions(
             user, ReadFieldOperationType.type, workspace=workspace, context=field
@@ -2382,8 +2396,11 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         # If the field has changed we need to check if the new field type supports
         # grouping.
         field_type = field_type_registry.get_by_model(field.specific_class)
-        if field.id != view_group_by.field_id and not field_type.check_can_order_by(
-            field, DEFAULT_SORT_TYPE_KEY
+        if (
+            field.id != view_group_by.field_id or sort_type != view_group_by.type
+        ) and not field_type.check_can_order_by(
+            field,
+            sort_type,
         ):
             raise ViewGroupByFieldNotSupported(
                 f"The field {field.pk} does not support grouping."
@@ -2396,12 +2413,14 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             and view_group_by.view.viewgroupby_set.filter(field_id=field.pk).exists()
         ):
             raise ViewGroupByFieldAlreadyExist(
-                f"A group by for the field {field.pk} already exists."
+                f"A group by for the field {field.pk} already exists with type "
+                f"{sort_type}."
             )
 
         view_group_by.field = field
         view_group_by.order = order
         view_group_by.width = width
+        view_group_by.type = sort_type
         view_group_by.save()
 
         view_group_by_updated.send(self, view_group_by=view_group_by, user=user)
@@ -3555,7 +3574,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 field_name = field.db_column
                 field_type = field_type_registry.get_by_model(field.specific_class)
 
-                if not field_type.check_can_group_by(field):
+                if not field_type.check_can_group_by(field, DEFAULT_SORT_TYPE_KEY):
                     raise ValueError(f"Can't group by {field_name}.")
 
                 value = getattr(row, field_name)
