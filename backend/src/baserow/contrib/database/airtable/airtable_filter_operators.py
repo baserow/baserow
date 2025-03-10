@@ -1,4 +1,5 @@
 from baserow.contrib.database.views.registries import view_filter_type_registry
+from baserow.core.utils import get_value_at_path
 
 from .exceptions import AirtableSkipFilter
 from .helpers import to_import_select_option_id
@@ -11,6 +12,7 @@ class AirtableContainsOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -28,6 +30,7 @@ class AirtableDoesNotContainOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -50,6 +53,7 @@ class AirtableEqualOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -92,6 +96,15 @@ class AirtableEqualOperator(AirtableFilterOperator):
             if isinstance(value, list):
                 if len(value) > 1:
                     raise AirtableSkipFilter
+                foreign_table_id = get_value_at_path(
+                    raw_airtable_column, "typeOptions.foreignTableId"
+                )
+                table_row_id_mapping = row_id_mapping.get(foreign_table_id, {})
+                value = [
+                    str(table_row_id_mapping.get(v))
+                    for v in value
+                    if v in table_row_id_mapping
+                ]
                 value = ",".join(value)
             return view_filter_type_registry.get("link_row_has"), value
 
@@ -103,6 +116,7 @@ class AirtableNotEqualOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -141,6 +155,7 @@ class AirtableIsEmptyOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -155,6 +170,7 @@ class AirtableIsNotEmptyOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -169,6 +185,7 @@ class AirtableFilenameOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -183,6 +200,7 @@ class AirtableFiletypeOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -204,6 +222,7 @@ class AirtableIsAnyOfOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -225,6 +244,7 @@ class AirtableIsNoneOfOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -246,6 +266,7 @@ class AirtableHasAnyOfOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -260,6 +281,7 @@ class AirtableHasAllOfOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -274,6 +296,7 @@ class AirtableLessThanOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -299,6 +322,7 @@ class AirtableMoreThanOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -324,6 +348,7 @@ class AirtableLessThanOrEqualOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -349,6 +374,7 @@ class AirtableMoreThanOrEqualOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,
@@ -374,6 +400,7 @@ class AirtableIsWithinOperator(AirtableFilterOperator):
 
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,

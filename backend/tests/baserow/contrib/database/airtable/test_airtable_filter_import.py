@@ -157,6 +157,13 @@ AIRTABLE_COLUMN_PER_TYPE = {
     },
 }
 
+ROW_ID_MAPPING = {
+    "tbllhx9chTN5MFEwH": {
+        "rect9vRzdJvCLrRg8": 1,
+        "rect9vRzdJvCLrRg9": 2,
+    }
+}
+
 ALL_AIRTABLE_FILTERS_PER_TYPE = {
     "text": [
         {
@@ -415,6 +422,16 @@ ALL_AIRTABLE_FILTERS_PER_TYPE = {
         {
             "operator": "=",
             "value": {
+                "mode": "today",
+                "timeZone": "Europe/Amsterdam",
+                "shouldUseCorrectTimeZoneForFormulaicColumn": True,
+            },
+            "baserow_filter_type": "date_is",
+            "baserow_value": "Europe/Amsterdam??today",
+        },
+        {
+            "operator": "=",
+            "value": {
                 "mode": "yesterday",
                 "timeZone": "Europe/Amsterdam",
                 "shouldUseCorrectTimeZoneForFormulaicColumn": True,
@@ -512,7 +529,7 @@ ALL_AIRTABLE_FILTERS_PER_TYPE = {
                 "shouldUseCorrectTimeZoneForFormulaicColumn": True,
             },
             "baserow_filter_type": "date_is_within",
-            "baserow_value": "Europe/Amsterdam??nr_years_ago",
+            "baserow_value": "Europe/Amsterdam?1?nr_years_ago",
         },
         {
             "operator": "isWithin",
@@ -839,7 +856,13 @@ ALL_AIRTABLE_FILTERS_PER_TYPE = {
             "operator": "=",
             "value": ["rect9vRzdJvCLrRg9"],
             "baserow_filter_type": "link_row_has",
-            "baserow_value": "rect9vRzdJvCLrRg9",
+            "baserow_value": "2",
+        },
+        {
+            "operator": "=",
+            "value": ["not_existing_id"],
+            "baserow_filter_type": "link_row_has",
+            "baserow_value": "",
         },
         {
             "operator": "=",
@@ -928,6 +951,7 @@ def test_all_airtable_filters():
                 airtable_filter["operator"]
             )
             args = (
+                ROW_ID_MAPPING,
                 airtable_table,
                 airtable_column,
                 baserow_field,

@@ -74,6 +74,7 @@ AIRTABLE_DATE_FILTER_VALUE_MAP = {
     "pastWeek": "{timeZone}?1?nr_weeks_ago",
     "pastYear": "{timeZone}?1?nr_years_ago",
     "thisCalendarYear": "{timeZone}?0?nr_years_ago",
+    "today": "{timeZone}??today",
     "tomorrow": "{timeZone}??tomorrow",
     "yesterday": "{timeZone}??yesterday",
 }

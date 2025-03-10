@@ -324,6 +324,7 @@ class AirtableViewType(Instance):
     def get_filters(
         self,
         field_mapping,
+        row_id_mapping,
         raw_airtable_view,
         raw_airtable_table,
         import_report,
@@ -362,6 +363,7 @@ class AirtableViewType(Instance):
             for child_filter in filter_set:
                 child_filters, _ = self.get_filters(
                     field_mapping,
+                    row_id_mapping,
                     raw_airtable_view,
                     raw_airtable_table,
                     import_report,
@@ -384,8 +386,10 @@ class AirtableViewType(Instance):
                     SCOPE_VIEW_FILTER,
                     raw_airtable_table["name"],
                     ERROR_TYPE_UNSUPPORTED_FEATURE,
-                    f'The filter on field "{column_name}" was ignored in view '
-                    f'{raw_airtable_view["name"]} because the field was not imported.',
+                    f'The "{filter_object["operator"]}" filter with value '
+                    f'"{filter_object["value"]}" on field "{column_name}" was ignored '
+                    f'in view {raw_airtable_view["name"]} because the field was not '
+                    f"imported.",
                 )
                 return [], []
 
@@ -401,8 +405,9 @@ class AirtableViewType(Instance):
                     SCOPE_VIEW_FILTER,
                     raw_airtable_table["name"],
                     ERROR_TYPE_UNSUPPORTED_FEATURE,
-                    f'The filter on field "{baserow_field.name}" was ignored '
-                    f'in view {raw_airtable_view["name"]} because it\'s not '
+                    f'The "{filter_object["operator"]}" filter with value '
+                    f'"{filter_object["value"]}" on field "{baserow_field.name}" was '
+                    f'ignored in view {raw_airtable_view["name"]} because it\'s not '
                     f"possible to filter by that field type.",
                 )
                 return [], []
@@ -412,6 +417,7 @@ class AirtableViewType(Instance):
                     filter_object["operator"]
                 )
                 filter_type, value = filter_operator.to_baserow_filter_and_value(
+                    row_id_mapping,
                     raw_airtable_table,
                     raw_airtable_column,
                     baserow_field,
@@ -434,8 +440,10 @@ class AirtableViewType(Instance):
                     SCOPE_VIEW_FILTER,
                     raw_airtable_table["name"],
                     ERROR_TYPE_UNSUPPORTED_FEATURE,
-                    f'The filter on field "{baserow_field.name}" was ignored '
-                    f'in view {raw_airtable_view["name"]} because not no compatible filter exists.',
+                    f'The "{filter_object["operator"]}" filter with value '
+                    f'"{filter_object["value"]}" on field "{baserow_field.name}" was '
+                    f'ignored in view {raw_airtable_view["name"]} because not no '
+                    f"compatible filter exists.",
                 )
                 return [], []
 
@@ -453,6 +461,7 @@ class AirtableViewType(Instance):
     def to_serialized_baserow_view(
         self,
         field_mapping,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_view,
         raw_airtable_view_data,
@@ -478,6 +487,7 @@ class AirtableViewType(Instance):
         if view_type.can_filter and filters_object is not None:
             filters, filter_groups = self.get_filters(
                 field_mapping,
+                row_id_mapping,
                 raw_airtable_view,
                 raw_airtable_table,
                 import_report,
@@ -568,6 +578,7 @@ class AirtableViewTypeRegistry(Registry):
     def from_airtable_view_to_serialized(
         self,
         field_mapping: dict,
+        row_id_mapping: Dict[str, int],
         raw_airtable_table: dict,
         raw_airtable_view: dict,
         raw_airtable_view_data: dict,
@@ -579,6 +590,8 @@ class AirtableViewTypeRegistry(Registry):
         None is returned, the view is not compatible with Baserow and must be ignored.
 
         :param field_mapping: A dict containing all the imported fields.
+        :param row_id_mapping: A dict mapping the Airable row IDs to Baserow row IDs
+            per table ID.
         :param raw_airtable_table: The raw Airtable table data related to the column.
         :param raw_airtable_view: The raw Airtable column data that must be imported.
         :param raw_airtable_view_data: The raw Airtable view data containing filters,
@@ -595,6 +608,7 @@ class AirtableViewTypeRegistry(Registry):
             airtable_view_type = self.get(type_name)
             serialized_view = airtable_view_type.to_serialized_baserow_view(
                 field_mapping,
+                row_id_mapping,
                 raw_airtable_table,
                 raw_airtable_view,
                 raw_airtable_view_data,
@@ -612,6 +626,7 @@ class AirtableViewTypeRegistry(Registry):
 class AirtableFilterOperator(Instance):
     def to_baserow_filter_and_value(
         self,
+        row_id_mapping,
         raw_airtable_table,
         raw_airtable_column,
         baserow_field,

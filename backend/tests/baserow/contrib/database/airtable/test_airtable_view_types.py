@@ -42,6 +42,7 @@ RAW_AIRTABLE_TABLE = {
     "viewSectionsById": {},
     "schemaChecksum": "46f523a43433afe37d63e00d1a0f36c64310f06e4e0af2c32b6e99f26ab0e51a",
 }
+ROW_ID_MAPPING = {}
 FIELD_MAPPING = {
     "fldwSc9PqedIhTSqhi1": {
         "baserow_field": TextField(
@@ -138,6 +139,7 @@ def test_import_grid_view():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         RAW_AIRTABLE_VIEW_DATA,
@@ -192,6 +194,7 @@ def test_import_grid_view_xlarge_row_height():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -209,6 +212,7 @@ def test_import_grid_view_unknown_row_height():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -225,6 +229,7 @@ def test_import_grid_view_sorts():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -239,6 +244,7 @@ def test_import_grid_view_sorts():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -257,6 +263,7 @@ def test_import_grid_view_sort_field_not_found():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         {},
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -283,6 +290,7 @@ def test_import_grid_view_sort_field_unsupported():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         field_mapping,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -305,6 +313,7 @@ def test_import_grid_view_group_bys():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -319,6 +328,7 @@ def test_import_grid_view_group_bys():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -337,6 +347,7 @@ def test_import_grid_view_group_by_field_not_found():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         {},
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -363,6 +374,7 @@ def test_import_grid_view_group_by_field_unsupported():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         field_mapping,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -389,6 +401,7 @@ def test_import_grid_view_group_by_order_unsupported():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         field_mapping,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -413,6 +426,7 @@ def test_import_grid_view_field_order_and_visibility():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         field_mapping,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -457,6 +471,7 @@ def test_import_grid_view_filters_and_groups():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         field_mapping,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
