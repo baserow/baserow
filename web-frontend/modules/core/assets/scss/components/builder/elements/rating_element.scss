@@ -1,0 +1,6 @@
+.element--read-only {
+  .rating__star {
+    pointer-events: none;
+    user-select: none;
+  }
+}
