@@ -75,7 +75,8 @@
         :add-empty-item="false"
         :initial-display-name="defaultValues.date_force_timezone"
         :fetch-on-open="true"
-        :debounce-time="100"
+        :debounce-time="20"
+        :page-size="pageSize"
         :fixed-items="true"
         @input="(timezone) => (values.date_force_timezone = timezone)"
       ></PaginatedDropdown>
@@ -141,6 +142,7 @@ export default {
         date_force_timezone: null,
         date_force_timezone_offset: null,
       },
+      pageSize: 100,
     }
   },
   computed: {
@@ -187,7 +189,7 @@ export default {
   },
   methods: {
     fetchTimezonePage(page, search) {
-      const pageSize = 20
+      const pageSize = this.pageSize
       const start = (page - 1) * pageSize
       const results = this.filterTimezones(search || '')
       // The paginate dropdown expects a HTTP response-like object with these properties
