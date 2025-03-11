@@ -201,6 +201,7 @@ x-backend-variables: &backend-variables
   BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS:
   BASEROW_USE_LOCAL_CACHE:
   BASEROW_WEBHOOKS_BATCH_LIMIT:
+  BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES:
 
 services:
   # A caddy reverse proxy sitting in-front of all the services. Responsible for routing
@@ -271,6 +272,7 @@ services:
       BASEROW_BUILDER_DOMAINS:
       BASEROW_FRONTEND_SAME_SITE_COOKIE:
       SENTRY_DSN:
+      BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES:
     depends_on:
       - backend
     networks:
