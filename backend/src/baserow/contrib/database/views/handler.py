@@ -874,7 +874,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         view_type = view_type_registry.get_by_model(original_view)
 
-        cache = {}
+        cache = {
+            "workspace_id": workspace.id,
+        }
 
         # Use export/import to duplicate the view easily
         serialized = view_type.export_serialized(original_view, cache)
@@ -896,6 +898,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         # the mapping remain the same. They haven't change because we're only
         # reimporting the view and not the table, fields, etc.
         id_mapping = {
+            "workspace_id": workspace.id,
             "database_fields": MirrorDict(),
             "database_field_select_options": MirrorDict(),
         }
