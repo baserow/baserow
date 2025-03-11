@@ -10,7 +10,6 @@
       <InjectedFormulaInput
         v-model="values.value"
         :placeholder="$t('generalForm.valuePlaceholder')"
-        @input="emitChange"
         @blur="v$.values.value.$touch()"
       />
     </FormGroup>
@@ -51,13 +50,13 @@ export default {
     rules() {
       return {
         values: {
-          value: { required }
-        }
+          value: { required },
+        },
       }
-    }
+    },
   },
   validations() {
     return this.rules
-  }
+  },
 }
 </script>
