@@ -120,9 +120,9 @@ export default {
       ).find((item) => item.metadata?.primary === true)
       const labels = this.result.map((item) => {
         if (item[`field_${groupByFieldId}`] !== undefined) {
-          return item[`field_${groupByFieldId}`] ?? ''
+          return this.getGroupByValue(`field_${groupByFieldId}`, item)
         }
-        return item[`field_${primaryField.metadata.id}`]
+        return this.getGroupByValue(`field_${primaryField.metadata.id}`, item)
       })
       const datasets = []
       for (const [index, series] of this.seriesConfig.entries()) {
@@ -211,6 +211,23 @@ export default {
         label = `${this.getFieldTitle(fieldName)} (${label})`
       }
       return label
+    },
+    getGroupByValue(fieldName, item) {
+      const serializedField = this.dataSource.context_data.fields[fieldName]
+      const fieldType = serializedField.type
+
+      if (this.$registry.exists('chartFieldFormatting', fieldType)) {
+        const fieldFormatter = this.$registry.get(
+          'chartFieldFormatting',
+          fieldType
+        )
+        return fieldFormatter.formatGroupByFieldValue(
+          serializedField,
+          item[fieldName]
+        )
+      }
+
+      return item[fieldName] ?? ''
     },
   },
 }
