@@ -453,7 +453,7 @@
   },
   "aggregationSeriesForm": {
     "aggregationFieldLabel": "Field",
-    "aggregationTypeLabel": "Summary type",
+    "aggregationTypeLabel": "Summary",
     "deleteSeries": "Delete series"
   },
   "aggregationGroupByForm": {
@@ -470,5 +470,4 @@
   "periodicDataSyncDeactivatedNotification": {
     "body": "{name} periodic data sync has been deactivated because it failed too many times consecutively."
   }
-  
 }
