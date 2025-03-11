@@ -98,7 +98,13 @@ export default {
   },
   computed: {
     groupedAggregationTypes() {
-      return this.$registry.getOrderedList('groupedAggregation')
+      const allAggregationTypes =
+        this.$registry.getOrderedList('groupedAggregation')
+      return allAggregationTypes.filter((aggType) => {
+        return this.tableFields.some((tableField) =>
+          aggType.fieldIsCompatible(tableField)
+        )
+      })
     },
     aggregationTypesAvailableForSelection() {
       return this.groupedAggregationTypes.filter(
