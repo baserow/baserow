@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from pytest_unordered import unordered
 from rest_framework import serializers
 
 from baserow.contrib.database.api.rows.serializers import (
@@ -432,10 +433,12 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                         "value": "E",
                     },
                 ],
-                "formula_multiple_collaborators": [
-                    {"id": u2.id, "name": u2.first_name},
-                    {"id": u3.id, "name": u3.first_name},
-                ],
+                "formula_multiple_collaborators": unordered(
+                    [
+                        {"id": u2.id, "name": u2.first_name},
+                        {"id": u3.id, "name": u3.first_name},
+                    ]
+                ),
                 "formula_text": "test FORMULA",
                 "count": "3",
                 "rollup": "-122.222",
@@ -449,10 +452,12 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                 "multiple_collaborators_lookup": [
                     {
                         "id": 1,
-                        "value": [
-                            {"id": u2.id, "name": u2.first_name},
-                            {"id": u3.id, "name": u3.first_name},
-                        ],
+                        "value": unordered(
+                            [
+                                {"id": u2.id, "name": u2.first_name},
+                                {"id": u3.id, "name": u3.first_name},
+                            ]
+                        ),
                     },
                     {
                         "id": 2,
