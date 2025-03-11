@@ -1,0 +1,34 @@
+<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g filter="url(#filter0_d_1314_36219)">
+<rect x="2" y="1" width="116" height="76" rx="6" fill="#FAFAFA"/>
+<rect x="2.5" y="1.5" width="115" height="75" rx="5.5" stroke="#EDEDED"/>
+<g clip-path="url(#clip0_1314_36219)">
+<rect x="26" y="17" width="68" height="44" rx="4" fill="white"/>
+<rect x="26" y="17" width="68" height="6" fill="#E6E6E7"/>
+<rect x="30" y="27" width="14" height="4" rx="2" fill="#E6E6E7"/>
+<rect opacity="0.48" x="53" y="27" width="37" height="4" rx="2" fill="#E6E6E7"/>
+<rect x="30" y="53" width="14" height="4" rx="2" fill="#E6E6E7"/>
+<rect opacity="0.48" x="53" y="53" width="37" height="4" rx="2" fill="#E6E6E7"/>
+<rect x="30" y="40" width="14" height="4" rx="2" fill="#E6E6E7"/>
+<rect opacity="0.48" x="53" y="40" width="21" height="4" rx="2" fill="#E6E6E7"/>
+<rect x="48" y="23" width="1" height="39" fill="#EDEDED"/>
+<rect x="26" y="35" width="68" height="1" fill="#EDEDED"/>
+<rect x="26" y="48" width="68" height="1" fill="#EDEDED"/>
+</g>
+<rect x="25.25" y="16.25" width="69.5" height="45.5" rx="4.75" stroke="#E6E6E7" stroke-width="1.5"/>
+</g>
+<defs>
+<filter id="filter0_d_1314_36219" x="0" y="0" width="120" height="80" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="1"/>
+<feGaussianBlur stdDeviation="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.027451 0 0 0 0 0.0313726 0 0 0 0 0.0627451 0 0 0 0.1 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1314_36219"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1314_36219" result="shape"/>
+</filter>
+<clipPath id="clip0_1314_36219">
+<rect x="26" y="17" width="68" height="44" rx="4" fill="white"/>
+</clipPath>
+</defs>
+</svg>

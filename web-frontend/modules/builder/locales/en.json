@@ -135,6 +135,12 @@
     "searchPlaceholder": "Search elements",
     "elementInProgress": "Adding element..."
   },
+  "addElementCategory": {
+      "suggestedElement": "Suggested elements",
+      "baseElement": "Base elements",
+      "layoutElement": "Layout elements",
+      "formElement": "Form elements"
+    },
   "elementMenu": {
     "moveUp": "Move up",
     "moveDown": "Move down",

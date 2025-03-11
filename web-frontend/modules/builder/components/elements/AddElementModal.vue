@@ -1,24 +1,56 @@
 <template>
-  <Modal>
+  <Modal class="add-element-modal">
     <h2 class="box__title">{{ $t('addElementModal.title') }}</h2>
-    <FormInput
-      ref="search"
-      v-model="search"
-      size="large"
-      class="margin-bottom-2"
-      :placeholder="$t('addElementModal.searchPlaceholder')"
-      icon-right="iconoir-search"
-    />
-    <div class="add-element-modal__element-cards">
-      <AddElementCard
-        v-for="elementType in elementTypes"
-        :key="elementType.getType()"
-        :element-type="elementType"
-        :loading="addingElementType === elementType.getType()"
-        :disabled="isElementTypeDisabled(elementType)"
-        :disabled-message="getElementTypeDisabledMessage(elementType)"
-        @click="addElement(elementType)"
+    <div class="add-element-modal__content">
+      <FormInput
+        ref="search"
+        v-model="search"
+        size="large"
+        class="add-element-modal__search"
+        :placeholder="$t('addElementModal.searchPlaceholder')"
+        icon-left="iconoir-search"
       />
+      <div class="add-element-modal__element-cards">
+        <template v-for="group in elementTypes">
+          <div
+            v-if="group.elementTypes.length > 0"
+            :key="group.subject"
+            class="add-element-modal__category"
+          >
+            <Expandable
+              :default-expanded="!initiallyCollapsedCategories[group.subject]"
+            >
+              <template #header="{ toggle, expanded }">
+                <a class="add-element-modal__category-title" @click="toggle">
+                  {{ group.label }}
+                  <i
+                    class="add-element-modal__category-arrow"
+                    :class="{
+                      'iconoir-nav-arrow-down': expanded,
+                      'iconoir-nav-arrow-right': !expanded,
+                    }"
+                  />
+                </a>
+              </template>
+              <template #default>
+                <div class="add-element-modal__category-content">
+                  <AddElementCard
+                    v-for="elementType in group.elementTypes"
+                    :key="elementType.getType()"
+                    :element-type="elementType"
+                    :loading="addingElementType === elementType.getType()"
+                    :disabled="isElementTypeDisabled(elementType)"
+                    :disabled-message="
+                      getElementTypeDisabledMessage(elementType)
+                    "
+                    @click="addElement(elementType)"
+                  />
+                </div>
+              </template>
+            </Expandable>
+          </div>
+        </template>
+      </div>
     </div>
   </Modal>
 </template>
@@ -30,10 +62,11 @@ import { isSubstringOfStrings } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions } from 'vuex'
 import { PAGE_PLACES } from '@baserow/modules/builder/enums'
+import Expandable from '@baserow/modules/core/components/Expandable'
 
 export default {
   name: 'AddElementModal',
-  components: { AddElementCard },
+  components: { AddElementCard, Expandable },
   mixins: [modal],
   inject: ['builder', 'currentPage'],
   props: {
@@ -50,17 +83,43 @@ export default {
       parentElementId: null,
       pagePlace: null,
       addingElementType: null,
+      initiallyCollapsedCategories: {},
     }
   },
   computed: {
     elementTypes() {
       const elementTypesAll = Object.values(this.$registry.getAll('element'))
-      return elementTypesAll.filter((elementType) =>
+      const filteredTypes = elementTypesAll.filter((elementType) =>
         isSubstringOfStrings(
           [elementType.name, elementType.description],
           this.search
         )
       )
+
+      // Define group categories
+      const groupsList = ['baseElement', 'layoutElement', 'formElement']
+
+      // Create group objects with label and empty elementTypes array
+      const groups = groupsList.map((subject) => ({
+        subject,
+        label: this.$t(`addElementCategory.${subject}`),
+        elementTypes: [],
+      }))
+
+      // Fill other groups with filtered element types
+      filteredTypes.forEach((elementType) => {
+        const category = elementType.category() || 'baseElement'
+
+        // Add element to its standard category, even if it's already in suggested elements
+        if (category !== 'suggestedElement') {
+          const group = groups.find((g) => g.subject === category)
+          if (group) {
+            group.elementTypes.push(elementType)
+          }
+        }
+      })
+
+      return groups
     },
     sharedPage() {
       return this.$store.getters['page/getSharedPage'](this.builder)

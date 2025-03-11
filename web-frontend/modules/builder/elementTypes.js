@@ -67,6 +67,10 @@ export class ElementType extends Registerable {
     return null
   }
 
+  category() {
+    return 'baseElement'
+  }
+
   get description() {
     return null
   }
@@ -697,6 +701,10 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     return 'form_container'
   }
 
+  category() {
+    return 'formElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.formContainer')
   }
@@ -779,6 +787,10 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
     return 'column'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.column')
   }
@@ -849,6 +861,10 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
     return 'table'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.table')
   }
@@ -917,6 +933,10 @@ export class RepeatElementType extends CollectionElementTypeMixin(
     return 'repeat'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.repeat')
   }
@@ -961,6 +981,10 @@ export class FormElementType extends ElementType {
 
   formDataType(element) {
     return null
+  }
+
+  category() {
+    return 'formElement'
   }
 
   /**
@@ -1817,6 +1841,10 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     return 'header'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.header')
   }
@@ -1897,6 +1925,10 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
 export class FooterElementType extends HeaderElementType {
   static getType() {
     return 'footer'
+  }
+
+  category() {
+    return 'layoutElement'
   }
 
   getPagePlace() {
