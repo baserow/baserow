@@ -1100,7 +1100,8 @@ class UpdateViewFieldOptionsActionType(UndoableActionType):
         VIEW_ACTION_CONTEXT,
     )
     analytics_params = [
-        "view_id" "table_id",
+        "view_id",
+        "table_id",
         "database_id",
         "field_options",
         "original_field_options",
