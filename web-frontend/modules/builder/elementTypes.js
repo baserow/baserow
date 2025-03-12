@@ -865,6 +865,10 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
     return 'simple_container'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.simpleContainer')
   }

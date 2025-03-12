@@ -126,7 +126,7 @@
     "notAllowedLocation": "This element is not allowed at this location",
     "menu": "Menu",
     "menuDescription": "Menu element",
-    "simpleContainer": "Simple container",
+    "simpleContainer": "Container",
     "simpleContainerDescription": "A container for other elements"
   },
   "addElementButton": {
@@ -235,7 +235,7 @@
     "noMenuItemsMessage": "Click 'Add' to add your first menu item."
   },
   "simpleContainerElementForm": {
-    "noConfigurationOptions": "The simple container element does not have any configuration options."
+    "noConfigurationOptions": "The container element does not have any configuration options."
   },
   "imageElement": {
     "missingValue": "Missing alt text...",
