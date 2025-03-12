@@ -1875,7 +1875,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             if (
                 not isinstance(model_field, ManyToManyField)
                 and field_id in updated_field_ids
-                and field_type.valid_for_bulk_update(model_field)
+                and field_type.valid_for_bulk_update(field_obj["field"])
             ):
                 bulk_update_fields.append(field_name)
 
