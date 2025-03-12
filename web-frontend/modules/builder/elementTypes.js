@@ -2086,10 +2086,11 @@ export class RatingInputElementType extends FormElementType {
 
   getInitialFormDataValue(element, applicationContext) {
     try {
-      return (
-        ensurePositiveInteger(this.resolveFormula(this.element.value), {
-          allowNull: true,
-        }) || 0
+      return ensurePositiveInteger(
+        this.resolveFormula(element.value, {
+          element,
+          ...applicationContext,
+        })
       )
     } catch {
       return 0
@@ -2152,7 +2153,7 @@ export class RatingElementType extends ElementType {
   getInitialFormDataValue(element, applicationContext) {
     try {
       return ensurePositiveInteger(
-        this.resolveFormula(element.default_value, {
+        this.resolveFormula(element.value, {
           element,
           ...applicationContext,
         })

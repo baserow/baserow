@@ -7,7 +7,7 @@
     >
       <div>
         <Rating
-          :value="displayValue"
+          v-model="inputValue"
           :max-value="maxValue"
           :custom-color="element.color"
           :rating-style="element.rating_style || 'star'"
@@ -69,12 +69,6 @@ export default {
     labelResolved() {
       return ensureString(this.resolveFormula(this.element.label))
     },
-    displayValue() {
-      if (this.readOnly || this.editing) {
-        return this.resolvedValue
-      }
-      return this.formElementData?.value ?? this.resolvedValue
-    },
     rules() {
       return {
         formElementData: {
@@ -89,18 +83,14 @@ export default {
   watch: {
     resolvedValue: {
       handler(newValue) {
-        if (!this.readOnly) {
-          this.setFormData(newValue)
-        }
+        this.inputValue = newValue
       },
+      immediate: true,
     },
-  },
-  mounted() {
-    this.setFormData(this.resolvedValue)
   },
   methods: {
     onUpdate(value) {
-      this.handleFormElementChange(value)
+      this.inputValue = value
     },
   },
 }
