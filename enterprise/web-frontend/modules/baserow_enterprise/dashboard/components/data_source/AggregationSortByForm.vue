@@ -25,7 +25,7 @@
       </DropdownItem>
     </Dropdown>
     <SegmentControl
-      v-if="aggregationSorts.length > 0"
+      v-if="aggregationSorts.length > 0 && v$.sortReference?.$error === false"
       ref="sortDirectionSegment"
       :active-index="orderDirectionIndex"
       :segments="orderDirectionOptions"
