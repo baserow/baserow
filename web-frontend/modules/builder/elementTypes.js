@@ -53,6 +53,9 @@ import DateTimePickerElement from '@baserow/modules/builder/components/elements/
 import DateTimePickerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/DateTimePickerElementForm'
 import MenuElement from '@baserow/modules/builder/components/elements/components/MenuElement'
 import MenuElementForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementForm'
+import PositionedContainerElement from '@baserow/modules/builder/components/elements/components/PositionedContainerElement.vue'
+import PositionedContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/PositionedContainerElementForm.vue'
+
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import {
   ContainerElementTypeMixin,
@@ -2094,5 +2097,99 @@ export class MenuElementType extends ElementType {
 
   getDisplayName(element, applicationContext) {
     return this.name
+  }
+}
+
+export class PositionedContainerElementType extends ContainerElementTypeMixin(
+  ElementType
+) {
+  static getType() {
+    return 'positioned_container'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.positionedContainer')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.positionedContainerDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-pin'
+  }
+
+  get component() {
+    return PositionedContainerElement
+  }
+
+  get generalFormComponent() {
+    return PositionedContainerElementForm
+  }
+
+  getElementPlaces(element) {
+    return [null]
+  }
+
+  /**
+   * Override the base implementation to disallow moving the element.
+   *
+   * The element's position can be swapped between top and bottom, but this is
+   * handled via its `alignment` property.
+   */
+  getNextPlaces(args) {
+    return {
+      [DIRECTIONS.BEFORE]: null,
+      [DIRECTIONS.AFTER]: null,
+      [DIRECTIONS.LEFT]: null,
+      [DIRECTIONS.RIGHT]: null,
+    }
+  }
+
+  isDisallowedReason({
+    builder,
+    page,
+    parentElement,
+    beforeElement,
+    placeInContainer,
+    pagePlace,
+  }) {
+    // This element is not allowed in another positioned container.
+    if (parentElement) {
+      const hasSameTypeAncestor = !!this.app.store.getters[
+        'element/getAncestors'
+      ](page, parentElement, {
+        predicate: (ancestor) => ancestor.type === this.type,
+        includeSelf: true,
+      }).length
+      if (hasSameTypeAncestor) {
+        return this.app.i18n.t('elementType.notAllowedInsideSameType')
+      }
+    }
+
+    const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
+
+    if (page.id !== sharedPage.id) {
+      const orderedElements =
+        this.app.store.getters['element/getElementsOrdered'](page)
+
+      // The Positioned Container element can only be placed either at the
+      // top or bottom of the page.
+      if (
+        beforeElement !== null &&
+        beforeElement.id !== orderedElements[0]?.id
+      ) {
+        return this.app.i18n.t('elementType.notAllowedUnlessTopOrBottom')
+      }
+    }
+
+    return super.isDisallowedReason({
+      builder,
+      page,
+      parentElement,
+      beforeElement,
+      placeInContainer,
+      pagePlace,
+    })
   }
 }

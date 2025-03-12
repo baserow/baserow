@@ -26,6 +26,12 @@ from baserow.contrib.builder.api.elements.serializers import (
     MenuItemSerializer,
     NestedMenuItemsMixin,
 )
+from baserow.contrib.builder.constants import (
+    HorizontalAlignments,
+    PageAlignments,
+    PageBehaviours,
+    VerticalAlignments,
+)
 from baserow.contrib.builder.data_providers.exceptions import (
     FormDataProviderChunkInvalidException,
 )
@@ -51,7 +57,6 @@ from baserow.contrib.builder.elements.models import (
     FormContainerElement,
     HeaderElement,
     HeadingElement,
-    HorizontalAlignments,
     IFrameElement,
     ImageElement,
     InputTextElement,
@@ -59,11 +64,11 @@ from baserow.contrib.builder.elements.models import (
     MenuElement,
     MenuItemElement,
     NavigationElementMixin,
+    PositionedContainerElement,
     RecordSelectorElement,
     RepeatElement,
     TableElement,
     TextElement,
-    VerticalAlignments,
     get_default_table_orientation,
 )
 from baserow.contrib.builder.elements.registries import (
@@ -2294,3 +2299,60 @@ class MenuElementType(ElementType):
                 if new_formula is not None:
                     setattr(item, formula_field, new_formula)
                     yield item
+
+
+class PositionedContainerElementType(ContainerElementTypeMixin, ElementType):
+    """
+    A Positioned Container element is a container element that is aligned to
+    a specific side of the page.
+    """
+
+    type = "positioned_container"
+    model_class = PositionedContainerElement
+
+    class SerializedDict(ContainerElementTypeMixin.SerializedDict):
+        alignment: str
+        behaviour: str
+
+    @property
+    def serializer_field_names(self):
+        return super().serializer_field_names + [
+            "alignment",
+            "behaviour",
+        ]
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + [
+            "alignment",
+            "behaviour",
+        ]
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {
+            "alignment": PageAlignments.TOP,
+            "behaviour": PageBehaviours.FIXED,
+        }
+
+    @property
+    def child_types_allowed(self) -> List[str]:
+        """
+        The positioned container only forbids itself as a child.
+        :return: a list of element types, without the positioned container type.
+        """
+
+        return [
+            element_type
+            for element_type in super().child_types_allowed
+            if element_type.type != self.type
+        ]
+
+    def after_create(self, instance: MenuItemElement, values: Dict[str, Any]) -> None:
+        """
+        When the element is created at the bottom of the page, ensure the
+        alignment is set correctly.
+        """
+
+        if instance.order > 1:
+            instance.alignment = PageAlignments.BOTTOM
+            instance.save()

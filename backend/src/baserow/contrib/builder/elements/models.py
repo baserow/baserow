@@ -10,6 +10,8 @@ from baserow.contrib.builder.constants import (
     BACKGROUND_IMAGE_MODES,
     COLOR_FIELD_MAX_LENGTH,
     HorizontalAlignments,
+    PageAlignments,
+    PageBehaviours,
     VerticalAlignments,
 )
 from baserow.core.constants import DATE_FORMAT_CHOICES, DATE_TIME_FORMAT_CHOICES
@@ -1066,3 +1068,21 @@ class MenuElement(Element):
     )
 
     menu_items = models.ManyToManyField(MenuItemElement)
+
+
+class PositionedContainerElement(ContainerElement):
+    """
+    A container element that is aligned to a specific side of the page.
+    """
+
+    alignment = models.CharField(
+        choices=PageAlignments.choices,
+        max_length=15,
+        default=PageAlignments.TOP,
+    )
+
+    behaviour = models.CharField(
+        choices=PageBehaviours.choices,
+        max_length=15,
+        default=PageBehaviours.FIXED,
+    )

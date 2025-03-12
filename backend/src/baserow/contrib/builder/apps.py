@@ -184,6 +184,7 @@ class BuilderConfig(AppConfig):
             InputTextElementType,
             LinkElementType,
             MenuElementType,
+            PositionedContainerElementType,
             RecordSelectorElementType,
             RepeatElementType,
             TableElementType,
@@ -202,6 +203,7 @@ class BuilderConfig(AppConfig):
         element_type_registry.register(RepeatElementType())
         element_type_registry.register(RecordSelectorElementType())
         element_type_registry.register(FormContainerElementType())
+        element_type_registry.register(PositionedContainerElementType())
         element_type_registry.register(ChoiceElementType())
         element_type_registry.register(CheckboxElementType())
         element_type_registry.register(IFrameElementType())

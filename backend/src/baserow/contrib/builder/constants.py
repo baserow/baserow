@@ -19,6 +19,18 @@ class VerticalAlignments(models.TextChoices):
     BOTTOM = "bottom"
 
 
+class PageAlignments(models.TextChoices):
+    TOP = "top"
+    BOTTOM = "bottom"
+    LEFT_SIDEBAR = "left_sidebar"
+    RIGHT_SIDEBAR = "right_sidebar"
+
+
+class PageBehaviours(models.TextChoices):
+    FIXED = "fixed"
+    STICKY = "sticky"
+
+
 class WIDTHS(models.TextChoices):
     AUTO = "auto"
     FULL = "full"

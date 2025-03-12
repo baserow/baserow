@@ -208,3 +208,13 @@ export const TIME_FORMATS = {
     example: '11:00 PM',
   },
 }
+
+export const PAGE_ALIGNMENTS = {
+  TOP: 'top',
+  BOTTOM: 'bottom',
+}
+
+export const PAGE_ALIGNMENT_BEHAVIOURS = {
+  FIXED: 'fixed',
+  STICKY: 'sticky',
+}

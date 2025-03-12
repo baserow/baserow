@@ -9,6 +9,7 @@
       'element-preview--first-element': isFirstElement,
       'element-preview--not-visible':
         !isVisible && !isSelected && !isParentOfSelectedElement,
+      [pageAlignmentClass]: isPositionedContainer(),
     }"
     @click="onSelect"
   >
@@ -65,6 +66,7 @@
 import ElementMenu from '@baserow/modules/builder/components/elements/ElementMenu'
 import InsertElementButton from '@baserow/modules/builder/components/elements/InsertElementButton'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
+import pageStyleMixin from '@baserow/modules/builder/mixins/pageStyle'
 import { DIRECTIONS } from '@baserow/modules/builder/enums'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -85,6 +87,7 @@ export default {
     InsertElementButton,
     PageElement,
   },
+  mixins: [pageStyleMixin],
   inject: ['workspace', 'builder', 'mode', 'currentPage'],
   props: {
     element: {

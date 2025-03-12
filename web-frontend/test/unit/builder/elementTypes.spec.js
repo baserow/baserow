@@ -613,6 +613,29 @@ describe('elementTypes tests', () => {
         })
       ).toEqual(null)
     })
+    test('PositionedContainerElementType does not allow itself as a nested child.', () => {
+      const positionedContainerElementType = testApp
+        .getRegistry()
+        .get('element', 'positioned_container')
+
+      const page = { id: 123 }
+      const ancestor = {
+        id: 111,
+        type: 'positioned_container',
+        page_id: page.id,
+      }
+
+      page.elementMap = { 111: ancestor }
+
+      expect(
+        positionedContainerElementType.isDisallowedReason({
+          builder: { id: 1 },
+          page,
+          parentElement: ancestor,
+          beforeElement: null,
+        })
+      ).toEqual('elementType.notAllowedInsideSameType')
+    })
   })
 
   describe('elementTypes ChoiceElementType choiceOptions tests', () => {
@@ -977,6 +1000,47 @@ describe('elementTypes tests', () => {
       element.menu_items[0].navigation_type = 'custom'
       element.menu_items[0].navigate_to_url = 'https://www.baserow.io'
 
+      expect(elementType.isInError({ page, element, builder })).toBe(false)
+    })
+  })
+
+  describe('PositionedContainerElementType isInError tests', () => {
+    test('Returns true if Positioned Container Element has errors, false otherwise', () => {
+      const elementType = testApp
+        .getRegistry()
+        .get('element', 'positioned_container')
+
+      const page = {
+        id: 1,
+        shared: false,
+        name: 'Foo Page',
+      }
+      const element = {
+        id: 50,
+        page_id: page.id,
+        alignment: 'top',
+        behaviour: 'fixed',
+      }
+      page.elementMap = { 50: element }
+      page.orderedElements = [element]
+      const builder = {
+        id: 1,
+        pages: [page],
+      }
+
+      // Positioned Container element with zero children is invalid.
+      expect(elementType.isInError({ page, element, builder })).toBe(true)
+
+      // Add a child element
+      const child = {
+        id: 51,
+        page_id: page.id,
+        parent_element_id: element.id,
+      }
+      page.elementMap = { 50: element, 51: child }
+      page.orderedElements = [element, child]
+
+      // Positioned Container with at least one child is valid.
       expect(elementType.isInError({ page, element, builder })).toBe(false)
     })
   })
