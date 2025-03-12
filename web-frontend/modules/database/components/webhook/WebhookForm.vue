@@ -170,7 +170,7 @@
             />
           </div>
           <div
-            v-if="webhookEvent.getHasRelatedViews()"
+            v-if="webhookEvent.getHasRelatedView()"
             class="webhook__type-dropdown-container"
           >
             <Dropdown
@@ -179,13 +179,13 @@
                   ? getEventView(webhookEvent)
                   : null
               "
-              :placeholder="webhookEvent.getRelatedViewsPlaceholder()"
+              :placeholder="webhookEvent.getRelatedViewPlaceholder()"
               :disabled="!values.events.includes(webhookEvent.type)"
               class="dropdown--tiny webhook__type-dropdown"
               @input="setEventView(webhookEvent, $event)"
             >
               <DropdownItem
-                v-for="view in views"
+                v-for="view in filterableViews"
                 :key="view.id"
                 :name="view.name"
                 :value="view.id"
@@ -193,9 +193,9 @@
               </DropdownItem>
             </Dropdown>
             <HelpIcon
-              v-if="webhookEvent.getRelatedViewsHelpText()"
+              v-if="webhookEvent.getRelatedViewHelpText()"
               class="margin-left-1"
-              :tooltip="webhookEvent.getRelatedViewsHelpText()"
+              :tooltip="webhookEvent.getRelatedViewHelpText()"
             />
           </div>
           <component
@@ -403,6 +403,11 @@ export default {
     webhookEventTypes() {
       return this.$registry.getAll('webhookEvent')
     },
+    filterableViews() {
+      return this.views.filter(
+        (view) => this.$registry.get('view', view.type).canFilter
+      )
+    },
     /**
      * Generates an example payload of the webhook event based on the chosen webhook
      * event type.
@@ -483,8 +488,10 @@ export default {
       if (eventConfig === undefined) {
         return null
       }
-      console.log(eventConfig)
-      return eventConfig.views?.length ? eventConfig.views[0] : null
+      const viewId = eventConfig.views?.[0]
+      const view =
+        viewId && this.filterableViews.find((view) => view.id === viewId)
+      return view?.id || null
     },
     setEventView(event, view) {
       const eventConfig = this.values.event_config.find(
@@ -497,9 +504,7 @@ export default {
         })
         return this.setEventView(event, view)
       }
-
-      eventConfig.views = [view]
-      console.log(eventConfig)
+      this.$set(eventConfig, 'views', [view])
     },
     toggleEventType(webhookEvent, event) {
       if (event) {

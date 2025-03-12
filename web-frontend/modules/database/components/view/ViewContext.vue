@@ -166,10 +166,6 @@ export default {
       type: Object,
       required: true,
     },
-    views: {
-      type: Array,
-      required: true,
-    },
   },
   data() {
     return {
@@ -183,6 +179,7 @@ export default {
     },
     ...mapGetters({
       fields: 'field/getAll',
+      views: 'view/getAll',
     }),
     changeViewOwnershipTypeMenuItems() {
       const activeOwnershipTypes = Object.values(

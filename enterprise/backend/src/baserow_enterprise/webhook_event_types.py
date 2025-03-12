@@ -18,7 +18,7 @@ from baserow_enterprise.features import ADVANCED_WEBHOOKS
 class EnterpriseWebhookEventType(WebhookEventType):
     def listener(self, **kwargs: dict):
         """
-        Only calls the super listener if the workspace has a valide license.
+        Only calls the super listener if the workspace has a valid license.
         """
 
         table = self.get_table_object(**kwargs)
@@ -76,11 +76,10 @@ class RowsEnterViewEventType(EnterpriseWebhookEventType):
         table = webhook.table
         model = table.get_model()
 
-        get_field_name = lambda field: field.db_column  # noqa E731
-        if webhook.use_user_field_names:
-            get_field_name = lambda field: field.name  # noqa E731
-
-        row_fields = [get_field_name(field) for field in model.get_fields()]
+        row_fields = [
+            field.name if webhook.use_user_field_names else field.db_column
+            for field in model.get_fields()
+        ]
         payload["fields"] = ["id", "order", *row_fields]
 
         rows = model.objects_and_trash.filter(

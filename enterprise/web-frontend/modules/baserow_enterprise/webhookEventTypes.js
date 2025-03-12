@@ -45,16 +45,16 @@ export class RowsEnterViewWebhookEventType extends EnterpriseWebhookEventType {
     return payload
   }
 
-  getHasRelatedViews() {
+  getHasRelatedView() {
     return true
   }
 
-  getRelatedViewsPlaceholder() {
+  getRelatedViewPlaceholder() {
     const { i18n } = this.app
     return i18n.t('webhookForm.triggerWhenRowsEnterView')
   }
 
-  getRelatedViewsHelpText() {
+  getRelatedViewHelpText() {
     const { i18n } = this.app
     return i18n.t('webhookForm.helpTriggerWhenRowsEnterView')
   }

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-05 11:01+0000\n"
+"POT-Creation-Date: 2025-03-12 16:34+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -492,111 +492,111 @@ msgstr ""
 msgid "ViewFieldOptions updated"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1200
+#: src/baserow/contrib/database/views/actions.py:1201
 msgid "View slug URL updated"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1201
+#: src/baserow/contrib/database/views/actions.py:1202
 msgid "View changed public slug URL"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1274
+#: src/baserow/contrib/database/views/actions.py:1275
 msgid "Update view"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1275
+#: src/baserow/contrib/database/views/actions.py:1276
 #, python-format
 msgid "View \"%(view_name)s\" (%(view_id)s) updated"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1356
+#: src/baserow/contrib/database/views/actions.py:1357
 msgid "Create view"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1357
+#: src/baserow/contrib/database/views/actions.py:1358
 #, python-format
 msgid "View \"%(view_name)s\" (%(view_id)s) created"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1431
+#: src/baserow/contrib/database/views/actions.py:1432
 msgid "Duplicate view"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1433
+#: src/baserow/contrib/database/views/actions.py:1434
 #, python-format
 msgid ""
 "View \"%(view_name)s\" (%(view_id)s) duplicated from view "
 "\"%(original_view_name)s\" (%(original_view_id)s)"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1507
+#: src/baserow/contrib/database/views/actions.py:1508
 msgid "Delete view"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1508
+#: src/baserow/contrib/database/views/actions.py:1509
 #, python-format
 msgid "View \"%(view_name)s\" (%(view_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1570
+#: src/baserow/contrib/database/views/actions.py:1571
 msgid "Create decoration"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1571
+#: src/baserow/contrib/database/views/actions.py:1572
 #, python-format
 msgid "View decoration %(decorator_id)s created"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1675
+#: src/baserow/contrib/database/views/actions.py:1676
 msgid "Update decoration"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1676
+#: src/baserow/contrib/database/views/actions.py:1677
 #, python-format
 msgid "View decoration %(decorator_id)s updated"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1813
+#: src/baserow/contrib/database/views/actions.py:1814
 msgid "Delete decoration"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1814
+#: src/baserow/contrib/database/views/actions.py:1815
 #, python-format
 msgid "View decoration %(decorator_id)s deleted"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1910
+#: src/baserow/contrib/database/views/actions.py:1911
 msgid "Create a view group"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1911
+#: src/baserow/contrib/database/views/actions.py:1912
 #, python-format
 msgid "View grouped on field \"%(field_name)s\" (%(field_id)s)"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2011
+#: src/baserow/contrib/database/views/actions.py:2012
 msgid "Update a view group"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2012
+#: src/baserow/contrib/database/views/actions.py:2013
 #, python-format
 msgid "View group by updated on field \"%(field_name)s\" (%(field_id)s)"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2140
+#: src/baserow/contrib/database/views/actions.py:2141
 msgid "Delete a view group"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2141
+#: src/baserow/contrib/database/views/actions.py:2142
 #, python-format
 msgid "View group by deleted from field \"%(field_name)s\" (%(field_id)s)"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2235
+#: src/baserow/contrib/database/views/actions.py:2236
 msgid "Submit form"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2236
+#: src/baserow/contrib/database/views/actions.py:2237
 #, python-format
 msgid "Row (%(row_id)s) created via form submission"
 msgstr ""
@@ -646,26 +646,27 @@ msgid ""
 "to %(webhook_url)s\" updated"
 msgstr ""
 
-#: src/baserow/contrib/database/webhooks/notification_types.py:90
+#: src/baserow/contrib/database/webhooks/notification_types.py:92
 #, python-format
 msgid "%(name)s webhook has been deactivated."
 msgstr ""
 
-#: src/baserow/contrib/database/webhooks/notification_types.py:97
+#: src/baserow/contrib/database/webhooks/notification_types.py:99
 #, python-format
 msgid ""
 "The webhook failed more than %(max_failures)s consecutive times and was "
 "therefore deactivated."
 msgstr ""
 
-#: src/baserow/contrib/database/webhooks/notification_types.py:147
+#: src/baserow/contrib/database/webhooks/notification_types.py:155
 #, python-format
 msgid "%(name)s webhook payload too large."
 msgstr ""
 
-#: src/baserow/contrib/database/webhooks/notification_types.py:154
+#: src/baserow/contrib/database/webhooks/notification_types.py:162
 #, python-format
 msgid ""
-"The webhook couldn't send all the data because it reaches the maximum number "
-"of batches of %(batch_limit)s."
+"The payload for the %(name)s webhook with event ID %(event_id)s was too "
+"large. The content has been split into multiple batches, but data above the "
+"batch limit of %(batch_limit)s was discarded."
 msgstr ""

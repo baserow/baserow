@@ -55,15 +55,15 @@ export class WebhookEventType extends Registerable {
    * to choose related views. This can for example for an event that's restricted to
    * certain view updates.
    */
-  getHasRelatedViews() {
+  getHasRelatedView() {
     return false
   }
 
-  getRelatedViewsPlaceholder() {
+  getRelatedViewPlaceholder() {
     return null
   }
 
-  getRelatedViewsHelpText() {
+  getRelatedViewHelpText() {
     return null
   }
 
