@@ -340,7 +340,7 @@
     "showBaserowHelpMessageDescription": "Indicates whether the help request message should be shown on the dashboard.",
     "deactivated": "Available in enterprise",
     "coBrandingLogo": "Logo",
-    "coBrandingLogoDescription": "Replaces the Baserow logo for a custom co-branded alternative (176x29).",
+    "coBrandingLogoDescription": "Replaces the Baserow logo for a custom co-branded alternative (176x29). If set, it also removes the Baserow description in the footer of all emails.",
     "uploadFileButton": "Upload image"
   },
   "enterpriseModal": {
