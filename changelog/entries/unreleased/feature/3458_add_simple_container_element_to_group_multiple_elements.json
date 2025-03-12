@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Add simple container element to group multiple elements",
+    "message": "Added a container element to group multiple elements.",
     "domain": "builder",
     "issue_number": 3458,
     "bullet_points": [],
