@@ -42,7 +42,6 @@ def run_async_job(self, job_id: int):
         job.set_state_finished()
         job.save()
     except JobCancelled:
-        print(f"dupa anulowane")
         # It shouldn't be necessary because the JobHandler shouldn't call job.save(),
         # but this guarantees that the job is in the cancelled state at the end.
         job.set_state_cancelled()
@@ -65,7 +64,6 @@ def run_async_job(self, job_id: int):
 
         job.set_state_failed(str(e), error)
         job.save()
-        print(f"dupa! {error}: {(type(e), e,)}")
         raise
     finally:
         # Delete the import job cached entry because the transaction has been committed

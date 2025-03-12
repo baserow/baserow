@@ -9,6 +9,8 @@ from pyinstrument import Profiler
 
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
 from baserow.contrib.database.fields.exceptions import (
+    FieldNotInTable,
+    IncompatibleField,
     InvalidBaserowFieldName,
     MaxFieldLimitExceeded,
     MaxFieldNameLengthExceeded,
@@ -466,8 +468,8 @@ def test_run_file_import_test_chunk(data_fixture, patch_filefield_storage):
 
     table, _, _ = data_fixture.build_table(
         columns=[
-            (f"col1", "text"),
-            (f"col2", "number"),
+            ("col1", "text"),
+            ("col2", "number"),
         ],
         rows=[],
         user=user,
@@ -526,8 +528,8 @@ def test_run_file_import_limit(data_fixture, patch_filefield_storage):
 
     table, _, _ = data_fixture.build_table(
         columns=[
-            (f"col1", "text"),
-            (f"col2", "number"),
+            ("col1", "text"),
+            ("col2", "number"),
         ],
         rows=[],
         user=user,
@@ -670,42 +672,134 @@ def test_cleanup_file_import_job(data_fixture, settings, patch_filefield_storage
 
 
 @pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_fields_not_in_table(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    data_fixture.create_text_field(table=table, order=1, name="text 1")
+    init_data = [["foo"], ["bar"]]
+
+    with pytest.raises(FieldNotInTable):
+        with patch_filefield_storage():
+            job = data_fixture.create_file_import_job(
+                data={
+                    "data": init_data,
+                    "configuration": {"upsert_fields": [100, 120]},
+                },
+                table=table,
+                user=user,
+            )
+            run_async_job(job.id)
+
+    model = table.get_model()
+    assert len(model.objects.all()) == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_fields_not_usable(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    f1 = data_fixture.create_text_field(table=table, order=1, name="text 1")
+    f2 = data_fixture.create_formula_field(table=table, order=2, name="formula field")
+
+    model = table.get_model()
+    # dummy data just to ensure later on the table wasn't modified.
+    init_data = [
+        [
+            "aa-",
+        ],
+        [
+            "aa-",
+        ],
+    ]
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data={"data": init_data},
+            table=table,
+            user=user,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+
+    assert job.state == JOB_FINISHED
+    assert job.progress_percentage == 100
+
+    with pytest.raises(IncompatibleField):
+        with patch_filefield_storage():
+            job = data_fixture.create_file_import_job(
+                data={
+                    "data": [["bbb"], ["ccc"], ["aaa"]],
+                    "configuration": {
+                        # we're trying to use formula field, which is not supported
+                        "upsert_fields": [f2.id],
+                        "upsert_values": [["aaa"], ["aaa"], ["aaa"]],
+                    },
+                },
+                table=table,
+                user=user,
+                first_row_header=False,
+            )
+            run_async_job(job.id)
+
+    rows = model.objects.all()
+    assert len(rows) == 2
+    assert all([getattr(r, f1.db_column) == "aa-" for r in rows])
+
+
+@pytest.mark.django_db(transaction=True)
 def test_run_file_import_task_with_upsert(data_fixture, patch_filefield_storage):
     user = data_fixture.create_user()
-    database = data_fixture.create_database_application()
-
-    table = data_fixture.create_database_table(user=user)
-    model = table.get_model()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
 
     f1 = data_fixture.create_text_field(table=table, order=1, name="text 1")
     f2 = data_fixture.create_number_field(
         table=table, order=2, name="number 1", number_negative=True
     )
-    f3 = data_fixture.create_number_field(
+    f3 = data_fixture.create_date_field(user=user, table=table, order=3, name="date 1")
+    f4 = data_fixture.create_date_field(
+        user=user, table=table, order=4, name="datetime 1", date_include_time=True
+    )
+    f5 = data_fixture.create_number_field(
         table=table,
-        order=3,
+        order=5,
         name="value field",
         number_negative=True,
         number_decimal_places=10,
     )
-    f4 = data_fixture.create_text_field(table=table, order=4, name="text 2")
+    f6 = data_fixture.create_text_field(table=table, order=6, name="text 2")
+
+    model = table.get_model()
 
     init_data = [
         [
             "aaa",
             1,
+            "2024-01-01",
+            "2024-01-01T01:02:03.004+01:00",
             0.1,
             "aaa-1-1",
         ],
         [
             "aab",
             1,
+            "2024-01-01",
+            "2024-01-01T01:02:03",
             0.2,
             "aab-1-1",
         ],
         [
             "aac",
             1,
+            "2024-01-01",
+            "2024-01-01T01:02:03",
             0.2,
             "aac-1-1",
         ],
@@ -714,8 +808,12 @@ def test_run_file_import_task_with_upsert(data_fixture, patch_filefield_storage)
             None,
             None,
             None,
+            None,
+            None,
         ],
         [
+            None,
+            None,
             None,
             None,
             None,
@@ -724,14 +822,34 @@ def test_run_file_import_task_with_upsert(data_fixture, patch_filefield_storage)
         [
             "aac",
             1,
+            None,
+            "2024-01-01T01:02:03",
             0.2,
             "aac-1-2",
         ],
         [
-            "aac",
+            "aab",
             1,
+            "2024-01-01",
+            None,
             0.2,
-            "aac-1-3",
+            "aac-1-2",
+        ],
+        [
+            "aaa",
+            1,
+            "2024-01-01",
+            "2024-01-01T01:02:03.004+01:00",
+            0.1,
+            "aaa-1-1",
+        ],
+        [
+            "aaa",
+            1,
+            "2024-01-02",
+            "2024-01-01 01:02:03.004 +01:00",
+            0.1,
+            "aaa-1-1",
         ],
     ]
 
@@ -755,29 +873,45 @@ def test_run_file_import_task_with_upsert(data_fixture, patch_filefield_storage)
     update_with_duplicates = [
         # first three are duplicates
         [
-            "aac",
+            "aab",
             1,
-            123,
-            "aac-1-1",
+            "2024-01-01",
+            "2024-01-01T01:02:03",
+            0.3,
+            "aab-1-1-modified",
+        ],
+        [
+            "aaa",
+            1,
+            "2024-01-01",
+            "2024-01-01T01:02:03.004+01:00",
+            0.2,
+            "aaa-1-1-modified",
         ],
         [
             "aab",
             1,
-            123,
-            "aab-1-1",
+            "2024-01-01",
+            None,
+            0.33333,
+            "aac-1-2-modified",
         ],
+        # insert
         [
             "aab",
             1,
-            124,
-            "aab-1-2",
-        ],
-        # this should be inserted
-        [
-            "aab",
-            1,
+            None,
+            None,
             125,
-            "aab-1-3",
+            "aab-1-3-new",
+        ],
+        [
+            "aab",
+            1,
+            "2024-01-01",
+            None,
+            0.33333,
+            "aab-1-4-new",
         ],
     ]
     # Without first row header
@@ -786,8 +920,8 @@ def test_run_file_import_task_with_upsert(data_fixture, patch_filefield_storage)
             data={
                 "data": update_with_duplicates,
                 "configuration": {
-                    "upsert_fields": [f1.id, f2.id],
-                    "upsert_values": [i[:2] for i in update_with_duplicates],
+                    "upsert_fields": [f1.id, f2.id, f3.id, f4.id],
+                    "upsert_values": [i[:4] for i in update_with_duplicates],
                 },
             },
             table=table,
@@ -800,6 +934,14 @@ def test_run_file_import_task_with_upsert(data_fixture, patch_filefield_storage)
     assert job.finished
     assert not job.failed
 
-    rows = model.objects.all()
+    rows = list(model.objects.all())
 
-    assert len(rows) == len(init_data) + 1
+    assert len(rows) == len(init_data) + 2
+
+    last = rows[-1]
+    assert getattr(last, f1.db_column) == "aab"
+    assert getattr(last, f6.db_column) == "aab-1-4-new"
+
+    last = rows[-2]
+    assert getattr(last, f1.db_column) == "aab"
+    assert getattr(last, f6.db_column) == "aab-1-3-new"

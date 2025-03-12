@@ -79,7 +79,7 @@
                 class="margin-top-1"
               >
                 <DropdownItem
-                  v-for="item in selectedFieldObjects"
+                  v-for="item in availableUpsertFields"
                   :key="item.id"
                   :name="item.name"
                   :value="item.id"
@@ -348,10 +348,13 @@ export default {
     selectedFields() {
       return Object.values(this.mapping)
     },
-    selectedFieldObjects() {
+    availableUpsertFields() {
       const selected = Object.values(this.mapping)
       return this.fields.filter((field) => {
-        return selected.includes(field.id)
+        return (
+          selected.includes(field.id) &&
+          this.fieldTypes[field.type].canUpdateRowDuringImport()
+        )
       })
     },
     progressPercentage() {

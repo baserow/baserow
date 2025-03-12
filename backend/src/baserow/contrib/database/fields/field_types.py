@@ -411,6 +411,7 @@ class TextFieldType(CollationSortMixin, FieldType):
     allowed_fields = ["text_default"]
     serializer_field_names = ["text_default"]
     _can_group_by = True
+    can_update_row_during_import = True
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
@@ -456,6 +457,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     model_class = LongTextField
     allowed_fields = ["long_text_enable_rich_text"]
     serializer_field_names = ["long_text_enable_rich_text"]
+    can_update_row_during_import = True
 
     def check_can_group_by(self, field: Field, sort_type: str) -> bool:
         return not field.long_text_enable_rich_text
@@ -570,6 +572,7 @@ class NumberFieldType(FieldType):
     }
     _can_group_by = True
     _db_column_fields = ["number_decimal_places"]
+    can_update_row_during_import = True
 
     def prepare_value_for_db(self, instance: NumberField, value):
         if value is None:
@@ -811,6 +814,7 @@ class RatingFieldType(FieldType):
     serializer_field_names = ["max_value", "color", "style"]
     _can_group_by = True
     _db_column_fields = []
+    can_update_row_during_import = True
 
     def prepare_value_for_db(self, instance, value):
         if not value:
@@ -936,6 +940,7 @@ class BooleanFieldType(FieldType):
     type = "boolean"
     model_class = BooleanField
     _can_group_by = True
+    can_update_row_during_import = True
 
     def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
         """
@@ -1025,6 +1030,7 @@ class DateFieldType(FieldType):
     }
     _can_group_by = True
     _db_column_fields = ["date_include_time"]
+    can_update_row_during_import = True
 
     def can_represent_date(self, field):
         return True
@@ -1931,6 +1937,7 @@ class DurationFieldType(FieldType):
     serializer_field_names = ["duration_format"]
     _can_group_by = True
     _db_column_fields = []
+    can_update_row_during_import = True
 
     def get_model_field(self, instance: DurationField, **kwargs):
         return DurationModelField(instance.duration_format, null=True, **kwargs)
@@ -3483,6 +3490,7 @@ class LinkRowFieldType(
 class EmailFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
     type = "email"
     model_class = EmailField
+    can_update_row_during_import = True
 
     @property
     def regex(self):
@@ -4742,7 +4750,7 @@ class PhoneNumberFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
 
     type = "phone_number"
     model_class = PhoneNumberField
-
+    can_update_row_during_import = True
     MAX_PHONE_NUMBER_LENGTH = 100
 
     @property

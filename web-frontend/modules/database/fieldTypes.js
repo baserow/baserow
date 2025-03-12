@@ -542,10 +542,13 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * This hook is called before the field's value is copied to the clipboard.
-   * Optionally formatting can be done here. By default the value is always
-   * converted to a string.
+   * Can a field of this type be used to perform an update during import on rows that
+   * contain the same value as imported one.
    */
+  canUpdateRowDuringImport() {
+    return false
+  }
+
   /**
    * This hook is called before the field's value is copied to the clipboard.
    * Optionally formatting can be done here. By default the value is always
@@ -991,6 +994,10 @@ export class TextFieldType extends FieldType {
     return field.text_default
   }
 
+  canUpdateRowDuringImport() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -1100,6 +1107,10 @@ export class LongTextFieldType extends FieldType {
 
   getEmptyValue(field) {
     return ''
+  }
+
+  canUpdateRowDuringImport() {
+    return true
   }
 
   getSort(name, order) {
@@ -1551,6 +1562,10 @@ export class NumberFieldType extends FieldType {
     return ['text', '1', '9']
   }
 
+  canUpdateRowDuringImport() {
+    return true
+  }
+
   /**
    * When searching a cell's value, this should return the value to match the user's
    * search term against. We can't use `toHumanReadableString` here as it needs to be
@@ -1765,6 +1780,10 @@ export class RatingFieldType extends FieldType {
     return 0
   }
 
+  canUpdateRowDuringImport() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       if (a[name] === b[name]) {
@@ -1897,6 +1916,10 @@ export class BooleanFieldType extends FieldType {
 
   getSortIndicator() {
     return ['icon', 'baserow-icon-circle-empty', 'baserow-icon-circle-checked']
+  }
+
+  canUpdateRowDuringImport() {
+    return true
   }
 
   getSort(name, order) {
@@ -2718,6 +2741,10 @@ export class DurationFieldType extends FieldType {
     return this.formatValue(field, value)
   }
 
+  canUpdateRowDuringImport() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const aValue = a[name]
@@ -2865,6 +2892,10 @@ export class URLFieldType extends FieldType {
     return isValidURL(value) ? value : ''
   }
 
+  canUpdateRowDuringImport() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -2962,6 +2993,10 @@ export class EmailFieldType extends FieldType {
   prepareValueForPaste(field, clipboardData) {
     const value = clipboardData
     return isValidEmail(value) ? value : ''
+  }
+
+  canUpdateRowDuringImport() {
+    return true
   }
 
   getSort(name, order) {
@@ -3810,6 +3845,10 @@ export class PhoneNumberFieldType extends FieldType {
     return isSimplePhoneNumber(value) ? value : ''
   }
 
+  canUpdateRowDuringImport() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -4456,6 +4495,10 @@ export class UUIDFieldType extends FieldType {
     return RowCardFieldUUID
   }
 
+  canUpdateRowDuringImport() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -4533,6 +4576,10 @@ export class AutonumberFieldType extends FieldType {
 
   getCardComponent() {
     return RowCardFieldAutonumber
+  }
+
+  canUpdateRowDuringImport() {
+    return true
   }
 
   getSort(name, order) {

@@ -2,7 +2,6 @@ from collections import defaultdict
 from copy import deepcopy
 from decimal import Decimal
 from functools import cached_property
-from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -23,7 +22,7 @@ from django import db
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
-from django.db.models import Model, QuerySet, Window
+from django.db.models import Field, Model, QuerySet, Window
 from django.db.models.expressions import RawSQL
 from django.db.models.fields.related import ForeignKey, ManyToManyField
 from django.db.models.functions import RowNumber
@@ -37,7 +36,7 @@ from baserow.contrib.database.fields.dependencies.update_collector import (
     FieldUpdateCollector,
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.registries import FieldType, field_type_registry
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.table.operations import (
@@ -58,6 +57,7 @@ from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
 from baserow.core.utils import Progress, get_non_unique_values, grouper
 
+from ..fields.exceptions import FieldNotInTable, IncompatibleField
 from ..search.handler import SearchHandler
 from ..table.constants import (
     CREATED_BY_COLUMN_NAME,
@@ -83,9 +83,10 @@ from .signals import (
 )
 
 if TYPE_CHECKING:
+    from django.db.backends.base.base import BaseDatabaseWrapper
     from django.db.backends.utils import CursorWrapper
 
-    from baserow.contrib.database.fields.models import Field
+    from baserow.contrib.database.fields.models import Field as BaserowField
 
 tracer = trace.get_tracer(__name__)
 
@@ -1449,7 +1450,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         return report
 
-    def create_rows_by_batch(
+    def force_create_rows_by_batch(
         self,
         user: AbstractUser,
         table: Table,
@@ -1509,7 +1510,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         return all_created_rows, report
 
-    def update_rows_by_batch(
+    def force_update_rows_by_batch(
         self,
         user: AbstractUser,
         table: Table,
@@ -1539,9 +1540,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             model = table.get_model()
 
         report = {}
-        all_created_rows = []
+        all_updated_rows = []
         for count, chunk in enumerate(grouper(BATCH_SIZE, rows)):
-            self.update_rows(
+            updated_rows, _report = self.force_update_rows(
                 user=user,
                 table=table,
                 model=model,
@@ -1551,14 +1552,16 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 # Don't trigger loads of search updates for every batch of rows we
                 # create but instead a single one for this entire table at the end.
                 skip_search_update=True,
+                generate_error_report=True,
             )
 
             if progress:
                 progress.increment(len(chunk))
+            report.update(_report)
+            all_updated_rows.extend(updated_rows.updated_rows)
 
         SearchHandler.field_value_updated_or_created(table)
-
-        return all_created_rows, report
+        return all_updated_rows, report
 
     def import_rows(
         self,
@@ -1691,7 +1694,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         else:
             to_insert = valid_rows_to_insert
 
-        created_rows, creation_report = self.create_rows_by_batch(
+        created_rows, creation_report = self.force_create_rows_by_batch(
             user,
             table,
             to_insert,
@@ -1700,7 +1703,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         if to_update:
-            updated_rows, updated_report = self.update_rows_by_batch(
+            updated_rows, updated_report = self.force_update_rows_by_batch(
                 user,
                 table,
                 to_update,
@@ -1714,6 +1717,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 original_row_to_insert_index_mapping[int(index)],
                 error,
             )
+
+        if to_update:
+            for index, error in updated_report.items():
+                error_report.add_error(
+                    original_row_to_insert_index_mapping[int(index)],
+                    error,
+                )
 
         if send_realtime_update:
             # Just send a single table_updated here as realtime update instead
@@ -1820,13 +1830,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         user_id = user and user.id
 
-        report = {}
         prepared_rows_values, errors = self.prepare_rows_in_bulk(
             model._field_objects,
             rows_values,
             generate_error_report=generate_error_report,
         )
-        report.update({index: err for index, err in errors.items()})
+        report = {index: err for index, err in errors.items()}
         row_ids = [r["id"] for r in prepared_rows_values]
 
         non_unique_ids = get_non_unique_values(row_ids)
@@ -2551,36 +2560,107 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
 
+def merge_values_expression(
+    row: list[str | int | float | None],
+    field_handlers: "list[UpsertFieldHandler]",
+    query_params: list,
+) -> str:
+    """
+    Create a sql expression that will produce text value from a list of row values. Any
+    value, that should be interpolated, will be added to provided `query_params` list.
+
+    :param row: a list of values in a row
+    :param field_handlers: a list of field types for a row. The number of handlers
+            should equal the number of values in a row.
+    :param query_params: param values container
+    :return:
+    """
+
+    fields = []
+
+    for val, field_handler in zip(row, field_handlers):
+        fields.append(field_handler.get_field_concat_expression())
+        query_params.append(field_handler.prepare_value(val))
+
+    return ImportRowsMappingHandler.SEPARATOR.join(fields)
+
+
+class UpsertFieldHandler:
+    """
+    Helper class to handle field's upsert handling.
+    """
+
+    def __init__(self, table: Table, field_id: id, connection: "BaseDatabaseWrapper"):
+        self.table = table
+        # TODO: here we are using field id, but it may be so the field_id
+        #  is `'id'` string.
+        try:
+            self._field_def = field_def = next(
+                (
+                    f
+                    for f in table.get_model().get_field_objects()
+                    if f["field"].id == field_id
+                )
+            )
+        except StopIteration:
+            raise FieldNotInTable(field_id)
+
+        self.field: BaserowField = field_def["field"]
+        self.field_type: FieldType = field_def["type"]
+        if not self.field_type.can_update_row_during_import:
+            raise IncompatibleField(self.field.id)
+        self.field_name = self.field.db_column
+        self.connection = connection
+
+    def prepare_value(self, value: str) -> Any:
+        return self.field_type.prepare_value_for_db(self.field, value)
+
+    def get_field_concat_expression(self):
+        return f""" coalesce(cast(%s::{self.get_column_type() or 'text'} as text), '<NULL>')::text """
+
+    def get_column_type(self):
+        table_field: db.models.Field = self.field_type.get_model_field(self.field)
+        return table_field.db_type(self.connection)
+
+
 class ImportRowsMappingHandler:
     """
-    Helper class to handle filtering rows that should be used to insert new data from
-    rows that should be used to update existing rows.
+    Helper class to handle matching rows that should be used to update existing rows in
+    a table with imported data.
 
     Usage:
 
-    >>> importrows = ImportRowsMappingHandler([1234],
+    >>> importrows = ImportRowsMappingHandler(table,
+                                              [1234],
                                               [['a'], ['b',]],)
+
+    # return mapping between import upsert values and table rows
+    >>> importrows.process_map
+    {0: 1, 1: 2}
+
     """
 
-    SEPARATOR: str = "__-__"
+    SEPARATOR: str = " || '__-__' || "
     PER_CHUNK = 100
 
     def __init__(
-        self, upsert_fields: list[int], upsert_values: list[list[Any]], table: Table
+        self, table: Table, upsert_fields: list[int], upsert_values: list[list[Any]]
     ):
+        self.table = table
         self.table_name = table.get_database_table_name()
-        self.field_names = [f"field_{fidx}" for fidx in upsert_fields]
+        self.import_fields = [
+            UpsertFieldHandler(table, fidx, self.connection) for fidx in upsert_fields
+        ]
         self.upsert_values = upsert_values
 
     @cached_property
     def process_map(self) -> dict[int, int]:
         """
         Calculates a map between import row indexes and table row ids.
-        :return:
         """
 
         # no upsert value fields, no need for mapping
-        if not self.field_names:
+        if not self.import_fields:
             return {}
 
         script_template = """
@@ -2605,42 +2685,67 @@ class ImportRowsMappingHandler:
         return {r[1]: r[0] for r in calculated}
 
     @cached_property
+    def connection(self):
+        return db.connection
+
+    @cached_property
     def cursor(self):
-        return db.connection.cursor()
+        return self.connection.cursor()
 
     def execute(self, query, *args, **kwargs) -> "CursorWrapper":
         self.cursor.execute(query, *args, **kwargs)
         return self.cursor
 
     def insert_table_values(self):
-        columns = f" || '{self.SEPARATOR}' || ".join(
-            [f"coalesce(cast({field} as text), '')::text" for field in self.field_names]
+        """
+        Populates temp upsert comparison table with values from an exsisting table.
+        Values from multiple source columns will be normalized to one text value.
+        """
+
+        columns = self.SEPARATOR.join(
+            [
+                f"coalesce(cast({field.field_name} as text), '<NULL>')::text"
+                for field in self.import_fields
+            ]
         )
+
         query = f"""with subq as (select r.id,  {columns} as upsert_value from {self.table_name} r where not trashed)
 
                 insert into table_upsert_indexes (id, upsert_value, group_index)
                 select id, upsert_value, rank()
                         over (partition by upsert_value order by id, upsert_value )
                         as group_index
-                from subq order by id """
+                from subq order by id """  # nosec B608
+
         self.execute(query)
 
     def insert_imported_values(self):
-        def merge_values(row):
-            return self.SEPARATOR.join(
-                [str(val) if val is not None else "" for val in row]
-            )
+        """
+        Builds and executes bulk insert queries for upsert comparison values
+        from import data.
+        """
 
         for _chunk in chunks(enumerate(self.upsert_values), self.PER_CHUNK):
-            chunk = list(_chunk)
-            rows_to_add = list(
-                chain(*[[rowidx, merge_values(row)] for rowidx, row in chunk])
-            )
-            rows_placeholder = ",\n".join(["(%s, %s)" for _ in range(0, len(_chunk))])
-            script_template = f"""insert into table_import (id, upsert_value) values {rows_placeholder};"""
-            self.execute(script_template, rows_to_add)
+            # put all params (processed values) for the query into a container
+            query_params = []
+            rows_query = []
+            for rowidx, row in _chunk:
+                # per-row insert query
+                query_params.append(rowidx)
+                row_to_add = f"(%s, {merge_values_expression(row, self.import_fields, query_params)})"
+                rows_query.append(row_to_add)
+
+            rows_placeholder = ",\n".join(rows_query)
+            script_template = f"""insert into table_import (id, upsert_value) values {rows_placeholder};"""  # nosec B608
+            self.execute(script_template, query_params)
 
     def calculate_map(self) -> list[tuple[int, int]]:
+        """
+        Calculates a map between imported row index -> table row id
+        that can be used to detect if a row that is imported should be updated
+        (mapping exists) or inserted as a new one.
+        """
+
         q = """
         select t.id, i.id
             from table_upsert_indexes t
@@ -2649,27 +2754,3 @@ class ImportRowsMappingHandler:
                     and i.group_index = t.group_index);
         """
         return self.execute(q).fetchall()
-
-    #
-    # def get_processed_rows(self) -> tuple[list, list]:
-    #     """
-    #     :return:
-    #     """
-    #     upsert_map = self.process_map
-    #     to_insert = []
-    #     to_update = []
-    #     for rowidx, row in enumerate(self.import_rows):
-    #         table_row_id = upsert_map.get(rowidx)
-    #         if table_row_id is None:
-    #             to_insert.append(row)
-    #         else:
-    #             to_update.append(
-    #                 (
-    #                     table_row_id,
-    #                     row,
-    #                 )
-    #             )
-    #     return (
-    #         to_insert,
-    #         to_update,
-    #     )

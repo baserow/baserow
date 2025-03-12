@@ -6,6 +6,10 @@ from baserow.contrib.database.table.models import Table
 
 
 class TableImportConfiguration(serializers.Serializer):
+    """
+    Additional table import configuration.
+    """
+
     upsert_fields = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
         min_length=1,
@@ -14,8 +18,13 @@ class TableImportConfiguration(serializers.Serializer):
         default=None,
         help_text=(
             (
-                "A list of field ids in the table, that should"
-                " be used to create a value identifying a row."
+                "A list of field ids in the table, that should be used to create "
+                "a value identifying a row in the table. Each field id should point "
+                "to an existing field in the table, that can be used to create upsert "
+                "match value.\nField types that can be used in upsert fields: text, "
+                "long_text, number, rating, boolean, date, duration, phone_number, "
+                "email, url.\n"
+                "If speficied, `upsert_values` should also be provided."
             )
         ),
     )
@@ -25,12 +34,16 @@ class TableImportConfiguration(serializers.Serializer):
         default=None,
         child=serializers.ListField(
             min_length=1,
-            help_text=(
-                (
-                    "A list of list of values that are "
-                    "indentifying a row in imported data."
-                )
-            ),
+        ),
+        help_text=(
+            "A list of list of values that are identifying a row in imported data. "
+            "Each value in a list for a single row should correspond with field type "
+            "in the table selected in `upsert_fields`. \n"
+            "Each row in `upsert_values` should correspond to a row in imported "
+            "dataset. Subsequent occurrence of the same upsert value will be compared "
+            "to corresponding subsequent occurrence of the same value in the table. \n"
+            "This also requires that import data should be in the same order as rows "
+            "in the table."
         ),
     )
 

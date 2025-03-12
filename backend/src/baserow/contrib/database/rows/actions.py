@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
+from loguru import logger
+
 from baserow.contrib.database.action.scopes import (
     TABLE_ACTION_CONTEXT,
     TableActionScopeType,
@@ -273,7 +275,8 @@ class ImportRowsActionType(UndoableActionType):
         created_rows, error_report = RowHandler().import_rows(
             user, table, data, progress=progress
         )
-
+        if error_report:
+            logger.warning(f"Errors during rows import: {error_report}")
         workspace = table.database.workspace
         params = cls.Params(
             table.id,
