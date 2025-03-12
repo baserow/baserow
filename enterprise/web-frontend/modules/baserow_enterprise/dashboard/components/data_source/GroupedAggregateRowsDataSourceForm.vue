@@ -79,7 +79,7 @@
         <ButtonText
           v-tooltip="
             canAddSeries
-              ? ''
+              ? null
               : $t('groupedAggregateRowsDataSourceForm.maxSeriesReached')
           "
           icon="iconoir-plus"
