@@ -6,7 +6,7 @@
         :max-value="maxValue"
         :color="'custom'"
         :custom-color="color"
-        :rating-style="iconStyle || 'star'"
+        :rating-style="ratingStyle || 'star'"
         :read-only="true"
         :show-max-value-in-read-only="true"
       />
@@ -37,7 +37,7 @@ export default {
       type: String,
       default: '#fcbb03',
     },
-    iconStyle: {
+    ratingStyle: {
       type: String,
       default: 'star',
     },

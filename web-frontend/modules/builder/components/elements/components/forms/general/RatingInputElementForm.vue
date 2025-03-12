@@ -65,7 +65,7 @@ export default {
         editing: true,
         max_value: 5,
         color: '#fcbb03',
-        style: 'star',
+        rating_style: 'star',
       },
     }
   },

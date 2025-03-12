@@ -51,7 +51,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "style",
+                    "rating_style",
                     models.CharField(
                         choices=[
                             ("star", "Star"),
@@ -113,7 +113,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "style",
+                    "rating_style",
                     models.CharField(
                         choices=[
                             ("star", "Star"),

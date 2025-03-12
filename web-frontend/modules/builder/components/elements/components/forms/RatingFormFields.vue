@@ -4,6 +4,7 @@
       small-label
       :label="$t('ratingElementForm.maxValue')"
       class="margin-bottom-2"
+      horizontal
       required
     >
       <FormInput
@@ -19,6 +20,7 @@
       small-label
       :label="$t('ratingElementForm.color')"
       class="margin-bottom-2"
+      horizontal
       required
     >
       <ColorInput v-model="values.color" />
@@ -26,11 +28,12 @@
 
     <FormGroup
       small-label
-      :label="$t('ratingElementForm.style')"
+      :label="$t('ratingElementForm.ratingStyle')"
       class="margin-bottom-2"
+      horizontal
       required
     >
-      <Dropdown v-model="values.style">
+      <Dropdown v-model="values.rating_style">
         <DropdownItem :name="$t('ratingElementForm.star')" value="star" />
         <DropdownItem :name="$t('ratingElementForm.heart')" value="heart" />
         <DropdownItem

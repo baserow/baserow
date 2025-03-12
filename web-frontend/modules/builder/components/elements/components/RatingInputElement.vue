@@ -10,7 +10,7 @@
           :value="displayValue"
           :max-value="maxValue"
           :custom-color="element.color"
-          :rating-style="element.style || 'star'"
+          :rating-style="element.rating_style || 'star'"
           :read-only="readOnly"
           :show-max-value-in-read-only="true"
           @update="onUpdate"

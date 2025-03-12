@@ -291,16 +291,16 @@ export class RatingCollectionFieldType extends CollectionFieldType {
   getProps(field, { resolveFormula, applicationContext }) {
     try {
       return {
-        max_value: ensureInteger(field.max_value || 5),
+        maxValue: ensureInteger(field.max_value || 5),
         color: field.color || '#fcbb03',
-        icon_style: field.style || 'star',
+        ratingStyle: field.rating_style || 'star',
         value: ensureInteger(resolveFormula(field.value)) || 0,
       }
     } catch (error) {
       return {
-        max_value: 5,
+        maxValue: 5,
         color: field.color || '#fcbb03',
-        icon_style: field.style || 'star',
+        ratingStyle: field.rating_style || 'star',
         value: 0,
       }
     }

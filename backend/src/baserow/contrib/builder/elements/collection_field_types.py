@@ -1,7 +1,6 @@
 from typing import Any, Dict, Generator, TypedDict, Union
 
 from django.core.validators import MinValueValidator
-
 from rest_framework import serializers
 
 from baserow.contrib.builder.elements.element_types import NavigationElementManager
@@ -40,14 +39,14 @@ class BooleanCollectionFieldType(CollectionFieldType):
 
 class RatingCollectionFieldType(CollectionFieldType):
     type = "rating"
-    allowed_fields = ["value", "color", "style", "max_value"]
-    serializer_field_names = ["value", "color", "style", "max_value"]
+    allowed_fields = ["value", "color", "rating_style", "max_value"]
+    serializer_field_names = ["value", "color", "rating_style", "max_value"]
     simple_formula_fields = ["value"]
 
     class SerializedDict(TypedDict):
         value: BaserowFormula
         color: str
-        style: str
+        rating_style: str
         max_value: int
 
     @property
@@ -65,7 +64,7 @@ class RatingCollectionFieldType(CollectionFieldType):
                 allow_blank=True,
                 default="",
             ),
-            "style": serializers.ChoiceField(
+            "rating_style": serializers.ChoiceField(
                 choices=RatingStyleChoices.choices,
                 help_text="The style of the rating.",
                 required=False,
@@ -207,9 +206,9 @@ class LinkCollectionFieldType(CollectionFieldType):
         ):
             new_formula = yield query_parameter.get("value")
             if new_formula is not None:
-                collection_field.config["query_parameters"][index][
-                    "value"
-                ] = new_formula
+                collection_field.config["query_parameters"][index]["value"] = (
+                    new_formula
+                )
                 yield collection_field
 
     def deserialize_property(

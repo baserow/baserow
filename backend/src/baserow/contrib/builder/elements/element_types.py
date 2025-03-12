@@ -17,7 +17,6 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db.models import IntegerField, Q, QuerySet
 from django.db.models.functions import Cast
-
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -1216,13 +1215,13 @@ class RatingElementType(ElementType):
     allowed_fields = [
         "max_value",
         "color",
-        "style",
+        "rating_style",
         "value",
     ]
     serializer_field_names = [
         "max_value",
         "color",
-        "style",
+        "rating_style",
         "value",
     ]
     simple_formula_fields = ["value"]
@@ -1231,14 +1230,14 @@ class RatingElementType(ElementType):
         value: BaserowFormula
         max_value: str
         color: str
-        style: str
+        rating_style: str
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
             "max_value": 5,
             "value": "5",
             "color": "dark-orange",
-            "style": "STAR",
+            "rating_style": "STAR",
         }
 
     @property
@@ -1258,11 +1257,18 @@ class RatingElementType(ElementType):
 class RatingInputElementType(InputElementType):
     type = "rating_input"
     model_class = RatingInputElement
-    allowed_fields = ["max_value", "color", "style", "value", "required", "label"]
+    allowed_fields = [
+        "max_value",
+        "color",
+        "rating_style",
+        "value",
+        "required",
+        "label",
+    ]
     serializer_field_names = [
         "max_value",
         "color",
-        "style",
+        "rating_style",
         "value",
         "required",
         "label",
@@ -1275,14 +1281,14 @@ class RatingInputElementType(InputElementType):
         value: BaserowFormula
         max_value: str
         color: str
-        style: str
+        rating_style: str
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
             "max_value": 5,
             "value": "5",
             "color": "dark-orange",
-            "style": "STAR",
+            "rating_style": "STAR",
             "label": "",
             "required": False,
         }
@@ -2069,8 +2075,7 @@ class MultiPageContainerElementType(
     class SerializedDict(
         MultiPageElementTypeMixin.SerializedDict,
         ContainerElementTypeMixin.SerializedDict,
-    ):
-        ...
+    ): ...
 
 
 class HeaderElementType(MultiPageContainerElementType):

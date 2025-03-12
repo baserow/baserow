@@ -2,21 +2,14 @@
   <form @submit.prevent @keydown.enter.prevent>
     <FormGroup
       small-label
-      :label="$t('generalForm.labelTitle')"
+      :label="$t('ratingElementForm.value')"
       class="margin-bottom-2"
       horizontal
       required
     >
-      <div class="control">
-        <label class="control__label">{{
-          $t('ratingElementForm.value')
-        }}</label>
-        <div class="control__elements">
-          <InjectedFormulaInput v-model="values.value" />
-        </div>
-      </div>
-      <RatingFormFields :values="values" />
+      <InjectedFormulaInput v-model="values.value" />
     </FormGroup>
+    <RatingFormFields :values="values" />
   </form>
 </template>
 
@@ -34,11 +27,11 @@ export default {
   mixins: [collectionFieldForm],
   data() {
     return {
-      allowedValues: ['max_value', 'color', 'style', 'value'],
+      allowedValues: ['max_value', 'color', 'rating_style', 'value'],
       values: {
         max_value: 5,
         color: '#fcbb03',
-        style: 'star',
+        rating_style: 'star',
         value: '',
       },
     }

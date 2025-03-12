@@ -1010,7 +1010,7 @@
     "valuePlaceholder": "Enter a value or formula",
     "maxValue": "Maximum Value",
     "color": "Color",
-    "style": "Style",
+    "ratingStyle": "Style",
     "star": "Star",
     "heart": "Heart",
     "thumbsUp": "Thumbs Up",

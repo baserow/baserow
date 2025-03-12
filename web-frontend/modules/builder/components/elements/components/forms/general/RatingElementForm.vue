@@ -42,7 +42,7 @@ export default {
         value: '',
         max_value: 5,
         color: '#fcbb03',
-        style: 'star',
+        rating_style: 'star',
       },
     }
   },
