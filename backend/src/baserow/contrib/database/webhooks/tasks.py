@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime, timezone
 
 from django.conf import settings
@@ -8,6 +9,10 @@ from django.db.utils import OperationalError
 from loguru import logger
 
 from baserow.config.celery import app
+from baserow.contrib.database.webhooks.exceptions import WebhookPayloadTooLarge
+from baserow.contrib.database.webhooks.notification_types import (
+    WebhookPayloadTooLargeNotificationType,
+)
 from baserow.core.redis import RedisQueue
 
 
@@ -83,30 +88,18 @@ def call_webhook(
         can still measure this.
     """
 
-    from advocate import UnacceptableAddressException
-    from requests import RequestException
-
-    from .handler import WebhookHandler
-    from .models import TableWebhook, TableWebhookCall
-    from .notification_types import WebhookDeactivatedNotificationType
+    from .models import TableWebhook
+    from .registries import webhook_event_type_registry
 
     if self.request.retries > retries:
         retries = self.request.retries
 
     try:
         with transaction.atomic():
-            handler = WebhookHandler()
-
             try:
                 webhook = TableWebhook.objects.select_for_update(
-                    of=("self",),
-                    nowait=True,
-                ).get(
-                    id=webhook_id,
-                    # If a webhook is not active anymore, then it should not be
-                    # executed.
-                    active=True,
-                )
+                    of=("self",), nowait=True
+                ).get(id=webhook_id, active=True)
             except TableWebhook.DoesNotExist:
                 # If the webhook has been deleted or disabled while executing, we don't
                 # want to continue making calls the URL because we can't update the
@@ -128,73 +121,36 @@ def call_webhook(
                 else:
                     raise e
 
-            request = None
-            response = None
-            success = False
-            error = ""
-
+            # Paginate the payload if necessary and enqueue the remaining data.
+            webhook_event_type = webhook_event_type_registry.get(event_type)
             try:
-                request, response = handler.make_request(method, url, headers, payload)
-                success = response.ok
-            except RequestException as exception:
-                request = exception.request
-                response = exception.response
-                error = str(exception)
-            except UnacceptableAddressException as exception:
-                error = f"UnacceptableAddressException: {exception}"
-
-            TableWebhookCall.objects.update_or_create(
-                event_id=event_id,
-                event_type=event_type,
-                webhook=webhook,
-                defaults={
-                    "called_time": datetime.now(tz=timezone.utc),
-                    "called_url": url,
-                    "request": handler.format_request(request)
-                    if request is not None
-                    else None,
-                    "response": handler.format_response(response)
-                    if response is not None
-                    else None,
-                    "response_status": response.status_code
-                    if response is not None
-                    else None,
-                    "error": error,
-                },
-            )
-            handler.clean_webhook_calls(webhook)
-
-            if success and webhook.failed_triggers != 0:
-                # If the call was successful and failed triggers had been increased in
-                # the past, we can safely reset it to 0 again to prevent deactivation of
-                # the webhook.
-                webhook.failed_triggers = 0
-                webhook.save()
-            elif not success and (
-                webhook.failed_triggers
-                < settings.BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES
-            ):
-                # If the task has reached the maximum amount of failed calls, we're
-                # going to give up and increase the total failed triggers of the webhook
-                # if we're still operating within the limits of the max consecutive
-                # trigger failures.
-                webhook.failed_triggers += 1
-                webhook.save()
-            elif not success:
-                # If webhook has reached the maximum amount of failed triggers,
-                # we're going to deactivate it because we can reasonably assume that the
-                # target doesn't listen anymore. At this point we've tried 8 * 10 times.
-                # The user can manually activate it again when it's fixed.
-                webhook.active = False
-                webhook.save()
-
-                # Send a notification to the workspace admins that the webhook was
-                # deactivated.
+                payload, remaining = webhook_event_type.paginate_payload(
+                    webhook, event_id, deepcopy(payload)
+                )
+            except WebhookPayloadTooLarge:
+                success = True  # We don't want to retry this call, because it will fail again.
                 transaction.on_commit(
-                    lambda: WebhookDeactivatedNotificationType.notify_admins_in_workspace(
-                        webhook
+                    lambda: WebhookPayloadTooLargeNotificationType.notify_admins_in_workspace(
+                        webhook, event_id
                     )
                 )
+            else:
+                success = make_request_and_save_result(
+                    webhook, event_id, event_type, method, url, headers, payload
+                )
+                # enqueue the next call if there is still remaining payload
+                if success and remaining is not None:
+                    args = (
+                        webhook_id,
+                        event_id,
+                        event_type,
+                        method,
+                        url,
+                        headers,
+                        remaining,
+                    )
+                    kwargs = {"retries": 0}
+                    enqueue_webhook_task(webhook_id, event_id, args, kwargs)
 
             # After the transaction successfully commits we can delay the next call
             # in the queue, so that only one call is triggered concurrently.
@@ -216,3 +172,84 @@ def call_webhook(
         kwargs = self.request.kwargs or {}
         kwargs["retries"] = retries + 1
         self.retry(countdown=2**retries, kwargs=kwargs)
+
+
+def make_request_and_save_result(
+    webhook, event_id, event_type, method, url, headers, payload
+):
+    from advocate import UnacceptableAddressException
+    from requests import RequestException
+
+    from .handler import WebhookHandler
+    from .models import TableWebhookCall
+    from .notification_types import WebhookDeactivatedNotificationType
+
+    handler = WebhookHandler()
+
+    request = None
+    response = None
+    success = False
+    error = ""
+
+    try:
+        request, response = handler.make_request(method, url, headers, payload)
+        success = response.ok
+    except RequestException as exception:
+        request = exception.request
+        response = exception.response
+        error = str(exception)
+    except UnacceptableAddressException as exception:
+        error = f"UnacceptableAddressException: {exception}"
+
+    TableWebhookCall.objects.update_or_create(
+        event_id=event_id,
+        batch_id=payload.get("batch_id", None),
+        event_type=event_type,
+        webhook=webhook,
+        defaults={
+            "called_time": datetime.now(tz=timezone.utc),
+            "called_url": url,
+            "request": handler.format_request(request) if request is not None else None,
+            "response": handler.format_response(response)
+            if response is not None
+            else None,
+            "response_status": response.status_code if response is not None else None,
+            "error": error,
+        },
+    )
+    handler.clean_webhook_calls(webhook)
+
+    if success:
+        if webhook.failed_triggers != 0:
+            # If the call was successful and failed triggers had been increased
+            # in the past, we can safely reset it to 0 again to prevent
+            # deactivation of the webhook.
+            webhook.failed_triggers = 0
+            webhook.save()
+    elif (
+        webhook.failed_triggers
+        < settings.BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES
+    ):
+        # If the task has reached the maximum amount of failed calls, we're
+        # going to give up and increase the total failed triggers of the webhook
+        # if we're still operating within the limits of the max consecutive
+        # trigger failures.
+        webhook.failed_triggers += 1
+        webhook.save()
+    else:
+        # If webhook has reached the maximum amount of failed triggers, we're
+        # going to deactivate it because we can reasonably assume that the
+        # target doesn't listen anymore. At this point we've tried 8 * 10 times.
+        # The user can manually activate it again when it's fixed.
+        webhook.active = False
+        webhook.save()
+
+        # Send a notification to the workspace admins that the webhook was
+        # deactivated.
+        transaction.on_commit(
+            lambda: WebhookDeactivatedNotificationType.notify_admins_in_workspace(
+                webhook
+            )
+        )
+
+    return success

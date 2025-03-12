@@ -12,8 +12,14 @@ from celery.exceptions import Retry
 from baserow.contrib.database.webhooks.models import TableWebhook, TableWebhookCall
 from baserow.contrib.database.webhooks.notification_types import (
     WebhookDeactivatedNotificationType,
+    WebhookPayloadTooLargeNotificationType,
 )
-from baserow.contrib.database.webhooks.tasks import call_webhook
+from baserow.contrib.database.webhooks.registries import WebhookEventType
+from baserow.contrib.database.webhooks.tasks import (
+    call_webhook,
+    enqueue_webhook_task,
+    schedule_next_task_in_queue,
+)
 from baserow.core.models import WorkspaceUser
 from baserow.core.notifications.models import Notification
 from baserow.core.redis import RedisQueue
@@ -29,7 +35,7 @@ class MemoryQueue(RedisQueue):
 
     def get_and_pop_next(self):
         try:
-            self.queues[self.queue_key].pop(0)
+            return self.queues[self.queue_key].pop(0)
         except IndexError:
             return None
 
@@ -430,3 +436,188 @@ def test_call_webhook_failed_reached_notification_send(
         "webhook_id": webhook.id,
         "webhook_name": webhook.name,
     }
+
+    # the webhook should be deactivated after the notification is sent.
+    webhook.refresh_from_db()
+    assert webhook.active is False
+
+
+class PaginatedWebhookEventType(WebhookEventType):
+    type = "test.paginated"
+
+    def __init__(self):
+        self.i = 1
+
+    def _paginate_payload(self, payload) -> tuple[dict, dict | None]:
+        payload["data"] = f"part {self.i}"
+        self.i += 1
+        return payload, {"data": f"part {self.i}"}
+
+
+@pytest.mark.django_db(transaction=True)
+@responses.activate
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
+def test_webhook_with_paginated_payload(
+    mutable_webhook_event_type_registry, data_fixture
+):
+    mutable_webhook_event_type_registry.register(PaginatedWebhookEventType())
+
+    webhook = data_fixture.create_table_webhook()
+    responses.add(responses.POST, "http://localhost/", json={}, status=200)
+    event_id = "00000000-0000-0000-0000-000000000002"
+    expected_payload = (
+        webhook.id,
+        event_id,
+        "test.paginated",
+        "POST",
+        "http://localhost/",
+        {},
+        {"batch_id": 2, "data": "part 2"},
+    )
+
+    # The first page of the payload is sent and contains the batch_id 1.
+    with patch(
+        "baserow.contrib.database.webhooks.tasks.enqueue_webhook_task"
+    ) as mock_enqueue, patch(
+        "baserow.contrib.database.webhooks.tasks.schedule_next_task_in_queue"
+    ) as mock_schedule:
+        call_webhook(
+            webhook_id=webhook.id,
+            event_id=event_id,
+            event_type="test.paginated",
+            method="POST",
+            url="http://localhost/",
+            headers={},
+            payload={},
+        )
+
+        assert mock_enqueue.call_args[0][2] == expected_payload
+        mock_schedule.assert_called_with(webhook.id)
+
+    assert TableWebhookCall.objects.all().count() == 1
+    assert TableWebhookCall.objects.filter(event_id=event_id).first().batch_id == 1
+
+    # we mocked this function to ensure the enqueued payload is correct, now if we call
+    # the function again, we should see the next batch_id being sent.
+    enqueue_webhook_task(webhook.id, event_id, expected_payload, {})
+
+    with patch(
+        "baserow.contrib.database.webhooks.tasks.enqueue_webhook_task"
+    ) as mock_enqueue:
+        schedule_next_task_in_queue(webhook.id)
+        assert mock_enqueue.call_args[0][2] == (
+            webhook.id,
+            event_id,
+            "test.paginated",
+            "POST",
+            "http://localhost/",
+            {},
+            {"batch_id": 3, "data": "part 3"},
+        )
+    assert TableWebhookCall.objects.all().count() == 2
+    # Same event_id, but different batch_id.
+    assert TableWebhookCall.objects.filter(event_id=event_id).first().batch_id == 2
+
+
+@pytest.mark.django_db(transaction=True)
+@responses.activate
+@override_settings(BASEROW_WEBHOOKS_BATCH_LIMIT=1)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
+@patch("baserow.ws.tasks.broadcast_to_users.apply")
+def test_call_webhook_payload_too_large_send_notification(
+    mocked_broadcast_to_users, mutable_webhook_event_type_registry, data_fixture
+):
+    user_1 = data_fixture.create_user()
+    user_2 = data_fixture.create_user()
+    admin_1 = data_fixture.create_user()
+    admin_2 = data_fixture.create_user()
+    workspace = data_fixture.create_workspace()
+
+    WorkspaceUser.objects.create(
+        user=user_1, workspace=workspace, order=1, permissions="MEMBER"
+    )
+    WorkspaceUser.objects.create(
+        user=user_2, workspace=workspace, order=2, permissions="MEMBER"
+    )
+    WorkspaceUser.objects.create(
+        user=admin_1, workspace=workspace, order=3, permissions="ADMIN"
+    )
+    WorkspaceUser.objects.create(
+        user=admin_2, workspace=workspace, order=4, permissions="ADMIN"
+    )
+
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+
+    mutable_webhook_event_type_registry.register(PaginatedWebhookEventType())
+    webhook = data_fixture.create_table_webhook(table=table, active=True)
+    responses.add(responses.POST, "http://localhost/", json={}, status=200)
+    event_id = "00000000-0000-0000-0000-000000000002"
+    expected_payload = (
+        webhook.id,
+        event_id,
+        "test.paginated",
+        "POST",
+        "http://localhost/",
+        {},
+        {"batch_id": 2, "data": "part 2"},
+    )
+
+    # The first page of the payload is sent and contains the batch_id 1.
+    with patch(
+        "baserow.contrib.database.webhooks.tasks.enqueue_webhook_task"
+    ) as mock_enqueue, patch(
+        "baserow.contrib.database.webhooks.tasks.schedule_next_task_in_queue"
+    ) as mock_schedule:
+        call_webhook(
+            webhook_id=webhook.id,
+            event_id=event_id,
+            event_type="test.paginated",
+            method="POST",
+            url="http://localhost/",
+            headers={},
+            payload={},
+        )
+
+        assert mock_enqueue.call_args[0][2] == expected_payload
+        mock_schedule.assert_called_with(webhook.id)
+
+    assert TableWebhookCall.objects.all().count() == 1
+    assert TableWebhookCall.objects.filter(event_id=event_id).first().batch_id == 1
+
+    # The second part of the payload exceeds the batch limit of 1. Therefore, it should
+    # not send the data but should trigger a notification.
+    enqueue_webhook_task(webhook.id, event_id, expected_payload, {})
+    schedule_next_task_in_queue(webhook.id)
+
+    # No new call should be made.
+    assert TableWebhookCall.objects.all().count() == 1
+
+    all_notifications = list(Notification.objects.all())
+    assert len(all_notifications) == 1
+    recipient_ids = [r.id for r in all_notifications[0].recipients.all()]
+    assert recipient_ids == [admin_1.id, admin_2.id]
+    assert all_notifications[0].type == WebhookPayloadTooLargeNotificationType.type
+    assert all_notifications[0].broadcast is False
+    assert all_notifications[0].workspace_id == workspace.id
+    assert all_notifications[0].sender is None
+    assert all_notifications[0].data == {
+        "database_id": database.id,
+        "table_id": table.id,
+        "webhook_id": webhook.id,
+        "webhook_name": webhook.name,
+        "event_id": event_id,
+        "batch_limit": 1,
+    }
+
+    # The webhook should still be active, but the queue should be empty.
+    webhook.refresh_from_db()
+    assert webhook.active is True
+
+    with patch("baserow.contrib.database.webhooks.tasks.call_webhook.delay") as mock:
+        schedule_next_task_in_queue(webhook.id)
+        mock.assert_not_called()  # nothing else has been scheduled.
+
+    assert TableWebhookCall.objects.all().count() == 1
