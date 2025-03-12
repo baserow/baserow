@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime, timezone
 
 from django.conf import settings
@@ -97,14 +98,8 @@ def call_webhook(
         with transaction.atomic():
             try:
                 webhook = TableWebhook.objects.select_for_update(
-                    of=("self",),
-                    nowait=True,
-                ).get(
-                    id=webhook_id,
-                    # If a webhook is not active anymore, then it should not be
-                    # executed.
-                    active=True,
-                )
+                    of=("self",), nowait=True
+                ).get(id=webhook_id, active=True)
             except TableWebhook.DoesNotExist:
                 # If the webhook has been deleted or disabled while executing, we don't
                 # want to continue making calls the URL because we can't update the
@@ -126,17 +121,17 @@ def call_webhook(
                 else:
                     raise e
 
-            # Paginate the payload if necessary and enqueue the remaining payload.
+            # Paginate the payload if necessary and enqueue the remaining data.
             webhook_event_type = webhook_event_type_registry.get(event_type)
             try:
                 payload, remaining = webhook_event_type.paginate_payload(
-                    webhook, event_id, payload
+                    webhook, event_id, deepcopy(payload)
                 )
             except WebhookPayloadTooLarge:
                 success = True  # We don't want to retry this call, because it will fail again.
                 transaction.on_commit(
                     lambda: WebhookPayloadTooLargeNotificationType.notify_admins_in_workspace(
-                        webhook
+                        webhook, event_id
                     )
                 )
             else:

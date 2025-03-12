@@ -4,7 +4,11 @@ from typing import List
 from django.conf import settings
 from django.utils.translation import gettext as _
 
-from baserow.core.models import WORKSPACE_USER_PERMISSION_ADMIN, WorkspaceUser
+from baserow.core.models import (
+    WORKSPACE_USER_PERMISSION_ADMIN,
+    Workspace,
+    WorkspaceUser,
+)
 from baserow.core.notifications.handler import NotificationHandler
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.notifications.registries import (
@@ -33,21 +37,18 @@ class DeactivatedWebhookData:
 
 
 def notify_admins_in_workspace(
-    webhook: TableWebhook, notification_type: str, data: dict
+    workspace: Workspace, notification_type: str, data: dict
 ) -> List[NotificationRecipient]:
     """
-    Creates a notification for each admin in the workspace that the webhook belongs to
-    informing them that the webhook needs attention. For example, it could be used when
-    a webhook fails too many times and is deactivated or if the payload is too large to
-    be sent and reach the limit of batches.
+    Notifies all admins in the workspace about an important event, such as a webhook
+    deactivation or a payload exceeding size limits.
 
-    :param webhook: The webhook that needs attention.
-    :param notification_type: The notification type that should be used.
-    :param data: The data that should be included in the notification.
-    :return: A list of notification recipients that have been created.
+    :param workspace: The workspace whose admins will be notified.
+    :param notification_type: The type of notification to send.
+    :param data: The data to include in the notification.
+    :return: A list of created notification recipients.
     """
 
-    workspace = webhook.table.database.workspace
     admins_workspace_users = WorkspaceUser.objects.filter(
         workspace=workspace,
         permissions=WORKSPACE_USER_PERMISSION_ADMIN,
@@ -81,8 +82,9 @@ class WebhookDeactivatedNotificationType(EmailNotificationTypeMixin, Notificatio
         :return: A list of notification recipients that have been created.
         """
 
+        workspace = webhook.table.database.workspace
         return notify_admins_in_workspace(
-            webhook, cls.type, asdict(DeactivatedWebhookData.from_webhook(webhook))
+            workspace, cls.type, asdict(DeactivatedWebhookData.from_webhook(webhook))
         )
 
     @classmethod
@@ -107,15 +109,17 @@ class WebhookPayloadTooLargeData:
     table_id: int
     database_id: int
     webhook_name: str
+    event_id: str
     batch_limit: int
 
     @classmethod
-    def from_webhook(cls, webhook):
+    def from_webhook(cls, webhook: TableWebhook, event_id: str):
         return cls(
             webhook_id=webhook.id,
             table_id=webhook.table_id,
             database_id=webhook.table.database_id,
             webhook_name=webhook.name,
+            event_id=event_id,
             batch_limit=webhook.batch_limit,
         )
 
@@ -128,18 +132,22 @@ class WebhookPayloadTooLargeNotificationType(
 
     @classmethod
     def notify_admins_in_workspace(
-        cls, webhook: TableWebhook
+        cls, webhook: TableWebhook, event_id: str
     ) -> List[NotificationRecipient]:
         """
         Creates a notification of this type for each admin in the workspace that the
         webhook belongs to.
 
         :param webhook: The webhook trying to send a payload that is too large.
+        :param event_id: The event id that triggered the notification.
         :return: A list of notification recipients that have been created.
         """
 
+        workspace = webhook.table.database.workspace
         return notify_admins_in_workspace(
-            webhook, cls.type, asdict(WebhookPayloadTooLargeData.from_webhook(webhook))
+            workspace,
+            cls.type,
+            asdict(WebhookPayloadTooLargeData.from_webhook(webhook, event_id)),
         )
 
     @classmethod
@@ -151,8 +159,11 @@ class WebhookPayloadTooLargeNotificationType(
     @classmethod
     def get_notification_description_for_email(cls, notification, context):
         return _(
-            "The webhook couldn't send all the data because it reaches the maximum number "
-            "of batches of %(batch_limit)s."
+            "The payload for the %(name)s webhook with event ID %(event_id)s "
+            "was too large. The content has been split into multiple batches, but "
+            "data above the batch limit of %(batch_limit)s was discarded."
         ) % {
+            "name": notification.data["webhook_name"],
+            "event_id": notification.data["event_id"],
             "batch_limit": notification.data["batch_limit"],
         }

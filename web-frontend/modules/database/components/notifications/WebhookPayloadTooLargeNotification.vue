@@ -9,6 +9,9 @@
         <template #name>
           <strong>{{ notification.data.webhook_name }}</strong>
         </template>
+        <template #event_id>
+          <strong>{{ notification.data.event_id }}</strong>
+        </template>
         <template #batch_limit>
           <strong>{{ notification.data.batch_limit }}</strong>
         </template>

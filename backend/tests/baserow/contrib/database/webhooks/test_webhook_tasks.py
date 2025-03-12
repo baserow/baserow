@@ -608,6 +608,7 @@ def test_call_webhook_payload_too_large_send_notification(
         "table_id": table.id,
         "webhook_id": webhook.id,
         "webhook_name": webhook.name,
+        "event_id": event_id,
         "batch_limit": 1,
     }
 

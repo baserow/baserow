@@ -980,10 +980,7 @@ BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS = int(
 BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK = (
     int(os.getenv("BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK", "0")) or None
 )
-# Defines the maximum number of webhook batches per event. Each batch is sent as a
-# separate request with the same event_id and an incremental batch_id. Set to 0 for
-# unlimited batches (use with caution).
-BASEROW_WEBHOOKS_BATCH_LIMIT = int(os.getenv("BASEROW_WEBHOOKS_BATCH_LIMIT", 10))
+BASEROW_WEBHOOKS_BATCH_LIMIT = int(os.getenv("BASEROW_WEBHOOKS_BATCH_LIMIT", 5))
 
 # ======== WARNING ========
 # Please read and understand everything at:
