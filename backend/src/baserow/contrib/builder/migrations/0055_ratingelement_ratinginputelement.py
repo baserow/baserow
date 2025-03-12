@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     dependencies = [
         (
             "builder",
-            "0053_buttonthemeconfigblock_button_active_background_color_and_more",
+            "0054_simplecontainerelement",
         ),
     ]
 

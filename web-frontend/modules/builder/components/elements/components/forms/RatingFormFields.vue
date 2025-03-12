@@ -10,7 +10,7 @@
       <FormInput
         v-model="values.max_value"
         type="number"
-        :min="0"
+        :min="1"
         :max="10"
         :to-value="(value) => parseInt(value) || 0"
       />
