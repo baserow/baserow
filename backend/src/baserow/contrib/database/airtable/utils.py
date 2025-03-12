@@ -1,11 +1,15 @@
 import json
 import re
-from typing import Optional
+from typing import Any, Optional
 
 from requests import Response
 
-from baserow.contrib.database.airtable.constants import AIRTABLE_DATE_FILTER_VALUE_MAP
-from baserow.core.utils import remove_invalid_surrogate_characters
+from baserow.contrib.database.airtable.constants import (
+    AIRTABLE_DATE_FILTER_VALUE_MAP,
+    AIRTABLE_MAX_DURATION_VALUE,
+)
+from baserow.contrib.database.airtable.exceptions import AirtableSkipFilter
+from baserow.core.utils import get_value_at_path, remove_invalid_surrogate_characters
 
 
 def extract_share_id_from_url(public_base_url: str) -> str:
@@ -62,6 +66,25 @@ def get_airtable_column_name(raw_airtable_table, column_id) -> str:
             return column["name"]
 
     return column_id
+
+
+def unknown_value_to_human_readable(value: Any) -> str:
+    """
+    If a value can't be converted to human-readable value, then this function can be
+    used to generate something user-friendly.
+
+    :param value: The value that must be converted.
+    :return: The human-readable string value.
+    """
+
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        value_len = len(value)
+        return "with 1 value" if value_len == 1 else f"with {value_len} values"
+    if isinstance(value, str) and value.startswith("usr"):
+        return "with 1 value"
+    return str(value)
 
 
 def parse_json_and_remove_invalid_surrogate_characters(response: Response) -> dict:
@@ -240,3 +263,28 @@ def airtable_date_filter_value_to_baserow(value: Optional[dict]) -> str:
         value["exactDate"] = value["exactDate"][:10]
     date_string = AIRTABLE_DATE_FILTER_VALUE_MAP[mode]
     return date_string.format(**value)
+
+
+def skip_filter_if_type_duration_and_value_too_high(raw_airtable_column, value):
+    """
+    If the provided Airtable column is a number with duration formatting, and if the
+    value exceeds the maximum we can process, then the `AirtableSkipFilter` is raised.
+
+    :param raw_airtable_column: The related raw Airtable column.
+    :param value: The value that must be checked.
+    :raises: AirtableSkipFilter
+    """
+
+    is_duration = (
+        get_value_at_path(raw_airtable_column, "typeOptions.format") == "duration"
+    )
+
+    if not is_duration:
+        return
+
+    try:
+        value = int(value)
+        if abs(value) > AIRTABLE_MAX_DURATION_VALUE:
+            raise AirtableSkipFilter
+    except ValueError:
+        pass

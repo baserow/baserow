@@ -132,6 +132,12 @@ AIRTABLE_COLUMN_PER_TYPE = {
             "shouldShowThousandsSeparator": True,
         },
     },
+    "duration": {
+        "id": "fld94jstPyHsXcXmE",
+        "name": "Number",
+        "type": "number",
+        "typeOptions": {"format": "duration", "durationFormat": "h:mm"},
+    },
     "rating": {
         "id": "fldB84fL8kshHAOLm",
         "name": "Rating",
@@ -727,6 +733,62 @@ ALL_AIRTABLE_FILTERS_PER_TYPE = {
             "value": 1,
             "baserow_filter_type": "higher_than_or_equal",
             "baserow_value": "1",
+        },
+        {
+            "operator": "isEmpty",
+            "value": None,
+            "baserow_filter_type": "empty",
+            "baserow_value": "",
+        },
+        {
+            "operator": "isNotEmpty",
+            "value": None,
+            "baserow_filter_type": "not_empty",
+            "baserow_value": "",
+        },
+    ],
+    "duration": [
+        {
+            "operator": "=",
+            "value": 86399999913600,
+            "baserow_filter_type": "equal",
+            "baserow_value": "86399999913600",
+        },
+        {
+            "operator": "=",
+            "value": 86399999913601,
+            "baserow_filter_type": "equal",
+            "baserow_skip": True,
+        },
+        {
+            "operator": "!=",
+            "value": 86399999913601,
+            "baserow_filter_type": "not_equal",
+            "baserow_skip": True,
+        },
+        {
+            "operator": "<",
+            "value": 86399999913601,
+            "baserow_filter_type": "lower_than",
+            "baserow_skip": True,
+        },
+        {
+            "operator": ">",
+            "value": 86399999913601,
+            "baserow_filter_type": "higher_than",
+            "baserow_skip": True,
+        },
+        {
+            "operator": "<=",
+            "value": 86399999913601,
+            "baserow_filter_type": "lower_than_or_equal",
+            "baserow_skip": True,
+        },
+        {
+            "operator": ">=",
+            "value": 86399999913601,
+            "baserow_filter_type": "higher_than_or_equal",
+            "baserow_skip": True,
         },
         {
             "operator": "isEmpty",

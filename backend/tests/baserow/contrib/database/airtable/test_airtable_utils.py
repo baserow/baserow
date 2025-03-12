@@ -6,6 +6,7 @@ from baserow.contrib.database.airtable.utils import (
     get_airtable_column_name,
     get_airtable_row_primary_value,
     quill_to_markdown,
+    unknown_value_to_human_readable,
 )
 
 
@@ -298,3 +299,11 @@ def test_airtable_invalid_date_filter_value_to_baserow():
                 "shouldUseCorrectTimeZoneForFormulaicColumn": True,
             }
         )
+
+
+def test_unknown_value_to_human_readable():
+    assert unknown_value_to_human_readable(None) == ""
+    assert unknown_value_to_human_readable(["1", "2"]) == "with 2 values"
+    assert unknown_value_to_human_readable(["1"]) == "with 1 value"
+    assert unknown_value_to_human_readable("usrGUN1234") == "with 1 value"
+    assert unknown_value_to_human_readable("random") == "random"

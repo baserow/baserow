@@ -14,7 +14,10 @@ from baserow.contrib.database.airtable.import_report import (
     SCOPE_VIEW_SORT,
     AirtableImportReport,
 )
-from baserow.contrib.database.airtable.utils import get_airtable_column_name
+from baserow.contrib.database.airtable.utils import (
+    get_airtable_column_name,
+    unknown_value_to_human_readable,
+)
 from baserow.contrib.database.fields.field_filters import (
     FILTER_TYPE_AND,
     FILTER_TYPE_OR,
@@ -321,17 +324,116 @@ class AirtableViewType(Instance):
 
         return view_group_by
 
+    def get_filter(
+        self,
+        field_mapping: dict,
+        row_id_mapping: Dict[str, Dict[str, int]],
+        raw_airtable_view: dict,
+        raw_airtable_table: dict,
+        import_report: AirtableImportReport,
+        filter_object: dict,
+        parent_group: Optional[ViewFilterGroup] = None,
+    ):
+        """
+        This method converts a raw airtable filter object into a Baserow filter object
+        that's ready for the export system.
+        """
+
+        # If it's not a group, then it's an individual filter, and it must be
+        # parsed accordingly.
+        if filter_object["columnId"] not in field_mapping:
+            column_name = get_airtable_column_name(
+                raw_airtable_table, filter_object["columnId"]
+            )
+            filter_value = unknown_value_to_human_readable(filter_object["value"])
+            import_report.add_failed(
+                f'View "{raw_airtable_view["name"]}", Field ID "{column_name}"',
+                SCOPE_VIEW_FILTER,
+                raw_airtable_table["name"],
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f'The "{filter_object["operator"]}" filter with value '
+                f'"{filter_value}" on field "{column_name}" was ignored '
+                f'in view {raw_airtable_view["name"]} because the field was not '
+                f"imported.",
+            )
+            return None
+
+        mapping_entry = field_mapping[filter_object["columnId"]]
+        baserow_field_type = mapping_entry["baserow_field_type"]
+        baserow_field = mapping_entry["baserow_field"]
+        raw_airtable_column = mapping_entry["raw_airtable_column"]
+        can_filter_by = baserow_field_type.check_can_filter_by(baserow_field)
+
+        if not can_filter_by:
+            filter_value = unknown_value_to_human_readable(filter_object["value"])
+            import_report.add_failed(
+                f'View "{raw_airtable_view["name"]}", Field "{baserow_field.name}"',
+                SCOPE_VIEW_FILTER,
+                raw_airtable_table["name"],
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f'The "{filter_object["operator"]}" filter with value '
+                f'"{filter_value}" on field "{baserow_field.name}" was '
+                f'ignored in view {raw_airtable_view["name"]} because it\'s not '
+                f"possible to filter by that field type.",
+            )
+            return None
+
+        try:
+            filter_operator = airtable_filter_operator_registry.get(
+                filter_object["operator"]
+            )
+            filter_type, value = filter_operator.to_baserow_filter_and_value(
+                row_id_mapping,
+                raw_airtable_table,
+                raw_airtable_column,
+                baserow_field,
+                import_report,
+                filter_object["value"],
+            )
+
+            if not filter_type.field_is_compatible(baserow_field):
+                raise AirtableSkipFilter
+        except (
+            airtable_filter_operator_registry.does_not_exist_exception_class,
+            # If the `AirtableSkipFilter` exception is raised, then the Airtable
+            # filter existing, but is not compatible with the Baserow filters. This
+            # can be raised in the `to_baserow_filter_and_value`, but also if it
+            # appears to not be compatible afterward.
+            AirtableSkipFilter,
+        ):
+            filter_value = unknown_value_to_human_readable(filter_object["value"])
+            import_report.add_failed(
+                f'View "{raw_airtable_view["name"]}", Field "{baserow_field.name}"',
+                SCOPE_VIEW_FILTER,
+                raw_airtable_table["name"],
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f'The "{filter_object["operator"]}" filter with value '
+                f'"{filter_value}" on field "{baserow_field.name}" was '
+                f'ignored in view {raw_airtable_view["name"]} because not no '
+                f"compatible filter exists.",
+            )
+            return None
+
+        return ViewFilter(
+            id=filter_object["id"],
+            type=filter_type.type,
+            value=value,
+            field_id=filter_object["columnId"],
+            view_id=raw_airtable_view["id"],
+            group_id=parent_group.id if parent_group else None,
+        )
+
     def get_filters(
         self,
-        field_mapping,
-        row_id_mapping,
-        raw_airtable_view,
-        raw_airtable_table,
-        import_report,
-        filter_object,
-        filter_groups=None,
-        parent_group=None,
-    ):
+        field_mapping: dict,
+        row_id_mapping: Dict[str, Dict[str, int]],
+        raw_airtable_view: dict,
+        raw_airtable_table: dict,
+        import_report: AirtableImportReport,
+        filter_object: dict,
+        filter_groups: Optional[List[ViewFilterGroup]] = None,
+        parent_group: Optional[ViewFilterGroup] = None,
+    ) -> Union[List[ViewFilter], List[ViewFilterGroup]]:
         """
         Recursive method that either loops over the filters in the `filter_object`, and
         converts it to two flat lists containing the Baserow ViewFilter and
@@ -375,88 +477,20 @@ class AirtableViewType(Instance):
 
             return filters, filter_groups
         else:
-            # If it's not a group, then it's an individual filter, and it must be
-            # parsed accordingly.
-            if filter_object["columnId"] not in field_mapping:
-                column_name = get_airtable_column_name(
-                    raw_airtable_table, filter_object["columnId"]
-                )
-                import_report.add_failed(
-                    f'View "{raw_airtable_view["name"]}", Field ID "{column_name}"',
-                    SCOPE_VIEW_FILTER,
-                    raw_airtable_table["name"],
-                    ERROR_TYPE_UNSUPPORTED_FEATURE,
-                    f'The "{filter_object["operator"]}" filter with value '
-                    f'"{filter_object["value"]}" on field "{column_name}" was ignored '
-                    f'in view {raw_airtable_view["name"]} because the field was not '
-                    f"imported.",
-                )
-                return [], []
-
-            mapping_entry = field_mapping[filter_object["columnId"]]
-            baserow_field_type = mapping_entry["baserow_field_type"]
-            baserow_field = mapping_entry["baserow_field"]
-            raw_airtable_column = mapping_entry["raw_airtable_column"]
-            can_filter_by = baserow_field_type.check_can_filter_by(baserow_field)
-
-            if not can_filter_by:
-                import_report.add_failed(
-                    f'View "{raw_airtable_view["name"]}", Field "{baserow_field.name}"',
-                    SCOPE_VIEW_FILTER,
-                    raw_airtable_table["name"],
-                    ERROR_TYPE_UNSUPPORTED_FEATURE,
-                    f'The "{filter_object["operator"]}" filter with value '
-                    f'"{filter_object["value"]}" on field "{baserow_field.name}" was '
-                    f'ignored in view {raw_airtable_view["name"]} because it\'s not '
-                    f"possible to filter by that field type.",
-                )
-                return [], []
-
-            try:
-                filter_operator = airtable_filter_operator_registry.get(
-                    filter_object["operator"]
-                )
-                filter_type, value = filter_operator.to_baserow_filter_and_value(
-                    row_id_mapping,
-                    raw_airtable_table,
-                    raw_airtable_column,
-                    baserow_field,
-                    import_report,
-                    filter_object["value"],
-                )
-
-                if not filter_type.field_is_compatible(baserow_field):
-                    raise AirtableSkipFilter
-            except (
-                airtable_filter_operator_registry.does_not_exist_exception_class,
-                # If the `AirtableSkipFilter` exception is raised, then the Airtable
-                # filter existing, but is not compatible with the Baserow filters. This
-                # can be raised in the `to_baserow_filter_and_value`, but also if it
-                # appears to not be compatible afterward.
-                AirtableSkipFilter,
-            ):
-                import_report.add_failed(
-                    f'View "{raw_airtable_view["name"]}", Field "{baserow_field.name}"',
-                    SCOPE_VIEW_FILTER,
-                    raw_airtable_table["name"],
-                    ERROR_TYPE_UNSUPPORTED_FEATURE,
-                    f'The "{filter_object["operator"]}" filter with value '
-                    f'"{filter_object["value"]}" on field "{baserow_field.name}" was '
-                    f'ignored in view {raw_airtable_view["name"]} because not no '
-                    f"compatible filter exists.",
-                )
-                return [], []
-
-            baserow_filter = ViewFilter(
-                id=filter_object["id"],
-                type=filter_type.type,
-                value=value,
-                field_id=filter_object["columnId"],
-                view_id=raw_airtable_view["id"],
-                group_id=parent_group.id if parent_group else None,
+            baserow_filter = self.get_filter(
+                field_mapping,
+                row_id_mapping,
+                raw_airtable_view,
+                raw_airtable_table,
+                import_report,
+                filter_object,
+                parent_group,
             )
 
-            return [baserow_filter], []
+            if baserow_filter is None:
+                return [], []
+            else:
+                return [baserow_filter], []
 
     def to_serialized_baserow_view(
         self,
@@ -578,7 +612,7 @@ class AirtableViewTypeRegistry(Registry):
     def from_airtable_view_to_serialized(
         self,
         field_mapping: dict,
-        row_id_mapping: Dict[str, int],
+        row_id_mapping: Dict[str, Dict[str, int]],
         raw_airtable_table: dict,
         raw_airtable_view: dict,
         raw_airtable_view_data: dict,
@@ -626,17 +660,19 @@ class AirtableViewTypeRegistry(Registry):
 class AirtableFilterOperator(Instance):
     def to_baserow_filter_and_value(
         self,
-        row_id_mapping,
-        raw_airtable_table,
-        raw_airtable_column,
-        baserow_field,
-        import_report,
-        value,
+        row_id_mapping: Dict[str, Dict[str, int]],
+        raw_airtable_table: dict,
+        raw_airtable_column: dict,
+        baserow_field: Field,
+        import_report: AirtableImportReport,
+        value: str,
     ) -> Union[ViewFilterType, str]:
         """
         Converts the given Airtable value into the matching Baserow filter type and
         correct value.
 
+        :param row_id_mapping: A dict mapping the Airable row IDs to Baserow row IDs
+            per table ID.
         :param raw_airtable_table: The raw Airtable table data related to the filter.
         :param raw_airtable_column: The raw Airtable column data related to the filter.
         :param baserow_field: The Baserow field related to the filter.

@@ -4,7 +4,10 @@ from baserow.core.utils import get_value_at_path
 from .exceptions import AirtableSkipFilter
 from .helpers import to_import_select_option_id
 from .registry import AirtableFilterOperator
-from .utils import airtable_date_filter_value_to_baserow
+from .utils import (
+    airtable_date_filter_value_to_baserow,
+    skip_filter_if_type_duration_and_value_too_high,
+)
 
 
 class AirtableContainsOperator(AirtableFilterOperator):
@@ -68,6 +71,7 @@ class AirtableEqualOperator(AirtableFilterOperator):
             "phone",
             "autoNumber",
         ]:
+            skip_filter_if_type_duration_and_value_too_high(raw_airtable_column, value)
             return view_filter_type_registry.get("equal"), str(value)
 
         if raw_airtable_column["type"] in ["checkbox"]:
@@ -131,6 +135,7 @@ class AirtableNotEqualOperator(AirtableFilterOperator):
             "phone",
             "autoNumber",
         ]:
+            skip_filter_if_type_duration_and_value_too_high(raw_airtable_column, value)
             return view_filter_type_registry.get("not_equal"), str(value)
 
         if raw_airtable_column["type"] in ["select"]:
@@ -308,6 +313,7 @@ class AirtableLessThanOperator(AirtableFilterOperator):
             "rating",
             "autoNumber",
         ]:
+            skip_filter_if_type_duration_and_value_too_high(raw_airtable_column, value)
             return view_filter_type_registry.get("lower_than"), str(value)
 
         if raw_airtable_column["type"] in ["date"]:
@@ -334,6 +340,7 @@ class AirtableMoreThanOperator(AirtableFilterOperator):
             "rating",
             "autoNumber",
         ]:
+            skip_filter_if_type_duration_and_value_too_high(raw_airtable_column, value)
             return view_filter_type_registry.get("higher_than"), str(value)
 
         if raw_airtable_column["type"] in ["date"]:
@@ -360,6 +367,7 @@ class AirtableLessThanOrEqualOperator(AirtableFilterOperator):
             "rating",
             "autoNumber",
         ]:
+            skip_filter_if_type_duration_and_value_too_high(raw_airtable_column, value)
             return view_filter_type_registry.get("lower_than_or_equal"), str(value)
 
         if raw_airtable_column["type"] in ["date"]:
@@ -386,6 +394,7 @@ class AirtableMoreThanOrEqualOperator(AirtableFilterOperator):
             "rating",
             "autoNumber",
         ]:
+            skip_filter_if_type_duration_and_value_too_high(raw_airtable_column, value)
             return view_filter_type_registry.get("higher_than_or_equal"), str(value)
 
         if raw_airtable_column["type"] in ["date"]:
