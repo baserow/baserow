@@ -125,7 +125,9 @@
     "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
     "notAllowedLocation": "This element is not allowed at this location",
     "menu": "Menu",
-    "menuDescription": "Menu element"
+    "menuDescription": "Menu element",
+    "simpleContainer": "Container",
+    "simpleContainerDescription": "A container for other elements"
   },
   "addElementButton": {
     "label": "Element"
@@ -231,6 +233,9 @@
     "menuItemAddSpacer": "Spacer",
     "eventDescription": "To configure actions for this button, open the Events tab of this element.",
     "noMenuItemsMessage": "Click 'Add' to add your first menu item."
+  },
+  "simpleContainerElementForm": {
+    "noConfigurationOptions": "The container element does not have any configuration options."
   },
   "imageElement": {
     "missingValue": "Missing alt text...",

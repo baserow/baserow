@@ -37,6 +37,8 @@ import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { resolveFormula } from '@baserow/modules/core/formula'
 import FormContainerElement from '@baserow/modules/builder/components/elements/components/FormContainerElement.vue'
 import FormContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/FormContainerElementForm.vue'
+import SimpleContainerElement from '@baserow/modules/builder/components/elements/components/SimpleContainerElement.vue'
+import SimpleContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/SimpleContainerElementForm.vue'
 import ChoiceElement from '@baserow/modules/builder/components/elements/components/ChoiceElement.vue'
 import ChoiceElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ChoiceElementForm.vue'
 import CheckboxElement from '@baserow/modules/builder/components/elements/components/CheckboxElement.vue'
@@ -853,6 +855,58 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
 
   get defaultPlaceInContainer() {
     return '0'
+  }
+}
+
+export class SimpleContainerElementType extends ContainerElementTypeMixin(
+  ElementType
+) {
+  static getType() {
+    return 'simple_container'
+  }
+
+  category() {
+    return 'layoutElement'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.simpleContainer')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.simpleContainerDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-square'
+  }
+
+  get component() {
+    return SimpleContainerElement
+  }
+
+  get generalFormComponent() {
+    return SimpleContainerElementForm
+  }
+
+  getDefaultValues(page, values) {
+    const superValues = super.getDefaultValues(page, values)
+    return {
+      ...superValues,
+      style_padding_left: 0,
+      style_padding_right: 0,
+      style_padding_top: 0,
+      style_padding_bottom: 0,
+    }
+  }
+
+  getDefaultChildValues(page, values) {
+    // Unlike other container we don't want to affect the child padding.
+    return {}
+  }
+
+  getElementPlaces(element) {
+    return [null]
   }
 }
 

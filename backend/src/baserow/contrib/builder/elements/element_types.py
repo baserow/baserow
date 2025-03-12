@@ -61,6 +61,7 @@ from baserow.contrib.builder.elements.models import (
     NavigationElementMixin,
     RecordSelectorElement,
     RepeatElement,
+    SimpleContainerElement,
     TableElement,
     TextElement,
     VerticalAlignments,
@@ -276,6 +277,17 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
             for element_type in super().child_types_allowed
             if element_type.type != self.type
         ]
+
+
+class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
+    type = "simple_container"
+    model_class = SimpleContainerElement
+
+    class SerializedDict(ContainerElementTypeMixin.SerializedDict):
+        pass
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {}
 
 
 class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
