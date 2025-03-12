@@ -18,7 +18,7 @@
         <Dropdown
           v-model="values.email_field_id"
           fixed-items
-          :disabled="!selectedTable"
+          :disabled="!selectedTable || fieldsLoading"
           :placeholder="
             $t('localBaserowUserSourceForm.emailFieldLabelPlaceholder')
           "
@@ -45,7 +45,7 @@
         <Dropdown
           v-model="values.name_field_id"
           fixed-items
-          :disabled="!selectedTable"
+          :disabled="!selectedTable || fieldsLoading"
           :placeholder="$t('localBaserowUserSourceForm.nameFieldPlaceholder')"
           size="large"
         >
@@ -70,7 +70,7 @@
         <Dropdown
           v-model="values.role_field_id"
           fixed-items
-          :disabled="!selectedTable"
+          :disabled="!selectedTable || fieldsLoading"
           :placeholder="$t('localBaserowUserSourceForm.roleFieldPlaceholder')"
           size="large"
         >
@@ -99,12 +99,13 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import LocalBaserowTableSelector from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableSelector'
+import tableFields from '@baserow/modules/database/mixins/tableFields'
 
 export default {
   components: {
     LocalBaserowTableSelector,
   },
-  mixins: [form],
+  mixins: [form, tableFields],
   props: {
     application: {
       type: Object,
@@ -170,30 +171,27 @@ export default {
       }
       return null
     },
-    fields() {
-      if (!this.selectedTable) {
-        return []
-      } else {
-        return this.selectedTable.fields
-      }
-    },
     emailFields() {
-      return this.fields.filter(({ type }) =>
+      return this.tableFields.filter(({ type }) =>
         this.userSourceType.allowedEmailFieldTypes.includes(type)
       )
     },
     nameFields() {
-      return this.fields.filter(({ type }) =>
+      return this.tableFields.filter(({ type }) =>
         this.userSourceType.allowedNameFieldTypes.includes(type)
       )
     },
     roleFields() {
-      return this.fields.filter(({ type }) =>
+      return this.tableFields.filter(({ type }) =>
         this.userSourceType.allowedRoleFieldTypes.includes(type)
       )
     },
   },
   methods: {
+    /* Overrides the method in the tableFields mixin */
+    getTableId() {
+      return this.values.table_id
+    },
     getIconForType(type) {
       return this.fieldTypes[type].getIconClass()
     },

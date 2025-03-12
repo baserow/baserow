@@ -6,7 +6,10 @@
       @table-changed="handleTableChange"
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
-    <div v-if="tableLoading" class="loading margin-bottom-1"></div>
+    <div
+      v-if="tableLoading || fieldsLoading"
+      class="loading margin-bottom-1"
+    ></div>
     <p v-if="values.integration_id && !values.table_id">
       {{ $t('upsertRowWorkflowActionForm.noTableSelectedMessage') }}
     </p>

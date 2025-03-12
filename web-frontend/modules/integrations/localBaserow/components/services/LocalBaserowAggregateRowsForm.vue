@@ -126,7 +126,6 @@ export default {
         filter_type: 'AND',
         aggregation_type: 'sum',
       },
-      tableLoading: false,
     }
   },
   computed: {

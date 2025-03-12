@@ -21,6 +21,7 @@ from django.conf import settings
 from django.core.cache import caches
 from django.core.exceptions import ImproperlyConfigured
 
+from baserow.core.cache import local_cache
 from baserow.version import VERSION as BASEROW_VERSION
 
 if typing.TYPE_CHECKING:
@@ -78,5 +79,8 @@ def invalidate_table_in_model_cache(table_id: int):
 
     new_version = str(uuid.uuid4())
     # Make sure to invalidate ourselves and any directly connected tables.
+
+    # Delete cache for refresh
+    local_cache.delete(f"database_table_{table_id}_already_refreshed")
 
     Table.objects_and_trash.filter(id=table_id).update(version=new_version)

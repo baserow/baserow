@@ -49,6 +49,7 @@
           v-model="values.view_id"
           :show-search="false"
           fixed-items
+          :disabled="fieldsLoading"
           :error="fieldHasErrors('view_id')"
           @change="v$.values.view_id.$touch"
         >
@@ -78,7 +79,7 @@
       >
         <Dropdown
           v-model="values.field_id"
-          :disabled="tableFields.length === 0"
+          :disabled="tableFields.length === 0 || fieldsLoading"
           :error="fieldHasErrors('field_id')"
           @change="v$.values.field_id.$touch"
         >
@@ -125,6 +126,7 @@
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
+import tableFields from '@baserow/modules/database/mixins/tableFields'
 
 const includes = (array) => (value) => {
   return array.includes(value)
@@ -139,7 +141,7 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'AggregateRowsDataSourceForm',
-  mixins: [form],
+  mixins: [form, tableFields],
   props: {
     dashboard: {
       type: Object,
@@ -198,9 +200,6 @@ export default {
     },
     tableSelected() {
       return this.tables.find(({ id }) => id === this.values.table_id)
-    },
-    tableFields() {
-      return this.tableSelected?.fields || []
     },
     tableFieldIds() {
       return this.tableFields.map((field) => field.id)
@@ -337,6 +336,10 @@ export default {
     }
   },
   methods: {
+    /* Overrides the method in the tableFields mixin */
+    getTableId() {
+      return this.values.table_id
+    },
     fieldIconClass(field) {
       const fieldType = this.$registry.get('field', field.type)
       return fieldType.iconClass

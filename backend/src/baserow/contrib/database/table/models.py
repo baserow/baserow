@@ -52,6 +52,7 @@ from baserow.contrib.database.table.constants import (
 from baserow.contrib.database.views.exceptions import ViewFilterTypeNotAllowedForField
 from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.registries import view_filter_type_registry
+from baserow.core.cache import local_cache
 from baserow.core.db import MultiFieldPrefetchQuerysetMixin, specific_iterator
 from baserow.core.fields import AutoTrueBooleanField
 from baserow.core.jobs.mixins import (
@@ -1107,7 +1108,11 @@ class Table(
         )
 
         if use_cache:
-            self.refresh_from_db(fields=["version"])
+            # Execute the callback only if this table hasn't been refreshed yet
+            local_cache.get(
+                f"database_table_{self.id}_already_refreshed",
+                lambda: self.refresh_from_db(fields=["version"]),
+            )
             field_attrs = get_cached_model_field_attrs(self)
         else:
             field_attrs = None

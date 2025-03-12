@@ -10,7 +10,7 @@
       <Dropdown
         v-model="values.password_field_id"
         fixed-items
-        :disabled="!selectedTable"
+        :disabled="!selectedTable || fieldsLoading"
         :placeholder="
           $t('localBaserowPasswordAppAuthProviderForm.passwordFieldLabel')
         "
@@ -32,9 +32,10 @@
 
 <script>
 import authProviderForm from '@baserow/modules/core/mixins/authProviderForm'
+import tableFields from '@baserow/modules/database/mixins/tableFields'
 
 export default {
-  mixins: [authProviderForm],
+  mixins: [authProviderForm, tableFields],
   props: {
     integration: {
       type: Object,
@@ -73,15 +74,8 @@ export default {
       }
       return null
     },
-    fields() {
-      if (!this.selectedTable) {
-        return []
-      } else {
-        return this.selectedTable.fields
-      }
-    },
     passwordFields() {
-      return this.fields.filter(({ type }) =>
+      return this.tableFields.filter(({ type }) =>
         this.authProviderType.allowedPasswordFieldTypes.includes(type)
       )
     },
@@ -92,6 +86,10 @@ export default {
     },
   },
   methods: {
+    /* Overrides the method in the tableFields mixin */
+    getTableId() {
+      return this.userSource.table_id
+    },
     getIconForType(type) {
       return this.fieldTypes[type].getIconClass()
     },
