@@ -49,6 +49,12 @@ def map_ids_from_csv_string(
     :return: A list of integers that represent ids.
     """
 
+    # There is a small chance the value is an int in case a raw ID was provided in
+    # the row coloring, where the filters are stored as JSON. Cast it to a string to
+    # make it compatible.
+    if not isinstance(value_string, str):
+        value_string = str(value_string)
+
     parsed_values = []
     for value in value_string.split(","):
         # In some cases, the select option ID is a string, like with the Airtable
