@@ -1,5 +1,10 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from baserow_premium.views.decorator_types import LeftBorderColorDecoratorType
+from baserow_premium.views.decorator_value_provider_types import (
+    SelectColorValueProviderType,
+)
+
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.constants import AIRTABLE_ASCENDING_MAP
 from baserow.contrib.database.airtable.exceptions import (
@@ -7,8 +12,10 @@ from baserow.contrib.database.airtable.exceptions import (
     AirtableSkipFilter,
 )
 from baserow.contrib.database.airtable.import_report import (
+    ERROR_TYPE_DATA_TYPE_MISMATCH,
     ERROR_TYPE_UNSUPPORTED_FEATURE,
     SCOPE_FIELD,
+    SCOPE_VIEW_COLOR,
     SCOPE_VIEW_FILTER,
     SCOPE_VIEW_GROUP_BY,
     SCOPE_VIEW_SORT,
@@ -27,6 +34,7 @@ from baserow.contrib.database.views.models import (
     SORT_ORDER_ASC,
     SORT_ORDER_DESC,
     View,
+    ViewDecoration,
     ViewFilter,
     ViewFilterGroup,
     ViewGroupBy,
@@ -492,6 +500,100 @@ class AirtableViewType(Instance):
             else:
                 return [baserow_filter], []
 
+    def get_select_column_decoration(
+        self,
+        field_mapping,
+        view_type,
+        row_id_mapping,
+        raw_airtable_table,
+        raw_airtable_view,
+        raw_airtable_view_data,
+        import_report,
+    ):
+        color_config = raw_airtable_view_data["colorConfig"]
+        select_column_id = color_config["selectColumnId"]
+
+        if select_column_id not in field_mapping:
+            column_name = get_airtable_column_name(raw_airtable_table, select_column_id)
+            import_report.add_failed(
+                raw_airtable_view["name"],
+                SCOPE_VIEW_COLOR,
+                raw_airtable_table["name"],
+                ERROR_TYPE_DATA_TYPE_MISMATCH,
+                f'The select field coloring was ignored in {raw_airtable_view["name"]} '
+                f"because {column_name} does not exist.",
+            )
+            return None
+
+        return ViewDecoration(
+            id=f"{raw_airtable_view['id']}_decoration",
+            view_id=raw_airtable_view["id"],
+            type=LeftBorderColorDecoratorType.type,
+            value_provider_type=SelectColorValueProviderType.type,
+            value_provider_conf={"field_id": select_column_id},
+            order=1,
+        )
+
+    def get_color_definitions_decoration(
+        self,
+        field_mapping,
+        view_type,
+        row_id_mapping,
+        raw_airtable_table,
+        raw_airtable_view,
+        raw_airtable_view_data,
+        import_report,
+    ):
+        return None
+
+    def get_decorations(
+        self,
+        field_mapping,
+        view_type,
+        row_id_mapping,
+        raw_airtable_table,
+        raw_airtable_view,
+        raw_airtable_view_data,
+        import_report,
+    ):
+        """
+        @TODO
+        """
+
+        color_config = raw_airtable_view_data.get("colorConfig", None)
+
+        if not view_type.can_decorate or color_config is None:
+            return []
+
+        color_config_type = color_config.get("type", "")
+        decoration = None
+
+        if color_config_type == "selectColumn":
+            decoration = self.get_select_column_decoration(
+                field_mapping,
+                view_type,
+                row_id_mapping,
+                raw_airtable_table,
+                raw_airtable_view,
+                raw_airtable_view_data,
+                import_report,
+            )
+        elif color_config_type == "colorDefinitions":
+            decoration = self.get_color_definitions_decoration(
+                field_mapping,
+                view_type,
+                row_id_mapping,
+                raw_airtable_table,
+                raw_airtable_view,
+                raw_airtable_view_data,
+                import_report,
+            )
+
+        if decoration:
+            return [decoration]
+        else:
+            return []
+
     def to_serialized_baserow_view(
         self,
         field_mapping,
@@ -547,6 +649,15 @@ class AirtableViewType(Instance):
             raw_airtable_view_data,
             import_report,
         )
+        decorations = self.get_decorations(
+            field_mapping,
+            view_type,
+            row_id_mapping,
+            raw_airtable_table,
+            raw_airtable_view,
+            raw_airtable_view_data,
+            import_report,
+        )
 
         view.get_field_options = lambda *args, **kwargs: []
         view._prefetched_objects_cache = {
@@ -554,7 +665,7 @@ class AirtableViewType(Instance):
             "filter_groups": filter_groups,
             "viewsort_set": sorts,
             "viewgroupby_set": group_bys,
-            "viewdecoration_set": [],
+            "viewdecoration_set": decorations,
         }
         view = self.prepare_view_object(
             field_mapping,
