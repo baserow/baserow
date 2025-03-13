@@ -285,7 +285,8 @@
     "auditLogs": "Audit logs",
     "dataSync": "Data sync",
     "coBranding": "Co-branding logo replacement",
-    "support": "Direct support"
+    "support": "Direct support",
+    "chartWidget": "Chart widget"
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
