@@ -2,13 +2,8 @@
 Test the RatingCollectionFieldType class.
 """
 
-from unittest.mock import patch
-
 import pytest
 
-from baserow.contrib.builder.elements.collection_field_types import (
-    RatingCollectionFieldType,
-)
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.service import PageService
 
@@ -45,7 +40,7 @@ def test_import_export_rating_collection_field_type(data_fixture):
                 "config": {
                     "value": f"get('data_source.{data_source.id}.0.{rating_field.db_column}')",
                     "max_value": 5,
-                    "style": "star",
+                    "rating_style": "star",
                     "color": "",
                 },
             },
@@ -83,6 +78,6 @@ def test_import_export_rating_collection_field_type(data_fixture):
     assert imported_field.config == {
         "value": f"get('data_source.{data_source2.id}.0.{rating_field.db_column}')",
         "max_value": 5,
-        "style": "star",
+        "rating_style": "star",
         "color": "",
     }

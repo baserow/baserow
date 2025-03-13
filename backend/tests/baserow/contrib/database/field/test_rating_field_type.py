@@ -54,6 +54,7 @@ def test_field_creation(data_fixture):
         {"color": ""},
     ]:
         with pytest.raises(ValueError):
+            print(f"Invalid value: {invalid_value}")
             handler.create_field(
                 user=user,
                 table=table,

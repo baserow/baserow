@@ -401,7 +401,7 @@ class RatingField(Field):
         Check if the max_value, color and style have a valid value.
         """
 
-        if not any(self.style in _tuple for _tuple in RatingStyleChoices):
+        if self.style not in RatingStyleChoices.values:
             raise ValueError(f"{self.style} is not a valid choice.")
         if not self.color:
             raise ValueError(f"color should be defined.")

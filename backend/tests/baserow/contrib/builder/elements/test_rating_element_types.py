@@ -16,7 +16,7 @@ def test_rating_element_type_export_import(data_fixture):
         value="4",
         max_value=5,
         color="#FF0000",
-        style=RatingStyleChoices.STAR,
+        rating_style=RatingStyleChoices.STAR,
     )
 
     exported = element_type_registry.get_by_model(element).export_serialized(element)
@@ -26,7 +26,7 @@ def test_rating_element_type_export_import(data_fixture):
     assert exported["value"] == "4"
     assert exported["max_value"] == 5
     assert exported["color"] == "#FF0000"
-    assert exported["style"] == RatingStyleChoices.STAR
+    assert exported["rating_style"] == RatingStyleChoices.STAR
 
     id_mapping = defaultdict(lambda: MirrorDict())
     imported = element_type_registry.get("rating").import_serialized(
@@ -37,4 +37,4 @@ def test_rating_element_type_export_import(data_fixture):
     assert imported.value == element.value
     assert imported.max_value == element.max_value
     assert imported.color == element.color
-    assert imported.style == element.style
+    assert imported.rating_style == element.rating_style

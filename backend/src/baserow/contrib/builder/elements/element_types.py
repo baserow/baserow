@@ -17,6 +17,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db.models import IntegerField, Q, QuerySet
 from django.db.models.functions import Cast
+
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -2075,7 +2076,8 @@ class MultiPageContainerElementType(
     class SerializedDict(
         MultiPageElementTypeMixin.SerializedDict,
         ContainerElementTypeMixin.SerializedDict,
-    ): ...
+    ):
+        ...
 
 
 class HeaderElementType(MultiPageContainerElementType):
