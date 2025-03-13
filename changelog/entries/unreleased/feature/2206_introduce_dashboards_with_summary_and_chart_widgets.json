@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Introduce dashboards with summary and chart widgets",
+    "domain": "dashboard",
+    "issue_number": 2206,
+    "bullet_points": [],
+    "created_at": "2025-03-13"
+}
