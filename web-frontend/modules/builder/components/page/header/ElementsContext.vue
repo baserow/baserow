@@ -134,17 +134,24 @@ export default {
     sharedElements() {
       return this.$store.getters['element/getRootElements'](this.sharedPage)
     },
+    fixedHeaderElements() {
+      return this.sharedElements.filter(
+        (element) =>
+          this.$registry.get('element', element.type).getPagePlace(element) ===
+          PAGE_PLACES.FIXED_HEADER
+      )
+    },
     headerElements() {
       return this.sharedElements.filter(
         (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
+          this.$registry.get('element', element.type).getPagePlace(element) ===
           PAGE_PLACES.HEADER
       )
     },
     footerElements() {
       return this.sharedElements.filter(
         (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
+          this.$registry.get('element', element.type).getPagePlace(element) ===
           PAGE_PLACES.FOOTER
       )
     },

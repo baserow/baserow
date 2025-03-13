@@ -10,6 +10,8 @@ from baserow.contrib.builder.constants import (
     BACKGROUND_IMAGE_MODES,
     COLOR_FIELD_MAX_LENGTH,
     HorizontalAlignments,
+    PageAlignments,
+    PageBehaviours,
     VerticalAlignments,
 )
 from baserow.core.constants import (
@@ -1124,5 +1126,18 @@ class MenuElement(Element):
 
 class SimpleContainerElement(ContainerElement):
     """
-    A simple container to group elements
+    A simple container to group elements. It can optionally have alignment
+    and behaviour.
     """
+
+    behaviour = models.CharField(
+        choices=PageBehaviours.choices,
+        max_length=15,
+        default=PageBehaviours.NORMAL,
+    )
+
+    alignment = models.CharField(
+        choices=PageAlignments.choices,
+        max_length=15,
+        default=PageAlignments.TOP,
+    )

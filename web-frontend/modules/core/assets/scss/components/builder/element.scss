@@ -28,6 +28,24 @@
   }
 }
 
+%element-fixed {
+  position: sticky;
+  width: 100%;
+  z-index: 1;
+  background-color: var(--element-background-color, white);
+}
+
+.element__wrapper.element__wrapper-fixed-top {
+  @extend %element-fixed;
+  top: 0px;
+}
+
+.element__wrapper.element__wrapper-fixed-bottom {
+  @extend %element-fixed;
+  bottom: 0px;
+}
+
+
 .element__inner-wrapper {
   border-top: var(--element-border-top, none);
   border-bottom: var(--element-border-bottom, none);

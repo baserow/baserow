@@ -1,5 +1,11 @@
 <template>
-  <div>
+  <div
+    class="simple-container-element"
+    :class="{
+      [`simple-container-element--${element.behaviour}`]: true,
+      [`simple-container-element--position-${element.alignment}`]: true,
+    }"
+  >
     <template
       v-if="
         mode === 'editing' &&
@@ -54,6 +60,12 @@ export default {
       required: true,
     },
   },
+  data() {
+    return {
+      specificElement: `.page`,
+    }
+  },
+  computed: {},
   methods: {
     showAddElementModal() {
       this.$refs.addElementModal.show({

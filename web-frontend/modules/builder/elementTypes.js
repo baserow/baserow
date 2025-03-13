@@ -156,13 +156,17 @@ export class ElementType extends Registerable {
     ]
   }
 
+  toPortal(element) {
+    return null
+  }
+
   /**
    * Returns the current place of the given element.
    *
    * @param {Object} element
    * @returns a PAGE_PLACES enum
    */
-  getPagePlace() {
+  getPagePlace(element) {
     return PAGE_PLACES.CONTENT
   }
 
@@ -211,8 +215,9 @@ export class ElementType extends Registerable {
             'element/getRootElements'
           ](sharedPage).filter(
             (element) =>
-              this.app.$registry.get('element', element.type).getPagePlace() ===
-              PAGE_PLACES.FOOTER
+              this.app.$registry
+                .get('element', element.type)
+                .getPagePlace(element) === PAGE_PLACES.FOOTER
           )
           if (beforeElement.id !== footerElements[0].id) {
             // It's not allowed to add these elements as root inside footer after
@@ -586,7 +591,7 @@ export class ElementType extends Registerable {
    */
   getElementsAround({ builder, page, element, withSharedPage = false }) {
     const elementType = this.app.$registry.get('element', element.type)
-    const elementPlace = elementType.getPagePlace()
+    const elementPlace = elementType.getPagePlace(element)
     const isRootElement = !element.parent_element_id
 
     const elementPage = this.app.store.getters['page/getById'](
@@ -601,8 +606,9 @@ export class ElementType extends Registerable {
     ).filter(
       (sibling) =>
         Boolean(element.parent_element_id) ||
-        this.app.$registry.get('element', sibling.type).getPagePlace() ===
-          elementPlace
+        this.app.$registry
+          .get('element', sibling.type)
+          .getPagePlace(sibling) === elementPlace
     )
 
     const elementIndex = siblings.findIndex((e) => e.id === element.id)
@@ -631,8 +637,9 @@ export class ElementType extends Registerable {
             'element/getRootElements'
           ](sharedPage).filter(
             (element) =>
-              this.app.$registry.get('element', element.type).getPagePlace() ===
-              PAGE_PLACES.HEADER
+              this.app.$registry
+                .get('element', element.type)
+                .getPagePlace(element) === PAGE_PLACES.HEADER
           )
           if (headerElements.length) {
             previousElement = headerElements.at(-1)
@@ -663,8 +670,9 @@ export class ElementType extends Registerable {
             'element/getRootElements'
           ](sharedPage).filter(
             (element) =>
-              this.app.$registry.get('element', element.type).getPagePlace() ===
-              PAGE_PLACES.FOOTER
+              this.app.$registry
+                .get('element', element.type)
+                .getPagePlace(element) === PAGE_PLACES.FOOTER
           )
           if (footerElements.length) {
             nextElement = footerElements[0]
@@ -962,8 +970,13 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
     return 'iconoir-square'
   }
 
+<<<<<<< HEAD
   get image() {
     return elementImageSimpleContainer
+=======
+  toPortal(element) {
+    return 'destination'
+>>>>>>> 0990d2b4e (Refactor SimpleContainer to support alignment and behaviour)
   }
 
   get component() {
@@ -974,6 +987,17 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
     return SimpleContainerElementForm
   }
 
+  getPagePlace(element) {
+    if (element?.behaviour === 'fixed') {
+      if (element?.alignment === 'top') {
+        return PAGE_PLACES.FIXED_HEADER
+      }
+    }
+    return PAGE_PLACES.CONTENT
+  }
+
+  // We want this element to be as neutral as possible so there is no padding by
+  // default.
   getDefaultValues(page, values) {
     const superValues = super.getDefaultValues(page, values)
     return {
@@ -2139,7 +2163,7 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     return MultiPageContainerElementForm
   }
 
-  getPagePlace() {
+  getPagePlace(element) {
     return PAGE_PLACES.HEADER
   }
 
@@ -2206,7 +2230,7 @@ export class FooterElementType extends HeaderElementType {
     return 'layoutElement'
   }
 
-  getPagePlace() {
+  getPagePlace(element) {
     return PAGE_PLACES.FOOTER
   }
 
