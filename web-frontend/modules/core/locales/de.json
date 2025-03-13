@@ -607,7 +607,7 @@
         "title": "Sitzung abgelaufen"
     },
     "restoreToast": {
-        "restore": "Gelöschten {type} wiederherstellen"
+        "restore": "{type} (gelöscht) wiederherstellen"
     },
     "copyingToast": {
         "title": "Kopieren...",
