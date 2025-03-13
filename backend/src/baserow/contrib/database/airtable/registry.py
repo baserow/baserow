@@ -3,10 +3,15 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from baserow_premium.views.decorator_types import LeftBorderColorDecoratorType
 from baserow_premium.views.decorator_value_provider_types import (
     SelectColorValueProviderType,
+    ConditionalColorValueProviderType,
 )
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
-from baserow.contrib.database.airtable.constants import AIRTABLE_ASCENDING_MAP
+from baserow.contrib.database.airtable.constants import (
+    AIRTABLE_ASCENDING_MAP,
+    AIRTABLE_RATING_COLOR_MAPPING,
+    AIRTABLE_BASEROW_COLOR_MAPPING,
+)
 from baserow.contrib.database.airtable.exceptions import (
     AirtableSkipCellValue,
     AirtableSkipFilter,
@@ -544,7 +549,81 @@ class AirtableViewType(Instance):
         raw_airtable_view_data,
         import_report,
     ):
-        return None
+        color_config = raw_airtable_view_data["colorConfig"]
+        color_definitions = color_config["colorDefinitions"]
+        default_color = AIRTABLE_BASEROW_COLOR_MAPPING.get(
+            color_config.get("defaultColor", ""),
+            "",
+        )
+        baserow_colors = []
+
+        for color_definition in color_definitions:
+            filters, filter_groups = self.get_filters(
+                field_mapping,
+                row_id_mapping,
+                raw_airtable_view,
+                raw_airtable_table,
+                import_report,
+                color_definition,
+            )
+            # Pop the first group because that shouldn't in Baserow, and the type is
+            # defined on the view.
+            root_group = filter_groups.pop(0)
+            color = AIRTABLE_BASEROW_COLOR_MAPPING.get(
+                color_definition.get("color", ""),
+                "blue",
+            )
+            baserow_colors.append(
+                {
+                    "filter_groups": [
+                        {
+                            "id": filter_group.id,
+                            "filter_type": filter_group.filter_type,
+                            "parent_group": (
+                                None
+                                if filter_group.parent_group_id == root_group.id
+                                else filter_group.parent_group_id
+                            ),
+                        }
+                        for filter_group in filter_groups
+                    ],
+                    "filters": [
+                        {
+                            "id": filter_object.id,
+                            "type": filter_object.type,
+                            "field": filter_object.field_id,
+                            "group": (
+                                None
+                                if filter_object.group_id == root_group.id
+                                else filter_object.group_id
+                            ),
+                            "value": filter_object.value,
+                        }
+                        for filter_object in filters
+                    ],
+                    "operator": root_group.filter_type,
+                    "color": color,
+                }
+            )
+
+        if default_color != "":
+            baserow_colors.append(
+                {
+                    "filter_groups": [],
+                    "filters": [],
+                    "operator": "AND",
+                    "color": default_color,
+                }
+            )
+
+        return ViewDecoration(
+            id=f"{raw_airtable_view['id']}_decoration",
+            view_id=raw_airtable_view["id"],
+            type=LeftBorderColorDecoratorType.type,
+            value_provider_type=ConditionalColorValueProviderType.type,
+            value_provider_conf={"colors": baserow_colors},
+            order=1,
+        )
 
     def get_decorations(
         self,
