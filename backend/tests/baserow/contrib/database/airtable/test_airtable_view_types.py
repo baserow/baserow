@@ -563,7 +563,7 @@ def test_import_grid_view_color_config_select_column_not_existing_column():
             field_object["baserow_field"]
         )
 
-    view_data["colorConfig"] = RAW_VIEW_COLOR_CONFIG_SELECT_COLUMN
+    view_data["colorConfig"] = deepcopy(RAW_VIEW_COLOR_CONFIG_SELECT_COLUMN)
     view_data["colorConfig"]["selectColumnId"] = "fld123"
 
     airtable_view_type = airtable_view_type_registry.get("grid")
@@ -612,9 +612,7 @@ def test_import_grid_view_color_config_select_column():
             "id": "viwcpYeEpAs6kZspktV_decoration",
             "type": "left_border_color",
             "value_provider_type": "single_select_color",
-            "value_provider_conf": {
-                "field_id": "fldwSc9PqedIhTSqhi1"
-            },
-            "order": 1
+            "value_provider_conf": {"field_id": "fldwSc9PqedIhTSqhi1"},
+            "order": 1,
         }
     ]
