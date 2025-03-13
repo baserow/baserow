@@ -1,5 +1,16 @@
 <template>
   <div class="page">
+    <div class="page__sticky-header">
+      <PageElement
+        v-for="element in fixedHeaderElements"
+        :key="element.id"
+        :element="element"
+        :mode="mode"
+        :application-context-additions="{
+          recordIndexPath: [],
+        }"
+      />
+    </div>
     <PageElement
       v-for="element in headerElements"
       :key="element.id"
@@ -10,7 +21,7 @@
       }"
     />
     <PageElement
-      v-for="element in elements"
+      v-for="element in contentElements"
       :key="element.id"
       :element="element"
       :mode="mode"
@@ -59,17 +70,31 @@ export default {
     },
   },
   computed: {
+    fixedHeaderElements() {
+      return [...this.elements, ...this.sharedElements].filter(
+        (element) =>
+          this.$registry.get('element', element.type).getPagePlace(element) ===
+          PAGE_PLACES.FIXED_HEADER
+      )
+    },
+    contentElements() {
+      return [...this.elements].filter(
+        (element) =>
+          this.$registry.get('element', element.type).getPagePlace(element) ===
+          PAGE_PLACES.CONTENT
+      )
+    },
     headerElements() {
       return this.sharedElements.filter(
         (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
+          this.$registry.get('element', element.type).getPagePlace(element) ===
           PAGE_PLACES.HEADER
       )
     },
     footerElements() {
       return this.sharedElements.filter(
         (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
+          this.$registry.get('element', element.type).getPagePlace(element) ===
           PAGE_PLACES.FOOTER
       )
     },

@@ -361,7 +361,7 @@ export default {
         { includeSelf: true }
       )[0]
       const rootElementType = this.$registry.get('element', rootElement.type)
-      const pagePlace = rootElementType.getPagePlace()
+      const pagePlace = rootElementType.getPagePlace(rootElement)
 
       this.$refs.addElementModal.show({
         placeInContainer: this.element.place_in_container,

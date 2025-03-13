@@ -14,6 +14,22 @@
         @keydown="handleKeyDown"
       >
         <ThemeProvider class="page">
+          <div class="page__sticky-header">
+            <ElementPreview
+              v-for="(element, index) in fixedHeaderElements"
+              :key="element.id"
+              :element="element"
+              :is-first-element="
+                index === 0 &&
+                fixedHeaderElements.length === 0 &&
+                elements.length === 0
+              "
+              :is-copying="copyingElementIndex === index"
+              :application-context-additions="contextAdditions"
+              :show-element-id="showElementId"
+              @move="moveElement($event)"
+            />
+          </div>
           <template v-if="headerElements.length !== 0">
             <header
               class="page__header"
@@ -60,7 +76,7 @@
               }"
             >
               <ElementPreview
-                v-for="(element, index) in elements"
+                v-for="(element, index) in contentElements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="index === 0 && headerElements.length === 0"
@@ -188,17 +204,31 @@ export default {
     sharedElements() {
       return this.$store.getters['element/getRootElements'](this.sharedPage)
     },
+    fixedHeaderElements() {
+      return [...this.elements, ...this.sharedElements].filter(
+        (element) =>
+          this.$registry.get('element', element.type).getPagePlace(element) ===
+          PAGE_PLACES.FIXED_HEADER
+      )
+    },
+    contentElements() {
+      return [...this.elements].filter(
+        (element) =>
+          this.$registry.get('element', element.type).getPagePlace(element) ===
+          PAGE_PLACES.CONTENT
+      )
+    },
     headerElements() {
       return this.sharedElements.filter(
         (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
+          this.$registry.get('element', element.type).getPagePlace(element) ===
           PAGE_PLACES.HEADER
       )
     },
     footerElements() {
       return this.sharedElements.filter(
         (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
+          this.$registry.get('element', element.type).getPagePlace(element) ===
           PAGE_PLACES.FOOTER
       )
     },
@@ -227,7 +257,7 @@ export default {
             return (
               this.$registry
                 .get('element', parentElement.type)
-                .getPagePlace() !== PAGE_PLACES.CONTENT
+                .getPagePlace(parentElement) !== PAGE_PLACES.CONTENT
             )
           },
         }
@@ -235,7 +265,7 @@ export default {
 
       return this.$registry
         .get('element', ancestorWithPagePlace.type)
-        .getPagePlace()
+        .getPagePlace(ancestorWithPagePlace)
     },
     elementsAround() {
       if (!this.elementSelected) {

@@ -62,6 +62,8 @@ from baserow.contrib.builder.elements.models import (
     NavigationElementMixin,
     RatingElement,
     RatingInputElement,
+    PageAlignments,
+    PageBehaviours,
     RecordSelectorElement,
     RepeatElement,
     SimpleContainerElement,
@@ -284,14 +286,37 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
 
 
 class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
+    """
+    A container element that can optionally be aligned to a specific side
+    of the page.
+    """
+
     type = "simple_container"
     model_class = SimpleContainerElement
 
     class SerializedDict(ContainerElementTypeMixin.SerializedDict):
-        pass
+        alignment: str
+        behaviour: str
+
+    @property
+    def serializer_field_names(self):
+        return super().serializer_field_names + [
+            "alignment",
+            "behaviour",
+        ]
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + [
+            "alignment",
+            "behaviour",
+        ]
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
-        return {}
+        return {
+            "behaviour": PageBehaviours.NORMAL,
+            "alignment": PageAlignments.TOP,
+        }
 
 
 class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
