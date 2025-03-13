@@ -68,7 +68,7 @@ from baserow.core.mixins import (
     TrashableModelMixin,
 )
 from baserow.core.telemetry.utils import baserow_trace
-from baserow.core.utils import split_comma_separated_string
+from baserow.core.utils import are_kwargs_default, split_comma_separated_string
 
 extract_filter_sections_regex = re.compile(r"filter__(.+)__(.+)$")
 field_id_regex = re.compile(r"field_(\d+)$")
@@ -975,7 +975,19 @@ class Table(
         return f"{USER_TABLE_DATABASE_NAME_PREFIX}{self.id}"
 
     @baserow_trace(tracer)
-    def get_model(
+    def get_model(self, **kwargs):
+        """
+        Get model from local cache if the kwargs are the default values.
+        See `_get_model` doc for more information.
+        """
+
+        if are_kwargs_default(self._get_model, **kwargs):
+            return local_cache.get(
+                f"database_table_model_{self.id}", lambda: self._get_model(**kwargs)
+            )
+        return self._get_model(**kwargs)
+
+    def _get_model(
         self,
         fields=None,
         field_ids=None,
@@ -1108,9 +1120,10 @@ class Table(
         )
 
         if use_cache:
-            # Execute the callback only if this table hasn't been refreshed yet
+            # We don't need to refresh the version if it has already been refreshed for
+            # this session.
             local_cache.get(
-                f"database_table_{self.id}_already_refreshed",
+                f"database_table_model_{self.id}_refreshed",
                 lambda: self.refresh_from_db(fields=["version"]),
             )
             field_attrs = get_cached_model_field_attrs(self)

@@ -17,6 +17,7 @@ from baserow.contrib.database.fields.tasks import (
 )
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
+from baserow.core.cache import local_cache
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -175,7 +176,8 @@ def test_run_periodic_field_type_update_per_workspace(data_fixture, settings):
     )
 
     with freeze_time("2023-02-27 10:30"):
-        run_periodic_fields_updates(workspace_id=workspace.id)
+        with local_cache.context():
+            run_periodic_fields_updates(workspace_id=workspace.id)
 
         row.refresh_from_db()
         assert getattr(row, f"field_{field.id}") == datetime(
@@ -219,7 +221,8 @@ def test_run_field_type_updates_dependant_fields(data_fixture, settings):
     )
 
     with freeze_time("2023-02-27 10:45"):
-        run_periodic_fields_updates(workspace_id=workspace.id)
+        with local_cache.context():
+            run_periodic_fields_updates(workspace_id=workspace.id)
 
         row.refresh_from_db()
         assert getattr(row, f"field_{field.id}") == datetime(
@@ -333,7 +336,8 @@ def test_one_formula_failing_doesnt_block_others(data_fixture, settings):
     assert getattr(row, f"field_{working_other_formula.id}") == now
     assert getattr(row_2, f"field_{broken_first_formula.id}") == a_day_ago
 
-    run_periodic_fields_updates()
+    with local_cache.context():
+        run_periodic_fields_updates()
 
     row_2.refresh_from_db()
     # It didn't get refreshed
@@ -571,7 +575,7 @@ def test_link_row_fields_deps_are_excluded_from_periodic_updates(data_fixture):
             None, table_a, {link_a_to_b.db_column: [row_b.id]}
         )
 
-    with freeze_time("2023-01-02"):
+    with freeze_time("2023-01-02"), local_cache.context():
         run_periodic_fields_updates()
 
     row_a.refresh_from_db()

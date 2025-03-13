@@ -9,6 +9,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 
 
@@ -1084,6 +1085,7 @@ def test_link_row_field_can_be_sorted_when_linking_an_ai_field(premium_data_fixt
     )
 
     model_a = table_a.get_model()
+
     RowHandler().force_create_rows(
         user,
         table_a,
@@ -1106,10 +1108,12 @@ def test_link_row_field_can_be_sorted_when_linking_an_ai_field(premium_data_fixt
         ai_output_type="text",
     )
 
-    model_a = table_a.get_model()
-    result = list(
-        model_a.objects.all()
-        .order_by_fields_string(f"-{link_field.db_column}")  # Descending order
-        .values_list("id", flat=True)
-    )
+    with local_cache.context():  # After updating the field we want to get the new model
+        model_a = table_a.get_model()
+
+        result = list(
+            model_a.objects.all()
+            .order_by_fields_string(f"-{link_field.db_column}")  # Descending order
+            .values_list("id", flat=True)
+        )
     assert result == [row_b2.id, row_b1.id]
