@@ -85,7 +85,6 @@ import {
   PhoneNumberFieldType,
   AutonumberFieldType,
 } from '@baserow/modules/database/fieldTypes'
-import { FF_DASHBOARDS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -302,11 +301,9 @@ export default (context) => {
     new PeriodicIntervalFieldsConfigureDataSyncType(context)
   )
 
-  if (app.$featureFlagIsEnabled(FF_DASHBOARDS)) {
-    app.$registry.register('dashboardWidget', new ChartWidgetType(context))
-    app.$registry.register(
-      'chartFieldFormatting',
-      new SingleSelectFormattingType(context)
-    )
-  }
+  app.$registry.register('dashboardWidget', new ChartWidgetType(context))
+  app.$registry.register(
+    'chartFieldFormatting',
+    new SingleSelectFormattingType(context)
+  )
 }

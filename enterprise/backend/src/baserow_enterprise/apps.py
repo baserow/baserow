@@ -3,8 +3,6 @@ from django.db.models.signals import post_migrate
 
 from tqdm import tqdm
 
-from baserow.core.feature_flags import FF_DASHBOARDS, feature_flag_is_enabled
-
 
 class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
@@ -263,11 +261,10 @@ class BaserowEnterpriseConfig(AppConfig):
             LocalBaserowGroupedAggregateRowsUserServiceType,
         )
 
-        if feature_flag_is_enabled(FF_DASHBOARDS):
-            service_type_registry.register(
-                LocalBaserowGroupedAggregateRowsUserServiceType()
-            )
-            widget_type_registry.register(ChartWidgetType())
+        service_type_registry.register(
+            LocalBaserowGroupedAggregateRowsUserServiceType()
+        )
+        widget_type_registry.register(ChartWidgetType())
 
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
