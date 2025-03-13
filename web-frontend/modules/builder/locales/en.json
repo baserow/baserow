@@ -348,7 +348,8 @@
   },
   "domainCard": {
     "refresh": "Refresh settings",
-    "detailLabel": "Show details"
+    "detailLabel": "Show details",
+    "unpublishedDomainWarning": "Please publish the application to make it available on this domain."
   },
   "domainTypes": {
     "customName": "Custom domain",
