@@ -323,14 +323,16 @@ export default {
       return aggType.getName()
     },
     changeTableId(tableId) {
-      this.values.table_id = tableId
-      this.values.view_id = null
-      this.values.aggregation_series = [
-        { field_id: null, aggregation_type: '' },
-      ]
-      this.values.aggregation_group_bys = []
-      this.values.aggregation_sorts = []
-      this.v$.values.table_id.$touch()
+      if (this.values.table_id !== tableId) {
+        this.values.table_id = tableId
+        this.values.view_id = null
+        this.values.aggregation_series = [
+          { field_id: null, aggregation_type: '' },
+        ]
+        this.values.aggregation_group_bys = []
+        this.values.aggregation_sorts = []
+        this.v$.values.table_id.$touch()
+      }
     },
     async addSeries() {
       this.setEmitValues(false)
