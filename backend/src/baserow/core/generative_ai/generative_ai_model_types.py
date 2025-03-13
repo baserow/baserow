@@ -129,15 +129,11 @@ class OpenAIGenerativeAIModelType(
                 {"file_id": file_id, "tools": [{"type": "file_search"}]}
                 for file_id in file_ids
             ]
-            kwargs = {}
-            if temperature:
-                kwargs["temperature"] = temperature
             message = client.beta.threads.messages.create(
                 thread_id=thread.id,
                 role="user",
                 content=prompt,
                 attachments=attachments,
-                **kwargs,
             )
             run = client.beta.threads.runs.create_and_poll(
                 thread_id=thread.id,
