@@ -14,11 +14,12 @@
           :key="domain.id"
           class="publish-action-modal__container"
         >
-          <Radio v-model="selectedDomain" :value="domain.id">
+          <Radio v-model="selectedDomainId" :value="domain.id">
             <span class="publish-action-modal__domain-name">{{
               domain.domain_name
             }}</span>
             <a
+              v-if="domain.last_published"
               v-tooltip="$t('action.copyToClipboard')"
               class="publish-action-modal__copy-domain"
               tooltip-position="top"
@@ -30,6 +31,7 @@
               <Copied ref="domainCopied" />
             </a>
             <a
+              v-if="domain.last_published"
               v-tooltip="$t('publishActionModal.openInNewTab')"
               tooltip-position="top"
               class="publish-action-modal__domain-link"
@@ -54,6 +56,11 @@
         $t('publishActionModal.publishSucceedTitle')
       }}</template>
       <p>{{ $t('publishActionModal.publishSucceedDescription') }}</p>
+      <template #actions>
+        <Button tag="a" :href="getDomainUrl(selectedDomain)" target="_blank">{{
+          $t('publishActionModal.publishSucceedLink')
+        }}</Button>
+      </template>
     </Alert>
 
     <div class="modal-progress__actions">
@@ -64,13 +71,23 @@
       />
       <div class="align-right">
         <Button
+          v-if="domains.length"
           size="large"
           :loading="jobIsRunning || loading"
-          :disabled="loading || jobIsRunning || !selectedDomain"
+          :disabled="loading || jobIsRunning || !selectedDomainId"
           @click="publishSite()"
         >
           {{ $t('publishActionModal.publish') }}
         </Button>
+        <Button v-else tag="a" @click="openDomainSettings">{{
+          $t('publishActionModal.addDomain')
+        }}</Button>
+        <BuilderSettingsModal
+          ref="domainSettingsModal"
+          hide-after-create
+          :builder="builder"
+          :selected-type="DomainsBuilderSettingsType.getType()"
+        />
       </div>
     </div>
   </Modal>
@@ -85,10 +102,12 @@ import PublishedDomainService from '@baserow/modules/builder/services/publishedB
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import LastPublishedDomainDate from '@baserow/modules/builder/components/domain/LastPublishedDomainDate'
+import BuilderSettingsModal from '@baserow/modules/builder/components/settings/BuilderSettingsModal'
+import { DomainsBuilderSettingsType } from '@baserow/modules/builder/builderSettingTypes'
 
 export default {
   name: 'PublishActionModal',
-  components: { LastPublishedDomainDate },
+  components: { BuilderSettingsModal, LastPublishedDomainDate },
   mixins: [modal, error, jobProgress],
   props: {
     builder: {
@@ -97,14 +116,25 @@ export default {
     },
   },
   data() {
-    return { selectedDomain: null, loading: false }
+    return { selectedDomainId: null, loading: false }
   },
   computed: {
+    DomainsBuilderSettingsType() {
+      return DomainsBuilderSettingsType
+    },
     ...mapGetters({ domains: 'domain/getDomains' }),
+    selectedDomain() {
+      return this.domains.find((domain) => domain.id === this.selectedDomainId)
+    },
   },
   watch: {
-    selectedDomain() {
+    selectedDomainId() {
       this.job = null
+    },
+    domains() {
+      if (!this.selectedDomainId) {
+        this.selectedDomainId = this.domains.length ? this.domains[0].id : null
+      }
     },
   },
   beforeDestroy() {
@@ -119,7 +149,7 @@ export default {
       this.hideError()
       this.job = null
       this.loading = false
-      this.selectedDomain = null
+      this.selectedDomainId = null
       try {
         await this.actionFetchDomains({ builderId: this.builder.id })
         this.hideError()
@@ -131,7 +161,7 @@ export default {
       this.loading = true
       this.hideError()
       const { data: job } = await PublishedDomainService(this.$client).publish({
-        id: this.selectedDomain,
+        id: this.selectedDomainId,
       })
 
       this.startJobPoller(job)
@@ -145,7 +175,7 @@ export default {
     },
     onJobDone() {
       this.actionForceUpdateDomain({
-        domainId: this.selectedDomain,
+        domainId: this.selectedDomainId,
         values: { last_published: new Date() },
       })
       this.loading = false
@@ -168,6 +198,12 @@ export default {
         return this.$t('publishActionModal.importingState')
       }
       return ''
+    },
+    openDomainSettings() {
+      // Open the builder settings modal, which is instructed to select the domain
+      // settings instance first, and pass `displaySelectedSettingForm=true` into
+      // `show` so that the 'create' form is immediately presented.
+      this.$refs.domainSettingsModal.show(true)
     },
   },
 }

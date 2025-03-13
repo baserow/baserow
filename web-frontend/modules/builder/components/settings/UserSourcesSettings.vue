@@ -1,13 +1,13 @@
 <template>
   <!-- Show user source list -->
   <div
-    v-if="!showCreateForm && editedUserSource === null"
+    v-if="!showForm && editedUserSource === null"
     class="user-sources-settings"
   >
     <h2 class="box__title">{{ $t('userSourceSettings.titleOverview') }}</h2>
     <Error :error="error"></Error>
     <div v-if="!error.visible" class="actions actions--right">
-      <Button icon="iconoir-plus" @click="showForm()">
+      <Button icon="iconoir-plus" @click="displayForm()">
         {{ $t('userSourceSettings.addUserSource') }}
       </Button>
     </div>
@@ -26,7 +26,7 @@
         style="flex: 1"
       />
       <div class="user-source-settings__user-source-actions">
-        <ButtonIcon icon="iconoir-edit" @click="showForm(userSource)" />
+        <ButtonIcon icon="iconoir-edit" @click="displayForm(userSource)" />
         <ButtonIcon icon="iconoir-bin" @click="deleteUserSource(userSource)" />
       </div>
     </div>
@@ -116,23 +116,18 @@ import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import CreateUserSourceForm from '@baserow/modules/builder/components/userSource/CreateUserSourceForm'
 import UpdateUserSourceForm from '@baserow/modules/builder/components/userSource/UpdateUserSourceForm'
+import builderSetting from '@baserow/modules/builder/components/settings/mixins/builderSetting'
 
 export default {
   name: 'UserSourceSettings',
   components: { CreateUserSourceForm, UpdateUserSourceForm },
-  mixins: [error],
+  mixins: [error, builderSetting],
   provide() {
     return { builder: this.builder }
   },
-  props: {
-    builder: {
-      type: Object,
-      required: true,
-    },
-  },
   data() {
     return {
-      showCreateForm: false,
+      showForm: false,
       editedUserSource: null,
       actionInProgress: false,
       invalidForm: true,
@@ -144,9 +139,6 @@ export default {
     },
     userSources() {
       return this.$store.getters['userSource/getUserSources'](this.builder)
-    },
-    userSourceTypes() {
-      return this.$registry.getAll('userSource')
     },
   },
   async mounted() {
@@ -174,17 +166,17 @@ export default {
     onValueChange() {
       this.invalidForm = !this.$refs.userSourceForm.isFormValid()
     },
-    async showForm(userSourceToEdit) {
+    async displayForm(userSourceToEdit) {
       if (userSourceToEdit) {
         this.editedUserSource = userSourceToEdit
       } else {
-        this.showCreateForm = true
+        this.showForm = true
       }
       await this.$nextTick()
       this.onValueChange()
     },
     hideForm() {
-      this.showCreateForm = false
+      this.showForm = false
       this.editedUserSource = null
       this.hideError()
       this.invalidForm = true
@@ -202,6 +194,7 @@ export default {
         this.hideForm()
         // immediately select this user source to edit it.
         this.editedUserSource = createdUserSource
+        this.hideModalIfRequired()
       } catch (error) {
         this.handleError(error)
       }

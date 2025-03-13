@@ -65,11 +65,13 @@
     "publish": "Publish",
     "publishSucceedTitle": "Site published",
     "publishSucceedDescription": "The site has been successfully published.",
+    "publishSucceedLink": "View site",
     "publishFailedTitle": "Site publishing failed",
     "publishFailedDescription": "The site publishing has failed. Please try again later.",
     "openInNewTab": "Open in a new tab",
     "importingState": "Importing",
-    "noDomain": "You need to have at least one domain in order to publish your application."
+    "noDomain": "You need to have at least one domain in order to publish your application.",
+    "addDomain": "Add domain"
   },
   "lastPublishedDomainDate": {
     "neverPublished": "never",
