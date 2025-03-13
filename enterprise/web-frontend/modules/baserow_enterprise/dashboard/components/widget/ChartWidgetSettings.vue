@@ -1,6 +1,6 @@
 <template>
   <GroupedAggregateRowsDataSourceForm
-    v-if="dataSource"
+    v-if="dataSource && integration"
     ref="dataSourceForm"
     :dashboard="dashboard"
     :widget="widget"
