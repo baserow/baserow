@@ -178,7 +178,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     )
                 else:
                     # It is still possible to have multiple undefined series
-                    if series_aggregation_reference != "field_None_":
+                    if agg_series["field_id"] and agg_series["aggregation_type"]:
                         series_agg_used.add(series_aggregation_reference)
 
                 return True
@@ -581,7 +581,8 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     f"aggregation type {agg_series.aggregation_type} can only be defined once."
                 )
             else:
-                series_agg_used.add(series_aggregation_reference)
+                if agg_series.field and agg_series.aggregation_type:
+                    series_agg_used.add(series_aggregation_reference)
 
             combined_agg_dict |= agg_type._get_aggregation_dict(
                 queryset, model_field, agg_series.field, include_agg_type=True
