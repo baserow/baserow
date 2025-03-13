@@ -26,14 +26,7 @@
       </ul>
     </template>
     <template v-if="settingSelected" #content>
-      <component
-        :is="settingSelected.component"
-        ref="settingSelected"
-        :builder="builder"
-        :hide-after-create="hideAfterCreate"
-        :force-display-form="displaySelectedSettingForm"
-        @hide-modal="hide()"
-      ></component>
+      <component :is="settingSelected.component" :builder="builder"></component>
     </template>
   </Modal>
 </template>
