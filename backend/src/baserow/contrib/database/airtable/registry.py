@@ -2,14 +2,13 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from baserow_premium.views.decorator_types import LeftBorderColorDecoratorType
 from baserow_premium.views.decorator_value_provider_types import (
-    SelectColorValueProviderType,
     ConditionalColorValueProviderType,
+    SelectColorValueProviderType,
 )
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.constants import (
     AIRTABLE_ASCENDING_MAP,
-    AIRTABLE_RATING_COLOR_MAPPING,
     AIRTABLE_BASEROW_COLOR_MAPPING,
 )
 from baserow.contrib.database.airtable.exceptions import (
@@ -507,14 +506,14 @@ class AirtableViewType(Instance):
 
     def get_select_column_decoration(
         self,
-        field_mapping,
-        view_type,
-        row_id_mapping,
-        raw_airtable_table,
-        raw_airtable_view,
-        raw_airtable_view_data,
-        import_report,
-    ):
+        field_mapping: dict,
+        view_type: ViewType,
+        row_id_mapping: Dict[str, Dict[str, int]],
+        raw_airtable_table: dict,
+        raw_airtable_view: dict,
+        raw_airtable_view_data: dict,
+        import_report: AirtableImportReport,
+    ) -> Optional[ViewDecoration]:
         color_config = raw_airtable_view_data["colorConfig"]
         select_column_id = color_config["selectColumnId"]
 
@@ -541,14 +540,14 @@ class AirtableViewType(Instance):
 
     def get_color_definitions_decoration(
         self,
-        field_mapping,
-        view_type,
-        row_id_mapping,
-        raw_airtable_table,
-        raw_airtable_view,
-        raw_airtable_view_data,
-        import_report,
-    ):
+        field_mapping: dict,
+        view_type: ViewType,
+        row_id_mapping: Dict[str, Dict[str, int]],
+        raw_airtable_table: dict,
+        raw_airtable_view: dict,
+        raw_airtable_view_data: dict,
+        import_report: AirtableImportReport,
+    ) -> Optional[ViewDecoration]:
         color_config = raw_airtable_view_data["colorConfig"]
         color_definitions = color_config["colorDefinitions"]
         default_color = AIRTABLE_BASEROW_COLOR_MAPPING.get(
@@ -627,16 +626,16 @@ class AirtableViewType(Instance):
 
     def get_decorations(
         self,
-        field_mapping,
-        view_type,
-        row_id_mapping,
-        raw_airtable_table,
-        raw_airtable_view,
-        raw_airtable_view_data,
-        import_report,
-    ):
+        field_mapping: dict,
+        view_type: ViewType,
+        row_id_mapping: Dict[str, Dict[str, int]],
+        raw_airtable_table: dict,
+        raw_airtable_view: dict,
+        raw_airtable_view_data: dict,
+        import_report: AirtableImportReport,
+    ) -> List[ViewDecoration]:
         """
-        @TODO
+        Converts the raw Airtable color config into matching Baserow view decorations.
         """
 
         color_config = raw_airtable_view_data.get("colorConfig", None)
