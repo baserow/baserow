@@ -83,6 +83,7 @@
       <div class="margin-bottom-2"></div>
       <AggregationSeriesForm
         v-for="(series, index) in values.aggregation_series"
+        ref="aggregationSeriesForms"
         :key="index"
         :table-fields="tableFields"
         :aggregation-series="values.aggregation_series"
@@ -348,13 +349,15 @@ export default {
     },
     async deleteSeries(index) {
       this.setEmitValues(false)
-      const updatedAggregationSeries = this.values.aggregation_series
-      updatedAggregationSeries.splice(index, 1)
+      this.values.aggregation_series.splice(index, 1)
+      await this.$nextTick()
+      this.$refs.aggregationSeriesForms.forEach((form) => form.reset())
       this.$emit('values-changed', {
-        aggregation_series: updatedAggregationSeries,
+        aggregation_series: this.values.aggregation_series,
       })
       await this.$nextTick()
       this.setEmitValues(true)
+      this.v$.$touch()
     },
     onAggregationSeriesUpdated(index, aggregationSeriesValues) {
       const updatedAggregationSeries = this.values.aggregation_series
