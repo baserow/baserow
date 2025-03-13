@@ -86,7 +86,7 @@
           ref="domainSettingsModal"
           hide-after-create
           :builder="builder"
-          :selected-type="DomainsBuilderSettingsType.getType()"
+          :selected-type="builderSettingsDomains"
         />
       </div>
     </div>
@@ -119,8 +119,8 @@ export default {
     return { selectedDomainId: null, loading: false }
   },
   computed: {
-    DomainsBuilderSettingsType() {
-      return DomainsBuilderSettingsType
+    builderSettingsDomains() {
+      return DomainsBuilderSettingsType.getType()
     },
     ...mapGetters({ domains: 'domain/getDomains' }),
     selectedDomain() {
