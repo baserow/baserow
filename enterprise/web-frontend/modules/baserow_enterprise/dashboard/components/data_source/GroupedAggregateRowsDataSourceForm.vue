@@ -77,11 +77,6 @@
     >
       <template #title-slot>
         <ButtonText
-          v-tooltip="
-            canAddSeries
-              ? null
-              : $t('groupedAggregateRowsDataSourceForm.maxSeriesReached')
-          "
           icon="iconoir-plus"
           type="secondary"
           :disabled="!canAddSeries"
