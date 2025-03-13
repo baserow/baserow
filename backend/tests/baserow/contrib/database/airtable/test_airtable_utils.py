@@ -289,6 +289,13 @@ def test_airtable_date_filter_value_to_baserow():
     )
 
 
+def test_airtable_date_string_filter_value_to_baserow():
+    assert (
+        airtable_date_filter_value_to_baserow("2025-02-05T00:00:00.000Z")
+        == "?2025-02-05?exact_date"
+    )
+
+
 def test_airtable_invalid_date_filter_value_to_baserow():
     with pytest.raises(KeyError):
         assert airtable_date_filter_value_to_baserow(
