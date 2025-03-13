@@ -88,10 +88,12 @@ export default {
   },
   computed: {
     targetFieldFormulaType() {
-      if (this.selectedTargetField) {
+      const targetField = this.selectedTargetField
+      if (targetField) {
         return (
-          this.selectedTargetField.array_formula_type ||
-          this.selectedTargetField.type
+          targetField.array_formula_type ||
+          targetField.formula_type ||
+          targetField.type
         )
       }
       return 'unknown'
