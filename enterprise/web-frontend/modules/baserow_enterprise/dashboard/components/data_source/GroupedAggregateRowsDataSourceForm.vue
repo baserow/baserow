@@ -76,9 +76,15 @@
       class="margin-bottom-2"
     >
       <template #title-slot>
-        <ButtonText icon="iconoir-plus" type="secondary" @click="addSeries">{{
-          $t('groupedAggregateRowsDataSourceForm.addSeries')
-        }}</ButtonText>
+        <ButtonText
+          icon="iconoir-plus"
+          type="secondary"
+          :disabled="!canAddSeries"
+          tooltip-position="bottom-left"
+          @click="addSeries"
+        >
+          {{ $t('groupedAggregateRowsDataSourceForm.addSeries') }}
+        </ButtonText>
       </template>
       <div class="margin-bottom-2"></div>
       <AggregationSeriesForm
@@ -259,6 +265,12 @@ export default {
         []
       )
       return seriesSortReferences.concat(groupBySortReferences)
+    },
+    canAddSeries() {
+      return (
+        this.values.aggregation_series.length <
+        this.$config.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES
+      )
     },
   },
   watch: {
