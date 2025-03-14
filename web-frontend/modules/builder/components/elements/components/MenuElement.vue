@@ -1,145 +1,92 @@
 <template>
   <div
-    :style="{
-      '--alignment': menuAlignment,
-    }"
     :class="[
-      'menu-element__container',
-      element.orientation === 'horizontal'
-        ? 'menu-element__container--horizontal'
-        : 'menu-element__container--vertical',
+      'menu-element__wrapper',
+      `menu-element__align-${element.alignment.toLowerCase()}`,
     ]"
   >
-    <div
-      v-for="item in element.menu_items"
-      :key="item.id"
-      :class="`menu-element__menu-item-${item.type}`"
-    >
-      <template v-if="item.type === 'link' && !item.parent_menu_item">
-        <div v-if="!item.children?.length" :style="getStyleOverride('menu')">
-          <ABLink
-            :variant="item.variant"
-            :url="getItemUrl(item)"
-            :target="getMenuItem(item).target"
-            :force-active="menuItemIsActive(item)"
+    <client-only>
+      <div
+        :style="{
+          '--alignment': menuAlignment,
+        }"
+        :class="menuContainerClass"
+      >
+        <template v-if="!useBurgerMenu">
+          <div
+            v-for="item in element.menu_items"
+            :key="item.id"
+            :class="`menu-element__menu-item-${item.type}`"
           >
-            {{
-              item.name
-                ? item.name ||
-                  (mode === 'editing'
-                    ? $t('menuElement.emptyLinkValue')
-                    : '&nbsp;')
-                : $t('menuElement.missingLinkValue')
-            }}
-          </ABLink>
-        </div>
-        <div
-          v-else
-          ref="menuSubLinkContainer"
-          @click="showSubMenu($event, item.id)"
-        >
-          <div :style="getStyleOverride('menu')">
-            <ABLink
-              :variant="item.variant"
-              url=""
-              :force-active="sublinkIsActive(item)"
-            >
-              <div class="menu-element__sub-link-menu--container">
-                {{ item.name }}
-                <div class="menu-element__sub-link-menu-spacer"></div>
-                <div>
-                  <i
-                    class="menu-element__sub-link--expanded-icon"
-                    :class="
-                      isExpanded(item.id)
-                        ? 'iconoir-nav-arrow-up'
-                        : 'iconoir-nav-arrow-down'
-                    "
-                  ></i>
-                </div>
-              </div>
-            </ABLink>
+            <MenuItem
+              :key="item.uid"
+              :menu-item="item"
+              :element="element"
+              :is-mobile-device="useBurgerMenu"
+            />
+          </div>
+        </template>
+
+        <template v-else>
+          <div
+            :class="[
+              'menu-element__burger-menu',
+              `menu-element__burger-menu-${element.alignment.toLowerCase()}`,
+            ]"
+          >
+            <i
+              :class="burgerMenuActive ? 'iconoir-cancel' : 'iconoir-menu'"
+              @click="burgerMenuActive = !burgerMenuActive"
+            ></i>
           </div>
 
-          <Context
-            :ref="`subLinkContext_${item.id}`"
-            :hide-on-click-outside="true"
-            @shown="toggleExpanded(item.id)"
-            @hidden="toggleExpanded(item.id)"
-          >
-            <ThemeProvider class="menu-element__sub-links">
-              <div
-                v-for="child in item.children"
-                :key="child.id"
-                :style="getStyleOverride('menu')"
-              >
-                <ABLink
-                  :variant="child.variant"
-                  :url="getItemUrl(child)"
-                  :target="getMenuItem(child).target"
-                  class="menu-element__sub-link"
-                  :force-active="menuItemIsActive(child)"
-                >
-                  {{
-                    child.name
-                      ? child.name ||
-                        (mode === 'editing'
-                          ? $t('menuElement.emptyLinkValue')
-                          : '&nbsp;')
-                      : $t('menuElement.missingLinkValue')
-                  }}
-                </ABLink>
-              </div>
-            </ThemeProvider>
-          </Context>
-        </div>
-      </template>
-      <template v-else-if="item.type === 'button'">
-        <ABButton
-          :style="getStyleOverride('menu')"
-          @click="onButtonClick(item)"
-        >
-          {{
-            item.name
-              ? item.name ||
-                (mode === 'editing'
-                  ? $t('menuElement.emptyButtonValue')
-                  : '&nbsp;')
-              : $t('menuElement.missingButtonValue')
-          }}
-        </ABButton>
-      </template>
-    </div>
+          <template v-if="burgerMenuActive">
+            <div
+              v-for="item in element.menu_items"
+              :key="item.id"
+              :class="`menu-element__menu-item-${item.type}`"
+            >
+              <MenuItem
+                :key="item.uid"
+                :menu-item="item"
+                :element="element"
+                :is-mobile-device="useBurgerMenu"
+              />
+            </div>
+          </template>
+        </template>
 
-    <div v-if="!element.menu_items.length" class="element--no-value">
-      {{ $t('menuElement.missingValue') }}
-    </div>
+        <div v-if="!element.menu_items.length" class="element--no-value">
+          {{ $t('menuElement.missingValue') }}
+        </div>
+      </div>
+    </client-only>
   </div>
 </template>
 
 <script>
-import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
 import element from '@baserow/modules/builder/mixins/element'
-import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
-import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
 import { HORIZONTAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
-
-/**
- * CSS classes to force a Link variant to appear as active.
- */
-const LINK_ACTIVE_CLASSES = {
-  link: 'ab-link--force-active',
-  button: 'ab-button--force-active',
-}
+import MenuItem from '@baserow/modules/builder/components/elements/components/MenuItem'
 
 /**
  * @typedef MenuElement
  * @property {Array}  menu_items Array of Menu items
+ *
+ *  The `MenuElement` supports two menu layouts for three device types:
+ *
+ * Expanded (normal) menu: Best for wider screens.
+ * Mobile (burger) menu: Ideal for smaller devices like smartphones and tablets.
+ *
+ * The menu type can be customized per device. Users can opt for the mobile burger
+ * menu even on `desktop`, or use the expanded menu across
+ * all three device types: `tablet`, `desktop`, and `smartphone`.
+ *
  */
 
 export default {
   name: 'MenuElement',
-  components: { ThemeProvider },
+  components: { MenuItem },
   mixins: [element],
   props: {
     element: {
@@ -149,24 +96,40 @@ export default {
   },
   data() {
     return {
-      expandedItems: {},
-      activeItem: {},
+      burgerMenuActive: false,
     }
   },
   computed: {
-    pages() {
-      return this.$store.getters['page/getVisiblePages'](this.builder)
-    },
-    menuElementType() {
-      return this.$registry.get('element', 'menu')
+    menuContainerClass() {
+      const classes = ['menu-element__container']
+      if (this.useBurgerMenu) {
+        classes.push('menu-element__container--burger')
+        if (this.burgerMenuActive) {
+          classes.push('menu-element__burger-active')
+        }
+      } else {
+        classes.push(`menu-element__container--${this.element.orientation}`)
+      }
+      return classes
     },
     menuAlignment() {
       const alignmentsCSS = {
         [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
-        [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
+        [HORIZONTAL_ALIGNMENTS.CENTER]: this.useBurgerMenu
+          ? 'flex-start'
+          : 'center',
         [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
       }
       return alignmentsCSS[this.element.alignment]
+    },
+    useBurgerMenu() {
+      const deviceType = this.$store.getters['page/getDeviceTypeSelected']
+      // If menu_type is defined for the current device, use it,
+      // otherwise fall back to the default behavior
+      if (this.element.menu_type && this.element.menu_type[deviceType]) {
+        return this.element.menu_type[deviceType] === 'mobile'
+      }
+      return deviceType === 'smartphone'
     },
   },
   mounted() {

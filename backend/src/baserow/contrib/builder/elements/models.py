@@ -59,6 +59,11 @@ class INPUT_TEXT_TYPES(models.TextChoices):
     PASSWORD = "password"  # nosec bandit B105
 
 
+class MENU_VARIANTS(models.TextChoices):
+    EXPANDED = "expanded"
+    COMPACT = "compact"
+
+
 def get_default_element_content_type():
     return ContentType.objects.get_for_model(Element)
 
@@ -82,6 +87,14 @@ def get_collection_field_config_formula_properties() -> List[str]:
     )
 
     return collect_json_formula_field_properties(collection_field_type_registry)
+
+
+def get_default_variant():
+    return {
+        "smartphone": MENU_VARIANTS.COMPACT,
+        "tablet": MENU_VARIANTS.COMPACT,
+        "desktop": MENU_VARIANTS.EXPANDED,
+    }
 
 
 class Element(
@@ -1111,6 +1124,13 @@ class MenuElement(Element):
         choices=HorizontalAlignments.choices,
         max_length=10,
         default=HorizontalAlignments.LEFT,
+    )
+
+    variant = models.JSONField(
+        blank=True,
+        default=get_default_variant,
+        db_default=get_default_variant(),
+        help_text="The menu variant (expanded or compact) for each device type",
     )
 
     menu_items = models.ManyToManyField(MenuItemElement)
