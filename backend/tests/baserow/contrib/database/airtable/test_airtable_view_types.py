@@ -6,6 +6,7 @@ import pytest
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.import_report import (
+    SCOPE_VIEW_COLOR,
     SCOPE_VIEW_GROUP_BY,
     SCOPE_VIEW_SORT,
     AirtableImportReport,
@@ -133,6 +134,62 @@ RAW_VIEW_DATA_GROUPS = [
         "emptyGroupState": "hidden",
     }
 ]
+RAW_VIEW_COLOR_CONFIG_SELECT_COLUMN = {
+    "type": "selectColumn",
+    "selectColumnId": "fldwSc9PqedIhTSqhi1",
+    "colorDefinitions": None,
+    "defaultColor": None,
+}
+RAW_VIEW_COLOR_CONFIG_COLOR_DEFINITIONS = {
+    "type": "colorDefinitions",
+    "colorDefinitions": [
+        {
+            "filterSet": [
+                {
+                    "id": "fltp2gabc8P91234f",
+                    "columnId": "fldwSc9PqedIhTSqhi1",
+                    "operator": "isNotEmpty",
+                    "value": None,
+                },
+                {
+                    "id": "flthuYL0uubbDF2Xy",
+                    "type": "nested",
+                    "conjunction": "and",
+                    "filterSet": [
+                        {
+                            "id": "flt70g1l245672xRi",
+                            "columnId": "fldwSc9PqedIhTSqhi1",
+                            "operator": "!=",
+                            "value": "test",
+                        },
+                        {
+                            "id": "fltVg238719fbIKqC",
+                            "columnId": "fldwSc9PqedIhTSqhi2",
+                            "operator": "!=",
+                            "value": "test2",
+                        },
+                        {
+                            "id": "flthuYL0uubbDF2Xz",
+                            "type": "nested",
+                            "conjunction": "or",
+                            "filterSet": [
+                                {
+                                    "id": "flt70g1l245672xRi",
+                                    "columnId": "fldwSc9PqedIhTSqhi1",
+                                    "operator": "!=",
+                                    "value": "test",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+            "conjunction": "or",
+            "color": "yellow",
+        }
+    ],
+    "defaultColor": "teal",
+}
 
 
 def test_import_grid_view():
@@ -507,4 +564,158 @@ def test_import_grid_view_filters_and_groups():
     ]
     assert serialized_view["filter_groups"] == [
         {"id": "flthuYL0uubbDF2Xy", "filter_type": "AND", "parent_group": None}
+    ]
+
+
+@pytest.mark.django_db
+def test_import_grid_view_color_config_select_column_not_existing_column():
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    field_mapping = deepcopy(FIELD_MAPPING)
+    for field_object in field_mapping.values():
+        field_object["baserow_field"].content_type = ContentType.objects.get_for_model(
+            field_object["baserow_field"]
+        )
+
+    view_data["colorConfig"] = deepcopy(RAW_VIEW_COLOR_CONFIG_SELECT_COLUMN)
+    view_data["colorConfig"]["selectColumnId"] = "fld123"
+
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        field_mapping,
+        ROW_ID_MAPPING,
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Grid view"
+    assert import_report.items[0].scope == SCOPE_VIEW_COLOR
+    assert import_report.items[0].table == "Data"
+
+
+@pytest.mark.django_db
+def test_import_grid_view_color_config_select_column():
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    field_mapping = deepcopy(FIELD_MAPPING)
+    for field_object in field_mapping.values():
+        field_object["baserow_field"].content_type = ContentType.objects.get_for_model(
+            field_object["baserow_field"]
+        )
+
+    view_data["colorConfig"] = RAW_VIEW_COLOR_CONFIG_SELECT_COLUMN
+
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        field_mapping,
+        ROW_ID_MAPPING,
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 0
+
+    assert serialized_view["decorations"] == [
+        {
+            "id": "viwcpYeEpAs6kZspktV_decoration",
+            "type": "left_border_color",
+            "value_provider_type": "single_select_color",
+            "value_provider_conf": {"field_id": "fldwSc9PqedIhTSqhi1"},
+            "order": 1,
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_import_grid_view_color_config_color_definitions():
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    field_mapping = deepcopy(FIELD_MAPPING)
+    for field_object in field_mapping.values():
+        field_object["baserow_field"].content_type = ContentType.objects.get_for_model(
+            field_object["baserow_field"]
+        )
+
+    view_data["colorConfig"] = RAW_VIEW_COLOR_CONFIG_COLOR_DEFINITIONS
+
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        field_mapping,
+        ROW_ID_MAPPING,
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 0
+
+    assert serialized_view["decorations"] == [
+        {
+            "id": "viwcpYeEpAs6kZspktV_decoration",
+            "type": "left_border_color",
+            "value_provider_type": "conditional_color",
+            "value_provider_conf": {
+                "colors": [
+                    {
+                        "filter_groups": [
+                            {
+                                "id": "flthuYL0uubbDF2Xy",
+                                "filter_type": "AND",
+                                "parent_group": None,
+                            },
+                            {
+                                "id": "flthuYL0uubbDF2Xz",
+                                "filter_type": "OR",
+                                "parent_group": "flthuYL0uubbDF2Xy",
+                            },
+                        ],
+                        "filters": [
+                            {
+                                "id": "fltp2gabc8P91234f",
+                                "type": "not_empty",
+                                "field": "fldwSc9PqedIhTSqhi1",
+                                "group": None,
+                                "value": "",
+                            },
+                            {
+                                "id": "flt70g1l245672xRi",
+                                "type": "not_equal",
+                                "field": "fldwSc9PqedIhTSqhi1",
+                                "group": "flthuYL0uubbDF2Xy",
+                                "value": "test",
+                            },
+                            {
+                                "id": "fltVg238719fbIKqC",
+                                "type": "not_equal",
+                                "field": "fldwSc9PqedIhTSqhi2",
+                                "group": "flthuYL0uubbDF2Xy",
+                                "value": "test2",
+                            },
+                            {
+                                "id": "flt70g1l245672xRi",
+                                "type": "not_equal",
+                                "field": "fldwSc9PqedIhTSqhi1",
+                                "group": "flthuYL0uubbDF2Xz",
+                                "value": "test",
+                            },
+                        ],
+                        "operator": "OR",
+                        "color": "light-yellow",
+                    },
+                    {
+                        "filter_groups": [],
+                        "filters": [],
+                        "operator": "AND",
+                        "color": "light-pink",
+                    },
+                ]
+            },
+            "order": 1,
+        }
     ]

@@ -25,17 +25,20 @@ SCOPE_VIEW_GROUP_BY = SelectOption(
 SCOPE_VIEW_FILTER = SelectOption(
     id="scope_view_filter", value="View filter", color="light-pink", order=6
 )
+SCOPE_VIEW_COLOR = SelectOption(
+    id="scope_view_color", value="View color", color="light-gray", order=7
+)
 SCOPE_VIEW_FIELD_OPTIONS = SelectOption(
     id="scope_view_field_options",
     value="View field options",
     color="light-purple",
-    order=7,
+    order=8,
 )
 SCOPE_AUTOMATIONS = SelectOption(
-    id="scope_automations", value="Automations", color="light-orange", order=8
+    id="scope_automations", value="Automations", color="light-orange", order=9
 )
 SCOPE_INTERFACES = SelectOption(
-    id="scope_interfaces", value="Interfaces", color="light-yellow", order=9
+    id="scope_interfaces", value="Interfaces", color="light-yellow", order=10
 )
 ALL_SCOPES = [
     SCOPE_FIELD,
@@ -44,6 +47,7 @@ ALL_SCOPES = [
     SCOPE_VIEW_SORT,
     SCOPE_VIEW_GROUP_BY,
     SCOPE_VIEW_FILTER,
+    SCOPE_VIEW_COLOR,
     SCOPE_AUTOMATIONS,
     SCOPE_INTERFACES,
 ]
