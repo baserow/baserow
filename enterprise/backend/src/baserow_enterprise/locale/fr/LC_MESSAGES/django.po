@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2023-01-26 15:50+0000\n"
-"PO-Revision-Date: 2023-03-07 19:25+0000\n"
-"Last-Translator: Jérémie Pardou-Piquemal <jrmi@jeremiez.net>\n"
+"PO-Revision-Date: 2025-03-15 23:01+0000\n"
+"Last-Translator: vuod <vuod@vivaldi.net>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/baserow/"
 "enterprise-backend/fr/>\n"
 "Language: fr\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 4.16.2-dev\n"
+"X-Generator: Weblate 5.11-dev\n"
 
 #: audit_log/job_types.py:143
 msgid "User Email"
@@ -48,8 +48,9 @@ msgid "Timestamp"
 msgstr "Heure"
 
 #: audit_log/job_types.py:150
+#, fuzzy
 msgid "IP Address"
-msgstr "Addresse IP"
+msgstr "Adresse IP"
 
 #: audit_log/models.py:30
 msgid "DONE"
@@ -64,8 +65,9 @@ msgid "REDONE"
 msgstr "Fait"
 
 #: role/actions.py:28
+#, fuzzy
 msgid "Assign multiple roles"
-msgstr "Assignation de roles"
+msgstr "Assignation de rôles"
 
 #: role/actions.py:29
 msgid "Multiple roles have been assigned"
