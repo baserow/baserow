@@ -565,7 +565,7 @@ class AirtableViewType(Instance):
                 import_report,
                 color_definition,
             )
-            # Pop the first group because that shouldn't in Baserow, and the type is
+            # Pop the first group because that shouldn't be in Baserow, and the type is
             # defined on the view.
             root_group = filter_groups.pop(0)
             color = AIRTABLE_BASEROW_COLOR_MAPPING.get(
@@ -707,7 +707,7 @@ class AirtableViewType(Instance):
                 import_report,
                 filters_object,
             )
-            # Pop the first group because that shouldn't in Baserow, and the type is
+            # Pop the first group because that shouldn't be in Baserow, and the type is
             # defined on the view.
             view.filter_type = filter_groups.pop(0).filter_type
 
@@ -776,7 +776,7 @@ class AirtableViewType(Instance):
         Note that the common properties like name, filters, sorts, etc are added by
         default depending on the Baserow view support for it.
 
-        :param field_mapping: @TODO
+        :param field_mapping: A dict containing all the imported fields.
         :param view: The view object that must be prepared.
         :param raw_airtable_table: The raw Airtable table data related to the column.
         :param raw_airtable_view: The raw Airtable view values that must be
