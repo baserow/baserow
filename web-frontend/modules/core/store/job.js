@@ -5,9 +5,27 @@ const FINISHED_STATES = ['finished', 'failed', 'cancelled']
 const STARTING_TIMEOUT_MS = 200
 const MAX_POLLING_ATTEMPTS = 100
 
+/**
+ * Calls job-type specific routine to enhance job object with any job-type specific
+ * properties. This may return `null` if job type is not registered.
+ *
+ * @param job
+ * @param registry
+ * @returns {*|null}
+ */
 export function populateJob(job, registry) {
-  const type = registry.get('job', job.type)
-  return type.populate(job)
+  try {
+    const type = registry.get('job', job.type)
+    return type.populate(job)
+  } catch (err) {
+    if (
+      err.message ===
+      `The type ${job.type} is not found under namespace job in the registry.`
+    ) {
+      return null
+    }
+    throw err
+  }
 }
 
 export const state = () => ({
@@ -207,8 +225,10 @@ export const actions = {
    * Forcefully create an item in the store without making a call to the server.
    */
   forceCreate({ commit }, job) {
-    populateJob(job, this.$registry)
-    commit('ADD_ITEM', job)
+    const item = populateJob(job, this.$registry)
+    if (item !== null) {
+      commit('ADD_ITEM', job)
+    }
   },
   /**
    * Forcefully update an item in the store without making a call to the server.
