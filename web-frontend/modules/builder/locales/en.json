@@ -592,6 +592,10 @@
     "size": "Font size",
     "weight": "Font weight"
   },
+  "linkDecorations": {
+    "normal": "Normal",
+    "plain": "Plain"
+  },
   "linkThemeConfigBlock": {
     "color": "Color",
     "link": "Link",
@@ -601,7 +605,8 @@
     "alignment": "Alignment",
     "fontFamily": "Font",
     "size": "Font size",
-    "weight": "Font weight"
+    "weight": "Font weight",
+    "decoration": "Decoration"
   },
   "inputThemeConfigBlock": {
     "label": "Label",

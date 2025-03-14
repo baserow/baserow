@@ -208,3 +208,8 @@ export const TIME_FORMATS = {
     example: '11:00 PM',
   },
 }
+
+export const LINK_DECORATIONS = {
+  NORMAL: 'normal',
+  PLAIN: 'plain',
+}
