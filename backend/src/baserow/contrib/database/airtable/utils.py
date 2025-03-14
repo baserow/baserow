@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from requests import Response
 
@@ -245,7 +245,7 @@ def quill_to_markdown(ops: list) -> str:
     return "".join(md_output).strip()
 
 
-def airtable_date_filter_value_to_baserow(value: Optional[dict]) -> str:
+def airtable_date_filter_value_to_baserow(value: Optional[Union[dict, str]]) -> str:
     """
     Converts the provided Airtable filter date value to the Baserow compatible date
     value string.
@@ -256,6 +256,15 @@ def airtable_date_filter_value_to_baserow(value: Optional[dict]) -> str:
 
     if value is None:
         return ""
+
+    # If the value is a string, then it contains an exact date. This is the old format
+    # of Airtable. In that case, we can conert it to the correct format.
+    if isinstance(value, str):
+        value = {
+            "mode": "exactDate",
+            "exactDate": value,
+            "timeZone": "",  # it's okay to leave the timezone empty in Baserow.
+        }
 
     mode = value["mode"]
     if "exactDate" in value:

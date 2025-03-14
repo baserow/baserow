@@ -458,6 +458,7 @@ class AirtableViewType(Instance):
         filters = []
         conjunction = filter_object.get("conjunction", None)
         filter_set = filter_object.get("filterSet", None)
+        column_id = filter_object.get("columnId", None)
 
         if conjunction and filter_set:
             # The filter_object is a nested structure, where if the `conjunction` and
@@ -488,7 +489,7 @@ class AirtableViewType(Instance):
                 filters.extend(child_filters)
 
             return filters, filter_groups
-        else:
+        elif column_id:
             baserow_filter = self.get_filter(
                 field_mapping,
                 row_id_mapping,
@@ -503,6 +504,8 @@ class AirtableViewType(Instance):
                 return [], []
             else:
                 return [baserow_filter], []
+
+        return [], []
 
     def get_select_column_decoration(
         self,
@@ -567,7 +570,8 @@ class AirtableViewType(Instance):
             )
             # Pop the first group because that shouldn't be in Baserow, and the type is
             # defined on the view.
-            root_group = filter_groups.pop(0)
+            if len(filter_groups) > 0:
+                root_group = filter_groups.pop(0)
             color = AIRTABLE_BASEROW_COLOR_MAPPING.get(
                 color_definition.get("color", ""),
                 "blue",
@@ -709,7 +713,8 @@ class AirtableViewType(Instance):
             )
             # Pop the first group because that shouldn't be in Baserow, and the type is
             # defined on the view.
-            view.filter_type = filter_groups.pop(0).filter_type
+            if len(filter_groups) > 0:
+                view.filter_type = filter_groups.pop(0).filter_type
 
         sorts = self.get_sorts(
             field_mapping,

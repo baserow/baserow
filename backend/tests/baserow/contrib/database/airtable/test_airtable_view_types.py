@@ -568,6 +568,35 @@ def test_import_grid_view_filters_and_groups():
 
 
 @pytest.mark.django_db
+def test_import_grid_view_empty_filters():
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    field_mapping = deepcopy(FIELD_MAPPING)
+    for field_object in field_mapping.values():
+        field_object["baserow_field"].content_type = ContentType.objects.get_for_model(
+            field_object["baserow_field"]
+        )
+
+    view_data["filters"] = {"filterSet": [], "conjunction": "and"}
+
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        field_mapping,
+        ROW_ID_MAPPING,
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        import_report,
+    )
+
+    assert serialized_view["filter_type"] == "AND"
+    assert serialized_view["filters_disabled"] is False
+    assert serialized_view["filters"] == []
+    assert serialized_view["filter_groups"] == []
+
+
+@pytest.mark.django_db
 def test_import_grid_view_color_config_select_column_not_existing_column():
     view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
     field_mapping = deepcopy(FIELD_MAPPING)
