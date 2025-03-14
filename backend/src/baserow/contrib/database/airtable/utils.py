@@ -81,9 +81,9 @@ def unknown_value_to_human_readable(value: Any) -> str:
         return ""
     if isinstance(value, list):
         value_len = len(value)
-        return "with 1 value" if value_len == 1 else f"with {value_len} values"
+        return "1 item" if value_len == 1 else f"{value_len} items"
     if isinstance(value, str) and value.startswith("usr"):
-        return "with 1 value"
+        return "1 item"
     return str(value)
 
 

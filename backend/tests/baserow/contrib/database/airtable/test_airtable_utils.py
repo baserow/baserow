@@ -303,7 +303,7 @@ def test_airtable_invalid_date_filter_value_to_baserow():
 
 def test_unknown_value_to_human_readable():
     assert unknown_value_to_human_readable(None) == ""
-    assert unknown_value_to_human_readable(["1", "2"]) == "with 2 values"
-    assert unknown_value_to_human_readable(["1"]) == "with 1 value"
-    assert unknown_value_to_human_readable("usrGUN1234") == "with 1 value"
+    assert unknown_value_to_human_readable(["1", "2"]) == "2 items"
+    assert unknown_value_to_human_readable(["1"]) == "1 item"
+    assert unknown_value_to_human_readable("usrGUN1234") == "1 item"
     assert unknown_value_to_human_readable("random") == "random"
