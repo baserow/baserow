@@ -4,7 +4,7 @@
         "rbac": "RBAC",
         "sso": "SSO",
         "deactivated": "Disponible dans la version avancée/entreprise",
-        "licenseDescription": "Avoir le rôle de spectateur est inclus dans Baserow Entreprise. Si un utilisateur a un tout autre role, dans n'importe quel projet, il utilisera automatiquement un siège payant.",
+        "licenseDescription": "Avoir le rôle de spectateur est inclus dans Baserow Entreprise. Si un utilisateur a un tout autre rôle, dans n'importe quel projet, il utilisera automatiquement un siège payant.",
         "sidebarTooltip": "Votre compte a un accès global aux fonctions entreprise",
         "overflowWarning": "Vous avez trop d'utilisateurs non-spectateurs et avez utilisé tous vos sièges payants. Changez les utilisateurs pour qu'ils deviennent des spectateurs sur la page des membres de chaque projet."
     },
@@ -377,7 +377,7 @@
         "apiTokenHelper": "Le jeton d'API du compte Jira utilisé pour l'authentification. Il peut être créé à l'adresse https://id.atlassian.com/manage-profile/security/api-tokens.",
         "jiraUrl": "URL de l'instance Jira",
         "urlHelper": "L'URL de base de votre instance Jira (par exemple, https://your-domain.atlassian.net).",
-        "projectKeyHelper": "La clé de projet du projet Jira (par exemple, PROJ). On peut la trouver en cliquant sur \"Paramètres du projet\" dans Jira. Si elle n'est pas fournie, touts les tickets seront renvoyés.",
+        "projectKeyHelper": "La clé de projet du projet Jira (par exemple, PROJ). On peut la trouver en cliquant sur \"Paramètres du projet\" dans Jira. Si elle n'est pas fournie, tous les tickets seront renvoyés.",
         "jiraUsername": "Nom d'utilisateur Jira",
         "usernameHelper": "Le nom d'utilisateur du compte Jira utilisé pour l'authentification. Il s'agit de l'email que vous utilisez pour vous connecter.",
         "apiToken": "Jeton d'API Jira"
