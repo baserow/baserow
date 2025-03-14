@@ -111,7 +111,10 @@
           />
           <template #after-input>
             <ResetButton
-              v-if="values.link_default_decoration === theme?.link_default_decoration"
+              v-if="
+                values.link_default_decoration ===
+                theme?.link_default_decoration
+              "
               v-model="values.link_default_decoration"
               :default-value="theme?.link_default_decoration"
             />
@@ -156,7 +159,9 @@
           />
           <template #after-input>
             <ResetButton
-              v-if="values.link_hover_decoration === theme?.link_hover_decoration"
+              v-if="
+                values.link_hover_decoration === theme?.link_hover_decoration
+              "
               v-model="values.link_hover_decoration"
               :default-value="theme?.link_hover_decoration"
             />
@@ -203,7 +208,9 @@
           />
           <template #after-input>
             <ResetButton
-              v-if="values.link_active_decoration === theme?.link_active_decoration"
+              v-if="
+                values.link_active_decoration === theme?.link_active_decoration
+              "
               v-model="values.link_active_decoration"
               :default-value="theme?.link_active_decoration"
             />
