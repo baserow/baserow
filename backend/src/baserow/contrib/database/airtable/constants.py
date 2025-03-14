@@ -58,3 +58,23 @@ AIRTABLE_ASCENDING_MAP = {
     "ascending": True,
     "descending": False,
 }
+AIRTABLE_DATE_FILTER_VALUE_MAP = {
+    "daysAgo": "{timeZone}?{numberOfDays}?nr_days_ago",
+    "daysFromNow": "{timeZone}?{numberOfDays}?nr_days_from_now",
+    "exactDate": "{timeZone}?{exactDate}?exact_date",
+    "nextMonth": "{timeZone}??next_month",
+    "nextNumberOfDays": "{timeZone}?{numberOfDays}?nr_days_from_now",
+    "nextWeek": "{timeZone}??next_week",
+    "oneMonthAgo": "{timeZone}??one_month_ago",
+    "oneWeekAgo": "{timeZone}?1?nr_weeks_ago",
+    "oneMonthFromNow": "{timeZone}?1?nr_months_from_now",
+    "oneWeekFromNow": "{timeZone}?1?nr_weeks_from_now",
+    "pastMonth": "{timeZone}?1?nr_months_ago",
+    "pastNumberOfDays": "{timeZone}?{numberOfDays}?nr_days_ago",
+    "pastWeek": "{timeZone}?1?nr_weeks_ago",
+    "pastYear": "{timeZone}?1?nr_years_ago",
+    "thisCalendarYear": "{timeZone}?0?nr_years_ago",
+    "today": "{timeZone}??today",
+    "tomorrow": "{timeZone}??tomorrow",
+    "yesterday": "{timeZone}??yesterday",
+}

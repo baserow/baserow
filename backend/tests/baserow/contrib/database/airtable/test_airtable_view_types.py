@@ -1,5 +1,9 @@
 from copy import deepcopy
 
+from django.contrib.contenttypes.models import ContentType
+
+import pytest
+
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.import_report import (
     SCOPE_VIEW_GROUP_BY,
@@ -38,6 +42,7 @@ RAW_AIRTABLE_TABLE = {
     "viewSectionsById": {},
     "schemaChecksum": "46f523a43433afe37d63e00d1a0f36c64310f06e4e0af2c32b6e99f26ab0e51a",
 }
+ROW_ID_MAPPING = {}
 FIELD_MAPPING = {
     "fldwSc9PqedIhTSqhi1": {
         "baserow_field": TextField(
@@ -90,7 +95,7 @@ RAW_VIEW_DATA_FILTERS = {
         {
             "id": "flthuYL0uubbDF2Xy",
             "type": "nested",
-            "conjunction": "or",
+            "conjunction": "and",
             "filterSet": [
                 {
                     "id": "flt70g1l245672xRi",
@@ -107,7 +112,7 @@ RAW_VIEW_DATA_FILTERS = {
             ],
         },
     ],
-    "conjunction": "and",
+    "conjunction": "or",
 }
 RAW_VIEW_DATA_SORTS = {
     "sortSet": [
@@ -134,6 +139,7 @@ def test_import_grid_view():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         RAW_AIRTABLE_VIEW_DATA,
@@ -188,6 +194,7 @@ def test_import_grid_view_xlarge_row_height():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -205,6 +212,7 @@ def test_import_grid_view_unknown_row_height():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -221,6 +229,7 @@ def test_import_grid_view_sorts():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -235,6 +244,7 @@ def test_import_grid_view_sorts():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -253,6 +263,7 @@ def test_import_grid_view_sort_field_not_found():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         {},
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -279,6 +290,7 @@ def test_import_grid_view_sort_field_unsupported():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         field_mapping,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -301,6 +313,7 @@ def test_import_grid_view_group_bys():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -315,6 +328,7 @@ def test_import_grid_view_group_bys():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         FIELD_MAPPING,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -333,6 +347,7 @@ def test_import_grid_view_group_by_field_not_found():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         {},
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -359,6 +374,7 @@ def test_import_grid_view_group_by_field_unsupported():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         field_mapping,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -385,6 +401,7 @@ def test_import_grid_view_group_by_order_unsupported():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         field_mapping,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -409,6 +426,7 @@ def test_import_grid_view_field_order_and_visibility():
     import_report = AirtableImportReport()
     serialized_view = airtable_view_type.to_serialized_baserow_view(
         field_mapping,
+        ROW_ID_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -435,4 +453,58 @@ def test_import_grid_view_field_order_and_visibility():
             "aggregation_type": "",
             "aggregation_raw_type": "",
         },
+    ]
+
+
+@pytest.mark.django_db
+def test_import_grid_view_filters_and_groups():
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    field_mapping = deepcopy(FIELD_MAPPING)
+    for field_object in field_mapping.values():
+        field_object["baserow_field"].content_type = ContentType.objects.get_for_model(
+            field_object["baserow_field"]
+        )
+
+    view_data["filters"] = RAW_VIEW_DATA_FILTERS
+
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        field_mapping,
+        ROW_ID_MAPPING,
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        import_report,
+    )
+
+    assert serialized_view["filter_type"] == "OR"
+    assert serialized_view["filters_disabled"] is False
+
+    assert serialized_view["filters"] == [
+        {
+            "id": "fltp2gabc8P91234f",
+            "field_id": "fldwSc9PqedIhTSqhi1",
+            "type": "not_empty",
+            "value": "",
+            "group": None,
+        },
+        {
+            "id": "flt70g1l245672xRi",
+            "field_id": "fldwSc9PqedIhTSqhi1",
+            "type": "not_equal",
+            "value": "test",
+            "group": "flthuYL0uubbDF2Xy",
+        },
+        {
+            "id": "fltVg238719fbIKqC",
+            "field_id": "fldwSc9PqedIhTSqhi2",
+            "type": "not_equal",
+            "value": "test2",
+            "group": "flthuYL0uubbDF2Xy",
+        },
+    ]
+    assert serialized_view["filter_groups"] == [
+        {"id": "flthuYL0uubbDF2Xy", "filter_type": "AND", "parent_group": None}
     ]

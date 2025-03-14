@@ -650,7 +650,13 @@ class AirtableHandler:
                 )
                 serialized_view = (
                     airtable_view_type_registry.from_airtable_view_to_serialized(
-                        field_mapping, table, view, view_data, config, import_report
+                        field_mapping,
+                        row_id_mapping,
+                        table,
+                        view,
+                        view_data,
+                        config,
+                        import_report,
                     )
                 )
 

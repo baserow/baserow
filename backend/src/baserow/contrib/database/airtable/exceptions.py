@@ -15,3 +15,9 @@ class AirtableSkipCellValue(Exception):
     Raised when an Airtable cell value must be skipped, and be omitted from the
     export.
     """
+
+
+class AirtableSkipFilter(Exception):
+    """
+    Raised when an Airtable filter is not compatible and must be skipped.
+    """

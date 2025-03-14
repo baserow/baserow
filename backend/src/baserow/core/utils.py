@@ -897,6 +897,9 @@ class MirrorDict(defaultdict):
     def __missing__(self, key):
         return key
 
+    def __contains__(self, key):
+        return True
+
     def get(self, key, default=None):
         return self[key]
 
