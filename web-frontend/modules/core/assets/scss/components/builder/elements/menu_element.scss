@@ -11,6 +11,14 @@
   user-select: none;
 }
 
+.menu-element__sub-links {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 10px;
+  padding: 5px;
+}
+
 .menu-element__container--vertical {
   flex-direction: column;
   gap: 20px;
@@ -21,6 +29,81 @@
     height: 1px;
     background-color: $palette-neutral-500;
     margin: 0 5px;
+  }
+
+  .menu-element__sub-links {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+    padding: 10px;
+    margin-left: 10px;
+    border-radius: 6px;
+
+    // We want the same color as page background
+    background-color: var(--page-background-color, #fff);
+    .ab-link {
+      padding-left: 0;
+    }
+  }
+
+  .menu-element__menu-item-button .ab-button {
+    width: 100%;
+    display: block;
+  }
+}
+
+.menu-element__container--mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+
+  .menu-element__menu-item-separator {
+    width: 100%;
+    height: 1px;
+    background-color: $palette-neutral-500;
+  }
+
+  .menu-element__sub-links {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+    margin-left: 10px;
+
+    .ab-link {
+      padding-left: 0;
+    }
+  }
+
+  .menu-element__menu-item-button .ab-button {
+    width: 100%;
+    display: block;
+  }
+
+  .menu-element__burger-menu-left {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .menu-element__burger-menu-right {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  &.menu-element__burger-full-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px;
+    height: 100vh;
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease-in-out;
+    z-index: 1;
   }
 }
 
@@ -42,10 +125,6 @@
     height: 20px;
     background-color: $palette-neutral-500;
   }
-
-  .menu-element__sub-link-menu--expanded-icon {
-    margin-left: 5px;
-  }
 }
 
 .menu-element__sub-link-menu--container {
@@ -55,23 +134,15 @@
   gap: 5px;
 }
 
-.menu-element__sub-links {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  gap: 10px;
-  padding: 5px;
-  border-radius: 6px;
-
-  // We want the same color as page background
-  background-color: var(--page-background-color, #fff);
-}
-
 .menu-element__sub-link {
   width: 100%;
   display: block;
   padding: 10px;
   text-decoration: none;
+}
+
+.menu-element__sub-link--container {
+  margin-top: 5px;
 }
 
 .menu-element__sub-link:hover {
