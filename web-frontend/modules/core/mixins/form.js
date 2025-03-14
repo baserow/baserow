@@ -210,6 +210,12 @@ export default {
         })
       )
     },
+    isDirty() {
+      for (const [key, value] of Object.entries(this.getDefaultValues())) {
+        if (this.values[key] !== value) return true
+      }
+      return false
+    },
     /**
      * Resets the form and the child forms to its original state.
      *
