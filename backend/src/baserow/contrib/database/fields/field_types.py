@@ -6402,7 +6402,10 @@ class MultipleCollaboratorsFieldType(
         else:
             return Coalesce(
                 wrap_in_subquery(
-                    JSONBAgg(get_collaborator_extractor(db_column, model_field),  order=f"{db_column}__id"),
+                    JSONBAgg(
+                        get_collaborator_extractor(db_column, model_field),
+                        order=f"{db_column}__id",
+                    ),
                     db_column,
                     model_field.model,
                 ),
