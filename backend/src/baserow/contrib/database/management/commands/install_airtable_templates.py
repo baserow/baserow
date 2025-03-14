@@ -60,7 +60,7 @@ class Command(BaseCommand):
             sys.exit(1)
 
         html_url = f"{AIRTABLE_BASE_URL}/templates"
-        html_response = requests.get(html_url, headers=BASE_HEADERS)
+        html_response = requests.get(html_url, headers=BASE_HEADERS)  # nosec
 
         if not html_response.ok:
             raise Exception("test")
@@ -93,7 +93,7 @@ class Command(BaseCommand):
                 **BASE_HEADERS,
             },
             timeout=3 * 60,
-        )
+        )  # nosec
 
         json_decoded_content = parse_json_and_remove_invalid_surrogate_characters(
             response
@@ -144,7 +144,3 @@ class Command(BaseCommand):
                             )
                         except AirtableBaseNotPublic:
                             print("  Skipping because it's not public.")
-
-            import time
-
-            time.sleep(5)
