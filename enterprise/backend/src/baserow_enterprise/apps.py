@@ -296,6 +296,13 @@ class BaserowEnterpriseConfig(AppConfig):
 
         action_type_registry.register(UpdatePeriodicDataSyncIntervalActionType())
 
+        from baserow.contrib.database.webhooks.registries import (
+            webhook_event_type_registry,
+        )
+        from baserow_enterprise.webhook_event_types import RowsEnterViewEventType
+
+        webhook_event_type_registry.register(RowsEnterViewEventType())
+
         # Create default roles
         post_migrate.connect(sync_default_roles_after_migrate, sender=self)
 

@@ -156,6 +156,8 @@ x-backend-variables: &backend-variables
   BASEROW_BUILDER_DOMAINS:
   BASEROW_FRONTEND_SAME_SITE_COOKIE:
   BASEROW_ICAL_VIEW_MAX_EVENTS: ${BASEROW_ICAL_VIEW_MAX_EVENTS:-}
+  BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE:
+  BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES:
 
 services:
   # A caddy reverse proxy sitting in-front of all the services. Responsible for routing

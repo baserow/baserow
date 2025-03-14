@@ -6,6 +6,7 @@
       :database="database"
       :table="table"
       :fields="fields"
+      :views="views"
       :default-values="webhook"
       @submitted="submit"
       @formchange="handleFormChange"
@@ -63,6 +64,10 @@ export default {
       required: true,
     },
     fields: {
+      type: Array,
+      required: true,
+    },
+    views: {
       type: Array,
       required: true,
     },

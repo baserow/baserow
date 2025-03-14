@@ -1023,6 +1023,7 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.rows.tasks  # noqa: F401
         import baserow.contrib.database.search.tasks  # noqa: F401
         import baserow.contrib.database.table.receivers  # noqa: F401
+        import baserow.contrib.database.views.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
 
 

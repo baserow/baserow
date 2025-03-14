@@ -9,7 +9,8 @@
     "rbac": "RBAC",
     "sso": "SSO",
     "licenseDescription": "Viewers are free with Baserow Enterprise. If a user has any other role, in any workspace then they will use a paid seat automatically.",
-    "overflowWarning": "You have too many non-viewer users and have used up all of your paid seats. Change users to become viewers on each workspaces members page."
+    "overflowWarning": "You have too many non-viewer users and have used up all of your paid seats. Change users to become viewers on each workspaces members page.",
+    "deactivated": "Available in the advanced/enterprise version"
   },
   "trashType": {
     "team": "team"
@@ -286,7 +287,8 @@
     "dataSync": "Data sync",
     "coBranding": "Co-branding logo replacement",
     "support": "Direct support",
-    "chartWidget": "Chart widget"
+    "chartWidget": "Chart widget",
+    "advancedWebhooks": "Advanced webhooks"
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
@@ -470,5 +472,12 @@
   },
   "periodicDataSyncDeactivatedNotification": {
     "body": "{name} periodic data sync has been deactivated because it failed too many times consecutively."
+  },
+  "webhook": {
+    "rowsEnterVieweventType": "Rows enter view"
+  },
+  "webhookForm": {
+    "triggerWhenRowsEnterView": "Triggered when rows enter the view.",
+    "helpTriggerWhenRowsEnterView": "Triggers only when `Rows enter view` is selected and rows that now match the filters enter the view."
   }
 }

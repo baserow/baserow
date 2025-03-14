@@ -1,4 +1,5 @@
 import dataclasses
+import itertools
 import re
 import traceback
 from collections import defaultdict, namedtuple
@@ -131,7 +132,9 @@ from .models import (
     ViewFilter,
     ViewFilterGroup,
     ViewGroupBy,
+    ViewRows,
     ViewSort,
+    ViewSubscription,
 )
 from .registries import (
     decorator_type_registry,
@@ -142,6 +145,8 @@ from .registries import (
 )
 from .signals import (
     form_submitted,
+    rows_entered_view,
+    rows_exited_view,
     view_created,
     view_decoration_created,
     view_decoration_deleted,
@@ -3209,7 +3214,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         return view
 
     def submit_form_view(
-        self, user, form, values, model=None, enabled_field_options=None
+        self,
+        user,
+        form,
+        values,
+        model: GeneratedTableModel | None = None,
+        enabled_field_options=None,
     ):
         """
         Handles when a form is submitted. It will validate the data by checking if
@@ -3756,3 +3766,127 @@ class CachingPublicViewRowChecker:
         # filters and so the result of the first check will be still
         # valid for any subsequent checks.
         return True
+
+
+class ViewSubscriptionHandler:
+    @classmethod
+    def subscribe_to_views(cls, subscriber: django_models.Model, views: list[View]):
+        """
+        Subscribes a subscriber to the provided views. If the ViewRows already exist, it
+        ensure to notify any changes to the subscriber first, so that the subscriber can
+        be notified only for the changes that happened after the subscription.
+
+        :param subscriber: The subscriber to subscribe to the views.
+        :param views: The views to subscribe to.
+        """
+
+        cls.notify_table_views_updates(views)
+        ViewRows.create_missing_for_views(views)
+
+        new_subscriptions = []
+        for view in views:
+            new_subscriptions.append(ViewSubscription(subscriber=subscriber, view=view))
+        ViewSubscription.objects.bulk_create(new_subscriptions, ignore_conflicts=True)
+
+    @classmethod
+    def unsubscribe_from_views(
+        cls, subscriber: django_models.Model, views: list[View] | None = None
+    ):
+        """
+        Unsubscribes a subscriber from the provided views. If the views are not
+        provided, it unsubscribes the subscriber from all views. Make sure to use a
+        table-specific model for the subscriber to avoid unsubscribing from views that
+        are not related to the subscriber.
+
+        :param subscriber: The subscriber to unsubscribe from the views.
+        :param views: The views to unsubscribe from. If not provided, the subscriber
+            will be unsubscribed
+        """
+
+        q = Q(
+            subscriber_content_type=ContentType.objects.get_for_model(subscriber),
+            subscriber_id=subscriber.pk,
+        )
+        if views is not None:
+            q &= Q(view__in=views)
+
+        ViewSubscription.objects.filter(q).delete()
+
+    @classmethod
+    def check_views_with_time_sensitive_filters(cls):
+        """
+        Checks for views that have time-sensitive filters. If a view has a
+        time-sensitive filter, calling this method periodically ensure proper signals
+        are emitted to notify subscribers that the view results have changed.
+        """
+
+        views = View.objects.filter(
+            id__in=ViewFilter.objects.filter(
+                type__in=view_filter_type_registry.get_time_sensitive_filter_types(),
+                view__in=ViewSubscription.objects.values("view"),
+            ).values("view_id")
+        ).order_by("table", "id")
+        for _, view_group in itertools.groupby(views, key=lambda f: f.table):
+            view_ids = [v.id for v in view_group]
+            if view_ids:
+                cls._notify_table_views_updates(view_ids)
+
+    @classmethod
+    def notify_table_views_updates(
+        cls, views: list[View], model: GeneratedTableModel | None = None
+    ):
+        """
+        Verify if the views have subscribers and notify them of any changes in the view
+        results.
+
+        :param views: The views to notify subscribers of.
+        :param model: The table model to use for the views. If not provided, the model
+            will be generated automatically.
+        """
+
+        view_ids_with_subscribers = ViewSubscription.objects.filter(
+            view__in=views
+        ).values_list("view_id", flat=True)
+        if view_ids_with_subscribers:
+            cls._notify_table_views_updates(view_ids_with_subscribers, model)
+
+    @classmethod
+    def _notify_table_views_updates(
+        cls, view_ids: list[int], model: GeneratedTableModel | None = None
+    ):
+        """
+        Notify subscribers of any changes in the view results, emitting the appropriate
+        signals and updating the ViewRows state.
+
+        :param view_ids: The view ids to notify subscribers of.
+        :param model: The table model to use for the views. If not provided, the model
+            will be generated automatically
+        """
+
+        view_rows = list(
+            ViewRows.objects.select_related("view__table")
+            .filter(view_id__in=view_ids)
+            .select_for_update(of=("self",))
+            .order_by("view_id")
+        )
+
+        if model is None:
+            model = view_rows[0].view.table.get_model()
+
+        for view_state in view_rows:
+            view = view_state.view
+            new_row_ids, row_ids_entered, row_ids_exited = view_state.get_diff(model)
+            changed = False
+            if row_ids_entered:
+                rows_entered_view.send(
+                    sender=cls, view=view, row_ids=row_ids_entered, model=model
+                )
+                changed = True
+            if row_ids_exited:
+                rows_exited_view.send(
+                    sender=cls, view=view, row_ids=row_ids_exited, model=model
+                )
+                changed = True
+            if changed:
+                view_state.row_ids = new_row_ids
+                view_state.save()

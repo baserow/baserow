@@ -1,4 +1,3 @@
-from collections import defaultdict
 from unittest.mock import MagicMock, patch
 
 from django.db import transaction
@@ -22,25 +21,8 @@ from baserow.contrib.database.webhooks.tasks import (
 )
 from baserow.core.models import WorkspaceUser
 from baserow.core.notifications.models import Notification
-from baserow.core.redis import RedisQueue
+from baserow.core.redis import WebhookRedisQueue
 from baserow.test_utils.helpers import stub_getaddrinfo
-
-
-class MemoryQueue(RedisQueue):
-    queues = defaultdict(list)
-
-    def enqueue_task(self, task_object):
-        self.queues[self.queue_key].append(task_object)
-        return True
-
-    def get_and_pop_next(self):
-        try:
-            return self.queues[self.queue_key].pop(0)
-        except IndexError:
-            return None
-
-    def clear(self):
-        self.queues[self.queue_key] = []
 
 
 @pytest.mark.django_db(transaction=True)
@@ -49,7 +31,7 @@ class MemoryQueue(RedisQueue):
     BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL=1,
     BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=1,
 )
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 @patch("baserow.contrib.database.webhooks.tasks.clear_webhook_queue")
 def test_call_webhook_webhook_does_not_exist(mock_clear_queue):
@@ -73,7 +55,7 @@ def test_call_webhook_webhook_does_not_exist(mock_clear_queue):
     BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL=1,
     BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=1,
 )
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 def test_call_webhook_webhook_url_cannot_be_reached(data_fixture):
     webhook = data_fixture.create_table_webhook()
@@ -113,7 +95,7 @@ def test_call_webhook_webhook_url_cannot_be_reached(data_fixture):
     BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL=1,
     BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=1,
 )
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 def test_call_webhook_becomes_inactive_max_failed_reached(data_fixture):
     webhook = data_fixture.create_table_webhook(active=True, failed_triggers=1)
@@ -141,7 +123,7 @@ def test_call_webhook_becomes_inactive_max_failed_reached(data_fixture):
     BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL=1,
     BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=1,
 )
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 def test_call_webhook_skipped_because_not_active(data_fixture):
     webhook = data_fixture.create_table_webhook(active=False, failed_triggers=1)
@@ -168,7 +150,7 @@ def test_call_webhook_skipped_because_not_active(data_fixture):
     BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL=1,
     BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=1,
 )
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 def test_call_webhook_reset_after_success_call(data_fixture):
     webhook = data_fixture.create_table_webhook(failed_triggers=1)
@@ -196,7 +178,7 @@ def test_call_webhook_reset_after_success_call(data_fixture):
     BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL=1,
     BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=1,
 )
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 def test_call_webhook(data_fixture):
     webhook = data_fixture.create_table_webhook()
@@ -256,7 +238,7 @@ def test_call_webhook(data_fixture):
 
 @pytest.mark.django_db(transaction=True, databases=["default", "default-copy"])
 @responses.activate
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 def test_call_webhook_concurrent_task_moved_to_queue(data_fixture):
     from baserow.contrib.database.webhooks.tasks import get_queue
@@ -285,7 +267,7 @@ def test_call_webhook_concurrent_task_moved_to_queue(data_fixture):
 
 @pytest.mark.django_db(transaction=True, databases=["default"])
 @responses.activate
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 @patch("baserow.contrib.database.webhooks.tasks.schedule_next_task_in_queue")
 def test_call_webhook_next_item_scheduled(mock_schedule, data_fixture):
@@ -312,7 +294,7 @@ def test_call_webhook_next_item_scheduled(mock_schedule, data_fixture):
     BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=0,
 )
 @httpretty.activate(verbose=True, allow_net_connect=False)
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 @patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
 def test_cant_call_webhook_to_localhost_when_private_addresses_not_allowed(
@@ -345,7 +327,7 @@ def test_cant_call_webhook_to_localhost_when_private_addresses_not_allowed(
     BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL=0,
     BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=0,
 )
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 def test_can_call_webhook_to_localhost_when_private_addresses_allowed(
     data_fixture,
@@ -380,7 +362,7 @@ def test_can_call_webhook_to_localhost_when_private_addresses_allowed(
     BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL=1,
     BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=1,
 )
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 @patch("baserow.ws.tasks.broadcast_to_users.apply")
 def test_call_webhook_failed_reached_notification_send(
@@ -448,7 +430,7 @@ class PaginatedWebhookEventType(WebhookEventType):
     def __init__(self):
         self.i = 1
 
-    def _paginate_payload(self, payload) -> tuple[dict, dict | None]:
+    def _paginate_payload(self, webhook, event_id, payload) -> tuple[dict, dict | None]:
         payload["data"] = f"part {self.i}"
         self.i += 1
         return payload, {"data": f"part {self.i}"}
@@ -456,7 +438,7 @@ class PaginatedWebhookEventType(WebhookEventType):
 
 @pytest.mark.django_db(transaction=True)
 @responses.activate
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 def test_webhook_with_paginated_payload(
     mutable_webhook_event_type_registry, data_fixture
@@ -523,7 +505,7 @@ def test_webhook_with_paginated_payload(
 @pytest.mark.django_db(transaction=True)
 @responses.activate
 @override_settings(BASEROW_WEBHOOKS_BATCH_LIMIT=1)
-@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 @patch("baserow.ws.tasks.broadcast_to_users.apply")
 def test_call_webhook_payload_too_large_send_notification(
