@@ -7,6 +7,7 @@ from baserow.contrib.builder.constants import (
     WIDTHS,
     FontWeights,
     HorizontalAlignments,
+    LinkDecorations,
 )
 from baserow.core.fields import AutoOneToOneField
 from baserow.core.user_files.models import UserFile
@@ -317,6 +318,21 @@ class LinkThemeConfigBlockMixin(models.Model):
         default="#275d9f",
         blank=True,
         help_text="The hover color of links when active",
+    )
+    link_default_decoration = models.CharField(
+        choices=LinkDecorations.choices,
+        max_length=10,
+        default=LinkDecorations.NORMAL,
+    )
+    link_hover_decoration = models.CharField(
+        choices=LinkDecorations.choices,
+        max_length=10,
+        default=LinkDecorations.NORMAL,
+    )
+    link_active_decoration = models.CharField(
+        choices=LinkDecorations.choices,
+        max_length=10,
+        default=LinkDecorations.NORMAL,
     )
 
     class Meta:
