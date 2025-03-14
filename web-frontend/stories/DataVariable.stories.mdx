@@ -1,0 +1,95 @@
+import { Meta, Story, Props, Canvas } from '@storybook/addon-docs/blocks'
+import { config, withDesign } from 'storybook-addon-designs'
+import { action } from '@storybook/addon-actions'
+
+import DataVariable from '@baserow/modules/core/components/DataVariable'
+
+<Meta
+    title="Baserow/Data"
+    component={DataVariable}
+    parameters={{
+        backgrounds: {
+            default: 'white',
+            values: [
+                { name: 'white', value: '#ffffff' },
+                { name: 'light', value: '#eeeeee' },
+                { name: 'dark', value: '#222222' },
+            ],
+        },
+    }}
+    decorators={[withDesign]}
+    argTypes={{
+        variables: {
+            type: 'array',
+            defaultValue: [
+                { id: 1, label: 'Variable' },
+                { id: 2, label: 'state' },
+                { id: 3, label: 'state' },
+            ],
+        },
+        disabled: {
+            control: 'boolean',
+            defaultValue: false,
+        },
+        active: {
+            control: 'boolean',
+            defaultValue: false,
+        },
+        error: {
+            control: 'boolean',
+            defaultValue: false,
+        },
+        removeIcon: {
+            control: 'boolean',
+            defaultValue: false,
+        },
+        rounded: {
+            control: 'boolean',
+            defaultValue: false,
+        },
+    }}
+/>
+
+# Data Variable
+
+export const Template = (args, { argTypes }) => ({
+    components: { DataVariable },
+    props: Object.keys(argTypes),
+    methods: {
+        handleRemove: action('remove'),
+    },
+    template: `<DataVariable v-bind="$props" @remove="handleRemove"></DataVariable>`,
+})
+
+export const designConfig = {
+    type: 'figma',
+    url: 'https://www.figma.com/design/W7R2rQW7ohsZMeHRfEcPFW/Design-library?node-id=3093-2639&m=dev',
+}
+
+<Canvas>
+    <Story
+        name="Variable"
+        args={{
+            variables: [
+                { id: 1, label: 'Variable' },
+                { id: 2, label: 'state' },
+                { id: 3, label: 'state' },
+            ],
+        }}
+        parameters={{
+            design: config(designConfig),
+        }}
+    >
+        {Template.bind({})}
+    </Story>
+</Canvas>
+
+## Example
+
+```javascript
+<DataVariable :variables="[{ id: 1, label: 'Variable' }, { id: 2, label: 'state' }, { id: 3, label: 'state' }]" @remove="handleRemove"></DataVariable>
+```
+
+## Props
+
+<Props of={DataVariable} />
