@@ -126,13 +126,7 @@
       :table="table"
       :fields="fields"
     />
-    <WebhookModal
-      ref="webhookModal"
-      :database="database"
-      :table="table"
-      :fields="fields"
-      :views="views"
-    />
+    <WebhookModal ref="webhookModal" :database="database" :table="table" />
   </Context>
 </template>
 
@@ -179,7 +173,6 @@ export default {
     },
     ...mapGetters({
       fields: 'field/getAll',
-      views: 'view/getAll',
     }),
     changeViewOwnershipTypeMenuItems() {
       const activeOwnershipTypes = Object.values(

@@ -312,5 +312,4 @@ export default (context) => {
     'chartFieldFormatting',
     new SingleSelectFormattingType(context)
   )
-  
 }
