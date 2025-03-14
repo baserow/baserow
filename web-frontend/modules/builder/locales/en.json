@@ -956,6 +956,11 @@
     "label": "Property",
     "noProperties": "No properties available"
   },
+  "userSourceDropdown": {
+    "label": "User source",
+    "addUserSource": "Add new user source",
+    "noUserSources": "No user sources available"
+  },
   "dataSourceDropdown": {
     "label": "Data source",
     "noDataSources": "No data sources available",

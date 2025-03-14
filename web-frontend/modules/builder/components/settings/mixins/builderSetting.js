@@ -32,9 +32,9 @@ export default {
     }
   },
   methods: {
-    hideModalIfRequired() {
+    hideModalIfRequired(createdRecordId) {
       if (this.hideAfterCreate) {
-        this.$emit('hide-modal')
+        this.$emit('hide-modal', createdRecordId)
       }
     },
   },

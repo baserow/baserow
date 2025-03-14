@@ -194,7 +194,6 @@ export default {
         this.hideForm()
         // immediately select this user source to edit it.
         this.editedUserSource = createdUserSource
-        this.hideModalIfRequired()
       } catch (error) {
         this.handleError(error)
       }
@@ -212,6 +211,11 @@ export default {
           userSourceId: this.editedUserSource.id,
           values: clone(newValues),
         })
+        // If the builder settings modal is set to hide after create, normally
+        // we would have hidden the modal and shared the record ID after the user
+        // source was created, but in this settings component we'll share the ID
+        // after the update, when there's a better change of having a configure source.
+        this.hideModalIfRequired(this.editedUserSource.id)
         this.hideForm()
       } catch (error) {
         // Restore the previously saved values from the store
