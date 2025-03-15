@@ -792,7 +792,8 @@ class CreateViewSortActionType(UndoableActionType):
         :param field: The field that needs to be sorted.
         :param sort_order: The desired order, can either be ascending (A to Z) or
             descending (Z to A).
-        :param sort_type: The sort type that must be used, `default` by default.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         """
 
         view_sort = ViewHandler().create_sort(
@@ -899,7 +900,8 @@ class UpdateViewSortActionType(UndoableActionType):
         :param view_sort: The view sort that needs to be updated.
         :param field: The field that must be sorted on.
         :param order: Indicates the sort order direction.
-        :param sort_type: The sort type that must be used, `default` by default.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         """
 
         original_field_id = view_sort.field.id
@@ -2119,7 +2121,8 @@ class UpdateViewGroupByActionType(UndoableActionType):
         :param field: The field that must be grouped on.
         :param order: Indicates the group by order direction.
         :param width: The visual pixel width of the group by.
-        :param sort_type: The sort type that must be used, `default` by default.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         """
 
         original_field_id = view_group_by.field.id

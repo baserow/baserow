@@ -876,7 +876,8 @@ class FieldType(
         :param field: The related field object instance.
         :param field_name: The name of the field.
         :param order_direction: The sort order direction (either "ASC" or "DESC").
-        :param sort_type: The sort type that must be used, `default` by default.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         :param table_model: The table model instance that the field is part of,
             if available.
         :return: Either the expression that is added directly to the
@@ -1648,7 +1649,8 @@ class FieldType(
 
         :param field: The field where to get the sortable column expression for.
         :param field_name: The name of the field in the table.
-        :param sort_type: The sort type that must be used, `default` by default.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         :return: The expression that can be used to sort the field in the database.
         """
 

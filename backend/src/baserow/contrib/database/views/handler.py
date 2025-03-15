@@ -2039,7 +2039,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param order: The desired order, can either be ascending (A to Z) or
             descending (Z to A).
         :param primary_key: An optional primary key to give to the new view sort.
-        :param sort_type: The sort type that must be used, `default` by default.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         :raises ViewSortNotSupported: When the provided view does not support sorting.
         :raises FieldNotInTable:  When the provided field does not belong to the
             provided view's table.
@@ -2287,7 +2288,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param order: The desired order, can either be ascending (A to Z) or
             descending (Z to A).
         :param width: The visual width of the group column.
-        :param sort_type: The sort type that must be used, `default` by default.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         :param primary_key: An optional primary key to give to the new view group_by.
         :raises ViewGroupByNotSupported: When the provided view does not support
             grouping.
@@ -2363,7 +2365,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param field: The field that must be grouped on.
         :param order: Indicates the group by order direction.
         :param width: The visual width of the group by.
-        :param sort_type: The sort type that must be used, `default` by default.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         :raises ViewGroupByDoesNotExist: When the view used by the filter is trashed.
         :raises ViewGroupByFieldNotSupported: When the field does not support grouping.
         :raises FieldNotInTable:  When the provided field does not belong to the

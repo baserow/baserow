@@ -50,6 +50,7 @@ from baserow.contrib.database.table.constants import (
     USER_TABLE_DATABASE_NAME_PREFIX,
 )
 from baserow.contrib.database.views.exceptions import ViewFilterTypeNotAllowedForField
+from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.core.db import MultiFieldPrefetchQuerysetMixin, specific_iterator
 from baserow.core.fields import AutoTrueBooleanField
@@ -333,7 +334,7 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, models.QuerySet):
 
             order_direction = "DESC" if order[:1] == "-" else "ASC"
             type_match = re.search(r"\[(.*?)\]", order)
-            sort_type = type_match.group(1) if type_match else "default"
+            sort_type = type_match.group(1) if type_match else DEFAULT_SORT_TYPE_KEY
             field_object = field_object_dict[field_name_or_id]
             field_type = field_object["type"]
             field_name = field_object["name"]
