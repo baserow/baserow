@@ -1327,13 +1327,17 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         # `after_fields_changed_or_deleted` can be called in bulk and make it query
         # efficient.
         changed_fields = set()
+        all_fields_mapping = {field.id: field for field in fields}
 
+        # Fetch the sorts of all updated fields to check if the sort, including the
+        # type, is still compatible.
+        sorts_to_check = ViewSort.objects.filter(field_id__in=all_fields_mapping.keys())
         fields_to_delete_sortings = [
-            f
-            for f in fields
+            all_fields_mapping[sort.field_id]
+            for sort in sorts_to_check
             if not field_type_registry.get_by_model(
-                f.specific_class
-            ).check_can_order_by(f, DEFAULT_SORT_TYPE_KEY)
+                all_fields_mapping[sort.field_id].specific_class
+            ).check_can_order_by(all_fields_mapping[sort.field_id], sort.type)
         ]
 
         # If it's a primary field, we also need to remove any sortings on the
@@ -1354,12 +1358,17 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             if deleted_count > 0:
                 changed_fields.update(fields_to_delete_sortings)
 
+        # Fetch the group bys of all updated fields to check if the group by, including
+        # the type, is still compatible.
+        groups_to_check = ViewGroupBy.objects.filter(
+            field_id__in=all_fields_mapping.keys()
+        )
         fields_to_delete_groupings = [
-            f
-            for f in fields
+            all_fields_mapping[sort.field_id]
+            for sort in groups_to_check
             if not field_type_registry.get_by_model(
-                f.specific_class
-            ).check_can_group_by(f, DEFAULT_SORT_TYPE_KEY)
+                all_fields_mapping[sort.field_id].specific_class
+            ).check_can_group_by(all_fields_mapping[sort.field_id], sort.type)
         ]
         if fields_to_delete_groupings:
             deleted_count, _ = ViewGroupBy.objects.filter(

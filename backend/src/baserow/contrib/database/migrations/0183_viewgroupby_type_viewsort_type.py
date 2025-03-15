@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0180_view_allow_public_export"),
+        ("database", "0182_tablewebhookevent_views_viewrows_viewsubscription"),
     ]
 
     operations = [
