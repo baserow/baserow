@@ -11,6 +11,7 @@
         v-model="v$.values.license.$model"
         :error="fieldHasErrors('license')"
         :rows="6"
+        @blur="v$.values.license.$touch()"
       />
 
       <template #error>

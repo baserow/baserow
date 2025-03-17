@@ -42,6 +42,7 @@
         <DownloadLink
           :url="finishedJob.url"
           :filename="getExportedFilename(finishedJob)"
+          loading-class="button-icon--loading"
         >
           <template #default="{ loading: downloadLoading }">
             <div v-if="downloadLoading" class="loading"></div>
