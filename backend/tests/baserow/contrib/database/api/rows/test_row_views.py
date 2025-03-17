@@ -3270,14 +3270,18 @@ def test_get_row_adjacent(api_client, data_fixture):
     table = data_fixture.create_database_table(name="table", user=user)
     field = data_fixture.create_text_field(name="some name", table=table)
 
-    [row_1, row_2, row_3] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": "some value"},
-            {f"field_{field.id}": "some value"},
-            {f"field_{field.id}": "some value"},
-        ],
+    [row_1, row_2, row_3] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "some value"},
+                {f"field_{field.id}": "some value"},
+                {f"field_{field.id}": "some value"},
+            ],
+        )
+        .created_rows
     )
 
     # Get the next row
@@ -3325,14 +3329,18 @@ def test_get_row_adjacent_view_id_provided(api_client, data_fixture):
         user, field=field, view=view, type="contains", value="a"
     )
 
-    [row_1, row_2, row_3] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": "ab"},
-            {f"field_{field.id}": "b"},
-            {f"field_{field.id}": "a"},
-        ],
+    [row_1, row_2, row_3] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "ab"},
+                {f"field_{field.id}": "b"},
+                {f"field_{field.id}": "a"},
+            ],
+        )
+        .created_rows
     )
 
     response = api_client.get(
@@ -3358,14 +3366,18 @@ def test_get_row_adjacent_view_id_no_adjacent_row(api_client, data_fixture):
     table = data_fixture.create_database_table(name="table", user=user)
     field = data_fixture.create_text_field(name="field", table=table)
 
-    [row_1, row_2, row_3] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": "a"},
-            {f"field_{field.id}": "b"},
-            {f"field_{field.id}": "c"},
-        ],
+    [row_1, row_2, row_3] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "a"},
+                {f"field_{field.id}": "b"},
+                {f"field_{field.id}": "c"},
+            ],
+        )
+        .created_rows
     )
 
     response = api_client.get(
@@ -3469,14 +3481,18 @@ def test_get_row_adjacent_search(api_client, data_fixture, search_mode):
     table = data_fixture.create_database_table(name="table", user=user)
     field = data_fixture.create_text_field(name="field", table=table)
 
-    [row_1, row_2, row_3] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": "a"},
-            {f"field_{field.id}": "ab"},
-            {f"field_{field.id}": "c"},
-        ],
+    [row_1, row_2, row_3] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "a"},
+                {f"field_{field.id}": "ab"},
+                {f"field_{field.id}": "c"},
+            ],
+        )
+        .created_rows
     )
     SearchHandler.update_tsvector_columns(
         table, update_tsvectors_for_changed_rows_only=False
@@ -4432,7 +4448,7 @@ def test_link_row_field_validate_input_data_for_read_only_primary_fields(
         user=user, table_b=table_b
     )
 
-    (row_b1,) = RowHandler().create_rows(user, table_b, [{}])
+    (row_b1,) = RowHandler().create_rows(user, table_b, [{}]).created_rows
     row_b1_pk = str(getattr(row_b1, pk_field.db_column))
 
     # using a valid value as reference to the row should work

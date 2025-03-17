@@ -210,7 +210,7 @@ class FieldType(
     some fields can depend on it like the `lookup` field.
     """
 
-    can_update_row_during_import = False
+    can_upsert = False
     """
     A field of this type may be used to calculate a match value during import, that
     allows to update existing rows with imported data instead of adding them.

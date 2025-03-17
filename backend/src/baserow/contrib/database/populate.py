@@ -96,7 +96,7 @@ def load_test_data():
         ]
 
         RowHandler().import_rows(
-            user, products_table, {"data": data}, send_realtime_update=False
+            user, products_table, data=data, send_realtime_update=False
         )
 
     try:
@@ -197,7 +197,7 @@ def load_test_data():
         ]
 
         RowHandler().import_rows(
-            user, suppliers_table, {"data": data}, send_realtime_update=False
+            user, suppliers_table, data=data, send_realtime_update=False
         )
 
     try:
@@ -255,7 +255,7 @@ def load_test_data():
         ]
 
         RowHandler().import_rows(
-            user, retailers_table, {"data": data}, send_realtime_update=False
+            user, retailers_table, data=data, send_realtime_update=False
         )
 
     try:
@@ -360,5 +360,5 @@ def load_test_data():
         ]
 
         RowHandler().import_rows(
-            user, user_accounts_table, {"data": data}, send_realtime_update=False
+            user, user_accounts_table, data=data, send_realtime_update=False
         )

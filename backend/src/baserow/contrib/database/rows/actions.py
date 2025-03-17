@@ -12,7 +12,6 @@ from baserow.contrib.database.action.scopes import (
     TABLE_ACTION_CONTEXT,
     TableActionScopeType,
 )
-from baserow.contrib.database.rows.constants import DataImportDict
 from baserow.contrib.database.rows.exceptions import (
     CannotCreateRowsInTable,
     CannotDeleteRowsInTable,
@@ -21,6 +20,7 @@ from baserow.contrib.database.rows.handler import (
     GeneratedTableModelForUpdate,
     RowHandler,
 )
+from baserow.contrib.database.rows.types import FileImportDict
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.core.action.models import Action
@@ -181,13 +181,17 @@ class CreateRowsActionType(UndoableActionType):
                 "Can't create rows because it has a data sync."
             )
 
-        rows = RowHandler().create_rows(
-            user,
-            table,
-            rows_values,
-            before_row=before_row,
-            model=model,
-            send_webhook_events=send_webhook_events,
+        rows = (
+            RowHandler()
+            .create_rows(
+                user,
+                table,
+                rows_values,
+                before_row=before_row,
+                model=model,
+                send_webhook_events=send_webhook_events,
+            )
+            .created_rows
         )
 
         workspace = table.database.workspace
@@ -247,7 +251,7 @@ class ImportRowsActionType(UndoableActionType):
         cls,
         user: AbstractUser,
         table: Table,
-        data: DataImportDict,
+        data: FileImportDict,
         progress: Optional[Progress] = None,
     ) -> Tuple[List[GeneratedTableModel], Dict[str, Any]]:
         """
@@ -273,7 +277,11 @@ class ImportRowsActionType(UndoableActionType):
             )
 
         created_rows, error_report = RowHandler().import_rows(
-            user, table, data, progress=progress
+            user,
+            table,
+            data=data["data"],
+            configuration=data.get("configuration") or {},
+            progress=progress,
         )
         if error_report:
             logger.warning(f"Errors during rows import: {error_report}")

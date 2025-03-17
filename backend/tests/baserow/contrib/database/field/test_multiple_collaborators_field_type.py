@@ -849,12 +849,12 @@ def test_multiple_collaborators_field_type_values_can_be_searched(data_fixture):
             {collaborator_field.db_column: [{"id": luigi.id}]},
             {collaborator_field.db_column: [{"id": mario.id}, {"id": luigi.id}]},
         ],
-    )
+    ).created_rows
     rows_a_to_b = row_handler.force_create_rows(
         user=mario,
         table=table_a,
         rows_values=[{link_a_to_b.db_column: [row_b.id]} for row_b in rows_b],
-    )
+    ).created_rows
 
     # search in B
     model_b = table_b.get_model()
@@ -931,7 +931,7 @@ def test_multiple_collaborators_formula_field_cache_users_query(data_fixture):
             {field_id: [{"id": user_2.id}, {"id": user_3.id}]},
         ],
         model=table_model,
-    )
+    ).created_rows
 
     # The number of queries should not increas as we export more rows
     with CaptureQueriesContext(connection) as queries_for_all_others:

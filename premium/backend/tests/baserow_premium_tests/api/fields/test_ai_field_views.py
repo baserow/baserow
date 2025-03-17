@@ -33,10 +33,14 @@ def test_generate_ai_field_value_without_license(premium_data_fixture, api_clien
     table = premium_data_fixture.create_database_table(name="table", database=database)
     field = premium_data_fixture.create_ai_field(table=table, name="ai")
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[{}],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[{}],
+        )
+        .created_rows
     )
 
     response = api_client.post(
@@ -71,10 +75,14 @@ def test_generate_ai_field_value_view_field_does_not_exist(
     table = premium_data_fixture.create_database_table(name="table", database=database)
     field = premium_data_fixture.create_ai_field(table=table, name="ai")
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[{}],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[{}],
+        )
+        .created_rows
     )
 
     response = api_client.post(
@@ -110,10 +118,14 @@ def test_generate_ai_field_value_view_row_does_not_exist(
     table = premium_data_fixture.create_database_table(name="table", database=database)
     field = premium_data_fixture.create_ai_field(table=table, name="ai")
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[{}],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[{}],
+        )
+        .created_rows
     )
 
     response = api_client.post(
@@ -155,10 +167,14 @@ def test_generate_ai_field_value_view_user_not_in_workspace(
     table = premium_data_fixture.create_database_table(name="table", database=database)
     field = premium_data_fixture.create_ai_field(table=table, name="ai")
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[{}],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[{}],
+        )
+        .created_rows
     )
 
     response = api_client.post(
@@ -196,10 +212,14 @@ def test_generate_ai_field_value_view_generative_ai_does_not_exist(
         table=table, name="ai", ai_generative_ai_type="does_not_exist"
     )
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[{}],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[{}],
+        )
+        .created_rows
     )
 
     response = api_client.post(
@@ -237,12 +257,16 @@ def test_generate_ai_field_value_view_generative_ai_model_does_not_belong_to_typ
         table=table, name="ai", ai_generative_ai_model="does_not_exist"
     )
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {},
-        ],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {},
+            ],
+        )
+        .created_rows
     )
 
     response = api_client.post(
@@ -281,10 +305,14 @@ def test_generate_ai_field_value_view_generative_ai(
         table=table, name="ai", ai_prompt="'Hello'"
     )
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[{}],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[{}],
+        )
+        .created_rows
     )
     assert patched_generate_ai_values_for_rows.call_count == 0
 
@@ -313,10 +341,14 @@ def test_batch_generate_ai_field_value_limit(api_client, premium_data_fixture):
     field = premium_data_fixture.create_ai_field(
         table=table, name="ai", ai_prompt="'Hello'"
     )
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[{}] * (settings.BATCH_ROWS_SIZE_LIMIT + 1),
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[{}] * (settings.BATCH_ROWS_SIZE_LIMIT + 1),
+        )
+        .created_rows
     )
 
     row_ids = [row.id for row in rows]

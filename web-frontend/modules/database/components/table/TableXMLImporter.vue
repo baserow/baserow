@@ -62,7 +62,7 @@
           {{ v$.values.filename.$errors[0]?.$message }}
         </div>
 
-        <div v-if="values.filename !== ''" class="control">
+        <div v-if="values.filename !== ''" class="control margin-top-1">
           <slot name="upsertMapping" />
         </div>
       </div>

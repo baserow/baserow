@@ -392,7 +392,7 @@ def test_rows_enter_view_event_type_paginate_data(
     }
 
     with transaction.atomic():
-        webhook = WebhookHandler().create_table_webhook(
+        WebhookHandler().create_table_webhook(
             user=user,
             table=table,
             url="http://localhost/",
@@ -403,7 +403,7 @@ def test_rows_enter_view_event_type_paginate_data(
             use_user_field_names=True,
         )
 
-        rows = RowHandler().force_create_rows(
+        RowHandler().force_create_rows(
             user=user,
             table=table,
             rows_values=[

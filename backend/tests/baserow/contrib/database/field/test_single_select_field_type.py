@@ -1105,7 +1105,7 @@ def test_single_select_adjacent_row(data_fixture):
             },
         ],
         model=table_model,
-    )
+    ).created_rows
 
     previous_row = handler.get_adjacent_row(
         table_model, row_b.id, previous=True, view=grid_view
@@ -1141,7 +1141,7 @@ def test_single_select_adjacent_row_working_with_sorts_and_null_values(data_fixt
             {},
         ],
         model=table_model,
-    )
+    ).created_rows
 
     next_row = handler.get_adjacent_row(table_model, row_a.id, view=grid_view)
     assert next_row.id == row_b.id
@@ -1379,8 +1379,12 @@ def setup_view_for_single_select_field(data_fixture, option_values):
     def prep_row(option):
         return {single_select_field.db_column: option.id if option else None}
 
-    rows = RowHandler().force_create_rows(
-        user, table, [prep_row(option) for option in options], model=model
+    rows = (
+        RowHandler()
+        .force_create_rows(
+            user, table, [prep_row(option) for option in options], model=model
+        )
+        .created_rows
     )
 
     fields = {

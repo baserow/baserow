@@ -57,16 +57,20 @@ class TableFixtures:
                 )
             )
         if rows:
-            created_rows = RowHandler().force_create_rows(
-                user=user,
-                table=table,
-                rows_values=[
-                    {
-                        f"field_{field.id}": row[index]
-                        for index, field in enumerate(fields)
-                    }
-                    for row in rows
-                ],
+            created_rows = (
+                RowHandler()
+                .force_create_rows(
+                    user=user,
+                    table=table,
+                    rows_values=[
+                        {
+                            f"field_{field.id}": row[index]
+                            for index, field in enumerate(fields)
+                        }
+                        for row in rows
+                    ],
+                )
+                .created_rows
             )
         else:
             created_rows = []

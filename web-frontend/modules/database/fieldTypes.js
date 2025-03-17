@@ -545,7 +545,7 @@ export class FieldType extends Registerable {
    * Can a field of this type be used to perform an update during import on rows that
    * contain the same value as imported one.
    */
-  canUpdateRowDuringImport() {
+  canUpsert() {
     return false
   }
 
@@ -994,7 +994,7 @@ export class TextFieldType extends FieldType {
     return field.text_default
   }
 
-  canUpdateRowDuringImport() {
+  canUpsert() {
     return true
   }
 
@@ -1109,7 +1109,7 @@ export class LongTextFieldType extends FieldType {
     return ''
   }
 
-  canUpdateRowDuringImport() {
+  canUpsert() {
     return true
   }
 
@@ -1562,7 +1562,7 @@ export class NumberFieldType extends FieldType {
     return ['text', '1', '9']
   }
 
-  canUpdateRowDuringImport() {
+  canUpsert() {
     return true
   }
 
@@ -1780,7 +1780,7 @@ export class RatingFieldType extends FieldType {
     return 0
   }
 
-  canUpdateRowDuringImport() {
+  canUpsert() {
     return true
   }
 
@@ -1918,7 +1918,7 @@ export class BooleanFieldType extends FieldType {
     return ['icon', 'baserow-icon-circle-empty', 'baserow-icon-circle-checked']
   }
 
-  canUpdateRowDuringImport() {
+  canUpsert() {
     return true
   }
 
@@ -2272,6 +2272,10 @@ export class DateFieldType extends BaseDateFieldType {
   }
 
   canParseQueryParameter() {
+    return true
+  }
+
+  canUpsert() {
     return true
   }
 
@@ -2741,7 +2745,7 @@ export class DurationFieldType extends FieldType {
     return this.formatValue(field, value)
   }
 
-  canUpdateRowDuringImport() {
+  canUpsert() {
     return true
   }
 
@@ -2892,7 +2896,7 @@ export class URLFieldType extends FieldType {
     return isValidURL(value) ? value : ''
   }
 
-  canUpdateRowDuringImport() {
+  canUpsert() {
     return true
   }
 
@@ -2995,7 +2999,7 @@ export class EmailFieldType extends FieldType {
     return isValidEmail(value) ? value : ''
   }
 
-  canUpdateRowDuringImport() {
+  canUpsert() {
     return true
   }
 
@@ -3845,7 +3849,7 @@ export class PhoneNumberFieldType extends FieldType {
     return isSimplePhoneNumber(value) ? value : ''
   }
 
-  canUpdateRowDuringImport() {
+  canUpsert() {
     return true
   }
 
@@ -4495,7 +4499,7 @@ export class UUIDFieldType extends FieldType {
     return RowCardFieldUUID
   }
 
-  canUpdateRowDuringImport() {
+  canUpsert() {
     return true
   }
 
@@ -4578,7 +4582,7 @@ export class AutonumberFieldType extends FieldType {
     return RowCardFieldAutonumber
   }
 
-  canUpdateRowDuringImport() {
+  canUpsert() {
     return true
   }
 

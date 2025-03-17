@@ -127,8 +127,12 @@
               {{ license.seats_taken }} / {{ license.seats }}
               {{ $t('licenses.seats') }}
             </li>
-            <li v-if="license.application_users" class="licenses__item-detail-item">
-              {{ license.application_users_taken }} / {{ license.application_users }}
+            <li
+              v-if="license.application_users"
+              class="licenses__item-detail-item"
+            >
+              {{ license.application_users_taken }} /
+              {{ license.application_users }}
               {{ $t('licenses.applicationUsers') }}
             </li>
           </ul>
@@ -148,7 +152,6 @@
               ></i>
             </li>
           </ul>
-
         </nuxt-link>
       </div>
     </div>

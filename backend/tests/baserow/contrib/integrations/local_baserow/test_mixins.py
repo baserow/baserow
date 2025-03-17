@@ -44,15 +44,19 @@ def test_local_baserow_table_service_filterable_mixin_get_table_queryset(
     table_model = table.get_model()
     service = data_fixture.create_local_baserow_list_rows_service(table=table)
 
-    [alessia, alex, alastair, alexandra] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": "Alessia"},
-            {f"field_{field.id}": "Alex"},
-            {f"field_{field.id}": "Alastair"},
-            {f"field_{field.id}": "Alexandra"},
-        ],
+    [alessia, alex, alastair, alexandra] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "Alessia"},
+                {f"field_{field.id}": "Alex"},
+                {f"field_{field.id}": "Alastair"},
+                {f"field_{field.id}": "Alexandra"},
+            ],
+        )
+        .created_rows
     )
 
     dispatch_context = FakeDispatchContext()
@@ -254,15 +258,19 @@ def test_local_baserow_table_service_sortable_mixin_get_table_queryset(
     table_model = table.get_model()
     service = data_fixture.create_local_baserow_list_rows_service(table=table)
 
-    [aardvark, badger, crow, dragonfly] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": "Aardvark"},
-            {f"field_{field.id}": "Badger"},
-            {f"field_{field.id}": "Crow"},
-            {f"field_{field.id}": "Dragonfly"},
-        ],
+    [aardvark, badger, crow, dragonfly] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "Aardvark"},
+                {f"field_{field.id}": "Badger"},
+                {f"field_{field.id}": "Crow"},
+                {f"field_{field.id}": "Dragonfly"},
+            ],
+        )
+        .created_rows
     )
 
     dispatch_context = FakeDispatchContext()
@@ -357,15 +365,19 @@ def test_local_baserow_table_service_searchable_mixin_get_table_queryset(
         table = data_fixture.create_database_table(user=user)
         field = data_fixture.create_text_field(name="Names", table=table)
         service = data_fixture.create_local_baserow_list_rows_service(table=table)
-        [alessia, alex, alastair, alexandra] = RowHandler().create_rows(
-            user,
-            table,
-            rows_values=[
-                {f"field_{field.id}": "Alessia"},
-                {f"field_{field.id}": "Alex"},
-                {f"field_{field.id}": "Alastair"},
-                {f"field_{field.id}": "Alexandra"},
-            ],
+        [alessia, alex, alastair, alexandra] = (
+            RowHandler()
+            .create_rows(
+                user,
+                table,
+                rows_values=[
+                    {f"field_{field.id}": "Alessia"},
+                    {f"field_{field.id}": "Alex"},
+                    {f"field_{field.id}": "Alastair"},
+                    {f"field_{field.id}": "Alexandra"},
+                ],
+            )
+            .created_rows
         )
 
     table_model = table.get_model()

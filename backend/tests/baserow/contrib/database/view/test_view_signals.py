@@ -156,7 +156,7 @@ def test_rows_enter_and_exit_view_are_called_when_rows_created_or_deleted(
     with patch("baserow.contrib.database.views.signals.rows_entered_view.send") as p:
         (new_row,) = row_handler.force_create_rows(
             user, table_a, [{link_a_to_b.db_column: [row_b.id]}], model=model_a
-        )
+        ).created_rows
         p.assert_not_called()
 
     with patch("baserow.contrib.database.views.signals.rows_exited_view.send") as p:
@@ -169,7 +169,7 @@ def test_rows_enter_and_exit_view_are_called_when_rows_created_or_deleted(
     with patch("baserow.contrib.database.views.signals.rows_entered_view.send") as p:
         (new_row,) = row_handler.force_create_rows(
             user, table_a, [{link_a_to_b.db_column: [row_b.id]}], model=model_a
-        )
+        ).created_rows
         p.assert_called_once()
         assert p.call_args[1]["view"].id == view_a.id
         assert p.call_args[1]["row_ids"] == [new_row.id]
@@ -188,7 +188,7 @@ def test_rows_enter_and_exit_view_are_called_when_rows_created_or_deleted(
     with patch("baserow.contrib.database.views.signals.rows_entered_view.send") as p:
         (new_row,) = row_handler.force_create_rows(
             user, table_a, [{link_a_to_b.db_column: [row_b.id]}], model=model_a
-        )
+        ).created_rows
         assert p.call_count == 2
         assert p.call_args_list[0][1]["view"].id == view_a.id
         assert p.call_args_list[0][1]["row_ids"] == [new_row.id]
@@ -209,7 +209,7 @@ def test_rows_enter_and_exit_view_are_called_when_rows_created_or_deleted(
     with patch("baserow.contrib.database.views.signals.rows_entered_view.send") as p:
         (new_row,) = row_handler.force_create_rows(
             user, table_a, [{link_a_to_b.db_column: [row_b.id]}], model=model_a
-        )
+        ).created_rows
         p.assert_not_called()
 
     with patch("baserow.contrib.database.views.signals.rows_exited_view.send") as p:
@@ -498,10 +498,10 @@ def test_rows_enter_and_exit_view_when_data_changes_in_looked_up_tables(
     model_b = table_b.get_model()
     (row_b1,) = row_handler.force_create_rows(
         user, table_b, [{text_field_b.db_column: ""}], model=model_b
-    )
+    ).created_rows
     _, row_a2 = row_handler.force_create_rows(
         user, table_a, [{}, {link_a_to_b.db_column: [row_b1.id]}], model=model_a
-    )
+    ).created_rows
 
     view_a = data_fixture.create_grid_view(table=table_a)
     view_filter = data_fixture.create_view_filter(
@@ -519,7 +519,7 @@ def test_rows_enter_and_exit_view_when_data_changes_in_looked_up_tables(
 
         (row_a3,) = row_handler.force_create_rows(
             user, table_a, [{link_a_to_b.db_column: [row_b1.id]}], model=model_a
-        )
+        ).created_rows
 
         assert p.call_count == 2
         assert p.call_args_list[1][1]["view"].id == view_a.id

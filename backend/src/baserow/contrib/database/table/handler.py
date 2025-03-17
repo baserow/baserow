@@ -488,7 +488,7 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         _, error_report = RowHandler().import_rows(
             user,
             table,
-            data={"data": data},
+            data=data,
             progress=progress,
             send_realtime_update=False,
         )

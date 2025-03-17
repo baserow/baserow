@@ -26,6 +26,7 @@ from baserow.contrib.database.fields.exceptions import (
 )
 from baserow.contrib.database.rows.actions import ImportRowsActionType
 from baserow.contrib.database.rows.exceptions import ReportMaxErrorCountExceeded
+from baserow.contrib.database.rows.types import FileImportDict
 from baserow.contrib.database.table.actions import CreateTableActionType
 from baserow.contrib.database.table.exceptions import (
     InitialTableDataDuplicateName,
@@ -35,7 +36,6 @@ from baserow.contrib.database.table.exceptions import (
 from baserow.core.action.registries import action_type_registry
 from baserow.core.jobs.registries import JobType
 
-from ..rows.constants import DataImportDict
 from .models import FileImportJob
 from .serializers import ReportSerializer
 
@@ -159,7 +159,7 @@ class FileImportJobType(JobType):
         """
 
         with job.data_file.open("r") as fin:
-            data: DataImportDict = json.load(fin)
+            data: FileImportDict = json.load(fin)
         try:
             if job.table is None:
                 new_table, error_report = action_type_registry.get_by_type(

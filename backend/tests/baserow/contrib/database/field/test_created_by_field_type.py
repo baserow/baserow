@@ -132,7 +132,7 @@ def test_create_rows_created_by(data_fixture):
 
     rows = row_handler.create_rows(
         user=user, table=table, rows_values=[{}, {}], model=model
-    )
+    ).created_rows
 
     assert getattr(rows[0], f"field_{field.id}") == user
 

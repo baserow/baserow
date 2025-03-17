@@ -512,26 +512,30 @@ def test_can_undo_deleting_rows(data_fixture):
     )
     model = table.get_model()
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {
-                f"field_{name_field.id}": "Tesla",
-                f"field_{speed_field.id}": 240,
-                f"field_{price_field.id}": 59999.99,
-            },
-            {
-                f"field_{name_field.id}": "Giulietta",
-                f"field_{speed_field.id}": 210,
-                f"field_{price_field.id}": 34999.99,
-            },
-            {
-                f"field_{name_field.id}": "Panda",
-                f"field_{speed_field.id}": 160,
-                f"field_{price_field.id}": 8999.99,
-            },
-        ],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {
+                    f"field_{name_field.id}": "Tesla",
+                    f"field_{speed_field.id}": 240,
+                    f"field_{price_field.id}": 59999.99,
+                },
+                {
+                    f"field_{name_field.id}": "Giulietta",
+                    f"field_{speed_field.id}": 210,
+                    f"field_{price_field.id}": 34999.99,
+                },
+                {
+                    f"field_{name_field.id}": "Panda",
+                    f"field_{speed_field.id}": 160,
+                    f"field_{price_field.id}": 8999.99,
+                },
+            ],
+        )
+        .created_rows
     )
 
     assert model.objects.all().count() == 3
@@ -571,26 +575,30 @@ def test_can_undo_redo_deleting_rows(data_fixture):
     )
     model = table.get_model()
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {
-                f"field_{name_field.id}": "Tesla",
-                f"field_{speed_field.id}": 240,
-                f"field_{price_field.id}": 59999.99,
-            },
-            {
-                f"field_{name_field.id}": "Giulietta",
-                f"field_{speed_field.id}": 210,
-                f"field_{price_field.id}": 34999.99,
-            },
-            {
-                f"field_{name_field.id}": "Panda",
-                f"field_{speed_field.id}": 160,
-                f"field_{price_field.id}": 8999.99,
-            },
-        ],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {
+                    f"field_{name_field.id}": "Tesla",
+                    f"field_{speed_field.id}": 240,
+                    f"field_{price_field.id}": 59999.99,
+                },
+                {
+                    f"field_{name_field.id}": "Giulietta",
+                    f"field_{speed_field.id}": 210,
+                    f"field_{price_field.id}": 34999.99,
+                },
+                {
+                    f"field_{name_field.id}": "Panda",
+                    f"field_{speed_field.id}": 160,
+                    f"field_{price_field.id}": 8999.99,
+                },
+            ],
+        )
+        .created_rows
     )
 
     assert model.objects.all().count() == 3

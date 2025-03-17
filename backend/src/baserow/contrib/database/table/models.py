@@ -1381,27 +1381,6 @@ class Table(
     def get_collision_safe_order_id_idx_name(self):
         return f"tbl_order_id_{self.id}_idx"
 
-    def get_field_types_map(self) -> dict[str, tuple[FieldType, Field]]:
-        """
-        Shorthand to get a map of field-speficic types
-        :return:
-        """
-
-        query = (
-            self.field_set(manager="objects_and_trash")
-            .select_related("table", "content_type")
-            .all()
-        )
-        out = {}
-        for _field in query:
-            field = _field.specific
-            field_type = field_type_registry.get_by_model(field)
-            out[_field.db_column] = (
-                field_type,
-                field,
-            )
-        return out
-
 
 class DuplicateTableJob(
     JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job

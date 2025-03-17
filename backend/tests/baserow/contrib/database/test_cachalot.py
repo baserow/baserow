@@ -105,7 +105,7 @@ if settings.CACHALOT_ENABLED:
                 {f"field_{field.id}": [select_options[0].id, select_options[1].value]},
                 {f"field_{field.id}": [select_options[2].value, select_options[0].id]},
             ],
-        )
+        ).created_rows
 
         url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
         response = api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token}"})

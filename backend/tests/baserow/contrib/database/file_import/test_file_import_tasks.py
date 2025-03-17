@@ -18,7 +18,10 @@ from baserow.contrib.database.fields.exceptions import (
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.models import SelectOption, TextField
-from baserow.contrib.database.rows.exceptions import ReportMaxErrorCountExceeded
+from baserow.contrib.database.rows.exceptions import (
+    InvalidRowLength,
+    ReportMaxErrorCountExceeded,
+)
 from baserow.contrib.database.table.exceptions import (
     InitialTableDataDuplicateName,
     InitialTableDataLimitExceeded,
@@ -751,6 +754,42 @@ def test_run_file_import_task_with_upsert_fields_not_usable(
     rows = model.objects.all()
     assert len(rows) == 2
     assert all([getattr(r, f1.db_column) == "aa-" for r in rows])
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_fields_invalid_length(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    f1 = data_fixture.create_text_field(table=table, order=1, name="text 1")
+
+    model = table.get_model()
+
+    with pytest.raises(InvalidRowLength):
+        with patch_filefield_storage():
+            job = data_fixture.create_file_import_job(
+                data={
+                    "data": [["bbb"], ["ccc"], ["aaa"]],
+                    "configuration": {
+                        # fields and values have different lengths
+                        "upsert_fields": [f1.id],
+                        "upsert_values": [
+                            ["aaa", "bbb"],
+                        ],
+                    },
+                },
+                table=table,
+                user=user,
+                first_row_header=False,
+            )
+            run_async_job(job.id)
+    job.refresh_from_db()
+    assert job.failed
+
+    rows = model.objects.all()
+    assert len(rows) == 0
 
 
 @pytest.mark.django_db(transaction=True)

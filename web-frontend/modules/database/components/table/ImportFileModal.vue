@@ -352,8 +352,7 @@ export default {
       const selected = Object.values(this.mapping)
       return this.fields.filter((field) => {
         return (
-          selected.includes(field.id) &&
-          this.fieldTypes[field.type].canUpdateRowDuringImport()
+          selected.includes(field.id) && this.fieldTypes[field.type].canUpsert()
         )
       })
     },
