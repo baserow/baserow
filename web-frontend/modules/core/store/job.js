@@ -14,18 +14,8 @@ const MAX_POLLING_ATTEMPTS = 100
  * @returns {*|null}
  */
 export function populateJob(job, registry) {
-  try {
-    const type = registry.get('job', job.type)
-    return type.populate(job)
-  } catch (err) {
-    if (
-      err.message ===
-      `The type ${job.type} is not found under namespace job in the registry.`
-    ) {
-      return null
-    }
-    throw err
-  }
+  const type = registry.get('job', job.type)
+  return type.populate(job)
 }
 
 export const state = () => ({
@@ -225,10 +215,8 @@ export const actions = {
    * Forcefully create an item in the store without making a call to the server.
    */
   forceCreate({ commit }, job) {
-    const item = populateJob(job, this.$registry)
-    if (item !== null) {
-      commit('ADD_ITEM', job)
-    }
+    populateJob(job, this.$registry)
+    commit('ADD_ITEM', job)
   },
   /**
    * Forcefully update an item in the store without making a call to the server.

@@ -413,7 +413,19 @@ export class RealTimeHandler {
     })
 
     this.registerEvent('job_started', ({ store }, data) => {
-      store.dispatch('job/create', data.job)
+      try {
+        store.dispatch('job/create', data.job)
+      } catch (err) {
+        // TODO: some job types have no frontend handlers (JobType subclasses)
+        //  registered. This will cause an error during creation. The proper fix
+        //  would be to add missing JobTypes.
+        if (
+          err.message !==
+          `The type ${data.job.type} is not found under namespace job in the registry.`
+        ) {
+          throw err
+        }
+      }
     })
   }
 }
