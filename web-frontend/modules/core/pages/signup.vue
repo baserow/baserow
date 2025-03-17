@@ -36,11 +36,7 @@
       </template>
       <template v-else>
         <template v-if="loginButtons.length">
-          <LoginButtons
-            :invitation="invitation"
-            :original="null"
-            :hide-if-no-buttons="true"
-          />
+          <LoginButtons :invitation="invitation" :hide-if-no-buttons="true" />
 
           <div class="auth__separator">
             {{ $t('common.or') }}
