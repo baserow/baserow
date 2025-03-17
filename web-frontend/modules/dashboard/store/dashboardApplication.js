@@ -177,13 +177,20 @@ export const actions = {
   async createWidget({ commit, dispatch }, { dashboard, widget }) {
     const tempId = Date.now()
     commit('ADD_WIDGET', { id: tempId, ...widget })
-    const { data } = await WidgetService(this.$client).create(
-      dashboard.id,
-      widget
-    )
+    let widgetData
+    try {
+      const { data } = await WidgetService(this.$client).create(
+        dashboard.id,
+        widget
+      )
+      widgetData = data
+    } catch (error) {
+      commit('DELETE_WIDGET', tempId)
+      throw error
+    }
     return await dispatch('handleNewWidgetCreated', {
       tempWidgetId: tempId,
-      createdWidget: data,
+      createdWidget: widgetData,
     })
   },
   async handleNewWidgetCreated(
