@@ -175,9 +175,8 @@ def test_run_periodic_field_type_update_per_workspace(data_fixture, settings):
         2023, 2, 27, 10, 0, 0, tzinfo=timezone.utc
     )
 
-    with freeze_time("2023-02-27 10:30"):
-        with local_cache.context():
-            run_periodic_fields_updates(workspace_id=workspace.id)
+    with freeze_time("2023-02-27 10:30"), local_cache.context():
+        run_periodic_fields_updates(workspace_id=workspace.id)
 
         row.refresh_from_db()
         assert getattr(row, f"field_{field.id}") == datetime(
@@ -220,9 +219,8 @@ def test_run_field_type_updates_dependant_fields(data_fixture, settings):
         2023, 2, 27, 10, 15, 0, tzinfo=timezone.utc
     )
 
-    with freeze_time("2023-02-27 10:45"):
-        with local_cache.context():
-            run_periodic_fields_updates(workspace_id=workspace.id)
+    with freeze_time("2023-02-27 10:45"), local_cache.context():
+        run_periodic_fields_updates(workspace_id=workspace.id)
 
         row.refresh_from_db()
         assert getattr(row, f"field_{field.id}") == datetime(
