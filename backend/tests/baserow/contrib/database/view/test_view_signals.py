@@ -14,6 +14,7 @@ from baserow.contrib.database.views.signals import (
 )
 from baserow.core.cache import local_cache
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.cache import local_cache
 
 
 @patch("baserow.contrib.database.views.handler.ViewIndexingHandler")
