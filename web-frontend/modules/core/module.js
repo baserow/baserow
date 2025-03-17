@@ -55,9 +55,6 @@ export default function CoreModule(options) {
     process.env.PUBLIC_WEB_FRONTEND_URL = BASEROW_PUBLIC_URL
   }
 
-  // The core depends on these modules.
-  this.requireModule('cookie-universal-nuxt')
-
   this.options.privateRuntimeConfig = {
     PRIVATE_BACKEND_URL:
       process.env.PRIVATE_BACKEND_URL ?? 'http://backend:8000',

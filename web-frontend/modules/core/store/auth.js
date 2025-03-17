@@ -196,9 +196,9 @@ export const actions = {
     }
   },
   forceLogoff({ commit }) {
-    unsetToken(this.app)
-    unsetUserSessionCookie(this.app)
-    unsetWorkspaceCookie(this.app)
+    unsetToken()
+    unsetUserSessionCookie()
+    unsetWorkspaceCookie()
     commit('LOGOFF')
   },
   /**
@@ -237,9 +237,9 @@ export const actions = {
       }
     } catch (error) {
       if (error.response?.status === 401) {
-        unsetToken(this.app)
-        unsetUserSessionCookie(this.app)
-        unsetWorkspaceCookie(this.app)
+        unsetToken()
+        unsetUserSessionCookie()
+        unsetWorkspaceCookie()
         if (getters.isAuthenticated) {
           dispatch('setUserSessionExpired', true)
         }
@@ -294,9 +294,9 @@ export const actions = {
     commit('SET_PREVENT_SET_TOKEN', true)
   },
   setUserSessionExpired({ commit }, value) {
-    unsetToken(this.app)
-    unsetUserSessionCookie(this.app)
-    unsetWorkspaceCookie(this.app)
+    unsetToken()
+    unsetUserSessionCookie()
+    unsetWorkspaceCookie()
     commit('SET_USER_SESSION_EXPIRED', value)
   },
   async fetchWorkspaceInvitations({ commit }) {

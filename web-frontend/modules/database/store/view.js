@@ -360,7 +360,7 @@ export const actions = {
       commit('SET_LOADING', false)
 
       // Get the default view for the table.
-      const defaultViewId = readDefaultViewIdFromCookie(this.$cookies, table.id)
+      const defaultViewId = readDefaultViewIdFromCookie(table.id)
       if (defaultViewId !== null) {
         commit('SET_DEFAULT_VIEW_ID', defaultViewId)
       }
@@ -583,7 +583,7 @@ export const actions = {
     commit('SET_DEFAULT_VIEW_ID', view.id)
 
     // Set the default view for the table.
-    saveDefaultViewIdInCookie(this.$cookies, view, this.$config)
+    saveDefaultViewIdInCookie(view, this.$config)
 
     dispatch(
       'undoRedo/updateCurrentScopeSet',

@@ -118,10 +118,7 @@ export default {
       (!process.server || req) &&
       !store.getters['userSourceUser/isAuthenticated'](builder)
     ) {
-      const refreshToken = getTokenIfEnoughTimeLeft(
-        app,
-        userSourceCookieTokenName
-      )
+      const refreshToken = getTokenIfEnoughTimeLeft(userSourceCookieTokenName)
       if (refreshToken) {
         try {
           await store.dispatch('userSourceUser/refreshAuth', {

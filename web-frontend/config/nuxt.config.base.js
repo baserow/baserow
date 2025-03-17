@@ -34,7 +34,7 @@ export default function (
   const modules = baseModules.concat(additionalModules)
   return {
     modules,
-    buildModules: ['@nuxtjs/stylelint-module', '@nuxtjs/svg'],
+    buildModules: ['@nuxtjs/stylelint-module', '@nuxtjs/svg', '@vueuse/nuxt'],
     sentry: {
       clientIntegrations: {
         Dedupe: {},
@@ -63,6 +63,7 @@ export default function (
         'markdown-it',
         'vue-chartjs',
         'chart.js',
+        '@vueuse/integrations',
       ],
     },
   }
