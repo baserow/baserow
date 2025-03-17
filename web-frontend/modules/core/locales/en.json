@@ -477,10 +477,7 @@
     "passwordPlaceholder": "Enter your password..",
     "passwordRepeatPlaceholder": "Confirm your password..",
     "loginText": "Already have an account?",
-    "login": "Login",
-    "agreeTerms": "By creating an account, you agree to the {0} {1} {2}",
-    "terms": "Terms of Service",
-    "privacyPolicy": "Privacy Policy"
+    "login": "Login"
   },
   "forgotPassword": {
     "title": "Forgot password",

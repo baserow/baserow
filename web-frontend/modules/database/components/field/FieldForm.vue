@@ -7,6 +7,7 @@
           v-model="v$.values.name.$model"
           :error="fieldHasErrors('name')"
           :placeholder="$t('fieldForm.name')"
+          @blur="v$.values.name.$touch()"
           @input="isPrefilledWithSuggestedFieldName = false"
           @keydown.enter="handleKeydownEnter($event)"
         ></FormInput>

@@ -167,7 +167,7 @@ export default {
         const token = this.$route.params.token
         await AuthService(this.$client).resetPassword(
           token,
-          this.state.password
+          this.account.password
         )
         this.success = true
         this.loading = false

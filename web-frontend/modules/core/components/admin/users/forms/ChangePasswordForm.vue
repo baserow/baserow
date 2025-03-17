@@ -6,7 +6,6 @@
       :label="$t('changePasswordForm.newPassword')"
       class="margin-bottom-2"
     >
-      {{ v$.values }}
       <PasswordInput
         v-model="values.password"
         :validation-state="v$.values.password"

@@ -38,7 +38,7 @@
         <template v-if="loginButtons.length">
           <LoginButtons
             :invitation="invitation"
-            :original="original"
+            :original="null"
             :hide-if-no-buttons="true"
           />
 
@@ -57,25 +57,7 @@
         <LoginActions
           v-if="!shouldShowAdminSignupPage"
           :invitation="invitation"
-        >
-          <!-- <li class="auth__action-link">
-            <i18n path="signup.agreeTerms" tag="span">
-              <a
-                href="https://baserow.io/terms-and-conditions"
-                target="_blank"
-                @click.stop
-                >{{ $t('signup.terms') }}
-              </a>
-              {{ $t('common.and') }}
-              <a
-                href="https://baserow.io/privacy-policy"
-                target="_blank"
-                @click.stop
-                >{{ $t('signup.privacyPolicy') }}
-              </a>
-            </i18n>
-          </li> -->
-        </LoginActions>
+        ></LoginActions>
       </template>
     </template>
   </div>
@@ -135,11 +117,6 @@ export default {
       loginButtons: 'authProvider/getAllLoginButtons',
       passwordLoginEnabled: 'authProvider/getPasswordLoginEnabled',
     }),
-    termsofServiceURL() {
-      return this.$nuxt.$router.resolve({
-        name: 'terms',
-      }).href
-    },
   },
   methods: {
     next(params) {
