@@ -427,8 +427,8 @@ class GalleryViewType(ViewType):
 
         serialized = super().export_serialized(gallery, cache, files_zip, storage)
 
-        if gallery.card_cover_image_field:
-            serialized["card_cover_image_field_id"] = gallery.card_cover_image_field.id
+        if gallery.card_cover_image_field_id:
+            serialized["card_cover_image_field_id"] = gallery.card_cover_image_field_id
 
         serialized_field_options = []
         for field_option in gallery.get_field_options():
