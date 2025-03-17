@@ -39,6 +39,7 @@ export default function (
       '@nuxtjs/stylelint-module',
       '@nuxtjs/svg',
       '@nuxtjs/composition-api/module',
+      '@vueuse/nuxt',
     ],
     sentry: {
       clientIntegrations: {
@@ -79,6 +80,7 @@ export default function (
         'vue-chartjs',
         'chart.js',
         '@vue2-flow/core',
+        '@vueuse/integrations',
       ],
     },
   }

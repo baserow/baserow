@@ -1,5 +1,6 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import PublicGrid from '@baserow/modules/database/pages/publicView'
+import { getCookiesInstance } from '@baserow/modules/core/utils/cookies'
 
 // Mock out debounce so we dont have to wait or simulate waiting for the various
 // debounces in the search functionality.
@@ -8,10 +9,15 @@ jest.mock('lodash/debounce', () => jest.fn((fn) => fn))
 describe('Public View Page Tests', () => {
   let testApp = null
   let mockServer = null
-
+  let cookiesInstance = null
   beforeAll(() => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
+    cookiesInstance = getCookiesInstance()
+    // Setting HAS_DOCUMENT_COOKIE to false to indicate that we're in a test environment
+    // where document.cookie is not available (Node.js). This makes the cookie implementation
+    // use a mock/alternative storage mechanism instead of the browser's document.cookie API.
+    cookiesInstance.HAS_DOCUMENT_COOKIE = false
   })
 
   afterEach(() => testApp.afterEach())
@@ -42,8 +48,7 @@ describe('Public View Page Tests', () => {
       },
     })
 
-    const allCookies = testApp.store.$cookies
-    const cookieValue = allCookies.get('defaultViewId')
+    const cookieValue = cookiesInstance.get('defaultViewId')
     expect(cookieValue.length).toBe(0)
   })
 

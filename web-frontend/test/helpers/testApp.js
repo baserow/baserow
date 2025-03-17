@@ -4,7 +4,6 @@ import axios from 'axios'
 import setupClient, {
   ClientErrorMap,
 } from '@baserow/modules/core/plugins/clientHandler'
-
 import setupDatabasePlugin from '@baserow/modules/database/plugin'
 import setupBuilderPlugin from '@baserow/modules/builder/plugin'
 import setupIntegrationPlugin from '@baserow/modules/integrations/plugin'
@@ -96,18 +95,9 @@ export class TestApp {
     }
     // Various stub and mock attributes which will be injected into components
     // mounted using TestApp.
-    const cookieStorage = {}
-    this.cookieStorage = cookieStorage
     this._app = {
       $realtime: this._realtime,
-      $cookies: {
-        set(name, value) {
-          cookieStorage[name] = value
-        },
-        get(name) {
-          return cookieStorage[name]
-        },
-      },
+
       $config: {
         PUBLIC_WEB_FRONTEND_URL: 'https://localhost/',
         PRIVATE: 'http://backend:8000',
