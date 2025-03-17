@@ -829,6 +829,7 @@ def test_get_public_gallery_view(api_client, data_fixture):
                     "field": visible_sort.field.id,
                     "id": visible_sort.id,
                     "order": "DESC",
+                    "type": "default",
                     "view": gallery_view.slug,
                 }
             ],

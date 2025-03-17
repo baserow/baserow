@@ -63,58 +63,15 @@
               </DropdownItem>
             </Dropdown>
           </div>
-          <div
-            class="group-bys__order"
-            :class="{ 'group-bys__order--disabled': disableGroupBy }"
-          >
-            <a
-              class="group-bys__order-item"
-              :class="{ active: groupBy.order === 'ASC' }"
-              @click="updateGroupBy(groupBy, { order: 'ASC' })"
-            >
-              <template v-if="getGroupByIndicator(field, 0) === 'text'">{{
-                getGroupByIndicator(field, 1)
-              }}</template>
-              <i
-                v-if="getGroupByIndicator(field, 0) === 'icon'"
-                :class="getGroupByIndicator(field, 1)"
-              ></i>
-
-              <i class="iconoir-arrow-right"></i>
-
-              <template v-if="getGroupByIndicator(field, 0) === 'text'">{{
-                getGroupByIndicator(field, 2)
-              }}</template>
-              <i
-                v-if="getGroupByIndicator(field, 0) === 'icon'"
-                class="fa"
-                :class="getGroupByIndicator(field, 2)"
-              ></i>
-            </a>
-            <a
-              class="group-bys__order-item"
-              :class="{ active: groupBy.order === 'DESC' }"
-              @click="updateGroupBy(groupBy, { order: 'DESC' })"
-            >
-              <template v-if="getGroupByIndicator(field, 0) === 'text'">{{
-                getGroupByIndicator(field, 2)
-              }}</template>
-              <i
-                v-if="getGroupByIndicator(field, 0) === 'icon'"
-                :class="getGroupByIndicator(field, 2)"
-              ></i>
-
-              <i class="iconoir-arrow-right"></i>
-
-              <template v-if="getGroupByIndicator(field, 0) === 'text'">{{
-                getGroupByIndicator(field, 1)
-              }}</template>
-              <i
-                v-if="getGroupByIndicator(field, 0) === 'icon'"
-                :class="getGroupByIndicator(field, 1)"
-              ></i>
-            </a>
-          </div>
+          <ViewSortOrder
+            :disabled="disableGroupBy"
+            :sort-types="getSortTypes(field)"
+            :type="groupBy.type"
+            :order="groupBy.order"
+            @update-order="
+              updateGroupBy(groupBy, { order: $event.order, type: $event.type })
+            "
+          ></ViewSortOrder>
         </div>
       </div>
       <div
@@ -152,9 +109,12 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import context from '@baserow/modules/core/mixins/context'
+import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
+import ViewSortOrder from '@baserow/modules/database/components/view/ViewSortOrder.vue'
 
 export default {
   name: 'ViewGroupByContext',
+  components: { ViewSortOrder },
   mixins: [context],
   props: {
     fields: {
@@ -213,6 +173,7 @@ export default {
           values: {
             field: fieldId,
             value: 'ASC',
+            type: DEFAULT_SORT_TYPE_KEY,
           },
           readOnly: this.readOnly,
         })
@@ -238,6 +199,18 @@ export default {
         return
       }
 
+      // If the field has changed, the type might not be compatible anymore. If so,
+      // then we're falling back on the default sort type.
+      if (values.field) {
+        const sortType = values.type || groupBy.type
+        const field = this.getField(values.field)
+        const fieldType = this.getFieldType(field)
+        const sortTypes = fieldType.getSortTypes(field, this.$registry)
+        if (!Object.prototype.hasOwnProperty.call(sortTypes, sortType)) {
+          values.type = DEFAULT_SORT_TYPE_KEY
+        }
+      }
+
       try {
         await this.$store.dispatch('view/updateGroupBy', {
           groupBy,
@@ -253,6 +226,9 @@ export default {
       return this.$registry
         .get('field', field.type)
         .getGroupByIndicator(field, this.$registry)[index]
+    },
+    getSortTypes(field) {
+      return this.getFieldType(field).getSortTypes(field, this.$registry)
     },
   },
 }

@@ -35,6 +35,7 @@ from baserow.contrib.database.fields.field_filters import (
 )
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.views.models import (
+    DEFAULT_SORT_TYPE_KEY,
     SORT_ORDER_ASC,
     SORT_ORDER_DESC,
     View,
@@ -242,7 +243,9 @@ class AirtableViewType(Instance):
             mapping_entry = field_mapping[sort["columnId"]]
             baserow_field_type = mapping_entry["baserow_field_type"]
             baserow_field = mapping_entry["baserow_field"]
-            can_order_by = baserow_field_type.check_can_order_by(baserow_field)
+            can_order_by = baserow_field_type.check_can_order_by(
+                baserow_field, DEFAULT_SORT_TYPE_KEY
+            )
 
             if not can_order_by:
                 import_report.add_failed(
@@ -303,7 +306,9 @@ class AirtableViewType(Instance):
             mapping_entry = field_mapping[group["columnId"]]
             baserow_field_type = mapping_entry["baserow_field_type"]
             baserow_field = mapping_entry["baserow_field"]
-            can_order_by = baserow_field_type.check_can_group_by(baserow_field)
+            can_order_by = baserow_field_type.check_can_group_by(
+                baserow_field, DEFAULT_SORT_TYPE_KEY
+            )
 
             if not can_order_by:
                 import_report.add_failed(

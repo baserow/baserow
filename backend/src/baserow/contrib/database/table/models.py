@@ -50,6 +50,7 @@ from baserow.contrib.database.table.constants import (
     USER_TABLE_DATABASE_NAME_PREFIX,
 )
 from baserow.contrib.database.views.exceptions import ViewFilterTypeNotAllowedForField
+from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.core.db import MultiFieldPrefetchQuerysetMixin, specific_iterator
 from baserow.core.fields import AutoTrueBooleanField
@@ -332,6 +333,8 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, models.QuerySet):
                 raise OrderByFieldNotFound(order)
 
             order_direction = "DESC" if order[:1] == "-" else "ASC"
+            type_match = re.search(r"\[(.*?)\]", order)
+            sort_type = type_match.group(1) if type_match else DEFAULT_SORT_TYPE_KEY
             field_object = field_object_dict[field_name_or_id]
             field_type = field_object["type"]
             field_name = field_object["name"]
@@ -339,15 +342,18 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, models.QuerySet):
             user_field_name = field_object["field"].name
             error_display_name = user_field_name if user_field_names else field_name
 
-            if not field_object["type"].check_can_order_by(field_object["field"]):
+            if not field_object["type"].check_can_order_by(
+                field_object["field"], sort_type
+            ):
                 raise OrderByFieldNotPossible(
                     error_display_name,
                     field_type.type,
-                    f"It is not possible to order by field type {field_type.type}.",
+                    sort_type,
+                    f"It is not possible to order by field type {field_type.type} using sort type {sort_type}.",
                 )
 
             field_annotated_order_by = field_type.get_order(
-                field, field_name, order_direction, table_model=self.model
+                field, field_name, order_direction, sort_type, table_model=self.model
             )
 
             if field_annotated_order_by.annotation is not None:

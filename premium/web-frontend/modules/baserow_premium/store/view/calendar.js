@@ -25,6 +25,7 @@ import {
   getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
+import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
@@ -581,7 +582,14 @@ export const actions = {
     if (stack === undefined) {
       return
     }
-    const sortings = [{ field: dateFieldId, value: 'ASC', order: 'ASC' }]
+    const sortings = [
+      {
+        field: dateFieldId,
+        value: 'ASC',
+        order: 'ASC',
+        type: DEFAULT_SORT_TYPE_KEY,
+      },
+    ]
     const sortedRows = clone(stack.results)
     sortedRows.push(row)
     sortedRows.sort(getRowSortFunction(this.$registry, sortings, fields))
@@ -726,7 +734,14 @@ export const actions = {
       }
       newStackResults.push(newRow)
       newStackCount++
-      const sortings = [{ field: dateFieldId, value: 'ASC', order: 'ASC' }]
+      const sortings = [
+        {
+          field: dateFieldId,
+          value: 'ASC',
+          order: 'ASC',
+          type: DEFAULT_SORT_TYPE_KEY,
+        },
+      ]
       newStackResults.sort(getRowSortFunction(this.$registry, sortings, fields))
       newIndex = newStackResults.findIndex((r) => r.id === newRow.id)
       const newIsLast = newIndex === newStackResults.length - 1

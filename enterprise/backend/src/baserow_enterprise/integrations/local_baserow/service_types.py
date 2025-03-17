@@ -9,6 +9,7 @@ from baserow.contrib.database.api.fields.serializers import FieldSerializer
 from baserow.contrib.database.fields.exceptions import FieldTypeDoesNotExist
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.views.exceptions import AggregationTypeDoesNotExist
+from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.utils import AnnotatedAggregation
 from baserow.contrib.integrations.local_baserow.integration_types import (
     LocalBaserowIntegrationType,
@@ -629,6 +630,9 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     field=field_obj["field"],
                     field_name=sort_by.reference,
                     order_direction=sort_by.direction,
+                    # The application builder does not yet have compatibility with
+                    # different sort types, so it uses the default one instead.
+                    sort_type=DEFAULT_SORT_TYPE_KEY,
                 )
                 if field_annotated_order_by.annotation is not None:
                     sort_annotations = {

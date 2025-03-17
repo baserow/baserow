@@ -55,6 +55,9 @@ VIEW_OWNERSHIP_TYPES = [OWNERSHIP_TYPE_COLLABORATIVE]
 # Must be the same as `modules/database/constants.js`.
 DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY = "default"
 
+# Must be the same as `modules/database/constants.js`.
+DEFAULT_SORT_TYPE_KEY = "default"
+
 
 def get_default_view_content_type():
     return ContentType.objects.get_for_model(View)
@@ -503,6 +506,13 @@ class ViewSort(HierarchicalModelMixin, models.Model):
         "and DESC (Descending) is from Z to A.",
         default=SORT_ORDER_ASC,
     )
+    type = models.CharField(
+        max_length=32,
+        default=DEFAULT_SORT_TYPE_KEY,
+        db_default=DEFAULT_SORT_TYPE_KEY,
+        help_text=f"Indicates the sort type. Will automatically fall back to `"
+        f"{DEFAULT_SORT_TYPE_KEY}` if incompatible with field type.",
+    )
 
     def get_parent(self):
         return self.view
@@ -537,6 +547,13 @@ class ViewGroupBy(HierarchicalModelMixin, models.Model):
         help_text="Indicates the sort order direction. ASC (Ascending) is from A to Z "
         "and DESC (Descending) is from Z to A.",
         default=SORT_ORDER_ASC,
+    )
+    type = models.CharField(
+        max_length=32,
+        default=DEFAULT_SORT_TYPE_KEY,
+        db_default=DEFAULT_SORT_TYPE_KEY,
+        help_text=f"Indicates the sort type. Will automatically fall back to `"
+        f"{DEFAULT_SORT_TYPE_KEY}` if incompatible with field type.",
     )
     width = models.PositiveIntegerField(
         default=200,

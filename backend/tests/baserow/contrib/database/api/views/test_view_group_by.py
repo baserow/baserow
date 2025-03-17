@@ -189,6 +189,7 @@ def test_create_view_group_by(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert response_json["order"] == "DESC"
+    assert response_json["type"] == "default"
 
     response = api_client.post(
         reverse("api:database:views:list_group_bys", kwargs={"view_id": view_1.id}),
@@ -204,6 +205,36 @@ def test_create_view_group_by(api_client, data_fixture):
     assert response_json["width"] == 200
 
     assert ViewGroupBy.objects.all().count() == 3
+
+
+@pytest.mark.django_db
+def test_create_view_group_by_with_type(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table_1 = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table_1)
+    select_1 = data_fixture.create_single_select_field(table=table_1)
+    view_1 = data_fixture.create_grid_view(table=table_1)
+
+    response = api_client.post(
+        reverse("api:database:views:list_group_bys", kwargs={"view_id": view_1.id}),
+        {"field": field_1.id, "order": "ASC", "type": "unknown"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED"
+
+    response = api_client.post(
+        reverse("api:database:views:list_group_bys", kwargs={"view_id": view_1.id}),
+        {"field": select_1.id, "order": "DESC", "type": "order"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["order"] == "DESC"
+    assert response_json["type"] == "order"
 
 
 @pytest.mark.django_db
@@ -283,6 +314,7 @@ def test_get_view_group_by(api_client, data_fixture):
     assert response_json["view"] == first.view_id
     assert response_json["field"] == first.field_id
     assert response_json["order"] == "DESC"
+    assert response_json["type"] == "default"
 
     response = api_client.delete(
         reverse(
@@ -432,6 +464,7 @@ def test_update_view_group_by(api_client, data_fixture):
     assert response_json["view"] == first.view_id
     assert response_json["field"] == field_1.id
     assert response_json["order"] == "DESC"
+    assert response_json["type"] == "default"
 
     response = api_client.patch(
         reverse(
@@ -452,6 +485,7 @@ def test_update_view_group_by(api_client, data_fixture):
     assert response_json["field"] == field_1.id
     assert response_json["order"] == "DESC"
     assert response_json["width"] == 120
+    assert response_json["type"] == "default"
 
     response = api_client.patch(
         reverse(
@@ -472,6 +506,69 @@ def test_update_view_group_by(api_client, data_fixture):
     assert response_json["field"] == field_1.id
     assert response_json["order"] == "DESC"
     assert response_json["width"] == 120
+    assert response_json["type"] == "default"
+
+
+@pytest.mark.django_db
+def test_update_view_group_by_with_type(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table)
+    select_2 = data_fixture.create_single_select_field(table=table)
+    group_by_1 = data_fixture.create_view_group_by(
+        user=user, order="DESC", field=field_1
+    )
+    group_by_2 = data_fixture.create_view_group_by(
+        user=user, order="DESC", field=select_2
+    )
+
+    response = api_client.patch(
+        reverse(
+            "api:database:views:group_by_item",
+            kwargs={"view_group_by_id": group_by_1.id},
+        ),
+        {"field": field_1.id, "type": "unknown"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED"
+
+    response = api_client.patch(
+        reverse(
+            "api:database:views:group_by_item",
+            kwargs={"view_group_by_id": group_by_2.id},
+        ),
+        {
+            "field": select_2.id,
+            "order": "ASC",
+            "type": "order",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["order"] == "ASC"
+    assert response_json["type"] == "order"
+
+    response = api_client.patch(
+        reverse(
+            "api:database:views:group_by_item",
+            kwargs={"view_group_by_id": group_by_2.id},
+        ),
+        {
+            "field": select_2.id,
+            "order": "DESC",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["order"] == "DESC"
+    assert response_json["type"] == "order"
 
 
 @pytest.mark.django_db

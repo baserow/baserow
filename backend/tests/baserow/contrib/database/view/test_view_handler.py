@@ -48,6 +48,7 @@ from baserow.contrib.database.views.handler import (
     ViewIndexingHandler,
 )
 from baserow.contrib.database.views.models import (
+    DEFAULT_SORT_TYPE_KEY,
     OWNERSHIP_TYPE_COLLABORATIVE,
     FormView,
     GridView,
@@ -795,6 +796,27 @@ def test_field_type_changed(data_fixture):
 
 
 @pytest.mark.django_db
+def test_field_type_changed_unsupported_order_by_type(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_single_select_field(table=table)
+    grid_view = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_sort(
+        view=grid_view, field=field, order="ASC", type="order"
+    )
+    data_fixture.create_view_group_by(
+        view=grid_view, field=field, order="ASC", type="order"
+    )
+
+    field_handler = FieldHandler()
+    long_text_field = field_handler.update_field(
+        user=user, field=field, new_type_name="text"
+    )
+    assert ViewSort.objects.all().count() == 0
+    assert ViewGroupBy.objects.all().count() == 0
+
+
+@pytest.mark.django_db
 def test_field_type_single_field_num_queries(data_fixture, django_assert_num_queries):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -817,7 +839,7 @@ def test_field_type_single_field_num_queries(data_fixture, django_assert_num_que
     handler = ViewHandler()
 
     # Should be equal to the `test_field_type_changed_two_fields_num_queries`.
-    with django_assert_num_queries(9):
+    with django_assert_num_queries(11):
         handler.fields_type_changed([password_field_1])
 
     assert ViewFilter.objects.all().count() == 0
@@ -864,7 +886,7 @@ def test_field_type_changed_two_fields_num_queries(
     handler = ViewHandler()
 
     # Should be equal to the `test_field_type_single_field_num_queries`.
-    with django_assert_num_queries(9):
+    with django_assert_num_queries(11):
         handler.fields_type_changed([password_field_1, password_field_2])
 
     assert ViewFilter.objects.all().count() == 0
@@ -4093,7 +4115,9 @@ def test_get_group_by_on_all_fields_in_interesting_table(data_fixture):
     fields_to_group_by = [
         field
         for field in all_fields
-        if field_type_registry.get_by_model(field).check_can_group_by(field)
+        if field_type_registry.get_by_model(field).check_can_group_by(
+            field, DEFAULT_SORT_TYPE_KEY
+        )
     ]
 
     actual_result_per_field_name = {}

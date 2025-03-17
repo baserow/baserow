@@ -86,9 +86,17 @@ class OrderByFieldNotFound(Exception):
 class OrderByFieldNotPossible(Exception):
     """Raised when it is not possible to order by a field."""
 
-    def __init__(self, field_name=None, field_type=None, *args, **kwargs):
+    def __init__(
+        self,
+        field_name: str = None,
+        field_type: str = None,
+        sort_type: str = None,
+        *args: list,
+        **kwargs: dict,
+    ):
         self.field_name = field_name
         self.field_type = field_type
+        self.sort_type = sort_type
         super().__init__(*args, **kwargs)
 
 

@@ -61,6 +61,7 @@ from baserow.contrib.database.views.exceptions import (
     AggregationTypeDoesNotExist,
     ViewDoesNotExist,
 )
+from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.service import ViewService
 from baserow.contrib.database.views.view_aggregations import (
     DistributionViewAggregationType,
@@ -548,7 +549,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                 "searchable": field_type.is_searchable(field)
                 and field_type.type
                 not in self.unsupported_adhoc_searchable_field_types,
-                "sortable": field_type.check_can_order_by(field)
+                "sortable": field_type.check_can_order_by(field, DEFAULT_SORT_TYPE_KEY)
                 and field_type.type not in self.unsupported_adhoc_sortable_field_types,
                 "filterable": field_type.check_can_filter_by(field)
                 and field_type.type

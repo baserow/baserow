@@ -158,7 +158,10 @@ import FieldLookupSubForm from '@baserow/modules/database/components/field/Field
 import FieldCountSubForm from '@baserow/modules/database/components/field/FieldCountSubForm'
 import FieldRollupSubForm from '@baserow/modules/database/components/field/FieldRollupSubForm'
 import RowEditFieldFormula from '@baserow/modules/database/components/row/RowEditFieldFormula'
-import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database/constants'
+import {
+  DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY,
+  DEFAULT_SORT_TYPE_KEY,
+} from '@baserow/modules/database/constants'
 import ViewService from '@baserow/modules/database/services/view'
 import FormService from '@baserow/modules/database/services/view/form'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
@@ -524,6 +527,25 @@ export class FieldType extends Registerable {
     return ['text', 'A', 'Z']
   }
 
+  /**
+   * Should return a mapping containing all the available sort types for this field
+   * type. It always returns the default type, which uses the `getSort` and
+   * `getSortIndicator` by default.
+   */
+  getSortTypes(field, registry) {
+    return {
+      [DEFAULT_SORT_TYPE_KEY]: {
+        function: this.getSort,
+        indicator: this.getSortIndicator(field, registry),
+      },
+    }
+  }
+
+  /**
+   * This hook is called before the field's value is copied to the clipboard.
+   * Optionally formatting can be done here. By default the value is always
+   * converted to a string.
+   */
   /**
    * This hook is called before the field's value is copied to the clipboard.
    * Optionally formatting can be done here. By default the value is always
@@ -3264,6 +3286,40 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       const stringB = b[name] === null ? '' : '' + b[name].value
       return collatedStringCompare(stringA, stringB, order)
     }
+  }
+
+  getSortByOptionOrder(name, order, field) {
+    const getOrder = function (row, name, field) {
+      let id = null
+
+      try {
+        id = row[name].id || null
+      } catch (e) {
+        return -1
+      }
+
+      return field.select_options.findIndex((o) => o.id === id) || -1
+    }
+
+    return (a, b) => {
+      const aOrder = getOrder(a, name, field)
+      const bOrder = getOrder(b, name, field)
+
+      if (order === 'ASC') {
+        return aOrder - bOrder
+      } else if (order === 'DESC') {
+        return bOrder - aOrder
+      }
+    }
+  }
+
+  getSortTypes(field, registry) {
+    const defaultTypes = super.getSortTypes()
+    defaultTypes.order = {
+      function: this.getSortByOptionOrder,
+      indicator: ['text', 'First', 'Last'],
+    }
+    return defaultTypes
   }
 
   parseFromLinkedRowItemValue(field, value) {

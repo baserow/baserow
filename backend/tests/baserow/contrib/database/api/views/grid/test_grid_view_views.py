@@ -3289,6 +3289,7 @@ def test_get_public_grid_view(api_client, data_fixture):
                     "field": visible_sort.field.id,
                     "id": visible_sort.id,
                     "order": "DESC",
+                    "type": "default",
                     "view": grid_view.slug,
                 }
             ],
@@ -3300,6 +3301,7 @@ def test_get_public_grid_view(api_client, data_fixture):
                     "order": "DESC",
                     "view": grid_view.slug,
                     "width": 200,
+                    "type": "default",
                 }
             ],
             "table": {
@@ -3924,6 +3926,46 @@ def test_list_rows_public_with_query_param_group_by_and_empty_order_by(
             ]
         )
     }
+
+
+@pytest.mark.django_db
+def test_list_rows_public_with_query_param_group_by_and_type(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(name="Name", table=table, primary=True)
+    select_1 = data_fixture.create_single_select_field(name="Select", table=table)
+    option_1 = data_fixture.create_select_option(field=select_1, value="A", order=3)
+    option_2 = data_fixture.create_select_option(field=select_1, value="B", order=1)
+    option_3 = data_fixture.create_select_option(field=select_1, value="C", order=2)
+    grid_view = data_fixture.create_grid_view(
+        table=table, user=user, public=True, create_options=False
+    )
+    data_fixture.create_grid_view_field_option(grid_view, field_1, hidden=False)
+    data_fixture.create_grid_view_field_option(grid_view, select_1, hidden=False)
+
+    model = table.get_model(attribute_names=True)
+    row_1 = model.objects.create(name="Product 1", select_id=option_1.id)
+    row_2 = model.objects.create(name="Product 2", select_id=option_2.id)
+    row_3 = model.objects.create(name="Product 3", select_id=option_3.id)
+
+    url = reverse(
+        "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
+    )
+    response = api_client.get(
+        f"{url}?group_by=field_{select_1.id}[unknown]",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE"
+
+    response = api_client.get(
+        f"{url}?group_by=field_{select_1.id}[order]",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["results"][0]["id"] == row_2.id
+    assert response_json["results"][1]["id"] == row_3.id
+    assert response_json["results"][2]["id"] == row_1.id
 
 
 @pytest.mark.django_db

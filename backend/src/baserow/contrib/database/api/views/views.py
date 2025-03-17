@@ -1540,7 +1540,11 @@ class ViewSortingsView(APIView):
         field = FieldHandler().get_field(data["field"])
 
         view_sort = action_type_registry.get_by_type(CreateViewSortActionType).do(
-            request.user, view, field, data["order"]
+            request.user,
+            view,
+            field,
+            data["order"],
+            data.get("type"),
         )
 
         serializer = ViewSortSerializer(view_sort)
@@ -1645,6 +1649,7 @@ class ViewSortView(APIView):
             view_sort,
             data.get("field"),
             data.get("order"),
+            data.get("type"),
         )
 
         serializer = ViewSortSerializer(view_sort)
@@ -2219,7 +2224,7 @@ class ViewGroupBysView(APIView):
 
         view_group_by = action_type_registry.get_by_type(
             CreateViewGroupByActionType
-        ).do(request.user, view, field, data["order"], data["width"])
+        ).do(request.user, view, field, data["order"], data["width"], data.get("type"))
 
         serializer = ViewGroupBySerializer(view_group_by)
         return Response(serializer.data)
@@ -2326,6 +2331,7 @@ class ViewGroupByView(APIView):
             data.get("field"),
             data.get("order"),
             data.get("width"),
+            data.get("type"),
         )
 
         serializer = ViewGroupBySerializer(view_group_by)
