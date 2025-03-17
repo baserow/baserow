@@ -235,30 +235,3 @@ def test_openai_max_file_size(settings):
 
     settings.BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB = 100
     assert ai_model_type.get_max_file_size() == 100
-
-
-def test_openai_type_prompt_with_files_with_temperature():
-    openai_client = OpenAIStub()
-
-    def get_client_stub(workspace=None):
-        return openai_client
-
-    ai_model_type = OpenAIGenerativeAIModelType()
-    ai_model_type.get_client = get_client_stub
-
-    openai_client.beta.threads.runs.create_and_poll.return_value = RunStub(
-        status="completed"
-    )
-
-    messages = MagicMock()
-    messages.data[0].content[0].text.value = "test response\u30104:0\u2020source\u3011"
-
-    openai_client.beta.threads.messages.list.return_value = messages
-
-    ai_model_type.prompt_with_files(
-        "gpt-3.5", "test prompt", file_ids=[], temperature=1
-    )
-
-    assert (
-        "temperature" not in openai_client.beta.threads.messages.create.call_args.kwargs
-    )

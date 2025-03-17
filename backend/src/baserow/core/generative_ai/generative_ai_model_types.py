@@ -118,11 +118,16 @@ class OpenAIGenerativeAIModelType(
         run, thread, assistant = None, None, None
         try:
             client = self.get_client(workspace)
+            kwargs = {}
+            if temperature:
+                kwargs["temperature"] = temperature
+
             assistant = client.beta.assistants.create(
                 name="Assistant that have access to user files",
                 instructions="",
                 model=model,
                 tools=[{"type": "file_search"}],
+                **kwargs,
             )
             thread = client.beta.threads.create()
             attachments = [
