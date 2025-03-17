@@ -5,6 +5,14 @@ const FINISHED_STATES = ['finished', 'failed', 'cancelled']
 const STARTING_TIMEOUT_MS = 200
 const MAX_POLLING_ATTEMPTS = 100
 
+/**
+ * Calls job-type specific routine to enhance job object with any job-type specific
+ * properties. This may return `null` if job type is not registered.
+ *
+ * @param job
+ * @param registry
+ * @returns {*|null}
+ */
 export function populateJob(job, registry) {
   const type = registry.get('job', job.type)
   return type.populate(job)
