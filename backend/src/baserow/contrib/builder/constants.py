@@ -42,8 +42,3 @@ class FontWeights(models.TextChoices):
     HEAVY = "heavy"
     BLACK = "black"
     EXTRA_BLACK = "extra-black"
-
-
-class LinkDecorations(models.TextChoices):
-    NORMAL = "normal"
-    PLAIN = "plain"

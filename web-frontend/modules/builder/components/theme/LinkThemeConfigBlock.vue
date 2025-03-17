@@ -105,18 +105,13 @@
           class="margin-bottom-2"
           :label="$t('linkThemeConfigBlock.decoration')"
         >
-          <LinkDecorationSelector
-            v-model="values.link_default_decoration"
-            :font="values.link_default_decoration"
+          <TextDecorationSelector
+            v-model="values.link_default_text_decoration"
           />
           <template #after-input>
             <ResetButton
-              v-if="
-                values.link_default_decoration ===
-                theme?.link_default_decoration
-              "
-              v-model="values.link_default_decoration"
-              :default-value="theme?.link_default_decoration"
+              v-model="values.link_default_text_decoration"
+              :default-value="theme?.link_default_text_decoration"
             />
           </template>
         </FormGroup>
@@ -153,17 +148,11 @@
           class="margin-bottom-2"
           :label="$t('linkThemeConfigBlock.decoration')"
         >
-          <LinkDecorationSelector
-            v-model="values.link_hover_decoration"
-            :font="values.link_hover_decoration"
-          />
+          <TextDecorationSelector v-model="values.link_hover_text_decoration" />
           <template #after-input>
             <ResetButton
-              v-if="
-                values.link_hover_decoration === theme?.link_hover_decoration
-              "
-              v-model="values.link_hover_decoration"
-              :default-value="theme?.link_hover_decoration"
+              v-model="values.link_hover_text_decoration"
+              :default-value="theme?.link_hover_text_decoration"
             />
           </template>
         </FormGroup>
@@ -202,17 +191,13 @@
           class="margin-bottom-2"
           :label="$t('linkThemeConfigBlock.decoration')"
         >
-          <LinkDecorationSelector
-            v-model="values.link_active_decoration"
-            :font="values.link_active_decoration"
+          <TextDecorationSelector
+            v-model="values.link_active_text_decoration"
           />
           <template #after-input>
             <ResetButton
-              v-if="
-                values.link_active_decoration === theme?.link_active_decoration
-              "
-              v-model="values.link_active_decoration"
-              :default-value="theme?.link_active_decoration"
+              v-model="values.link_active_text_decoration"
+              :default-value="theme?.link_active_text_decoration"
             />
           </template>
         </FormGroup>
@@ -235,7 +220,7 @@ import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/Ho
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
 import FontWeightSelector from '@baserow/modules/builder/components/FontWeightSelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
-import LinkDecorationSelector from '@baserow/modules/builder/components/LinkDecorationSelector.vue'
+import TextDecorationSelector from '@baserow/modules/builder/components/TextDecorationSelector'
 import {
   required,
   integer,
@@ -258,10 +243,10 @@ export default {
     ThemeConfigBlockSection,
     ResetButton,
     HorizontalAlignmentsSelector,
-    LinkDecorationSelector,
     FontFamilySelector,
     FontWeightSelector,
     PixelValueSelector,
+    TextDecorationSelector,
   },
   mixins: [themeConfigBlock],
   setup() {
@@ -289,9 +274,9 @@ export default {
         link_font_family: this.theme?.link_font_family,
         link_font_weight: this.theme?.link_font_weight,
         link_font_size: this.theme?.link_font_size,
-        link_default_decoration: this.theme?.link_default_decoration,
-        link_hover_decoration: this.theme?.link_hover_decoration,
-        link_active_decoration: this.theme?.link_active_decoration,
+        link_default_text_decoration: this.theme?.link_default_text_decoration,
+        link_hover_text_decoration: this.theme?.link_hover_text_decoration,
+        link_active_text_decoration: this.theme?.link_active_text_decoration,
       },
     }
   },
@@ -333,9 +318,9 @@ export default {
         link_active_text_color: {},
         link_font_family: {},
         link_font_weight: {},
-        link_default_decoration: {},
-        link_hover_decoration: {},
-        link_active_decoration: {},
+        link_default_text_decoration: {},
+        link_hover_text_decoration: {},
+        link_active_text_decoration: {},
       },
     }
   },
