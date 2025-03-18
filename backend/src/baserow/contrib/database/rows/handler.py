@@ -146,7 +146,7 @@ RowId = NewType("RowId", int)
 
 class UpdatedRowsWithOldValuesAndMetadata(NamedTuple):
     updated_rows: List[GeneratedTableModelForUpdate]
-    updated_row_values: List[Dict[RowId, RowValues]]
+    updated_rows_values: List[RowValues]
     original_rows_values_by_id: Dict[RowId, RowValues]
     updated_fields_metadata_by_row_id: Dict[RowId, FieldsMetadata]
 
@@ -1926,7 +1926,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             updated_rows_to_return, updated_fields, fields_metadata_by_row_id
         )
 
-        updated_row_values = [
+        updated_rows_values = [
             {
                 "id": updated_row.id,
                 **self.get_internal_values_for_fields(updated_row, updated_field_ids),
@@ -1936,7 +1936,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         return UpdatedRowsWithOldValuesAndMetadata(
             updated_rows_to_return,
-            updated_row_values,
+            updated_rows_values,
             original_row_values_by_id,
             fields_metadata_by_row_id,
         )
