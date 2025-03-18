@@ -197,12 +197,12 @@ export class BaserowFormulaTypeDefinition extends Registerable {
     return underlyingFieldType.getSort(name, order, field)
   }
 
-  getSortTypes(field, registry) {
+  getSortTypes(field) {
     const underlyingFieldType = this.app.$registry.get(
       'field',
       this.getFieldType()
     )
-    return underlyingFieldType.getSortTypes(field, registry)
+    return underlyingFieldType.getSortTypes(field)
   }
 
   _mapFormulaTypeToFieldType(formulaType) {
@@ -965,12 +965,12 @@ export class BaserowFormulaSingleSelectType extends mix(
     return 'single_select'
   }
 
-  getSortTypes(field, registry) {
+  getSortTypes(field) {
     const underlyingFieldType = this.app.$registry.get(
       'field',
       this.getFieldType()
     )
-    const fieldSortTypes = underlyingFieldType.getSortTypes(field, registry)
+    const fieldSortTypes = underlyingFieldType.getSortTypes(field)
     // Only the default sort type is supported for single select formulas.
     return {
       [DEFAULT_SORT_TYPE_KEY]: fieldSortTypes[DEFAULT_SORT_TYPE_KEY],

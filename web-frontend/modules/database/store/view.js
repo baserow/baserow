@@ -1369,7 +1369,7 @@ export const actions = {
       view.sortings
         .filter((sort) => sort.field === field.id)
         .forEach((sort) => {
-          const sortTypes = fieldType.getSortTypes(field, this.$registry)
+          const sortTypes = fieldType.getSortTypes(field)
           const compatible =
             fieldType.getCanSortInView(field) &&
             Object.prototype.hasOwnProperty.call(sortTypes, sort.type)
@@ -1382,7 +1382,7 @@ export const actions = {
       view.group_bys
         .filter((groupBy) => groupBy.field === field.id)
         .forEach((groupBy) => {
-          const sortTypes = fieldType.getSortTypes(field, this.$registry)
+          const sortTypes = fieldType.getSortTypes(field)
           const compatible =
             fieldType.getCanSortInView(field) &&
             Object.prototype.hasOwnProperty.call(sortTypes, groupBy.type)

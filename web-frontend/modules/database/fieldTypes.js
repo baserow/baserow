@@ -528,11 +528,11 @@ export class FieldType extends Registerable {
    * type. It always returns the default type, which uses the `getSort` and
    * `getSortIndicator` by default.
    */
-  getSortTypes(field, registry) {
+  getSortTypes(field) {
     return {
       [DEFAULT_SORT_TYPE_KEY]: {
         function: this.getSort,
-        indicator: this.getSortIndicator(field, registry),
+        indicator: this.getSortIndicator(field),
       },
     }
   }
@@ -3309,8 +3309,8 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     }
   }
 
-  getSortTypes(field, registry) {
-    const defaultTypes = super.getSortTypes(field, registry)
+  getSortTypes(field) {
+    const defaultTypes = super.getSortTypes(field)
     defaultTypes.order = {
       function: this.getSortByOptionOrder,
       indicator: ['text', 'First', 'Last'],
@@ -3964,8 +3964,8 @@ export class FormulaFieldType extends mix(
     return this.getFormulaType(field)?.getSort(name, order, field)
   }
 
-  getSortTypes(field, registry) {
-    return this.getFormulaType(field)?.getSortTypes(field, registry)
+  getSortTypes(field) {
+    return this.getFormulaType(field)?.getSortTypes(field)
   }
 
   getEmptyValue(field) {

@@ -495,7 +495,7 @@ export default {
     getSortIndicator(field, index) {
       return this.$registry
         .get('field', field.type)
-        .getSortIndicator(field, this.$registry)[index]
+        .getSortIndicator(field)[index]
     },
     getCanSortInView(field) {
       return this.$registry.get('field', field.type).getCanSortInView(field)
