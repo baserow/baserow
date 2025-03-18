@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Allow change field type with active sort",
+    "domain": "database",
+    "issue_number": 3519,
+    "bullet_points": [],
+    "created_at": "2025-03-18"
+}
