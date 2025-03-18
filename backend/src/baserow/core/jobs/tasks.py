@@ -64,7 +64,6 @@ def run_async_job(self, job_id: int):
 
         job.set_state_failed(str(e), error)
         job.save()
-
         raise
     finally:
         # Delete the import job cached entry because the transaction has been committed

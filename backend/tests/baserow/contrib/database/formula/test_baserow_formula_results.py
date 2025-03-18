@@ -1751,18 +1751,22 @@ def test_can_filter_in_aggregated_formulas(data_fixture):
         name="autonr",
     )
 
-    rows_b = RowHandler().create_rows(
-        user,
-        table_b,
-        [
-            {boolean_field.db_column: True},
-            {},
-            {boolean_field.db_column: True},
-            {},
-            {},
-            {boolean_field.db_column: True},
-            {},
-        ],
+    rows_b = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_b,
+            [
+                {boolean_field.db_column: True},
+                {},
+                {boolean_field.db_column: True},
+                {},
+                {},
+                {boolean_field.db_column: True},
+                {},
+            ],
+        )
+        .created_rows
     )
 
     formula_field = data_fixture.create_formula_field(
@@ -1771,14 +1775,18 @@ def test_can_filter_in_aggregated_formulas(data_fixture):
         formula=f"max(filter(lookup('link', 'autonr'), lookup('link', 'check')))",
     )
 
-    row_a1, row_a2, row_a3 = RowHandler().create_rows(
-        user,
-        table_a,
-        [
-            {link_field.db_column: [rows_b[0].id, rows_b[1].id]},
-            {link_field.db_column: [rows_b[2].id, rows_b[3].id, rows_b[4].id]},
-            {link_field.db_column: [rows_b[4].id, rows_b[5].id, rows_b[6].id]},
-        ],
+    row_a1, row_a2, row_a3 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [
+                {link_field.db_column: [rows_b[0].id, rows_b[1].id]},
+                {link_field.db_column: [rows_b[2].id, rows_b[3].id, rows_b[4].id]},
+                {link_field.db_column: [rows_b[4].id, rows_b[5].id, rows_b[6].id]},
+            ],
+        )
+        .created_rows
     )
 
     # autonr of row_b[0], because it's the only one with check=True
@@ -1800,27 +1808,31 @@ def test_can_filter_in_aggregated_formulas_with_multipleselects(data_fixture):
     option_c = data_fixture.create_select_option(field=multiple_select_field, value="c")
     option_d = data_fixture.create_select_option(field=multiple_select_field, value="d")
 
-    rows_b = RowHandler().create_rows(
-        user,
-        table_b,
-        [
-            {
-                boolean_field.db_column: True,
-                multiple_select_field.db_column: [option_a.id, option_b.id],
-            },
-            {multiple_select_field.db_column: [option_c.id]},
-            {
-                boolean_field.db_column: True,
-                multiple_select_field.db_column: [option_d.id],
-            },
-            {multiple_select_field.db_column: [option_a.id, option_b.id]},
-            {multiple_select_field.db_column: [option_c.id, option_d.id]},
-            {
-                boolean_field.db_column: True,
-                multiple_select_field.db_column: [option_b.id],
-            },
-            {},
-        ],
+    rows_b = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_b,
+            [
+                {
+                    boolean_field.db_column: True,
+                    multiple_select_field.db_column: [option_a.id, option_b.id],
+                },
+                {multiple_select_field.db_column: [option_c.id]},
+                {
+                    boolean_field.db_column: True,
+                    multiple_select_field.db_column: [option_d.id],
+                },
+                {multiple_select_field.db_column: [option_a.id, option_b.id]},
+                {multiple_select_field.db_column: [option_c.id, option_d.id]},
+                {
+                    boolean_field.db_column: True,
+                    multiple_select_field.db_column: [option_b.id],
+                },
+                {},
+            ],
+        )
+        .created_rows
     )
 
     formula_field = data_fixture.create_formula_field(
@@ -1829,14 +1841,18 @@ def test_can_filter_in_aggregated_formulas_with_multipleselects(data_fixture):
         formula=f"count(filter(lookup('link', 'mm'), lookup('link', 'check')))",
     )
 
-    row_a1, row_a2, row_a3 = RowHandler().create_rows(
-        user,
-        table_a,
-        [
-            {link_field.db_column: [rows_b[0].id, rows_b[1].id]},
-            {link_field.db_column: [rows_b[2].id, rows_b[3].id, rows_b[4].id]},
-            {link_field.db_column: [rows_b[4].id, rows_b[5].id, rows_b[6].id]},
-        ],
+    row_a1, row_a2, row_a3 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [
+                {link_field.db_column: [rows_b[0].id, rows_b[1].id]},
+                {link_field.db_column: [rows_b[2].id, rows_b[3].id, rows_b[4].id]},
+                {link_field.db_column: [rows_b[4].id, rows_b[5].id, rows_b[6].id]},
+            ],
+        )
+        .created_rows
     )
 
     # autonr of row_b[0], because it's the only one with check=True
@@ -1869,19 +1885,23 @@ def test_formulas_with_lookup_url_field_type(data_fixture):
         table=linked_table,
     )
 
-    linked_row_1, linked_row_2 = RowHandler().create_rows(
-        user,
-        linked_table,
-        [
-            {
-                linked_table_primary_field.db_column: "URL #1",
-                linked_table_url_field.db_column: "https://baserow.io/1",
-            },
-            {
-                linked_table_primary_field.db_column: "URL #2",
-                linked_table_url_field.db_column: "https://baserow.io/2",
-            },
-        ],
+    linked_row_1, linked_row_2 = (
+        RowHandler()
+        .create_rows(
+            user,
+            linked_table,
+            [
+                {
+                    linked_table_primary_field.db_column: "URL #1",
+                    linked_table_url_field.db_column: "https://baserow.io/1",
+                },
+                {
+                    linked_table_primary_field.db_column: "URL #2",
+                    linked_table_url_field.db_column: "https://baserow.io/2",
+                },
+            ],
+        )
+        .created_rows
     )
 
     link_field = FieldHandler().create_field(
@@ -1981,8 +2001,10 @@ def test_lookup_arrays(data_fixture):
         rows=[["b1"], ["b2"]],
         fields=[table_b_primary_field],
     )
-    (row_a1,) = RowHandler().create_rows(
-        user, table_a, [{link_field.db_column: [row_b1.id, row_b2.id]}]
+    (row_a1,) = (
+        RowHandler()
+        .create_rows(user, table_a, [{link_field.db_column: [row_b1.id, row_b2.id]}])
+        .created_rows
     )
     lookup_field = FieldHandler().create_field(
         user,
@@ -2038,17 +2060,21 @@ def test_formulas_with_lookup_to_uuid_primary_field(data_fixture):
         table=linked_table,
     )
 
-    linked_row_1, linked_row_2 = RowHandler().create_rows(
-        user,
-        linked_table,
-        [
-            {
-                linked_table_text_field.db_column: "Linked row #1",
-            },
-            {
-                linked_table_text_field.db_column: "Linked row #2",
-            },
-        ],
+    linked_row_1, linked_row_2 = (
+        RowHandler()
+        .create_rows(
+            user,
+            linked_table,
+            [
+                {
+                    linked_table_text_field.db_column: "Linked row #1",
+                },
+                {
+                    linked_table_text_field.db_column: "Linked row #2",
+                },
+            ],
+        )
+        .created_rows
     )
 
     link_field = FieldHandler().create_field(

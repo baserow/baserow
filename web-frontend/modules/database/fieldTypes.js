@@ -538,10 +538,13 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * This hook is called before the field's value is copied to the clipboard.
-   * Optionally formatting can be done here. By default the value is always
-   * converted to a string.
+   * Can a field of this type be used to perform an update during import on rows that
+   * contain the same value as imported one.
    */
+  canUpsert() {
+    return false
+  }
+
   /**
    * This hook is called before the field's value is copied to the clipboard.
    * Optionally formatting can be done here. By default the value is always
@@ -987,6 +990,10 @@ export class TextFieldType extends FieldType {
     return field.text_default
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -1096,6 +1103,10 @@ export class LongTextFieldType extends FieldType {
 
   getEmptyValue(field) {
     return ''
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {
@@ -1547,6 +1558,10 @@ export class NumberFieldType extends FieldType {
     return ['text', '1', '9']
   }
 
+  canUpsert() {
+    return true
+  }
+
   /**
    * When searching a cell's value, this should return the value to match the user's
    * search term against. We can't use `toHumanReadableString` here as it needs to be
@@ -1761,6 +1776,10 @@ export class RatingFieldType extends FieldType {
     return 0
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       if (a[name] === b[name]) {
@@ -1893,6 +1912,10 @@ export class BooleanFieldType extends FieldType {
 
   getSortIndicator() {
     return ['icon', 'baserow-icon-circle-empty', 'baserow-icon-circle-checked']
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {
@@ -2245,6 +2268,10 @@ export class DateFieldType extends BaseDateFieldType {
   }
 
   canParseQueryParameter() {
+    return true
+  }
+
+  canUpsert() {
     return true
   }
 
@@ -2714,6 +2741,10 @@ export class DurationFieldType extends FieldType {
     return this.formatValue(field, value)
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const aValue = a[name]
@@ -2861,6 +2892,10 @@ export class URLFieldType extends FieldType {
     return isValidURL(value) ? value : ''
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -2958,6 +2993,10 @@ export class EmailFieldType extends FieldType {
   prepareValueForPaste(field, clipboardData) {
     const value = clipboardData
     return isValidEmail(value) ? value : ''
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {
@@ -3806,6 +3845,10 @@ export class PhoneNumberFieldType extends FieldType {
     return isSimplePhoneNumber(value) ? value : ''
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -4456,6 +4499,10 @@ export class UUIDFieldType extends FieldType {
     return RowCardFieldUUID
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -4533,6 +4580,10 @@ export class AutonumberFieldType extends FieldType {
 
   getCardComponent() {
     return RowCardFieldAutonumber
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {

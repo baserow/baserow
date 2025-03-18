@@ -29,7 +29,7 @@ def test_generate_ai_field_value_view_generative_ai(
         table=table, name="ai", ai_prompt="'Hello'"
     )
 
-    rows = RowHandler().create_rows(user, table, rows_values=[{}])
+    rows = RowHandler().create_rows(user, table, rows_values=[{}]).created_rows
 
     assert patched_rows_updated.call_count == 0
     generate_ai_values_for_rows(user.id, field.id, [rows[0].id])
@@ -61,7 +61,7 @@ def test_generate_ai_field_value_view_generative_ai_with_temperature(
         table=table, name="ai", ai_prompt="'Hello'", ai_temperature=0.7
     )
 
-    rows = RowHandler().create_rows(user, table, rows_values=[{}])
+    rows = RowHandler().create_rows(user, table, rows_values=[{}]).created_rows
 
     generate_ai_values_for_rows(user.id, field.id, [rows[0].id])
     updated_row = patched_rows_updated.call_args[1]["rows"][0]
@@ -92,12 +92,16 @@ def test_generate_ai_field_value_view_generative_ai_parse_formula(
         table=table, name="ai", ai_prompt=formula
     )
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{firstname.id}": "Bram", f"field_{lastname.id}": "Wiepjes"},
-        ],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{firstname.id}": "Bram", f"field_{lastname.id}": "Wiepjes"},
+            ],
+        )
+        .created_rows
     )
 
     assert patched_rows_updated.call_count == 0
@@ -132,10 +136,14 @@ def test_generate_ai_field_value_view_generative_ai_invalid_field(
         table=table, name="ai", ai_prompt=formula
     )
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[{f"field_{firstname.id}": "Bram"}],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[{f"field_{firstname.id}": "Bram"}],
+        )
+        .created_rows
     )
     assert patched_rows_updated.call_count == 0
     generate_ai_values_for_rows(user.id, field.id, [rows[0].id])
@@ -172,10 +180,14 @@ def test_generate_ai_field_value_view_generative_ai_invalid_prompt(
         ai_prompt=formula,
     )
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[{f"field_{firstname.id}": "Bram"}],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[{f"field_{firstname.id}": "Bram"}],
+        )
+        .created_rows
     )
 
     assert patched_rows_ai_values_generation_error.call_count == 0

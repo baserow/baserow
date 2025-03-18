@@ -441,7 +441,9 @@
     "fieldMappingDescription": "We have automatically mapped the columns of the Baserow fields in your table. You can change them below. Any incompatible cell will remain empty after the import.",
     "selectImportMessage": "Please select data to import.",
     "filePreview": "File content preview",
-    "importPreview": "Import preview"
+    "importPreview": "Import preview",
+    "useUpsertField": "Update rows if they already exist",
+    "upsertTooltip": "Match existing rows using a unique field to overwrite data with imported values."
   },
   "formulaAdvancedEditContext": {
     "textAreaFormulaInputPlaceholder": "Click to edit the formula",

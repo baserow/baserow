@@ -339,7 +339,7 @@ def test_get_adjacent_row(data_fixture):
             },
         ],
         model=table_model,
-    )
+    ).created_rows
 
     next_row = handler.get_adjacent_row(table_model, rows[1].id)
     previous_row = handler.get_adjacent_row(table_model, rows[1].id, previous=True)
@@ -373,7 +373,7 @@ def test_get_adjacent_row_with_custom_filters(data_fixture):
             },
         ],
         model=table_model,
-    )
+    ).created_rows
 
     base_queryset = (
         table.get_model()
@@ -421,7 +421,7 @@ def test_get_adjacent_row_with_view_sort(data_fixture):
             },
         ],
         model=table_model,
-    )
+    ).created_rows
 
     next_row = handler.get_adjacent_row(table_model, row_2.id, view=view)
     previous_row = handler.get_adjacent_row(
@@ -460,7 +460,7 @@ def test_get_adjacent_row_with_view_group_by(data_fixture):
             },
         ],
         model=table_model,
-    )
+    ).created_rows
 
     next_row = handler.get_adjacent_row(table_model, row_2.id, view=view)
     previous_row = handler.get_adjacent_row(
@@ -497,7 +497,7 @@ def test_get_adjacent_row_with_search(data_fixture):
             },
         ],
         model=table_model,
-    )
+    ).created_rows
 
     search = "a"
     next_row = handler.get_adjacent_row(table_model, row_2.id, view=view, search=search)
@@ -551,7 +551,7 @@ def test_get_adjacent_row_with_view_group_by_and_view_sort(data_fixture):
             },
         ],
         model=table_model,
-    )
+    ).created_rows
 
     next_row = handler.get_adjacent_row(table_model, row_2.id, view=view)
     previous_row = handler.get_adjacent_row(
@@ -582,7 +582,7 @@ def test_get_adjacent_row_performance_many_rows(data_fixture):
     table_model = table.get_model()
     rows = handler.create_rows(
         user=user, table=table, rows_values=row_values, model=table_model
-    )
+    ).created_rows
 
     profiler = Profiler()
     profiler.start()
@@ -621,7 +621,7 @@ def test_get_adjacent_row_performance_many_fields(data_fixture):
     table_model = table.get_model()
     rows = handler.create_rows(
         user=user, table=table, rows_values=row_values, model=table_model
-    )
+    ).created_rows
 
     profiler = Profiler()
     profiler.start()
@@ -747,7 +747,7 @@ def test_update_rows_return_original_values_and_fields_metadata(data_fixture):
         user=user,
         table=table,
         rows_values=[{}, {}],
-    )
+    ).created_rows
 
     result = handler.update_rows(
         user=user,
@@ -842,7 +842,9 @@ def test_create_rows_created_on_and_last_modified(data_fixture):
     handler = RowHandler()
 
     with freeze_time("2020-01-01 12:00"):
-        rows = handler.create_rows(user=user, table=table, rows_values=[{}])
+        rows = handler.create_rows(
+            user=user, table=table, rows_values=[{}]
+        ).created_rows
         row = rows[0]
         assert row.created_on == datetime(2020, 1, 1, 12, 0, tzinfo=timezone.utc)
         assert row.updated_on == datetime(2020, 1, 1, 12, 0, tzinfo=timezone.utc)
@@ -862,7 +864,7 @@ def test_create_rows_last_modified_by(data_fixture):
             {f"field_{name_field.id}": "Test"},
             {f"field_{name_field.id}": "Test 2"},
         ],
-    )
+    ).created_rows
 
     assert rows[0].last_modified_by == user
     assert rows[1].last_modified_by == user
@@ -1562,15 +1564,19 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_created(
     # An UPDATE query to set the formula field value + 1 query due
     # to FormulaFieldType.after_rows_created
     with django_assert_num_queries(len(captured.captured_queries) + 2):
-        (r,) = RowHandler().force_create_rows(
-            user=user,
-            table=table,
-            rows_values=[
-                {
-                    f"field_{name_field.id}": "Giulietta",
-                }
-            ],
-            model=model,
+        (r,) = (
+            RowHandler()
+            .force_create_rows(
+                user=user,
+                table=table,
+                rows_values=[
+                    {
+                        f"field_{name_field.id}": "Giulietta",
+                    }
+                ],
+                model=model,
+            )
+            .created_rows
         )
     assert getattr(r, f"field_{f1.id}") == "Giulietta-a"
 
@@ -1584,15 +1590,19 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_created(
     model = table.get_model()
 
     with django_assert_num_queries(len(captured.captured_queries) + 2):
-        (r,) = RowHandler().force_create_rows(
-            user=user,
-            table=table,
-            rows_values=[
-                {
-                    f"field_{name_field.id}": "Stelvio",
-                }
-            ],
-            model=model,
+        (r,) = (
+            RowHandler()
+            .force_create_rows(
+                user=user,
+                table=table,
+                rows_values=[
+                    {
+                        f"field_{name_field.id}": "Stelvio",
+                    }
+                ],
+                model=model,
+            )
+            .created_rows
         )
     assert getattr(r, f"field_{f1.id}") == "Stelvio-a"
     assert getattr(r, f"field_{f2.id}") == "Stelvio-b"
@@ -1609,15 +1619,19 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_created(
     # Now a second UPDATE query is needed, so that F3 can use the result
     # of F1 to correctly calculate its value
     with django_assert_num_queries(len(captured.captured_queries) + 3):
-        (r,) = RowHandler().force_create_rows(
-            user=user,
-            table=table,
-            rows_values=[
-                {
-                    f"field_{name_field.id}": "Tonale",
-                }
-            ],
-            model=model,
+        (r,) = (
+            RowHandler()
+            .force_create_rows(
+                user=user,
+                table=table,
+                rows_values=[
+                    {
+                        f"field_{name_field.id}": "Tonale",
+                    }
+                ],
+                model=model,
+            )
+            .created_rows
         )
     assert getattr(r, f"field_{f1.id}") == "Tonale-a"
     assert getattr(r, f"field_{f2.id}") == "Tonale-b"
@@ -1642,7 +1656,11 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_updated(
     # in the FieldDependencyHandler:
     # link_row_field_content_type = ContentType.objects.get_for_model(LinkRowField)
     # so let's create a row first to avoid counting that query
-    (r,) = RowHandler().force_create_rows(user=user, table=table, rows_values=[{}])
+    (r,) = (
+        RowHandler()
+        .force_create_rows(user=user, table=table, rows_values=[{}])
+        .created_rows
+    )
 
     with CaptureQueriesContext(connection) as captured:
         RowHandler().force_update_rows(
@@ -1740,18 +1758,26 @@ def test_can_move_rows_and_formulas_are_updated_correctly(data_fixture):
     table_a, table_b, link_a_b = data_fixture.create_two_linked_tables(user=user)
     prim_b = data_fixture.create_text_field(table=table_b, primary=True, name="name")
 
-    row_b1, row_b2 = RowHandler().create_rows(
-        user, table_b, [{prim_b.db_column: "b1"}, {prim_b.db_column: "b2"}]
+    row_b1, row_b2 = (
+        RowHandler()
+        .create_rows(
+            user, table_b, [{prim_b.db_column: "b1"}, {prim_b.db_column: "b2"}]
+        )
+        .created_rows
     )
 
     lookup_a = data_fixture.create_formula_field(
         table=table_a, formula="join(lookup('link', 'name'), '')"
     )
 
-    row_a1, row_a2 = RowHandler().create_rows(
-        user,
-        table_a,
-        [{link_a_b.db_column: [row_b1.id]}, {link_a_b.db_column: [row_b2.id]}],
+    row_a1, row_a2 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [{link_a_b.db_column: [row_b1.id]}, {link_a_b.db_column: [row_b2.id]}],
+        )
+        .created_rows
     )
 
     assert getattr(row_a1, lookup_a.db_column) == "b1"

@@ -4422,14 +4422,18 @@ def test_can_duplicate_views_with_multiple_collaborator_has_filter(data_fixture)
         view=grid, field=field, type="multiple_collaborators_has", value=user_1.id
     )
 
-    rows = RowHandler().force_create_rows(
-        user_1,
-        table,
-        [
-            {field.db_column: []},
-            {field.db_column: [{"id": user_1.id, "name": user_1.first_name}]},
-            {field.db_column: [{"id": user_2.id, "name": user_2.first_name}]},
-        ],
+    rows = (
+        RowHandler()
+        .force_create_rows(
+            user_1,
+            table,
+            [
+                {field.db_column: []},
+                {field.db_column: [{"id": user_1.id, "name": user_1.first_name}]},
+                {field.db_column: [{"id": user_2.id, "name": user_2.first_name}]},
+            ],
+        )
+        .created_rows
     )
 
     results = ViewHandler().get_queryset(grid)

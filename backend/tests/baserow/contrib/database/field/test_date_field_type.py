@@ -661,7 +661,7 @@ def test_date_field_adjacent_row(data_fixture):
             },
         ],
         model=table_model,
-    )
+    ).created_rows
 
     previous_row = handler.get_adjacent_row(
         table_model, row_b.id, previous=True, view=grid_view
@@ -699,7 +699,7 @@ def test_get_group_by_metadata_in_rows_with_date_field(data_fixture):
                 f"field_{date_field.id}": "2010-01-02 12:01:21",
             },
         ],
-    )
+    ).created_rows
 
     model = table.get_model()
 

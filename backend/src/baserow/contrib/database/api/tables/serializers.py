@@ -1,7 +1,69 @@
+from django.utils.functional import lazy
+
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.database.api.data_sync.serializers import DataSyncSerializer
+from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.models import Table
+
+
+class TableImportConfiguration(serializers.Serializer):
+    """
+    Additional table import configuration.
+    """
+
+    upsert_fields = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        min_length=1,
+        allow_null=True,
+        allow_empty=True,
+        default=None,
+        help_text=lazy(
+            lambda: (
+                "A list of field IDs in the table used to generate a value for "
+                "identifying a row during the upsert process in file import. Each "
+                "field ID must reference an existing field in the table, which will "
+                "be used to match provided values against existing ones to determine "
+                "whether a row should be inserted or updated.\n "
+                "Field types that can be used in upsert fields: "
+                f"{','.join([f.type for f in field_type_registry.get_all() if f.can_upsert])}. "
+                "If specified, `upsert_values` should also be provided."
+            )
+        ),
+    )
+    upsert_values = serializers.ListField(
+        allow_empty=True,
+        allow_null=True,
+        default=None,
+        child=serializers.ListField(
+            min_length=1,
+        ),
+        help_text=(
+            "A list of values that are identifying rows in imported data.\n "
+            "The number of rows in `upsert_values` should be equal to the number of "
+            "rows in imported data. Each row in `upsert_values` should contain a "
+            "list of values that match the number and field types of fields selected "
+            "in `upsert_fields`. Based on `upsert_fields`, a similar upsert values "
+            "will be calculated for each row in the table.\n "
+            "There's no guarantee of uniqueness of row identification calculated from "
+            "`upsert_values` nor from the table. Repeated upsert values are compared "
+            "in order with matching values in the table. The imported data must be in "
+            "the same order as the table rows for correct matching."
+        ),
+    )
+
+    def validate(self, attrs):
+        if attrs.get("upsert_fields") and not len(attrs.get("upsert_values") or []):
+            raise ValidationError(
+                {
+                    "upsert_value": (
+                        "upsert_values must not be empty "
+                        "when upsert_fields are provided."
+                    )
+                }
+            )
+        return attrs
 
 
 class TableSerializer(serializers.ModelSerializer):
@@ -74,9 +136,25 @@ class TableImportSerializer(serializers.Serializer):
             "for adding two rows to a table with two writable fields."
         ),
     )
+    configuration = TableImportConfiguration(required=False, default=None)
 
     class Meta:
         fields = ("data",)
+
+    def validate(self, attrs):
+        if attrs.get("configuration"):
+            if attrs["configuration"].get("upsert_values"):
+                if len(attrs["configuration"].get("upsert_values")) != len(
+                    attrs["data"]
+                ):
+                    msg = (
+                        "`data` and `configuration.upsert_values` "
+                        "should have the same length."
+                    )
+                    raise ValidationError(
+                        {"data": msg, "configuration": {"upsert_values": msg}}
+                    )
+        return attrs
 
 
 class TableUpdateSerializer(serializers.ModelSerializer):

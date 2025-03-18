@@ -258,23 +258,25 @@ def test_can_undo_importing_rows(data_fixture):
     action_type_registry.get_by_type(ImportRowsActionType).do(
         user,
         table,
-        data=[
-            [
-                "Tesla",
-                240,
-                59999.99,
-            ],
-            [
-                "Giulietta",
-                210,
-                34999.99,
-            ],
-            [
-                "Panda",
-                160,
-                8999.99,
-            ],
-        ],
+        data={
+            "data": [
+                [
+                    "Tesla",
+                    240,
+                    59999.99,
+                ],
+                [
+                    "Giulietta",
+                    210,
+                    34999.99,
+                ],
+                [
+                    "Panda",
+                    160,
+                    8999.99,
+                ],
+            ]
+        },
     )
 
     assert model.objects.all().count() == 3
@@ -314,23 +316,25 @@ def test_can_undo_redo_importing_rows(row_send_mock, table_send_mock, data_fixtu
     action_type_registry.get_by_type(ImportRowsActionType).do(
         user,
         table,
-        data=[
-            [
-                "Tesla",
-                240,
-                59999.99,
-            ],
-            [
-                "Giulietta",
-                210,
-                34999.99,
-            ],
-            [
-                "Panda",
-                160,
-                8999.99,
-            ],
-        ],
+        data={
+            "data": [
+                [
+                    "Tesla",
+                    240,
+                    59999.99,
+                ],
+                [
+                    "Giulietta",
+                    210,
+                    34999.99,
+                ],
+                [
+                    "Panda",
+                    160,
+                    8999.99,
+                ],
+            ]
+        },
     )
 
     table_send_mock.assert_called_once()
@@ -363,14 +367,16 @@ def test_can_undo_redo_importing_rows(row_send_mock, table_send_mock, data_fixtu
     action_type_registry.get_by_type(ImportRowsActionType).do(
         user,
         table,
-        data=[
-            [
-                "Tesla",
-                240,
-                59999.99,
-            ],
-        ]
-        * 51,
+        data={
+            "data": [
+                [
+                    "Tesla",
+                    240,
+                    59999.99,
+                ],
+            ]
+            * 51
+        },
     )
 
     row_send_mock.reset_mock()
@@ -506,26 +512,30 @@ def test_can_undo_deleting_rows(data_fixture):
     )
     model = table.get_model()
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {
-                f"field_{name_field.id}": "Tesla",
-                f"field_{speed_field.id}": 240,
-                f"field_{price_field.id}": 59999.99,
-            },
-            {
-                f"field_{name_field.id}": "Giulietta",
-                f"field_{speed_field.id}": 210,
-                f"field_{price_field.id}": 34999.99,
-            },
-            {
-                f"field_{name_field.id}": "Panda",
-                f"field_{speed_field.id}": 160,
-                f"field_{price_field.id}": 8999.99,
-            },
-        ],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {
+                    f"field_{name_field.id}": "Tesla",
+                    f"field_{speed_field.id}": 240,
+                    f"field_{price_field.id}": 59999.99,
+                },
+                {
+                    f"field_{name_field.id}": "Giulietta",
+                    f"field_{speed_field.id}": 210,
+                    f"field_{price_field.id}": 34999.99,
+                },
+                {
+                    f"field_{name_field.id}": "Panda",
+                    f"field_{speed_field.id}": 160,
+                    f"field_{price_field.id}": 8999.99,
+                },
+            ],
+        )
+        .created_rows
     )
 
     assert model.objects.all().count() == 3
@@ -565,26 +575,30 @@ def test_can_undo_redo_deleting_rows(data_fixture):
     )
     model = table.get_model()
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {
-                f"field_{name_field.id}": "Tesla",
-                f"field_{speed_field.id}": 240,
-                f"field_{price_field.id}": 59999.99,
-            },
-            {
-                f"field_{name_field.id}": "Giulietta",
-                f"field_{speed_field.id}": 210,
-                f"field_{price_field.id}": 34999.99,
-            },
-            {
-                f"field_{name_field.id}": "Panda",
-                f"field_{speed_field.id}": 160,
-                f"field_{price_field.id}": 8999.99,
-            },
-        ],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {
+                    f"field_{name_field.id}": "Tesla",
+                    f"field_{speed_field.id}": 240,
+                    f"field_{price_field.id}": 59999.99,
+                },
+                {
+                    f"field_{name_field.id}": "Giulietta",
+                    f"field_{speed_field.id}": 210,
+                    f"field_{price_field.id}": 34999.99,
+                },
+                {
+                    f"field_{name_field.id}": "Panda",
+                    f"field_{speed_field.id}": 160,
+                    f"field_{price_field.id}": 8999.99,
+                },
+            ],
+        )
+        .created_rows
     )
 
     assert model.objects.all().count() == 3

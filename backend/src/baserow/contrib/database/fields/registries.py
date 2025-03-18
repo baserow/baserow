@@ -210,6 +210,12 @@ class FieldType(
     some fields can depend on it like the `lookup` field.
     """
 
+    can_upsert = False
+    """
+    A field of this type may be used to calculate a match value during import, that
+    allows to update existing rows with imported data instead of adding them.
+    """
+
     @property
     def db_column_fields(self) -> Set[str]:
         if self._db_column_fields is not None:

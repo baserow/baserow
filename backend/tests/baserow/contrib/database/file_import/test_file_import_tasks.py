@@ -9,6 +9,8 @@ from pyinstrument import Profiler
 
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
 from baserow.contrib.database.fields.exceptions import (
+    FieldNotInTable,
+    IncompatibleField,
     InvalidBaserowFieldName,
     MaxFieldLimitExceeded,
     MaxFieldNameLengthExceeded,
@@ -16,7 +18,10 @@ from baserow.contrib.database.fields.exceptions import (
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.models import SelectOption, TextField
-from baserow.contrib.database.rows.exceptions import ReportMaxErrorCountExceeded
+from baserow.contrib.database.rows.exceptions import (
+    InvalidRowLength,
+    ReportMaxErrorCountExceeded,
+)
 from baserow.contrib.database.table.exceptions import (
     InitialTableDataDuplicateName,
     InitialTableDataLimitExceeded,
@@ -43,23 +48,25 @@ def test_run_file_import_task(data_fixture, patch_filefield_storage):
         run_async_job(job.id)
 
     with patch_filefield_storage(), pytest.raises(InvalidInitialTableData):
-        job = data_fixture.create_file_import_job(data=[])
+        job = data_fixture.create_file_import_job(data={"data": []})
         run_async_job(job.id)
 
     with patch_filefield_storage(), pytest.raises(InvalidInitialTableData):
-        job = data_fixture.create_file_import_job(data=[[]])
+        job = data_fixture.create_file_import_job(data={"data": [[]]})
         run_async_job(job.id)
 
     with override_settings(
         INITIAL_TABLE_DATA_LIMIT=2
     ), patch_filefield_storage(), pytest.raises(InitialTableDataLimitExceeded):
-        job = data_fixture.create_file_import_job(data=[[], [], []])
+        job = data_fixture.create_file_import_job(data={"data": [[], [], []]})
         run_async_job(job.id)
 
     with override_settings(MAX_FIELD_LIMIT=2), patch_filefield_storage(), pytest.raises(
         MaxFieldLimitExceeded
     ):
-        job = data_fixture.create_file_import_job(data=[["fields"] * 3, ["rows"] * 3])
+        job = data_fixture.create_file_import_job(
+            data={"data": [["fields"] * 3, ["rows"] * 3]}
+        )
         run_async_job(job.id)
 
     too_long_field_name = "x" * 256
@@ -73,35 +80,37 @@ def test_run_file_import_task(data_fixture, patch_filefield_storage):
     ]
 
     with patch_filefield_storage(), pytest.raises(MaxFieldNameLengthExceeded):
-        job = data_fixture.create_file_import_job(data=data)
+        job = data_fixture.create_file_import_job(data={"data": data})
         run_async_job(job.id)
 
     data[0][0] = field_name_with_ok_length
     with patch_filefield_storage():
-        job = data_fixture.create_file_import_job(data=data)
+        job = data_fixture.create_file_import_job(data={"data": data})
         run_async_job(job.id)
 
     with patch_filefield_storage(), pytest.raises(ReservedBaserowFieldNameException):
-        job = data_fixture.create_file_import_job(data=[["id"]])
+        job = data_fixture.create_file_import_job(data={"data": [["id"]]})
         run_async_job(job.id)
 
     with patch_filefield_storage(), pytest.raises(InitialTableDataDuplicateName):
-        job = data_fixture.create_file_import_job(data=[["test", "test"]])
+        job = data_fixture.create_file_import_job(data={"data": [["test", "test"]]})
         run_async_job(job.id)
 
     with patch_filefield_storage(), pytest.raises(InvalidBaserowFieldName):
-        job = data_fixture.create_file_import_job(data=[[" "]])
+        job = data_fixture.create_file_import_job(data={"data": [[" "]]})
         run_async_job(job.id)
 
     # Basic use
     with patch_filefield_storage():
         job = data_fixture.create_file_import_job(
-            data=[
-                ["A", "B", "C", "D"],
-                ["1-1", "1-2", "1-3", "1-4", "1-5"],
-                ["2-1", "2-2", "2-3"],
-                ["3-1", "3-2"],
-            ]
+            data={
+                "data": [
+                    ["A", "B", "C", "D"],
+                    ["1-1", "1-2", "1-3", "1-4", "1-5"],
+                    ["2-1", "2-2", "2-3"],
+                    ["3-1", "3-2"],
+                ]
+            }
         )
         run_async_job(job.id)
 
@@ -130,11 +139,13 @@ def test_run_file_import_task(data_fixture, patch_filefield_storage):
     # Without first row header
     with patch_filefield_storage():
         job = data_fixture.create_file_import_job(
-            data=[
-                ["1-1"],
-                ["2-1", "2-2", "2-3"],
-                ["3-1", "3-2"],
-            ],
+            data={
+                "data": [
+                    ["1-1"],
+                    ["2-1", "2-2", "2-3"],
+                    ["3-1", "3-2"],
+                ]
+            },
             first_row_header=False,
         )
         run_async_job(job.id)
@@ -151,17 +162,19 @@ def test_run_file_import_task(data_fixture, patch_filefield_storage):
     # Robust to strange field names
     with patch_filefield_storage():
         job = data_fixture.create_file_import_job(
-            data=[
-                [
-                    "TEst 1",
-                    "10.00",
-                    'Falsea"""',
-                    'a"a"a"a"a,',
-                    "a",
-                    1.3,
-                    "/w. r/awr",
-                ],
-            ],
+            data={
+                "data": [
+                    [
+                        "TEst 1",
+                        "10.00",
+                        'Falsea"""',
+                        'a"a"a"a"a,',
+                        "a",
+                        1.3,
+                        "/w. r/awr",
+                    ],
+                ]
+            },
         )
         run_async_job(job.id)
 
@@ -196,7 +209,7 @@ def test_run_file_import_task(data_fixture, patch_filefield_storage):
     model = table.get_model()
 
     # Import data to an existing table
-    data = [["baz", 3, -3, "foo", None], ["bob", -4, 2.5, "bar", "a" * 255]]
+    data = {"data": [["baz", 3, -3, "foo", None], ["bob", -4, 2.5, "bar", "a" * 255]]}
 
     with patch_filefield_storage():
         job = data_fixture.create_file_import_job(
@@ -212,13 +225,15 @@ def test_run_file_import_task(data_fixture, patch_filefield_storage):
     assert len(rows) == 2
 
     # Import data with different length
-    data = [
-        ["good", "test", "test", "Anything"],
-        [],
-        [None, None],
-        ["good", 2.5, None, "Anything"],
-        ["good", 2.5, None, "Anything", "too much", "values"],
-    ]
+    data = {
+        "data": [
+            ["good", "test", "test", "Anything"],
+            [],
+            [None, None],
+            ["good", 2.5, None, "Anything"],
+            ["good", 2.5, None, "Anything", "too much", "values"],
+        ]
+    }
 
     with patch_filefield_storage():
         job = data_fixture.create_file_import_job(
@@ -331,6 +346,7 @@ def test_run_file_import_task_for_special_fields(data_fixture, patch_filefield_s
             [],
         ],
     ]
+    data = {"data": data}
 
     with patch_filefield_storage():
         job = data_fixture.create_file_import_job(
@@ -397,6 +413,7 @@ def test_run_file_import_task_for_special_fields(data_fixture, patch_filefield_s
             "bug",
         ],
     ]
+    data = {"data": data}
 
     with patch_filefield_storage():
         job = data_fixture.create_file_import_job(
@@ -454,8 +471,8 @@ def test_run_file_import_test_chunk(data_fixture, patch_filefield_storage):
 
     table, _, _ = data_fixture.build_table(
         columns=[
-            (f"col1", "text"),
-            (f"col2", "number"),
+            ("col1", "text"),
+            ("col2", "number"),
         ],
         rows=[],
         user=user,
@@ -483,11 +500,16 @@ def test_run_file_import_test_chunk(data_fixture, patch_filefield_storage):
     data[1024] = ["test", 2, 99999]
     data[1027] = ["test", "bad", single_select_option_2.id]
 
+    print("data", len(data))
+    data = {"data": data}
+
     with patch_filefield_storage():
         job = data_fixture.create_file_import_job(table=table, data=data, user=user)
         run_async_job(job.id)
 
     job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
 
     model = job.table.get_model()
     assert model.objects.count() == row_count - 5
@@ -509,8 +531,8 @@ def test_run_file_import_limit(data_fixture, patch_filefield_storage):
 
     table, _, _ = data_fixture.build_table(
         columns=[
-            (f"col1", "text"),
-            (f"col2", "number"),
+            ("col1", "text"),
+            ("col2", "number"),
         ],
         rows=[],
         user=user,
@@ -529,7 +551,9 @@ def test_run_file_import_limit(data_fixture, patch_filefield_storage):
     data += [["test", "bad", single_select_option_1.id]] * (max_error + 5)
 
     with patch_filefield_storage():
-        job = data_fixture.create_file_import_job(table=table, data=data, user=user)
+        job = data_fixture.create_file_import_job(
+            table=table, data={"data": data}, user=user
+        )
 
         with pytest.raises(ReportMaxErrorCountExceeded):
             run_async_job(job.id)
@@ -550,7 +574,9 @@ def test_run_file_import_limit(data_fixture, patch_filefield_storage):
     data += [["test", 1, 0]] * (max_error + 5)
 
     with patch_filefield_storage():
-        job = data_fixture.create_file_import_job(table=table, data=data, user=user)
+        job = data_fixture.create_file_import_job(
+            table=table, data={"data": data}, user=user
+        )
 
         with pytest.raises(ReportMaxErrorCountExceeded):
             run_async_job(job.id)
@@ -646,3 +672,315 @@ def test_cleanup_file_import_job(data_fixture, settings, patch_filefield_storage
     job3.refresh_from_db()
     assert job3.state == JOB_FINISHED
     assert job3.updated_on == time_before_soft_limit
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_fields_not_in_table(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    data_fixture.create_text_field(table=table, order=1, name="text 1")
+    init_data = [["foo"], ["bar"]]
+
+    with pytest.raises(FieldNotInTable):
+        with patch_filefield_storage():
+            job = data_fixture.create_file_import_job(
+                data={
+                    "data": init_data,
+                    "configuration": {"upsert_fields": [100, 120]},
+                },
+                table=table,
+                user=user,
+            )
+            run_async_job(job.id)
+
+    model = table.get_model()
+    assert len(model.objects.all()) == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_fields_not_usable(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    f1 = data_fixture.create_text_field(table=table, order=1, name="text 1")
+    f2 = data_fixture.create_formula_field(table=table, order=2, name="formula field")
+
+    model = table.get_model()
+    # dummy data just to ensure later on the table wasn't modified.
+    init_data = [
+        [
+            "aa-",
+        ],
+        [
+            "aa-",
+        ],
+    ]
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data={"data": init_data},
+            table=table,
+            user=user,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+
+    assert job.state == JOB_FINISHED
+    assert job.progress_percentage == 100
+
+    with pytest.raises(IncompatibleField):
+        with patch_filefield_storage():
+            job = data_fixture.create_file_import_job(
+                data={
+                    "data": [["bbb"], ["ccc"], ["aaa"]],
+                    "configuration": {
+                        # we're trying to use formula field, which is not supported
+                        "upsert_fields": [f2.id],
+                        "upsert_values": [["aaa"], ["aaa"], ["aaa"]],
+                    },
+                },
+                table=table,
+                user=user,
+                first_row_header=False,
+            )
+            run_async_job(job.id)
+
+    rows = model.objects.all()
+    assert len(rows) == 2
+    assert all([getattr(r, f1.db_column) == "aa-" for r in rows])
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_fields_invalid_length(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    f1 = data_fixture.create_text_field(table=table, order=1, name="text 1")
+
+    model = table.get_model()
+
+    with pytest.raises(InvalidRowLength):
+        with patch_filefield_storage():
+            job = data_fixture.create_file_import_job(
+                data={
+                    "data": [["bbb"], ["ccc"], ["aaa"]],
+                    "configuration": {
+                        # fields and values have different lengths
+                        "upsert_fields": [f1.id],
+                        "upsert_values": [
+                            ["aaa", "bbb"],
+                        ],
+                    },
+                },
+                table=table,
+                user=user,
+                first_row_header=False,
+            )
+            run_async_job(job.id)
+    job.refresh_from_db()
+    assert job.failed
+
+    rows = model.objects.all()
+    assert len(rows) == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert(data_fixture, patch_filefield_storage):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    f1 = data_fixture.create_text_field(table=table, order=1, name="text 1")
+    f2 = data_fixture.create_number_field(
+        table=table, order=2, name="number 1", number_negative=True
+    )
+    f3 = data_fixture.create_date_field(user=user, table=table, order=3, name="date 1")
+    f4 = data_fixture.create_date_field(
+        user=user, table=table, order=4, name="datetime 1", date_include_time=True
+    )
+    f5 = data_fixture.create_number_field(
+        table=table,
+        order=5,
+        name="value field",
+        number_negative=True,
+        number_decimal_places=10,
+    )
+    f6 = data_fixture.create_text_field(table=table, order=6, name="text 2")
+
+    model = table.get_model()
+
+    init_data = [
+        [
+            "aaa",
+            1,
+            "2024-01-01",
+            "2024-01-01T01:02:03.004+01:00",
+            0.1,
+            "aaa-1-1",
+        ],
+        [
+            "aab",
+            1,
+            "2024-01-01",
+            "2024-01-01T01:02:03",
+            0.2,
+            "aab-1-1",
+        ],
+        [
+            "aac",
+            1,
+            "2024-01-01",
+            "2024-01-01T01:02:03",
+            0.2,
+            "aac-1-1",
+        ],
+        [
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ],
+        [
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ],
+        [
+            "aac",
+            1,
+            None,
+            "2024-01-01T01:02:03",
+            0.2,
+            "aac-1-2",
+        ],
+        [
+            "aab",
+            1,
+            "2024-01-01",
+            None,
+            0.2,
+            "aac-1-2",
+        ],
+        [
+            "aaa",
+            1,
+            "2024-01-01",
+            "2024-01-01T01:02:03.004+01:00",
+            0.1,
+            "aaa-1-1",
+        ],
+        [
+            "aaa",
+            1,
+            "2024-01-02",
+            "2024-01-01 01:02:03.004 +01:00",
+            0.1,
+            "aaa-1-1",
+        ],
+    ]
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data={"data": init_data},
+            table=table,
+            user=user,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+
+    assert job.state == JOB_FINISHED
+    assert job.progress_percentage == 100
+
+    rows = model.objects.all()
+
+    assert len(rows) == len(init_data)
+
+    update_with_duplicates = [
+        # first three are duplicates
+        [
+            "aab",
+            1,
+            "2024-01-01",
+            "2024-01-01T01:02:03",
+            0.3,
+            "aab-1-1-modified",
+        ],
+        [
+            "aaa",
+            1,
+            "2024-01-01",
+            "2024-01-01T01:02:03.004+01:00",
+            0.2,
+            "aaa-1-1-modified",
+        ],
+        [
+            "aab",
+            1,
+            "2024-01-01",
+            None,
+            0.33333,
+            "aac-1-2-modified",
+        ],
+        # insert
+        [
+            "aab",
+            1,
+            None,
+            None,
+            125,
+            "aab-1-3-new",
+        ],
+        [
+            "aab",
+            1,
+            "2024-01-01",
+            None,
+            0.33333,
+            "aab-1-4-new",
+        ],
+    ]
+    # Without first row header
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data={
+                "data": update_with_duplicates,
+                "configuration": {
+                    "upsert_fields": [f1.id, f2.id, f3.id, f4.id],
+                    "upsert_values": [i[:4] for i in update_with_duplicates],
+                },
+            },
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+
+    rows = list(model.objects.all())
+
+    assert len(rows) == len(init_data) + 2
+
+    last = rows[-1]
+    assert getattr(last, f1.db_column) == "aab"
+    assert getattr(last, f6.db_column) == "aab-1-4-new"
+
+    last = rows[-2]
+    assert getattr(last, f1.db_column) == "aab"
+    assert getattr(last, f6.db_column) == "aab-1-3-new"

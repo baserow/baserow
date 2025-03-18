@@ -482,39 +482,43 @@ def test_order_by_fields_string_queryset(data_fixture):
         field=multiple_select_field, value="D", color="red"
     )
 
-    row_1, row_2, row_3, row_4 = RowHandler().force_create_rows(
-        user=None,
-        table=table,
-        rows_values=[
-            {
-                name_field.db_column: "BMW",
-                color_field.db_column: "Blue",
-                price_field.db_column: 10000,
-                description_field.db_column: "Sports car.",
-                single_select_field.db_column: option_a.id,
-                multiple_select_field.db_column: [option_c.id],
-            },
-            {
-                name_field.db_column: "Audi",
-                color_field.db_column: "Orange",
-                price_field.db_column: 20000,
-                description_field.db_column: "This is the most expensive car we have.",
-                single_select_field.db_column: option_b.id,
-                multiple_select_field.db_column: [option_d.id],
-            },
-            {
-                name_field.db_column: "Volkswagen",
-                color_field.db_column: "White",
-                price_field.db_column: 5000,
-                description_field.db_column: "A very old car.",
-            },
-            {
-                name_field.db_column: "Volkswagen",
-                color_field.db_column: "Green",
-                price_field.db_column: 4000,
-                description_field.db_column: "Strange color.",
-            },
-        ],
+    row_1, row_2, row_3, row_4 = (
+        RowHandler()
+        .force_create_rows(
+            user=None,
+            table=table,
+            rows_values=[
+                {
+                    name_field.db_column: "BMW",
+                    color_field.db_column: "Blue",
+                    price_field.db_column: 10000,
+                    description_field.db_column: "Sports car.",
+                    single_select_field.db_column: option_a.id,
+                    multiple_select_field.db_column: [option_c.id],
+                },
+                {
+                    name_field.db_column: "Audi",
+                    color_field.db_column: "Orange",
+                    price_field.db_column: 20000,
+                    description_field.db_column: "This is the most expensive car we have.",
+                    single_select_field.db_column: option_b.id,
+                    multiple_select_field.db_column: [option_d.id],
+                },
+                {
+                    name_field.db_column: "Volkswagen",
+                    color_field.db_column: "White",
+                    price_field.db_column: 5000,
+                    description_field.db_column: "A very old car.",
+                },
+                {
+                    name_field.db_column: "Volkswagen",
+                    color_field.db_column: "Green",
+                    price_field.db_column: 4000,
+                    description_field.db_column: "Strange color.",
+                },
+            ],
+        )
+        .created_rows
     )
 
     model = table.get_model()
@@ -704,19 +708,23 @@ def test_order_by_fields_string_queryset_with_type(data_fixture):
         field=single_select_field, value="B", color="red", order=1
     )
 
-    row_1, row_2 = RowHandler().force_create_rows(
-        user=None,
-        table=table,
-        rows_values=[
-            {
-                name_field.db_column: "BMW",
-                single_select_field.db_column: option_a.id,
-            },
-            {
-                name_field.db_column: "Audi",
-                single_select_field.db_column: option_b.id,
-            },
-        ],
+    row_1, row_2 = (
+        RowHandler()
+        .force_create_rows(
+            user=None,
+            table=table,
+            rows_values=[
+                {
+                    name_field.db_column: "BMW",
+                    single_select_field.db_column: option_a.id,
+                },
+                {
+                    name_field.db_column: "Audi",
+                    single_select_field.db_column: option_b.id,
+                },
+            ],
+        )
+        .created_rows
     )
 
     model = table.get_model()

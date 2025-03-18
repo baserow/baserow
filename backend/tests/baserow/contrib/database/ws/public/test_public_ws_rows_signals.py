@@ -203,10 +203,14 @@ def test_batch_rows_created_public_views_receive_restricted_row_created_ws_event
         {f"field_{visible_field.id}": "Visible", f"field_{hidden_field.id}": "Hidden"},
     ]
 
-    rows = RowHandler().create_rows(
-        user=user,
-        table=table,
-        rows_values=rows_to_create,
+    rows = (
+        RowHandler()
+        .create_rows(
+            user=user,
+            table=table,
+            rows_values=rows_to_create,
+        )
+        .created_rows
     )
 
     assert mock_broadcast_to_channel_group.delay.mock_calls == (
@@ -316,10 +320,14 @@ def test_batch_rows_created_public_views_receive_row_created_when_filters_match(
         {f"field_{visible_field.id}": "Visible", f"field_{hidden_field.id}": "Hidden"},
     ]
 
-    rows = RowHandler().create_rows(
-        user=user,
-        table=table,
-        rows_values=rows_to_create,
+    rows = (
+        RowHandler()
+        .create_rows(
+            user=user,
+            table=table,
+            rows_values=rows_to_create,
+        )
+        .created_rows
     )
 
     assert mock_broadcast_to_channel_group.delay.mock_calls == (

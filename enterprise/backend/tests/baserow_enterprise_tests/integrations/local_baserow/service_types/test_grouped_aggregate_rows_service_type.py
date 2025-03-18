@@ -2778,35 +2778,39 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_primary_fie
         direction="ASC",
     )
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {
-                f"field_{field.id}": 40,
-                f"field_{field_2.id}": "Z",
-            },
-            {
-                f"field_{field.id}": 20,
-                f"field_{field_2.id}": "K",
-            },
-            {
-                f"field_{field.id}": 30,
-                f"field_{field_2.id}": "L",
-            },
-            {
-                f"field_{field.id}": 10,
-                f"field_{field_2.id}": "A",
-            },
-            {
-                f"field_{field.id}": 60,
-                f"field_{field_2.id}": "H",
-            },
-            {
-                f"field_{field.id}": 50,
-                f"field_{field_2.id}": "M",
-            },
-        ],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {
+                    f"field_{field.id}": 40,
+                    f"field_{field_2.id}": "Z",
+                },
+                {
+                    f"field_{field.id}": 20,
+                    f"field_{field_2.id}": "K",
+                },
+                {
+                    f"field_{field.id}": 30,
+                    f"field_{field_2.id}": "L",
+                },
+                {
+                    f"field_{field.id}": 10,
+                    f"field_{field_2.id}": "A",
+                },
+                {
+                    f"field_{field.id}": 60,
+                    f"field_{field_2.id}": "H",
+                },
+                {
+                    f"field_{field.id}": 50,
+                    f"field_{field_2.id}": "M",
+                },
+            ],
+        )
+        .created_rows
     )
 
     dispatch_context = FakeDispatchContext()

@@ -66,7 +66,7 @@ class DatabasePlugin(Plugin):
                 ["John", "Von Neumann", "", True],
                 ["Blaise", "Pascal", "", True],
             ]
-            row_handler.import_rows(user, table, data, send_realtime_update=False)
+            row_handler.import_rows(user, table, data=data, send_realtime_update=False)
 
             # Creating the example projects table.
             table = table_handler.create_table_and_fields(
@@ -86,4 +86,4 @@ class DatabasePlugin(Plugin):
                 [_("Computer architecture"), str(date(1945, 1, 1)), False],
                 [_("Cellular Automata"), str(date(1952, 6, 1)), False],
             ]
-            row_handler.import_rows(user, table, data, send_realtime_update=False)
+            row_handler.import_rows(user, table, data=data, send_realtime_update=False)

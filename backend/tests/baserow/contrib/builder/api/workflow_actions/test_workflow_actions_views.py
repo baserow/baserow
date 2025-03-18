@@ -712,17 +712,21 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
             ],
         )
         field = table.field_set.get()
-        rows = RowHandler().create_rows(
-            user,
-            table,
-            rows_values=[
-                {f"field_{field.id}": "Community Engagement"},
-                {f"field_{field.id}": "Construction"},
-                {f"field_{field.id}": "Complex Construction Design"},
-                {f"field_{field.id}": "Simple Construction Design"},
-                {f"field_{field.id}": "Landscape Design"},
-                {f"field_{field.id}": "Infrastructure Design"},
-            ],
+        rows = (
+            RowHandler()
+            .create_rows(
+                user,
+                table,
+                rows_values=[
+                    {f"field_{field.id}": "Community Engagement"},
+                    {f"field_{field.id}": "Construction"},
+                    {f"field_{field.id}": "Complex Construction Design"},
+                    {f"field_{field.id}": "Simple Construction Design"},
+                    {f"field_{field.id}": "Landscape Design"},
+                    {f"field_{field.id}": "Infrastructure Design"},
+                ],
+            )
+            .created_rows
         )
 
     builder = data_fixture.create_builder_application(workspace=workspace)

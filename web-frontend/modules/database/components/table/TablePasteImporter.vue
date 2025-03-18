@@ -28,6 +28,10 @@
       </Checkbox>
     </FormGroup>
 
+    <div v-if="values.filename !== ''" class="control margin-top-0">
+      <slot name="upsertMapping" />
+    </div>
+
     <Alert v-if="error !== ''" type="error">
       <template #title> {{ $t('common.wrong') }} </template>
       {{ error }}
