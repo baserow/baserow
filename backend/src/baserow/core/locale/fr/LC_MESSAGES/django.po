@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2025-03-18 13:24+0000\n"
+"PO-Revision-Date: 2025-03-18 19:52+0000\n"
 "Last-Translator: Jérémie Pardou-Piquemal <jrmi@jeremiez.net>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/baserow/"
 "backend-core/fr/>\n"
@@ -478,7 +478,7 @@ msgid "Schedule user deletion"
 msgstr "Planification de la suppression d'un utilisateur"
 
 #: src/baserow/core/user/actions.py:165
-#, fuzzy, python-format
+#, python-format
 msgid ""
 "User \"%(user_email)s\" (%(user_id)s) scheduled to be deleted after grace "
 "time"
@@ -487,7 +487,6 @@ msgstr ""
 "après le délai de grâce"
 
 #: src/baserow/core/user/actions.py:196
-#, fuzzy
 msgid "Cancel user deletion"
 msgstr "Annulation de la suppression d'un utilisateur"
 
