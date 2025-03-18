@@ -8,7 +8,8 @@
         "exporterType": {
             "json": "Exporter vers JSON",
             "xml": "Exporter vers XML",
-            "excel": "Exporter vers Excel"
+            "excel": "Exporter vers Excel",
+            "file": "Exporter les fichiers"
         },
         "deactivated": "Disponible en version premium",
         "adminType": {
@@ -354,5 +355,8 @@
     },
     "publicViewExport": {
         "export": "Exporter"
+    },
+    "tableFileExporter": {
+        "organizeFiles": "Grouper les fichiers par identifiant de ligne"
     }
 }
