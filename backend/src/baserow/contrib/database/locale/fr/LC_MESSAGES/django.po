@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2025-03-15 23:01+0000\n"
-"Last-Translator: vuod <vuod@vivaldi.net>\n"
+"PO-Revision-Date: 2025-03-18 13:24+0000\n"
+"Last-Translator: Jérémie Pardou-Piquemal <jrmi@jeremiez.net>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/baserow/"
 "backend-database/fr/>\n"
 "Language: fr\n"
@@ -179,9 +179,8 @@ msgid "Turing machine"
 msgstr "Machine de Turing"
 
 #: src/baserow/contrib/database/plugins.py:103
-#, fuzzy
 msgid "Computer architecture"
-msgstr "Architecture des ordinateurs"
+msgstr "Architecture de l'ordinateur"
 
 #: src/baserow/contrib/database/plugins.py:104
 msgid "Cellular Automata"
