@@ -381,7 +381,7 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
 
     row_b1, row_b2 = row_handler.force_create_rows(
         user, table_b, [{primary_b.db_column: "b1"}, {primary_b.db_column: "b2"}]
-    )
+    ).created_rows
     row_a1 = row_handler.force_create_row(user, table_a, {primary_a.id: "a1"})
 
     with freeze_time("2021-01-01 12:00"):
@@ -552,7 +552,7 @@ def test_update_rows_dont_insert_entries_in_linked_rows_history_without_related_
 
     row_b1, row_b2 = row_handler.force_create_rows(
         user, table_b, [{primary_b.db_column: "b1"}, {primary_b.db_column: "b2"}]
-    )
+    ).created_rows
     row_a1 = row_handler.force_create_row(user, table_a, {primary_a.id: "a1"})
 
     with freeze_time("2021-01-01 12:00"):
@@ -625,13 +625,13 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
 
     row_b1, row_b2 = row_handler.force_create_rows(
         user, table_b, [{primary_b.db_column: "b1"}, {primary_b.db_column: "b2"}]
-    )
+    ).created_rows
     row_c1, row_c2 = row_handler.force_create_rows(
         user, table_c, [{primary_c.db_column: "c1"}, {primary_c.db_column: "c2"}]
-    )
+    ).created_rows
     row_a1, row_a2 = row_handler.force_create_rows(
         user, table_a, [{primary_a.db_column: "a1"}, {primary_a.db_column: "a2"}]
-    )
+    ).created_rows
 
     with freeze_time("2021-01-01 12:00"), patch(
         "baserow.contrib.database.rows.signals.rows_history_updated.send"
