@@ -94,8 +94,9 @@ export default {
       // If we've been instructed to show a specific setting component,
       // then ensure it's displayed first.
       if (selectSettingType) {
-        this.settingSelected = this.registeredSettings.find(
-          (setting) => setting.getType() === selectSettingType
+        this.settingSelected = this.$registry.get(
+          'builderSettings',
+          selectSettingType
         )
       }
 
