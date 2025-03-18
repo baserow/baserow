@@ -28,6 +28,7 @@ class TemplateSerializer(serializers.ModelSerializer):
             "keywords",
             "workspace_id",
             "is_default",
+            "open_application",
         )
 
     @extend_schema_field(OpenApiTypes.STR)
