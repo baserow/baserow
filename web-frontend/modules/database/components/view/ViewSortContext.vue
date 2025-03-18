@@ -199,7 +199,7 @@ export default {
         const sortType = values.type || sort.type
         const field = this.getField(values.field)
         const fieldType = this.getFieldType(field)
-        const sortTypes = fieldType.getSortTypes(field, this.$registry)
+        const sortTypes = fieldType.getSortTypes(field)
         if (!Object.prototype.hasOwnProperty.call(sortTypes, sortType)) {
           values.type = DEFAULT_SORT_TYPE_KEY
         }
@@ -217,7 +217,7 @@ export default {
       }
     },
     getSortTypes(field) {
-      return this.getFieldType(field).getSortTypes(field, this.$registry)
+      return this.getFieldType(field).getSortTypes(field)
     },
   },
 }

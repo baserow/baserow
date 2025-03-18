@@ -385,10 +385,6 @@ export class FieldType extends Registerable {
     return false
   }
 
-  getGroupByIndicator(field, registry) {
-    return this.getSortIndicator(field, registry)
-  }
-
   /**
    * In some cases, the group by value can not be directly compared to a row value
    * because the format is different for technical reasons in the backend. This
@@ -532,11 +528,11 @@ export class FieldType extends Registerable {
    * type. It always returns the default type, which uses the `getSort` and
    * `getSortIndicator` by default.
    */
-  getSortTypes(field, registry) {
+  getSortTypes(field) {
     return {
       [DEFAULT_SORT_TYPE_KEY]: {
         function: this.getSort,
-        indicator: this.getSortIndicator(field, registry),
+        indicator: this.getSortIndicator(field),
       },
     }
   }
@@ -3313,8 +3309,8 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     }
   }
 
-  getSortTypes(field, registry) {
-    const defaultTypes = super.getSortTypes()
+  getSortTypes(field) {
+    const defaultTypes = super.getSortTypes(field)
     defaultTypes.order = {
       function: this.getSortByOptionOrder,
       indicator: ['text', 'First', 'Last'],
@@ -3966,6 +3962,10 @@ export class FormulaFieldType extends mix(
 
   getSort(name, order, field) {
     return this.getFormulaType(field)?.getSort(name, order, field)
+  }
+
+  getSortTypes(field) {
+    return this.getFormulaType(field)?.getSortTypes(field)
   }
 
   getEmptyValue(field) {

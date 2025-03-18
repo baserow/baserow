@@ -205,7 +205,7 @@ export default {
         const sortType = values.type || groupBy.type
         const field = this.getField(values.field)
         const fieldType = this.getFieldType(field)
-        const sortTypes = fieldType.getSortTypes(field, this.$registry)
+        const sortTypes = fieldType.getSortTypes(field)
         if (!Object.prototype.hasOwnProperty.call(sortTypes, sortType)) {
           values.type = DEFAULT_SORT_TYPE_KEY
         }
@@ -222,13 +222,8 @@ export default {
         notifyIf(error, 'view')
       }
     },
-    getGroupByIndicator(field, index) {
-      return this.$registry
-        .get('field', field.type)
-        .getGroupByIndicator(field, this.$registry)[index]
-    },
     getSortTypes(field) {
-      return this.getFieldType(field).getSortTypes(field, this.$registry)
+      return this.getFieldType(field).getSortTypes(field)
     },
   },
 }

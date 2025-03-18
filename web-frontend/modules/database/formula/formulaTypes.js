@@ -73,6 +73,7 @@ import {
 } from '@baserow/modules/database/utils/fieldFilters'
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
 import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions.vue'
+import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
 export class BaserowFormulaTypeDefinition extends Registerable {
   getIconClass() {
@@ -194,6 +195,19 @@ export class BaserowFormulaTypeDefinition extends Registerable {
       this.getFieldType()
     )
     return underlyingFieldType.getSort(name, order, field)
+  }
+
+  getSortTypes(field) {
+    const underlyingFieldType = this.app.$registry.get(
+      'field',
+      this.getFieldType()
+    )
+    const fieldSortTypes = underlyingFieldType.getSortTypes(field)
+    // Only the default sort type is supported for formulas at the moment because
+    // there is no way to configure different types in the backend.
+    return {
+      [DEFAULT_SORT_TYPE_KEY]: fieldSortTypes[DEFAULT_SORT_TYPE_KEY],
+    }
   }
 
   _mapFormulaTypeToFieldType(formulaType) {
