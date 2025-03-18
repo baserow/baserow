@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0181_tablewebhookcall_batch_id_and_more"),
+        ("database", "0183_viewgroupby_type_viewsort_type"),
     ]
 
     operations = [

@@ -2076,10 +2076,6 @@ export class RatingInputElementType extends FormElementType {
     return RatingInputElementForm
   }
 
-  getOrder() {
-    return 50
-  }
-
   formDataType(element) {
     return 'number'
   }
@@ -2140,10 +2136,6 @@ export class RatingElementType extends ElementType {
 
   get generalFormComponent() {
     return RatingElementForm
-  }
-
-  getOrder() {
-    return 50
   }
 
   formDataType(element) {

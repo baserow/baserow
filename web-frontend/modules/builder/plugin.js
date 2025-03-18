@@ -221,6 +221,7 @@ export default (context) => {
   app.$registry.register('element', new IFrameElementType(context))
   app.$registry.register('element', new LinkElementType(context))
   app.$registry.register('element', new ButtonElementType(context))
+  app.$registry.register('element', new RatingElementType(context))
   app.$registry.register('element', new TableElementType(context))
   app.$registry.register('element', new SimpleContainerElementType(context))
   app.$registry.register('element', new ColumnElementType(context))
@@ -233,7 +234,6 @@ export default (context) => {
   app.$registry.register('element', new DateTimePickerElementType(context))
   app.$registry.register('element', new RecordSelectorElementType(context))
   app.$registry.register('element', new RepeatElementType(context))
-  app.$registry.register('element', new RatingElementType(context))
   app.$registry.register('element', new RatingInputElementType(context))
   app.$registry.register('element', new MenuElementType(context))
 
