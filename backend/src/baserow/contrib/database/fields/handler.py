@@ -363,7 +363,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         # already exists. If so the field cannot be created and an exception is raised.
         if primary and Field.objects.filter(table=table, primary=True).exists():
             raise PrimaryFieldAlreadyExists(
-                f"A primary field already exists for the " f"table {table}."
+                f"A primary field already exists for the table {table}."
             )
 
         # Figure out which model to use and which field types are allowed for the given
@@ -579,6 +579,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             raise IncompatiblePrimaryFieldTypeError(to_field_type_name)
 
         if baserow_field_type_changed:
+            ViewHandler().before_field_type_change(field)
             dependants_broken_due_to_type_change = (
                 from_field_type.get_dependants_which_will_break_when_field_type_changes(
                     field, to_field_type, field_cache

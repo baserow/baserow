@@ -223,6 +223,41 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
         return f"i{table_id}:"
 
     @classmethod
+    def before_field_type_change(cls, field: Field, model=None):
+        """
+        Remove all the indexes for the views that have a sort on the field
+        that is being changed.
+
+        :param field: The field that is being changed.
+        :param model: The model to use for the table. If not provided it will be
+            taken from the field.
+        """
+
+        views = View.objects.filter(
+            id__in=ViewSort.objects.filter(field=field).values("view_id"),
+            db_index_name__isnull=False,
+        )
+        if not views:
+            return
+
+        if model is None:
+            model = field.table.get_model()
+
+        dropped_indexes = set()
+        for view in views:
+            if view.db_index_name in dropped_indexes:
+                continue
+
+            cls.drop_index(
+                view=view,
+                db_index=django_models.Index("id", name=view.db_index_name),
+                model=model,
+            )
+            dropped_indexes.add(view.db_index_name)
+
+        View.objects.filter(id__in=[v.id for v in views]).update(db_index_name=None)
+
+    @classmethod
     def _get_index_hash(
         cls, field_order_bys: List[OptionallyAnnotatedOrderBy]
     ) -> Optional[str]:
@@ -447,6 +482,12 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
         ):
             return current_index_name
 
+        cls.drop_index(view, db_index, model)
+
+        return current_index_name
+
+    @classmethod
+    def drop_index(cls, view, db_index, model=None):
         if model is None:
             model = view.table.get_model()
 
@@ -458,8 +499,6 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
                 view_pk=view.pk,
                 view_table_id=view.table_id,
             )
-
-        return current_index_name
 
     @classmethod
     def update_index_by_view_id(cls, view_id: int, nowait=True):
@@ -597,6 +636,16 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             ),
         )
         return views
+
+    def before_field_type_change(self, field: Field):
+        """
+        Allow trigger custom logic before field is changed.
+        By default it calls ViewIndexingHandler.before_field_type_change.
+
+        :param field: The field that is being changed.
+        """
+
+        ViewIndexingHandler.before_field_type_change(field)
 
     def list_workspace_views(
         self,
