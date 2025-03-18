@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-05 11:01+0000\n"
+"POT-Creation-Date: 2025-03-18 19:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -305,12 +305,12 @@ msgid_plural "Plus %(counter)s more notifications."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/baserow/core/templates/baserow/core/notifications_summary.html:235
-#: src/baserow/core/templates/baserow/core/user/account_deleted.html:186
-#: src/baserow/core/templates/baserow/core/user/account_deletion_cancelled.html:186
-#: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:191
-#: src/baserow/core/templates/baserow/core/user/reset_password.html:209
-#: src/baserow/core/templates/baserow/core/workspace_invitation.html:213
+#: src/baserow/core/templates/baserow/core/notifications_summary.html:237
+#: src/baserow/core/templates/baserow/core/user/account_deleted.html:188
+#: src/baserow/core/templates/baserow/core/user/account_deletion_cancelled.html:188
+#: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:193
+#: src/baserow/core/templates/baserow/core/user/reset_password.html:211
+#: src/baserow/core/templates/baserow/core/workspace_invitation.html:215
 msgid ""
 "Baserow is an open source no-code database tool which allows you to "
 "collaborate on projects, customers and more. It gives you the powers of a "
@@ -490,47 +490,47 @@ msgid ""
 "\"%(auth_provider_type)s\" (%(auth_provider_id)s) auth provider"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:318
+#: src/baserow/core/user/actions.py:323
 msgid "Send reset user password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:319
+#: src/baserow/core/user/actions.py:324
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) requested to reset password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:352
+#: src/baserow/core/user/actions.py:357
 msgid "Change user password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:353
+#: src/baserow/core/user/actions.py:358
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) changed password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:392
+#: src/baserow/core/user/actions.py:397
 msgid "Reset user password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:393
+#: src/baserow/core/user/actions.py:398
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) reset password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:429
+#: src/baserow/core/user/actions.py:434
 msgid "Send verify email"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:430
+#: src/baserow/core/user/actions.py:435
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) requested to verify email"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:463
+#: src/baserow/core/user/actions.py:468
 msgid "Verify email"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:464
+#: src/baserow/core/user/actions.py:469
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) verify email"
 msgstr ""

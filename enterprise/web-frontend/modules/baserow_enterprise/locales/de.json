@@ -94,11 +94,20 @@
         "invalidMetadata": "Ungültige XML-Metadaten für den Identity Provider",
         "relayStateUrl": "Standard-Relaystatus-URL",
         "acsUrl": "Single Sign On-URL",
-        "domain": "Domain",
+        "domain": "SAML-Domain",
         "metadataPlaceholder": "Fügen Sie die Metadaten des Identitätsanbieters ein...",
         "invalidDomain": "Ungültiger Domainname",
         "metadata": "Metadaten",
-        "providerIsVerified": "Der Anbieter wurde verifiziert"
+        "providerIsVerified": "Der Anbieter wurde verifiziert",
+        "emailAttrKey": "E-Mail",
+        "firstNameAttrKeyHelper": "Der Vorname des Benutzers oder der vollständige Name, wenn 'Nachname' nicht angegeben ist.",
+        "samlResponseSettings": "SAML-Antwortattribute",
+        "emailAttrKeyHelper": "Die E-Mail-Adresse, die als Benutzername für den Benutzer verwendet werden soll.",
+        "lastNameAttrKeyHelper": "Nachname des Benutzers (optional). Löschen Sie diesen Wert, um den vollständigen Namen über 'Vorname' anzugeben.",
+        "defaultAttrs": "Standard",
+        "customAttrs": "Benutzerdefiniert",
+        "firstNameAttrKey": "Vorname",
+        "lastNameAttrKey": "Nachname"
     },
     "deleteAuthProviderModal": {
         "comment": "Möchten Sie diesen {type} wirklich löschen?",
@@ -177,7 +186,11 @@
         "remove": "Team löschen"
     },
     "authProviderTypes": {
-        "password": "E-Mail und Passwort-Authentifizierung"
+        "password": "E-Mail und Passwort-Authentifizierung",
+        "ssoSamlProviderNameUnconfigured": "Nicht konfigurierter SSO SAML",
+        "saml": "SSO-SAML-Provider",
+        "ssoOIDCProviderNameUnconfigured": "Nicht konfigurierter OpenID-Connect",
+        "ssoSamlProviderName": "SSO SAML: {domain}"
     },
     "createSettingsAuthProviderModal": {
         "title": "Neuen {type} hinzufügen"
@@ -193,7 +206,7 @@
             "onlyYouHaveAccess": "Nur Sie können auf diese Datenbank zugreifen.",
             "warningTitle": "Andere Benutzer könnten den Zugang erben!",
             "warningMessage": "Andere Benutzer erben möglicherweise den Zugriff über ihre jeweiligen Rollen in der übergeordneten Arbeitsbereich.",
-            "headerTooltip": "Datenbankrollen überschreiben Arbeitsbereichnrollen."
+            "headerTooltip": "Datenbankrollen überschreiben Arbeitsbereichsrollen."
         },
         "table": {
             "title": "{name} Tabelle",
@@ -256,7 +269,8 @@
         "secret": "Geheimnis",
         "clientId": "Client-ID",
         "clientIdPlaceholder": "Client-ID des Anbieters",
-        "providerNamePlaceholder": "Benutzerdefinierter Anbietername"
+        "providerNamePlaceholder": "Benutzerdefinierter Anbietername",
+        "duplicateBaseUrl": "Die eingegebene URL existiert bereits in einem anderen Anbieter"
     },
     "loginButton": {
         "continueWith": "Weitermachen mit"
@@ -267,7 +281,7 @@
         "coBranding": "Co-Branding Logo-Ersatz",
         "auditLogs": "Audit-Logs",
         "support": "Direkte Unterstützung",
-        "dataSync": "Datensynchronisation"
+        "dataSync": "Datenabgleich"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Direkte Unterstützung"
@@ -346,5 +360,48 @@
     },
     "enterpriseDataSyncType": {
         "localBaserowTable": "Baserow-Tabelle synchronisieren"
+    },
+    "samlAuthLink": {
+        "placeholderWithSaml": "{login} mit SAML",
+        "provideEmail": "Geben Sie die E-Mailadresse Ihres SAML-Accounts ein",
+        "emailPlaceholder": "Geben Sie Ihre E-Mailadresse ein..."
+    },
+    "configureDataSyncPeriodicInterval": {
+        "deactivatedText": "Der periodische Datenabgleich wurde deaktiviert, weil sie zu oft hintereinander fehlgeschlagen ist. Versuchen Sie bitte, den Abgleich manuell durchzuführen. Wenn er wie erwartet funktioniert, klicken Sie auf die Schaltfläche Aktivieren.",
+        "saved": "Gespeichert",
+        "deactivatedTitle": "Periodischer Datenabgleich deaktiviert",
+        "title": "Periodische EInstellungen",
+        "more": "Weitere Informationen",
+        "activate": "Periodischen Datenabgleich aktivieren",
+        "enterprise": "Der periodische Datenabgleich ist eine Advanced/Enterprise-Funktionalität."
+    },
+    "gitlabIssuesDataSync": {
+        "url": "Basis-URL",
+        "accessToken": "Zugriffstoken",
+        "accessTokenHelper": "Kann hier erstellt werden: https://gitlab.com/-/user_settings/personal_access_tokens indem man auf `Add new token` klickt und `read_api` auswählt.",
+        "urlHelper": "Die Basis-URL Ihrer GitLab-Instanz. (z.B. https://gitlab.com)",
+        "projectId": "Projekt-ID",
+        "projectIdHelper": "Die ID des Projekts, von dem Sie die Tickets synchronisieren möchten. Sie finden sie, indem Sie auf Ihre Projektseite gehen (z.B. https://gitlab.com/baserow/baserow), auf die drei Punkte in der oberen rechten Ecke klicken und anschließend auf 'Projekt-ID kopieren: 12345678'."
+    },
+    "hubspotContactsDataSync": {
+        "accessToken": "Zugriffstoken für die private App",
+        "accessTokenHelper": "Um ein Zugriffstoken für eine private App in HubSpot zu erstellen, klicken Sie in der oberen Leiste auf Einstellungen, navigieren Sie zu Integrationen > Private Apps und erstellen Sie eine neue private App. Weisen Sie die folgenden Bereiche zu: crm.objects.contacts.read, crm.schemas.contacts.read, und crm.objects.custom.read. Klicken Sie abschließend auf App erstellen, um das Token zu generieren."
+    },
+    "configureDataSyncModal": {
+        "periodicInterval": "Periodische Einstellungen"
+    },
+    "dataSyncPeriodicIntervalForm": {
+        "intervalLabel": "Intervall",
+        "intervalHelper": "Wie häufig der automatische Datenabgleich erfolgen soll.",
+        "manual": "Manuell",
+        "daily": "Täglich",
+        "hourly": "Stündlich",
+        "whenHelper": "Geben Sie die genaue Stunde, Minute und Sekunde an, zu der die Daten abgeglichen werden sollen.",
+        "minute": "Minute",
+        "second": "Sekunde",
+        "hour": "Stunde"
+    },
+    "oidcAuthLink": {
+        "placeholderWithOIDC": "{login} mit {provider}"
     }
 }

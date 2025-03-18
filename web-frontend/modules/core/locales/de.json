@@ -129,7 +129,9 @@
         "leaveWorkspace": "Arbeitsbereich verlassen",
         "deleteWorkspace": "Arbeitsbereich löschen",
         "auditLog": "Audit-Log",
-        "settings": "Einstellungen"
+        "settings": "Einstellungen",
+        "importWorkspace": "Daten importieren",
+        "exportWorkspace": "Daten exportieren"
     },
     "createWorkspaceModal": {
         "createNew": "Neuen Arbeitsbereich erstellen",
@@ -260,9 +262,9 @@
         "knowledgeBaseMessage": "Finden Sie Antworten auf all Ihre Fragen"
     },
     "login": {
-        "title": "Anmeldung",
-        "forgotPassword": "Passwort vergessen?",
-        "signUpText": "Sie haben noch kein Konto?",
+        "title": "Willkommen zurück",
+        "forgotPassword": "Vergessen?",
+        "signUpText": "Neu bei Baserow?",
         "emailPlaceholder": "Geben Sie Ihre E-Mail Adresse ein.",
         "passwordPlaceholder": "Geben Sie Ihr Passwort ein..",
         "signUp": "Anmelden",
@@ -280,10 +282,11 @@
         "errorLinkExpiredTitle": "Link abgelaufen",
         "errorLinkExpiredMessage": "Der Link zum Zurücksetzen des Passworts ist abgelaufen. Bitte fordern Sie ein neues an.",
         "disabled": "Passwort-Zurücksetzung ist deaktiviert",
-        "disabledMessage": "Es ist nicht möglich, ein Passwort zurückzusetzen, da es deaktiviert wurde."
+        "disabledMessage": "Es ist nicht möglich, ein Passwort zurückzusetzen, da es deaktiviert wurde.",
+        "message": "Sie können sich jetzt mit Ihrem neuen Passwort bei Baserow anmelden."
     },
     "signup": {
-        "headTitle": "Neues Konto erstellen",
+        "headTitle": "Konto erstellen",
         "title": "Registrieren Sie sich",
         "disabled": "Registrierung ist deaktiviert",
         "disabledMessage": "Es ist nicht möglich, ein Konto zu erstellen, da es deaktiviert wurde.",
@@ -294,16 +297,21 @@
         "passwordPlaceholder": "Geben Sie Ihr Passwort ein.",
         "loginText": "Sie haben bereits ein Konto?",
         "passwordRepeatPlaceholder": "Bestätigen Sie Ihr Passwort..",
-        "login": "Einloggen"
+        "login": "Einloggen",
+        "privacyPolicy": "Datenschutzerklärung",
+        "terms": "Nutzungsbedingungen",
+        "agreeTerms": "Mit der Erstellung eines Kontos erklären Sie sich einverstanden mit {0} {1} {2}"
     },
     "forgotPassword": {
         "title": "Passwort vergessen",
-        "message": "Bitte geben Sie Ihre E-Mail-Adresse in das Formular ein. Wenn wir ein Konto finden, senden wir Ihnen eine E-Mail mit einem Link zum Zurücksetzen Ihres Passworts.",
+        "message": "Geben Sie Ihre E-Mail-Adresse ein, damit wir Ihnen einen Link zum Zurücksetzen Ihres Passworts zusenden können.",
         "submit": "Link senden",
-        "confirmation": "Wenn Ihre E-Mail-Adresse in unserer Datenbank vorhanden ist, erhalten Sie in wenigen Minuten einen Link zum Zurücksetzen des Passworts an Ihre E-Mail-Adresse.",
+        "confirmation": "Wir haben eine E-Mail an {email} gesendet, die einen Link zum Zurücksetzen Ihres Baserow-Passworts enthält.",
         "disabled": "Passwort-Zurücksetzung ist deaktiviert",
         "disabledMessage": "Es ist nicht möglich, ein Passwort zurückzusetzen, da es deaktiviert wurde.",
-        "loginText": "Sie haben bereits ein Konto und ein Passwort?"
+        "loginText": "Sie haben bereits ein Konto und ein Passwort?",
+        "confirmationTitle": "Rufen Sie Ihre E-Mails ab",
+        "goBack": "Zurück"
     },
     "settings": {
         "settingsTitle": "Administrator-Einstellungen",
@@ -333,7 +341,11 @@
         "emailVerification": "E-Mail-Verifizierung",
         "emailVerificationDescription": "Gibt an, ob E-Mailadressen bestätigt werden müssen.",
         "emailVerificationRecommended": "Empfohlen",
-        "emailVerificationEnforced": "Erzwungen"
+        "emailVerificationEnforced": "Erzwungen",
+        "settingsVerifyImportSignatureDescription": "Wenn diese Funktion aktiviert ist, wird die Signatur der importierten Daten überprüft um sicherzustellen, dass die Daten nicht manipuliert wurden.",
+        "baserowVersion": "Baserow-Version",
+        "settingsVerifyImportSignature": "Import-Signatur prüfen",
+        "baserowVersionDescription": "Die Versionsnummer dieser Instanz."
     },
     "undoRedoNotification": {
         "redoingText": "Deine Aktion wird wieder hergestellt",
@@ -462,7 +474,9 @@
         "stateFinished": "Abgeschlossen",
         "stateFailed": "Gescheitert",
         "errorJobAlreadyRunningTitle": "Wird bereits ausgeführt",
-        "errorJobAlreadyRunningDescription": "Es läuft bereits ein anderer Importauftrag. Sie müssen warten, bis dieser beendet ist, bevor Sie einen weiteren Auftrag starten."
+        "errorJobAlreadyRunningDescription": "Es läuft bereits ein anderer Importauftrag. Sie müssen warten, bis dieser beendet ist, bevor Sie einen weiteren Auftrag starten.",
+        "errorJobCannotBeCancelledDescription": "Es ist nicht möglich, den Auftrag abzubrechen, da er bereits abgeschlossen ist.\nBitte löschen Sie den ersten Snapshot in der untenstehenden Liste, um ihn zu entfernen.",
+        "errorJobCannotBeCancelledTitle": "Abbrechen nicht möglich"
     },
     "datetime": {
         "daysAgo": "vor 0 Tagen | vor 1 Tag | vor {n} Tagen",
@@ -470,7 +484,9 @@
         "yearsAgo": "vor 0 Jahren | vor 1 Jahr | vor {n} Jahren",
         "hoursAgo": "vor 0 Stunden | vor 1 Stunde | vor {n} Stunden",
         "secondsAgo": "Gerade eben | vor 1 Sekunde | {n} Sekunden zuvor",
-        "minutesAgo": "vor 0 Minuten | vor 1 Minute | vor {n} Minuten"
+        "minutesAgo": "vor 0 Minuten | vor 1 Minute | vor {n} Minuten",
+        "lessThanMinuteAgo": "vor weniger als einer Minute",
+        "justNow": "gerade eben"
     },
     "duplicateApplicationJobType": {
         "duplicating": "Duplizieren",
@@ -591,7 +607,7 @@
         "title": "Sitzung abgelaufen"
     },
     "restoreToast": {
-        "restore": "Gelöschten {type} wiederherstellen"
+        "restore": "{type} (gelöscht) wiederherstellen"
     },
     "copyingToast": {
         "title": "Kopieren...",
@@ -728,7 +744,22 @@
         "ollamaHostDescription": "Geben Sie den Hostnamen Ihres [Ollama](https://ollama.com/)-Servers an. Dieser läuft normalerweise lokal auf Ihrem eigenen Gerät.",
         "ollamaModelsLabel": "Aktivierte Modelle",
         "ollama": "Ollama",
-        "ollamaHostLabel": "Host"
+        "ollamaHostLabel": "Host",
+        "anthropic": "Anthropic",
+        "anthropicApiKeyLabel": "API-Schlüssel",
+        "anthropicModelsLabel": "Aktivierte Modelle",
+        "mistral": "Mistral",
+        "mistralApiKeyLabel": "API-Schlüssel",
+        "anthropicApiKeyDescription": "Geben Sie einen Anthropic-API-Schlüssel an, wenn Sie die Integration aktivieren möchten. [Anweisungen zum Erhalt eines API-Schlüssels](https://docs.anthropic.com/en/api/getting-started).",
+        "anthropicModelsDescription": "Geben Sie eine durch Kommata getrennte Liste von [Anthropic-Modellen](https://docs.anthropic.com/en/docs/about-claude/models) an, die in Baserow verwendet werden können. (z.B. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "mistralApiKeyDescription": "Geben Sie einen Mistral-API-Schlüssel an, wenn Sie die Integration aktivieren möchten. [Anleitung zum Erhalt eines API-Schlüssels](https://docs.mistral.ai/getting-started/quickstart/).",
+        "mistralModelsLabel": "Aktivierte Modelle",
+        "mistralModelsDescription": "Geben Sie eine durch Kommata getrennte Liste von [Mistral-Modellen](https://docs.mistral.ai/getting-started/models/models_overview/) an, die in Baserow verwendet werden können. (z.B. `mistral-large-latest, mistral-small-latest`)",
+        "openRouterApiKeyDescription": "Geben Sie einen OpenRouter-API-Schlüssel an, wenn Sie die Integration aktivieren möchten. [Einen API-Schlüssel erhalten](https://openrouter.ai/settings/keys).",
+        "openRouter": "OpenRouter",
+        "openRouterApiKeyLabel": "API-Schlüssel",
+        "openRouterOrganization": "Organisation (optional)",
+        "openRouterModelsLabel": "Aktivierte Modelle"
     },
     "emailNotVerified": {
         "title": "Bestätigung der E-Mailadresse notwendig",
@@ -918,5 +949,49 @@
         "activeUsers7days": "Aktive Benutzer in den letzten 7 Tagen",
         "activeUsers30days": "Aktive Benutzer in den letzten 30 Tagen",
         "viewAll": "Alle anzeigen"
+    },
+    "exportWorkspaceModal": {
+        "title": "Exportieren",
+        "description": "Ihre Daten werden als ZIP-Datei exportiert, die in andere Baserow-Instanzen importiert werden kann.",
+        "exportSettings": "Einstellungen exportieren",
+        "export": "Daten exportieren",
+        "reset": "Von vorne beginnen",
+        "cancel": "Abbrechen",
+        "download": "Herunterladen",
+        "noExports": "Für diesen Arbeitsbereich gibt es noch keine Exporte.",
+        "created": "erstellt",
+        "exportingState": "Exportiere",
+        "exportingTableState": "Exportiere Tabelle: {table}",
+        "exportingCreateArchiveState": "Erstelle Archiv"
+    },
+    "exportWorkspaceForm": {
+        "onlyStructureLabel": "Nur die Struktur exportieren",
+        "onlyStructureDescription": "Wenn diese Option aktiviert ist, wird nur die Struktur der Anwendungen exportiert. Die Daten werden nicht enthalten sein.",
+        "exportSettingsLabel": "Einstellungen exportieren"
+    },
+    "importWorkspaceModal": {
+        "databases": "Datenbanken",
+        "untrustedPublicKeyMessage": "Die bereitgestellte Datei wurde mit einem nicht vertrauenswürdigen öffentlichen Schlüssel signiert. Bitten Sie Ihren Administrator, den öffentlichen Schlüssel zur Liste der vertrauenswürdigen Schlüssel hinzuzufügen oder die Signaturprüfung zu deaktivieren, um diese Datei importieren zu können.",
+        "retry": "Wiederholen",
+        "description": "Sie können bestehende Baserow-Daten importieren, indem Sie die .zip-Datei einer anderen Baserow-Instanz hochladen.",
+        "import": "Daten importieren",
+        "upload": "Hochladen",
+        "cancel": "Abbrechen",
+        "done": "Abgeschlossen",
+        "close": "Schließen",
+        "uploading": "Hochladen...",
+        "chooseFile": "Datei auswählen",
+        "selectApplications": "Zu importierende Daten auswählen",
+        "deselectAll": "Alle abwählen",
+        "selectAll": "Alle auswählen",
+        "applications": "Anwendungen",
+        "successTitle": "Baserow-Daten erfolgreich importiert",
+        "successMessage": "{count} Anwendungen importiert",
+        "signatureVerificationNote": "Es ist nicht möglich, eine ZIP-Datei aus einer nicht vertrauenswürdigen Quelle zu importieren.",
+        "invalidResourceTitle": "Ungültige Ressource",
+        "invalidResourceMessage": "Die bereitgestellte Datei ist kein gültiger Baserow-Export.",
+        "untrustedPublicKeyTitle": "Nicht vertrauenswürdige Signatur",
+        "importingState": "Importiere",
+        "title": "Baserow-Daten importieren"
     }
 }

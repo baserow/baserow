@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2023-01-26 15:50+0000\n"
-"PO-Revision-Date: 2023-03-07 19:25+0000\n"
+"PO-Revision-Date: 2025-03-18 13:24+0000\n"
 "Last-Translator: Jérémie Pardou-Piquemal <jrmi@jeremiez.net>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/baserow/"
 "enterprise-backend/fr/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 4.16.2-dev\n"
+"X-Generator: Weblate 5.11-dev\n"
 
 #: audit_log/job_types.py:143
 msgid "User Email"
@@ -49,7 +49,7 @@ msgstr "Heure"
 
 #: audit_log/job_types.py:150
 msgid "IP Address"
-msgstr "Addresse IP"
+msgstr "Adresse IP"
 
 #: audit_log/models.py:30
 msgid "DONE"
@@ -65,7 +65,7 @@ msgstr "Fait"
 
 #: role/actions.py:28
 msgid "Assign multiple roles"
-msgstr "Assignation de roles"
+msgstr "Assigner plusieurs roles"
 
 #: role/actions.py:29
 msgid "Multiple roles have been assigned"

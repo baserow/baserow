@@ -7,7 +7,9 @@
     "serviceType": {
         "localBaserowGetRow": "Obtenir une ligne",
         "localBaserowListRows": "Lister plusieurs lignes",
-        "localBaserowAggregateRows": "Résumer une colonne"
+        "localBaserowAggregateRows": "Résumer une colonne",
+        "trashedField": "Champ supprimé",
+        "misconfigured": "Configuration incorrecte"
     },
     "localBaserowForm": {
         "user": "Utilisateur",
@@ -50,7 +52,8 @@
         "sortBy": "Trier par",
         "addSort": "Ajouter un tri",
         "thenBy": "Puis par",
-        "noTableChosenForSorting": "Sélectionnez une table pour pouvoir ordonner les lignes de la sources de données."
+        "noTableChosenForSorting": "Sélectionnez une table pour pouvoir ordonner les lignes de la sources de données.",
+        "sortMisconfigured": "Le champ auquel ce tri est associé à été supprimé."
     },
     "dataProviderType": {
         "dataSource": "Source de données",

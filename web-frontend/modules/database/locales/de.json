@@ -72,7 +72,8 @@
         "webhooks": "Webhooks",
         "lastSynced": "Zuletzt synchronisiert",
         "notSynced": "nicht sychnronisiert",
-        "sync": "Tabelle synchronisieren"
+        "sync": "Tabelle synchronisieren",
+        "updateSyncConfig": "Sync-Konfiguration aktualisieren"
     },
     "apiToken": {
         "create": "erstellen",
@@ -243,7 +244,16 @@
         "integer": "Integer",
         "decimal": "Dezimal",
         "decimalPlacesLabel": "Dezimalstellen",
-        "allowNegative": "Negativ zulassen"
+        "allowNegative": "Negativ zulassen",
+        "separatorLabel": "Tausender- und Dezimaltrennzeichen",
+        "prefixPlaceholder": "Präfix",
+        "suffixPlaceholder": "Suffix",
+        "prefixAndSuffixLabel": "Präfix / Suffix",
+        "spaceComma": "Leerzeichen, Komma (1 000 000,00)",
+        "spacePeriod": "Leerzeichen, Punkt (1 000 000.00)",
+        "commaPeriod": "Komma, Leerzeichen (1,000,000.00)",
+        "periodComma": "Punkt, Komma (1.000.000,00)",
+        "noFormatting": "Keine Formatierung"
     },
     "fieldContext": {
         "editField": "Feld bearbeiten",
@@ -425,16 +435,19 @@
         "add": "Hinzufügen {view}"
     },
     "shareViewLink": {
-        "shareView": "Teilen {viewTypeSharingLinkName}",
-        "shareViewTitle": "Erstellen Sie einen privaten, gemeinsam nutzbaren Link zum {ViewTypeSharingLinkName}",
+        "shareView": "{viewTypeSharingLinkName} teilen",
+        "shareViewTitle": "Sie haben die Ansicht noch nicht geteilt",
         "sharedViewTitle": "Dieser {ViewTypeSharingLinkName} ist derzeit über einen privaten Link freigegeben",
         "sharedViewDescription": "Personen, die den Link haben, können den {ViewTypeSharingLinkName} sehen.",
-        "disableLink": "freigegebenen Link deaktivieren",
+        "disableLink": "Freigegebenen Link deaktivieren",
         "generateNewUrl": "neue Url generieren",
         "copyURL": "URL kopieren",
         "DisablePassword": "Zugriff ist passwortgeschützt",
         "EnablePassword": "Beschränken Sie den Zugriff mit einem Passwort",
-        "ChangePassword": "Ändern"
+        "ChangePassword": "Ändern",
+        "createPrivateLink": "Einen privaten Link erstellen",
+        "shareViewText": "Ein privater, gemeinsam nutzbarer Link erlaubt es jedem, die Daten in dieser Ansicht zu sehen.",
+        "notSharedYetText": "Erlauben Sie jedem, die Daten in dieser Ansicht zu sehen, oder synchronisieren Sie Ereignisse mit Ihrem externen Kalender."
     },
     "viewSortContext": {
         "noSortTitle": "Sie haben noch keine Sortierungen erstellt",
@@ -452,9 +465,9 @@
         "generateNewURL": "Neue URL generieren"
     },
     "viewFieldsContext": {
-        "coverField": "Deckungsfeld",
-        "noCover": "Keine Deckung",
-        "search": "Suchfelder",
+        "coverField": "Coverfeld",
+        "noCover": "Kein Cover",
+        "search": "Felder durchsuchen",
         "hideAll": "Alle ausblenden",
         "showAll": "Alle anzeigen"
     },
@@ -462,7 +475,16 @@
         "selected": "Ausgewählte"
     },
     "viewFilter": {
-        "filter": "Filter | 1 Filter | {count} Filters"
+        "filter": "Filter | 1 Filter | {count} Filters",
+        "hasAllValuesEqual": "hat alle Werte gleich",
+        "hasValueHigherThanOrEqual": "hat einen Wert größer oder gleich",
+        "hasValueLowerThan": "hat einen Wert kleiner als",
+        "hasValueLowerThanOrEqual": "hat einen Wert kleiner oder gleich",
+        "hasNotValueHigherThan": "hat keinen Wert größer als",
+        "hasValueHigherThan": "hat einen Wert größer als",
+        "hasNotValueHigherThanOrEqual": "hat keinen Wert größer oder gleich",
+        "hasNotValueLowerThan": "hat keinen Wert kleiner als",
+        "hasNotValueLowerThanOrEqual": "hat keinen Wert kleiner oder gleich"
     },
     "viewContext": {
         "exportView": "Ansicht exportieren",
@@ -495,7 +517,8 @@
         "hideField": "Feld ausblenden",
         "insertLeft": "Links einfügen",
         "insertRight": "Rechts einfügen",
-        "duplicate": "Feld duplizieren"
+        "duplicate": "Feld duplizieren",
+        "dataSyncField": "Das Feld ist schreibgeschützt und Teil des Datenabgleichs der Tabelle."
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "Zeile entspricht nicht den Filtern",
@@ -521,7 +544,8 @@
         "tooManyItemsTitle": "Zu viele Elemente",
         "AIValuesGenerationErrorTitle": "Werterstellung mittels KI fehlgeschlagen",
         "AIValuesGenerationErrorMessage": "Bitte überprüfen Sie Ihren API_KEY und das ausgewählte Modell.",
-        "generateCellsValues": "Mit KI Werte generieren"
+        "generateCellsValues": "Mit KI Werte generieren",
+        "copyCellsWithHeader": "Zellen mit Kopfbereich kopieren"
     },
     "gridViewFieldLinkRow": {
         "unnamed": "unbenannte Zeile {value}"
@@ -537,7 +561,8 @@
         "failedTitle": "Export fehlgeschlagen",
         "failedDescription": "Der Export ist aufgrund eines Serverfehlers fehlgeschlagen.",
         "cancelledTitle": "Export abgebrochen",
-        "cancelledDescription": "Die Exportaktion wurde abgebrochen."
+        "cancelledDescription": "Die Exportaktion wurde abgebrochen.",
+        "title": "{name} exportieren"
     },
     "exporterTypeChoices": {
         "formatLabel": "In welches Format möchten Sie exportieren?"
@@ -558,7 +583,8 @@
         "recordSeparator": "Datensatz-Trennzeichen",
         "unitSeparator": "Teilgruppentrennzeichen",
         "encodingLabel": "Kodierung",
-        "firstRowIsHeaderLabel": "Erste Zeile ist Kopfzeile"
+        "firstRowIsHeaderLabel": "Erste Zeile ist Kopfzeile",
+        "includeHeader": "Feldnamen als Überschrift einfügen"
     },
     "apiDocsDatabase": {
         "pageTitle": "{name} Datenbank-API-Dokumentation",
@@ -591,10 +617,11 @@
         "variance": "Varianz",
         "average": "Durchschnitt",
         "stdDevShort": "Std Abw",
-        "emptyCount": "Leer",
+        "emptyCount": "(Leer)",
         "notEmptyCount": "Gefüllt",
         "emptyPercentage": "Prozent leer",
-        "notEmptyPercentage": "Prozent gefüllt"
+        "notEmptyPercentage": "Prozent gefüllt",
+        "count": "Anzahl"
     },
     "databaseForm": {
         "importLabel": "Möchten Sie vorhandene Daten importieren?",
@@ -838,7 +865,8 @@
         "durationFormatLabel": "Format der Dauer"
     },
     "viewFieldConditionsForm": {
-        "addCondition": "Bedingung hinzufügen"
+        "addCondition": "Bedingung hinzufügen",
+        "addConditionGroup": "Bedingungsgruppe hinzufügen"
     },
     "fieldCollaboratorSubForm": {
         "notifyUserWhenAdded": "Benutzer beim Hinzufügen benachrichtigen"
@@ -933,5 +961,15 @@
         "reportTitleSuccess": "Import war erfolgreich, allerdings...",
         "reportMessage": "Die folgenden Zeilenindizes konnten nicht importiert werden:",
         "reportTitleFailure": "Fehlgeschlagene Zeilen"
+    },
+    "formViewMetaControls": {
+        "showMessage": "Eine Nachricht anzeigen",
+        "theMessage": "Die Nachricht",
+        "theURL": "Die URL",
+        "whenSubmittedLabel": "Wenn das Formular abgeschickt wurde",
+        "urlRedirect": "Weiterleiten zu einer URL"
+    },
+    "createViewLink": {
+        "inCompatibleWithDataSync": "Dieser Ansichtstyp ist nicht mit einer Datenabgleichs-Tabelle kompatibel."
     }
 }
