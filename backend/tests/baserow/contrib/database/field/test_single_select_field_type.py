@@ -1105,7 +1105,7 @@ def test_single_select_adjacent_row(data_fixture):
             },
         ],
         model=table_model,
-    )
+    ).created_rows
 
     previous_row = handler.get_adjacent_row(
         table_model, row_b.id, previous=True, view=grid_view
@@ -1141,7 +1141,7 @@ def test_single_select_adjacent_row_working_with_sorts_and_null_values(data_fixt
             {},
         ],
         model=table_model,
-    )
+    ).created_rows
 
     next_row = handler.get_adjacent_row(table_model, row_a.id, view=grid_view)
     assert next_row.id == row_b.id
@@ -1379,8 +1379,12 @@ def setup_view_for_single_select_field(data_fixture, option_values):
     def prep_row(option):
         return {single_select_field.db_column: option.id if option else None}
 
-    rows = RowHandler().force_create_rows(
-        user, table, [prep_row(option) for option in options], model=model
+    rows = (
+        RowHandler()
+        .force_create_rows(
+            user, table, [prep_row(option) for option in options], model=model
+        )
+        .created_rows
     )
 
     fields = {
@@ -1456,6 +1460,14 @@ def test_single_select_equal_filter_type_export_import():
     assert view_filter_type.set_import_serialized_value("1", id_mapping) == "2"
     assert view_filter_type.set_import_serialized_value("", id_mapping) == ""
     assert view_filter_type.set_import_serialized_value("wrong", id_mapping) == ""
+
+
+@pytest.mark.django_db
+def test_single_select_equal_filter_type_export_import_string_keys():
+    view_filter_type = view_filter_type_registry.get("single_select_equal")
+    id_mapping = {"database_field_select_options": {"test": 2}}
+    assert view_filter_type.set_import_serialized_value("test", id_mapping) == "2"
+    assert view_filter_type.set_import_serialized_value("test2", id_mapping) == ""
 
 
 @pytest.mark.django_db
@@ -1753,6 +1765,36 @@ def test_single_select_is_any_of_filter_type_export_import():
     assert view_filter_type.set_import_serialized_value("1,100", id_mapping) == "2,200"
     assert view_filter_type.set_import_serialized_value("2,100", id_mapping) == "200"
     assert view_filter_type.set_import_serialized_value(None, id_mapping) == ""
+
+
+@pytest.mark.django_db
+def test_single_select_is_any_of_filter_type_export_import_string_keys():
+    view_filter_type = view_filter_type_registry.get("single_select_is_any_of")
+    id_mapping = {"database_field_select_options": {"test": 2, "test2": 3}}
+    assert view_filter_type.set_import_serialized_value("1", id_mapping) == ""
+    assert view_filter_type.set_import_serialized_value("", id_mapping) == ""
+    assert view_filter_type.set_import_serialized_value("test", id_mapping) == "2"
+    assert (
+        view_filter_type.set_import_serialized_value("test,test2", id_mapping) == "2,3"
+    )
+    assert (
+        view_filter_type.set_import_serialized_value("test,invalid", id_mapping) == "2"
+    )
+
+
+@pytest.mark.django_db
+def test_single_multiple_select_has_type_export_import_string_keys():
+    view_filter_type = view_filter_type_registry.get("multiple_select_has")
+    id_mapping = {"database_field_select_options": {"test": 2, "test2": 3}}
+    assert view_filter_type.set_import_serialized_value("1", id_mapping) == ""
+    assert view_filter_type.set_import_serialized_value("", id_mapping) == ""
+    assert view_filter_type.set_import_serialized_value("test", id_mapping) == "2"
+    assert (
+        view_filter_type.set_import_serialized_value("test,test2", id_mapping) == "2,3"
+    )
+    assert (
+        view_filter_type.set_import_serialized_value("test,invalid", id_mapping) == "2"
+    )
 
 
 @pytest.mark.django_db

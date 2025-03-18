@@ -45,6 +45,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.models import TrashEntry, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
@@ -2066,6 +2067,9 @@ def test_link_row_serialize_metadata_for_row_history(
                 table2_row3.id: {"value": f"unnamed row {table2_row3.id}"},
             },
             "type": "link_row",
+            "linked_table_id": field.link_row_table_id,
+            "linked_field_id": field.link_row_related_field_id,
+            "primary_value": "unnamed row 1",
         }
 
     # empty values
@@ -2084,6 +2088,9 @@ def test_link_row_serialize_metadata_for_row_history(
             "id": AnyInt(),
             "linked_rows": {},
             "type": "link_row",
+            "linked_table_id": field.link_row_table_id,
+            "linked_field_id": field.link_row_related_field_id,
+            "primary_value": "unnamed row 2",
         }
 
 
@@ -2206,10 +2213,10 @@ def test_clear_link_row_limit_selection_view_when_view_is_deleted(
 
     view_handler = ViewHandler()
 
-    with CaptureQueriesContext(connection) as queries_request_1:
+    with CaptureQueriesContext(connection) as queries_request_1, local_cache.context():
         view_handler.delete_view(user, view_3)
 
-    with CaptureQueriesContext(connection) as queries_request_2:
+    with CaptureQueriesContext(connection) as queries_request_2, local_cache.context():
         view_handler.delete_view(user, view)
 
     assert len(queries_request_1.captured_queries) + 1 == len(
@@ -2259,11 +2266,15 @@ def test_dont_export_deleted_relations(data_fixture):
     row_b2 = table_b_model.objects.create()
 
     table_a_model = table_a.get_model()
-    (row_a1,) = RowHandler().force_create_rows(
-        user,
-        table_a,
-        [{link_field.db_column: [row_b1.id, row_b2.id]}],
-        model=table_a_model,
+    (row_a1,) = (
+        RowHandler()
+        .force_create_rows(
+            user,
+            table_a,
+            [{link_field.db_column: [row_b1.id, row_b2.id]}],
+            model=table_a_model,
+        )
+        .created_rows
     )
 
     assert getattr(row_a1, link_field.db_column).count() == 2
@@ -2335,7 +2346,7 @@ def setup_table_with_single_select_pk(user, data_fixture):
         for (char, opt) in zip(all_chars, options)
     ]
 
-    rows = RowHandler().force_create_rows(user, table, rows_values)
+    rows = RowHandler().force_create_rows(user, table, rows_values).created_rows
     return LinkRowOrderSetup(table, primary_field, rows, comparable_field)
 
 
@@ -2362,7 +2373,7 @@ def setup_table_with_multiple_select_pk(user, data_fixture):
         for (i, char) in enumerate(all_chars)
     ]
 
-    rows = RowHandler().force_create_rows(user, table, rows_values)
+    rows = RowHandler().force_create_rows(user, table, rows_values).created_rows
     return LinkRowOrderSetup(table, primary_field, rows, comparable_field)
 
 
@@ -2409,16 +2420,22 @@ def setup_table_with_collaborator_pk(user, data_fixture):
         ]
     )
 
-    rows = RowHandler().force_create_rows(
-        user,
-        table,
-        [
-            {
-                f"{primary_field.db_column}": [{"id": usr.id, "name": usr.first_name}],
-                f"{comparable_field.db_column}": usr.first_name,
-            }
-            for usr in users
-        ],
+    rows = (
+        RowHandler()
+        .force_create_rows(
+            user,
+            table,
+            [
+                {
+                    f"{primary_field.db_column}": [
+                        {"id": usr.id, "name": usr.first_name}
+                    ],
+                    f"{comparable_field.db_column}": usr.first_name,
+                }
+                for usr in users
+            ],
+        )
+        .created_rows
     )
     return LinkRowOrderSetup(table, primary_field, rows, comparable_field)
 
@@ -2610,10 +2627,14 @@ def test_get_group_by_metadata_in_rows_with_many_to_many_field(data_fixture):
     user = data_fixture.create_user()
     table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
 
-    row_b1, row_b2, row_b3 = RowHandler().force_create_rows(
-        user=user,
-        table=table_b,
-        rows_values=[{}, {}, {}],
+    row_b1, row_b2, row_b3 = (
+        RowHandler()
+        .force_create_rows(
+            user=user,
+            table=table_b,
+            rows_values=[{}, {}, {}],
+        )
+        .created_rows
     )
 
     RowHandler().force_create_rows(
@@ -2726,24 +2747,28 @@ def test_list_rows_with_group_by_link_row_to_multiple_select_field(
     grid = data_fixture.create_grid_view(table=table_a)
     data_fixture.create_view_group_by(view=grid, field=link_a_to_b)
 
-    row_b1, row_b2 = RowHandler().force_create_rows(
-        user=user,
-        table=table_b,
-        rows_values=[
-            {
-                f"field_{multiple_select_field.id}": [
-                    select_option_1.id,
-                    select_option_2.id,
-                    select_option_3.id,
-                ],
-            },
-            {
-                f"field_{multiple_select_field.id}": [
-                    select_option_2.id,
-                    select_option_3.id,
-                ],
-            },
-        ],
+    row_b1, row_b2 = (
+        RowHandler()
+        .force_create_rows(
+            user=user,
+            table=table_b,
+            rows_values=[
+                {
+                    f"field_{multiple_select_field.id}": [
+                        select_option_1.id,
+                        select_option_2.id,
+                        select_option_3.id,
+                    ],
+                },
+                {
+                    f"field_{multiple_select_field.id}": [
+                        select_option_2.id,
+                        select_option_3.id,
+                    ],
+                },
+            ],
+        )
+        .created_rows
     )
 
     RowHandler().force_create_rows(

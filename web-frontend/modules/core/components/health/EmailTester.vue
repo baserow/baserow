@@ -24,6 +24,7 @@
     </div>
     <form @submit.prevent="submit">
       <FormGroup
+        v-if="v$.values.targetEmail"
         required
         small-label
         class="margin-bottom-2"
@@ -32,18 +33,18 @@
       >
         <FormInput
           ref="name"
-          v-model="values.targetEmail"
+          v-model="v$.values.targetEmail.$model"
           :error="fieldHasErrors('targetEmail')"
           :disabled="loading"
-          @blur="$v.values.targetEmail.$touch()"
+          @blur="v$.values.targetEmail.$touch"
         ></FormInput>
 
         <template #error>
-          {{ $t('emailTester.invalidTargetEmail') }}
+          {{ v$.values.targetEmail.$errors[0]?.$message }}
         </template>
       </FormGroup>
 
-      <Button :loading="loading" :disabled="loading || $v.$invalid">
+      <Button :loading="loading" :disabled="loading || v$.$invalid">
         {{ $t('emailTester.submit') }}
       </Button>
     </form>
@@ -51,21 +52,44 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+
+import { reactive, getCurrentInstance } from 'vue'
 import error from '@baserow/modules/core/mixins/error'
 import HealthService from '@baserow/modules/core/services/health'
 import form from '@baserow/modules/core/mixins/form'
-
-import { required, email } from 'vuelidate/lib/validators'
+import { required, email, helpers } from '@vuelidate/validators'
 import { mapGetters } from 'vuex'
 export default {
   name: 'EmailerTester',
   mixins: [error, form],
+  setup() {
+    const instance = getCurrentInstance()
+    const values = reactive({
+      targetEmail: 'test@example.com',
+    })
+
+    const rules = {
+      values: {
+        targetEmail: {
+          required: helpers.withMessage(
+            instance.proxy.$t('error.requiredField'),
+            required
+          ),
+          email: helpers.withMessage(
+            instance.proxy.$t('emailTester.invalidTargetEmail'),
+            email
+          ),
+        },
+      },
+    }
+
+    const v$ = useVuelidate(rules, { values }, { $lazy: true })
+
+    return { values, v$, loading: false }
+  },
   data() {
     return {
-      loading: false,
-      values: {
-        targetEmail: 'test@example.com',
-      },
       testResult: {
         succeeded: null,
         error_type: null,
@@ -102,11 +126,6 @@ export default {
       }
 
       this.loading = false
-    },
-  },
-  validations: {
-    values: {
-      targetEmail: { required, email },
     },
   },
 }

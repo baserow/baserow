@@ -22,7 +22,7 @@ class BinaryOpExpr(Transform):
 
 
 class IsNullExpr(Transform):
-    template = "(%(expressions)s) IS NULL"
+    template = "(%(expressions)s) IS NOT DISTINCT FROM NULL"
     arity = 1
 
 

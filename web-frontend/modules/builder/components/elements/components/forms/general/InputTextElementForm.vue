@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
     <CustomStyle
-      v-model="values.styles"
+      v-model="v$.values.styles.$model"
       style-key="input"
       :config-block-types="['input']"
       :theme="builder.theme"
@@ -13,7 +13,7 @@
       small-label
     >
       <InjectedFormulaInput
-        v-model="values.label"
+        v-model="v$.values.label.$model"
         :placeholder="$t('generalForm.labelPlaceholder')"
       />
     </FormGroup>
@@ -24,7 +24,7 @@
       small-label
     >
       <InjectedFormulaInput
-        v-model="values.default_value"
+        v-model="v$.values.default_value.$model"
         :placeholder="$t('generalForm.valuePlaceholder')"
       />
     </FormGroup>
@@ -35,7 +35,7 @@
       small-label
     >
       <InjectedFormulaInput
-        v-model="values.placeholder"
+        v-model="v$.values.placeholder.$model"
         :placeholder="$t('generalForm.placeholderPlaceholder')"
       />
     </FormGroup>
@@ -45,7 +45,7 @@
       required
       class="margin-bottom-2"
     >
-      <Checkbox v-model="values.required"></Checkbox>
+      <Checkbox v-model="v$.values.required.$model"></Checkbox>
     </FormGroup>
 
     <FormGroup
@@ -54,7 +54,7 @@
       required
       class="margin-bottom-2"
     >
-      <Dropdown v-model="values.validation_type" :show-search="true">
+      <Dropdown v-model="v$.values.validation_type.$model" :show-search="true">
         <DropdownItem
           v-for="validationType in validationTypes"
           :key="validationType.name"
@@ -72,33 +72,23 @@
       required
       class="margin-bottom-2"
     >
-      <Checkbox v-model="values.is_multiline"></Checkbox>
+      <Checkbox v-model="v$.values.is_multiline.$model"></Checkbox>
     </FormGroup>
 
     <FormGroup
-      v-if="values.is_multiline"
+      v-if="v$.values.is_multiline.$model"
       small-label
       required
       class="margin-bottom-2"
-      :error-message="
-        $v.values.rows.$dirty && !$v.values.rows.required
-          ? $t('error.requiredField')
-          : !$v.values.rows.integer
-          ? $t('error.integerField')
-          : !$v.values.rows.minValue
-          ? $t('error.minValueField', { min: 1 })
-          : !$v.values.rows.maxValue
-          ? $t('error.maxValueField', { max: 100 })
-          : ''
-      "
+      :error-message="getFirstErrorMessage('rows')"
     >
       <FormInput
-        v-model="values.rows"
+        v-model="v$.values.rows.$model"
         type="number"
         :label="$t('inputTextElementForm.rowsTitle')"
         :placeholder="$t('inputTextElementForm.rowsPlaceholder')"
         :to-value="(value) => parseInt(value)"
-      ></FormInput>
+      />
     </FormGroup>
 
     <FormGroup
@@ -128,18 +118,39 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
-import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import {
+  required,
+  integer,
+  minValue,
+  maxValue,
+  helpers,
+} from '@vuelidate/validators'
 
 export default {
   name: 'InputTextElementForm',
   components: { InjectedFormulaInput, CustomStyle },
   mixins: [formElementForm],
+  setup() {
+    return { v$: useVuelidate() }
+  },
   data() {
     return {
+      allowedValues: [
+        'label',
+        'default_value',
+        'required',
+        'validation_type',
+        'placeholder',
+        'is_multiline',
+        'rows',
+        'type',
+        'styles',
+      ],
       values: {
         label: '',
         default_value: '',
@@ -149,6 +160,7 @@ export default {
         is_multiline: false,
         rows: 3,
         type: 'text',
+        styles: {},
       },
     }
   },
@@ -191,6 +203,7 @@ export default {
       ]
     },
   },
+
   methods: {
     emitChange(newValues) {
       if (this.isFormValid()) {
@@ -202,11 +215,28 @@ export default {
     return {
       values: {
         rows: {
-          required,
-          integer,
-          minValue: minValue(1),
-          maxValue: maxValue(100),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', { min: 1 }),
+            minValue(1)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', { max: 100 }),
+            maxValue(100)
+          ),
         },
+        label: {},
+        default_value: {},
+        required: {},
+        validation_type: {},
+        placeholder: {},
+        is_multiline: {},
+        type: {},
+        styles: {},
       },
     }
   },

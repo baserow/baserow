@@ -5,11 +5,10 @@ from django.core.management.color import no_style
 from django.db import connection
 from django.db.models import ManyToManyField
 
-from psycopg2 import sql
-
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
+from baserow.core.psycopg import sql
 
 BackupData = Dict[str, Any]
 

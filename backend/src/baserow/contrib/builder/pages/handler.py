@@ -40,9 +40,13 @@ from baserow.contrib.builder.types import PageDict
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
+from baserow.core.cache import global_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.storage import ExportZipFile
+from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, find_unused_name
+
+BUILDER_PAGE_IS_PUBLISHED_CACHE_TTL_SECONDS = 60 * 60
 
 
 class PageHandler:
@@ -58,7 +62,7 @@ class PageHandler:
         """
 
         if base_queryset is None:
-            base_queryset = Page.objects_with_shared
+            base_queryset = Page.objects
 
         try:
             return base_queryset.select_related("builder__workspace").get(id=page_id)
@@ -70,7 +74,7 @@ class PageHandler:
         Returns the shared page for the given builder.
         """
 
-        return Page.objects_with_shared.select_related("builder__workspace").get(
+        return Page.objects.select_related("builder__workspace").get(
             builder=builder, shared=True
         )
 
@@ -80,7 +84,7 @@ class PageHandler:
         """
 
         if base_queryset is None:
-            base_queryset = Page.objects_with_shared.all()
+            base_queryset = Page.objects.all()
 
         return base_queryset.filter(builder=builder).select_related(
             "builder__workspace"
@@ -178,7 +182,7 @@ class PageHandler:
             self.is_page_path_unique(
                 page.builder,
                 path,
-                base_queryset=Page.objects_with_shared.exclude(
+                base_queryset=Page.objects.exclude(
                     id=page.id
                 ),  # We don't want to conflict with the current page
                 raises=True,
@@ -220,7 +224,7 @@ class PageHandler:
         """
 
         if base_qs is None:
-            base_qs = Page.objects.filter(builder=builder)
+            base_qs = Page.objects_without_shared.filter(builder=builder)
 
         try:
             full_order = Page.order_objects(base_qs, order)
@@ -228,6 +232,55 @@ class PageHandler:
             raise PageNotInBuilder(error.not_existing_id)
 
         return full_order
+
+    @classmethod
+    def get_page_public_records_cache_key(
+        cls, page_id: int, user: UserSourceUser, record_name: str
+    ):
+        """
+        Generates the cache key used by the public elements, data sources and workflow
+        actions endpoints. If the `user` is authenticated, and they have a role, we will
+        include the role in the cache key.
+
+        :param page_id: the ID of the public page being requested.
+        :param user: the `UserSourceUser` performing the HTTP request.
+        :param record_name: one of "elements", "data_sources" or "workflow_actions".
+            Used to differentiate between public view endpoints.
+        :return: the cache key.
+        """
+
+        role = f"_{user.role}" if not user.is_anonymous and user.role else ""
+        return f"ab_public_page_{page_id}{role}_{record_name}_records"
+
+    def is_published_page(self, public_page_id: int) -> bool:
+        """
+        Returns whether this public page ID points to a published domain
+        application or not.
+
+        :param public_page_id: The ID of the public page.
+        :return: whether this public page ID is published or not.
+        """
+
+        return global_cache.get(
+            f"ab_public_page_{public_page_id}_published",
+            default=lambda: self._is_published_application_page(public_page_id),
+            timeout=BUILDER_PAGE_IS_PUBLISHED_CACHE_TTL_SECONDS,
+        )
+
+    def _is_published_application_page(self, public_page_id: int) -> bool:
+        """
+        Given a *public* page ID, is responsible for returning the published domain
+        application it's associated with.
+
+        :param public_page_id: The ID of the public page.
+        :return: The published domain application associated with the public page.
+        """
+
+        return (
+            Builder.objects.filter(page__id=public_page_id)
+            .exclude(published_from=None)
+            .exists()
+        )
 
     def duplicate_page(
         self, page: Page, progress_builder: Optional[ChildProgressBuilder] = None
@@ -418,7 +471,7 @@ class PageHandler:
         :return: If the path is unique
         """
 
-        queryset = Page.objects_with_shared if base_queryset is None else base_queryset
+        queryset = Page.objects if base_queryset is None else base_queryset
 
         existing_paths = queryset.filter(builder=builder).values_list("path", flat=True)
 

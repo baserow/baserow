@@ -64,19 +64,6 @@ export class Event {
         )
       }
 
-      // If we're firing a workflow action, and the collection element it's associated
-      // with is currently being filtered, we must forward this on to the workflow
-      // action dispatch so that the backend fires at the correct current_record.
-      if (
-        Object.prototype.hasOwnProperty.call(
-          applicationContext,
-          'dispatchRefinements'
-        )
-      ) {
-        workflowActionContext.dispatchRefinements =
-          applicationContext.dispatchRefinements
-      }
-
       const localResolveFormula = (formula) => {
         const formulaFunctions = {
           get: (name) => {

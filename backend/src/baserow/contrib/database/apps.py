@@ -157,7 +157,11 @@ class DatabaseConfig(AppConfig):
         action_type_registry.register(UpdateDataSyncTableActionType())
         action_type_registry.register(SyncDataSyncTableActionType())
 
-        from .airtable.registry import airtable_column_type_registry
+        from .airtable.registry import (
+            airtable_column_type_registry,
+            airtable_filter_operator_registry,
+            airtable_view_type_registry,
+        )
         from .data_sync.registries import data_sync_type_registry
         from .export.registries import table_exporter_registry
         from .fields.registries import (
@@ -615,6 +619,7 @@ class DatabaseConfig(AppConfig):
         webhook_event_type_registry.register(ViewDeletedEventType())
 
         from .airtable.airtable_column_types import (
+            AutoNumberAirtableColumnType,
             CheckboxAirtableColumnType,
             CountAirtableColumnType,
             DateAirtableColumnType,
@@ -645,6 +650,49 @@ class DatabaseConfig(AppConfig):
         airtable_column_type_registry.register(MultipleAttachmentAirtableColumnType())
         airtable_column_type_registry.register(RichTextTextAirtableColumnType())
         airtable_column_type_registry.register(CountAirtableColumnType())
+        airtable_column_type_registry.register(AutoNumberAirtableColumnType())
+
+        from .airtable.airtable_view_types import GridAirtableViewType
+
+        airtable_view_type_registry.register(GridAirtableViewType())
+
+        from .airtable.airtable_filter_operators import (
+            AirtableContainsOperator,
+            AirtableDoesNotContainOperator,
+            AirtableEqualOperator,
+            AirtableFilenameOperator,
+            AirtableFiletypeOperator,
+            AirtableHasAllOfOperator,
+            AirtableHasAnyOfOperator,
+            AirtableIsAnyOfOperator,
+            AirtableIsEmptyOperator,
+            AirtableIsNoneOfOperator,
+            AirtableIsNotEmptyOperator,
+            AirtableIsWithinOperator,
+            AirtableLessThanOperator,
+            AirtableLessThanOrEqualOperator,
+            AirtableMoreThanOperator,
+            AirtableMoreThanOrEqualOperator,
+            AirtableNotEqualOperator,
+        )
+
+        airtable_filter_operator_registry.register(AirtableContainsOperator())
+        airtable_filter_operator_registry.register(AirtableDoesNotContainOperator())
+        airtable_filter_operator_registry.register(AirtableEqualOperator())
+        airtable_filter_operator_registry.register(AirtableNotEqualOperator())
+        airtable_filter_operator_registry.register(AirtableIsEmptyOperator())
+        airtable_filter_operator_registry.register(AirtableIsNotEmptyOperator())
+        airtable_filter_operator_registry.register(AirtableFilenameOperator())
+        airtable_filter_operator_registry.register(AirtableFiletypeOperator())
+        airtable_filter_operator_registry.register(AirtableIsAnyOfOperator())
+        airtable_filter_operator_registry.register(AirtableIsNoneOfOperator())
+        airtable_filter_operator_registry.register(AirtableHasAnyOfOperator())
+        airtable_filter_operator_registry.register(AirtableHasAllOfOperator())
+        airtable_filter_operator_registry.register(AirtableLessThanOperator())
+        airtable_filter_operator_registry.register(AirtableMoreThanOperator())
+        airtable_filter_operator_registry.register(AirtableLessThanOrEqualOperator())
+        airtable_filter_operator_registry.register(AirtableMoreThanOrEqualOperator())
+        airtable_filter_operator_registry.register(AirtableIsWithinOperator())
 
         from .data_sync.data_sync_types import (
             ICalCalendarDataSyncType,
@@ -946,6 +994,10 @@ class DatabaseConfig(AppConfig):
         from baserow.contrib.database.views.notification_types import (
             FormSubmittedNotificationType,
         )
+        from baserow.contrib.database.webhooks.notification_types import (
+            WebhookDeactivatedNotificationType,
+            WebhookPayloadTooLargeNotificationType,
+        )
         from baserow.core.notifications.registries import notification_type_registry
 
         notification_type_registry.register(CollaboratorAddedToRowNotificationType())
@@ -953,6 +1005,8 @@ class DatabaseConfig(AppConfig):
             UserMentionInRichTextFieldNotificationType()
         )
         notification_type_registry.register(FormSubmittedNotificationType())
+        notification_type_registry.register(WebhookDeactivatedNotificationType())
+        notification_type_registry.register(WebhookPayloadTooLargeNotificationType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
@@ -969,6 +1023,7 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.rows.tasks  # noqa: F401
         import baserow.contrib.database.search.tasks  # noqa: F401
         import baserow.contrib.database.table.receivers  # noqa: F401
+        import baserow.contrib.database.views.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
 
 

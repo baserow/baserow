@@ -1,8 +1,11 @@
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
 import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
 import { rangeDiff } from '@baserow/modules/core/utils/range'
+import axios from 'axios'
 
 const state = {}
+
+const queriesInProgress = {}
 
 const mutations = {
   SET_CONTENT(state, { element, value, range = null }) {
@@ -41,7 +44,7 @@ const mutations = {
 
   CLEAR_CONTENT(state, { element }) {
     element._.content = []
-    element._.hasNextPage = false
+    element._.hasNextPage = true
   },
   TRIGGER_RESET(state, { element }) {
     element._.reset += 1
@@ -103,7 +106,11 @@ const actions = {
      * - Root collection element (with a dataSource):
      *      - Parent collection element (this `element`!) with a schema property.
      */
-    if (dataSource === null) {
+    if (!dataSource) {
+      // We clearly can't have more page for that one
+      commit('SET_HAS_MORE_PAGE', { element, value: false })
+      commit('SET_LOADING', { element, value: false })
+
       if (!element.schema_property) {
         // We have a collection element that supports schema properties, and
         // we have A) no data source and B) no schema property
@@ -113,8 +120,6 @@ const actions = {
         commit('SET_LOADING', { element, value: false })
         return
       }
-
-      commit('SET_LOADING', { element, value: true })
 
       // Collect all collection element ancestors, with a `data_source_id`.
       const collectionAncestors = this.app.store.getters[
@@ -164,6 +169,8 @@ const actions = {
         element,
         value: elementContent,
       })
+      // No more content for sure
+      commit('SET_HAS_MORE_PAGE', { element, value: false })
       commit('SET_LOADING', { element, value: false })
       return
     }
@@ -195,7 +202,8 @@ const actions = {
           ])
 
           // Everything is already loaded we can quit now
-          if (!rangeToFetch) {
+          if (!rangeToFetch || !getters.getHasMorePage(element)) {
+            commit('SET_LOADING', { element, value: false })
             return
           }
           rangeToFetch = [rangeToFetch[0], rangeToFetch[1] - rangeToFetch[0]]
@@ -206,12 +214,27 @@ const actions = {
           service = PublishedBuilderService
         }
 
+        if (!queriesInProgress[element.id]) {
+          queriesInProgress[element.id] = {}
+        }
+
+        if (queriesInProgress[element.id][`${rangeToFetch}`]) {
+          queriesInProgress[element.id][`${rangeToFetch}`].abort()
+        }
+
         commit('SET_LOADING', { element, value: true })
+
+        queriesInProgress[element.id][`${rangeToFetch}`] =
+          global.AbortController ? new AbortController() : null
+
         const { data } = await service(this.app.$client).dispatch(
           dataSource.id,
           dispatchContext,
-          { range: rangeToFetch, filters, sortings, search, searchMode }
+          { range: rangeToFetch, filters, sortings, search, searchMode },
+          queriesInProgress[element.id][`${rangeToFetch}`]?.signal
         )
+
+        delete queriesInProgress[element.id][`${rangeToFetch}`]
 
         // With a list-type data source, the data object will return
         // a `has_next_page` field for paging to the next set of results.
@@ -228,7 +251,10 @@ const actions = {
           // using the results key and set the range for future paging.
           commit('SET_CONTENT', {
             element,
-            value: data.results,
+            value: data.results.map((row) => ({
+              ...row,
+              __recordId__: row[serviceType.getIdProperty(service, row)],
+            })),
             range,
           })
         } else {
@@ -254,16 +280,25 @@ const actions = {
         })
       }
     } catch (e) {
-      // If fetching the content failed, and we're trying to
-      // replace the element's content, then we'll clear the
-      // element instead of reverting to our previousContent
-      // as it could be out of date anyway.
-      if (replace) {
-        commit('CLEAR_CONTENT', { element })
+      if (!axios.isCancel(e)) {
+        // If fetching the content failed, and we're trying to
+        // replace the element's content, then we'll clear the
+        // element instead of reverting to our previousContent
+        // as it could be out of date anyway.
+        if (replace) {
+          commit('CLEAR_CONTENT', { element })
+        }
+        // Let's stop all other queries
+        Object.values(queriesInProgress[element.id] | {}).forEach(
+          (controller) => controller.abort()
+        )
+        queriesInProgress[element.id] = {}
+        throw e
       }
-      throw e
     } finally {
-      commit('SET_LOADING', { element, value: false })
+      if (!Object.keys(queriesInProgress[element.id]).length) {
+        commit('SET_LOADING', { element, value: false })
+      }
     }
   },
   clearElementContent({ commit }, { element }) {

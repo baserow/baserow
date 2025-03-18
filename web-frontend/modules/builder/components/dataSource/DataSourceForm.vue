@@ -6,7 +6,7 @@
           :label="$t('dataSourceForm.actionLabel')"
           small-label
           required
-          :error-message="typeError"
+          :error-message="getFirstErrorMessage('type')"
         >
           <Dropdown
             v-model="computedType"
@@ -32,14 +32,14 @@
           :label="$t('dataSourceForm.integrationLabel')"
           small-label
           required
-          :error-message="integrationError"
+          :error-message="getFirstErrorMessage('integration_id')"
         >
           <IntegrationDropdown
-            v-model="values.integration_id"
+            v-model="v$.values.integration_id.$model"
             class="data-source-form__integration-dropdown"
             :application="builder"
             :integrations="integrations"
-            :disabled="!values.type"
+            :disabled="!v$.values.type.$model"
             :integration-type="serviceType?.integrationType"
           />
         </FormGroup>
@@ -47,13 +47,13 @@
           :label="$t('dataSourceForm.nameLabel')"
           small-label
           required
-          :error-message="nameError"
+          :error-message="getFirstErrorMessage('name')"
         >
           <FormInput
-            v-model="values.name"
+            v-model="v$.values.name.$model"
             class="data-source-form__name-input"
             :placeholder="$t('dataSourceForm.namePlaceholder')"
-            @blur="$v.values.name.$touch()"
+            @blur="v$.values.name.$touch()"
           />
         </FormGroup>
       </div>
@@ -73,10 +73,11 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import form from '@baserow/modules/core/mixins/form'
 import applicationContext from '@baserow/modules/builder/mixins/applicationContext'
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { required, maxLength, helpers } from '@vuelidate/validators'
 import { DATA_PROVIDERS_ALLOWED_DATA_SOURCES } from '@baserow/modules/builder/enums'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 
@@ -111,6 +112,9 @@ export default {
       default: false,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: ['name', 'integration_id', 'type'],
@@ -123,10 +127,11 @@ export default {
         return this.values.type
       },
       set(newValue) {
-        this.values.type = newValue
-        this.values.name = this.suggestedName
+        this.v$.values.type.$model = newValue
+        this.v$.values.name.$model = this.suggestedName
         if (this.availableIntegrations.length === 1) {
-          this.values.integration_id = this.availableIntegrations[0].id
+          this.v$.values.integration_id.$model =
+            this.availableIntegrations[0].id
         }
       },
     },
@@ -178,32 +183,6 @@ export default {
           ),
         ])
     },
-    nameError() {
-      if (!this.$v.values.name.$dirty) {
-        return ''
-      }
-      return !this.$v.values.name.required
-        ? this.$t('error.requiredField')
-        : !this.$v.values.name.maxLength
-        ? this.$t('error.maxLength', { max: 255 })
-        : !this.$v.values.name.unique
-        ? this.$t('dataSourceForm.errorUniqueName')
-        : ''
-    },
-    typeError() {
-      if (!this.$v.values.type.$dirty) {
-        return ''
-      }
-      return !this.$v.values.type.required ? this.$t('error.requiredField') : ''
-    },
-    integrationError() {
-      if (!this.$v.values.integration_id.$dirty) {
-        return ''
-      }
-      return !this.$v.values.integration_id.required
-        ? this.$t('error.requiredField')
-        : ''
-    },
   },
   methods: {
     mustHaveUniqueName(param) {
@@ -214,15 +193,30 @@ export default {
     return {
       values: {
         name: {
-          required,
-          maxLength: maxLength(255),
-          unique: this.mustHaveUniqueName,
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 255 }),
+            maxLength(255)
+          ),
+          unique: helpers.withMessage(
+            this.$t('dataSourceForm.errorUniqueName'),
+            this.mustHaveUniqueName
+          ),
         },
         integration_id: {
-          required,
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
         },
         type: {
-          required,
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
         },
       },
     }

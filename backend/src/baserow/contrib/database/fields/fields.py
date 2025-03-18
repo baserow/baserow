@@ -309,6 +309,9 @@ class DurationField(models.DurationField):
         value = duration_value_to_timedelta(value, self.duration_format)
         return super().get_prep_value(value)
 
+    def to_python(self, value):
+        return super().to_python(value)
+
 
 class IntegerFieldWithSequence(models.IntegerField):
     """

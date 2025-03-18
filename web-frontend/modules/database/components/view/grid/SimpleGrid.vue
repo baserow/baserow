@@ -34,7 +34,7 @@
           <HorizontalResize
             class="simple-grid__field-width"
             :width="getFieldWidth(field)"
-            :min="100"
+            :min="GRID_VIEW_MIN_FIELD_WIDTH"
             @move="moveFieldWidth(field, $event)"
             @update="updateFieldWidth(field, $event)"
           ></HorizontalResize>
@@ -127,7 +127,7 @@
               <HorizontalResize
                 class="simple-grid__field-width"
                 :width="getFieldWidth(field)"
-                :min="100"
+                :min="GRID_VIEW_MIN_FIELD_WIDTH"
                 @move="moveFieldWidth(field, $event)"
                 @update="updateFieldWidth(field, $event)"
               ></HorizontalResize>
@@ -188,6 +188,7 @@ import {
 } from '@baserow/modules/database/utils/view'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import SimpleGridField from '@baserow/modules/database/components/view/grid/SimpleGridField'
+import { GRID_VIEW_MIN_FIELD_WIDTH } from '@baserow/modules/database/constants'
 
 export default {
   name: 'SimpleGrid',
@@ -276,6 +277,9 @@ export default {
       return this.fields
         .filter(filterVisibleFieldsFunction(this.fieldOptions))
         .sort(sortFieldsByOrderAndIdFunction(this.fieldOptions))
+    },
+    GRID_VIEW_MIN_FIELD_WIDTH() {
+      return GRID_VIEW_MIN_FIELD_WIDTH
     },
   },
   mounted() {

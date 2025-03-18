@@ -138,7 +138,7 @@ def test_boolean_field_adjacent_row(data_fixture):
             },
         ],
         model=table_model,
-    )
+    ).created_rows
 
     previous_row = handler.get_adjacent_row(
         table_model, row_c.id, previous=True, view=grid_view

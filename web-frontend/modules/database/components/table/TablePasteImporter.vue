@@ -3,14 +3,18 @@
     <FormGroup
       :label="$t('tablePasteImporter.pasteLabel')"
       small-label
-      :error="$v.content.$error"
+      :error="fieldHasErrors('content')"
       class="margin-bottom-2"
       required
       :helper-text="$t('tablePasteImporter.pasteDescription')"
     >
-      <FormTextarea :rows="10" @input="changed($event)"></FormTextarea>
+      <FormTextarea
+        v-model="v$.values.content.$model"
+        :rows="10"
+        @input="changed($event)"
+      ></FormTextarea>
 
-      <template #error>{{ $t('error.requiredField') }}</template>
+      <template #error>{{ v$.values.content.$errors[0]?.$message }}</template>
     </FormGroup>
 
     <FormGroup
@@ -24,6 +28,10 @@
       </Checkbox>
     </FormGroup>
 
+    <div v-if="values.filename !== ''" class="control margin-top-0">
+      <slot name="upsertMapping" />
+    </div>
+
     <Alert v-if="error !== ''" type="error">
       <template #title> {{ $t('common.wrong') }} </template>
       {{ error }}
@@ -32,7 +40,8 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required, helpers } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
 
 import form from '@baserow/modules/core/mixins/form'
 import importer from '@baserow/modules/database/mixins/importer'
@@ -40,29 +49,43 @@ import importer from '@baserow/modules/database/mixins/importer'
 export default {
   name: 'TablePasteImporter',
   mixins: [form, importer],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
-      content: '',
       firstRowHeader: true,
+      values: {
+        content: '',
+      },
     }
   },
-  validations: {
-    content: { required },
+  validations() {
+    return {
+      values: {
+        content: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
   },
   methods: {
     changed(content) {
       this.$emit('changed')
       this.resetImporterState()
-      this.content = content
+      this.values.content = content
       this.reload()
     },
     async reload() {
-      if (this.content === '') {
+      if (this.values.content === '') {
         this.resetImporterState()
         return
       }
       const limit = this.$config.INITIAL_TABLE_DATA_LIMIT
-      const count = this.content.split(/\r\n|\r|\n/).length
+      const count = this.values.content.split(/\r\n|\r|\n/).length
       if (limit !== null && count > limit) {
         this.handleImporterError(
           this.$t('tablePasteImporter.limitError', {
@@ -73,12 +96,13 @@ export default {
       }
       this.state = 'parsing'
       await this.$ensureRender()
-      this.$papa.parse(this.content, {
+      this.$papa.parse(this.values.content, {
         delimiter: '\t',
         complete: (parsedResult) => {
           // If parsed successfully and it is not empty then the initial data can be
           // prepared for creating the table. We store the data stringified because it
           // doesn't need to be reactive.
+
           let data
           let header
           if (this.firstRowHeader) {

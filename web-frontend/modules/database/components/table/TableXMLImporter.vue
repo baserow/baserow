@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="control">
-      <template v-if="filename === ''">
+      <template v-if="values.filename === ''">
         <label class="control__label control__label--small">{{
           $t('tableXMLImporter.fileLabel')
         }}</label>
@@ -27,7 +27,7 @@
         </div>
       </template>
       <div class="control__elements">
-        <div class="file-upload">
+        <div class="file-upload margin-top-1">
           <input
             v-show="false"
             ref="file"
@@ -46,7 +46,7 @@
             {{ $t('tableXMLImporter.chooseButton') }}
           </Button>
           <div v-if="state === null" class="file-upload__file">
-            {{ filename }}
+            {{ values.filename }}
           </div>
           <template v-else>
             <ProgressBar
@@ -58,8 +58,12 @@
             />
           </template>
         </div>
-        <div v-if="$v.filename.$error" class="error">
-          {{ $t('error.requiredField') }}
+        <div v-if="v$.values.filename.$error" class="error">
+          {{ v$.values.filename.$errors[0]?.$message }}
+        </div>
+
+        <div v-if="values.filename !== ''" class="control margin-top-1">
+          <slot name="upsertMapping" />
         </div>
       </div>
     </div>
@@ -71,7 +75,8 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required, helpers } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
 
 import form from '@baserow/modules/core/mixins/form'
 import importer from '@baserow/modules/database/mixins/importer'
@@ -80,14 +85,28 @@ import { XMLParser } from '@baserow/modules/database/utils/xml'
 export default {
   name: 'TableXMLImporter',
   mixins: [form, importer],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
-      filename: '',
+      values: {
+        filename: '',
+      },
       rawData: null,
     }
   },
-  validations: {
-    filename: { required },
+  validations() {
+    return {
+      values: {
+        filename: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
   },
   methods: {
     /**
@@ -112,14 +131,14 @@ export default {
             limit: this.$config.BASEROW_MAX_IMPORT_FILE_SIZE_MB,
           })
         )
-        this.filename = ''
+        this.values.filename = ''
       } else {
         this.resetImporterState()
         this.fileLoadingProgress = 0
 
         this.$emit('changed')
         this.state = 'loading'
-        this.filename = file.name
+        this.values.filename = file.name
         const reader = new FileReader()
         reader.addEventListener('progress', (event) => {
           this.fileLoadingProgress = (event.loaded / event.total) * 100
@@ -133,7 +152,9 @@ export default {
       }
     },
     async reload() {
+      const fileName = this.values.filename
       this.resetImporterState()
+      this.values.filename = fileName
       this.state = 'parsing'
       await this.$ensureRender()
 

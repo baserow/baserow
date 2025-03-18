@@ -396,7 +396,6 @@ class DispatchBuilderWorkflowActionView(APIView):
         dispatch_context = BuilderDispatchContext(
             request,
             workflow_action.page,
-            element=workflow_action.element,
             workflow_action=workflow_action,
         )
 
@@ -404,6 +403,4 @@ class DispatchBuilderWorkflowActionView(APIView):
             request.user, workflow_action, dispatch_context  # type: ignore
         )
 
-        if not isinstance(response, Response):
-            response = Response(response)
-        return response
+        return Response(response.data, status=response.status)

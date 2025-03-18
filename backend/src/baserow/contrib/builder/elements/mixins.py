@@ -502,7 +502,7 @@ class CollectionElementTypeMixin:
         # current instance
         data_source_id = instance.data_source_id or kwargs.get("data_source_id", None)
         data_source = (
-            DataSourceHandler().get_data_source(data_source_id)
+            DataSourceHandler().get_data_source(data_source_id, with_cache=True)
             if data_source_id
             else None
         )
@@ -517,8 +517,16 @@ class CollectionElementTypeMixin:
             .items()
             if any(options.values())
         ]
+
         if data_source and property_options:
             properties.setdefault(data_source.service_id, []).extend(property_options)
+
+        # We need the id for the element
+        if data_source and data_source.service_id:
+            service = data_source.service.specific
+            id_property = service.get_type().get_id_property(service)
+            if id_property not in properties.setdefault(service.id, []):
+                properties[service.id].append(id_property)
 
         return properties
 
@@ -826,7 +834,7 @@ class MultiPageElementTypeMixin:
         if "pages" in values:
             pages = PageHandler().get_pages(
                 instance.page.builder,
-                base_queryset=Page.objects.filter(
+                base_queryset=Page.objects_without_shared.filter(
                     id__in=[p.id for p in values["pages"]]
                 ),
             )
@@ -844,7 +852,7 @@ class MultiPageElementTypeMixin:
         if "pages" in values:
             pages = PageHandler().get_pages(
                 instance.page.builder,
-                base_queryset=Page.objects.filter(
+                base_queryset=Page.objects_without_shared.filter(
                     id__in=[p.id for p in values["pages"]]
                 ),
             )

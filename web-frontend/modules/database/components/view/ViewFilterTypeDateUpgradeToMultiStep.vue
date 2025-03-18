@@ -29,7 +29,7 @@ export default {
     }
   },
   mounted() {
-    this.$v.$touch()
+    this.v$.$touch()
   },
   methods: {
     migrateToNewMultiStepDateFilter() {

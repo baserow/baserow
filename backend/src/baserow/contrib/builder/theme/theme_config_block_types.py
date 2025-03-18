@@ -2,9 +2,11 @@ from typing import Any, Dict, Optional
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
+from django.db.models import QuerySet
 
 from rest_framework import serializers
 
+from baserow.contrib.builder.models import Builder
 from baserow.core.user_files.handler import UserFileHandler
 
 from .models import (
@@ -29,6 +31,41 @@ class ColorThemeConfigBlockType(ThemeConfigBlockType):
 class TypographyThemeConfigBlockType(ThemeConfigBlockType):
     type = "typography"
     model_class = TypographyThemeConfigBlock
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "heading_1_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "heading_2_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "heading_3_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "heading_4_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "heading_5_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "heading_6_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+        }
 
     def import_serialized(
         self,
@@ -60,6 +97,26 @@ class ButtonThemeConfigBlockType(ThemeConfigBlockType):
 class LinkThemeConfigBlockType(ThemeConfigBlockType):
     type = "link"
     model_class = LinkThemeConfigBlock
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "link_default_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Default text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "link_hover_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Hover text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "link_active_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Active text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+        }
 
 
 class ImageThemeConfigBlockType(ThemeConfigBlockType):
@@ -165,6 +222,11 @@ class PageThemeConfigBlockType(ThemeConfigBlockType):
             return None
 
         return value
+
+    def enhance_queryset(self, queryset: QuerySet[Builder]) -> QuerySet[Builder]:
+        return queryset.select_related(
+            f"{self.related_name_in_builder_model}__page_background_file"
+        )
 
 
 class InputThemeConfigBlockType(ThemeConfigBlockType):

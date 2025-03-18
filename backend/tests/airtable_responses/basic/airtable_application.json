@@ -54,12 +54,14 @@
           {
             "id":"fldG9y88Zw7q7u4Z7i4",
             "name":"Name",
-            "type":"text"
+            "type":"text",
+            "description": ""
           },
           {
             "id":"fldB7wkyR0buF1sRF9O",
             "name":"Email",
             "type":"text",
+            "description": "This is an email",
             "typeOptions":{
               "validatorName":"email"
             }
@@ -682,13 +684,6 @@
             "createdByUserId":"usrdGm7k7NIVWhK7W7L"
           },
           {
-            "id":"viwsFAwnvkr98dfv8nm",
-            "name":"With hidden fields",
-            "type":"grid",
-            "personalForUserId":null,
-            "createdByUserId":"usrdGm7k7NIVWhK7W7L"
-          },
-          {
             "id":"viwBAGnUgZ6X5Eyg5Wf",
             "name":"Gallery view",
             "type":"gallery",
@@ -699,7 +694,6 @@
         "viewOrder":[
           "viwcpYeEpAs6kZspktV",
           "viwDgBCKTEdCQoHTQKH",
-          "viwsFAwnvkr98dfv8nm",
           "viwBAGnUgZ6X5Eyg5Wf"
         ],
         "viewsById":{
@@ -714,13 +708,6 @@
           "viwDgBCKTEdCQoHTQKH":{
             "id":"viwDgBCKTEdCQoHTQKH",
             "name":"With filters and sorts",
-            "type":"grid",
-            "personalForUserId":null,
-            "createdByUserId":"usrdGm7k7NIVWhK7W7L"
-          },
-          "viwsFAwnvkr98dfv8nm":{
-            "id":"viwsFAwnvkr98dfv8nm",
-            "name":"With hidden fields",
             "type":"grid",
             "personalForUserId":null,
             "createdByUserId":"usrdGm7k7NIVWhK7W7L"

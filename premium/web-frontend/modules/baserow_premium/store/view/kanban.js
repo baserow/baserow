@@ -211,6 +211,7 @@ export const actions = {
     }
   ) {
     commit('SET_ADHOC_FILTERING', adhocFiltering)
+    commit('SET_LAST_KANBAN_ID', kanbanId)
     const view = rootGetters['view/get'](kanbanId)
     const { data } = await KanbanService(this.$client).fetchRows({
       kanbanId,
@@ -222,10 +223,15 @@ export const actions = {
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       filters: getFilters(view, adhocFiltering),
     })
+    // Don't do anything if the kanbanId does not match the current view kanbanId
+    // because that probably means the user switched to another view or table, and
+    // the data that is returned here shouldn't do anything.
+    if (kanbanId !== getters.getLastKanbanId) {
+      return
+    }
     Object.keys(data.rows).forEach((key) => {
       populateStack(data.rows[key], data)
     })
-    commit('SET_LAST_KANBAN_ID', kanbanId)
     commit('SET_SINGLE_SELECT_FIELD_ID', singleSelectFieldId)
     commit('REPLACE_ALL_STACKS', data.rows)
     if (includeFieldOptions) {
@@ -241,10 +247,11 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { selectOptionId }
   ) {
+    const kanbanId = getters.getLastKanbanId
     const stack = getters.getStack(selectOptionId)
-    const view = rootGetters['view/get'](getters.getLastKanbanId)
+    const view = rootGetters['view/get'](kanbanId)
     const { data } = await KanbanService(this.$client).fetchRows({
-      kanbanId: getters.getLastKanbanId,
+      kanbanId,
       limit: getters.getBufferRequestSize,
       offset: 0,
       includeFieldOptions: false,
@@ -259,6 +266,12 @@ export const actions = {
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       filters: getFilters(view, getters.getAdhocFiltering),
     })
+    // Don't do anything if the kanbanId does not match the current view kanbanId
+    // because that probably means the user switched to another view or table, and
+    // the data that is returned here shouldn't do anything.
+    if (kanbanId !== getters.getLastKanbanId) {
+      return
+    }
     const count = data.rows[selectOptionId].count
     const rows = data.rows[selectOptionId].results
     rows.forEach((row) => {

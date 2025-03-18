@@ -11,7 +11,8 @@
     "exporterType": {
       "json": "Export to JSON",
       "xml": "Export to XML",
-      "excel": "Export to Excel"
+      "excel": "Export to Excel",
+      "file": "Export files"
     },
     "deactivated": "Available in premium version"
   },
@@ -90,6 +91,9 @@
   },
   "tableExcelExporter": {
     "includeHeader": "Include field names as header"
+  },
+  "tableFileExporter": {
+    "organizeFiles": "Group files by row id"
   },
   "kanbanViewStackContext": {
     "createCard": "Create card",
@@ -191,7 +195,8 @@
     "premium": "Premium",
     "expired": "Expired",
     "validity": "Valid from {start} through {end}",
-    "seats": "seats"
+    "seats": "seats",
+    "applicationUsers": "Application users"
   },
   "license": {
     "title": "{name} plan",
@@ -212,6 +217,8 @@
     "lastCheckDescription": "The license is periodically checked for changes. If you for example renewed or upgraded your license, the changes become active after the check.",
     "checkNow": "check now",
     "seats": "Seats (amount of users)",
+    "applicationUsers": "Application users",
+    "applicationUsersDescription": "The total number of application users in published application builder user sources.",
     "licensedTo": "Licensed to",
     "applications": "Applications / databases",
     "unlimited": "Unlimited",

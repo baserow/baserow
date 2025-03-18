@@ -127,7 +127,16 @@
               {{ license.seats_taken }} / {{ license.seats }}
               {{ $t('licenses.seats') }}
             </li>
-
+            <li
+              v-if="license.application_users"
+              class="licenses__item-detail-item"
+            >
+              {{ license.application_users_taken }} /
+              {{ license.application_users }}
+              {{ $t('licenses.applicationUsers') }}
+            </li>
+          </ul>
+          <ul class="licenses__item-details">
             <li
               class="licenses__item-detail-item"
               v-for="(feature, index) in licenseFeatureDescription(license)"
@@ -197,6 +206,7 @@ export default {
         .sort((a, b) =>
           a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1
         )
+        .sort((a, b) => a.application_users - b.application_users)
     },
     licenseTypesWithFeatureComponent() {
       return Object.values(this.$registry.getAll('license')).filter(

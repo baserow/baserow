@@ -13,14 +13,16 @@
         >
           <FormInput
             ref="password"
-            v-model="values.password"
+            v-model="v$.values.password.$model"
             size="large"
             :error="fieldHasErrors('password')"
             type="password"
           ></FormInput>
 
           <template #error>
-            {{ $t('error.passwordRequired') }}
+            <span>
+              {{ v$.values.password.$errors[0]?.$message }}
+            </span>
           </template>
         </FormGroup>
 
@@ -29,7 +31,7 @@
             type="primary"
             size="large"
             :loading="loading"
-            :disabled="loading || $v.$invalid"
+            :disabled="loading"
           >
             {{ $t('publicViewAuthLogin.enter') }}
           </Button>
@@ -40,9 +42,11 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, getCurrentInstance } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
-import { required } from 'vuelidate/lib/validators'
+import { required, helpers } from '@vuelidate/validators'
 import { mapActions } from 'vuex'
 import { isRelativeUrl } from '@baserow/modules/core/utils/url'
 import languageDetection from '@baserow/modules/core/mixins/languageDetection'
@@ -50,13 +54,28 @@ import languageDetection from '@baserow/modules/core/mixins/languageDetection'
 export default {
   mixins: [form, error, languageDetection],
   layout: 'login',
+  setup() {
+    const instance = getCurrentInstance()
+    const values = reactive({ password: '' })
+
+    const rules = {
+      values: {
+        password: {
+          required: helpers.withMessage(
+            instance.proxy.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
+
+    const v$ = useVuelidate(rules, { values }, { $lazy: true })
+
+    return { values, v$, loading: false }
+  },
   data() {
     return {
-      loading: false,
       allowedValues: ['password'],
-      values: {
-        password: '',
-      },
     }
   },
   head() {
@@ -109,11 +128,6 @@ export default {
     ...mapActions({
       setPublicAuthToken: 'page/view/public/setAuthToken',
     }),
-  },
-  validations: {
-    values: {
-      password: { required },
-    },
   },
 }
 </script>

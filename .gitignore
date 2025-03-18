@@ -123,6 +123,9 @@ out/
 .cursor-config/
 !config/cursor/.cursor-config/
 
+# Pyright config file
+pyrightconfig.json
+
 # VIM's swap files
 *.swp
 

@@ -12,6 +12,7 @@ import SamlAuthLink from '@baserow_enterprise/integrations/common/components/Sam
 import OIDCAuthLink from '@baserow_enterprise/integrations/common/components/OIDCAuthLink'
 import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg'
 import { PasswordFieldType } from '@baserow/modules/database/fieldTypes'
+import EnterpriseFeatures from '@baserow_enterprise/features'
 
 export class LocalBaserowPasswordAppAuthProviderType extends AppAuthProviderType {
   static getType() {
@@ -146,6 +147,15 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
   getOrder() {
     return 20
   }
+
+  /**
+   * `SamlAppAuthProviderType` requires the `BUILDER_SSO` feature to be enabled.
+   * @param {Number} workspaceId The workspace id.
+   * @returns {Boolean} True if the provider is disabled, false otherwise.
+   */
+  isDeactivated(workspaceId) {
+    return !this.app.$hasFeature(EnterpriseFeatures.BUILDER_SSO, workspaceId)
+  }
 }
 
 export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixin(
@@ -228,5 +238,14 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
 
   getOrder() {
     return 50
+  }
+
+  /**
+   * `OpenIdConnectAppAuthProviderType` requires the `BUILDER_SSO` feature to be enabled.
+   * @param {Number} workspaceId The workspace id.
+   * @returns {Boolean} True if the provider is disabled, false otherwise.
+   */
+  isDeactivated(workspaceId) {
+    return !this.app.$hasFeature(EnterpriseFeatures.BUILDER_SSO, workspaceId)
   }
 }

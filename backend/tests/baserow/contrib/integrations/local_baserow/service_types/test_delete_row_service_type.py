@@ -1,7 +1,6 @@
 from unittest.mock import Mock
 
 import pytest
-from rest_framework.response import Response
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowDeleteRow
@@ -158,5 +157,4 @@ def test_local_baserow_delete_row_service_dispatch_transform(data_fixture):
     service_type = LocalBaserowDeleteRowServiceType()
     dispatch_data = {"data": {}, "baserow_table_model": Mock()}
     result = service_type.dispatch_transform(dispatch_data)
-    assert isinstance(result, Response)
-    assert result.status_code == 204
+    assert result.status == 204

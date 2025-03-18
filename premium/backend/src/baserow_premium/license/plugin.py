@@ -8,9 +8,11 @@ from baserow_premium.license.exceptions import InvalidLicenseError
 from baserow_premium.license.models import License
 from baserow_premium.license.registries import LicenseType, SeatUsageSummary
 
+from baserow.core.cache import local_cache
 from baserow.core.models import Workspace
 
 User = get_user_model()
+LICENSE_CACHE_KEY_PREFIX = "license"
 
 
 class LicensePlugin:
@@ -111,12 +113,17 @@ class LicensePlugin:
         :param workspace: The workspace to check to see if the user has the feature for.
         """
 
-        return any(
-            feature in license_type.features
-            for license_type in self.get_active_specific_licenses_only_for_workspace(
+        def _available_features():
+            active_licenses = self.get_active_specific_licenses_only_for_workspace(
                 user, workspace
             )
+            return set().union(*[license.features for license in active_licenses])
+
+        available_features = local_cache.get(
+            f"{LICENSE_CACHE_KEY_PREFIX}_features_{workspace.id}_{user.id}",
+            _available_features,
         )
+        return feature in available_features
 
     def get_active_instance_wide_license_types(
         self, user: Optional[AbstractUser]
@@ -149,7 +156,13 @@ class LicensePlugin:
             if user_id is not None:
                 available_license_q |= Q(users__user_id__in=[user_id])
 
-            available_licenses = License.objects.filter(available_license_q).distinct()
+            def _get_available_licenses():
+                return License.objects.filter(available_license_q).distinct()
+
+            available_licenses = local_cache.get(
+                f"{LICENSE_CACHE_KEY_PREFIX}_{user_id}_instance_wide_licenses",
+                _get_available_licenses,
+            )
 
         for available_license in available_licenses:
             try:

@@ -2,6 +2,7 @@
   <div class="repeat-element--container">
     <CollectionElementHeader
       :element="element"
+      :style="getStyleOverride('header_button')"
       @filters-changed="adhocFilters = $event"
       @sortings-changed="adhocSortings = $event"
       @search-changed="adhocSearch = $event"
@@ -28,12 +29,13 @@
                   v-if="index === 0 && isEditMode"
                   :key="`${child.id}-${index}`"
                   :element="child"
-                  :application-context-additions="{
-                    recordIndexPath: [
-                      ...applicationContext.recordIndexPath,
-                      index,
-                    ],
-                  }"
+                  :application-context-additions="
+                    getPerRecordApplicationContextAddition({
+                      applicationContext,
+                      row: content,
+                      rowIndex: index,
+                    })
+                  "
                   @move="$emit('move', $event)"
                 />
                 <!-- Other iterations are not editable -->
@@ -44,12 +46,13 @@
                   :key="`${child.id}_${index}`"
                   :element="child"
                   :force-mode="isEditMode ? 'public' : mode"
-                  :application-context-additions="{
-                    recordIndexPath: [
-                      ...applicationContext.recordIndexPath,
-                      index,
-                    ],
-                  }"
+                  :application-context-additions="
+                    getPerRecordApplicationContextAddition({
+                      applicationContext,
+                      row: content,
+                      rowIndex: index,
+                    })
+                  "
                   :class="{
                     'repeat-element__preview': index > 0 && isEditMode,
                   }"
@@ -132,6 +135,7 @@ import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { RepeatElementType } from '@baserow/modules/builder/elementTypes'
 import CollectionElementHeader from '@baserow/modules/builder/components/elements/components/CollectionElementHeader'
+import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'RepeatElement',
@@ -188,7 +192,7 @@ export default {
       // `grid-template-columns` rule's `repeat`, it will cause a repaint
       // following page load when the orientation is horizontal. Initially the
       // page visitor will see repetitions vertically, then suddenly horizontally.
-      if (this.element.orientation === 'vertical') {
+      if (this.element.orientation === ORIENTATIONS.VERTICAL) {
         return {
           display: 'flex',
           'flex-direction': 'column',

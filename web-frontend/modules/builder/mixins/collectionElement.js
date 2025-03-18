@@ -142,7 +142,7 @@ export default {
           mode: this.applicationContext.mode,
           replace,
         })
-        this.currentOffset += this.element.items_per_page
+        this.currentOffset = range[0] + this.element.items_per_page
       } catch (error) {
         // Handle the HTTP error if needed
         this.onContentFetchError(error)
@@ -175,6 +175,23 @@ export default {
       if (error.response && [400, 404].includes(error.response.status)) {
         this.contentFetchEnabled = false
       }
+    },
+    getPerRecordApplicationContextAddition({
+      applicationContext,
+      row,
+      rowIndex,
+      field = null,
+    }) {
+      const newApplicationContext = {
+        recordIndexPath: [...applicationContext.recordIndexPath, rowIndex],
+      }
+      if (field) {
+        newApplicationContext.field = field
+      }
+      if (this.element.data_source_id) {
+        newApplicationContext.recordId = row.__recordId__
+      }
+      return newApplicationContext
     },
   },
 }

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from django.contrib.auth import get_user_model
@@ -113,7 +113,7 @@ class Job(CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, models.Model):
         progress = {
             "progress_percentage": self.progress_percentage,
             "state": self.state,
-            "updated_on": datetime.now(),
+            "updated_on": datetime.now(tz=timezone.utc),
         }
         cache.set(job_progress_key(self.id), progress, timeout=None)
 

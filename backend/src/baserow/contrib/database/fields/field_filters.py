@@ -38,6 +38,42 @@ def parse_ids_from_csv_string(value: str) -> list[int]:
         return []
 
 
+def map_ids_from_csv_string(
+    value_string: str, mapping: Optional[dict] = None
+) -> list[Union[str, int]]:
+    """
+    Parses the provided value if needed and returns a list ids.
+
+    :param value_string: The value that has been provided by the user.
+    :param mapping: Key is given option id, and the value is th target option id.
+    :return: A list of integers that represent ids.
+    """
+
+    # There is a small chance the value is an int in case a raw ID was provided in
+    # the row coloring, where the filters are stored as JSON. Cast it to a string to
+    # make it compatible.
+    if not isinstance(value_string, str):
+        value_string = str(value_string)
+
+    parsed_values = []
+    for value in value_string.split(","):
+        # In some cases, the select option ID is a string, like with the Airtable
+        # import. If the value can be found in the mapping, then we'll directly use
+        # that value.
+        if value in mapping:
+            parsed_values.append(str(mapping[value]))
+            continue
+
+        if value.strip().isdigit():
+            # Convert to int because the serialized value can be a string, but the key
+            # in the mapping is an int.
+            value = int(value)
+            if value in mapping:
+                parsed_values.append(str(mapping[value]))
+
+    return parsed_values
+
+
 class AnnotatedQ:
     """
     A simple wrapper class combining a params for a Queryset.annotate call with a

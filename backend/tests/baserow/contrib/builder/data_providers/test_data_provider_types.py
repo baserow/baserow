@@ -7,7 +7,6 @@ from django.http import HttpRequest
 from django.shortcuts import reverse
 
 import pytest
-from rest_framework.response import Response
 
 from baserow.contrib.builder.data_providers.data_provider_types import (
     CurrentRecordDataProviderType,
@@ -39,6 +38,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.core.formula.exceptions import InvalidBaserowFormula
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.types import DispatchResult
 from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import MirrorDict
@@ -984,7 +984,7 @@ def test_previous_action_data_provider_post_dispatch_caches_result():
     workflow_action.id = 100
 
     mock_cache_key = "mock-cache-key"
-    mock_result = {"mock-key": "mock-value"}
+    mock_result = DispatchResult(data={"mock-key": "mock-value"})
     previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
         return_value=mock_cache_key
     )
@@ -1001,12 +1001,12 @@ def test_previous_action_data_provider_post_dispatch_caches_result():
     )
     mock_cache.set.assert_called_once_with(
         mock_cache_key,
-        mock_result,
+        mock_result.data,
         timeout=settings.BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS,
     )
 
 
-def test_previous_action_data_provider_post_dispatch_with_response_doesnt_cache_result():
+def test_previous_action_data_provider_post_dispatch_with_empty_response_cache_result():
     """
     Ensure that when a current_dispatch_id is present in the request, the
     provided result is cached.
@@ -1026,7 +1026,7 @@ def test_previous_action_data_provider_post_dispatch_with_response_doesnt_cache_
     workflow_action.id = 100
 
     mock_cache_key = "mock-cache-key"
-    mock_result = Response(status=204)
+    mock_result = DispatchResult(status=204)
     previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
         return_value=mock_cache_key
     )
@@ -1208,20 +1208,14 @@ def test_current_record_provider_get_data_chunk_without_record_index(data_fixtur
 def test_current_record_provider_get_data_chunk_for_idx():
     current_record_provider = CurrentRecordDataProviderType()
     fake_request = HttpRequest()
-    fake_request.data = {"current_record": 123}
+    fake_request.data = {"current_record": {"index": 123, "record_id": 123}}
     dispatch_context = BuilderDispatchContext(fake_request, None)
     assert current_record_provider.get_data_chunk(dispatch_context, ["__idx__"]) == 123
 
 
 @pytest.mark.django_db
 def test_current_record_provider_get_data_chunk(data_fixture):
-    current_record_provider = CurrentRecordDataProviderType()
-
     user, token = data_fixture.create_user_and_token()
-
-    fake_request = HttpRequest()
-    fake_request.user = user
-    fake_request.data = {"current_record": 0}
 
     table, fields, rows = data_fixture.build_table(
         user=user,
@@ -1252,9 +1246,15 @@ def test_current_record_provider_get_data_chunk(data_fixture):
         page=page, element=button_element, event=EventTypes.CLICK, user=user
     )
 
+    fake_request = HttpRequest()
+    fake_request.user = user
+    fake_request.data = {"current_record": {"index": 0, "record_id": rows[0].id}}
+
     dispatch_context = BuilderDispatchContext(
         fake_request, page, workflow_action, only_expose_public_allowed_properties=False
     )
+
+    current_record_provider = CurrentRecordDataProviderType()
 
     assert (
         current_record_provider.get_data_chunk(dispatch_context, [field.db_column])
@@ -1338,7 +1338,7 @@ def test_data_source_data_extract_properties_calls_correct_service_type(
     result = DataSourceDataProviderType().extract_properties(path)
 
     assert result == {mocked_data_source.service_id: expected}
-    mocked_get_data_source.assert_called_once_with(int(data_source_id))
+    mocked_get_data_source.assert_called_once_with(int(data_source_id), with_cache=True)
     mocked_service_type.extract_properties.assert_called_once_with([expected])
 
 
@@ -1434,7 +1434,7 @@ def test_data_source_context_extract_properties_calls_correct_service_type(
     result = DataSourceContextDataProviderType().extract_properties(path)
 
     assert result == {mocked_data_source.service_id: expected}
-    mocked_get_data_source.assert_called_once_with(int(data_source_id))
+    mocked_get_data_source.assert_called_once_with(int(data_source_id), with_cache=True)
     mocked_service_type.extract_properties.assert_called_once_with([expected])
 
 
@@ -1512,7 +1512,7 @@ def test_data_source_context_data_provider_extract_properties_raises_if_data_sou
     with pytest.raises(InvalidBaserowFormula):
         DataSourceContextDataProviderType().extract_properties(path)
 
-    mock_get_data_source.assert_called_once_with(int(path[0]))
+    mock_get_data_source.assert_called_once_with(int(path[0]), with_cache=True)
 
 
 @pytest.mark.parametrize(
@@ -1539,7 +1539,7 @@ def test_data_source_data_provider_extract_properties_raises_if_data_source_does
     with pytest.raises(InvalidBaserowFormula):
         DataSourceDataProviderType().extract_properties(path)
 
-    mock_get_data_source.assert_called_once_with(int(path[0]))
+    mock_get_data_source.assert_called_once_with(int(path[0]), with_cache=True)
 
 
 @pytest.mark.parametrize("path", ([], [""], ["foo"]))
@@ -1581,7 +1581,9 @@ def test_current_record_extract_properties_raises_if_data_source_doesnt_exist(
     with pytest.raises(InvalidBaserowFormula):
         CurrentRecordDataProviderType().extract_properties(path, invalid_data_source_id)
 
-    mock_get_data_source.assert_called_once_with(invalid_data_source_id)
+    mock_get_data_source.assert_called_once_with(
+        invalid_data_source_id, with_cache=True
+    )
 
 
 @pytest.mark.django_db
@@ -1617,7 +1619,7 @@ def test_current_record_extract_properties_calls_correct_service_type(
     result = CurrentRecordDataProviderType().extract_properties(path, fake_element_id)
 
     assert result == {mocked_data_source.service_id: expected_field}
-    mock_get_data_source.assert_called_once_with(fake_element_id)
+    mock_get_data_source.assert_called_once_with(fake_element_id, with_cache=True)
     mocked_service_type.extract_properties.assert_called_once_with(
         ["0", expected_field]
     )
@@ -1676,7 +1678,7 @@ def test_current_record_extract_properties_called_with_correct_path(
         schema_property,
     )
 
-    mock_get_data_source.assert_called_once_with(data_source_id)
+    mock_get_data_source.assert_called_once_with(data_source_id, with_cache=True)
 
     if returns_list:
         if schema_property:

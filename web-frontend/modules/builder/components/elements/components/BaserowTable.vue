@@ -1,7 +1,7 @@
 <template>
   <div class="baserow-table-wrapper">
     <table class="baserow-table" :class="`baserow-table--${orientation}`">
-      <template v-if="orientation === TABLE_ORIENTATION.HORIZONTAL">
+      <template v-if="orientation === ORIENTATIONS.HORIZONTAL">
         <thead>
           <tr class="baserow-table__row">
             <template v-for="field in fields">
@@ -25,6 +25,7 @@
                 :value="row[field.name]"
                 :field="field"
                 :row-index="index"
+                :row="row"
               >
                 <td :key="field.id" class="baserow-table__cell">
                   {{ row[field.name] }}
@@ -55,6 +56,7 @@
                 :value="row[field.name]"
                 :field="field"
                 :row-index="rowIndex"
+                :row="row"
               >
                 <td
                   class="baserow-table__cell"
@@ -82,7 +84,7 @@
 </template>
 
 <script>
-import { TABLE_ORIENTATION } from '@baserow/modules/builder/enums'
+import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'BaserowTable',
@@ -98,12 +100,12 @@ export default {
     },
     orientation: {
       type: String,
-      default: TABLE_ORIENTATION.HORIZONTAL,
+      default: ORIENTATIONS.HORIZONTAL,
     },
   },
   computed: {
-    TABLE_ORIENTATION() {
-      return TABLE_ORIENTATION
+    ORIENTATIONS() {
+      return ORIENTATIONS
     },
   },
 }

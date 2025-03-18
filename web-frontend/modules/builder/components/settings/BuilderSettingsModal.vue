@@ -26,7 +26,14 @@
       </ul>
     </template>
     <template v-if="settingSelected" #content>
-      <component :is="settingSelected.component" :builder="builder"></component>
+      <component
+        :is="settingSelected.component"
+        ref="settingSelected"
+        :builder="builder"
+        :hide-after-create="hideAfterCreate"
+        :force-display-form="displaySelectedSettingForm"
+        @hide-modal="emitCreatedRecord($event)"
+      ></component>
     </template>
   </Modal>
 </template>
@@ -43,10 +50,20 @@ export default {
       type: Object,
       required: true,
     },
+    /**
+     * If you want the selected setting form to hide the builder settings modal
+     * after a record is created, set this to `true`.
+     */
+    hideAfterCreate: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   data() {
     return {
       settingSelected: null,
+      displaySelectedSettingForm: false,
     }
   },
   computed: {
@@ -54,11 +71,43 @@ export default {
       return this.$registry.getOrderedList('builderSettings')
     },
   },
+  watch: {
+    // When the selected setting changes, and we've forcibly displayed
+    // the selected setting's form, then reset the display flag so that
+    // the next setting doesn't immediately display its form.
+    settingSelected(newSetting, oldSetting) {
+      if (
+        oldSetting &&
+        newSetting !== oldSetting &&
+        this.displaySelectedSettingForm
+      ) {
+        this.displaySelectedSettingForm = false
+      }
+    },
+  },
   methods: {
-    show(...args) {
+    show(
+      selectSettingType = null,
+      displaySelectedSettingForm = false,
+      ...args
+    ) {
+      // If we've been instructed to show a specific setting component,
+      // then ensure it's displayed first.
+      if (selectSettingType) {
+        this.settingSelected = this.$registry.get(
+          'builderSettings',
+          selectSettingType
+        )
+      }
+
+      // If no `selectSettingType` was provided then choose the first setting.
       if (!this.settingSelected) {
         this.settingSelected = this.registeredSettings[0]
       }
+
+      // If we've been instructed to show the modal, and make the
+      // selected setting component's form display, then do so.
+      this.displaySelectedSettingForm = displaySelectedSettingForm
 
       const builderApplicationType = this.$registry.get(
         'application',
@@ -67,6 +116,17 @@ export default {
       builderApplicationType.loadExtraData(this.builder)
 
       return modal.methods.show.call(this, ...args)
+    },
+    /**
+     * If this modal is being used with the `hideAfterCreate` prop set to `true`,
+     * then once a record has been created, we want to hide the modal, and then
+     * emit the newly created record ID so that it can be used by the component
+     * implementing this modal.
+     * @param createdRecordId - The ID of the newly created record.
+     */
+    emitCreatedRecord(createdRecordId) {
+      this.hide()
+      this.$emit('created', createdRecordId)
     },
   },
 }

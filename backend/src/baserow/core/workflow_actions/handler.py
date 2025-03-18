@@ -58,7 +58,14 @@ class WorkflowActionHandler(ABC):
         if base_queryset is None:
             base_queryset = self.model.objects
 
-        return specific_iterator(base_queryset)
+        return specific_iterator(
+            base_queryset,
+            per_content_type_queryset_hook=(
+                lambda action, queryset: self.registry.get_by_model(
+                    action
+                ).enhance_queryset(queryset)
+            ),
+        )
 
     def create_workflow_action(
         self, workflow_action_type: WorkflowActionType, **prepared_values

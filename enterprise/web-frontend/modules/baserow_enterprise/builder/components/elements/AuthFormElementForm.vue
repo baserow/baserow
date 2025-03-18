@@ -12,14 +12,11 @@
       required
       class="margin-bottom-2"
     >
-      <Dropdown v-model="values.user_source_id" :show-search="false">
-        <DropdownItem
-          v-for="userSource in userSources"
-          :key="userSource.id"
-          :name="userSource.name"
-          :value="userSource.id"
-        />
-      </Dropdown>
+      <UserSourceDropdown
+        v-model="values.user_source_id"
+        :builder="builder"
+        :user-sources="userSources"
+      ></UserSourceDropdown>
     </FormGroup>
     <CustomStyle
       v-model="values.styles"
@@ -45,10 +42,12 @@
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
+import UserSourceDropdown from '@baserow/modules/builder/components/userSource/UserSourceDropdown'
 
 export default {
   name: 'AuthFormElementForm',
   components: {
+    UserSourceDropdown,
     CustomStyle,
     InjectedFormulaInput,
   },
@@ -68,10 +67,6 @@ export default {
     userSources() {
       return this.$store.getters['userSource/getUserSources'](this.builder)
     },
-  },
-  methods: {},
-  validations() {
-    return {}
   },
 }
 </script>

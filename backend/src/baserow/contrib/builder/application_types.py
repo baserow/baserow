@@ -174,7 +174,7 @@ class BuilderApplicationType(ApplicationType):
 
         pages = PageHandler().get_pages(
             builder,
-            base_queryset=Page.objects_with_shared.prefetch_related(
+            base_queryset=Page.objects.prefetch_related(
                 "element_set", "datasource_set"
             ),
         )
@@ -495,8 +495,8 @@ class BuilderApplicationType(ApplicationType):
             return None
 
     def enhance_queryset(self, queryset):
-        queryset = queryset.prefetch_related("page_set")
-        queryset = queryset.prefetch_related("user_sources")
-        queryset = queryset.prefetch_related("integrations")
+        queryset = queryset.select_related("favicon_file").prefetch_related(
+            "user_sources", "integrations", "page_set"
+        )
         queryset = theme_config_block_registry.enhance_list_builder_queryset(queryset)
         return queryset

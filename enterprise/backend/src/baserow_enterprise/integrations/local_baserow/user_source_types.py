@@ -446,7 +446,30 @@ class LocalBaserowUserSourceType(UserSourceType):
 
         integration = user_source.integration.specific
 
-        model = table.get_model()
+        app_auth_providers = (
+            AppAuthProviderHandler.list_app_auth_providers_for_user_source(user_source)
+        )
+
+        providers_fields = [
+            f
+            for ap in app_auth_providers
+            if hasattr(ap.get_type(), "get_user_model_field_ids")
+            for f in ap.get_type().get_user_model_field_ids(ap)
+        ]
+
+        model = table.get_model(
+            add_dependencies=False,
+            field_ids=[
+                f
+                for f in [
+                    user_source.email_field_id,
+                    user_source.name_field_id,
+                    user_source.role_field_id,
+                    *providers_fields,
+                ]
+                if f
+            ],
+        )
 
         CoreHandler().check_permissions(
             integration.authorized_user,
@@ -614,8 +637,8 @@ class LocalBaserowUserSourceType(UserSourceType):
                 user_source,
                 user,
                 user.id,
-                getattr(user, user_source.name_field.db_column),
-                getattr(user, user_source.email_field.db_column),
+                getattr(user, f"field_{user_source.name_field_id}"),
+                getattr(user, f"field_{user_source.email_field_id}"),
                 self.get_user_role(user, user_source),
             )
 

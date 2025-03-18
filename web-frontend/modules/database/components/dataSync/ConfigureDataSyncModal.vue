@@ -1,5 +1,9 @@
 <template>
-  <Modal :left-sidebar="true" :left-sidebar-scrollable="true">
+  <Modal
+    :left-sidebar="true"
+    :left-sidebar-scrollable="true"
+    @hidden="$emit('hidden')"
+  >
     <template #sidebar>
       <div class="modal-sidebar__head">
         <div class="modal-sidebar__head-name">
@@ -64,6 +68,15 @@ export default {
     },
   },
   methods: {
+    show(selectedPage, ...args) {
+      if (
+        selectedPage &&
+        this.$registry.exists('configureDataSync', selectedPage)
+      ) {
+        this.selectedPage = selectedPage
+      }
+      modal.methods.show.bind(this)(...args)
+    },
     setPage(page) {
       this.selectedPage = page
     },

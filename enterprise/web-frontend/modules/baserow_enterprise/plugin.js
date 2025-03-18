@@ -50,9 +50,42 @@ import {
   GitLabIssuesDataSyncType,
   HubspotContactsDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
+import { ChartWidgetType } from '@baserow_enterprise/dashboard/widgetTypes'
+import { SingleSelectFormattingType } from '@baserow_enterprise/dashboard/chartFieldFormatting'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
-
-import { FF_AB_SSO } from '@baserow/modules/core/plugins/featureFlags'
+import {
+  CountViewAggregationType,
+  EmptyCountViewAggregationType,
+  NotEmptyCountViewAggregationType,
+  CheckedCountViewAggregationType,
+  NotCheckedCountViewAggregationType,
+  EmptyPercentageViewAggregationType,
+  NotEmptyPercentageViewAggregationType,
+  CheckedPercentageViewAggregationType,
+  NotCheckedPercentageViewAggregationType,
+  UniqueCountViewAggregationType,
+  MinViewAggregationType,
+  MaxViewAggregationType,
+  SumViewAggregationType,
+  AverageViewAggregationType,
+  StdDevViewAggregationType,
+  VarianceViewAggregationType,
+  MedianViewAggregationType,
+} from '@baserow/modules/database/viewAggregationTypes'
+import { PeriodicDataSyncDeactivatedNotificationType } from '@baserow_enterprise/notificationTypes'
+import { RowsEnterViewWebhookEventType } from '@baserow_enterprise/webhookEventTypes'
+import {
+  TextFieldType,
+  LongTextFieldType,
+  URLFieldType,
+  EmailFieldType,
+  NumberFieldType,
+  RatingFieldType,
+  BooleanFieldType,
+  SingleSelectFieldType,
+  PhoneNumberFieldType,
+  AutonumberFieldType,
+} from '@baserow/modules/database/fieldTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -123,16 +156,14 @@ export default (context) => {
     new LocalBaserowPasswordAppAuthProviderType(context)
   )
 
-  if (app.$featureFlagIsEnabled(FF_AB_SSO)) {
-    app.$registry.register(
-      'appAuthProvider',
-      new SamlAppAuthProviderType(context)
-    )
-    app.$registry.register(
-      'appAuthProvider',
-      new OpenIdConnectAppAuthProviderType(context)
-    )
-  }
+  app.$registry.register(
+    'appAuthProvider',
+    new SamlAppAuthProviderType(context)
+  )
+  app.$registry.register(
+    'appAuthProvider',
+    new OpenIdConnectAppAuthProviderType(context)
+  )
 
   app.$registry.register('roles', new EnterpriseAdminRoleType(context))
   app.$registry.register('roles', new EnterpriseMemberRoleType(context))
@@ -152,7 +183,133 @@ export default (context) => {
   app.$registry.register('dataSync', new HubspotContactsDataSyncType(context))
 
   app.$registry.register(
+    'groupedAggregation',
+    new MinViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new MaxViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new SumViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new AverageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new MedianViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new StdDevViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new VarianceViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new CountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new EmptyCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotEmptyCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new CheckedCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotCheckedCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new EmptyPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotEmptyPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new CheckedPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotCheckedPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new UniqueCountViewAggregationType(context)
+  )
+
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new TextFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new LongTextFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new NumberFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new URLFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new RatingFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new BooleanFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new EmailFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new SingleSelectFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new PhoneNumberFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new AutonumberFieldType(context)
+  )
+
+  app.$registry.register(
+    'notification',
+    new PeriodicDataSyncDeactivatedNotificationType(context)
+  )
+
+  app.$registry.register(
     'configureDataSync',
     new PeriodicIntervalFieldsConfigureDataSyncType(context)
+  )
+
+  app.$registry.register(
+    'webhookEvent',
+    new RowsEnterViewWebhookEventType(context)
+  )
+
+  app.$registry.register('dashboardWidget', new ChartWidgetType(context))
+  app.$registry.register(
+    'chartFieldFormatting',
+    new SingleSelectFormattingType(context)
   )
 }

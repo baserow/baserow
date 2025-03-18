@@ -146,7 +146,9 @@
         "multipleSelectCheckboxes": "Selectievakjes",
         "duration": "Duur",
         "password": "Wachtwoord",
-        "ai": "AI prompt"
+        "ai": "AI prompt",
+        "multipleCollaboratorsDropdown": "Dropdown",
+        "multipleCollaboratorsCheckboxes": "Selectievakjes"
     },
     "fieldErrors": {
         "invalidNumber": "Ongeldig nummer",

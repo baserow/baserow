@@ -20,9 +20,6 @@ from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyStr
-from tests.baserow.contrib.builder.api.user_sources.helpers import (
-    create_user_table_and_role,
-)
 
 
 @pytest.mark.django_db
@@ -525,8 +522,7 @@ def test_dispatch_data_source_doesnt_return_formula_field_names(
     )
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
-    user_source, _ = create_user_table_and_role(
-        data_fixture,
+    user_source, _ = data_fixture.create_user_table_and_role(
         user,
         builder,
         "foo_user_role",
@@ -574,7 +570,7 @@ def test_dispatch_data_source_doesnt_return_formula_field_names(
         {},
         HTTP_USERSOURCEAUTHORIZATION=f"JWT {user_source_user_token}",
     )
-    fake_request.user = user_source_user
+    fake_request.user_source_user = user_source_user
     dispatch_context = BuilderDispatchContext(fake_request, page)
 
     mock_get_builder_used_property_names.return_value = {

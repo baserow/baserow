@@ -191,6 +191,7 @@ $color-cyan-200: $palette-cyan-200 !default;
 $color-cyan-300: $palette-cyan-300 !default;
 $color-cyan-400: $palette-cyan-400 !default;
 
+// Should stay in sync with 'backend/src/baserow/core/constants.py::BASEROW_COLORS'.
 $colors: (
   'light-blue': $color-primary-100,
   'light-green': $color-success-100,

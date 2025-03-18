@@ -36,11 +36,25 @@
       {{ $t('enterpriseFeatures.coBranding') }}
     </li>
     <li
+      v-if="!hiddenFeatures.includes(enterpriseFeatures.ADVANCED_WEBHOOKS)"
+      class="premium-features__feature"
+    >
+      <i class="iconoir-check premium-features__feature-icon"></i>
+      {{ $t('enterpriseFeatures.advancedWebhooks') }}
+    </li>
+    <li
       v-if="!hiddenFeatures.includes(enterpriseFeatures.SUPPORT)"
       class="premium-features__feature"
     >
       <i class="iconoir-check premium-features__feature-icon"></i>
       {{ $t('enterpriseFeatures.support') }}
+    </li>
+    <li
+      v-if="!hiddenFeatures.includes(enterpriseFeatures.CHART_WIDGET)"
+      class="premium-features__feature"
+    >
+      <i class="iconoir-check premium-features__feature-icon"></i>
+      {{ $t('enterpriseFeatures.chartWidget') }}
     </li>
   </ul>
 </template>

@@ -718,7 +718,8 @@
         "showFieldAs": "Toon veld als",
         "includeAllSelectOptionsHelper": "Kies de keuzes die in het formulier moeten worden opgenomen met behulp van deze dropdown",
         "noSelectOptions": "Er zijn geen keuzes beschikbaar.",
-        "includeAllSelectOptions": "inclusief alle keuzes"
+        "includeAllSelectOptions": "inclusief alle keuzes",
+        "noCollaboratorsAvailable": "Er zijn geen medewerkers beschikbaar."
     },
     "duplicateFieldContext": {
         "duplicate": "Dupliceer veld",
@@ -744,7 +745,8 @@
         "snapshotDeletedErrorTitle": "Fout opgetreden",
         "importingState": "Maken",
         "cancel": "Annuleren",
-        "noSnapshots": "Er zijn nog geen snapshots voor deze applicatie."
+        "noSnapshots": "Er zijn nog geen snapshots voor deze applicatie.",
+        "nameAlreadyExists": "Er bestaat al een snapshot met deze naam."
     },
     "deleteSnapshotModal": {
         "title": "Snapshot verwijderen",
@@ -1089,5 +1091,14 @@
     "configureDataSyncSettings": {
         "title": "Verander data sync",
         "syncTable": "Sync bij opslaan"
+    },
+    "webhookPayloadTooLargeNotification": {
+        "body": "De payload voor de {name} webhook met event ID {event_id} was te groot. De inhoud is opgesplitst in meerdere batches, maar gegevens boven de batchnorm van {batch_limit} zijn weggegooid."
+    },
+    "viewFieldConditionItem": {
+        "filterMisconfigured": "Het veld waaraan deze filter is gekoppeld, is weggegooid."
+    },
+    "webhookDeactivatedNotification": {
+        "body": "{name} webhook is gedeactiveerd omdat het te vaak achter elkaar faalde."
     }
 }

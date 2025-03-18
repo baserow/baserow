@@ -23,8 +23,6 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
-
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import FieldService from '@baserow_premium/services/field'
@@ -47,10 +45,6 @@ export default {
   data() {
     return {
       loading: false,
-      allowedValues: ['ai_prompt'],
-      values: {
-        ai_prompt: '',
-      },
     }
   },
   computed: {
@@ -87,11 +81,6 @@ export default {
       } finally {
         this.loading = false
       }
-    },
-  },
-  validations: {
-    values: {
-      ai_prompt: { required },
     },
   },
 }

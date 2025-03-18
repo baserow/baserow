@@ -92,7 +92,7 @@ def boolean_lookup_filter_proc(
 
     linked_rows = test_setup.row_handler.create_rows(
         user=test_setup.user, table=test_setup.other_table, rows_values=dict_rows
-    )
+    ).created_rows
     rows = [
         # mixed
         {
@@ -126,7 +126,7 @@ def boolean_lookup_filter_proc(
     ]
     r_mixed, r_false, r_true, r_none = test_setup.row_handler.create_rows(
         user=test_setup.user, table=test_setup.table, rows_values=rows
-    )
+    ).created_rows
     rows = [r_mixed, r_false, r_true, r_none]
     selected = [rows[idx] for idx in expected_rows]
 
@@ -2423,7 +2423,7 @@ def setup_multiple_select_rows(data_fixture):
             {f"field_{test_setup.target_field.id}": row_B_value},
             {f"field_{test_setup.target_field.id}": row_empty_value},
         ],
-    )
+    ).created_rows
     row_1 = test_setup.row_handler.create_row(
         user=test_setup.user,
         table=test_setup.table,
@@ -2629,7 +2629,7 @@ def setup_date_rows(data_fixture, field_factory):
             {},
         ],
         model=test_setup.other_table_model,
-    )
+    ).created_rows
     row_1, row_2, empty_row = test_setup.row_handler.force_create_rows(
         user,
         test_setup.table,
@@ -2639,7 +2639,7 @@ def setup_date_rows(data_fixture, field_factory):
             {test_setup.link_row_field.db_column: [other_row_3.id]},
         ],
         model=test_setup.model,
-    )
+    ).created_rows
     return test_setup, [row_1, row_2, empty_row]
 
 
@@ -2745,16 +2745,20 @@ def table_view_fields_rows(data_fixture):
     datetime_field = data_fixture.create_date_field(
         table=orig_table, date_include_time=True
     )
-    orig_rows = RowHandler().force_create_rows(
-        user,
-        orig_table,
-        [
-            {
-                date_field.db_column: date_value,
-                datetime_field.db_column: date_value,
-            }
-            for date_value in TEST_MULTI_STEP_DATE_OPERATORS_DATETIMES
-        ],
+    orig_rows = (
+        RowHandler()
+        .force_create_rows(
+            user,
+            orig_table,
+            [
+                {
+                    date_field.db_column: date_value,
+                    datetime_field.db_column: date_value,
+                }
+                for date_value in TEST_MULTI_STEP_DATE_OPERATORS_DATETIMES
+            ],
+        )
+        .created_rows
     )
 
     table = data_fixture.create_database_table(database=orig_table.database)
@@ -2777,10 +2781,14 @@ def table_view_fields_rows(data_fixture):
         through_field_name=link_field.name,
         target_field_name=datetime_field.name,
     )
-    rows = RowHandler().force_create_rows(
-        user,
-        table,
-        [{link_field.db_column: [r.id]} for r in orig_rows],
+    rows = (
+        RowHandler()
+        .force_create_rows(
+            user,
+            table,
+            [{link_field.db_column: [r.id]} for r in orig_rows],
+        )
+        .created_rows
     )
 
     grid_view = data_fixture.create_grid_view(table=table)

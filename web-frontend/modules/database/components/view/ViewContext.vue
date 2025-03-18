@@ -126,12 +126,7 @@
       :table="table"
       :fields="fields"
     />
-    <WebhookModal
-      ref="webhookModal"
-      :database="database"
-      :table="table"
-      :fields="fields"
-    />
+    <WebhookModal ref="webhookModal" :database="database" :table="table" />
   </Context>
 </template>
 

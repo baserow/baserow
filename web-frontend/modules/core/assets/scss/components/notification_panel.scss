@@ -59,6 +59,7 @@
 
 .notification-panel__notification-content {
   flex-grow: 1;
+  max-width: calc(100% - 34px - 16px); // 34px for icon, 16px for status
 
   strong {
     font-weight: 600;
@@ -103,6 +104,13 @@
 .notification-panel__notification-content-summary {
   padding-left: 22px;
   margin-bottom: 8px;
+}
+
+.notification-panel__notification-content-summary-item {
+  @extend %ellipsis;
+
+  display: block;
+  max-width: 100%;
 }
 
 .notification-panel__notification-status {

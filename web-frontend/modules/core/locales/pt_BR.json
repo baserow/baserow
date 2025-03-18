@@ -1,468 +1,872 @@
 {
-    "paginator": {
-        "page": "Página",
-        "of": "de {pages}"
+  "paginator": {
+    "page": "Página",
+    "of": "de {pages}"
+  },
+  "copied": {
+    "label": "Copiado!"
+  },
+  "sidebarApplication": {
+    "renameApplication": "Renomear{type}",
+    "viewTrash": "Visualizar lixeira",
+    "deleteApplication": "Deletar{type}",
+    "snapshots": "Salvar visualização da base de dados",
+    "rename": "Renomear",
+    "duplicate": "Duplicar",
+    "delete": "Deletar"
+  },
+  "sidebar": {
+    "createWorkspace": "Criar grupo",
+    "inviteOthers": "Convidar outros",
+    "logoff": "Sair",
+    "errorNoWorkspace": "Você não tem quaisquer grupos.",
+    "admin": "Administrador",
+    "dashboard": "Painel",
+    "trash": "Lixeira",
+    "settings": "Configurações",
+    "addNewWorkspace": "Adicionar novo grupo",
+    "adminSettings": "Configuração administrativas",
+    "notifications": "Notificações",
+    "members": "Membros",
+    "adminTools": "Ferramentas administrativas",
+    "home": "Home",
+    "general": "Geral",
+    "people": "Pessoas",
+    "licenses": "Licenças"
+  },
+  "accountForm": {
+    "nameLabel": "Seu nome",
+    "languageLabel": "Linguagem da interface"
+  },
+  "accountSettings": {
+    "title": "Conta",
+    "changedTitle": "Alterado",
+    "changedDescription": "As informações da sua conta foram alteradas.",
+    "submitButton": "Atualizar conta"
+  },
+  "settingsModal": {
+    "title": "Minhas configurações"
+  },
+  "passwordSettings": {
+    "title": "Alterar a senha",
+    "changedTitle": "Senha alterada",
+    "changedDescription": "Sua senha foi alterada. Na próxima vez que você efetuar login, você tem que usar sua nova senha.",
+    "oldPasswordLabel": "Senha antiga",
+    "oldPasswordRequiredError": "Senha antiga é requerida.",
+    "newPasswordLabel": "Senha nova",
+    "repeatNewPasswordLabel": "Repetir senha nova",
+    "repeatNewPasswordMatchError": "Este campo deve corresponder ao seu novo campo de senha.",
+    "submitButton": "Alterar senha",
+    "errorInvalidOldPasswordTitle": "Senha inválida",
+    "errorInvalidOldPasswordMessage": "Não pode alterar sua senha porque sua senha antiga é inválida."
+  },
+  "error": {
+    "alreadyExistsTitle": "Esse usuário já existe",
+    "alreadyExistsMessage": "Já existe um usuário com o endereço de e-mail fornecido.",
+    "passwordRequired": "A senha é necessária.",
+    "invalidEmail": "Por favor insira um endereço de e-mail válido.",
+    "disabledAccountTitle": "Conta desativada",
+    "disabledAccountMessage": "Essa conta de usuário foi desativada.",
+    "incorrectCredentialTitle": "Credenciais incorretas",
+    "incorrectCredentialMessage": "O endereço de e-mail ou senha fornecidos estão incorretos.",
+    "inputRequired": "A entrada é necessária."
+  },
+  "field": {
+    "language": "Idioma",
+    "emailAddress": "Endereço de e-mail",
+    "name": "Seu nome",
+    "password": "Senha",
+    "passwordRepeat": "Repetir senha"
+  },
+  "invitationTitle": "Convite",
+  "invitationMessage": "{invitedBy} convidou você para participar {group}.",
+  "workspaceForm": {
+    "nameLabel": "Nome"
+  },
+  "leaveWorkspaceModal": {
+    "title": "Saiu do {group}",
+    "message": "Tem certeza de que deseja sair do grupo {group}? Você não poderá mais acessar os aplicativos relacionados e, se quiser recuperar o acesso, um dos administradores deverá convidá-lo novamente. Se você sair do grupo, ele não será excluído. Todos os outros membros ainda terão acesso a ele. Não é possível sair de um grupo se você for o último administrador, pois isso o deixará sem manutenção.",
+    "leave": "Sair do grupo"
+  },
+  "dashboardWorkspace": {
+    "showMembers": "Membros",
+    "createApplication": "Criar novo"
+  },
+  "workspaceInvitation": {
+    "title": "Convite",
+    "message": "{by} convidou você para participar de {group}.",
+    "reject": "Rejeitar",
+    "accept": "Aceitar"
+  },
+  "workspaceMemberModal": {
+    "membersModalTitle": "{group} membros",
+    "userDescription": "{user} - entrou {since} atrás",
+    "invitationDescription": "convidou {since} ago",
+    "sendInvite": "Enviar convite",
+    "userAlreadyInWorkspaceTitle": "Usuário já existe no grupo.",
+    "userAlreadyInWorkspaceText": "Não é possível enviar um convite quando o usuário já é membro do grupo."
+  },
+  "workspaceInviteForm": {
+    "invitationFormTitle": "Convidar por e-mail",
+    "optionalMessagePlaceholder": "Mensagem opcional",
+    "errorInvalidEmail": "Por favor adicione um endereço de e-mail válido."
+  },
+  "workspacesContext": {
+    "search": "Pesquisar grupos",
+    "noResults": "Sem resultados encontrados",
+    "createWorkspace": "Criar grupo"
+  },
+  "workspaceContext": {
+    "renameWorkspace": "Renomear grupo",
+    "members": "Membros",
+    "viewTrash": "Visualizar lixeira",
+    "leaveWorkspace": "Sair do grupo",
+    "deleteWorkspace": "Deletar grupo"
+  },
+  "createWorkspaceModal": {
+    "createNew": "Criar novo grupo",
+    "add": "Adicionar grupo"
+  },
+  "templateCategories": {
+    "search": "Pesquisar modelos",
+    "title": "Modelos"
+  },
+  "templateHeader": {
+    "use": "Utilizar esse modelo"
+  },
+  "trashSidebar": {
+    "title": "Lixeira",
+    "unnamedWorkspace": "Grupo sem nome {id}"
+  },
+  "trashContents": {
+    "message": "Restaurar itens deletados do passado{duration}",
+    "empty": "Nada foi excluído nos últimos três dias.",
+    "emptyButtonTrashed": "Deletar{type} permanentemente",
+    "emptyButtonNotTrashed": "Esvaziar essa lixeira com esse{type}",
+    "unnamed": "Sem nome {type} {id}"
+  },
+  "trashEmptyModal": {
+    "titleIsTrashed": "Tem certeza de que deseja excluir {name} permanentemente?",
+    "titleIsNotTrashed": "Tem certeza de que deseja esvaziar a lixeira de {name}?",
+    "messageIsTrashed": "Isso irá excluí-lo permanentemente e todo o seu conteúdo. Depois disso, eles não podem ser recuperados.",
+    "messageIsNotTrashed": "Isso excluirá permanentemente os itens listados. Depois disso, eles não podem ser recuperados.",
+    "buttonIsTrashed": "Excluir permanentemente",
+    "buttonIsNotTrashed": "Vazio"
+  },
+  "trashEntry": {
+    "deletedUser": "Deletar um usuário",
+    "fromParent": "a partir {parent}",
+    "name": "{user} deletado {type} {title} {parent}",
+    "restore": "Restaurar",
+    "unnamed": "Sem nome {type} {id}"
+  },
+  "trashModal": {
+    "emptyTitle": "Sem grupos encontrados",
+    "emptyMessage": "Você não é membro de nenhum grupo. Aplicativos como bancos de dados pertencem a um grupo, portanto, para criá-los, você precisa criar um grupo."
+  },
+  "uploadViaURLUserFileUpload": {
+    "title": "Enviar a partir da URL",
+    "urlLabel": "URL",
+    "urlError": "É necessário uma URL válida."
+  },
+  "userFilesModal": {
+    "title": "Enviar a partir de"
+  },
+  "uploadFileUserFileUpload": {
+    "title": "Enviar a partir do meu dispositivo",
+    "drop": "Soltar aqui",
+    "clickOrDrop": "Clique ou solte seus arquivos aqui",
+    "retry": "Tente novamente"
+  },
+  "createApplicationContext": {
+    "fromTemplate": "A partir do modelo"
+  },
+  "applicationForm": {
+    "nameLabel": "Nome"
+  },
+  "connectingNotification": {
+    "title": "Reconectando",
+    "content": "Reconectando com servidor."
+  },
+  "failedConnectingNotification": {
+    "title": "Falhou",
+    "content": "A conexão com o servidor falhou. Por favor, atualize a página.",
+    "action": "Recarregar página"
+  },
+  "restoreNotification": {
+    "restore": "Restaurar excluído {type}"
+  },
+  "copyingNotification": {
+    "title": "Copiando...",
+    "content": "Preparando seu dados"
+  },
+  "undoRedoNotification": {
+    "undoingTitle": "Desfazendo...",
+    "undoingText": "Desfazendo sua ação",
+    "undoneTitle": "Desfeita",
+    "undoneText": "Ação foi desfeita",
+    "noMoreUndo": "Não há mais ações para desfazer",
+    "skippingUndoDueToError": "Desfazer falhou devido a erro desconhecido, ignorando-o.",
+    "redoingTitle": "Refazendo...",
+    "redoingText": "Refazendo sua ação",
+    "redoneTitle": "Refeito",
+    "redoneText": "Ação é refeita",
+    "noMoreRedo": "Não há mais ações para refazer",
+    "skippingRedoDueToError": "Refazer falhou devido a erro desconhecido, ignorando-o.",
+    "failed": "Falhou"
+  },
+  "errorLayout": {
+    "notFound": "A página que você está procurando não foi encontrada. Isso pode ocorrer porque o URL está incorreto ou porque você não tem permissão para visualizar esta página.",
+    "error": "Algo deu errado ao carregar a página. Nossos desenvolvedores foram notificados sobre o problema. Por favor, tente atualizar ou retornar ao painel.",
+    "backDashboard": "Voltar ao painel",
+    "backLogin": "Voltar ao Login",
+    "wrong": "Tem algo errado"
+  },
+  "dashboard": {
+    "title": "Painel de controle",
+    "alertTitle": "Nós precisamos da sua ajuda!",
+    "alertText": "Se você achar o Baserow útil, então patrocinar, estrelar ou compartilhar conosco é muito apreciado. Ao nos patrocinar no GitHub, você terá acesso antecipado aos recursos premium!",
+    "tweetContent": "Confira @baserow uma ferramenta de banco de dados sem código de código aberto e uma alternativa ao Airtable!",
+    "redditTitle": "'Baserow - Um banco de dados de código-aberto e no-code",
+    "noWorkspaceTitle": "Sem grupos encontrados",
+    "noWorkspaceText": "Você não é membro de nenhum grupo. Aplicativos como bancos de dados pertencem a um grupo, portanto, para criá-los, você precisa criar um grupo.",
+    "createWorkspace": "Criar grupo",
+    "becomeGithubSponsor": "Seja um patrocinador do Github",
+    "starOnGitlab": "Nos dê estrelas no Gitlab",
+    "shareOnTwitter": "Tweet sobre Baserow",
+    "shareOnReddit": "Compartilhar no Reddit",
+    "shareOnFacebook": "Compartilhar no Facebook",
+    "shareOnLinkedIn": "Compartilhar no LinkedIn"
+  },
+  "login": {
+    "title": "Login",
+    "forgotPassword": "Esqueci a senha"
+  },
+  "resetPassword": {
+    "title": "Resetar a senha",
+    "newPassword": "Nova senha",
+    "repeatNewPassword": "Repetir a nova senha",
+    "submit": "Alterar a seha",
+    "changed": "Senha alterada",
+    "errorInvalidLinkTitle": "Link inválido",
+    "errorInvalidLinkMessage": "Não foi possível redefinir a senha porque o link é inválido.",
+    "errorLinkExpiredTitle": "Link expirado",
+    "errorLinkExpiredMessage": "O link de redefinição de senha expirou. Por favor, solicite outro.",
+    "disabled": "",
+    "disabledMessage": ""
+  },
+  "signup": {
+    "headTitle": "Criar uma nova conta",
+    "title": "Inscrever-se",
+    "disabled": "Inscrever-se está desabilitado",
+    "disabledMessage": "Não é possível criar uma conta porque ela foi desativada."
+  },
+  "forgotPassword": {
+    "title": "Esqueci a senha",
+    "message": "Por favor, insira seu endereço de e-mail neste formulário. Se encontrarmos uma conta, enviaremos um e-mail com um link para redefinir sua senha.",
+    "submit": "Enviar link",
+    "confirmation": "Se o seu endereço de e-mail existir em nosso banco de dados, você receberá um link de redefinição de senha em seu endereço de e-mail em alguns minutos.",
+    "disabled": "Esqueci a senha está desabilitado",
+    "disabledMessage": "Não é possível recuperar a senha porque ela foi desativada."
+  },
+  "settings": {
+    "settingsTitle": "Configurações administrativas",
+    "baserowInstanceId": "Instância ID",
+    "instanceIdDescription": "A instância ID é uma identificação única da cópia do seu Baserow.",
+    "accountRestrictions": "Restrições ao conta",
+    "settingAllowResetPasswordName": "",
+    "settingAllowResetPasswordDescription": "",
+    "settingAllowResetPasswordWarning": "",
+    "settingAllowNewAccountsName": "Permitir criar novas contas",
+    "settingAllowNewAccountsDescription": "Por padrão, qualquer usuário que visite seu domínio Baserow pode se inscrever para uma nova conta.",
+    "settingAllowSignupsViaWorkspaceInvitationsName": "Permitir inscrições por meio de convites de grupo",
+    "settingAllowSignupsViaWorkspaceInvitationDescription": "Mesmo que a criação de novas contas esteja desativada, esta opção permite que usuários convidados diretamente ainda criem uma conta.",
+    "enabled": "ativar"
+  },
+  "formSidebar": {
+    "actions": {
+      "addAll": "",
+      "removeAll": "",
+      "addField": ""
     },
-    "copied": {
-        "label": "Copiado!"
-    },
-    "sidebarApplication": {
-        "renameApplication": "Renomear{type}",
-        "viewTrash": "Visualizar lixeira",
-        "deleteApplication": "Deletar{type}",
-        "snapshots": "Salvar visualização da base de dados",
-        "rename": "Renomear",
-        "duplicate": "Duplicar",
-        "delete": "Deletar"
-    },
-    "sidebar": {
-        "createWorkspace": "Criar grupo",
-        "inviteOthers": "Convidar outros",
-        "logoff": "Sair",
-        "errorNoWorkspace": "Você não tem quaisquer grupos.",
-        "admin": "Administrador",
-        "dashboard": "Painel",
-        "trash": "Lixeira",
-        "settings": "Configurações",
-        "addNewWorkspace": "Adicionar novo grupo",
-        "adminSettings": "Configuração administrativas",
-        "notifications": "Notificações",
-        "members": "Membros",
-        "adminTools": "Ferramentas administrativas",
-        "home": "Home",
-        "general": "Geral",
-        "people": "Pessoas",
-        "licenses": "Licenças"
-    },
-    "accountForm": {
-        "nameLabel": "Seu nome",
-        "languageLabel": "Linguagem da interface"
-    },
-    "accountSettings": {
-        "title": "Conta",
-        "changedTitle": "Alterado",
-        "changedDescription": "As informações da sua conta foram alteradas.",
-        "submitButton": "Atualizar conta"
-    },
-    "settingsModal": {
-        "title": "Minhas configurações"
-    },
-    "passwordSettings": {
-        "title": "Alterar a senha",
-        "changedTitle": "Senha alterada",
-        "changedDescription": "Sua senha foi alterada. Na próxima vez que você efetuar login, você tem que usar sua nova senha.",
-        "oldPasswordLabel": "Senha antiga",
-        "oldPasswordRequiredError": "Senha antiga é requerida.",
-        "newPasswordLabel": "Senha nova",
-        "repeatNewPasswordLabel": "Repetir senha nova",
-        "repeatNewPasswordMatchError": "Este campo deve corresponder ao seu novo campo de senha.",
-        "submitButton": "Alterar senha",
-        "errorInvalidOldPasswordTitle": "Senha inválida",
-        "errorInvalidOldPasswordMessage": "Não pode alterar sua senha porque sua senha antiga é inválida."
+    "fieldsDescription": "",
+    "prefillInfoLink": "",
+    "modal": {
+      "title": "",
+      "descriptionPartOne": "",
+      "descriptionPartTwo": "",
+      "howToPrefill": {
+        "title": "",
+        "description": ""
+      },
+      "format": {
+        "title": "",
+        "description": "",
+        "codeSnippet": ""
+      },
+      "example": {
+        "title": "",
+        "description": "",
+        "codeSnippet": ""
+      },
+      "spaces": {
+        "title": "",
+        "description": "",
+        "codeSnippet": ""
+      },
+      "multipleValues": {
+        "title": "",
+        "description": "",
+        "codeSnippet": ""
+      },
+      "specialFieldTypes": {
+        "title": "",
+        "description": "",
+        "ratingField": {
+          "title": "",
+          "description": "",
+          "codeSnippet": ""
+        },
+        "linkRowField": {
+          "title": "",
+          "description": "",
+          "codeSnippet": ""
+        },
+        "selectField": {
+          "title": "",
+          "description": "",
+          "codeSnippet": ""
+        },
+        "dateField": {
+          "title": "",
+          "description": "",
+          "codeSnippet": ""
+        }
+      }
+    }
+  },
+  "notificationPanel": {
+    "noNotification": "Notificaremos sobre atualizações importar e quando você mencionado no Baserow.",
+    "title": "Notificações",
+    "newNotificationsAvailable": "Novas notificações disponíveis",
+    "refresh": "Atualizar",
+    "markAllAsRead": "Marcar todas como lidas",
+    "clearAll": "Limpar tudo",
+    "noNotificationTitle": "Você não possui notificações"
+  },
+  "deleteAccountSettings": {
+    "description": "Ao digitar a sua senha e clicar no botão, o agendamento para apagar a sua conta será realizado. Sua conta será permanentemente deletada após {days} dias. Se em qualquer momento você logar novamente, o agendamento para apagar será cancelado.",
+    "title": "Apagar conta"
+  },
+  "duplicateApplicationJobType": {
+    "duplicating": "Duplicando",
+    "duplicatedTitle": "Aplicação Duplicada"
+  },
+  "InstallTemplateJobType": {
+    "installing": "Instalando",
+    "installedTitle": "Template instalado"
+  },
+  "clearAllNotificationsConfirmModal": {
+    "title": "Você tem certeza de que deseja limpar todas as notificações?",
+    "message": "Todas as notificações serão apagadas e não será mais possível vê-las."
+  },
+  "user": {
+    "isStaff": "É staff",
+    "isWorkspaceAdmin": "É administrador do grupo",
+    "active": "Ativo",
+    "deactivated": "Desativado"
+  },
+  "adminType": {
+    "dashboard": "Painel",
+    "users": "Usuários",
+    "workspaces": "Grupos"
+  },
+  "workspacesAdminTable": {
+    "allWorkspaces": "Todos grupos",
+    "id": "ID",
+    "name": "Nome",
+    "members": "Membros",
+    "applications": "Aplicações",
+    "created": "Criado"
+  },
+  "editWorkspaceContext": {
+    "delete": "Excluído permanentemente"
+  },
+  "deleteWorkspaceModal": {
+    "title": "Deletar {name}",
+    "confirmation": "Tem certeza de que deseja excluir o grupo: {name}?",
+    "comment": "O grupo será excluído permanentemente, incluindo os aplicativos relacionados. Não é possível desfazer esta ação.",
+    "delete": "Deletar grupo {name}"
+  },
+  "activeUsers": {
+    "newUsers": "Novos usuários",
+    "activeUsers": "Usuários ativos"
+  },
+  "usersAdminTable": {
+    "allUsers": "Todos usuários",
+    "id": "ID",
+    "username": "Nome de usuário",
+    "name": "Nome",
+    "workspaces": "Grupos",
+    "lastLogin": "Último login",
+    "dateJoined": "Inscrito",
+    "active": "Ativo"
+  },
+  "editUserContext": {
+    "changePassword": "Alterar senha",
+    "delete": "Excluído permanentemente"
+  },
+  "changePasswordForm": {
+    "newPassword": "Nova senha",
+    "repeatPassword": "Repetir a senha",
+    "changePassword": "Alterar a senha",
+    "error": {
+      "doesntMatch": "Este campo deve corresponder ao seu campo de senha."
+    }
+  },
+  "userForm": {
+    "fullName": "Nome completo",
+    "email": "E-mail",
+    "isActive": "Está ativo",
+    "warning": {
+      "changeEmail": "Alterar o endereço de e-mail deste usuário significa que, quando eles fizerem login, deverão usar o novo endereço de e-mail para fazer isso. Isso deve ser comunicado a esse usuário.",
+      "inactiveUser": "Quando um usuário é marcado como inativo, ele é impedido de entrar.",
+      "userStaff": "Tornar a equipe do usuário dá a eles acesso de administrador a todos os usuários, todos os grupos e a capacidade de revogar suas próprias permissões de equipe."
     },
     "error": {
-        "alreadyExistsTitle": "Esse usuário já existe",
-        "alreadyExistsMessage": "Já existe um usuário com o endereço de e-mail fornecido.",
-        "passwordRequired": "A senha é necessária.",
-        "invalidEmail": "Por favor insira um endereço de e-mail válido.",
-        "disabledAccountTitle": "Conta desativada",
-        "disabledAccountMessage": "Essa conta de usuário foi desativada.",
-        "incorrectCredentialTitle": "Credenciais incorretas",
-        "incorrectCredentialMessage": "O endereço de e-mail ou senha fornecidos estão incorretos.",
-        "inputRequired": "A entrada é necessária."
+      "alreadyExistsTitle": "Esse usuário já existe",
+      "alreadyExistsMessage": "Já existe um usuário com o endereço de e-mail fornecido.",
+      "passwordRequired": "A senha é necessária.",
+      "invalidEmail": "Por favor insira um endereço de e-mail válido.",
+      "disabledAccountTitle": "Conta desativada",
+      "disabledAccountMessage": "Essa conta de usuário foi desativada.",
+      "incorrectCredentialTitle": "Credenciais incorretas",
+      "incorrectCredentialMessage": "O endereço de e-mail ou senha fornecidos estão incorretos.",
+      "inputRequired": "A entrada é necessária."
     },
     "field": {
-        "language": "Idioma",
-        "emailAddress": "Endereço de e-mail",
-        "name": "Seu nome",
-        "password": "Senha",
-        "passwordRepeat": "Repetir senha"
+      "language": "Idioma",
+      "emailAddress": "Endereço de e-mail",
+      "name": "Seu nome",
+      "password": "Senha",
+      "passwordRepeat": "Repetir senha"
     },
     "invitationTitle": "Convite",
     "invitationMessage": "{invitedBy} convidou você para participar {group}.",
     "workspaceForm": {
-        "nameLabel": "Nome"
+      "nameLabel": "Nome"
     },
     "leaveWorkspaceModal": {
-        "title": "Saiu do {group}",
-        "message": "Tem certeza de que deseja sair do grupo {group}? Você não poderá mais acessar os aplicativos relacionados e, se quiser recuperar o acesso, um dos administradores deverá convidá-lo novamente. Se você sair do grupo, ele não será excluído. Todos os outros membros ainda terão acesso a ele. Não é possível sair de um grupo se você for o último administrador, pois isso o deixará sem manutenção.",
-        "leave": "Sair do grupo"
+      "title": "Saiu do {group}",
+      "message": "Tem certeza de que deseja sair do grupo {group}? Você não poderá mais acessar os aplicativos relacionados e, se quiser recuperar o acesso, um dos administradores deverá convidá-lo novamente. Se você sair do grupo, ele não será excluído. Todos os outros membros ainda terão acesso a ele. Não é possível sair de um grupo se você for o último administrador, pois isso o deixará sem manutenção.",
+      "leave": "Sair do grupo"
     },
     "dashboardWorkspace": {
-        "showMembers": "Membros",
-        "createApplication": "Criar novo"
+      "showMembers": "Membros",
+      "createApplication": "Criar novo"
     },
     "workspaceInvitation": {
-        "title": "Convite",
-        "message": "{by} convidou você para participar de {group}.",
-        "reject": "Rejeitar",
-        "accept": "Aceitar"
+      "title": "Convite",
+      "message": "{by} convidou você para participar de {group}.",
+      "reject": "Rejeitar",
+      "accept": "Aceitar"
     },
     "workspaceMemberModal": {
-        "membersModalTitle": "{group} membros",
-        "userDescription": "{user} - entrou {since} atrás",
-        "invitationDescription": "convidou {since} ago",
-        "sendInvite": "Enviar convite",
-        "userAlreadyInWorkspaceTitle": "Usuário já existe no grupo.",
-        "userAlreadyInWorkspaceText": "Não é possível enviar um convite quando o usuário já é membro do grupo."
+      "membersModalTitle": "{group} membros",
+      "userDescription": "{user} - entrou {since} atrás",
+      "invitationDescription": "convidou {since} ago",
+      "sendInvite": "Enviar convite",
+      "userAlreadyInWorkspaceTitle": "Usuário já existe no grupo.",
+      "userAlreadyInWorkspaceText": "Não é possível enviar um convite quando o usuário já é membro do grupo."
     },
     "workspaceInviteForm": {
-        "invitationFormTitle": "Convidar por e-mail",
-        "optionalMessagePlaceholder": "Mensagem opcional",
-        "errorInvalidEmail": "Por favor adicione um endereço de e-mail válido."
+      "invitationFormTitle": "Convidar por e-mail",
+      "optionalMessagePlaceholder": "Mensagem opcional",
+      "errorInvalidEmail": "Por favor adicione um endereço de e-mail válido."
     },
     "workspacesContext": {
-        "search": "Pesquisar grupos",
-        "noResults": "Sem resultados encontrados",
-        "createWorkspace": "Criar grupo"
+      "search": "Pesquisar grupos",
+      "noResults": "Sem resultados encontrados",
+      "createWorkspace": "Criar grupo"
     },
     "workspaceContext": {
-        "renameWorkspace": "Renomear grupo",
-        "members": "Membros",
-        "viewTrash": "Visualizar lixeira",
-        "leaveWorkspace": "Sair do grupo",
-        "deleteWorkspace": "Deletar grupo"
+      "renameWorkspace": "Renomear grupo",
+      "members": "Membros",
+      "viewTrash": "Visualizar lixeira",
+      "leaveWorkspace": "Sair do grupo",
+      "deleteWorkspace": "Deletar grupo"
     },
     "createWorkspaceModal": {
-        "createNew": "Criar novo grupo",
-        "add": "Adicionar grupo"
+      "createNew": "Criar novo grupo",
+      "add": "Adicionar grupo"
     },
     "templateCategories": {
-        "search": "Pesquisar modelos",
-        "title": "Modelos"
+      "search": "Pesquisar modelos",
+      "title": "Modelos"
     },
     "templateHeader": {
-        "use": "Utilizar esse modelo"
+      "use": "Utilizar esse modelo"
     },
     "trashSidebar": {
-        "title": "Lixeira",
-        "unnamedWorkspace": "Grupo sem nome {id}"
+      "title": "Lixeira",
+      "unnamedWorkspace": "Grupo sem nome {id}"
     },
     "trashContents": {
-        "message": "Restaurar itens deletados do passado{duration}",
-        "empty": "Nada foi excluído nos últimos três dias.",
-        "emptyButtonTrashed": "Deletar{type} permanentemente",
-        "emptyButtonNotTrashed": "Esvaziar essa lixeira com esse{type}",
-        "unnamed": "Sem nome {type} {id}"
+      "message": "Restaurar itens deletados do passado{duration}",
+      "empty": "Nada foi excluído nos últimos três dias.",
+      "emptyButtonTrashed": "Deletar{type} permanentemente",
+      "emptyButtonNotTrashed": "Esvaziar essa lixeira com esse{type}",
+      "unnamed": "Sem nome {type} {id}"
     },
     "trashEmptyModal": {
-        "titleIsTrashed": "Tem certeza de que deseja excluir {name} permanentemente?",
-        "titleIsNotTrashed": "Tem certeza de que deseja esvaziar a lixeira de {name}?",
-        "messageIsTrashed": "Isso irá excluí-lo permanentemente e todo o seu conteúdo. Depois disso, eles não podem ser recuperados.",
-        "messageIsNotTrashed": "Isso excluirá permanentemente os itens listados. Depois disso, eles não podem ser recuperados.",
-        "buttonIsTrashed": "Excluir permanentemente",
-        "buttonIsNotTrashed": "Vazio"
+      "titleIsTrashed": "Tem certeza de que deseja excluir {name} permanentemente?",
+      "titleIsNotTrashed": "Tem certeza de que deseja esvaziar a lixeira de {name}?",
+      "messageIsTrashed": "Isso irá excluí-lo permanentemente e todo o seu conteúdo. Depois disso, eles não podem ser recuperados.",
+      "messageIsNotTrashed": "Isso excluirá permanentemente os itens listados. Depois disso, eles não podem ser recuperados.",
+      "buttonIsTrashed": "Excluir permanentemente",
+      "buttonIsNotTrashed": "Vazio"
     },
     "trashEntry": {
-        "deletedUser": "Deletar um usuário",
-        "fromParent": "a partir {parent}",
-        "name": "{user} deletado {type} {title} {parent}",
-        "restore": "Restaurar",
-        "unnamed": "Sem nome {type} {id}"
+      "deletedUser": "Deletar um usuário",
+      "fromParent": "a partir {parent}",
+      "name": "{user} deletado {type} {title} {parent}",
+      "restore": "Restaurar",
+      "unnamed": "Sem nome {type} {id}"
     },
     "trashModal": {
-        "emptyTitle": "Sem grupos encontrados",
-        "emptyMessage": "Você não é membro de nenhum grupo. Aplicativos como bancos de dados pertencem a um grupo, portanto, para criá-los, você precisa criar um grupo."
+      "emptyTitle": "Sem grupos encontrados",
+      "emptyMessage": "Você não é membro de nenhum grupo. Aplicativos como bancos de dados pertencem a um grupo, portanto, para criá-los, você precisa criar um grupo."
     },
     "uploadViaURLUserFileUpload": {
-        "title": "Enviar a partir da URL",
-        "urlLabel": "URL",
-        "urlError": "É necessário uma URL válida."
+      "title": "Enviar a partir da URL",
+      "urlLabel": "URL",
+      "urlError": "É necessário uma URL válida."
     },
     "userFilesModal": {
-        "title": "Enviar a partir de"
+      "title": "Enviar a partir de"
     },
     "uploadFileUserFileUpload": {
-        "title": "Enviar a partir do meu dispositivo",
-        "drop": "Soltar aqui",
-        "clickOrDrop": "Clique ou solte seus arquivos aqui",
-        "retry": "Tente novamente"
+      "title": "Enviar a partir do meu dispositivo",
+      "drop": "Soltar aqui",
+      "clickOrDrop": "Clique ou solte seus arquivos aqui",
+      "retry": "Tente novamente"
     },
     "createApplicationContext": {
-        "fromTemplate": "A partir do modelo"
+      "fromTemplate": "A partir do modelo"
     },
     "applicationForm": {
-        "nameLabel": "Nome"
+      "nameLabel": "Nome"
     },
     "connectingNotification": {
-        "title": "Reconectando",
-        "content": "Reconectando com servidor."
+      "title": "Reconectando",
+      "content": "Reconectando com servidor."
     },
     "failedConnectingNotification": {
-        "title": "Falhou",
-        "content": "A conexão com o servidor falhou. Por favor, atualize a página.",
-        "action": "Recarregar página"
+      "title": "Falhou",
+      "content": "A conexão com o servidor falhou. Por favor, atualize a página.",
+      "action": "Recarregar página"
     },
     "restoreNotification": {
-        "restore": "Restaurar excluído {type}"
+      "restore": "Restaurar excluído {type}"
     },
     "copyingNotification": {
-        "title": "Copiando...",
-        "content": "Preparando seu dados"
+      "title": "Copiando...",
+      "content": "Preparando seu dados"
     },
     "undoRedoNotification": {
-        "undoingTitle": "Desfazendo...",
-        "undoingText": "Desfazendo sua ação",
-        "undoneTitle": "Desfeita",
-        "undoneText": "Ação foi desfeita",
-        "noMoreUndo": "Não há mais ações para desfazer",
-        "skippingUndoDueToError": "Desfazer falhou devido a erro desconhecido, ignorando-o.",
-        "redoingTitle": "Refazendo...",
-        "redoingText": "Refazendo sua ação",
-        "redoneTitle": "Refeito",
-        "redoneText": "Ação é refeita",
-        "noMoreRedo": "Não há mais ações para refazer",
-        "skippingRedoDueToError": "Refazer falhou devido a erro desconhecido, ignorando-o.",
-        "failed": "Falhou"
+      "undoingTitle": "Desfazendo...",
+      "undoingText": "Desfazendo sua ação",
+      "undoneTitle": "Desfeita",
+      "undoneText": "Ação foi desfeita",
+      "noMoreUndo": "Não há mais ações para desfazer",
+      "skippingUndoDueToError": "Desfazer falhou devido a erro desconhecido, ignorando-o.",
+      "redoingTitle": "Refazendo...",
+      "redoingText": "Refazendo sua ação",
+      "redoneTitle": "Refeito",
+      "redoneText": "Ação é refeita",
+      "noMoreRedo": "Não há mais ações para refazer",
+      "skippingRedoDueToError": "Refazer falhou devido a erro desconhecido, ignorando-o.",
+      "failed": "Falhou"
     },
     "errorLayout": {
-        "notFound": "A página que você está procurando não foi encontrada. Isso pode ocorrer porque o URL está incorreto ou porque você não tem permissão para visualizar esta página.",
-        "error": "Algo deu errado ao carregar a página. Nossos desenvolvedores foram notificados sobre o problema. Por favor, tente atualizar ou retornar ao painel.",
-        "backDashboard": "Voltar ao painel",
-        "backLogin": "Voltar ao Login",
-        "wrong": "Tem algo errado"
+      "notFound": "A página que você está procurando não foi encontrada. Isso pode ocorrer porque o URL está incorreto ou porque você não tem permissão para visualizar esta página.",
+      "error": "Algo deu errado ao carregar a página. Nossos desenvolvedores foram notificados sobre o problema. Por favor, tente atualizar ou retornar ao painel.",
+      "backDashboard": "Voltar ao painel",
+      "backLogin": "Voltar ao Login",
+      "wrong": "Tem algo errado"
     },
     "dashboard": {
-        "title": "Painel de controle",
-        "alertTitle": "Nós precisamos da sua ajuda!",
-        "alertText": "Se você achar o Baserow útil, então patrocinar, estrelar ou compartilhar conosco é muito apreciado. Ao nos patrocinar no GitHub, você terá acesso antecipado aos recursos premium!",
-        "tweetContent": "Confira @baserow uma ferramenta de banco de dados sem código de código aberto e uma alternativa ao Airtable!",
-        "redditTitle": "'Baserow - Um banco de dados de código-aberto e no-code",
-        "noWorkspaceTitle": "Sem grupos encontrados",
-        "noWorkspaceText": "Você não é membro de nenhum grupo. Aplicativos como bancos de dados pertencem a um grupo, portanto, para criá-los, você precisa criar um grupo.",
-        "createWorkspace": "Criar grupo",
-        "becomeGithubSponsor": "Seja um patrocinador do Github",
-        "starOnGitlab": "Nos dê estrelas no Gitlab",
-        "shareOnTwitter": "Tweet sobre Baserow",
-        "shareOnReddit": "Compartilhar no Reddit",
-        "shareOnFacebook": "Compartilhar no Facebook",
-        "shareOnLinkedIn": "Compartilhar no LinkedIn",
-        "totals": "Totais",
-        "totalUsers": "Total de usuários",
-        "totalWorkspaces": "Total de grupos",
-        "totalApplications": "Total de aplicações",
-        "newUsers": "Novos usuários",
-        "newUsers24h": "Novos usuários nas últimas 24 horas",
-        "newUsers7days": "Novos usuários nos últimos 7 dias",
-        "newUsers30days": "Novos usuários nos últimos 30 dias",
-        "activeUsers": "Usuários ativos",
-        "activeUsers24h": "Usuários ativos nos últimas 24 horas",
-        "activeUsers7days": "Usuários ativos nos últimos 7 dias",
-        "activeUsers30days": "Usuários ativos nos últimos 30 dias",
-        "viewAll": "Visualizar tudo"
+      "title": "Painel de controle",
+      "alertTitle": "Nós precisamos da sua ajuda!",
+      "alertText": "Se você achar o Baserow útil, então patrocinar, estrelar ou compartilhar conosco é muito apreciado. Ao nos patrocinar no GitHub, você terá acesso antecipado aos recursos premium!",
+      "tweetContent": "Confira @baserow uma ferramenta de banco de dados sem código de código aberto e uma alternativa ao Airtable!",
+      "redditTitle": "'Baserow - Um banco de dados de código-aberto e no-code",
+      "noWorkspaceTitle": "Sem grupos encontrados",
+      "noWorkspaceText": "Você não é membro de nenhum grupo. Aplicativos como bancos de dados pertencem a um grupo, portanto, para criá-los, você precisa criar um grupo.",
+      "createWorkspace": "Criar grupo",
+      "becomeGithubSponsor": "Seja um patrocinador do Github",
+      "starOnGitlab": "Nos dê estrelas no Gitlab",
+      "shareOnTwitter": "Tweet sobre Baserow",
+      "shareOnReddit": "Compartilhar no Reddit",
+      "shareOnFacebook": "Compartilhar no Facebook",
+      "shareOnLinkedIn": "Compartilhar no LinkedIn",
+      "totals": "Totais",
+      "totalUsers": "Total de usuários",
+      "totalWorkspaces": "Total de grupos",
+      "totalApplications": "Total de aplicações",
+      "newUsers": "Novos usuários",
+      "newUsers24h": "Novos usuários nas últimas 24 horas",
+      "newUsers7days": "Novos usuários nos últimos 7 dias",
+      "newUsers30days": "Novos usuários nos últimos 30 dias",
+      "activeUsers": "Usuários ativos",
+      "activeUsers24h": "Usuários ativos nos últimas 24 horas",
+      "activeUsers7days": "Usuários ativos nos últimos 7 dias",
+      "activeUsers30days": "Usuários ativos nos últimos 30 dias",
+      "viewAll": "Visualizar tudo"
     },
     "login": {
-        "title": "Login",
-        "forgotPassword": "Esqueci a senha"
+      "title": "Login",
+      "forgotPassword": "Esqueci a senha"
     },
     "resetPassword": {
-        "title": "Resetar a senha",
-        "newPassword": "Nova senha",
-        "repeatNewPassword": "Repetir a nova senha",
-        "submit": "Alterar a seha",
-        "changed": "Senha alterada",
-        "errorInvalidLinkTitle": "Link inválido",
-        "errorInvalidLinkMessage": "Não foi possível redefinir a senha porque o link é inválido.",
-        "errorLinkExpiredTitle": "Link expirado",
-        "errorLinkExpiredMessage": "O link de redefinição de senha expirou. Por favor, solicite outro.",
-        "disabled": "",
-        "disabledMessage": ""
+      "title": "Resetar a senha",
+      "newPassword": "Nova senha",
+      "repeatNewPassword": "Repetir a nova senha",
+      "submit": "Alterar a seha",
+      "changed": "Senha alterada",
+      "errorInvalidLinkTitle": "Link inválido",
+      "errorInvalidLinkMessage": "Não foi possível redefinir a senha porque o link é inválido.",
+      "errorLinkExpiredTitle": "Link expirado",
+      "errorLinkExpiredMessage": "O link de redefinição de senha expirou. Por favor, solicite outro.",
+      "disabled": "",
+      "disabledMessage": ""
     },
     "signup": {
-        "headTitle": "Criar uma nova conta",
-        "title": "Inscrever-se",
-        "disabled": "Inscrever-se está desabilitado",
-        "disabledMessage": "Não é possível criar uma conta porque ela foi desativada."
+      "headTitle": "Criar uma nova conta",
+      "title": "Inscrever-se",
+      "disabled": "Inscrever-se está desabilitado",
+      "disabledMessage": "Não é possível criar uma conta porque ela foi desativada."
     },
     "forgotPassword": {
-        "title": "Esqueci a senha",
-        "message": "Por favor, insira seu endereço de e-mail neste formulário. Se encontrarmos uma conta, enviaremos um e-mail com um link para redefinir sua senha.",
-        "submit": "Enviar link",
-        "confirmation": "Se o seu endereço de e-mail existir em nosso banco de dados, você receberá um link de redefinição de senha em seu endereço de e-mail em alguns minutos.",
-        "disabled": "Esqueci a senha está desabilitado",
-        "disabledMessage": "Não é possível recuperar a senha porque ela foi desativada."
+      "title": "Esqueci a senha",
+      "message": "Por favor, insira seu endereço de e-mail neste formulário. Se encontrarmos uma conta, enviaremos um e-mail com um link para redefinir sua senha.",
+      "submit": "Enviar link",
+      "confirmation": "Se o seu endereço de e-mail existir em nosso banco de dados, você receberá um link de redefinição de senha em seu endereço de e-mail em alguns minutos.",
+      "disabled": "Esqueci a senha está desabilitado",
+      "disabledMessage": "Não é possível recuperar a senha porque ela foi desativada."
     },
     "settings": {
-        "settingsTitle": "Configurações administrativas",
-        "baserowInstanceId": "Instância ID",
-        "instanceIdDescription": "A instância ID é uma identificação única da cópia do seu Baserow.",
-        "accountRestrictions": "Restrições ao conta",
-        "settingAllowResetPasswordName": "",
-        "settingAllowResetPasswordDescription": "",
-        "settingAllowResetPasswordWarning": "",
-        "settingAllowNewAccountsName": "Permitir criar novas contas",
-        "settingAllowNewAccountsDescription": "Por padrão, qualquer usuário que visite seu domínio Baserow pode se inscrever para uma nova conta.",
-        "settingAllowSignupsViaWorkspaceInvitationsName": "Permitir inscrições por meio de convites de grupo",
-        "settingAllowSignupsViaWorkspaceInvitationDescription": "Mesmo que a criação de novas contas esteja desativada, esta opção permite que usuários convidados diretamente ainda criem uma conta.",
-        "enabled": "ativar"
+      "settingsTitle": "Configurações administrativas",
+      "baserowInstanceId": "Instância ID",
+      "instanceIdDescription": "A instância ID é uma identificação única da cópia do seu Baserow.",
+      "accountRestrictions": "Restrições ao conta",
+      "settingAllowResetPasswordName": "",
+      "settingAllowResetPasswordDescription": "",
+      "settingAllowResetPasswordWarning": "",
+      "settingAllowNewAccountsName": "Permitir criar novas contas",
+      "settingAllowNewAccountsDescription": "Por padrão, qualquer usuário que visite seu domínio Baserow pode se inscrever para uma nova conta.",
+      "settingAllowSignupsViaWorkspaceInvitationsName": "Permitir inscrições por meio de convites de grupo",
+      "settingAllowSignupsViaWorkspaceInvitationDescription": "Mesmo que a criação de novas contas esteja desativada, esta opção permite que usuários convidados diretamente ainda criem uma conta.",
+      "enabled": "ativar"
     },
     "formSidebar": {
-        "actions": {
-            "addAll": "",
-            "removeAll": "",
-            "addField": ""
+      "actions": {
+        "addAll": "",
+        "removeAll": "",
+        "addField": ""
+      },
+      "fieldsDescription": "",
+      "prefillInfoLink": "",
+      "modal": {
+        "title": "",
+        "descriptionPartOne": "",
+        "descriptionPartTwo": "",
+        "howToPrefill": {
+          "title": "",
+          "description": ""
         },
-        "fieldsDescription": "",
-        "prefillInfoLink": "",
-        "modal": {
+        "format": {
+          "title": "",
+          "description": "",
+          "codeSnippet": ""
+        },
+        "example": {
+          "title": "",
+          "description": "",
+          "codeSnippet": ""
+        },
+        "spaces": {
+          "title": "",
+          "description": "",
+          "codeSnippet": ""
+        },
+        "multipleValues": {
+          "title": "",
+          "description": "",
+          "codeSnippet": ""
+        },
+        "specialFieldTypes": {
+          "title": "",
+          "description": "",
+          "ratingField": {
             "title": "",
-            "descriptionPartOne": "",
-            "descriptionPartTwo": "",
-            "howToPrefill": {
-                "title": "",
-                "description": ""
-            },
-            "format": {
-                "title": "",
-                "description": "",
-                "codeSnippet": ""
-            },
-            "example": {
-                "title": "",
-                "description": "",
-                "codeSnippet": ""
-            },
-            "spaces": {
-                "title": "",
-                "description": "",
-                "codeSnippet": ""
-            },
-            "multipleValues": {
-                "title": "",
-                "description": "",
-                "codeSnippet": ""
-            },
-            "specialFieldTypes": {
-                "title": "",
-                "description": "",
-                "ratingField": {
-                    "title": "",
-                    "description": "",
-                    "codeSnippet": ""
-                },
-                "linkRowField": {
-                    "title": "",
-                    "description": "",
-                    "codeSnippet": ""
-                },
-                "selectField": {
-                    "title": "",
-                    "description": "",
-                    "codeSnippet": ""
-                },
-                "dateField": {
-                    "title": "",
-                    "description": "",
-                    "codeSnippet": ""
-                }
-            }
+            "description": "",
+            "codeSnippet": ""
+          },
+          "linkRowField": {
+            "title": "",
+            "description": "",
+            "codeSnippet": ""
+          },
+          "selectField": {
+            "title": "",
+            "description": "",
+            "codeSnippet": ""
+          },
+          "dateField": {
+            "title": "",
+            "description": "",
+            "codeSnippet": ""
+          }
         }
+      }
     },
     "notificationPanel": {
-        "noNotification": "Notificaremos sobre atualizações importar e quando você mencionado no Baserow.",
-        "title": "Notificações",
-        "newNotificationsAvailable": "Novas notificações disponíveis",
-        "refresh": "Atualizar",
-        "markAllAsRead": "Marcar todas como lidas",
-        "clearAll": "Limpar tudo",
-        "noNotificationTitle": "Você não possui notificações"
+      "noNotification": "Notificaremos sobre atualizações importar e quando você mencionado no Baserow.",
+      "title": "Notificações",
+      "newNotificationsAvailable": "Novas notificações disponíveis",
+      "refresh": "Atualizar",
+      "markAllAsRead": "Marcar todas como lidas",
+      "clearAll": "Limpar tudo",
+      "noNotificationTitle": "Você não possui notificações"
     },
     "deleteAccountSettings": {
-        "description": "Ao digitar a sua senha e clicar no botão, o agendamento para apagar a sua conta será realizado. Sua conta será permanentemente deletada após {days} dias. Se em qualquer momento você logar novamente, o agendamento para apagar será cancelado.",
-        "title": "Apagar conta"
+      "description": "Ao digitar a sua senha e clicar no botão, o agendamento para apagar a sua conta será realizado. Sua conta será permanentemente deletada após {days} dias. Se em qualquer momento você logar novamente, o agendamento para apagar será cancelado.",
+      "title": "Apagar conta"
     },
     "duplicateApplicationJobType": {
-        "duplicating": "Duplicando",
-        "duplicatedTitle": "Aplicação Duplicada"
+      "duplicating": "Duplicando",
+      "duplicatedTitle": "Aplicação Duplicada"
     },
     "InstallTemplateJobType": {
-        "installing": "Instalando",
-        "installedTitle": "Template instalado"
+      "installing": "Instalando",
+      "installedTitle": "Template instalado"
     },
     "clearAllNotificationsConfirmModal": {
-        "title": "Você tem certeza de que deseja limpar todas as notificações?",
-        "message": "Todas as notificações serão apagadas e não será mais possível vê-las."
+      "title": "Você tem certeza de que deseja limpar todas as notificações?",
+      "message": "Todas as notificações serão apagadas e não será mais possível vê-las."
     },
     "user": {
-        "isStaff": "É staff",
-        "isWorkspaceAdmin": "É administrador do grupo",
-        "active": "Ativo",
-        "deactivated": "Desativado"
+      "isStaff": "É staff",
+      "isWorkspaceAdmin": "É administrador do grupo",
+      "active": "Ativo",
+      "deactivated": "Desativado"
     },
     "adminType": {
-        "dashboard": "Painel",
-        "users": "Usuários",
-        "workspaces": "Grupos"
+      "dashboard": "Painel",
+      "users": "Usuários",
+      "workspaces": "Grupos"
     },
     "workspacesAdminTable": {
-        "allWorkspaces": "Todos grupos",
-        "id": "ID",
-        "name": "Nome",
-        "members": "Membros",
-        "applications": "Aplicações",
-        "created": "Criado"
+      "allWorkspaces": "Todos grupos",
+      "id": "ID",
+      "name": "Nome",
+      "members": "Membros",
+      "applications": "Aplicações",
+      "created": "Criado"
     },
     "editWorkspaceContext": {
-        "delete": "Excluído permanentemente"
+      "delete": "Excluído permanentemente"
     },
     "deleteWorkspaceModal": {
-        "title": "Deletar {name}",
-        "confirmation": "Tem certeza de que deseja excluir o grupo: {name}?",
-        "comment": "O grupo será excluído permanentemente, incluindo os aplicativos relacionados. Não é possível desfazer esta ação.",
-        "delete": "Deletar grupo {name}"
+      "title": "Deletar {name}",
+      "confirmation": "Tem certeza de que deseja excluir o grupo: {name}?",
+      "comment": "O grupo será excluído permanentemente, incluindo os aplicativos relacionados. Não é possível desfazer esta ação.",
+      "delete": "Deletar grupo {name}"
     },
     "activeUsers": {
-        "newUsers": "Novos usuários",
-        "activeUsers": "Usuários ativos"
+      "newUsers": "Novos usuários",
+      "activeUsers": "Usuários ativos"
     },
     "usersAdminTable": {
-        "allUsers": "Todos usuários",
-        "id": "ID",
-        "username": "Nome de usuário",
-        "name": "Nome",
-        "workspaces": "Grupos",
-        "lastLogin": "Último login",
-        "dateJoined": "Inscrito",
-        "active": "Ativo"
+      "allUsers": "Todos usuários",
+      "id": "ID",
+      "username": "Nome de usuário",
+      "name": "Nome",
+      "workspaces": "Grupos",
+      "lastLogin": "Último login",
+      "dateJoined": "Inscrito",
+      "active": "Ativo"
     },
     "editUserContext": {
-        "changePassword": "Alterar senha",
-        "delete": "Excluído permanentemente"
+      "changePassword": "Alterar senha",
+      "delete": "Excluído permanentemente"
     },
     "changePasswordForm": {
-        "newPassword": "Nova senha",
-        "repeatPassword": "Repetir a senha",
-        "changePassword": "Alterar a senha",
-        "error": {
-          "doesntMatch": "Este campo deve corresponder ao seu campo de senha."
-        }
+      "newPassword": "Nova senha",
+      "repeatPassword": "Repetir a senha",
+      "changePassword": "Alterar a senha",
+      "error": {
+        "doesntMatch": "Este campo deve corresponder ao seu campo de senha."
+      }
     },
     "userForm": {
-        "fullName": "Nome completo",
-        "email": "E-mail",
-        "isActive": "Está ativo",
-        "warning": {
-            "changeEmail": "Alterar o endereço de e-mail deste usuário significa que, quando eles fizerem login, deverão usar o novo endereço de e-mail para fazer isso. Isso deve ser comunicado a esse usuário.",
-            "inactiveUser": "Quando um usuário é marcado como inativo, ele é impedido de entrar.",
-            "userStaff": "Tornar a equipe do usuário dá a eles acesso de administrador a todos os usuários, todos os grupos e a capacidade de revogar suas próprias permissões de equipe."
-        },
-        "error": {
-            "invalidName": "Insira um nome completo válido, deve ter mais de 2 letras e menos de 150.",
-            "invalidEmail": "Por favor insira um endereço de e-mail válido."
-        }
+      "fullName": "Nome completo",
+      "email": "E-mail",
+      "isActive": "Está ativo",
+      "warning": {
+        "changeEmail": "Alterar o endereço de e-mail deste usuário significa que, quando eles fizerem login, deverão usar o novo endereço de e-mail para fazer isso. Isso deve ser comunicado a esse usuário.",
+        "inactiveUser": "Quando um usuário é marcado como inativo, ele é impedido de entrar.",
+        "userStaff": "Tornar a equipe do usuário dá a eles acesso de administrador a todos os usuários, todos os grupos e a capacidade de revogar suas próprias permissões de equipe."
+      },
+      "error": {
+        "invalidName": "Insira um nome completo válido, deve ter mais de 2 letras e menos de 150.",
+        "invalidEmail": "Por favor insira um endereço de e-mail válido."
+      }
     },
     "changeUserPasswordModal": {
-        "changePassword": "Alterar senha para {username}"
+      "changePassword": "Alterar senha para {username}"
     },
     "deleteUserModal": {
-        "title": "Deletar{username}",
-        "confirmation": "Tem certeza de que deseja excluir o usuário: {name}?",
-        "comment1": "A conta do usuário será excluída, mas os grupos dos quais o usuário é membro continuarão existindo. O grupo de usuários não será excluído, mesmo que este usuário seja o último usuário do grupo. A exclusão do último usuário de um grupo impede que qualquer pessoa possa acessar esse grupo.",
-        "comment2": "Depois de excluir um usuário, é possível que um novo usuário se inscreva novamente usando o endereço de e-mail do usuário excluído. Para garantir que eles não possam se inscrever novamente, desative o usuário e não o exclua.",
-        "delete": "Deletar usuário {username}"
+      "title": "Deletar{username}",
+      "confirmation": "Tem certeza de que deseja excluir o usuário: {name}?",
+      "comment1": "A conta do usuário será excluída, mas os grupos dos quais o usuário é membro continuarão existindo. O grupo de usuários não será excluído, mesmo que este usuário seja o último usuário do grupo. A exclusão do último usuário de um grupo impede que qualquer pessoa possa acessar esse grupo.",
+      "comment2": "Depois de excluir um usuário, é possível que um novo usuário se inscreva novamente usando o endereço de e-mail do usuário excluído. Para garantir que eles não possam se inscrever novamente, desative o usuário e não o exclua.",
+      "delete": "Deletar usuário {username}"
     },
     "editUserModal": {
-        "delete": "Deletar usuário",
-        "edit": "Editar { username }"
+      "delete": "Deletar usuário",
+      "edit": "Editar { username }"
     }
+  },
+  "changeUserPasswordModal": {
+    "changePassword": "Alterar senha para {username}"
+  },
+  "deleteUserModal": {
+    "title": "Deletar{username}",
+    "confirmation": "Tem certeza de que deseja excluir o usuário: {name}?",
+    "comment1": "A conta do usuário será excluída, mas os grupos dos quais o usuário é membro continuarão existindo. O grupo de usuários não será excluído, mesmo que este usuário seja o último usuário do grupo. A exclusão do último usuário de um grupo impede que qualquer pessoa possa acessar esse grupo.",
+    "comment2": "Depois de excluir um usuário, é possível que um novo usuário se inscreva novamente usando o endereço de e-mail do usuário excluído. Para garantir que eles não possam se inscrever novamente, desative o usuário e não o exclua.",
+    "delete": "Deletar usuário {username}"
+  },
+  "editUserModal": {
+    "delete": "Deletar usuário",
+    "edit": "Editar { username }"
+  },
+  "dashboard": {
+    "title": "Painel de controle",
+    "totals": "Totais",
+    "totalUsers": "Total de usuários",
+    "totalWorkspaces": "Total de grupos",
+    "totalApplications": "Total de aplicações",
+    "newUsers": "Novos usuários",
+    "newUsers24h": "Novos usuários nas últimas 24 horas",
+    "newUsers7days": "Novos usuários nos últimos 7 dias",
+    "newUsers30days": "Novos usuários nos últimos 30 dias",
+    "activeUsers": "Usuários ativos",
+    "activeUsers24h": "Usuários ativos nos últimas 24 horas",
+    "activeUsers7days": "Usuários ativos nos últimos 7 dias",
+    "activeUsers30days": "Usuários ativos nos últimos 30 dias",
+    "viewAll": "Visualizar tudo"
+  }
 }

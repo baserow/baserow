@@ -78,7 +78,7 @@ class RowFixture:
                 for row in rows
             ],
         )
-        return created_rows
+        return created_rows.created_rows
 
     def get_rows(self, fields: List[Field]) -> List[List[Any]]:
         model = fields[0].table.get_model()

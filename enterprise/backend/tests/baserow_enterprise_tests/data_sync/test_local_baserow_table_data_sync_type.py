@@ -13,6 +13,7 @@ from rest_framework.status import (
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import NumberField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.handler import TableHandler
@@ -276,10 +277,7 @@ def test_sync_data_sync_table_authorized_user_is_set(enterprise_data_fixture):
     user = enterprise_data_fixture.create_user()
     user_2 = enterprise_data_fixture.create_user()
 
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-    enterprise_data_fixture.create_user_workspace(
-        workspace=workspace, user=user_2, order=0
-    )
+    workspace = enterprise_data_fixture.create_workspace(users=[user_2, user])
 
     database = enterprise_data_fixture.create_database_application(workspace=workspace)
     source_table = enterprise_data_fixture.create_database_table(
@@ -668,7 +666,7 @@ def test_sync_data_sync_table_without_license(enterprise_data_fixture):
         source_table_id=source_table.id,
     )
 
-    License.objects.all().delete()
+    enterprise_data_fixture.delete_all_licenses()
 
     with pytest.raises(FeaturesNotAvailableError):
         handler.sync_data_sync_table(user=user, data_sync=data_sync)
@@ -1584,3 +1582,38 @@ def test_source_table_view_deleted(enterprise_data_fixture):
     # We expect the view to still exist so that it fails because if it's set to
     # `null`, it might expose all table data.
     assert data_sync.source_table_view_id == grid_id
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_table_with_trashed_synced_field(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    source_text_field = enterprise_data_fixture.create_text_field(table=source_table)
+    source_table.get_model().objects.create()
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id", f"field_{source_text_field.id}"],
+        source_table_id=source_table.id,
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    FieldHandler().delete_field(user, fields[1])
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    data_sync.refresh_from_db()
+    assert data_sync.last_error is None

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Iterable, List, cast
+from typing import Iterable, List, Optional, cast
 
 from django.db.models import QuerySet
 from django.db.utils import IntegrityError
@@ -13,8 +13,10 @@ from baserow.contrib.builder.domains.models import Domain
 from baserow.contrib.builder.domains.registries import DomainType
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.models import Builder
+from baserow.core.cache import global_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import get_default_storage
 from baserow.core.trash.handler import TrashHandler
@@ -57,7 +59,7 @@ class DomainHandler:
         """
 
         if base_queryset is None:
-            base_queryset = Domain.objects
+            base_queryset = Domain.objects.all()
 
         return specific_iterator(base_queryset.filter(builder=builder))
 
@@ -73,7 +75,7 @@ class DomainHandler:
         try:
             domain = (
                 Domain.objects.exclude(published_to=None)
-                .select_related("published_to", "builder")
+                .select_related("published_to", "builder__workspace")
                 .only("published_to", "builder")
                 .get(domain_name=domain_name)
             )
@@ -193,6 +195,28 @@ class DomainHandler:
 
         return full_order
 
+    def get_published_domain_applications(
+        self, workspace: Optional[Workspace] = None
+    ) -> QuerySet[Builder]:
+        """
+        Returns all published domain applications in a workspace or all published
+        domain applications in the instance if no workspace is provided.
+
+        A domain application is the builder application which is associated with
+        the domain it was published to. It is not the application which the page
+        designer created their application with.
+
+        :param workspace: Only return published domain applications in this workspace.
+        :return: A queryset of published domain applications.
+        """
+
+        applications = Builder.objects.exclude(published_from=None)
+        return (
+            applications.filter(published_from__builder__workspace=workspace)
+            if workspace
+            else applications
+        )
+
     def publish(self, domain: Domain, progress: Progress | None = None):
         """
         Publishes a builder for the given domain object. If the builder was
@@ -252,4 +276,15 @@ class DomainHandler:
         domain.last_published = datetime.now(tz=timezone.utc)
         domain.save()
 
+        # Invalidate the public builder-by-domain cache after a new publication.
+        DomainHandler.invalidate_public_builder_by_domain_cache(domain.domain_name)
+
         return domain
+
+    @classmethod
+    def get_public_builder_by_domain_cache_key(cls, domain_name: str) -> str:
+        return f"ab_public_builder_by_domain_{domain_name}"
+
+    @classmethod
+    def invalidate_public_builder_by_domain_cache(cls, domain_name: str):
+        global_cache.invalidate(cls.get_public_builder_by_domain_cache_key(domain_name))

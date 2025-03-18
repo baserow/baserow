@@ -272,7 +272,11 @@ export default {
       // here.
       const plugins = Object.values(app.$registry.getAll('plugin'))
       for (let i = 0; i < plugins.length; i++) {
-        asyncData = await plugins[i].fetchAsyncDashboardData(context, asyncData)
+        asyncData = await plugins[i].fetchAsyncDashboardData(
+          context,
+          asyncData,
+          workspace.id
+        )
       }
       return asyncData
     } catch (e) {

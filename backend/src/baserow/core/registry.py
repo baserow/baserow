@@ -137,6 +137,12 @@ class CustomFieldsInstanceMixin:
     useful if you want to add some custom SerializerMethodField for example.
     """
 
+    request_serializer_mixins = None
+    """
+    The serializer mixins that must be added to the serializer for requests.
+    This property is useful if you want to add some custom behaviour for example.
+    """
+
     serializer_extra_kwargs = None
     """
     The extra kwargs that must be added to the serializer fields. This property is
@@ -189,7 +195,7 @@ class CustomFieldsInstanceMixin:
         #    as serializers are callable) which lazy loads a serializer mixin, or
         # 2) Serializers can provide a serializer mixin directly.
         dynamic_serializer_mixins = []
-        for serializer_mixin in self.serializer_mixins:
+        for serializer_mixin in self.get_serializer_mixins(request_serializer):
             if isinstance(serializer_mixin, FunctionType):
                 dynamic_serializer_mixins.append(serializer_mixin())
             else:
@@ -249,6 +255,12 @@ class CustomFieldsInstanceMixin:
 
         return serializer_class(model_instance_or_instances, context=context, **kwargs)
 
+    def get_serializer_mixins(self, request_serializer: bool) -> List:
+        if request_serializer and self.request_serializer_mixins is not None:
+            return self.request_serializer_mixins
+        else:
+            return self.serializer_mixins
+
     def get_field_overrides(
         self, request_serializer: bool, extra_params: Dict, **kwargs
     ) -> Dict:
@@ -274,6 +286,23 @@ class CustomFieldsInstanceMixin:
             )
 
         return None
+
+    def get_queryset(self):
+        """
+        Returns the base queryset potentially enhanced by the `.enhance_queryset` method
+        for the model of this class. Requires the `ModelInstance` mixin.
+        """
+
+        return self.enhance_queryset(self.model_class.objects.all())
+
+    def enhance_queryset(self, queryset):
+        """
+        A hook to enhance the queryset for this type like adding `select_related`,
+        `prefetch_related` or stuff like that. Called by `.get_queryset` to generate
+        the base queryset to use for this type.
+        """
+
+        return queryset
 
 
 class PublicCustomFieldsInstanceMixin(CustomFieldsInstanceMixin):
@@ -798,7 +827,7 @@ class ModelRegistryMixin(Generic[DjangoModel, InstanceSubClass]):
         if isinstance(model_instance, type):
             clazz = model_instance
         else:
-            clazz = type(model_instance)
+            clazz = model_instance.__class__
 
         return self.get_for_class(clazz)
 

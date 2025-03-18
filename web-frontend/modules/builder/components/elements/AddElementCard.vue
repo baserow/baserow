@@ -1,24 +1,19 @@
 <template>
   <div
     :key="elementType.name"
-    v-tooltip="disabled ? disabledMessage : null"
+    v-tooltip="disabled ? disabledMessage : elementType.description"
     class="add-element-card"
     :class="{ 'add-element-card--disabled': disabled }"
     v-on="$listeners"
   >
+    <div class="add-element-card__element-type">
+      <div
+        class="add-element-card__element-type-icon"
+        :class="`add-element-card__element-type-icon-${elementType.getType()}`"
+      ></div>
+    </div>
     <div v-if="loading" class="loading"></div>
-    <template v-else>
-      <div class="add-element-card__element-type">
-        <i
-          class="add-element-card__element-type-icon"
-          :class="elementType.iconClass"
-        ></i>
-        <span>{{ elementType.name }}</span>
-      </div>
-      <div class="margin-top-1 add-element-card__description">
-        {{ elementType.description }}
-      </div>
-    </template>
+    <span v-else class="add-element-card__label">{{ elementType.name }}</span>
   </div>
 </template>
 

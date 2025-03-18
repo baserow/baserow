@@ -3,18 +3,22 @@
     <FormGroup
       required
       class="custom-color-input__form-group"
-      :error-message="err"
+      :error="v$.value.name.$error"
     >
       <FormInput
-        :value="value.name"
+        :value="v$.value.name.$model"
         class="custom-color-input__input-name"
         @input="update({ name: $event })"
       />
+
+      <template #error>
+        {{ v$.value.name.$errors[0].$message }}
+      </template>
     </FormGroup>
 
     <FormGroup required>
       <ColorInput
-        :value="value.color"
+        :value="v$.value.color.$model"
         small
         @input="update({ color: $event })"
       />
@@ -24,7 +28,8 @@
 </template>
 
 <script>
-import { maxLength, required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { maxLength, required, helpers } from '@vuelidate/validators'
 const COLOR_NAME_MAX_LENGTH = 255
 
 export default {
@@ -34,29 +39,30 @@ export default {
       required: true,
     },
   },
-  computed: {
-    err() {
-      return this.$v.value.name.$dirty
-        ? !this.$v.value.name.required
-          ? this.$t('error.requiredField')
-          : !this.$v.value.name.maxLength
-          ? this.$t('error.maxLength', {
-              max: COLOR_NAME_MAX_LENGTH,
-            })
-          : ''
-        : ''
-    },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
+
   methods: {
     update(update) {
-      this.$v.$touch()
+      this.v$.$touch()
       this.$emit('input', { ...this.value, ...update })
     },
   },
   validations() {
     return {
       value: {
-        name: { maxLength: maxLength(COLOR_NAME_MAX_LENGTH), required },
+        name: {
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: COLOR_NAME_MAX_LENGTH }),
+            maxLength(COLOR_NAME_MAX_LENGTH)
+          ),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        color: {},
       },
     }
   },

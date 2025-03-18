@@ -8,6 +8,7 @@ import pytest
 from tqdm import tqdm
 
 from baserow.contrib.database.object_scopes import DatabaseObjectScopeType
+from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceUser
 from baserow.core.registries import subject_type_registry
@@ -940,6 +941,7 @@ def test_get_roles_per_scope_trashed_teams(data_fixture, enterprise_data_fixture
 
     team.trashed = True
     team.save()
+    local_cache.clear()
 
     assert RoleAssignmentHandler().get_roles_per_scope(workspace, user) == [
         (workspace, [admin_role]),

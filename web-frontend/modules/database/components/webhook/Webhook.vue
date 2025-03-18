@@ -52,6 +52,7 @@
             :database="database"
             :table="table"
             :fields="fields"
+            :views="views"
             @updated="$emit('updated', $event)"
             @deleted="$emit('deleted', $event)"
           />
@@ -91,6 +92,10 @@ export default {
       required: true,
     },
     fields: {
+      type: Array,
+      required: true,
+    },
+    views: {
       type: Array,
       required: true,
     },

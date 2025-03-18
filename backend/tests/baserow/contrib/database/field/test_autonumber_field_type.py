@@ -618,8 +618,10 @@ def test_autonumber_field_can_be_referenced_in_formula(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     data_fixture.create_autonumber_field(name="autonumber", table=table)
-    row_1, row_2 = RowHandler().create_rows(
-        user=user, table=table, rows_values=[{}, {}]
+    row_1, row_2 = (
+        RowHandler()
+        .create_rows(user=user, table=table, rows_values=[{}, {}])
+        .created_rows
     )
 
     formula_field = data_fixture.create_formula_field(
@@ -633,8 +635,10 @@ def test_autonumber_field_can_be_referenced_in_formula(data_fixture):
         {"id": row_2.id, f"field_{formula_field.id}": 4},
     ]
 
-    (row_3,) = RowHandler().create_rows(
-        user=user, table=table, rows_values=[{}], model=model
+    (row_3,) = (
+        RowHandler()
+        .create_rows(user=user, table=table, rows_values=[{}], model=model)
+        .created_rows
     )
     row_values = model.objects.all().values("id", f"field_{formula_field.id}")
     assert list(row_values) == [
@@ -660,12 +664,17 @@ def test_autonumber_field_can_be_looked_up(data_fixture):
     row_b_2 = model_b.objects.create()
 
     model_a = table_a.get_model()
-    (row,) = RowHandler().create_rows(
-        user=user,
-        table=table_a,
-        rows_values=[
-            {f"field_{link_field.id}": [row_b_1.id, row_b_2.id]},
-        ],
-        model=model_a,
+    (row,) = (
+        RowHandler()
+        .create_rows(
+            user=user,
+            table=table_a,
+            rows_values=[
+                {f"field_{link_field.id}": [row_b_1.id, row_b_2.id]},
+            ],
+            model=model_a,
+        )
+        .created_rows
     )
+
     assert getattr(row, f"field_{formula_field.id}") == 3

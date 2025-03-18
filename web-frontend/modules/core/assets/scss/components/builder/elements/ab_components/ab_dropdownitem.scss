@@ -52,6 +52,7 @@
 .ab-dropdownitem__item-active-icon {
   text-align: center;
   font-size: var(--input-font-size, 13px);
+  font-weight: var(--input-font-weight, 400);
   color: var(--input-text-color, $color-neutral-900);
   position: absolute;
   top: calc(50% - var(--input-font-size, 13px) / 2);
@@ -70,6 +71,7 @@
   user-select: none;
   border-radius: var(--input-border-radius, 0);
   font-family: var(--input-font-family, Inter);
+  font-weight: var(--input-font-weight, 400);
 
   &:last-child {
     margin-bottom: 0;

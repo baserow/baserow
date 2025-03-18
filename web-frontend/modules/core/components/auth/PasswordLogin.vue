@@ -23,10 +23,12 @@
         <FormInput
           v-if="invitation !== null"
           ref="email"
+          v-model="values.email"
           type="email"
+          size="large"
           disabled
-          :value="values.email"
         ></FormInput>
+
         <FormInput
           v-else
           ref="email"
@@ -36,7 +38,7 @@
           :error="fieldHasErrors('email')"
           :placeholder="$t('login.emailPlaceholder')"
           autocomplete="username"
-          @blur="$v.values.email.$touch()"
+          @blur="v$.values.email.$touch"
         />
 
         <template #error>
@@ -65,7 +67,7 @@
           :error="fieldHasErrors('password')"
           :placeholder="$t('login.passwordPlaceholder')"
           autocomplete="current-password"
-          @blur="$v.values.password.$touch()"
+          @blur="v$.values.password.$touch"
         />
         <template #error>
           <i class="iconoir-warning-triangle"></i>
@@ -89,7 +91,9 @@
 </template>
 
 <script>
-import { required, email } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive } from 'vue'
+import { required, email } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
@@ -109,13 +113,29 @@ export default {
       default: true,
     },
   },
-  data() {
-    return {
-      loading: false,
+  setup() {
+    const values = reactive({
       values: {
         email: '',
         password: '',
       },
+    })
+
+    const rules = {
+      values: {
+        email: { required, email },
+        password: { required },
+      },
+    }
+
+    return {
+      values: values.values,
+      v$: useVuelidate(rules, values, { $lazy: true }),
+    }
+  },
+  data() {
+    return {
+      loading: false,
     }
   },
   beforeMount() {
@@ -152,8 +172,9 @@ export default {
   },
   methods: {
     async login() {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
+      this.v$.$touch()
+      const formValid = await this.v$.$validate()
+      if (!formValid) {
         this.focusOnFirstError()
         return
       }
@@ -162,15 +183,14 @@ export default {
       this.hideError()
 
       try {
-        const { email, password } = this.values
         const data = await this.$store.dispatch('auth/login', {
-          email,
-          password,
+          email: this.values.email,
+          password: this.values.password,
         })
 
         // If there is an invitation we can immediately accept that one after the user
         // successfully signs in.
-        if (this.invitation?.email === email) {
+        if (this.invitation?.email === this.values.email) {
           await WorkspaceService(this.$client).acceptInvitation(
             this.invitation.id
           )
@@ -206,7 +226,7 @@ export default {
             }
 
             this.values.password = ''
-            this.$v.$reset()
+            this.v$.$reset()
             this.$refs.password.focus()
           } else {
             const message = error.handler.getMessage('login')
@@ -219,12 +239,6 @@ export default {
           throw error
         }
       }
-    },
-  },
-  validations: {
-    values: {
-      email: { required, email },
-      password: { required },
     },
   },
 }

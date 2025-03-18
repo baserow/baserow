@@ -93,7 +93,9 @@ def test_export_import_record_selector_element(data_fixture):
         import_export_config=config,
     )
     imported_builder = imported_apps[-1]
-    imported_element = imported_builder.page_set.first().element_set.first().specific
+    imported_element = (
+        imported_builder.visible_pages.first().element_set.first().specific
+    )
 
     # Check that the formula for option name suffix was updated with the new mapping
     import_option_name_suffix = imported_element.option_name_suffix

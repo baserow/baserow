@@ -83,6 +83,7 @@ class LocalBaserowTableServiceAggregationSeries(models.Model):
     field = models.ForeignKey(
         "database.Field",
         help_text="The aggregated field.",
+        null=True,
         on_delete=models.CASCADE,
     )
     aggregation_type = models.CharField(
@@ -113,6 +114,38 @@ class LocalBaserowTableServiceAggregationGroupBy(models.Model):
         null=True,
         on_delete=models.CASCADE,
     )
+    order = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ("order", "id")
+
+
+class SortOn(models.TextChoices):
+    SERIES = "SERIES", "Series"
+    GROUP_BY = "GROUP_BY", "Group by"
+    PRIMARY = "PRIMARY", "Primary"
+
+
+class SortDirection(models.TextChoices):
+    ASCENDING = "ASC", "Ascending"
+    DESCENDING = "DESC", "Descending"
+
+
+class LocalBaserowTableServiceAggregationSortBy(models.Model):
+    """
+    A sort by for aggregations applicable to a `LocalBaserowTableService`
+    integration service.
+    """
+
+    service = models.ForeignKey(
+        Service,
+        related_name="service_aggregation_sorts",
+        help_text="The service which this aggregation series belongs to.",
+        on_delete=models.CASCADE,
+    )
+    sort_on = models.CharField(max_length=255, choices=SortOn.choices)
+    reference = models.CharField(max_length=255)
+    direction = models.CharField(max_length=255, choices=SortDirection.choices)
     order = models.PositiveIntegerField()
 
     class Meta:

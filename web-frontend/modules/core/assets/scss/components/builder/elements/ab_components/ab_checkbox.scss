@@ -3,6 +3,7 @@
   align-items: center;
   font-size: var(--input-font-size, 13px);
   font-family: var(--input-font-family, Inter);
+  font-weight: var(--input-font-weight, 400);
   color: var(--input-text-color, $color-neutral-900);
   gap: calc(var(--input-font-size, 13px) / 2);
 

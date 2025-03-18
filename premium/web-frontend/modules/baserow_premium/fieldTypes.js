@@ -137,11 +137,11 @@ export class AIFieldType extends FieldType {
       .toHumanReadableString(field, value)
   }
 
-  getSortIndicator(field, registry) {
+  getSortIndicator(field) {
     return this.app.$registry
       .get('aiFieldOutputType', field.ai_output_type)
       .getBaserowFieldType()
-      .getSortIndicator(field, registry)
+      .getSortIndicator(field)
   }
 
   canRepresentDate(field) {
@@ -205,13 +205,6 @@ export class AIFieldType extends FieldType {
       .get('aiFieldOutputType', field.ai_output_type)
       .getBaserowFieldType()
       .getGroupByComponent(field)
-  }
-
-  getGroupByIndicator(field, registry) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getGroupByIndicator(field, registry)
   }
 
   getRowValueFromGroupValue(field, value) {

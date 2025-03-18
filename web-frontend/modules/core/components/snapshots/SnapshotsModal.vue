@@ -151,7 +151,6 @@ export default {
           this.application.id,
           values
         )
-        this.job = job
         await this.createAndMonitorJob(job)
       } catch (error) {
         this.createLoading = false
@@ -167,6 +166,7 @@ export default {
       ) {
         this.snapshots.unshift(this.job.snapshot)
       }
+      this.$refs.form.v$.$reset()
     },
     onJobFailed() {
       this.createLoading = false

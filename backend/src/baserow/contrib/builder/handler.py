@@ -1,19 +1,32 @@
 from typing import Dict, List, Optional
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AbstractUser
-from django.core.cache import cache
+from django.db.models.query import QuerySet
 
 from baserow.contrib.builder.formula_property_extractor import (
     get_builder_used_property_names,
 )
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.theme.registries import theme_config_block_registry
+from baserow.core.cache import global_cache
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Workspace
+from baserow.core.user_sources.handler import UserSourceHandler
+from baserow.core.user_sources.models import UserSource
+from baserow.core.user_sources.user_source_user import UserSourceUser
 
-User = get_user_model()
-CACHE_KEY_PREFIX = "used_properties_for_page"
+USED_PROPERTIES_CACHE_KEY_PREFIX = "used_properties_for_page"
+
+# The duration of the cached public element, data source and workflow action API views.
+BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60 * 60
+
+# The duration of the cached public `get_public_builder_by_domain_name` view.
+BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS = 60 * 60
+
+# The duration of the cached public properties for the builder API views.
+BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS = 60
+
+SENTINEL = "__no_results__"
 
 
 class BuilderHandler:
@@ -41,31 +54,34 @@ class BuilderHandler:
             .specific
         )
 
+    @classmethod
+    def _get_builder_public_properties_version_cache(cls, builder: Builder) -> str:
+        return f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_version_{builder.id}"
+
     def get_builder_used_properties_cache_key(
-        self, user: AbstractUser, builder: Builder
-    ) -> Optional[str]:
+        self, user: UserSourceUser, builder: Builder
+    ) -> str:
         """
         Returns a cache key that can be used to key the results of making the
         expensive function call to get_builder_used_property_names().
-
-        If the user is a Django user, return None. This is because the Page
-        Designer should always have the latest data in the Preview (e.g. when
-        they are not authenticated). Also, the Django user doesn't have the role
-        attribute, unlike the User Source User.
         """
 
-        if isinstance(user, User):
-            return None
-        elif user.is_anonymous:
+        if user.is_anonymous or not user.role:
             # When the user is anonymous, only use the prefix + page ID.
             role = ""
         else:
             role = f"_{user.role}"
 
-        return f"{CACHE_KEY_PREFIX}_{builder.id}{role}"
+        return f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_{builder.id}{role}"
+
+    @classmethod
+    def invalidate_builder_public_properties_cache(cls, builder: Builder):
+        global_cache.invalidate(
+            invalidate_key=cls._get_builder_public_properties_version_cache(builder)
+        )
 
     def get_builder_public_properties(
-        self, user: AbstractUser, builder: Builder
+        self, user: UserSourceUser, builder: Builder
     ) -> Dict[str, Dict[int, List[str]]]:
         """
         Return a Dict where keys are ["all", "external", "internal"] and values
@@ -80,15 +96,57 @@ class BuilderHandler:
         (required only by the backend).
         """
 
-        cache_key = self.get_builder_used_properties_cache_key(user, builder)
-        properties = cache.get(cache_key) if cache_key else None
-        if properties is None:
+        def compute_properties():
             properties = get_builder_used_property_names(user, builder)
-            if cache_key:
-                cache.set(
-                    cache_key,
-                    properties,
-                    timeout=settings.BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS,
-                )
+            return SENTINEL if properties is None else properties
 
-        return properties
+        result = global_cache.get(
+            self.get_builder_used_properties_cache_key(user, builder),
+            default=compute_properties,
+            # We want to invalidate the cache for all roles at once so we create a
+            # unique key for all.
+            invalidate_key=self._get_builder_public_properties_version_cache(builder),
+            timeout=settings.BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS
+            if builder.workspace_id
+            else BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS,
+        )
+
+        return result if result != SENTINEL else None
+
+    def get_published_applications(
+        self, workspace: Optional[Workspace] = None
+    ) -> QuerySet[Builder]:
+        """
+        Returns all published applications in a workspace or all published applications
+        in the instance if no workspace is provided.
+
+        A published application is a builder application which points to one more
+        published domains. The application is the one that the page designer is
+        creating their application in.
+
+        :param workspace: Only return published applications in this workspace.
+        :return: A queryset of published applications.
+        """
+
+        applications = Builder.objects.exclude(domains__published_to=None)
+        return applications.filter(workspace=workspace) if workspace else applications
+
+    def aggregate_user_source_counts(
+        self,
+        workspace: Optional[Workspace] = None,
+    ) -> int:
+        """
+        The builder implementation of the `UserSourceHandler.aggregate_user_counts`
+        method, we need it to only count user sources in published applications.
+
+        :param workspace: If provided, only count user sources in published
+            applications within this workspace.
+        :return: The total number of user sources in published applications.
+        """
+
+        queryset = UserSourceHandler().get_user_sources(
+            base_queryset=UserSource.objects.filter(
+                application__in=self.get_published_applications(workspace)
+            )
+        )
+        return UserSourceHandler().aggregate_user_counts(workspace, queryset)

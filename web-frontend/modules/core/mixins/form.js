@@ -23,22 +23,34 @@ export default {
     return {
       // A list of values that the form allows. If null all values are allowed.
       allowedValues: null,
-      // By setting emitValuesOnReset to false in the form's component
-      // the values changed event won't be sent right after resetting the
-      // form
-      emitValuesOnReset: true,
-      isAfterReset: true,
+      // Setting to false make it possible to temporarily
+      // prevent emitting values when they change.
+      // Use setEmitValues(value) method to include children
+      // forms.
+      emitValues: true,
+      // Setting to true makes it possible to not
+      // emit values the first time values are set in
+      // the form.
+      skipFirstValuesEmit: false,
     }
   },
   mounted() {
-    this.values = Object.assign({}, this.values, this.getDefaultValues())
+    for (const [key, value] of Object.entries(this.getDefaultValues())) {
+      this.values[key] = value
+    }
   },
   watch: {
     values: {
-      deep: true,
       handler(newValues) {
-        this.emitChange(newValues)
+        if (this.skipFirstValuesEmit) {
+          this.skipFirstValuesEmit = false
+          return
+        }
+        if (this.emitValues) {
+          this.emitChange(newValues)
+        }
       },
+      deep: true,
     },
   },
   methods: {
@@ -116,8 +128,8 @@ export default {
       return children
     },
     touch(deep = false) {
-      if ('$v' in this) {
-        this.$v.$touch()
+      if ('v$' in this) {
+        this.v$.$touch()
       }
 
       // Also touch all the child forms so that all the error messages are going to
@@ -133,7 +145,6 @@ export default {
       if (this.selectedFieldIsDeactivated) {
         return
       }
-
       this.touch(deep)
 
       if (this.isFormValid(deep)) {
@@ -147,9 +158,15 @@ export default {
      */
     fieldHasErrors(fieldName) {
       // a field can be without any validators
-      return this.$v.values[fieldName]
-        ? this.$v.values[fieldName].$error
-        : false
+      return this.v$.values[fieldName]?.$error || false
+    },
+    /**
+     * Return the first validaten error message for the given field
+     * @param {str} fieldName
+     * @returns the error message or undefined if none.
+     */
+    getFirstErrorMessage(fieldName) {
+      return this.v$.values[fieldName].$errors[0]?.$message
     },
     /**
      * Returns true is everything is valid.
@@ -159,23 +176,17 @@ export default {
      */
     isFormValid(deep = false) {
       // Some forms might not do any validation themselves. If they don't, then they
-      // are by definition valid if their children are valid.
-      const thisFormInvalid = '$v' in this && this.$v.$invalid
+      // are by definition valid if their children are valid.c
+      const thisFormInvalid = 'v$' in this && this.v$.$invalid
       return !thisFormInvalid && this.areChildFormsValid(deep)
     },
     /**
      * Returns true if all the child form components are valid.
      */
     areChildFormsValid(deep = false) {
-      for (const child of this.getChildForms(
-        (child) => 'isFormValid' in child,
-        deep
-      )) {
-        if (!child.isFormValid(deep)) {
-          return false
-        }
-      }
-      return true
+      return this.getChildForms((child) => 'isFormValid' in child, deep).every(
+        (child) => child.isFormValid()
+      )
     },
     /**
      * A method that can be overridden to do some mutations on the values before
@@ -199,6 +210,12 @@ export default {
         })
       )
     },
+    isDirty() {
+      for (const [key, value] of Object.entries(this.getDefaultValues())) {
+        if (this.values[key] !== value) return true
+      }
+      return false
+    },
     /**
      * Resets the form and the child forms to its original state.
      *
@@ -206,16 +223,12 @@ export default {
      * first level of children.
      */
     async reset(deep = false) {
-      this.isAfterReset = true
+      for (const [key, value] of Object.entries(this.getDefaultValues())) {
+        this.values[key] = value
+      }
 
-      Object.assign(
-        this.values,
-        this.$options.data.call(this).values,
-        this.getDefaultValues()
-      )
-
-      if ('$v' in this) {
-        this.$v.$reset()
+      if ('v$' in this) {
+        this.v$.$reset()
       }
 
       await this.$nextTick()
@@ -225,7 +238,15 @@ export default {
         child.reset()
       )
     },
-
+    /**
+     * Sets emitValues property also to child forms.
+     */
+    setEmitValues(value) {
+      this.emitValues = value
+      this.getChildForms((child) => 'setEmitValues' in child, true).forEach(
+        (child) => child.setEmitValues(value)
+      )
+    },
     /**
      * Returns if a child form has indicated it handled the error, false otherwise.
      */
@@ -242,15 +263,8 @@ export default {
       }
       return childHandledIt
     },
-
     emitChange(newValues) {
-      if (this.emitValuesOnReset === true || this.isAfterReset === false) {
-        this.$emit('values-changed', newValues)
-      }
-
-      if (this.isAfterReset) {
-        this.isAfterReset = false
-      }
+      this.$emit('values-changed', newValues)
     },
   },
 }

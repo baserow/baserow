@@ -1,0 +1,7 @@
+{
+  "type": "bug",
+  "message": "Preserve the precision of the currency field in the Airtable import.",
+  "issue_number": 1058,
+  "bullet_points": [],
+  "created_at": "2025-02-09"
+}

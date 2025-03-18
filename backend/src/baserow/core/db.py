@@ -20,13 +20,15 @@ from typing import (
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import DEFAULT_DB_ALIAS, connection, transaction
-from django.db.models import ForeignKey, ManyToManyField, Max, Model, QuerySet
+from django.db.models import ForeignKey, ManyToManyField, Max, Model, Prefetch, QuerySet
 from django.db.models.functions import Collate
+from django.db.models.query import ModelIterable
 from django.db.models.sql.query import LOOKUP_SEP
 from django.db.transaction import Atomic, get_connection
 
 from loguru import logger
-from psycopg2 import sql
+
+from baserow.core.psycopg import sql
 
 from .utils import find_intermediate_order
 
@@ -81,7 +83,7 @@ def specific_iterator(
     objects with the least amount of queries. If a queryset is provided respects the
     annotations, select related and prefetch related of the provided query. This
     function is only compatible with models having the `PolymorphicContentTypeMixin`
-    and `content_type property.`
+    and `content_type` property.
 
     Can be used like:
 
@@ -110,12 +112,14 @@ def specific_iterator(
         if isinstance(select_related, bool):
             select_related_keys = []
         else:
-            select_related_keys = select_related.keys()
+            select_related_keys = list(select_related.keys())
 
         # Nested prefetch result in cached objects to avoid additional queries. If
         # they're present, they must be added to the `select_related_keys` to make sure
         # they're correctly set on the specific objects.
         for lookup in queryset_or_list._prefetch_related_lookups:
+            if isinstance(lookup, Prefetch):
+                lookup = lookup.prefetch_through
             split_lookup = lookup.split(LOOKUP_SEP)[:-1]
             if split_lookup and split_lookup[0] not in select_related_keys:
                 select_related_keys.append(split_lookup[0])
@@ -153,8 +157,8 @@ def specific_iterator(
         if per_content_type_queryset_hook is not None:
             objects = per_content_type_queryset_hook(model, objects)
 
-        for object in objects:
-            specific_objects[object.id] = object
+        for obj in objects:
+            specific_objects[obj.id] = obj
 
     # Create an array with specific objects in the right order.
     ordered_specific_objects = []
@@ -467,6 +471,7 @@ class MultiFieldPrefetchQuerysetMixin(Generic[ModelInstance]):
         if (
             self._multi_field_prefetch_related_funcs
             and not self._multi_field_prefetch_done
+            and issubclass(self._iterable_class, ModelIterable)
         ):
             for f in self._multi_field_prefetch_related_funcs:
                 f(self, self._result_cache)

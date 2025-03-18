@@ -9,20 +9,15 @@
       small-label
     >
       <FormInput
-        v-model="values.github_issues_owner"
+        v-model="v$.values.github_issues_owner.$model"
         :error="fieldHasErrors('github_issues_owner')"
         :disabled="disabled"
         size="large"
-        @blur="$v.values.github_issues_owner.$touch()"
+        @blur="v$.values.github_issues_owner.$touch"
       />
       <template #error>
-        <span
-          v-if="
-            $v.values.github_issues_owner.$dirty &&
-            !$v.values.github_issues_owner.required
-          "
-        >
-          {{ $t('error.requiredField') }}
+        <span>
+          {{ v$.values.github_issues_owner.$errors[0]?.$message }}
         </span>
       </template>
     </FormGroup>
@@ -36,21 +31,14 @@
       small-label
     >
       <FormInput
-        v-model="values.github_issues_repo"
+        v-model="v$.values.github_issues_repo.$model"
         :error="fieldHasErrors('github_issues_repo')"
         :disabled="disabled"
         size="large"
-        @blur="$v.values.github_issues_repo.$touch()"
+        @blur="v$.values.github_issues_repo.$touch"
       />
       <template #error>
-        <span
-          v-if="
-            $v.values.github_issues_owner.$dirty &&
-            !$v.values.github_issues_owner.required
-          "
-        >
-          {{ $t('error.requiredField') }}
-        </span>
+        {{ v$.values.github_issues_repo.$errors[0]?.$message }}
       </template>
     </FormGroup>
 
@@ -61,40 +49,26 @@
       :helper-text="$t('githubIssuesDataSync.apiTokenHelper')"
       small-label
       :protected-edit="update"
-      @enabled-protected-edit="allowedValues.push('github_issues_api_token')"
-      @disable-protected-edit="
-        ;[
-          allowedValues.splice(
-            allowedValues.indexOf('github_issues_api_token'),
-            1
-          ),
-          delete values['github_issues_api_token'],
-        ]
-      "
+      @enabled-protected-edit="values.github_issues_api_token = ''"
+      @disable-protected-edit="values.github_issues_api_token = undefined"
     >
       <FormInput
-        v-model="values.github_issues_api_token"
+        v-model="v$.values.github_issues_api_token.$model"
         :error="fieldHasErrors('github_issues_api_token')"
         :disabled="disabled"
         size="large"
-        @blur="$v.values.github_issues_api_token.$touch()"
+        @blur="v$.values.github_issues_api_token.$touch"
       />
       <template #error>
-        <span
-          v-if="
-            $v.values.github_issues_api_token.$dirty &&
-            !$v.values.github_issues_api_token.required
-          "
-        >
-          {{ $t('error.requiredField') }}
-        </span>
+        {{ v$.values.github_issues_api_token.$errors[0]?.$message }}
       </template>
     </FormGroup>
   </form>
 </template>
 
 <script>
-import { required, requiredIf } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, requiredIf, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
@@ -112,28 +86,45 @@ export default {
       default: false,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
-    const allowedValues = ['github_issues_owner', 'github_issues_repo']
-    if (!this.update) {
-      allowedValues.push('github_issues_api_token')
-    }
     return {
-      allowedValues: ['github_issues_owner', 'github_issues_repo'],
+      allowedValues: [
+        'github_issues_owner',
+        'github_issues_repo',
+        'github_issues_api_token',
+      ],
       values: {
         github_issues_owner: '',
         github_issues_repo: '',
+        github_issues_api_token: this.update ? undefined : '',
       },
     }
   },
   validations() {
     return {
       values: {
-        github_issues_owner: { required },
-        github_issues_repo: { required },
+        github_issues_owner: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        github_issues_repo: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
         github_issues_api_token: {
-          required: requiredIf(() => {
-            return this.allowedValues.includes('github_issues_api_token')
-          }),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            requiredIf(() => {
+              return this.values.github_issues_api_token !== undefined
+            })
+          ),
         },
       },
     }

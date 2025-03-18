@@ -49,6 +49,39 @@ export class WebhookEventType extends Registerable {
   getRelatedFieldsHelpText() {
     return null
   }
+
+  /**
+   * If `true`, then a dropdown will be shown next to the webhook type allowing the user
+   * to choose related views. This can for example for an event that's restricted to
+   * certain view updates.
+   */
+  getHasRelatedView() {
+    return false
+  }
+
+  getRelatedViewPlaceholder() {
+    return null
+  }
+
+  getRelatedViewHelpText() {
+    return null
+  }
+
+  getDeactivatedText() {
+    return ''
+  }
+
+  getDeactivatedClickModal() {
+    return null
+  }
+
+  isDeactivated(workspaceId) {
+    return false
+  }
+
+  getFeatureName() {
+    return ''
+  }
 }
 
 export class RowsCreatedWebhookEventType extends WebhookEventType {
@@ -183,13 +216,18 @@ export class FieldDeletedWebhookEventType extends WebhookEventType {
 
 // Unfortunately, we don't have an example of the field object in the web-frontend, so
 // we would need to hardcode it here.
-const viewExample = {
+export const viewExample = {
   id: 0,
   table_id: 0,
   name: 'View',
   order: 1,
   type: 'grid',
-  table: null,
+  table: {
+    id: 0,
+    order: 1,
+    name: 'Table',
+    database_id: 0,
+  },
   filter_type: 'AND',
   filters_disabled: false,
   public_view_has_password: false,

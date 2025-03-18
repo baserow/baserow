@@ -85,28 +85,30 @@ class AllApplicationsView(APIView):
         returned.
         """
 
-        workspaces = Workspace.objects.filter(users=request.user)
+        workspaces = Workspace.objects.filter(users=request.user).prefetch_related(
+            "workspaceuser_set", "template_set"
+        )
 
         # Compute list of readable application ids
-        applications_ids = []
+        all_applications_qs = Application.objects.none()
         for workspace in workspaces:
             applications = Application.objects.filter(
                 workspace=workspace, workspace__trashed=False
-            )
-            applications = CoreHandler().filter_queryset(
+            ).select_related("content_type")
+            applications_qs = CoreHandler().filter_queryset(
                 request.user,
                 ListApplicationsWorkspaceOperationType.type,
                 applications,
                 workspace=workspace,
             )
-            applications_ids += applications.values_list("id", flat=True)
+            all_applications_qs = all_applications_qs.union(applications_qs)
 
         # Then filter with these ids
         applications = specific_iterator(
             Application.objects.select_related("content_type", "workspace")
             .prefetch_related("workspace__template_set")
-            .filter(id__in=applications_ids)
-            .order_by("workspace_id", "order"),
+            .filter(id__in=all_applications_qs.values("id"))
+            .order_by("workspace_id", "order", "id"),
             per_content_type_queryset_hook=(
                 lambda model, queryset: application_type_registry.get_by_model(
                     model

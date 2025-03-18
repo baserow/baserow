@@ -5,6 +5,14 @@ const FINISHED_STATES = ['finished', 'failed', 'cancelled']
 const STARTING_TIMEOUT_MS = 200
 const MAX_POLLING_ATTEMPTS = 100
 
+/**
+ * Calls job-type specific routine to enhance job object with any job-type specific
+ * properties. This may return `null` if job type is not registered.
+ *
+ * @param job
+ * @param registry
+ * @returns {*|null}
+ */
 export function populateJob(job, registry) {
   const type = registry.get('job', job.type)
   return type.populate(job)
@@ -31,8 +39,17 @@ export const mutations = {
   SET_ITEMS(state, items) {
     state.items = items
   },
+  /**
+   * Adds new job to the store.
+   * Adding job might be triggered from various places i.e. backend POST response
+   * or from websocket message. In those cases we want to make sure we don't add
+   * the same job multiple times.
+   */
   ADD_ITEM(state, item) {
-    state.items.push(item)
+    const existingJobIndex = state.items.findIndex((job) => job.id === item.id)
+    if (existingJobIndex === -1) {
+      state.items.push(item)
+    }
   },
   UPDATE_ITEM(state, { id, values }) {
     const index = state.items.findIndex((item) => item.id === id)
@@ -180,6 +197,7 @@ export const actions = {
   create({ dispatch }, job) {
     dispatch('forceCreate', job)
     dispatch('tryScheduleNextUpdate')
+    return this.getters['job/get'](job.id)
   },
 
   /**

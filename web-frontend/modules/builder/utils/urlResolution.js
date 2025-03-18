@@ -67,6 +67,7 @@ export default function resolveElementUrl(
       .map(({ name, value }) => {
         if (!value) return null
         const resolvedValue = resolveFormula(value)
+        if (!resolvedValue && String(resolvedValue) !== '0') return null
         return `${encodeURIComponent(name)}=${encodeURIComponent(
           resolvedValue
         )}`

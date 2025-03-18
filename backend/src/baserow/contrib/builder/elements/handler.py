@@ -124,9 +124,7 @@ class ElementHandler:
 
         try:
             element = (
-                queryset.select_related(
-                    "page", "page__builder", "page__builder__workspace"
-                )
+                queryset.select_related("page__builder__workspace")
                 .get(id=element_id)
                 .specific
             )
@@ -239,8 +237,14 @@ class ElementHandler:
         """
 
         if specific:
-            queryset = base_queryset.select_related("content_type")
-            elements = specific_iterator(queryset)
+            elements = specific_iterator(
+                base_queryset,
+                per_content_type_queryset_hook=(
+                    lambda element, queryset: element_type_registry.get_by_model(
+                        element
+                    ).enhance_queryset(queryset)
+                ),
+            )
         else:
             elements = base_queryset
 

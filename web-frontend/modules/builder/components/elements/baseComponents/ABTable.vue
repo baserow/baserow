@@ -10,12 +10,13 @@
         <slot name="field-name" :field="field">{{ field.name }}</slot>
       </th>
     </template>
-    <template #cell-content="{ rowIndex, value, field }">
+    <template #cell-content="{ rowIndex, value, field, row }">
       <slot
         name="cell-content"
         :value="value"
         :field="field"
         :row-index="rowIndex"
+        :row="row"
       >
         <td :key="field.id" class="ab-table__cell">
           <div class="ab-table__cell-content">
@@ -38,7 +39,7 @@
 </template>
 
 <script>
-import { TABLE_ORIENTATION } from '@baserow/modules/builder/enums'
+import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 import BaserowTable from '@baserow/modules/builder/components/elements/components/BaserowTable'
 
 export default {
@@ -56,7 +57,7 @@ export default {
     orientation: {
       type: String,
       required: false,
-      default: TABLE_ORIENTATION.HORIZONTAL,
+      default: ORIENTATIONS.HORIZONTAL,
     },
     contentLoading: {
       type: Boolean,

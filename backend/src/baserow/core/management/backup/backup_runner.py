@@ -9,8 +9,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-import psycopg2
-
 from baserow.contrib.database.fields.models import (
     LinkRowField,
     MultipleCollaboratorsField,
@@ -18,6 +16,7 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.table.constants import USER_TABLE_DATABASE_NAME_PREFIX
 from baserow.core.management.backup.exceptions import InvalidBaserowBackupArchive
+from baserow.core.psycopg import psycopg
 
 NO_USER_TABLES_BACKUP_SUB_FOLDER = "everything_but_user_tables"
 
@@ -156,7 +155,7 @@ class BaserowBackupRunner:
         return ["pg_restore"] + self._get_postgres_tool_args() + extra_command
 
     def _build_connection(self):
-        return psycopg2.connect(
+        return psycopg.connect(
             host=self.host,
             port=self.port,
             database=self.database,

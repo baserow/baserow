@@ -1,4 +1,5 @@
 import dataclasses
+import itertools
 import re
 import traceback
 from collections import defaultdict, namedtuple
@@ -21,7 +22,6 @@ from django.db.models.query import QuerySet
 import jwt
 from loguru import logger
 from opentelemetry import trace
-from psycopg2 import sql
 from redis.exceptions import LockNotOwnedError
 
 from baserow.contrib.database.api.utils import get_include_exclude_field_ids
@@ -84,7 +84,7 @@ from baserow.contrib.database.views.registries import (
     view_ownership_type_registry,
 )
 from baserow.contrib.database.views.view_filter_groups import ViewGroupedFiltersAdapter
-from baserow.core.db import specific_iterator, transaction_atomic
+from baserow.core.db import specific_iterator, sql, transaction_atomic
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
@@ -126,13 +126,16 @@ from .exceptions import (
     ViewSortNotSupported,
 )
 from .models import (
+    DEFAULT_SORT_TYPE_KEY,
     OWNERSHIP_TYPE_COLLABORATIVE,
     View,
     ViewDecoration,
     ViewFilter,
     ViewFilterGroup,
     ViewGroupBy,
+    ViewRows,
     ViewSort,
+    ViewSubscription,
 )
 from .registries import (
     decorator_type_registry,
@@ -143,6 +146,8 @@ from .registries import (
 )
 from .signals import (
     form_submitted,
+    rows_entered_view,
+    rows_exited_view,
     view_created,
     view_decoration_created,
     view_decoration_deleted,
@@ -216,6 +221,41 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         return f"i{table_id}:"
+
+    @classmethod
+    def before_field_type_change(cls, field: Field, model=None):
+        """
+        Remove all the indexes for the views that have a sort on the field
+        that is being changed.
+
+        :param field: The field that is being changed.
+        :param model: The model to use for the table. If not provided it will be
+            taken from the field.
+        """
+
+        views = View.objects.filter(
+            id__in=ViewSort.objects.filter(field=field).values("view_id"),
+            db_index_name__isnull=False,
+        )
+        if not views:
+            return
+
+        if model is None:
+            model = field.table.get_model()
+
+        dropped_indexes = set()
+        for view in views:
+            if view.db_index_name in dropped_indexes:
+                continue
+
+            cls.drop_index(
+                view=view,
+                db_index=django_models.Index("id", name=view.db_index_name),
+                model=model,
+            )
+            dropped_indexes.add(view.db_index_name)
+
+        View.objects.filter(id__in=[v.id for v in views]).update(db_index_name=None)
 
     @classmethod
     def _get_index_hash(
@@ -313,6 +353,7 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
                 field_object["field"],
                 field_object["name"],
                 view_sort_or_group_by.order,
+                view_sort_or_group_by.type,
                 table_model=model,
             )
 
@@ -441,6 +482,12 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
         ):
             return current_index_name
 
+        cls.drop_index(view, db_index, model)
+
+        return current_index_name
+
+    @classmethod
+    def drop_index(cls, view, db_index, model=None):
         if model is None:
             model = view.table.get_model()
 
@@ -452,8 +499,6 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
                 view_pk=view.pk,
                 view_table_id=view.table_id,
             )
-
-        return current_index_name
 
     @classmethod
     def update_index_by_view_id(cls, view_id: int, nowait=True):
@@ -591,6 +636,16 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             ),
         )
         return views
+
+    def before_field_type_change(self, field: Field):
+        """
+        Allow trigger custom logic before field is changed.
+        By default it calls ViewIndexingHandler.before_field_type_change.
+
+        :param field: The field that is being changed.
+        """
+
+        ViewIndexingHandler.before_field_type_change(field)
 
     def list_workspace_views(
         self,
@@ -875,7 +930,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         view_type = view_type_registry.get_by_model(original_view)
 
-        cache = {}
+        cache = {
+            "workspace_id": workspace.id,
+        }
 
         # Use export/import to duplicate the view easily
         serialized = view_type.export_serialized(original_view, cache)
@@ -897,6 +954,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         # the mapping remain the same. They haven't change because we're only
         # reimporting the view and not the table, fields, etc.
         id_mapping = {
+            "workspace_id": workspace.id,
             "database_fields": MirrorDict(),
             "database_field_select_options": MirrorDict(),
         }
@@ -1318,13 +1376,17 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         # `after_fields_changed_or_deleted` can be called in bulk and make it query
         # efficient.
         changed_fields = set()
+        all_fields_mapping = {field.id: field for field in fields}
 
+        # Fetch the sorts of all updated fields to check if the sort, including the
+        # type, is still compatible.
+        sorts_to_check = ViewSort.objects.filter(field_id__in=all_fields_mapping.keys())
         fields_to_delete_sortings = [
-            f
-            for f in fields
+            all_fields_mapping[sort.field_id]
+            for sort in sorts_to_check
             if not field_type_registry.get_by_model(
-                f.specific_class
-            ).check_can_order_by(f)
+                all_fields_mapping[sort.field_id].specific_class
+            ).check_can_order_by(all_fields_mapping[sort.field_id], sort.type)
         ]
 
         # If it's a primary field, we also need to remove any sortings on the
@@ -1345,12 +1407,17 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             if deleted_count > 0:
                 changed_fields.update(fields_to_delete_sortings)
 
+        # Fetch the group bys of all updated fields to check if the group by, including
+        # the type, is still compatible.
+        groups_to_check = ViewGroupBy.objects.filter(
+            field_id__in=all_fields_mapping.keys()
+        )
         fields_to_delete_groupings = [
-            f
-            for f in fields
+            all_fields_mapping[sort.field_id]
+            for sort in groups_to_check
             if not field_type_registry.get_by_model(
-                f.specific_class
-            ).check_can_group_by(f)
+                all_fields_mapping[sort.field_id].specific_class
+            ).check_can_group_by(all_fields_mapping[sort.field_id], sort.type)
         ]
         if fields_to_delete_groupings:
             deleted_count, _ = ViewGroupBy.objects.filter(
@@ -1423,7 +1490,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             field_type = field_type_registry.get_by_model(field.specific_class)
             # Check whether the updated field is still compatible with the group by.
             # If not, it must be deleted.
-            if not field_type.check_can_group_by(field):
+            if not field_type.check_can_group_by(field, DEFAULT_SORT_TYPE_KEY):
                 ViewGroupBy.objects.filter(field=field).delete()
 
     def get_filter_builder(
@@ -1878,6 +1945,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 field,
                 field_name,
                 view_sort_or_group_by.order,
+                view_sort_or_group_by.type,
                 table_model=queryset.model,
             )
             field_annotation = field_annotated_order_by.annotation
@@ -2009,6 +2077,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         field: Field,
         order: str,
         primary_key: Optional[int] = None,
+        sort_type: Optional[str] = None,
     ) -> ViewSort:
         """
         Creates a new view sort.
@@ -2019,6 +2088,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param order: The desired order, can either be ascending (A to Z) or
             descending (Z to A).
         :param primary_key: An optional primary key to give to the new view sort.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         :raises ViewSortNotSupported: When the provided view does not support sorting.
         :raises FieldNotInTable:  When the provided field does not belong to the
             provided view's table.
@@ -2035,6 +2106,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             user, CreateViewSortOperationType.type, workspace=workspace, context=view
         )
 
+        if not sort_type:
+            sort_type = DEFAULT_SORT_TYPE_KEY
+
         # Check if view supports sorting.
         view_type = view_type_registry.get_by_model(view.specific_class)
         if not view_type.can_sort:
@@ -2044,9 +2118,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Check if the field supports sorting.
         field_type = field_type_registry.get_by_model(field.specific_class)
-        if not field_type.check_can_order_by(field):
+        if not field_type.check_can_order_by(field, sort_type):
             raise ViewSortFieldNotSupported(
-                f"The field {field.pk} does not support sorting."
+                f"The field {field.pk} does not support sorting with type {sort_type}."
             )
 
         # Check if field belongs to the grid views table
@@ -2062,7 +2136,11 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         view_sort = ViewSort.objects.create(
-            pk=primary_key, view=view, field=field, order=order
+            pk=primary_key,
+            view=view,
+            field=field,
+            order=order,
+            type=sort_type,
         )
 
         view_sort_created.send(self, view_sort=view_sort, user=user)
@@ -2075,6 +2153,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         view_sort: ViewSort,
         field: Optional[Field] = None,
         order: Optional[str] = None,
+        sort_type: Optional[str] = None,
     ) -> ViewSort:
         """
         Updates the values of an existing view sort.
@@ -2096,6 +2175,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         workspace = view_sort.view.table.database.workspace
         field = field if field is not None else view_sort.field
         order = order if order is not None else view_sort.order
+        sort_type = sort_type if sort_type is not None else view_sort.type
 
         CoreHandler().check_permissions(
             user, ReadFieldOperationType.type, workspace=workspace, context=field
@@ -2120,7 +2200,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         # If the field has changed we need to check if the new field type supports
         # sorting.
         field_type = field_type_registry.get_by_model(field.specific_class)
-        if field.id != view_sort.field_id and not field_type.check_can_order_by(field):
+        if (
+            field.id != view_sort.field_id or sort_type != view_sort.type
+        ) and not field_type.check_can_order_by(
+            field,
+            sort_type,
+        ):
             raise ViewSortFieldNotSupported(
                 f"The field {field.pk} does not support sorting."
             )
@@ -2137,6 +2222,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         view_sort.field = field
         view_sort.order = order
+        view_sort.type = sort_type
         view_sort.save()
 
         view_sort_updated.send(self, view_sort=view_sort, user=user)
@@ -2239,6 +2325,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         field: Field,
         order: str,
         width: int,
+        sort_type: str = None,
         primary_key: Optional[int] = None,
     ) -> ViewGroupBy:
         """
@@ -2249,6 +2336,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param field: The field that needs to be grouped.
         :param order: The desired order, can either be ascending (A to Z) or
             descending (Z to A).
+        :param width: The visual width of the group column.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         :param primary_key: An optional primary key to give to the new view group_by.
         :raises ViewGroupByNotSupported: When the provided view does not support
             grouping.
@@ -2265,6 +2355,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             user, CreateViewGroupByOperationType.type, workspace=workspace, context=view
         )
 
+        if not sort_type:
+            sort_type = DEFAULT_SORT_TYPE_KEY
+
         # Check if view supports grouping.
         view_type = view_type_registry.get_by_model(view.specific_class)
         if not view_type.can_group_by:
@@ -2274,9 +2367,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Check if the field supports grouping.
         field_type = field_type_registry.get_by_model(field.specific_class)
-        if not field_type.check_can_group_by(field):
+        if not field_type.check_can_group_by(field, sort_type):
             raise ViewGroupByFieldNotSupported(
-                f"The field {field.pk} does not support grouping."
+                f"The field {field.pk} does not support grouping with type {sort_type}."
             )
 
         # Check if field belongs to the grid views table
@@ -2292,7 +2385,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         view_group_by = ViewGroupBy.objects.create(
-            pk=primary_key, view=view, field=field, order=order, width=width
+            pk=primary_key,
+            view=view,
+            field=field,
+            order=order,
+            width=width,
+            type=sort_type,
         )
 
         view_group_by_created.send(self, view_group_by=view_group_by, user=user)
@@ -2306,6 +2404,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         field: Optional[Field] = None,
         order: Optional[str] = None,
         width: Optional[int] = None,
+        sort_type: Optional[str] = None,
     ) -> ViewGroupBy:
         """
         Updates the values of an existing view group_by.
@@ -2315,6 +2414,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param field: The field that must be grouped on.
         :param order: Indicates the group by order direction.
         :param width: The visual width of the group by.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         :raises ViewGroupByDoesNotExist: When the view used by the filter is trashed.
         :raises ViewGroupByFieldNotSupported: When the field does not support grouping.
         :raises FieldNotInTable:  When the provided field does not belong to the
@@ -2331,6 +2432,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         field = field if field is not None else view_group_by.field
         order = order if order is not None else view_group_by.order
         width = width if width is not None else view_group_by.width
+        sort_type = sort_type if sort_type is not None else view_group_by.type
 
         CoreHandler().check_permissions(
             user, ReadFieldOperationType.type, workspace=workspace, context=field
@@ -2355,8 +2457,11 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         # If the field has changed we need to check if the new field type supports
         # grouping.
         field_type = field_type_registry.get_by_model(field.specific_class)
-        if field.id != view_group_by.field_id and not field_type.check_can_order_by(
-            field
+        if (
+            field.id != view_group_by.field_id or sort_type != view_group_by.type
+        ) and not field_type.check_can_order_by(
+            field,
+            sort_type,
         ):
             raise ViewGroupByFieldNotSupported(
                 f"The field {field.pk} does not support grouping."
@@ -2369,12 +2474,14 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             and view_group_by.view.viewgroupby_set.filter(field_id=field.pk).exists()
         ):
             raise ViewGroupByFieldAlreadyExist(
-                f"A group by for the field {field.pk} already exists."
+                f"A group by for the field {field.pk} already exists with type "
+                f"{sort_type}."
             )
 
         view_group_by.field = field
         view_group_by.order = order
         view_group_by.width = width
+        view_group_by.type = sort_type
         view_group_by.save()
 
         view_group_by_updated.send(self, view_group_by=view_group_by, user=user)
@@ -3207,7 +3314,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         return view
 
     def submit_form_view(
-        self, user, form, values, model=None, enabled_field_options=None
+        self,
+        user,
+        form,
+        values,
+        model: GeneratedTableModel | None = None,
+        enabled_field_options=None,
     ):
         """
         Handles when a form is submitted. It will validate the data by checking if
@@ -3523,7 +3635,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 field_name = field.db_column
                 field_type = field_type_registry.get_by_model(field.specific_class)
 
-                if not field_type.check_can_group_by(field):
+                if not field_type.check_can_group_by(field, DEFAULT_SORT_TYPE_KEY):
                     raise ValueError(f"Can't group by {field_name}.")
 
                 value = getattr(row, field_name)
@@ -3754,3 +3866,127 @@ class CachingPublicViewRowChecker:
         # filters and so the result of the first check will be still
         # valid for any subsequent checks.
         return True
+
+
+class ViewSubscriptionHandler:
+    @classmethod
+    def subscribe_to_views(cls, subscriber: django_models.Model, views: list[View]):
+        """
+        Subscribes a subscriber to the provided views. If the ViewRows already exist, it
+        ensure to notify any changes to the subscriber first, so that the subscriber can
+        be notified only for the changes that happened after the subscription.
+
+        :param subscriber: The subscriber to subscribe to the views.
+        :param views: The views to subscribe to.
+        """
+
+        cls.notify_table_views_updates(views)
+        ViewRows.create_missing_for_views(views)
+
+        new_subscriptions = []
+        for view in views:
+            new_subscriptions.append(ViewSubscription(subscriber=subscriber, view=view))
+        ViewSubscription.objects.bulk_create(new_subscriptions, ignore_conflicts=True)
+
+    @classmethod
+    def unsubscribe_from_views(
+        cls, subscriber: django_models.Model, views: list[View] | None = None
+    ):
+        """
+        Unsubscribes a subscriber from the provided views. If the views are not
+        provided, it unsubscribes the subscriber from all views. Make sure to use a
+        table-specific model for the subscriber to avoid unsubscribing from views that
+        are not related to the subscriber.
+
+        :param subscriber: The subscriber to unsubscribe from the views.
+        :param views: The views to unsubscribe from. If not provided, the subscriber
+            will be unsubscribed
+        """
+
+        q = Q(
+            subscriber_content_type=ContentType.objects.get_for_model(subscriber),
+            subscriber_id=subscriber.pk,
+        )
+        if views is not None:
+            q &= Q(view__in=views)
+
+        ViewSubscription.objects.filter(q).delete()
+
+    @classmethod
+    def check_views_with_time_sensitive_filters(cls):
+        """
+        Checks for views that have time-sensitive filters. If a view has a
+        time-sensitive filter, calling this method periodically ensure proper signals
+        are emitted to notify subscribers that the view results have changed.
+        """
+
+        views = View.objects.filter(
+            id__in=ViewFilter.objects.filter(
+                type__in=view_filter_type_registry.get_time_sensitive_filter_types(),
+                view__in=ViewSubscription.objects.values("view"),
+            ).values("view_id")
+        ).order_by("table", "id")
+        for _, view_group in itertools.groupby(views, key=lambda f: f.table):
+            view_ids = [v.id for v in view_group]
+            if view_ids:
+                cls._notify_table_views_updates(view_ids)
+
+    @classmethod
+    def notify_table_views_updates(
+        cls, views: list[View], model: GeneratedTableModel | None = None
+    ):
+        """
+        Verify if the views have subscribers and notify them of any changes in the view
+        results.
+
+        :param views: The views to notify subscribers of.
+        :param model: The table model to use for the views. If not provided, the model
+            will be generated automatically.
+        """
+
+        view_ids_with_subscribers = ViewSubscription.objects.filter(
+            view__in=views
+        ).values_list("view_id", flat=True)
+        if view_ids_with_subscribers:
+            cls._notify_table_views_updates(view_ids_with_subscribers, model)
+
+    @classmethod
+    def _notify_table_views_updates(
+        cls, view_ids: list[int], model: GeneratedTableModel | None = None
+    ):
+        """
+        Notify subscribers of any changes in the view results, emitting the appropriate
+        signals and updating the ViewRows state.
+
+        :param view_ids: The view ids to notify subscribers of.
+        :param model: The table model to use for the views. If not provided, the model
+            will be generated automatically
+        """
+
+        view_rows = list(
+            ViewRows.objects.select_related("view__table")
+            .filter(view_id__in=view_ids)
+            .select_for_update(of=("self",))
+            .order_by("view_id")
+        )
+
+        if model is None:
+            model = view_rows[0].view.table.get_model()
+
+        for view_state in view_rows:
+            view = view_state.view
+            new_row_ids, row_ids_entered, row_ids_exited = view_state.get_diff(model)
+            changed = False
+            if row_ids_entered:
+                rows_entered_view.send(
+                    sender=cls, view=view, row_ids=row_ids_entered, model=model
+                )
+                changed = True
+            if row_ids_exited:
+                rows_exited_view.send(
+                    sender=cls, view=view, row_ids=row_ids_exited, model=model
+                )
+                changed = True
+            if changed:
+                view_state.row_ids = new_row_ids
+                view_state.save()

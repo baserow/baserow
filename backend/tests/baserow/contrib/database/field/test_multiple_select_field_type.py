@@ -450,7 +450,7 @@ def test_multiple_select_field_type_multiple_rows(data_fixture):
     assert len(row_5_field) == 1
     assert getattr(row_5_field[0], "id") == select_options[0].id
 
-    _, error_report = row_handler.create_rows(
+    error_report = row_handler.create_rows(
         user,
         table,
         rows_values=[
@@ -460,7 +460,7 @@ def test_multiple_select_field_type_multiple_rows(data_fixture):
             {f"field_{field.id}": [99999, "missing"]},
         ],
         generate_error_report=True,
-    )
+    ).errors
 
     assert list(error_report.keys()) == [0, 2, 3]
     assert f"field_{field.id}" in error_report[0]
@@ -2300,7 +2300,7 @@ def test_multiple_select_adjacent_row(data_fixture):
                 f"field_{multiple_select_field.id}": [option_a.id],
             },
         ],
-    )
+    ).created_rows
 
     base_queryset = ViewHandler().apply_sorting(
         grid_view, table.get_model().objects.all()
@@ -2595,7 +2595,7 @@ def test_get_group_by_metadata_in_rows_with_many_to_many_field(data_fixture):
                 ],
             },
         ],
-    )
+    ).created_rows
 
     model = table.get_model()
 
@@ -2792,7 +2792,7 @@ def test_get_group_by_metadata_in_rows_multiple_and_single_select_fields(data_fi
                 ],
             },
         ],
-    )
+    ).created_rows
 
     model = table.get_model()
 
@@ -2992,11 +2992,15 @@ def setup_view_for_multiple_select_field(data_fixture, option_values):
             return {}
         return {multiple_select_field.db_column: [opt.id for opt in options]}
 
-    rows = RowHandler().force_create_rows(
-        user,
-        table,
-        [prep_row([option] if option is not None else None) for option in options],
-        model=model,
+    rows = (
+        RowHandler()
+        .force_create_rows(
+            user,
+            table,
+            [prep_row([option] if option is not None else None) for option in options],
+            model=model,
+        )
+        .created_rows
     )
 
     fields = {

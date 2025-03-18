@@ -7,7 +7,7 @@
         :error="fieldHasErrors('dateFieldId')"
         required
       >
-        <Dropdown v-model="values.dateFieldId" :show-search="true">
+        <Dropdown v-model="v$.values.dateFieldId.$model" :show-search="true">
           <DropdownItem
             v-for="dateField in dateFields"
             :key="dateField.id"
@@ -19,7 +19,7 @@
         </Dropdown>
 
         <template #error>
-          {{ $t('error.requiredField') }}
+          {{ v$.values.dateFieldId.$errors[0]?.$message }}
         </template>
       </FormGroup>
       <slot></slot>
@@ -31,7 +31,8 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
@@ -52,6 +53,9 @@ export default {
       default: null,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       values: {
@@ -69,10 +73,17 @@ export default {
       return ft?.getIconClass() || 'calendar-alt'
     },
   },
-  validations: {
-    values: {
-      dateFieldId: { required },
-    },
+  validations() {
+    return {
+      values: {
+        dateFieldId: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
   },
 }
 </script>

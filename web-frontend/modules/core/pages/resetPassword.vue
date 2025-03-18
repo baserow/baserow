@@ -36,7 +36,7 @@
           >
             <PasswordInput
               v-model="account.password"
-              :validation-state="$v.account.password"
+              :validation-state="v$.account.password"
               :placeholder="$t('signup.passwordPlaceholder')"
               :error-placeholder-class="'auth__control-error'"
               :show-error-icon="true"
@@ -48,14 +48,14 @@
             :label="$t('resetPassword.repeatNewPassword')"
             required
             class="mb-32"
-            :error="$v.account.passwordConfirm.$error"
+            :error="v$.account.passwordConfirm.$error"
           >
             <FormInput
               v-model="account.passwordConfirm"
-              :error="$v.account.passwordConfirm.$error"
+              :error="v$.account.passwordConfirm.$error"
               type="password"
               size="large"
-              @blur="$v.account.passwordConfirm.$touch()"
+              @blur="v$.account.passwordConfirm.$touch"
             >
             </FormInput>
 
@@ -101,7 +101,9 @@
 </template>
 
 <script>
-import { sameAs } from 'vuelidate/lib/validators'
+import { sameAs } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
 import LangPicker from '@baserow/modules/core/components/LangPicker'
@@ -115,14 +117,32 @@ export default {
   components: { LangPicker, PasswordInput },
   mixins: [error],
   layout: 'login',
-  data() {
-    return {
-      loading: false,
-      success: false,
+  setup() {
+    const values = reactive({
       account: {
         password: '',
         passwordConfirm: '',
       },
+    })
+
+    const rules = computed(() => ({
+      account: {
+        password: passwordValidation,
+        passwordConfirm: {
+          sameAsPassword: sameAs(values.account.password),
+        },
+      },
+    }))
+
+    return {
+      v$: useVuelidate(rules, values, { $lazy: true }),
+      account: values.account,
+    }
+  },
+  data() {
+    return {
+      loading: false,
+      success: false,
     }
   },
   head() {
@@ -137,10 +157,8 @@ export default {
   },
   methods: {
     async resetPassword() {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
-        return
-      }
+      const isFormCorrect = await this.v$.$validate()
+      if (!isFormCorrect) return
 
       this.loading = true
       this.hideError()
@@ -166,14 +184,6 @@ export default {
           ),
         })
       }
-    },
-  },
-  validations: {
-    account: {
-      password: passwordValidation,
-      passwordConfirm: {
-        sameAsPassword: sameAs('password'),
-      },
     },
   },
 }

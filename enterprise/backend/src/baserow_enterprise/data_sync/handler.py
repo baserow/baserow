@@ -24,6 +24,7 @@ from baserow_enterprise.data_sync.models import (
 )
 from baserow_enterprise.features import DATA_SYNC
 
+from .notification_types import PeriodicDataSyncDeactivatedNotificationType
 from .tasks import sync_periodic_data_sync
 
 
@@ -216,6 +217,15 @@ class EnterpriseDataSyncHandler:
                 >= settings.BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS
             ):
                 periodic_data_sync.automatically_deactivated = True
+
+                # Send a notification to the authorized user that the periodic data
+                # sync was deactivated.
+                transaction.on_commit(
+                    lambda: PeriodicDataSyncDeactivatedNotificationType.notify_authorized_user(
+                        periodic_data_sync
+                    )
+                )
+
             periodic_data_sync.save()
         elif periodic_data_sync.consecutive_failed_count > 0:
             # Once it runs successfully, the consecutive count can be reset because we

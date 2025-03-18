@@ -13,7 +13,6 @@ from django.contrib.auth.models import AbstractUser
 from django.db import connection
 from django.utils.dateparse import parse_date, parse_datetime
 
-import psycopg2
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
@@ -27,6 +26,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionType
 from baserow.core.models import Workspace
+from baserow.core.psycopg import psycopg
 
 User = get_user_model()
 
@@ -318,7 +318,7 @@ def setup_interesting_test_table(
 
         blank_row, row = row_handler.force_create_rows(
             user, table, [{}, row_values], model=model
-        )
+        ).created_rows
 
     # Setup the link rows
     linked_row_1, linked_row_2, linked_row_3 = row_handler.force_create_rows(
@@ -337,7 +337,7 @@ def setup_interesting_test_table(
                 link_table_primary_text_field.db_column: "",
             },
         ],
-    )
+    ).created_rows
     linked_row_4, linked_row_5, linked_row_6 = row_handler.force_create_rows(
         user=user,
         table=decimal_link_table,
@@ -352,7 +352,7 @@ def setup_interesting_test_table(
                 decimal_table_primary_decimal_field.db_column: None,
             },
         ],
-    )
+    ).created_rows
     with freeze_time("2020-01-01 12:00"):
         user_file_1 = data_fixture.create_user_file(
             original_name=f"name{file_suffix}.txt",
@@ -372,7 +372,7 @@ def setup_interesting_test_table(
                 file_link_table_primary_file_field.db_column: None,
             },
         ],
-    )
+    ).created_rows
     link_row_9, link_row_10 = row_handler.force_create_rows(
         user=user,
         table=multiple_collaborators_link_table,
@@ -389,7 +389,7 @@ def setup_interesting_test_table(
                 ],
             },
         ],
-    )
+    ).created_rows
 
     link_row_field_id = name_to_field_id["link_row"]
     link_row_field_without_related_id = name_to_field_id["link_row_without_related"]
@@ -508,9 +508,9 @@ def assert_undo_redo_actions_fails_with_error(
 @contextmanager
 def independent_test_db_connection():
     d = connection.settings_dict
-    conn = psycopg2.connect(
+    conn = psycopg.connect(
         host=d["HOST"],
-        database=d["NAME"],
+        dbname=d["NAME"],
         user=d["USER"],
         password=d["PASSWORD"],
         port=d["PORT"],

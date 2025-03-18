@@ -1,5 +1,6 @@
 import pytest
 
+from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.elements.models import ColumnElement, TextElement
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.constants import ILLEGAL_PATH_SAMPLE_CHARACTER
@@ -17,6 +18,7 @@ from baserow.contrib.builder.pages.exceptions import (
 )
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
+from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
 @pytest.mark.django_db
@@ -517,3 +519,37 @@ def test_validate_query_params_edge_cases():
         invalid_params = [{"name": f"filter{char}", "type": "text"}]
         with pytest.raises(InvalidQueryParamName):
             handler.validate_query_params(path, path_params, invalid_params)
+
+
+def test_get_page_public_records_cache_key():
+    user_with_role = UserSourceUser(
+        None, None, 1, "username", "foo@bar.com", role="admin"
+    )
+    assert (
+        PageHandler.get_page_public_records_cache_key(123, user_with_role, "elements")
+        == "ab_public_page_123_admin_elements_records"
+    )
+    user_without_role = UserSourceUser(None, None, 1, "username", "foo@bar.com")
+    assert (
+        PageHandler.get_page_public_records_cache_key(
+            123, user_without_role, "elements"
+        )
+        == "ab_public_page_123_elements_records"
+    )
+
+
+@pytest.mark.django_db
+def test_is_published_application_page(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    domain = data_fixture.create_builder_custom_domain(builder=builder)
+
+    domain = DomainHandler().publish(domain)
+    published_builder = domain.published_to
+    published_page = published_builder.visible_pages.get()
+
+    assert not PageHandler()._is_published_application_page(page.id)
+    assert PageHandler()._is_published_application_page(published_page.id)

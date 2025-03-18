@@ -1,6 +1,7 @@
 import faker
 from baserow_premium.license.models import License
 
+from baserow.core.cache import local_cache
 from baserow.core.models import Settings
 from baserow_enterprise.models import Role, RoleAssignment, Team, TeamSubject
 
@@ -21,12 +22,20 @@ class EnterpriseFixtures:
     def enable_enterprise(self):
         Settings.objects.update_or_create(defaults={"instance_id": "1"})
         if not License.objects.filter(cached_untrusted_instance_wide=True).exists():
-            return License.objects.create(
+            license = License.objects.create(
                 license=VALID_ONE_SEAT_ENTERPRISE_LICENSE.decode(),
                 cached_untrusted_instance_wide=True,
             )
         else:
-            return License.objects.filter(cached_untrusted_instance_wide=True).get()
+            license = License.objects.filter(cached_untrusted_instance_wide=True).get()
+
+        local_cache.clear()
+
+        return license
+
+    def delete_all_licenses(self):
+        License.objects.all().delete()
+        local_cache.clear()
 
     def create_team(self, **kwargs):
         if "name" not in kwargs:

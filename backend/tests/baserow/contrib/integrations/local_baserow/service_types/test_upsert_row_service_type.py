@@ -361,7 +361,7 @@ def test_local_baserow_upsert_row_service_dispatch_transform(
     )
 
     serialized_row = service_type.dispatch_transform(dispatch_data)
-    assert dict(serialized_row) == {
+    assert dict(serialized_row.data) == {
         "id": dispatch_data["data"].id,
         "order": "1.00000000000000000000",
         ingredient.db_column: str(2),
@@ -473,7 +473,7 @@ def test_local_baserow_upsert_row_service_dispatch_data_convert_value(data_fixtu
     )
     serialized_row = service_type.dispatch_transform(dispatch_data)
 
-    assert dict(serialized_row) == {
+    assert dict(serialized_row.data) == {
         "id": 1,
         "order": "1.00000000000000000000",
         # The string 'true' was converted to a boolean value
@@ -599,7 +599,7 @@ def test_export_import_local_baserow_upsert_row_service(
     imported_table = imported_database.table_set.get()
     imported_field = imported_table.field_set.get()
 
-    imported_page = imported_builder.page_set.get()
+    imported_page = imported_builder.visible_pages.get()
     imported_data_source = imported_page.datasource_set.get()
     imported_integration = imported_builder.integrations.get()
     imported_upsert_row_service = LocalBaserowUpsertRow.objects.get(
@@ -722,7 +722,7 @@ def test_dispatch_transform_passes_field_ids(
 
     results = service_type.dispatch_transform(dispatch_data)
 
-    assert results == mock_serializer_instance.data
+    assert results.data == mock_serializer_instance.data
     mock_get_serializer.assert_called_once_with(
         dispatch_data["baserow_table_model"],
         RowSerializer,

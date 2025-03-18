@@ -1,0 +1,25 @@
+.chart {
+  max-height: 320px;
+}
+
+.chart__no-data {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  padding: 10px 0;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.chart__no-data-dashed-line {
+  border-top: 1px dashed $palette-neutral-200;
+  width: 100%;
+  height: 1px;
+}
+
+.chart__no-data-plain-line {
+  border-top: 1px solid $palette-neutral-200;
+  width: 100%;
+  height: 1px;
+}

@@ -17,6 +17,7 @@ from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.types import DataSourceDict
+from baserow.core.cache import local_cache
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.services.handler import ServiceHandler
@@ -36,13 +37,50 @@ class DataSourceHandler:
         self.service_handler = ServiceHandler()
 
     def get_data_source(
-        self, data_source_id: int, base_queryset: Optional[QuerySet] = None, cache=None
+        self,
+        data_source_id: int,
+        base_queryset: Optional[QuerySet] = None,
+        specific=True,
+        with_cache=False,
     ) -> DataSource:
         """
         Returns a data_source instance from the database.
 
         :param data_source_id: The ID of the data_source.
         :param base_queryset: The base queryset to use to build the query.
+        :param specific: Return the specific version of related objects like the
+          service and the integration
+        :raises DataSourceDoesNotExist: If the data_source can't be found.
+        :param with_cache: Whether this method should use the short
+          cache for data_sources.
+        :return: The data_source instance.
+        """
+
+        if with_cache and not base_queryset:
+            return local_cache.get(
+                f"ab_data_source_{data_source_id}_{specific}",
+                lambda: self._get_data_source(
+                    data_source_id, base_queryset, specific=specific
+                ),
+            )
+        else:
+            return self._get_data_source(
+                data_source_id, base_queryset, specific=specific
+            )
+
+    def _get_data_source(
+        self,
+        data_source_id: int,
+        base_queryset: Optional[QuerySet] = None,
+        specific=True,
+    ) -> DataSource:
+        """
+        Base version of the get_data_source without the caching capabilities.
+
+        :param data_source_id: The ID of the data_source.
+        :param base_queryset: The base queryset to use to build the query.
+        :param specific: Return the specific version of related objects like the
+          service and the integration
         :raises DataSourceDoesNotExist: If the data_source can't be found.
         :return: The data_source instance.
         """
@@ -51,12 +89,24 @@ class DataSourceHandler:
             base_queryset if base_queryset is not None else DataSource.objects.all()
         )
 
+        queryset = queryset.select_related("page__builder__workspace")
+
         try:
-            data_source = queryset.select_related(
-                "page", "page__builder", "page__builder__workspace", "service"
-            ).get(id=data_source_id)
-        except DataSource.DoesNotExist:
-            raise DataSourceDoesNotExist()
+            if specific:
+                data_source = queryset.get(id=data_source_id)
+                if data_source.service_id:
+                    specific_service = ServiceHandler().get_service(
+                        data_source.service_id, specific=True
+                    )
+                    data_source.__class__.service.field.set_cached_value(
+                        data_source, specific_service
+                    )
+            else:
+                data_source = queryset.select_related("service__integration").get(
+                    id=data_source_id
+                )
+        except DataSource.DoesNotExist as exc:
+            raise DataSourceDoesNotExist() from exc
 
         return data_source
 
@@ -83,26 +133,23 @@ class DataSourceHandler:
             base_queryset=queryset,
         )
 
-    def _query_data_sources(self, base_queryset: QuerySet, specific=True):
+    def _query_data_sources(
+        self, base_queryset: QuerySet, specific=True, with_cache=False
+    ):
         """
         Query data sources from the base queryset.
 
         :param base_queryset: The base QuerySet to query from.
         :param specific: A boolean flag indicating whether to include specific service
           instance.
+        :param with_cache: Whether this method should populate the short
+          cache for data_sources.
         :return: A list of queried data sources.
         """
 
-        data_source_queryset = base_queryset.select_related(
-            "service",
-            "page__builder__workspace",
-            "service__integration__application",
-        )
+        data_source_queryset = base_queryset.select_related("page__builder__workspace")
 
         if specific:
-            data_source_queryset = data_source_queryset.select_related(
-                "service__content_type"
-            )
             data_sources = list(data_source_queryset.all())
 
             # Get all service ids to get them from DB in one query
@@ -124,9 +171,19 @@ class DataSourceHandler:
                 if data_source.service_id:
                     data_source.service = specific_services_map[data_source.service_id]
 
-            return data_sources
         else:
-            return data_source_queryset.all()
+            data_source_queryset.select_related(
+                "service__integration__application",
+            )
+            data_sources = data_source_queryset.all()
+
+        if with_cache:
+            for ds in data_sources:
+                local_cache.get(
+                    f"ab_data_source_{ds.id}_{specific}",
+                    ds,
+                )
+        return data_sources
 
     def get_data_sources(
         self,
@@ -134,6 +191,7 @@ class DataSourceHandler:
         base_queryset: Optional[QuerySet] = None,
         with_shared: Optional[bool] = False,
         specific: Optional[bool] = True,
+        with_cache=False,
     ) -> Union[QuerySet[DataSource], Iterable[DataSource]]:
         """
         Gets all the specific data_sources of a given page.
@@ -144,6 +202,8 @@ class DataSourceHandler:
           on the same builder.
         :param specific: If True, return the specific version of the service related
           to the data source
+        :param with_cache: Whether this method should populate the short
+          cache for data_sources.
         :return: The data_sources of that page.
         """
 
@@ -159,13 +219,18 @@ class DataSourceHandler:
         else:
             data_source_queryset = data_source_queryset.filter(page=page)
 
-        return self._query_data_sources(data_source_queryset, specific=specific)
+        return self._query_data_sources(
+            data_source_queryset,
+            specific=specific,
+            with_cache=with_cache,
+        )
 
     def get_builder_data_sources(
         self,
         builder: "Builder",
         base_queryset: Optional[QuerySet] = None,
         specific: Optional[bool] = True,
+        with_cache=False,
     ) -> Union[QuerySet[DataSource], Iterable[DataSource]]:
         """
         Gets all the specific data_sources of a given builder.
@@ -174,6 +239,8 @@ class DataSourceHandler:
         :param base_queryset: The base queryset to use to build the query.
         :param specific: If True, return the specific version of the service related
           to the data source
+        :param with_cache: Whether this method should populate the short
+          cache for data_sources.
         :return: The data_sources of that builder.
         """
 
@@ -183,7 +250,11 @@ class DataSourceHandler:
 
         data_source_queryset = data_source_queryset.filter(page__builder=builder)
 
-        return self._query_data_sources(data_source_queryset, specific=specific)
+        return self._query_data_sources(
+            data_source_queryset,
+            specific=specific,
+            with_cache=with_cache,
+        )
 
     def get_data_sources_with_cache(
         self,
@@ -192,26 +263,25 @@ class DataSourceHandler:
         specific: bool = True,
     ):
         """
-        Gets all the specific data_sources of a given page. This version cache the
+        Gets all the data sources of a given page. This version cache the
         data sources of the page onto the page object to improve perfs.
 
         :param page: The page that holds the data_source.
         :param base_queryset: The base queryset to use to build the query.
         :param specific: If True, return the specific version of the service related
-          to the integration
+          to the data source
         :return: The data_sources of the page.
         """
 
-        if not hasattr(page, "_data_sources"):
-            data_sources = DataSourceHandler().get_data_sources(
+        return local_cache.get(
+            f"ab_data_sources_{page.id}_{specific}",
+            lambda: DataSourceHandler().get_data_sources(
                 page,
                 base_queryset=base_queryset,
                 specific=specific,
                 with_shared=True,
-            )
-            setattr(page, "_data_sources", data_sources)
-
-        return getattr(page, "_data_sources")
+            ),
+        )
 
     def get_data_source_with_cache(
         self,
@@ -448,7 +518,7 @@ class DataSourceHandler:
             # it later
             dispatch_context.cache["data_source_contents"][
                 data_source.id
-            ] = service_dispatch
+            ] = service_dispatch.data
 
         return dispatch_context.cache["data_source_contents"][data_source.id]
 

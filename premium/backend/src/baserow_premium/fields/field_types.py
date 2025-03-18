@@ -168,13 +168,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             field_name, value, model_field, field
         )
 
-    def check_can_order_by(self, field: Field) -> bool:
+    def check_can_order_by(self, field: Field, sort_type: str) -> bool:
         baserow_field_type = self.get_baserow_field_type(field)
-        return baserow_field_type.check_can_order_by(field)
+        return baserow_field_type.check_can_order_by(field, sort_type)
 
-    def check_can_group_by(self, field: Field) -> bool:
+    def check_can_group_by(self, field: Field, sort_type: str) -> bool:
         baserow_field_type = self.get_baserow_field_type(field)
-        return baserow_field_type.check_can_group_by(field)
+        return baserow_field_type.check_can_group_by(field, sort_type)
 
     def get_search_expression(self, field: Field, queryset):
         baserow_field_type = self.get_baserow_field_type(field)
@@ -189,15 +189,22 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         return baserow_field_type.enhance_queryset(queryset, field, name)
 
     def get_sortable_column_expression(
-        self, field: Field, field_name: str
+        self,
+        field: Field,
+        field_name: str,
+        sort_type: str,
     ) -> Expression | F:
         baserow_field_type = self.get_baserow_field_type(field)
-        return baserow_field_type.get_sortable_column_expression(field, field_name)
+        return baserow_field_type.get_sortable_column_expression(
+            field, field_name, sort_type
+        )
 
-    def get_order(self, field, field_name, order_direction, table_model=None):
+    def get_order(
+        self, field, field_name, order_direction, sort_type, table_model=None
+    ):
         baserow_field_type = self.get_baserow_field_type(field)
         return baserow_field_type.get_order(
-            field, field_name, order_direction, table_model=table_model
+            field, field_name, order_direction, sort_type, table_model=table_model
         )
 
     def serialize_to_input_value(self, field, value):

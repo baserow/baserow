@@ -54,8 +54,8 @@ BACKEND_TESTS_DIRS_FROM_ROOT=backend/tests/ premium/backend/tests/ enterprise/ba
 .PHONY: help venv venv-clean install-oss install install-extra package docker-build package-install\
 	clean clean-all package-build package-clean deps deps-clean deps-install deps-install-dev deps-upgrade\
 	lint lint-fix lint-python format sort make-translations compile-translations\
-	test test-builder test-builder-parallel test-compat test-compat-parallel test-coverage test-parallel \
-	test-regenerate-ci-durations ci-test-python ci-check-startup-python ci-coverage-report fix\
+	test test-builder test-builder-parallel test-coverage test-parallel test-regenerate-ci-durations\
+	ci-test-python ci-check-startup-python ci-coverage-report fix\
 	run-dev
 
 
@@ -179,17 +179,11 @@ test-builder: .check-dev
 test-builder-parallel: .check-dev
 	$(VPYTEST) tests/baserow/contrib/builder -n 10 || exit
 
-test-compat: .check-dev
-	$(VPYTEST) tests/baserow/compat --run-disabled-in-ci || exit;
-
 test-regenerate-ci-durations: .check-dev
 	$(VPYTEST) $(BACKEND_TESTS_DIRS) --store-durations || exit;
 
 test-parallel: .check-dev
 	$(VPYTEST) $(BACKEND_TESTS_DIRS) -n 10 || exit;
-
-test-compat-parallel: .check-dev
-	$(VPYTEST) tests/baserow/compat --run-disabled-in-ci -n 10 || exit;
 
 .make-django-cmd: .check-dev
 	for pkg_dir in $(SOURCE_DIRS); do echo $$pkg_dir ; cd $$pkg_dir ; \

@@ -186,7 +186,11 @@ class DataSourcesView(APIView):
 
         page = PageHandler().get_page(page_id)
 
-        before = DataSourceHandler().get_data_source(before_id) if before_id else None
+        before = (
+            DataSourceHandler().get_data_source(before_id, specific=False)
+            if before_id
+            else None
+        )
 
         service_type = service_type_registry.get(type_name) if type_name else None
 
@@ -266,9 +270,7 @@ class DataSourceView(APIView):
         if "page_id" in request.data:
             page = PageHandler().get_page(
                 int(request.data["page_id"]),
-                base_queryset=Page.objects_with_shared.filter(
-                    builder=data_source.page.builder
-                ),
+                base_queryset=Page.objects.filter(builder=data_source.page.builder),
             )
 
         # Do we have a service?
@@ -423,7 +425,7 @@ class MoveDataSourceView(APIView):
 
         before = None
         if before_id:
-            before = DataSourceHandler().get_data_source(before_id)
+            before = DataSourceHandler().get_data_source(before_id, specific=False)
 
         moved_data_source = DataSourceService().move_data_source(
             request.user, data_source, before

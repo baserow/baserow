@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 
+from celery import signals
 from opentelemetry import metrics, trace
 from opentelemetry._logs import set_logger_provider
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
@@ -10,7 +11,6 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
 from opentelemetry.instrumentation.django import DjangoInstrumentor
-from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
@@ -19,8 +19,16 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import PeriodicExportingMetricReader
 from opentelemetry.trace import ProxyTracerProvider
 
+from baserow.core.psycopg import is_psycopg3
 from baserow.core.telemetry.provider import DifferentSamplerPerLibraryTracerProvider
 from baserow.core.telemetry.utils import BatchBaggageSpanProcessor, otel_is_enabled
+
+if is_psycopg3:
+    from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
+else:
+    from opentelemetry.instrumentation.psycopg2 import (
+        Psycopg2Instrumentor as PsycopgInstrumentor,
+    )
 
 
 class LogGuruCompatibleLoggerHandler(LoggingHandler):
@@ -102,6 +110,7 @@ def setup_telemetry(add_django_instrumentation: bool):
             )
             metrics.set_meter_provider(provider)
 
+            _setup_celery_metrics()
             _setup_standard_backend_instrumentation()
 
             print("Configured default backend instrumentation")
@@ -129,9 +138,24 @@ def _setup_log_exporting(logger):
     logger.info("Logger open telemetry exporting setup.")
 
 
+meter = metrics.get_meter("celery_tasks")
+task_counter = meter.create_counter(
+    name="baserow.celery_task_scheduled",
+    description="Number of times each Celery task has been scheduled",
+    unit="1",
+)
+
+
+def _setup_celery_metrics():
+    def count_task(sender, **kwargs):
+        task_counter.add(1, {"task_name": sender})
+
+    signals.after_task_publish.connect(count_task, weak=False)
+
+
 def _setup_standard_backend_instrumentation():
     BotocoreInstrumentor().instrument()
-    Psycopg2Instrumentor().instrument()
+    PsycopgInstrumentor().instrument()
     RedisInstrumentor().instrument()
     RequestsInstrumentor().instrument()
     CeleryInstrumentor().instrument()

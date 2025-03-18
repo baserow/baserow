@@ -118,7 +118,13 @@ export default {
       }
     },
     async submitted(values) {
-      await this.update(this.table, values, this.syncTableValue)
+      // Remove the `undefined` values, because those contain not updated secrets that
+      // are only meant to be included in the update request if they've changed
+      // because they're not exposed by the backend.
+      const valuesWithoutUndefined = Object.fromEntries(
+        Object.entries(values).filter(([_, v]) => v !== undefined)
+      )
+      await this.update(this.table, valuesWithoutUndefined, this.syncTableValue)
       if (!this.syncTableValue) {
         this.completed = true
       }

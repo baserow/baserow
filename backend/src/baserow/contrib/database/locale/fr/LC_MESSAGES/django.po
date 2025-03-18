@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2024-01-19 09:37+0000\n"
+"PO-Revision-Date: 2025-03-18 13:24+0000\n"
 "Last-Translator: Jérémie Pardou-Piquemal <jrmi@jeremiez.net>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/baserow/"
 "backend-database/fr/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 5.4-dev\n"
+"X-Generator: Weblate 5.11-dev\n"
 
 #: src/baserow/contrib/database/action/scopes.py:9
 #, python-format
@@ -180,7 +180,7 @@ msgstr "Machine de Turing"
 
 #: src/baserow/contrib/database/plugins.py:103
 msgid "Computer architecture"
-msgstr "Architecture des ordinateur"
+msgstr "Architecture de l'ordinateur"
 
 #: src/baserow/contrib/database/plugins.py:104
 msgid "Cellular Automata"

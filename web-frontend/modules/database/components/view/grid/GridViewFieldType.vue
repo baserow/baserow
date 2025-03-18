@@ -264,7 +264,7 @@
         v-if="includeFieldWidthHandles"
         class="grid-view__description-width"
         :width="width"
-        :min="100"
+        :min="GRID_VIEW_MIN_FIELD_WIDTH"
         @move="moveFieldWidth(field, $event)"
         @update="updateFieldWidth(field, view, database, readOnly, $event)"
       ></HorizontalResize>
@@ -281,6 +281,7 @@ import InsertFieldContext from '@baserow/modules/database/components/field/Inser
 import DuplicateFieldModal from '@baserow/modules/database/components/field/DuplicateFieldModal'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
+import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
 export default {
   name: 'GridViewFieldType',
@@ -455,7 +456,7 @@ export default {
           await this.$store.dispatch('view/createSort', {
             view,
             field,
-            values,
+            values: { ...values, type: DEFAULT_SORT_TYPE_KEY },
           })
         } else {
           await this.$store.dispatch('view/updateSort', {
@@ -492,9 +493,9 @@ export default {
       this.$emit('dragging', { field, event })
     },
     getSortIndicator(field, index) {
-      return this.$registry
-        .get('field', field.type)
-        .getSortIndicator(field, this.$registry)[index]
+      return this.$registry.get('field', field.type).getSortIndicator(field)[
+        index
+      ]
     },
     getCanSortInView(field) {
       return this.$registry.get('field', field.type).getCanSortInView(field)

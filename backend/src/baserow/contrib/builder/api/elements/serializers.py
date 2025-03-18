@@ -18,6 +18,9 @@ from baserow.contrib.builder.elements.models import (
     CollectionElementPropertyOptions,
     CollectionField,
     Element,
+    LinkElement,
+    MenuItemElement,
+    NavigationElementMixin,
 )
 from baserow.contrib.builder.elements.registries import (
     collection_field_type_registry,
@@ -378,3 +381,103 @@ class CollectionElementPropertyOptionsSerializer(
     class Meta:
         model = CollectionElementPropertyOptions
         fields = ["schema_property", "filterable", "sortable", "searchable"]
+
+
+class MenuItemSerializer(serializers.ModelSerializer):
+    """Serializes the MenuItemElement."""
+
+    children = serializers.ListSerializer(
+        child=serializers.DictField(),
+        required=False,
+        help_text="A MenuItemElement that is a child of this instance.",
+    )
+
+    navigation_type = serializers.ChoiceField(
+        choices=NavigationElementMixin.NAVIGATION_TYPES.choices,
+        help_text=LinkElement._meta.get_field("navigation_type").help_text,
+        required=False,
+    )
+    navigate_to_page_id = serializers.IntegerField(
+        allow_null=True,
+        default=None,
+        help_text=LinkElement._meta.get_field("navigate_to_page").help_text,
+        required=False,
+    )
+    navigate_to_url = FormulaSerializerField(
+        help_text=LinkElement._meta.get_field("navigate_to_url").help_text,
+        default="",
+        allow_blank=True,
+        required=False,
+    )
+    page_parameters = PageParameterValueSerializer(
+        many=True,
+        default=[],
+        help_text=LinkElement._meta.get_field("page_parameters").help_text,
+        required=False,
+    )
+    query_parameters = PageParameterValueSerializer(
+        many=True,
+        default=[],
+        help_text=LinkElement._meta.get_field("query_parameters").help_text,
+        required=False,
+    )
+    target = serializers.ChoiceField(
+        choices=NavigationElementMixin.TARGETS.choices,
+        help_text=LinkElement._meta.get_field("target").help_text,
+        required=False,
+    )
+
+    class Meta:
+        model = MenuItemElement
+        fields = [
+            "id",
+            "variant",
+            "type",
+            "menu_item_order",
+            "uid",
+            "name",
+            "navigation_type",
+            "navigate_to_page_id",
+            "navigate_to_url",
+            "page_parameters",
+            "query_parameters",
+            "parent_menu_item",
+            "target",
+            "children",
+        ]
+
+    def to_representation(self, instance):
+        """Recursively serializes child MenuItemElements."""
+
+        data = super().to_representation(instance)
+        all_items = self.context.get("all_items", [])
+
+        # Get children from all_items to save queries
+        children = [i for i in all_items if instance.id == i.parent_menu_item_id]
+
+        data["children"] = MenuItemSerializer(
+            children, many=True, context=self.context
+        ).data
+
+        return data
+
+
+class NestedMenuItemsMixin(serializers.Serializer):
+    menu_items = serializers.SerializerMethodField(
+        help_text="Menu items of the MenuElement."
+    )
+
+    @extend_schema_field(MenuItemSerializer)
+    def get_menu_items(self, obj):
+        """Return the serialized version of the MenuItemElement."""
+
+        # Prefetches the child MenuItemElements for performance.
+        menu_items = obj.menu_items.all()
+
+        root_items = [
+            child for child in menu_items if child.parent_menu_item_id is None
+        ]
+
+        return MenuItemSerializer(
+            root_items, many=True, context={"all_items": menu_items}
+        ).data

@@ -35,11 +35,11 @@
             </div>
             <div class="license-detail__item-value">
               <Badge :color="licenseType.getLicenseBadgeColor()" bold>
-                {{ licenseType.getName() }}</Badge
-              >
-              <Badge v-if="!license.is_active" color="red">{{
-                $t('licenses.expired')
-              }}</Badge>
+                {{ licenseType.getName() }}
+              </Badge>
+              <Badge v-if="!license.is_active" color="red"
+                >{{ $t('licenses.expired') }}
+              </Badge>
             </div>
           </div>
           <div class="license-detail__item">
@@ -90,6 +90,21 @@
             </div>
             <div class="license-detail__item-value">
               {{ license.seats_taken }} / {{ license.seats }}
+            </div>
+          </div>
+
+          <div v-if="license.application_users" class="license-detail__item">
+            <div class="license-detail__item-label">
+              <div class="license-detail__item-name">
+                {{ $t('license.applicationUsers') }}
+              </div>
+              <div class="license-detail__item-description">
+                {{ $t('license.applicationUsersDescription') }}
+              </div>
+            </div>
+            <div class="license-detail__item-value">
+              {{ license.application_users_taken }} /
+              {{ license.application_users }}
             </div>
           </div>
           <div class="license-detail__item">
@@ -170,8 +185,8 @@
             </i18n>
 
             <Button type="danger" @click="$refs.disconnectModal.show()">
-              {{ $t('license.disconnectLicense') }}</Button
-            >
+              {{ $t('license.disconnectLicense') }}
+            </Button>
             <DisconnectLicenseModal
               ref="disconnectModal"
               :license="license"

@@ -8,14 +8,14 @@
     >
       <FormTextarea
         ref="license"
-        v-model="values.license"
+        v-model="v$.values.license.$model"
         :error="fieldHasErrors('license')"
         :rows="6"
-        @blur="$v.values.license.$touch()"
+        @blur="v$.values.license.$touch()"
       />
 
       <template #error>
-        {{ $t('error.requiredField') }}
+        {{ v$.values.license.$errors[0]?.$message }}
       </template>
     </FormGroup>
 
@@ -24,13 +24,17 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'RegisterLicenseForm',
   mixins: [form],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       values: {
@@ -38,13 +42,21 @@ export default {
       },
     }
   },
-  validations: {
-    values: {
-      license: { required },
-    },
-  },
+
   mounted() {
     this.$refs.license.focus()
+  },
+  validations() {
+    return {
+      values: {
+        license: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
   },
 }
 </script>

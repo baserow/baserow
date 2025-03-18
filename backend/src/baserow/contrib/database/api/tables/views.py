@@ -489,14 +489,14 @@ class AsyncTableImportView(APIView):
             workspace=table.database.workspace,
             context=table,
         )
-
+        configuration = data.get("configuration")
         data = data["data"]
-
         file_import_job = JobHandler().create_and_start_job(
             request.user,
             "file_import",
             data=data,
             table=table,
+            configuration=configuration,
         )
 
         serializer = job_type_registry.get_serializer(file_import_job, JobSerializer)

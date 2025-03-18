@@ -441,7 +441,9 @@
     "fieldMappingDescription": "We have automatically mapped the columns of the Baserow fields in your table. You can change them below. Any incompatible cell will remain empty after the import.",
     "selectImportMessage": "Please select data to import.",
     "filePreview": "File content preview",
-    "importPreview": "Import preview"
+    "importPreview": "Import preview",
+    "useUpsertField": "Update rows if they already exist",
+    "upsertTooltip": "Match existing rows using a unique field to overwrite data with imported values."
   },
   "formulaAdvancedEditContext": {
     "textAreaFormulaInputPlaceholder": "Click to edit the formula",
@@ -757,12 +759,12 @@
   "databaseForm": {
     "importLabel": "Would you like to import existing data?",
     "emptyLabel": "Start from scratch",
-    "airtableLabel": "Import from Airtable (beta)"
+    "airtableLabel": "Import from Airtable"
   },
   "importFromAirtable": {
     "airtableShareLinkTitle": "Share a link to your Base",
-    "airtableShareLinkDescription": "To import your Airtable base, you need to have a shared link to your entire base. In Airtable, click on the share button in the top right corner after opening your base. After that you must choose the \"Access to base\" option. In the share modal you can click on the \"Create a shared link to the whole base\" button and then on “Private read-only link”. Copy the public link and paste it in the input below.",
-    "airtableShareLinkBeta": "Note that this feature is in beta, your tables, fields (except formula, lookup and count) and data will be imported. Your views will not be imported.",
+    "airtableShareLinkDescription": "To import your Airtable base, you need to have a shared link to your entire base. In Airtable, click on the share button in the top right corner after opening your base. After that you must choose the \"Share via link\" option. In the share modal you can click on the \"Share publicly\" tab and then on “Enabl;e shared base link”. Copy the public link and paste it in the input below.",
+    "airtableShareLinkBeta": "This functionality will import most of the data, but there are incompatibilities. A table named \"Airtable import report\" will therefore be added containing a list of things that were not or partially imported.",
     "airtableShareLinkPaste": "Paste the link here",
     "importButtonLabel": "Import from Airtable",
     "openButtonLabel": "Open imported database",
@@ -801,7 +803,8 @@
     "addCondition": "Add condition",
     "addConditionGroup": "Add condition group",
     "showFieldAs": "Show field as",
-    "noSelectOptions": "There are no select options available."
+    "noSelectOptions": "There are no select options available.",
+    "noCollaboratorsAvailable": "There are no collaborators available."
   },
   "duplicateFieldContext": {
     "duplicate": "Duplicate field",
@@ -829,7 +832,8 @@
     "snapshot": "Snapshot",
     "importingState": "Creating",
     "reset": "Create another",
-    "noSnapshots": "No snapshots for this application yet."
+    "noSnapshots": "No snapshots for this application yet.",
+    "nameAlreadyExists": "A snapshot with this name already exists."
   },
   "deleteSnapshotModal": {
     "title": "Delete snapshot",
@@ -1053,5 +1057,11 @@
   "configureDataSyncSettings": {
     "title": "Change data sync",
     "syncTable": "Sync when save"
+  },
+  "webhookDeactivatedNotification": {
+    "body": "{name} webhook has been deactivated because it failed too many times consecutively."
+  },
+  "webhookPayloadTooLargeNotification": {
+    "body": "The payload for the {name} webhook with event ID {event_id} was too large. The content has been split into multiple batches, but data above the batch limit of {batch_limit} was discarded."
   }
 }

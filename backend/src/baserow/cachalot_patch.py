@@ -6,48 +6,59 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db.transaction import get_connection
 
-from cachalot import utils as cachalot_utils
-from cachalot.settings import cachalot_settings
 from django_redis import get_redis_connection
 from loguru import logger
-from psycopg2.sql import Composed
 
+from baserow.core.psycopg import sql
 
-@contextmanager
-def cachalot_enabled():
-    """
-    A context manager that enables cachalot for the duration of the context. This is
-    useful when you want to enable cachalot for a specific query but you don't want
-    to enable it globally.
-    Please note that the query have to be executed within the context of the context
-    manager in order for it to be cached.
-    """
+if settings.CACHALOT_ENABLED:
+    from cachalot.settings import cachalot_disabled, cachalot_settings  # noqa: F401
 
-    from cachalot.api import LOCAL_STORAGE
+    @contextmanager
+    def cachalot_enabled():
+        """
+        A context manager that enables cachalot for the duration of the context. This is
+        useful when you want to enable cachalot for a specific query but you don't want
+        to enable it globally. Please note that the query have to be executed within the
+        context of the context manager in order for it to be cached.
+        """
 
-    was_enabled = getattr(
-        LOCAL_STORAGE, "cachalot_enabled", cachalot_settings.CACHALOT_ENABLED
-    )
-    LOCAL_STORAGE.cachalot_enabled = True
-    try:
+        from cachalot.api import LOCAL_STORAGE
+
+        was_enabled = getattr(
+            LOCAL_STORAGE, "cachalot_enabled", cachalot_settings.CACHALOT_ENABLED
+        )
+        LOCAL_STORAGE.cachalot_enabled = True
+        try:
+            yield
+        finally:
+            LOCAL_STORAGE.cachalot_enabled = was_enabled
+
+else:
+
+    @contextmanager
+    def cachalot_enabled():
         yield
-    finally:
-        LOCAL_STORAGE.cachalot_enabled = was_enabled
+
+    @contextmanager
+    def cachalot_disabled():
+        yield
 
 
 def patch_cachalot_for_baserow():
     """
-    This function patches the cachalot library to make it work with baserow
-    dynamic models. The problem we're trying to solve here is that the only way
-    to limit what cachalot caches is to provide a fix list of tables, but
-    baserow creates dynamic models on the fly so we can't know what tables will
-    be created in advance, so we need to include all the tables that start with
-    the USER_TABLE_DATABASE_NAME_PREFIX prefix in the list of cachable tables.
+    This function patches the cachalot library to make it work with baserow dynamic
+    models. The problem we're trying to solve here is that the only way to limit what
+    cachalot caches is to provide a fix list of tables, but baserow creates dynamic
+    models on the fly so we can't know what tables will be created in advance, so we
+    need to include all the tables that start with the USER_TABLE_DATABASE_NAME_PREFIX
+    prefix in the list of cachable tables.
 
-    `filter_cachable` and `is_cachable` are called to invalidate the cache when
-    a table is changed. `are_all_cachable` is called to check if a query can be
-    cached.
+    `filter_cachable` and `is_cachable` are called to invalidate the cache when a table
+    is changed. `are_all_cachable` is called to check if a query can be cached.
     """
+
+    from cachalot import utils as cachalot_utils
 
     from baserow.contrib.database.table.constants import (
         LINK_ROW_THROUGH_TABLE_PREFIX,
@@ -97,13 +108,12 @@ def patch_cachalot_for_baserow():
     @wraps(original_are_all_cachable)
     def patched_are_all_cachable(tables):
         """
-        This patch works because cachalot does not explicitly set this thread
-        local variable, but it assumes to be True by default if CACHALOT_ENABLED
-        is not set otherwise. Since we are explicitly setting it to True in our
-        code for the query we want to cache, we can check if the value has been
-        set or not to exclude our dynamic tables from the list of tables that
-        cachalot will check, making all of them cachable for the queries
-        wrapped in the `cachalot_enabled` context manager.
+        This patch works because cachalot does not explicitly set this thread local
+        variable, but it assumes to be True by default if CACHALOT_ENABLED is not set
+        otherwise. Since we are explicitly setting it to True in our code for the query
+        we want to cache, we can check if the value has been set or not to exclude our
+        dynamic tables from the list of tables that cachalot will check, making all of
+        them cachable for the queries wrapped in the `cachalot_enabled` context manager.
         """
 
         from cachalot.api import LOCAL_STORAGE
@@ -139,21 +149,21 @@ def patch_cachalot_for_baserow():
     def lower(self):
         """
         Cachalot wants this method to lowercase the queries to check if they are
-        cachable, but the Composed class in psycopg2.sql does not have a lower
+        cachable, but the Composed class in psycopg.sql does not have a lower
         method, so we add it here to add the support for it.
         """
 
         cursor = get_connection().cursor()
         return self.as_string(cursor.cursor).lower()
 
-    Composed.lower = lower
+    sql.Composed.lower = lower
 
 
 def clear_cachalot_cache():
     """
-    This function clears the cachalot cache. It can be used in the tests to make
-    sure that the cache is cleared between tests or as post_migrate receiver to
-    ensure to start with a clean cache after migrations.
+    This function clears the cachalot cache. It can be used in the tests to make sure
+    that the cache is cleared between tests or as post_migrate receiver to ensure to
+    start with a clean cache after migrations.
     """
 
     from django.conf import settings
@@ -179,9 +189,8 @@ def clear_cachalot_cache():
 
 def _delete_pattern(key_prefix: str) -> int:
     """
-    Allows deleting every redis key that matches a pattern. Copied from the
-    django-redis implementation but modified to allow deleting all versions in the
-    cache at once.
+    Allows deleting every redis key that matches a pattern. Copied from the django-redis
+    implementation but modified to allow deleting all versions in the cache at once.
     """
 
     client = get_redis_connection("default")

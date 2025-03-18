@@ -6,6 +6,9 @@
     :style="elementStyles"
   >
     <div class="element__inner-wrapper">
+      <span v-if="showElementId" class="element--element-id">{{
+        element.id
+      }}</span>
       <component
         :is="component"
         :key="element._.uid"
@@ -57,6 +60,11 @@ export default {
       type: String,
       required: false,
       default: null,
+    },
+    showElementId: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   computed: {

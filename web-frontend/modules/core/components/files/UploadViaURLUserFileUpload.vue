@@ -7,18 +7,18 @@
         :label="$t('uploadViaURLUserFileUpload.urlLabel')"
         small-label
         required
-        :error="$v.values.url.$error"
+        :error="v$.values.url.$error"
       >
         <FormInput
-          v-model="values.url"
+          v-model="v$.values.url.$model"
           size="large"
-          :error="$v.values.url.$error"
-          @blur="$v.values.url.$touch()"
+          :error="v$.values.url.$error"
+          @blur="v$.values.url.$touch()"
         >
         </FormInput>
 
         <template #error>
-          {{ $t('uploadViaURLUserFileUpload.urlError') }}
+          {{ v$.values.url.$errors[0]?.$message }}
         </template>
       </FormGroup>
 
@@ -32,7 +32,8 @@
 </template>
 
 <script>
-import { required, url } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, url, helpers } from '@vuelidate/validators'
 
 import error from '@baserow/modules/core/mixins/error'
 import UserFileService from '@baserow/modules/core/services/userFile'
@@ -40,6 +41,9 @@ import UserFileService from '@baserow/modules/core/services/userFile'
 export default {
   name: 'UploadViaURLUserFileUpload',
   mixins: [error],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       loading: false,
@@ -50,8 +54,8 @@ export default {
   },
   methods: {
     async upload(url) {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
+      this.v$.$touch()
+      if (this.v$.$invalid) {
         return
       }
 
@@ -68,10 +72,21 @@ export default {
       this.loading = false
     },
   },
-  validations: {
-    values: {
-      url: { required, url },
-    },
+  validations() {
+    return {
+      values: {
+        url: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          url: helpers.withMessage(
+            this.$t('uploadViaURLUserFileUpload.urlError'),
+            url
+          ),
+        },
+      },
+    }
   },
 }
 </script>

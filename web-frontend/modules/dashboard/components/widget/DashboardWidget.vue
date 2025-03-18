@@ -12,14 +12,12 @@
     </div>
     <component
       :is="widgetComponent(widget.type)"
-      v-if="isLoading === false"
       :dashboard="dashboard"
       :widget="widget"
       :store-prefix="storePrefix"
+      :loading="isLoading"
+      :edit-mode="isEditMode"
     />
-    <div v-else>
-      <div class="dashboard-widget__loading"></div>
-    </div>
   </div>
 </template>
 

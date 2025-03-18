@@ -8,7 +8,7 @@
     >
       <PasswordInput
         v-model="values.password"
-        :validation-state="$v.values.password"
+        :validation-state="v$.values.password"
       />
     </FormGroup>
 
@@ -23,13 +23,11 @@
         :error="fieldHasErrors('passwordConfirm')"
         type="password"
         size="large"
-        @blur="$v.values.passwordConfirm.$touch()"
+        @blur="v$.values.passwordConfirm.$touch()"
       ></FormInput>
 
       <template #error>
-        <span v-if="!$v.values.passwordConfirm.sameAsPassword" class="error">
-          {{ $t('changePasswordForm.error.doesntMatch') }}
-        </span>
+        {{ $t('changePasswordForm.error.doesntMatch') }}
       </template>
     </FormGroup>
 
@@ -49,7 +47,9 @@
 </template>
 
 <script>
-import { sameAs } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
+import { sameAs } from '@vuelidate/validators'
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
 import { passwordValidation } from '@baserow/modules/core/validators'
 
@@ -65,22 +65,32 @@ export default {
       required: true,
     },
   },
-  data() {
-    return {
-      allowedValues: ['password', 'passwordConfirm'],
+  setup() {
+    const values = reactive({
       values: {
         password: '',
         passwordConfirm: '',
       },
+    })
+
+    const rules = computed(() => ({
+      values: {
+        passwordConfirm: {
+          sameAsPassword: sameAs(values.values.password),
+        },
+        password: passwordValidation,
+      },
+    }))
+
+    return {
+      values: values.values,
+      v$: useVuelidate(rules, values, { $lazy: true }),
     }
   },
-  validations: {
-    values: {
-      passwordConfirm: {
-        sameAsPassword: sameAs('password'),
-      },
-      password: passwordValidation,
-    },
+  data() {
+    return {
+      allowedValues: ['password', 'passwordConfirm'],
+    }
   },
 }
 </script>

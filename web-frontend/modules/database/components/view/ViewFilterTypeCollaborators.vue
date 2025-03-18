@@ -27,7 +27,7 @@ export default {
     },
     initialDisplayName() {
       const selected = this.workspaceCollaborators.find(
-        (c) => c.user_id === this.copy
+        (c) => c.id === this.copy
       )
       return selected?.name
     },

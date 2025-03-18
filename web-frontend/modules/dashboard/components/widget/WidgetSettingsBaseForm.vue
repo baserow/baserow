@@ -17,15 +17,10 @@
           v-model="values.title"
           :placeholder="$t('widgetSettings.title')"
           :error="fieldHasErrors('title')"
-          @blur="$v.values.title.$touch()"
+          @input="v$.values.title.$touch"
         ></FormInput>
         <template #error>
-          <span v-if="$v.values.title.$dirty && !$v.values.title.required">
-            {{ $t('error.requiredField') }}
-          </span>
-          <span v-if="$v.values.title.$dirty && !$v.values.title.maxLength">
-            {{ $t('error.maxLength', { max: 255 }) }}
-          </span>
+          {{ v$.values.title.$errors[0].$message }}
         </template>
       </FormGroup>
       <FormGroup
@@ -42,16 +37,10 @@
           size="small"
           :placeholder="$t('widgetSettings.description') + '...'"
           :error="fieldHasErrors('description')"
-          @blur="$v.values.description.$touch()"
+          @input="v$.values.description.$touch"
         ></FormTextarea>
         <template #error>
-          <span
-            v-if="
-              $v.values.description.$dirty && !$v.values.description.maxLength
-            "
-          >
-            {{ $t('error.maxLength', { max: 255 }) }}
-          </span>
+          {{ v$.values.description.$errors[0].$message }}
         </template>
       </FormGroup>
     </FormSection>
@@ -59,7 +48,8 @@
 </template>
 
 <script>
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, maxLength, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
@@ -71,6 +61,9 @@ export default {
       required: true,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: ['title', 'description'],
@@ -78,21 +71,43 @@ export default {
         title: '',
         description: '',
       },
-      emitValuesOnReset: false,
+      skipFirstValuesEmit: true,
     }
   },
   validations() {
     return {
       values: {
-        title: { required, maxLength: maxLength(255) },
-        description: { maxLength: maxLength(255) },
+        title: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 255 }),
+            maxLength(255)
+          ),
+        },
+        description: {
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 255 }),
+            maxLength(255)
+          ),
+        },
       },
     }
   },
   watch: {
     widget: {
-      handler(value) {
-        this.reset(true)
+      async handler(value) {
+        this.setEmitValues(false)
+        // Reset the form to set default values
+        // again after a different widget is selected
+        await this.reset(true)
+        // Run form validation so that
+        // problems are highlighted immediately
+        this.v$.$touch()
+        await this.$nextTick()
+        this.setEmitValues(true)
       },
       deep: true,
     },

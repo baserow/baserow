@@ -7,12 +7,15 @@ from typing import Dict, List, Optional, Tuple, Union
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import Storage
 
 import requests
 from requests import Response
 
 from baserow.contrib.database.airtable.constants import (
+    AIRTABLE_API_BASE_URL,
+    AIRTABLE_BASE_URL,
     AIRTABLE_EXPORT_JOB_CONVERTING,
     AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE,
     AIRTABLE_EXPORT_JOB_DOWNLOADING_FILES,
@@ -20,26 +23,39 @@ from baserow.contrib.database.airtable.constants import (
 from baserow.contrib.database.airtable.registry import (
     AirtableColumnType,
     airtable_column_type_registry,
+    airtable_view_type_registry,
 )
 from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
 from baserow.contrib.database.fields.field_types import FieldType, field_type_registry
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.models import Database
-from baserow.contrib.database.views.models import GridView
-from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.export_serialized import CoreExportSerializedStructure
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig
-from baserow.core.utils import ChildProgressBuilder, remove_invalid_surrogate_characters
+from baserow.core.utils import (
+    ChildProgressBuilder,
+    Progress,
+    remove_invalid_surrogate_characters,
+)
 
 from .config import AirtableImportConfig
 from .exceptions import (
     AirtableBaseNotPublic,
     AirtableImportNotRespectingConfig,
     AirtableShareIsNotABase,
+    AirtableSkipCellValue,
 )
+from .import_report import (
+    ERROR_TYPE_UNSUPPORTED_FEATURE,
+    SCOPE_AUTOMATIONS,
+    SCOPE_FIELD,
+    SCOPE_INTERFACES,
+    SCOPE_VIEW,
+    AirtableImportReport,
+)
+from .utils import parse_json_and_remove_invalid_surrogate_characters
 
 User = get_user_model()
 
@@ -71,7 +87,7 @@ class AirtableHandler:
         :return: The request ID, initial data and the cookies of the response.
         """
 
-        url = f"https://airtable.com/{share_id}"
+        url = f"{AIRTABLE_BASE_URL}/{share_id}"
         response = requests.get(url, headers=BASE_HEADERS)  # nosec B113
 
         if not response.ok:
@@ -93,6 +109,44 @@ class AirtableHandler:
             raise AirtableShareIsNotABase("The `shared_id` is not a base.")
 
         return request_id, init_data, cookies
+
+    @staticmethod
+    def make_airtable_request(init_data: dict, request_id: str, **kwargs) -> Response:
+        """
+        Helper method to make a valid request to to Airtable with the correct headers
+        and params.
+
+        :param init_data: The init_data returned by the initially requested shared base.
+        :param request_id: The request_id returned by the initially requested shared
+            base.
+        :param kwargs: THe kwargs that must be passed into the `requests.get` method.
+        :return: The requests Response object related to the request.
+        """
+
+        application_id = list(init_data["rawApplications"].keys())[0]
+        client_code_version = init_data["codeVersion"]
+        page_load_id = init_data["pageLoadId"]
+        access_policy = json.loads(init_data["accessPolicy"])
+
+        params = kwargs.get("params", {})
+        params["accessPolicy"] = json.dumps(access_policy)
+        params["request_id"] = request_id
+
+        return requests.get(
+            headers={
+                "x-airtable-application-id": application_id,
+                "x-airtable-client-queue-time": "45",
+                "x-airtable-inter-service-client": "webClient",
+                "x-airtable-inter-service-client-code-version": client_code_version,
+                "x-airtable-page-load-id": page_load_id,
+                "X-Requested-With": "XMLHttpRequest",
+                "x-time-zone": "Europe/Amsterdam",
+                "x-user-locale": "en",
+                **BASE_HEADERS,
+            },
+            timeout=3 * 60,  # it can take quite a while for Airtable to respond.
+            **kwargs,
+        )  # nosec
 
     @staticmethod
     def fetch_table_data(
@@ -127,43 +181,63 @@ class AirtableHandler:
         """
 
         application_id = list(init_data["rawApplications"].keys())[0]
-        client_code_version = init_data["codeVersion"]
-        page_load_id = init_data["pageLoadId"]
-
         stringified_object_params = {
             "includeDataForViewIds": None,
             "shouldIncludeSchemaChecksum": True,
             "mayOnlyIncludeRowAndCellDataForIncludedViews": False,
         }
-        access_policy = json.loads(init_data["accessPolicy"])
 
         if fetch_application_structure:
             stringified_object_params["includeDataForTableIds"] = [table_id]
-            url = f"https://airtable.com/v0.3/application/{application_id}/read"
+            url = f"{AIRTABLE_API_BASE_URL}/application/{application_id}/read"
         else:
-            url = f"https://airtable.com/v0.3/table/{table_id}/readData"
+            url = f"{AIRTABLE_API_BASE_URL}/table/{table_id}/readData"
 
-        response = requests.get(
+        response = AirtableHandler.make_airtable_request(
+            init_data,
+            request_id,
             url=url,
             stream=stream,
             params={
                 "stringifiedObjectParams": json.dumps(stringified_object_params),
-                "requestId": request_id,
-                "accessPolicy": json.dumps(access_policy),
-            },
-            headers={
-                "x-airtable-application-id": application_id,
-                "x-airtable-client-queue-time": "45",
-                "x-airtable-inter-service-client": "webClient",
-                "x-airtable-inter-service-client-code-version": client_code_version,
-                "x-airtable-page-load-id": page_load_id,
-                "X-Requested-With": "XMLHttpRequest",
-                "x-time-zone": "Europe/Amsterdam",
-                "x-user-locale": "en",
-                **BASE_HEADERS,
             },
             cookies=cookies,
-        )  # nosec B113
+        )
+        return response
+
+    @staticmethod
+    def fetch_view_data(
+        view_id: str,
+        init_data: dict,
+        request_id: str,
+        cookies: dict,
+        stream=True,
+    ) -> Response:
+        """
+        :param view_id: The Airtable view id that must be fetched. The id starts with
+            `viw`.
+        :param init_data: The init_data returned by the initially requested shared base.
+        :param request_id: The request_id returned by the initially requested shared
+            base.
+        :param cookies: The cookies dict returned by the initially requested shared
+            base.
+        :param stream: Indicates whether the request should be streamed. This could be
+            useful if we want to show a progress bar. It will directly be passed into
+            the `requests` request.
+        :return: The `requests` response containing the result.
+        """
+
+        stringified_object_params = {}
+        url = f"{AIRTABLE_API_BASE_URL}/view/{view_id}/readData"
+
+        response = AirtableHandler.make_airtable_request(
+            init_data,
+            request_id,
+            url=url,
+            stream=stream,
+            params={"stringifiedObjectParams": json.dumps(stringified_object_params)},
+            cookies=cookies,
+        )
         return response
 
     @staticmethod
@@ -199,6 +273,7 @@ class AirtableHandler:
         table: dict,
         column: dict,
         config: AirtableImportConfig,
+        import_report: AirtableImportReport,
     ) -> Union[Tuple[None, None, None], Tuple[Field, FieldType, AirtableColumnType]]:
         """
         Converts the provided Airtable column dict to the right Baserow field object.
@@ -208,6 +283,8 @@ class AirtableHandler:
         :param column: The Airtable column dict. These values will be converted to
             Baserow format.
         :param config: Additional configuration related to the import.
+        :param import_report: Used to collect what wasn't imported to report to the
+            user.
         :return: The converted Baserow field, field type and the Airtable column type.
         """
 
@@ -215,9 +292,7 @@ class AirtableHandler:
             baserow_field,
             airtable_column_type,
         ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-            table,
-            column,
-            config,
+            table, column, config, import_report
         )
 
         if baserow_field is None:
@@ -238,6 +313,7 @@ class AirtableHandler:
         baserow_field.pk = 0
         baserow_field.name = column["name"]
         baserow_field.order = order
+        baserow_field.description = column.get("description", None) or None
         baserow_field.primary = (
             baserow_field_type.can_be_primary_field(baserow_field)
             and table["primaryColumnId"] == column["id"]
@@ -247,17 +323,20 @@ class AirtableHandler:
 
     @staticmethod
     def to_baserow_row_export(
+        table: dict,
         row_id_mapping: Dict[str, Dict[str, int]],
         column_mapping: Dict[str, dict],
         row: dict,
         index: int,
         files_to_download: Dict[str, str],
         config: AirtableImportConfig,
+        import_report: AirtableImportReport,
     ) -> dict:
         """
         Converts the provided Airtable record to a Baserow row by looping over the field
         types and executing the `from_airtable_column_value_to_serialized` method.
 
+        :param table: The Airtable table dict.
         :param row_id_mapping: A mapping containing the table as key as the value is
             another mapping where the Airtable row id maps the Baserow row id.
         :param column_mapping: A mapping where the Airtable column id is the value and
@@ -269,6 +348,8 @@ class AirtableHandler:
             be downloaded. The key is the file name and the value the URL. Additional
             files can be added to this dict.
         :param config: Additional configuration related to the import.
+        :param import_report: Used to collect what wasn't imported to report to the
+            user.
         :return: The converted row in Baserow export format.
         """
 
@@ -291,22 +372,42 @@ class AirtableHandler:
         # Some empty rows don't have the `cellValuesByColumnId` property because it
         # doesn't contain values, hence the fallback to prevent failing hard.
         cell_values = row.get("cellValuesByColumnId", {})
-        for column_id, column_value in cell_values.items():
-            if column_id not in column_mapping:
-                continue
 
-            mapping_values = column_mapping[column_id]
-            baserow_serialized_value = mapping_values[
-                "airtable_column_type"
-            ].to_baserow_export_serialized_value(
+        for column_id, mapping_values in column_mapping.items():
+            airtable_column_type = mapping_values["airtable_column_type"]
+            args = [
                 row_id_mapping,
+                table,
+                row,
                 mapping_values["raw_airtable_column"],
                 mapping_values["baserow_field"],
-                column_value,
+                cell_values.get(column_id, None),
                 files_to_download,
                 config,
-            )
-            exported_row[f"field_{column_id}"] = baserow_serialized_value
+                import_report,
+            ]
+
+            try:
+                # The column_id typically doesn't exist in the `cell_values` if the
+                # value is empty in Airtable.
+                if column_id in cell_values:
+                    baserow_serialized_value = (
+                        airtable_column_type.to_baserow_export_serialized_value(*args)
+                    )
+                else:
+                    # remove the cell_value because that one is not accepted in the args
+                    # of this method.
+                    args.pop(5)
+                    baserow_serialized_value = (
+                        airtable_column_type.to_baserow_export_empty_value(*args)
+                    )
+                exported_row[f"field_{column_id}"] = baserow_serialized_value
+            except AirtableSkipCellValue:
+                # If the `AirtableSkipCellValue` is raised, then the cell value must
+                # not be included in the export. This is the default behavior for
+                # `to_baserow_export_empty_value`, but in some cases, a specific empty
+                # value must be returned.
+                pass
 
         return exported_row
 
@@ -359,78 +460,16 @@ class AirtableHandler:
         return files_buffer
 
     @classmethod
-    def to_baserow_database_export(
+    def _parse_table_fields(
         cls,
-        init_data: dict,
         schema: dict,
-        tables: list,
+        converting_progress: Progress,
         config: AirtableImportConfig,
-        progress_builder: Optional[ChildProgressBuilder] = None,
-        download_files_buffer: Union[None, IOBase] = None,
-    ) -> Tuple[dict, IOBase]:
-        """
-        Converts the provided raw Airtable database dict to a Baserow export format and
-        an in memory zip file containing all the downloaded user files.
-
-        @TODO add the views.
-        @TODO preserve the order of least one view.
-
-        :param init_data: The init_data, extracted from the initial page related to the
-            shared base.
-        :param schema: An object containing the schema of the Airtable base.
-        :param tables: a list containing the table data.
-        :param config: Additional configuration related to the import.
-        :param progress_builder: If provided will be used to build a child progress bar
-            and report on this methods progress to the parent of the progress_builder.
-        :param download_files_buffer: Optionally a file buffer can be provided to store
-            the downloaded files in. They will be stored in memory if not provided.
-        :return: The converted Airtable base in Baserow export format and a zip file
-            containing the user files.
-        """
-
-        progress = ChildProgressBuilder.build(progress_builder, child_total=1000)
-        converting_progress = progress.create_child(
-            represents_progress=500,
-            total=sum(
-                [
-                    # Mapping progress
-                    len(tables[table["id"]]["rows"])
-                    # Table column progress
-                    + len(table["columns"])
-                    # Table rows progress
-                    + len(tables[table["id"]]["rows"])
-                    # The table itself.
-                    + 1
-                    for table in schema["tableSchemas"]
-                ]
-            ),
-        )
-
-        # A list containing all the exported table in Baserow format.
-        exported_tables = []
-
-        # A dict containing all the user files that must be downloaded and added to a
-        # zip file.
-        files_to_download = {}
-
-        # A mapping containing the Airtable table id as key and as value another mapping
-        # containing with the key as Airtable row id and the value as new Baserow row
-        # id. This mapping is created because Airtable has string row id that look like
-        # "recAjnk3nkj5", but Baserow doesn't support string row id, so we need to
-        # replace them with a unique int. We need a mapping because there could be
-        # references to the row.
-        row_id_mapping = defaultdict(dict)
-        for index, table in enumerate(schema["tableSchemas"]):
-            for row_index, row in enumerate(tables[table["id"]]["rows"]):
-                new_id = row_index + 1
-                row_id_mapping[table["id"]][row["id"]] = new_id
-                row["id"] = new_id
-                converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
-
-        view_id = 0
+        import_report: AirtableImportReport,
+    ):
+        field_mapping_per_table = {}
         for table_index, table in enumerate(schema["tableSchemas"]):
             field_mapping = {}
-            files_to_download_for_table = {}
 
             # Loop over all the columns in the table and try to convert them to Baserow
             # format.
@@ -440,13 +479,27 @@ class AirtableHandler:
                     baserow_field,
                     baserow_field_type,
                     airtable_column_type,
-                ) = cls.to_baserow_field(table, column, config)
+                ) = cls.to_baserow_field(table, column, config, import_report)
                 converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
 
                 # None means that none of the field types know how to parse this field,
                 # so we must ignore it.
                 if baserow_field is None:
+                    import_report.add_failed(
+                        column["name"],
+                        SCOPE_FIELD,
+                        table["name"],
+                        ERROR_TYPE_UNSUPPORTED_FEATURE,
+                        f"""Field "{column['name']}" with field type {column["type"]} was not imported because it is not supported.""",
+                    )
                     continue
+
+                # The `baserow_field` is returning it it's specific form, but it doesn't
+                # have the `content_type` property yet. This breaks all the `.specific`
+                # behavior because an `id` is also not set.
+                baserow_field.content_type = ContentType.objects.get_for_model(
+                    baserow_field
+                )
 
                 # Construct a mapping where the Airtable column id is the key and the
                 # value contains the raw Airtable column values, Baserow field and
@@ -460,6 +513,9 @@ class AirtableHandler:
                 if baserow_field.primary:
                     primary = baserow_field
 
+            # There is always a primary field, but it could be that it's not compatible
+            # with Baserow. In that case, we need to find an alternative field, or
+            # create a new one.
             if primary is None:
                 # First check if another field can act as the primary field type.
                 found_existing_field = False
@@ -469,6 +525,13 @@ class AirtableHandler:
                     ).can_be_primary_field(value["baserow_field"]):
                         value["baserow_field"].primary = True
                         found_existing_field = True
+                        import_report.add_failed(
+                            value["baserow_field"].name,
+                            SCOPE_FIELD,
+                            table["name"],
+                            ERROR_TYPE_UNSUPPORTED_FEATURE,
+                            f"""Changed primary field to "{value["baserow_field"].name}" because the original primary field is incompatible.""",
+                        )
                         break
 
                 # If none of the existing fields can be primary, we will add a new
@@ -483,14 +546,68 @@ class AirtableHandler:
                         baserow_field,
                         baserow_field_type,
                         airtable_column_type,
-                    ) = cls.to_baserow_field(table, airtable_column, config)
+                    ) = cls.to_baserow_field(
+                        table, airtable_column, config, import_report
+                    )
                     baserow_field.primary = True
+                    baserow_field.content_type = ContentType.objects.get_for_model(
+                        baserow_field
+                    )
                     field_mapping["primary_id"] = {
                         "baserow_field": baserow_field,
                         "baserow_field_type": baserow_field_type,
                         "raw_airtable_column": airtable_column,
                         "airtable_column_type": airtable_column_type,
                     }
+                    import_report.add_failed(
+                        baserow_field.name,
+                        SCOPE_FIELD,
+                        table["name"],
+                        ERROR_TYPE_UNSUPPORTED_FEATURE,
+                        f"""Created new primary field "{baserow_field.name}" because none of the provided fields are compatible.""",
+                    )
+
+            field_mapping_per_table[table["id"]] = field_mapping
+
+        # Loop over all created fields, and post process them if needed. This is for
+        # example needed for the link row field where the object must be enhanced with
+        # the primary field of the related tables.
+        for table_index, table in enumerate(schema["tableSchemas"]):
+            field_mapping = field_mapping_per_table[table["id"]]
+
+            for field_object in field_mapping.values():
+                field_object["airtable_column_type"].after_field_objects_prepared(
+                    field_mapping_per_table,
+                    field_object["baserow_field"],
+                    field_object["raw_airtable_column"],
+                )
+
+        return field_mapping_per_table
+
+    @classmethod
+    def _parse_rows_and_views(
+        cls,
+        schema: dict,
+        tables: list,
+        converting_progress: Progress,
+        row_id_mapping: Dict[str, int],
+        field_mapping_per_table: dict,
+        config: AirtableImportConfig,
+        import_report: AirtableImportReport,
+    ):
+        # A list containing all the exported table in Baserow format.
+        exported_tables = []
+
+        # A dict containing all the user files that must be downloaded and added to a
+        # zip file.
+        files_to_download = {}
+
+        # Loop over the table one more time to export the fields, rows, and views to
+        # the serialized format. This must be done last after all the data is prepared
+        # correctly.
+        for table_index, table in enumerate(schema["tableSchemas"]):
+            field_mapping = field_mapping_per_table[table["id"]]
+            files_to_download_for_table = {}
 
             # Loop over all the fields and convert them to Baserow serialized format.
             exported_fields = [
@@ -507,27 +624,54 @@ class AirtableHandler:
             for row_index, row in enumerate(tables[table["id"]]["rows"]):
                 exported_rows.append(
                     cls.to_baserow_row_export(
+                        table,
                         row_id_mapping,
                         field_mapping,
                         row,
                         row_index,
                         files_to_download_for_table,
                         config,
+                        import_report,
                     )
                 )
                 converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
 
-            # Create an empty grid view because the importing of views doesn't work
-            # yet. It's a bit quick and dirty, but it will be replaced soon.
-            grid_view = GridView(pk=0, id=None, name="Grid", order=1)
-            grid_view.get_field_options = lambda *args, **kwargs: []
-            grid_view_type = view_type_registry.get_by_model(grid_view)
-            empty_serialized_grid_view = grid_view_type.export_serialized(
-                grid_view, None, None, None
-            )
-            view_id += 1
-            empty_serialized_grid_view["id"] = view_id
-            exported_views = [empty_serialized_grid_view]
+            # Loop over all views to add them to them as failed to the import report
+            # because the views are not yet supported.
+            exported_views = []
+            for view in table["views"]:
+                table_data = tables[table["id"]]
+                view_data = next(
+                    (
+                        view_data
+                        for view_data in table_data["viewDatas"]
+                        if view_data["id"] == view["id"]
+                    )
+                )
+                serialized_view = (
+                    airtable_view_type_registry.from_airtable_view_to_serialized(
+                        field_mapping,
+                        row_id_mapping,
+                        table,
+                        view,
+                        view_data,
+                        config,
+                        import_report,
+                    )
+                )
+
+                if serialized_view is None:
+                    import_report.add_failed(
+                        view["name"],
+                        SCOPE_VIEW,
+                        table["name"],
+                        ERROR_TYPE_UNSUPPORTED_FEATURE,
+                        f"View \"{view['name']}\" was not imported because "
+                        f"{view['type']} is not supported.",
+                    )
+                    continue
+
+                exported_views.append(serialized_view)
 
             exported_table = DatabaseExportSerializedStructure.table(
                 id=table["id"],
@@ -549,6 +693,110 @@ class AirtableHandler:
                 if url in signed_user_content_urls:
                     url = signed_user_content_urls[url]
                 files_to_download[file_name] = url
+
+        return exported_tables, files_to_download
+
+    @classmethod
+    def to_baserow_database_export(
+        cls,
+        init_data: dict,
+        schema: dict,
+        tables: list,
+        config: AirtableImportConfig,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+        download_files_buffer: Union[None, IOBase] = None,
+    ) -> Tuple[dict, IOBase]:
+        """
+        Converts the provided raw Airtable database dict to a Baserow export format and
+        an in memory zip file containing all the downloaded user files.
+
+        :param init_data: The init_data, extracted from the initial page related to the
+            shared base.
+        :param schema: An object containing the schema of the Airtable base.
+        :param tables: a list containing the table data.
+        :param config: Additional configuration related to the import.
+        :param import_report: Used to collect what wasn't imported to report to the
+            user.
+        :param progress_builder: If provided will be used to build a child progress bar
+            and report on this methods progress to the parent of the progress_builder.
+        :param download_files_buffer: Optionally a file buffer can be provided to store
+            the downloaded files in. They will be stored in memory if not provided.
+        :return: The converted Airtable base in Baserow export format and a zip file
+            containing the user files.
+        """
+
+        # This instance allows collecting what we weren't able to import, like
+        # incompatible fields, filters, etc. This will later be used to create a table
+        # with an overview of what wasn't imported.
+        import_report = AirtableImportReport()
+
+        progress = ChildProgressBuilder.build(progress_builder, child_total=1000)
+        converting_progress = progress.create_child(
+            represents_progress=500,
+            total=sum(
+                [
+                    # Mapping progress
+                    len(tables[table["id"]]["rows"])
+                    # Table column progress
+                    + len(table["columns"])
+                    # Table rows progress
+                    + len(tables[table["id"]]["rows"])
+                    # The table itself.
+                    + 1
+                    for table in schema["tableSchemas"]
+                ]
+            ),
+        )
+
+        # A mapping containing the Airtable table id as key and as value another mapping
+        # containing with the key as Airtable row id and the value as new Baserow row
+        # id. This mapping is created because Airtable has string row id that look like
+        # "recAjnk3nkj5", but Baserow doesn't support string row id, so we need to
+        # replace them with a unique int. We need a mapping because there could be
+        # references to the row.
+        row_id_mapping = defaultdict(dict)
+        for index, table in enumerate(schema["tableSchemas"]):
+            for row_index, row in enumerate(tables[table["id"]]["rows"]):
+                new_id = row_index + 1
+                row_id_mapping[table["id"]][row["id"]] = new_id
+                row["id"] = new_id
+                converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
+
+        field_mapping_per_table = AirtableHandler._parse_table_fields(
+            schema, converting_progress, config, import_report
+        )
+        exported_tables, files_to_download = AirtableHandler._parse_rows_and_views(
+            schema,
+            tables,
+            converting_progress,
+            row_id_mapping,
+            field_mapping_per_table,
+            config,
+            import_report,
+        )
+
+        # Just to be really clear that the automations and interfaces are not included.
+        import_report.add_failed(
+            "All automations",
+            SCOPE_AUTOMATIONS,
+            "",
+            ERROR_TYPE_UNSUPPORTED_FEATURE,
+            "Baserow doesn't support automations.",
+        )
+        import_report.add_failed(
+            "All interfaces",
+            SCOPE_INTERFACES,
+            "",
+            ERROR_TYPE_UNSUPPORTED_FEATURE,
+            "Baserow doesn't support interfaces.",
+        )
+
+        # Convert the import report to the serialized export format of a Baserow table,
+        # so that a new table is created with the import report result for the user to
+        # see.
+        exported_tables.append(
+            import_report.get_baserow_export_table(len(schema["tableSchemas"]) + 1)
+        )
 
         exported_database = CoreExportSerializedStructure.application(
             id=1,
@@ -574,13 +822,105 @@ class AirtableHandler:
         return exported_database, user_files_zip
 
     @classmethod
+    def fetch_and_combine_airtable_data(
+        cls,
+        share_id: str,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> Union[dict, dict, list]:
+        """
+        @TODO docs
+
+        :param share_id: The shared Airtable ID of which the data must be fetched.
+        :param progress_builder: If provided will be used to build a child progress bar
+            and report on this methods progress to the parent of the progress_builder.
+        :return: The fetched init_data, schema, and list of tables enrichted with all
+            the row and view data.
+        """
+
+        progress = ChildProgressBuilder.build(progress_builder, child_total=100)
+
+        # Execute the initial request to obtain the initial data that's needed to
+        # make the request.
+        request_id, init_data, cookies = cls.fetch_publicly_shared_base(share_id)
+        progress.increment(state=AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE)
+
+        # Loop over all the tables and make a request for each table to obtain the raw
+        # Airtable table data.
+        tables = []
+        raw_tables = list(
+            init_data["singleApplicationScaffoldingData"]["tableById"].keys()
+        )
+        for index, table_id in enumerate(
+            progress.track(
+                represents_progress=49,
+                state=AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE,
+                iterable=raw_tables,
+            )
+        ):
+            response = cls.fetch_table_data(
+                table_id=table_id,
+                init_data=init_data,
+                request_id=request_id,
+                cookies=cookies,
+                # At least one request must also fetch the application structure that
+                # contains the schema of all the tables, so we do this for the first
+                # table.
+                fetch_application_structure=index == 0,
+                stream=False,
+            )
+            json_decoded_content = parse_json_and_remove_invalid_surrogate_characters(
+                response
+            )
+
+            tables.append(json_decoded_content)
+
+        # Split database schema from the tables because we need this to be separated
+        # later on.
+        schema, tables = cls.extract_schema(tables)
+
+        # Collect which for which view the data is missing, so that they can be
+        # fetched while respecting the progress afterward.
+        view_data_to_fetch = []
+        for table in schema["tableSchemas"]:
+            existing_view_data = [
+                view_data["id"] for view_data in tables[table["id"]]["viewDatas"]
+            ]
+            for view in table["views"]:
+                # Skip the view data that has already been loaded.
+                if view["id"] in existing_view_data:
+                    continue
+
+                view_data_to_fetch.append((table["id"], view["id"]))
+
+        # Fetch the missing view data, and add them to the table object so that we have
+        # a complete object.
+        for table_id, view_id in progress.track(
+            represents_progress=50,
+            state=AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE,
+            iterable=view_data_to_fetch,
+        ):
+            response = cls.fetch_view_data(
+                view_id=view_id,
+                init_data=init_data,
+                request_id=request_id,
+                cookies=cookies,
+                stream=False,
+            )
+            json_decoded_content = parse_json_and_remove_invalid_surrogate_characters(
+                response
+            )
+            tables[table_id]["viewDatas"].append(json_decoded_content["data"])
+
+        return init_data, schema, tables
+
+    @classmethod
     def import_from_airtable_to_workspace(
         cls,
         workspace: Workspace,
         share_id: str,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
-        download_files_buffer: Union[None, IOBase] = None,
+        download_files_buffer: Optional[IOBase] = None,
         config: Optional[AirtableImportConfig] = None,
     ) -> Database:
         """
@@ -604,52 +944,10 @@ class AirtableHandler:
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=1000)
 
-        # Execute the initial request to obtain the initial data that's needed to
-        # make the request.
-        request_id, init_data, cookies = cls.fetch_publicly_shared_base(share_id)
-        progress.increment(state=AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE)
-
-        # Loop over all the tables and make a request for each table to obtain the raw
-        # Airtable table data.
-        tables = []
-        raw_tables = list(
-            init_data["singleApplicationScaffoldingData"]["tableById"].keys()
+        init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
+            share_id,
+            progress.create_child_builder(represents_progress=100),
         )
-        for index, table_id in enumerate(
-            progress.track(
-                represents_progress=99,
-                state=AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE,
-                iterable=raw_tables,
-            )
-        ):
-            response = cls.fetch_table_data(
-                table_id=table_id,
-                init_data=init_data,
-                request_id=request_id,
-                cookies=cookies,
-                # At least one request must also fetch the application structure that
-                # contains the schema of all the tables, so we do this for the first
-                # table.
-                fetch_application_structure=index == 0,
-                stream=False,
-            )
-            try:
-                decoded_content = remove_invalid_surrogate_characters(
-                    response.content, response.encoding
-                )
-                json_decoded_content = json.loads(decoded_content)
-            except json.decoder.JSONDecodeError:
-                # In some cases, the `remove_invalid_surrogate_characters` results in
-                # invalid JSON. It's not completely clear why that is, but this
-                # fallback can still produce valid JSON to import in most cases if
-                # the original json didn't contain invalid surrogate characters.
-                json_decoded_content = response.json()
-
-            tables.append(json_decoded_content)
-
-        # Split database schema from the tables because we need this to be separated
-        # later on.
-        schema, tables = cls.extract_schema(tables)
 
         # Convert the raw Airtable data to Baserow export format so we can import that
         # later.

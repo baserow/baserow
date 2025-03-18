@@ -212,7 +212,7 @@ def test_local_baserow_get_row_service_dispatch_transform(data_fixture):
     )
     result = service_type.dispatch_transform(dispatch_data)
 
-    assert result == {
+    assert result.data == {
         "id": rows[1].id,
         fields[0].db_column: "Audi",
         fields[1].db_column: "Orange",
@@ -325,7 +325,7 @@ def test_local_baserow_get_row_service_dispatch_data_with_service_integer_search
     )
     result = service_type.dispatch_transform(dispatch_data)
 
-    assert result == {
+    assert result.data == {
         "id": rows[2].id,
         fields[0].db_column: "42",
         "order": AnyStr(),
@@ -771,7 +771,7 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
 
     results = service_type.dispatch_transform(dispatch_data)
 
-    assert results == mock_serializer_instance.data
+    assert results.data == mock_serializer_instance.data
     mock_get_serializer.assert_called_once_with(
         dispatch_data["baserow_table_model"],
         RowSerializer,
@@ -851,7 +851,7 @@ def test_can_dispatch_interesting_table(data_fixture):
     # Normal dispatch
     result = service.get_type().dispatch(service, dispatch_context)
 
-    assert len(result.keys()) == table.field_set.count() + 2
+    assert len(result.data.keys()) == table.field_set.count() + 2
 
     # Now can we dispatch the table if all fields are hidden?
     field_names = {
@@ -866,7 +866,7 @@ def test_can_dispatch_interesting_table(data_fixture):
     # means that the enhance_by_field is filtered to only used field.
     result = service.get_type().dispatch(service, dispatch_context)
 
-    assert len(result.keys()) == 1 + 1  # We also have the order at that point
+    assert len(result.data.keys()) == 1 + 1  # We also have the order at that point
 
     # Test with a filter on a single select field. Single select have a select_related
     single_select_field = table.field_set.get(name="single_select")
@@ -879,7 +879,7 @@ def test_can_dispatch_interesting_table(data_fixture):
 
     dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
 
-    assert len(result.keys()) == 1 + 1
+    assert len(result.data.keys()) == 1 + 1
 
     # Let's remove the filter to not interfer with the sort
     service_filter.delete()
@@ -890,7 +890,7 @@ def test_can_dispatch_interesting_table(data_fixture):
     )
 
     dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
-    assert len(result.keys()) == 1 + 1
+    assert len(result.data.keys()) == 1 + 1
 
     service_sort.delete()
 
@@ -899,4 +899,4 @@ def test_can_dispatch_interesting_table(data_fixture):
     service.save()
 
     dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
-    assert len(result.keys()) == 1 + 1
+    assert len(result.data.keys()) == 1 + 1

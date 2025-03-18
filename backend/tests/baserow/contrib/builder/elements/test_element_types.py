@@ -1542,7 +1542,7 @@ def test_repeat_element_import_export(data_fixture):
     imported_field = imported_table.field_set.get()
 
     # Pluck out the imported builder records.
-    imported_page = imported_builder.page_set.all()[0]
+    imported_page = imported_builder.visible_pages.all()[0]
     imported_data_source = imported_page.datasource_set.get()
     imported_root_repeat = imported_page.element_set.get(
         parent_element_id=None

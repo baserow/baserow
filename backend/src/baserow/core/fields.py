@@ -257,3 +257,84 @@ class LenientDecimalField(models.Field):
                 **kwargs,
             }
         )
+
+
+def default_boolean_list(num_flags):
+    """Returns a default list of False values"""
+
+    return [False] * num_flags
+
+
+class MultipleFlagField(models.CharField):
+    """Stores a list of booleans as a binary string"""
+
+    def __init__(self, num_flags=8, default=None, *args, **kwargs):
+        self.num_flags = num_flags
+        kwargs.setdefault("max_length", num_flags)  # Ensures max length is set
+
+        # Handle list-based default values properly
+        if default is None:
+            default = default_boolean_list(num_flags)
+        if isinstance(default, list):
+            if len(default) != num_flags:
+                raise ValueError(f"Default list must have exactly {num_flags} elements")
+            # Convert list to string representation
+            kwargs["default"] = "".join("1" if flag else "0" for flag in default)
+        elif isinstance(default, str):
+            if len(default) != num_flags or not set(default).issubset({"0", "1"}):
+                raise ValueError(
+                    f"Default string must be exactly {num_flags} characters of "
+                    "'0' or '1'"
+                )
+            kwargs["default"] = default
+        else:
+            raise ValueError(
+                "Default must be a list of booleans, a binary string, or None"
+            )
+
+        super().__init__(*args, **kwargs)
+
+    def from_db_value(self, value, expression, connection):
+        """
+        Converts the stored binary string into a list of booleans when retrieving
+        from the database
+        """
+
+        if value is None:
+            return default_boolean_list(self.num_flags)
+        return [char == "1" for char in value]
+
+    def to_python(self, value):
+        """Ensures the value is always returned as a list of booleans"""
+
+        if isinstance(value, list):
+            return value
+        return [char == "1" for char in value]
+
+    def get_prep_value(self, value):
+        """Converts the list of booleans into a binary string for database storage"""
+
+        if isinstance(value, str):
+            # If Django passes the default value as a string, assume it's already in
+            # correct format
+            if len(value) != self.num_flags or not set(value).issubset({"0", "1"}):
+                raise ValueError(
+                    f"Stored string must have exactly {self.num_flags} characters of "
+                    "'0' or '1'"
+                )
+            return value
+        elif isinstance(value, list):
+            if len(value) != self.num_flags:
+                raise ValueError(f"List must have exactly {self.num_flags} elements")
+            return "".join("1" if flag else "0" for flag in value)
+        else:
+            raise ValueError(
+                "Value must be a list of booleans or a valid binary string"
+            )
+
+    def deconstruct(self):
+        """Ensures Django migrations correctly store and restore num_flags"""
+
+        name, path, args, kwargs = super().deconstruct()
+        kwargs["num_flags"] = self.num_flags  # Add num_flags explicitly
+        return name, path, args, kwargs

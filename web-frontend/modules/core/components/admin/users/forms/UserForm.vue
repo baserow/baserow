@@ -9,13 +9,24 @@
     >
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.values.name.$model"
         size="large"
         :error="fieldHasErrors('name')"
-        @blur="$v.values.name.$touch()"
+        @blur="v$.values.name.$touch"
       >
       </FormInput>
-      <template #error>{{ $t('userForm.error.invalidName') }}</template>
+
+      <template #error>
+        <span v-if="v$.values.name.required.$invalid">
+          {{ $t('error.requiredField') }}
+        </span>
+        <span v-else-if="v$.values.name.minLength.$invalid">
+          {{ $t('error.minLength', { min: 2 }) }}
+        </span>
+        <span v-else-if="v$.values.name.maxLength.$invalid">
+          {{ $t('error.maxLength', { max: 150 }) }}
+        </span>
+      </template>
     </FormGroup>
 
     <FormGroup
@@ -27,22 +38,29 @@
     >
       <FormInput
         ref="email"
-        v-model="values.username"
+        v-model="v$.values.username.$model"
         size="large"
         :error="fieldHasErrors('username')"
-        @blur="$v.values.username.$touch()"
+        @blur="v$.values.username.$touch"
       >
       </FormInput>
 
       <template #warning>
-        <span v-show="values.username !== user.username">
+        <span
+          v-show="
+            values.username !== user.username && !v$.values.username.$invalid
+          "
+        >
           {{ $t('userForm.warning.changeEmail') }}
         </span>
       </template>
 
       <template #error>
-        <span v-show="fieldHasErrors('username')">
-          {{ $t('userForm.error.invalidEmail') }}
+        <span v-if="v$.values.username.required.$invalid">
+          {{ $t('error.requiredField') }}
+        </span>
+        <span v-else-if="v$.values.username.email.$invalid">
+          {{ $t('error.invalidEmail') }}
         </span>
       </template>
     </FormGroup>
@@ -53,7 +71,10 @@
       required
       class="margin-bottom-2"
     >
-      <Checkbox v-model="values.is_active" :disabled="loading"></Checkbox>
+      <Checkbox
+        v-model="v$.values.is_active.$model"
+        :disabled="loading"
+      ></Checkbox>
 
       <template #warning>
         <span v-show="!values.is_active">
@@ -63,7 +84,10 @@
     </FormGroup>
 
     <FormGroup small-label :label="$t('user.isStaff')" required>
-      <Checkbox v-model="values.is_staff" :disabled="loading"></Checkbox>
+      <Checkbox
+        v-model="v$.values.is_staff.$model"
+        :disabled="loading"
+      ></Checkbox>
 
       <template #warning>
         <span v-show="values.is_staff">
@@ -89,7 +113,9 @@
 </template>
 
 <script>
-import { email, maxLength, minLength, required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive } from 'vue'
+import { email, maxLength, minLength, required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 
@@ -106,22 +132,41 @@ export default {
       required: true,
     },
   },
-  data() {
-    return {
-      allowedValues: ['username', 'name', 'is_active', 'is_staff'],
+  setup() {
+    const values = reactive({
       values: {
         username: '',
         name: '',
         is_active: '',
         is_staff: '',
       },
+    })
+
+    const rules = {
+      values: {
+        name: {
+          required,
+          minLength: minLength(2),
+          maxLength: maxLength(150),
+        },
+        username: {
+          required,
+          email,
+        },
+        is_active: {},
+        is_staff: {},
+      },
+    }
+
+    return {
+      values: values.values,
+      v$: useVuelidate(rules, values, { $lazy: true }),
     }
   },
-  validations: {
-    values: {
-      name: { required, minLength: minLength(2), maxLength: maxLength(150) },
-      username: { required, email },
-    },
+  data() {
+    return {
+      allowedValues: ['username', 'name', 'is_active', 'is_staff'],
+    }
   },
 }
 </script>

@@ -9,7 +9,8 @@
     "rbac": "RBAC",
     "sso": "SSO",
     "licenseDescription": "Viewers are free with Baserow Enterprise. If a user has any other role, in any workspace then they will use a paid seat automatically.",
-    "overflowWarning": "You have too many non-viewer users and have used up all of your paid seats. Change users to become viewers on each workspaces members page."
+    "overflowWarning": "You have too many non-viewer users and have used up all of your paid seats. Change users to become viewers on each workspaces members page.",
+    "deactivated": "Available in the advanced/enterprise version"
   },
   "trashType": {
     "team": "team"
@@ -285,7 +286,9 @@
     "auditLogs": "Audit logs",
     "dataSync": "Data sync",
     "coBranding": "Co-branding logo replacement",
-    "support": "Direct support"
+    "support": "Direct support",
+    "chartWidget": "Chart widget",
+    "advancedWebhooks": "Advanced webhooks"
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
@@ -340,7 +343,7 @@
     "showBaserowHelpMessageDescription": "Indicates whether the help request message should be shown on the dashboard.",
     "deactivated": "Available in enterprise",
     "coBrandingLogo": "Logo",
-    "coBrandingLogoDescription": "Replaces the Baserow logo for a custom co-branded alternative (176x29).",
+    "coBrandingLogoDescription": "Replaces the Baserow logo for a custom co-branded alternative (176x29). If set, it also removes the Baserow description in the footer of all emails.",
     "uploadFileButton": "Upload image"
   },
   "enterpriseModal": {
@@ -439,5 +442,42 @@
   },
   "oidcAuthLink": {
     "placeholderWithOIDC": "{login} with {provider}"
+  },
+  "chartWidget": {
+    "name": "Chart"
+  },
+  "groupedAggregateRowsDataSourceForm": {
+    "series": "Series",
+    "addSeries": "Add series",
+    "data": "Data",
+    "sourceFieldLabel": "Source",
+    "viewFieldLabel": "View",
+    "notSelected": "Not selected"
+  },
+  "aggregationSeriesForm": {
+    "aggregationFieldLabel": "Field",
+    "aggregationTypeLabel": "Summary",
+    "deleteSeries": "Delete series"
+  },
+  "aggregationGroupByForm": {
+    "groupByFieldLabel": "Group by",
+    "groupByNone": "None",
+    "groupByRowId": "Row Id"
+  },
+  "aggregationSortByForm": {
+    "sortByFieldLabel": "Sort by",
+    "none": "None",
+    "ascending": "Ascending",
+    "descending": "Descending"
+  },
+  "periodicDataSyncDeactivatedNotification": {
+    "body": "{name} periodic data sync has been deactivated because it failed too many times consecutively."
+  },
+  "webhook": {
+    "rowsEnterVieweventType": "Rows enter view"
+  },
+  "webhookForm": {
+    "triggerWhenRowsEnterView": "Triggered when rows enter the view.",
+    "helpTriggerWhenRowsEnterView": "Triggers only when `Rows enter view` is selected and rows that now match the filters enter the view."
   }
 }

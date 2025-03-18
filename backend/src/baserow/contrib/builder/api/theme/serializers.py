@@ -37,16 +37,35 @@ class DynamicConfigBlockSerializer(serializers.Serializer):
         if not isinstance(theme_config_block_type_name, list):
             theme_config_block_type_name = [theme_config_block_type_name]
 
-        for prop, type_name in zip(property_name, theme_config_block_type_name):
-            theme_config_block_type = theme_config_block_registry.get(type_name)
-            self.fields[prop] = theme_config_block_type.get_serializer_class(
-                request_serializer=request_serializer
-            )(**({"help_text": f"Styles overrides for {prop}"} | serializer_kwargs))
+        for prop, type_names in zip(property_name, theme_config_block_type_name):
+            if not isinstance(type_names, list):
+                type_names = [type_names]
+
+            config_blocks = (
+                theme_config_block_registry.get(type_name) for type_name in type_names
+            )
+            serializer_class = combine_theme_config_blocks_serializer_class(
+                config_blocks,
+                request_serializer=request_serializer,
+                name="SubConfigBlockSerializer",
+            )
+
+            self.fields[prop] = serializer_class(**serializer_kwargs)
+
+        all_type_names = "".join(
+            [
+                "And".join(sub.capitalize() for sub in p)
+                if isinstance(p, list)
+                else p.capitalize()
+                for p in theme_config_block_type_name
+            ]
+        )
 
         # Dynamically create the Meta class with ref name to prevent collision
         class DynamicMeta:
-            type_names = "".join([p.capitalize() for p in theme_config_block_type_name])
-            ref_name = f"{type_names}ConfigBlockSerializer"
+            type_names = all_type_names
+            ref_name = f"{all_type_names}ConfigBlockSerializer"
+            meta_ref_name = f"{all_type_names}ConfigBlockSerializer"
 
         self.Meta = DynamicMeta
 
@@ -72,6 +91,41 @@ def serialize_builder_theme(builder: Builder) -> dict:
     return theme
 
 
+def combine_theme_config_blocks_serializer_class(
+    theme_config_blocks,
+    request_serializer=False,
+    name="CombinedThemeConfigBlocksSerializer",
+) -> serializers.Serializer:
+    """
+    This helper function generates one single serializer that contains all the fields
+    of all the theme config blocks. The API always communicates all theme properties
+    flat in one single object.
+
+    :return: The generated serializer.
+    """
+
+    attrs = {}
+
+    for theme_config_block in theme_config_blocks:
+        serializer = theme_config_block.get_serializer_class(
+            request_serializer=request_serializer
+        )
+        serializer_fields = serializer().get_fields()
+
+        for name, field in serializer_fields.items():
+            attrs[name] = field
+
+    class Meta:
+        ref_name = "".join(t.type.capitalize() for t in theme_config_blocks) + name
+        meta_ref_name = "".join(t.type.capitalize() for t in theme_config_blocks) + name
+
+    attrs["Meta"] = Meta
+
+    class_object = type(name, (serializers.Serializer,), attrs)
+
+    return class_object
+
+
 @cache
 def get_combined_theme_config_blocks_serializer_class(
     request_serializer=False,
@@ -90,27 +144,9 @@ def get_combined_theme_config_blocks_serializer_class(
             "imported before the theme config blocks have been registered."
         )
 
-    attrs = {}
-
-    for theme_config_block in theme_config_block_registry.get_all():
-        serializer = theme_config_block.get_serializer_class(
-            request_serializer=request_serializer
-        )
-        serializer_fields = serializer().get_fields()
-
-        for name, field in serializer_fields.items():
-            attrs[name] = field
-
-    class Meta:
-        meta_ref_name = "combined_theme_config_blocks_serializer"
-
-    attrs["Meta"] = Meta
-
-    class_object = type(
-        "CombinedThemeConfigBlocksSerializer", (serializers.Serializer,), attrs
+    return combine_theme_config_blocks_serializer_class(
+        theme_config_block_registry.get_all(), request_serializer=request_serializer
     )
-
-    return class_object
 
 
 CombinedThemeConfigBlocksSerializer = (

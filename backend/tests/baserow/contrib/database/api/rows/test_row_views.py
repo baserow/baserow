@@ -250,8 +250,8 @@ def test_list_rows(api_client, data_fixture):
     )
 
     number_field_type = field_type_registry.get("number")
-    old_can_order_by = number_field_type._can_order_by
-    number_field_type._can_order_by = False
+    old_can_order_by = number_field_type._can_order_by_types
+    number_field_type._can_order_by_types = []
     invalidate_table_in_model_cache(table.id)
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     response = api_client.get(
@@ -263,10 +263,10 @@ def test_list_rows(api_client, data_fixture):
     response_json = response.json()
     assert response_json["error"] == "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE"
     assert response_json["detail"] == (
-        f"It is not possible to order by field_{field_2.id} because the field type "
-        f"number does not support filtering."
+        f"It is not possible to order by field_{field_2.id} using sort type default "
+        f"because the field type number does not support it."
     )
-    number_field_type._can_order_by = old_can_order_by
+    number_field_type._can_order_by_types = old_can_order_by
     invalidate_table_in_model_cache(table.id)
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
@@ -417,6 +417,74 @@ def test_list_rows(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+@pytest.mark.django_db
+def test_list_rows_order_by_type(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="password", first_name="Test1"
+    )
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(name="Name", table=table, primary=True)
+    select_1 = data_fixture.create_single_select_field(name="Select", table=table)
+    option_1 = data_fixture.create_select_option(field=select_1, value="A", order=3)
+    option_2 = data_fixture.create_select_option(field=select_1, value="B", order=1)
+    option_3 = data_fixture.create_select_option(field=select_1, value="C", order=2)
+
+    model = table.get_model(attribute_names=True)
+    row_1 = model.objects.create(name="Product 1", select_id=option_1.id)
+    row_2 = model.objects.create(name="Product 2", select_id=option_2.id)
+    row_3 = model.objects.create(name="Product 3", select_id=option_3.id)
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    response = api_client.get(
+        f"{url}?order_by=-field_{field_1.id}[unknown]",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE"
+    assert response_json["detail"] == (
+        f"It is not possible to order by field_{field_1.id} using sort type unknown "
+        f"because the field type text does not support it."
+    )
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    response = api_client.get(
+        f"{url}?order_by=field_{field_1.id}[default]",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["results"][0]["id"] == row_1.id
+    assert response_json["results"][1]["id"] == row_2.id
+    assert response_json["results"][2]["id"] == row_3.id
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    response = api_client.get(
+        f"{url}?order_by=-field_{field_1.id}[default]",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["results"][0]["id"] == row_3.id
+    assert response_json["results"][1]["id"] == row_2.id
+    assert response_json["results"][2]["id"] == row_1.id
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    response = api_client.get(
+        f"{url}?order_by=field_{select_1.id}[order]",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["results"][0]["id"] == row_2.id
+    assert response_json["results"][1]["id"] == row_3.id
+    assert response_json["results"][2]["id"] == row_1.id
 
 
 @pytest.mark.django_db
@@ -2839,8 +2907,8 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert (
         response_json["detail"]
-        == "It is not possible to order by Password because the field type "
-        "password does not support filtering."
+        == "It is not possible to order by Password using sort type default because "
+        "the field type password does not support it."
     )
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
@@ -3202,14 +3270,18 @@ def test_get_row_adjacent(api_client, data_fixture):
     table = data_fixture.create_database_table(name="table", user=user)
     field = data_fixture.create_text_field(name="some name", table=table)
 
-    [row_1, row_2, row_3] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": "some value"},
-            {f"field_{field.id}": "some value"},
-            {f"field_{field.id}": "some value"},
-        ],
+    [row_1, row_2, row_3] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "some value"},
+                {f"field_{field.id}": "some value"},
+                {f"field_{field.id}": "some value"},
+            ],
+        )
+        .created_rows
     )
 
     # Get the next row
@@ -3257,14 +3329,18 @@ def test_get_row_adjacent_view_id_provided(api_client, data_fixture):
         user, field=field, view=view, type="contains", value="a"
     )
 
-    [row_1, row_2, row_3] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": "ab"},
-            {f"field_{field.id}": "b"},
-            {f"field_{field.id}": "a"},
-        ],
+    [row_1, row_2, row_3] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "ab"},
+                {f"field_{field.id}": "b"},
+                {f"field_{field.id}": "a"},
+            ],
+        )
+        .created_rows
     )
 
     response = api_client.get(
@@ -3290,14 +3366,18 @@ def test_get_row_adjacent_view_id_no_adjacent_row(api_client, data_fixture):
     table = data_fixture.create_database_table(name="table", user=user)
     field = data_fixture.create_text_field(name="field", table=table)
 
-    [row_1, row_2, row_3] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": "a"},
-            {f"field_{field.id}": "b"},
-            {f"field_{field.id}": "c"},
-        ],
+    [row_1, row_2, row_3] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "a"},
+                {f"field_{field.id}": "b"},
+                {f"field_{field.id}": "c"},
+            ],
+        )
+        .created_rows
     )
 
     response = api_client.get(
@@ -3401,14 +3481,18 @@ def test_get_row_adjacent_search(api_client, data_fixture, search_mode):
     table = data_fixture.create_database_table(name="table", user=user)
     field = data_fixture.create_text_field(name="field", table=table)
 
-    [row_1, row_2, row_3] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": "a"},
-            {f"field_{field.id}": "ab"},
-            {f"field_{field.id}": "c"},
-        ],
+    [row_1, row_2, row_3] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "a"},
+                {f"field_{field.id}": "ab"},
+                {f"field_{field.id}": "c"},
+            ],
+        )
+        .created_rows
     )
     SearchHandler.update_tsvector_columns(
         table, update_tsvectors_for_changed_rows_only=False
@@ -3892,6 +3976,9 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
                                 "value": f"unnamed row {table2_row2.id}"
                             },
                         },
+                        "linked_table_id": linkrow_field.link_row_table_id,
+                        "linked_field_id": linkrow_field.link_row_related_field_id,
+                        "primary_value": "unnamed row 1",
                     },
                 },
             },
@@ -4364,7 +4451,7 @@ def test_link_row_field_validate_input_data_for_read_only_primary_fields(
         user=user, table_b=table_b
     )
 
-    (row_b1,) = RowHandler().create_rows(user, table_b, [{}])
+    (row_b1,) = RowHandler().create_rows(user, table_b, [{}]).created_rows
     row_b1_pk = str(getattr(row_b1, pk_field.db_column))
 
     # using a valid value as reference to the row should work

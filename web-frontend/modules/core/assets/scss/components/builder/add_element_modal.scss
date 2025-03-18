@@ -1,5 +1,74 @@
-.add-element-modal__element-cards {
-  display: flex;
-  flex-flow: wrap;
-  gap: 15px;
+// Main modal container
+.add-element-modal {
+  div.modal__box {
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 2.5em;
+    max-width: 560px;
+  }
+
+  &__element-cards {
+    display: flex;
+    flex-flow: wrap;
+    gap: 15px;
+    flex-direction: column;
+    margin-left: -11px;
+    width: 500px;
+  }
+
+  .expandable__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #ededed;
+    cursor: pointer;
+    user-select: none;
+    padding-top: 20px;
+    margin-left: 5px;
+    width: 490px;
+  }
+
+  &__category-arrow {
+    font-size: 14px;
+    color: $color-neutral-500;
+    cursor: pointer;
+    display: flex;
+    flex-direction: row-reverse;
+    margin-top: -14px;
+  }
+
+  &__category-title {
+    font-size: 12px;
+    font-weight: 400;
+    color: #6a6b70;
+    width: 100%;
+    display: inline-block;
+
+    &:hover {
+      text-decoration: none;
+    }
+  }
+
+  &__category-content {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  &__category {
+    padding-bottom: 24px;
+  }
+
+  &__category:first-of-type {
+    .expandable__header {
+      border-top: none;
+    }
+  }
+
+  &__search {
+    margin-bottom: 24px;
+  }
+
+  &__search-magnifier {
+    margin-top: 5px;
+  }
 }

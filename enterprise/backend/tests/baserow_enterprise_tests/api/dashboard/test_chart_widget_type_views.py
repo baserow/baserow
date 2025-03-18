@@ -1,3 +1,5 @@
+from django.test.utils import override_settings
+
 import pytest
 from rest_framework.reverse import reverse
 from rest_framework.status import HTTP_200_OK
@@ -6,7 +8,9 @@ from baserow.test_utils.helpers import AnyInt
 
 
 @pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_create_chart_widget(api_client, enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
     user, token = enterprise_data_fixture.create_user_and_token()
     dashboard = enterprise_data_fixture.create_dashboard_application(user=user)
 

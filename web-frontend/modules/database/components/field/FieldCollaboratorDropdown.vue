@@ -65,9 +65,9 @@
         ></FieldCollaboratorDropdownItem>
         <FieldCollaboratorDropdownItem
           v-for="collaborator in results"
-          :key="collaborator.user_id"
+          :key="collaborator.id"
           :name="collaborator.name"
-          :value="collaborator.user_id"
+          :value="collaborator.id"
         ></FieldCollaboratorDropdownItem>
       </ul>
       <div v-if="isNotFound" class="select__description">
@@ -94,6 +94,11 @@ export default {
       type: Boolean,
       required: false,
       default: true,
+    },
+    pageSize: {
+      type: Number,
+      required: false,
+      default: 100, // override default pageSize of 20
     },
   },
   computed: {

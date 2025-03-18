@@ -9,16 +9,16 @@
     >
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.values.name.$model"
         size="large"
         :error="fieldHasErrors('name')"
         :placeholder="$t('oauthSettingsForm.providerNamePlaceholder')"
-        @blur="$v.values.name.$touch()"
+        @blur="v$.values.name.$touch"
       ></FormInput>
 
-      <template v-if="$v.values.name.$dirty && !$v.values.name.required" #error>
-        {{ $t('error.requiredField') }}</template
-      >
+      <template #error>
+        {{ v$.values.name.$errors[0]?.$message }}
+      </template>
     </FormGroup>
 
     <FormGroup
@@ -30,19 +30,19 @@
     >
       <FormInput
         ref="base_url"
-        v-model="values.base_url"
+        v-model="v$.values.base_url.$model"
         size="large"
         :error="fieldHasErrors('base_url') || !!serverErrors.base_url"
         :placeholder="$t('oauthSettingsForm.baseUrlPlaceholder')"
-        @blur="$v.values.base_url.$touch()"
+        @blur="v$.values.base_url.$touch"
         @input="serverErrors.base_url = null"
       ></FormInput>
 
       <template #error>
-        <div v-if="$v.values.base_url.$dirty && !$v.values.base_url.required">
+        <div v-if="v$.values.base_url.required.$invalid">
           {{ $t('error.requiredField') }}
         </div>
-        <div v-else-if="$v.values.base_url.$dirty && !$v.values.base_url.url">
+        <div v-else-if="v$.values.base_url.url.$invalid">
           {{ $t('oauthSettingsForm.invalidBaseUrl') }}
         </div>
         <div v-else-if="serverErrors.base_url?.code === 'duplicate_url'">
@@ -66,18 +66,15 @@
     >
       <FormInput
         ref="client_id"
-        v-model="values.client_id"
+        v-model="v$.values.client_id.$model"
         size="large"
         :error="fieldHasErrors('client_id')"
         :placeholder="$t('oauthSettingsForm.clientIdPlaceholder')"
-        @blur="$v.values.client_id.$touch()"
+        @blur="v$.values.client_id.$touch"
       ></FormInput>
 
-      <template
-        v-if="$v.values.client_id.$dirty && !$v.values.client_id.required"
-        #error
-      >
-        {{ $t('error.requiredField') }}
+      <template #error>
+        {{ v$.values.client_id.$errors[0]?.$message }}
       </template>
     </FormGroup>
 
@@ -90,17 +87,15 @@
     >
       <FormInput
         ref="secret"
-        v-model="values.secret"
+        v-model="v$.values.secret.$model"
         size="large"
         :error="fieldHasErrors('secret')"
         :placeholder="$t('oauthSettingsForm.secretPlaceholder')"
-        @blur="$v.values.secret.$touch()"
+        @blur="v$.values.secret.$touch"
       ></FormInput>
 
       <template #error>
-        <span v-if="$v.values.secret.$dirty && !$v.values.secret.required">
-          {{ $t('error.requiredField') }}
-        </span>
+        {{ v$.values.secret.$errors[0]?.$message }}
       </template>
     </FormGroup>
     <slot name="config">
@@ -117,12 +112,16 @@
 </template>
 
 <script>
-import { required, url } from 'vuelidate/lib/validators'
 import authProviderForm from '@baserow/modules/core/mixins/authProviderForm'
+import { useVuelidate } from '@vuelidate/core'
+import { required, url, helpers } from '@vuelidate/validators'
 
 export default {
   name: 'OpenIdConnectSettingsForm',
   mixins: [authProviderForm],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: ['name', 'base_url', 'client_id', 'secret'],
@@ -142,10 +141,28 @@ export default {
   validations() {
     return {
       values: {
-        name: { required },
-        base_url: { required, url },
-        client_id: { required },
-        secret: { required },
+        name: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        base_url: {
+          required,
+          url,
+        },
+        client_id: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        secret: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
       },
     }
   },

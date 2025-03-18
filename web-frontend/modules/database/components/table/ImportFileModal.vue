@@ -55,7 +55,39 @@
           @header="onHeader($event)"
           @data="onData($event)"
           @getData="onGetData($event)"
-        />
+        >
+          <template #upsertMapping>
+            <div class="control margin-top-1">
+              <label class="control__label control__label--small">
+                {{ $t('importFileModal.useUpsertField') }}
+                <HelpIcon
+                  :icon="'info-empty'"
+                  :tooltip="$t('importFileModal.upsertTooltip')"
+                />
+              </label>
+              <div class="control__elements">
+                <Checkbox
+                  v-model="useUpsertField"
+                  :disabled="!mappingNotEmpty"
+                  >{{ $t('common.yes') }}</Checkbox
+                >
+              </div>
+
+              <Dropdown
+                v-model="upsertField"
+                :disabled="!useUpsertField"
+                class="margin-top-1"
+              >
+                <DropdownItem
+                  v-for="item in availableUpsertFields"
+                  :key="item.id"
+                  :name="item.name"
+                  :value="item.id"
+                />
+              </Dropdown>
+            </div>
+          </template>
+        </component>
       </div>
 
       <ImportErrorReport :job="job" :error="error"></ImportErrorReport>
@@ -204,6 +236,8 @@ export default {
       getData: null,
       previewData: [],
       dataLoaded: false,
+      useUpsertField: false,
+      upsertField: undefined,
     }
   },
   computed: {
@@ -213,12 +247,19 @@ export default {
       }
       return this.database.tables.some(({ id }) => id === this.job.table_id)
     },
+    mappingNotEmpty() {
+      return Object.values(this.mapping).some(
+        (value) => this.fieldIndexMap[value] !== undefined
+      )
+    },
     canBeSubmitted() {
       return (
         this.importer &&
         Object.values(this.mapping).some(
           (value) => this.fieldIndexMap[value] !== undefined
-        )
+        ) &&
+        (!this.useUpsertField ||
+          Object.values(this.mapping).includes(this.upsertField))
       )
     },
     fieldTypes() {
@@ -306,6 +347,14 @@ export default {
      */
     selectedFields() {
       return Object.values(this.mapping)
+    },
+    availableUpsertFields() {
+      const selected = Object.values(this.mapping)
+      return this.fields.filter((field) => {
+        return (
+          selected.includes(field.id) && this.fieldTypes[field.type].canUpsert()
+        )
+      })
     },
     progressPercentage() {
       switch (this.state) {
@@ -417,6 +466,14 @@ export default {
       this.showProgressBar = false
       this.reset(false)
       let data = null
+      const importConfiguration = {}
+
+      if (this.upsertField) {
+        // at the moment we use only one field, but the key may be composed of several
+        // fields.
+        importConfiguration.upsert_fields = [this.upsertField]
+        importConfiguration.upsert_values = []
+      }
 
       if (typeof this.getData === 'function') {
         try {
@@ -425,6 +482,18 @@ export default {
           await this.$ensureRender()
 
           data = await this.getData()
+          const upsertFields = importConfiguration.upsert_fields || []
+          const upsertValues = importConfiguration.upsert_values || []
+          const upsertFieldIndexes = []
+
+          Object.entries(this.mapping).forEach(
+            ([importIndex, targetFieldId]) => {
+              if (upsertFields.includes(targetFieldId)) {
+                upsertFieldIndexes.push(importIndex)
+              }
+            }
+          )
+
           const fieldMapping = Object.entries(this.mapping)
             .filter(
               ([, targetFieldId]) =>
@@ -456,22 +525,41 @@ export default {
 
           // Processes the data by chunk to avoid UI freezes
           const result = []
+
           for (const chunk of _.chunk(data, 1000)) {
             result.push(
               chunk.map((row) => {
                 const newRow = clone(defaultRow)
+                const upsertRow = []
                 fieldMapping.forEach(([importIndex, targetIndex]) => {
                   newRow[targetIndex] = prepareValueByField[targetIndex](
                     row[importIndex]
                   )
+                  if (upsertFieldIndexes.includes(importIndex)) {
+                    upsertRow.push(newRow[targetIndex])
+                  }
                 })
 
+                if (upsertFields.length > 0 && upsertRow.length > 0) {
+                  if (upsertFields.length !== upsertRow.length) {
+                    throw new Error(
+                      "upsert row length doesn't match required fields"
+                    )
+                  }
+                  upsertValues.push(upsertRow)
+                }
                 return newRow
               })
             )
             await this.$ensureRender()
           }
           data = result.flat()
+          if (upsertFields.length > 0) {
+            if (upsertValues.length !== data.length) {
+              throw new Error('upsert values lenght mismatch')
+            }
+            importConfiguration.upsert_values = upsertValues
+          }
         } catch (error) {
           this.reset()
           this.handleError(error, 'application')
@@ -493,7 +581,8 @@ export default {
           data,
           {
             onUploadProgress,
-          }
+          },
+          importConfiguration.upsert_fields ? importConfiguration : null
         )
         this.startJobPoller(job)
       } catch (error) {

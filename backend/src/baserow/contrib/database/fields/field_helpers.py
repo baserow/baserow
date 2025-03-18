@@ -1,7 +1,11 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils.duration import D_H_M
+from baserow.core.import_export.utils import file_chunk_generator
+from baserow.core.storage import ExportZipFile, Storage
+from baserow.core.user_files.handler import UserFileHandler
 
 
 def construct_all_possible_field_kwargs(
@@ -295,3 +299,64 @@ def construct_all_possible_field_kwargs(
         all_interesting_field_kwargs.keys()
     ), "Please add the new field type to the testing dictionary of interesting kwargs"
     return all_interesting_field_kwargs
+
+
+def prepare_files_for_export(
+    records: List[Dict[str, Any]],
+    cache: Dict[str, Any],
+    files_zip: Optional[ExportZipFile] = None,
+    storage: Optional[Storage] = None,
+    name_prefix: str = "",
+) -> List[Dict[str, Any]]:
+    """
+    Prepares file field values for export by either adding them to a zip file or
+    returning the serialized file data
+
+    :param records: List of file records containing file metadata.
+    :param cache: A dictionary used to track which files have already been processed
+        to avoid duplicates.
+    :param files_zip: Optional ExportZipFile to add the actual file contents to.
+    :param storage: Optional storage backend to read the file contents from when adding
+        to zip.
+    :param name_prefix: Optional prefix to prepend to file names in the export.
+    :return: List of serialized file metadata
+    """
+
+    file_names = []
+    user_file_handler = UserFileHandler()
+
+    for record in records:
+        # Check if the user file object is already in the cache and if not,
+        # it must be fetched and added to it.
+        file_name = f"{name_prefix}{record['name']}"
+        cache_entry = f"user_file_{file_name}"
+        if cache_entry not in cache:
+            if files_zip is not None and file_name not in [
+                item["name"] for item in files_zip.info_list()
+            ]:
+                file_path = user_file_handler.user_file_path(record["name"])
+                # Create chunk generator for the file content and add it to the zip
+                # stream. That file will be read when zip stream is being
+                # written to final zip file
+                chunk_generator = file_chunk_generator(storage, file_path)
+                files_zip.add(chunk_generator, file_name)
+
+            # This is just used to avoid writing the same file twice.
+            cache[cache_entry] = True
+
+        if files_zip is None:
+            # If the zip file is `None`, it means we're duplicating this row. To
+            # avoid unnecessary queries, we jump add the complete file, and will
+            # use that during import instead of fetching the user file object.
+            file_names.append(record)
+        else:
+            file_names.append(
+                DatabaseExportSerializedStructure.file_field_value(
+                    name=file_name,
+                    visible_name=record["visible_name"],
+                    original_name=record["name"],
+                    size=record["size"],
+                )
+            )
+
+    return file_names

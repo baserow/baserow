@@ -1,13 +1,13 @@
 <template>
   <!-- Show user source list -->
   <div
-    v-if="!showCreateForm && editedUserSource === null"
+    v-if="!showForm && editedUserSource === null"
     class="user-sources-settings"
   >
     <h2 class="box__title">{{ $t('userSourceSettings.titleOverview') }}</h2>
     <Error :error="error"></Error>
     <div v-if="!error.visible" class="actions actions--right">
-      <Button icon="iconoir-plus" @click="showForm()">
+      <Button icon="iconoir-plus" @click="displayForm()">
         {{ $t('userSourceSettings.addUserSource') }}
       </Button>
     </div>
@@ -26,7 +26,7 @@
         style="flex: 1"
       />
       <div class="user-source-settings__user-source-actions">
-        <ButtonIcon icon="iconoir-edit" @click="showForm(userSource)" />
+        <ButtonIcon icon="iconoir-edit" @click="displayForm(userSource)" />
         <ButtonIcon icon="iconoir-bin" @click="deleteUserSource(userSource)" />
       </div>
     </div>
@@ -49,7 +49,6 @@
       style="flex: 1; margin-bottom: 18px"
       icon-size="medium"
     />
-
     <UpdateUserSourceForm
       ref="userSourceForm"
       :builder="builder"
@@ -58,6 +57,7 @@
       @submitted="updateUserSource"
       @values-changed="onValueChange"
     />
+
     <div class="actions">
       <ButtonText
         type="secondary"
@@ -96,6 +96,7 @@
       >
         {{ $t('action.back') }}
       </ButtonText>
+
       <Button
         :disabled="actionInProgress || invalidForm"
         :loading="actionInProgress"
@@ -115,26 +116,21 @@ import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import CreateUserSourceForm from '@baserow/modules/builder/components/userSource/CreateUserSourceForm'
 import UpdateUserSourceForm from '@baserow/modules/builder/components/userSource/UpdateUserSourceForm'
+import builderSetting from '@baserow/modules/builder/components/settings/mixins/builderSetting'
 
 export default {
   name: 'UserSourceSettings',
   components: { CreateUserSourceForm, UpdateUserSourceForm },
-  mixins: [error],
+  mixins: [error, builderSetting],
   provide() {
     return { builder: this.builder }
   },
-  props: {
-    builder: {
-      type: Object,
-      required: true,
-    },
-  },
   data() {
     return {
-      showCreateForm: false,
+      showForm: false,
       editedUserSource: null,
       actionInProgress: false,
-      invalidForm: false,
+      invalidForm: true,
     }
   },
   computed: {
@@ -143,9 +139,6 @@ export default {
     },
     userSources() {
       return this.$store.getters['userSource/getUserSources'](this.builder)
-    },
-    userSourceTypes() {
-      return this.$registry.getAll('userSource')
     },
   },
   async mounted() {
@@ -171,22 +164,22 @@ export default {
       return this.$registry.get('userSource', userSource.type)
     },
     onValueChange() {
-      this.invalidForm = !this.$refs.userSourceForm.isFormValid(true)
+      this.invalidForm = !this.$refs.userSourceForm.isFormValid()
     },
-    async showForm(userSourceToEdit) {
+    async displayForm(userSourceToEdit) {
       if (userSourceToEdit) {
         this.editedUserSource = userSourceToEdit
       } else {
-        this.showCreateForm = true
+        this.showForm = true
       }
       await this.$nextTick()
       this.onValueChange()
     },
     hideForm() {
-      this.showCreateForm = false
+      this.showForm = false
       this.editedUserSource = null
       this.hideError()
-      this.invalidForm = false
+      this.invalidForm = true
     },
     async createUserSource(values) {
       this.actionInProgress = true
@@ -218,6 +211,11 @@ export default {
           userSourceId: this.editedUserSource.id,
           values: clone(newValues),
         })
+        // If the builder settings modal is set to hide after create, normally
+        // we would have hidden the modal and shared the record ID after the user
+        // source was created, but in this settings component we'll share the ID
+        // after the update, when there's a better change of having a configure source.
+        this.hideModalIfRequired(this.editedUserSource.id)
         this.hideForm()
       } catch (error) {
         // Restore the previously saved values from the store

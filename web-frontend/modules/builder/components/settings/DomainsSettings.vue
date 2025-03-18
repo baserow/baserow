@@ -28,7 +28,12 @@
       {{ $t('domainSettings.noDomainMessage') }}
     </p>
   </div>
-  <DomainForm v-else :builder="builder" :hide-form="hideForm" />
+  <DomainForm
+    v-else
+    :builder="builder"
+    :hide-form="hideForm"
+    @created="hideModalIfRequired"
+  />
 </template>
 
 <script>
@@ -36,22 +41,12 @@ import { mapActions, mapGetters } from 'vuex'
 import error from '@baserow/modules/core/mixins/error'
 import DomainCard from '@baserow/modules/builder/components/domain/DomainCard'
 import DomainForm from '@baserow/modules/builder/components/domain/DomainForm'
+import builderSetting from '@baserow/modules/builder/components/settings/mixins/builderSetting'
 
 export default {
   name: 'DomainsSettings',
   components: { DomainCard, DomainForm },
-  mixins: [error],
-  props: {
-    builder: {
-      type: Object,
-      required: true,
-    },
-  },
-  data() {
-    return {
-      showForm: false,
-    }
-  },
+  mixins: [error, builderSetting],
   async fetch() {
     try {
       await this.actionFetchDomains({ builderId: this.builder.id })

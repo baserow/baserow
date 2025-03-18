@@ -40,6 +40,13 @@ export default {
     prepareHTMLData(textData, firstRowIsHeader) {
       const table = document.createElement('table')
       const tbody = document.createElement('tbody')
+
+      // For single cells we don't need html clipboard data as it's
+      // conflicting with tiptap
+      if (textData.length === 1 && textData[0].length === 1) {
+        return
+      }
+
       textData.forEach((row, index) => {
         const tr = document.createElement('tr')
         row.forEach((cell) => {
@@ -63,7 +70,6 @@ export default {
       // The HTML table renders a structured table when pasted into an email or rich
       // text document.
       const htmlData = this.prepareHTMLData(textData, includeHeader)
-
       try {
         localStorage.setItem(
           LOCAL_STORAGE_CLIPBOARD_KEY,
@@ -78,19 +84,24 @@ export default {
       // need to check if it is available. Safari instead, needs the
       // ClipboardItem type to save async data to the clipboard.
       if (typeof ClipboardItem !== 'undefined') {
-        navigator.clipboard.write([
-          new ClipboardItem({
-            'text/plain': new Blob([tsvData], { type: 'text/plain' }),
-            'text/html': new Blob([htmlData], { type: 'text/html' }),
-          }),
-        ])
+        const clipboardConfig = {
+          'text/plain': new Blob([tsvData], { type: 'text/plain' }),
+        }
+        if (htmlData) {
+          clipboardConfig['text/html'] = new Blob([htmlData], {
+            type: 'text/html',
+          })
+        }
+
+        navigator.clipboard.write([new ClipboardItem(clipboardConfig)])
       } else if (typeof navigator.clipboard?.writeText !== 'undefined') {
         navigator.clipboard.writeText(tsvData)
       } else {
-        setRichClipboard({
-          'text/plain': tsvData,
-          'text/html': htmlData,
-        })
+        const richClipboardConfig = { 'text/plain': tsvData }
+        if (htmlData) {
+          richClipboardConfig['text/html'] = htmlData
+        }
+        setRichClipboard(richClipboardConfig)
       }
     },
     async extractClipboardData(event) {

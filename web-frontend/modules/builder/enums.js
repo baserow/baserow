@@ -162,7 +162,7 @@ export const ELEMENT_EVENTS = {
   DATA_SOURCE_AFTER_UPDATE: 'DATA_SOURCE_AFTER_UPDATE',
 }
 
-export const TABLE_ORIENTATION = {
+export const ORIENTATIONS = {
   HORIZONTAL: 'horizontal',
   VERTICAL: 'vertical',
 }

@@ -16,6 +16,7 @@
     ></FieldSelectTargetFieldSubForm>
     <template v-if="selectedTargetField">
       <FormulaTypeSubForms
+        ref="subForm"
         :default-values="subFormDefaultValues"
         :formula-type="targetFieldFormulaType"
         :table="table"
@@ -31,6 +32,7 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
+import lookupFieldSubForm from '@baserow/modules/database/mixins/lookupFieldSubForm'
 import FormulaTypeSubForms from '@baserow/modules/database/components/formula/FormulaTypeSubForms'
 import FieldSelectThroughFieldSubForm from '@baserow/modules/database/components/field/FieldSelectThroughFieldSubForm'
 import FieldSelectTargetFieldSubForm from '@baserow/modules/database/components/field/FieldSelectTargetFieldSubForm'
@@ -42,78 +44,6 @@ export default {
     FieldSelectTargetFieldSubForm,
     FormulaTypeSubForms,
   },
-  mixins: [form, fieldSubForm],
-  data() {
-    return {
-      selectedThroughField: null,
-      selectedTargetField: null,
-      allowedValues: [],
-      values: {},
-      errorFromServer: null,
-      subFormDefaultValues: {},
-    }
-  },
-  computed: {
-    targetFieldFormulaType() {
-      if (this.selectedTargetField) {
-        return this.getFormulaType(this.selectedTargetField)
-      }
-      return 'unknown'
-    },
-  },
-  watch: {
-    defaultValues: {
-      handler(newDefaultValues) {
-        this.subFormDefaultValues = { ...newDefaultValues }
-      },
-      immediate: true,
-    },
-    selectedTargetField: {
-      handler(newTargetField) {
-        if (!newTargetField) {
-          return
-        }
-        const fieldType = this.$registry.get('field', newTargetField.type)
-        const formulaType = fieldType.toBaserowFormulaType(newTargetField)
-
-        const formulaTypeChanged =
-          formulaType && this.getFormulaType(this.defaultValues) !== formulaType
-
-        // New field or different type, use the relevant settings from the target field
-        const fieldValues = this.defaultValues
-        if (!fieldValues.id || formulaTypeChanged) {
-          for (const key in this.selectedTargetField) {
-            if (key.startsWith(formulaType)) {
-              this.subFormDefaultValues[key] = this.selectedTargetField[key]
-            }
-          }
-        }
-      },
-    },
-  },
-  validations: {},
-  methods: {
-    getFormulaType(field) {
-      return field.array_formula_type || field.formula_type || field.type
-    },
-    handleErrorByForm(error) {
-      if (
-        [
-          'ERROR_WITH_FORMULA',
-          'ERROR_FIELD_SELF_REFERENCE',
-          'ERROR_FIELD_CIRCULAR_REFERENCE',
-        ].includes(error.handler.code)
-      ) {
-        this.errorFromServer = error.handler.detail
-        return true
-      } else {
-        return false
-      }
-    },
-    reset() {
-      form.methods.reset.call(this)
-      this.errorFromServer = null
-    },
-  },
+  mixins: [form, fieldSubForm, lookupFieldSubForm],
 }
 </script>

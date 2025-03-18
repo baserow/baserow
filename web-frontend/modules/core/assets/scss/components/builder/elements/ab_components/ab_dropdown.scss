@@ -1,6 +1,5 @@
 .ab-dropdown {
   position: relative;
-  background-color: $white;
 }
 
 .ab-dropdown__selected {
@@ -11,6 +10,7 @@
   font-size: var(--input-font-size, 13px);
   color: var(--input-text-color, $color-neutral-900);
   font-family: var(--input-font-family, Inter);
+  font-weight: var(--input-font-weight, 400);
   background-color: var(--input-background-color, $white);
   padding: var(--input-vertical-padding, 8px)
     var(--input-horizontal-padding, 12px);
@@ -64,6 +64,7 @@
   border-radius: var(--input-border-radius, 0);
   background-color: var(--input-background-color, $white);
   font-size: var(--input-font-size, 13px);
+  font-weight: var(--input-font-weight, 400);
   z-index: 1;
 
   @include absolute(0, 0, auto, 0);

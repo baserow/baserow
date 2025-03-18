@@ -7,9 +7,6 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.integrations.local_baserow.models import (
-    LocalBaserowTableServiceSort,
-)
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
@@ -18,6 +15,10 @@ from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowGroupedAggregateRows,
     LocalBaserowTableServiceAggregationGroupBy,
     LocalBaserowTableServiceAggregationSeries,
+    LocalBaserowTableServiceAggregationSortBy,
+)
+from baserow_enterprise.integrations.local_baserow.service_types import (
+    LocalBaserowGroupedAggregateRowsUserServiceType,
 )
 
 
@@ -220,6 +221,76 @@ def test_create_grouped_aggregate_rows_service_group_by_field_not_in_table(
 
 
 @pytest.mark.django_db
+def test_create_grouped_aggregate_rows_service_group_by_field_not_compatible(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_uuid_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    values = service_type.prepare_values(
+        {
+            "view_id": view.id,
+            "table_id": view.table_id,
+            "integration_id": integration.id,
+            "service_aggregation_series": [
+                {"field_id": field.id, "aggregation_type": "sum"},
+            ],
+            "service_aggregation_group_bys": [{"field_id": field_2.id}],
+        },
+        user,
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=f"The field with ID {field_2.id} cannot be used as a group by field.",
+    ):
+        ServiceHandler().create_service(service_type, **values)
+
+
+@pytest.mark.django_db
+def test_create_grouped_aggregate_rows_service_duplicate_series(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    values = service_type.prepare_values(
+        {
+            "view_id": view.id,
+            "table_id": view.table_id,
+            "integration_id": integration.id,
+            "service_aggregation_series": [
+                {"field_id": field.id, "aggregation_type": "sum"},
+                {"field_id": field_2.id, "aggregation_type": "sum"},
+                {"field_id": field_2.id, "aggregation_type": "sum"},
+            ],
+        },
+        user,
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=f"The series with the field ID {field_2.id} and aggregation type sum can only be defined once.",
+    ):
+        ServiceHandler().create_service(service_type, **values)
+
+
+@pytest.mark.django_db
 def test_create_grouped_aggregate_rows_service_max_series_exceeded(
     data_fixture,
 ):
@@ -317,8 +388,12 @@ def test_create_grouped_aggregate_rows_service_sort_by_field_outside_of_series_g
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
             "service_aggregation_group_bys": [{"field_id": field.id}],
-            "service_sorts": [
-                {"field": field_2},
+            "service_aggregation_sorts": [
+                {
+                    "sort_on": "SERIES",
+                    "reference": f"field_{field_2.id}",
+                    "direction": "ASC",
+                },
             ],
         },
         user,
@@ -326,7 +401,7 @@ def test_create_grouped_aggregate_rows_service_sort_by_field_outside_of_series_g
 
     with pytest.raises(
         ValidationError,
-        match=f"The field with ID {field_2.id} cannot be used for sorting.",
+        match=f"The reference sort 'field_{field_2.id}' cannot be used for sorting.",
     ):
         ServiceHandler().create_service(service_type, **values)
 
@@ -354,8 +429,12 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_no_group_by
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
             "service_aggregation_group_bys": [],
-            "service_sorts": [
-                {"field": field_2},
+            "service_aggregation_sorts": [
+                {
+                    "sort_on": "PRIMARY",
+                    "reference": f"field_{field_2.id}",
+                    "direction": "ASC",
+                },
             ],
         },
         user,
@@ -363,7 +442,7 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_no_group_by
 
     with pytest.raises(
         ValidationError,
-        match=f"The field with ID {field_2.id} cannot be used for sorting.",
+        match=f"The reference sort 'field_{field_2.id}' cannot be used for sorting.",
     ):
         ServiceHandler().create_service(service_type, **values)
 
@@ -389,8 +468,12 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
             "integration_id": integration.id,
             "service_aggregation_series": [],
             "service_aggregation_group_bys": [{"field_id": field_2.id}],
-            "service_sorts": [
-                {"field": field},
+            "service_aggregation_sorts": [
+                {
+                    "sort_on": "PRIMARY",
+                    "reference": f"field_{field.id}",
+                    "direction": "ASC",
+                },
             ],
         },
         user,
@@ -398,7 +481,7 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
 
     with pytest.raises(
         ValidationError,
-        match=f"The field with ID {field.id} cannot be used for sorting.",
+        match=f"The reference sort 'field_{field.id}' cannot be used for sorting.",
     ):
         ServiceHandler().create_service(service_type, **values)
 
@@ -650,6 +733,46 @@ def test_update_grouped_aggregate_rows_service_group_by_field_not_in_table(
 
 
 @pytest.mark.django_db
+def test_update_grouped_aggregate_rows_service_group_by_field_not_in_compatible(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_uuid_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+    )
+
+    values = service_type.prepare_values(
+        {
+            "table_id": table.id,
+            "service_aggregation_series": [
+                {"field_id": field.id, "aggregation_type": "sum"},
+            ],
+            "service_aggregation_group_bys": [{"field_id": field_2.id}],
+        },
+        user,
+        service,
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=f"The field with ID {field_2.id} cannot be used as a group by field.",
+    ):
+        ServiceHandler().update_service(service_type, service=service, **values)
+
+
+@pytest.mark.django_db
 def test_update_grouped_aggregate_rows_service_max_series_exceeded(
     data_fixture,
 ):
@@ -765,8 +888,12 @@ def test_update_grouped_aggregate_rows_service_sort_by_field_outside_of_series_g
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
             "service_aggregation_group_bys": [{"field_id": field.id}],
-            "service_sorts": [
-                {"field": field_2},
+            "service_aggregation_sorts": [
+                {
+                    "sort_on": "GROUP_BY",
+                    "reference": f"field_{field_2.id}",
+                    "direction": "ASC",
+                },
             ],
         },
         user,
@@ -774,7 +901,7 @@ def test_update_grouped_aggregate_rows_service_sort_by_field_outside_of_series_g
 
     with pytest.raises(
         ValidationError,
-        match=f"The field with ID {field_2.id} cannot be used for sorting.",
+        match=f"The reference sort 'field_{field_2.id}' cannot be used for sorting.",
     ):
         ServiceHandler().update_service(service_type, service=service, **values)
 
@@ -808,8 +935,12 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_no_group_by
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
             "service_aggregation_group_bys": [],
-            "service_sorts": [
-                {"field": field_2},
+            "service_aggregation_sorts": [
+                {
+                    "sort_on": "PRIMARY",
+                    "reference": f"field_{field_2.id}",
+                    "direction": "ASC",
+                },
             ],
         },
         user,
@@ -817,7 +948,7 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_no_group_by
 
     with pytest.raises(
         ValidationError,
-        match=f"The field with ID {field_2.id} cannot be used for sorting.",
+        match=f"The reference sort 'field_{field_2.id}' cannot be used for sorting.",
     ):
         ServiceHandler().update_service(service_type, service=service, **values)
 
@@ -849,8 +980,12 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
             "integration_id": integration.id,
             "service_aggregation_series": [],
             "service_aggregation_group_bys": [{"field_id": field_2.id}],
-            "service_sorts": [
-                {"field": field},
+            "service_aggregation_sorts": [
+                {
+                    "sort_on": "PRIMARY",
+                    "reference": f"field_{field.id}",
+                    "direction": "ASC",
+                },
             ],
         },
         user,
@@ -858,7 +993,7 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
 
     with pytest.raises(
         ValidationError,
-        match=f"The field with ID {field.id} cannot be used for sorting.",
+        match=f"The reference sort 'field_{field.id}' cannot be used for sorting.",
     ):
         ServiceHandler().update_service(service_type, service=service, **values)
 
@@ -887,8 +1022,12 @@ def test_update_grouped_aggregate_rows_service_reset_after_table_change(data_fix
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field, order=2, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field.id}_sum",
+        order=2,
+        direction="ASC",
     )
 
     values = service_type.prepare_values(
@@ -911,7 +1050,7 @@ def test_update_grouped_aggregate_rows_service_reset_after_table_change(data_fix
     assert service.view is None
     assert service.service_aggregation_series.all().count() == 0
     assert service.service_aggregation_group_bys.all().count() == 0
-    assert service.service_sorts.all().count() == 0
+    assert service.service_aggregation_sorts.all().count() == 0
 
 
 @pytest.mark.django_db
@@ -953,11 +1092,73 @@ def test_grouped_aggregate_rows_service_dispatch(data_fixture):
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": {
-            f"field_{field.id}": Decimal("20"),
-            f"field_{field_2.id}": Decimal("8"),
+            f"field_{field.id}_sum": Decimal("20"),
+            f"field_{field_2.id}_sum": Decimal("8"),
         },
+    }
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_service_dispatch_same_agg_fields(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="min", order=1
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="max", order=1
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=field_2, order=1
+    )
+
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {f"field_{field.id}": 2, f"field_{field_2.id}": 1},
+            {f"field_{field.id}": 4, f"field_{field_2.id}": 1},
+            {f"field_{field.id}": 6, f"field_{field_2.id}": 1},
+            {f"field_{field.id}": 8, f"field_{field_2.id}": 1},
+            {f"field_{field.id}": 1, f"field_{field_2.id}": 2},
+            {f"field_{field.id}": 3, f"field_{field_2.id}": 2},
+            {f"field_{field.id}": 9, f"field_{field_2.id}": 2},
+            {f"field_{field.id}": 10, f"field_{field_2.id}": 2},
+        ],
+    )
+
+    dispatch_context = FakeDispatchContext()
+
+    result = ServiceHandler().dispatch_service(service, dispatch_context)
+
+    assert result.data == {
+        "result": [
+            {
+                f"field_{field.id}_max": Decimal("8"),
+                f"field_{field.id}_min": Decimal("2"),
+                f"field_{field_2.id}": Decimal("1"),
+            },
+            {
+                f"field_{field.id}_max": Decimal("10"),
+                f"field_{field.id}_min": Decimal("1"),
+                f"field_{field_2.id}": Decimal("2"),
+            },
+        ],
     }
 
 
@@ -1003,10 +1204,10 @@ def test_grouped_aggregate_rows_service_dispatch_with_view(data_fixture):
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": {
-            f"field_{field.id}": Decimal("6"),
-            f"field_{field_2.id}": Decimal("4"),
+            f"field_{field.id}_sum": Decimal("6"),
+            f"field_{field_2.id}_sum": Decimal("4"),
         },
     }
 
@@ -1053,10 +1254,10 @@ def test_grouped_aggregate_rows_service_dispatch_with_service_filters(data_fixtu
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": {
-            f"field_{field.id}": Decimal("6"),
-            f"field_{field_2.id}": Decimal("4"),
+            f"field_{field.id}_sum": Decimal("6"),
+            f"field_{field_2.id}_sum": Decimal("4"),
         },
     }
 
@@ -1153,6 +1354,41 @@ def test_grouped_aggregate_rows_service_dispatch_incompatible_aggregation(data_f
 
 
 @pytest.mark.django_db
+def test_dispatch_grouped_aggregate_rows_service_duplicate_series(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="sum", order=1
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="sum", order=1
+    )
+
+    dispatch_context = FakeDispatchContext()
+
+    with pytest.raises(ServiceImproperlyConfigured) as exc:
+        ServiceHandler().dispatch_service(service, dispatch_context)
+    assert (
+        exc.value.args[0]
+        == f"The series with field ID {field.id} and aggregation type sum can only be defined once."
+    )
+
+
+@pytest.mark.django_db
 def test_grouped_aggregate_rows_service_agg_series_field_trashed(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
@@ -1205,6 +1441,38 @@ def test_grouped_aggregate_rows_service_group_by_field_trashed(data_fixture):
     with pytest.raises(ServiceImproperlyConfigured) as exc:
         ServiceHandler().dispatch_service(service, dispatch_context)
     assert exc.value.args[0] == f"The field with ID {field_2.id} is trashed."
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_service_group_by_field_not_compatible(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_uuid_field(table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="sum", order=1
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=field_2, order=1
+    )
+
+    dispatch_context = FakeDispatchContext()
+
+    with pytest.raises(ServiceImproperlyConfigured) as exc:
+        ServiceHandler().dispatch_service(service, dispatch_context)
+    assert (
+        exc.value.args[0]
+        == f"The field with ID {field_2.id} cannot be used for group by."
+    )
 
 
 @pytest.mark.django_db
@@ -1278,10 +1546,10 @@ def test_grouped_aggregate_rows_service_dispatch_with_total_aggregation(data_fix
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": {
-            f"field_{field.id}": 75.0,
-            f"field_{field_2.id}": 25.0,
+            f"field_{field.id}_checked_percentage": 75.0,
+            f"field_{field_2.id}_not_checked_percentage": 25.0,
         },
     }
 
@@ -1358,26 +1626,26 @@ def test_grouped_aggregate_rows_service_dispatch_group_by(data_fixture):
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
-                f"field_{field.id}": Decimal("1"),
-                f"field_{field_2.id}": Decimal("1"),
+                f"field_{field.id}_sum": Decimal("1"),
+                f"field_{field_2.id}_sum": Decimal("1"),
                 f"field_{field_3.id}": None,
             },
             {
-                f"field_{field.id}": Decimal("1"),
-                f"field_{field_2.id}": Decimal("1"),
+                f"field_{field.id}_sum": Decimal("1"),
+                f"field_{field_2.id}_sum": Decimal("1"),
                 f"field_{field_3.id}": "Third group",
             },
             {
-                f"field_{field.id}": Decimal("8"),
-                f"field_{field_2.id}": Decimal("6"),
+                f"field_{field.id}_sum": Decimal("8"),
+                f"field_{field_2.id}_sum": Decimal("6"),
                 f"field_{field_3.id}": "First group",
             },
             {
-                f"field_{field.id}": Decimal("22"),
-                f"field_{field_2.id}": Decimal("7"),
+                f"field_{field.id}_sum": Decimal("22"),
+                f"field_{field_2.id}_sum": Decimal("7"),
                 f"field_{field_3.id}": "Second group",
             },
         ]
@@ -1424,26 +1692,30 @@ def test_grouped_aggregate_rows_service_dispatch_group_by_id(data_fixture):
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": Decimal("2"),
-                f"field_{field_2.id}": Decimal("2"),
+                f"field_{field.id}_sum": Decimal("2"),
+                f"field_{field_2.id}_sum": Decimal("2"),
                 "id": 1,
             },
             {
                 f"field_{field.id}": Decimal("4"),
-                f"field_{field_2.id}": Decimal("2"),
+                f"field_{field.id}_sum": Decimal("4"),
+                f"field_{field_2.id}_sum": Decimal("2"),
                 "id": 2,
             },
             {
                 f"field_{field.id}": Decimal("6"),
-                f"field_{field_2.id}": Decimal("2"),
+                f"field_{field.id}_sum": Decimal("6"),
+                f"field_{field_2.id}_sum": Decimal("2"),
                 "id": 3,
             },
             {
                 f"field_{field.id}": Decimal("8"),
-                f"field_{field_2.id}": Decimal("2"),
+                f"field_{field.id}_sum": Decimal("8"),
+                f"field_{field_2.id}_sum": Decimal("2"),
                 "id": 4,
             },
         ]
@@ -1482,11 +1754,19 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by(
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_3, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_3.id}_sum",
+        order=1,
+        direction="ASC",
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=2, order_by="DESC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_2.id}_sum",
+        order=2,
+        direction="DESC",
     )
 
     RowHandler().create_rows(
@@ -1554,27 +1834,31 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by(
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
-                f"field_{field.id}": Decimal("90"),
-                f"field_{field_2.id}": Decimal("9"),
-                f"field_{field_3.id}": Decimal("3"),
-            },
-            {
-                f"field_{field.id}": Decimal("60"),
-                f"field_{field_2.id}": Decimal("6"),
-                f"field_{field_3.id}": Decimal("6"),
-            },
-            {
                 f"field_{field.id}": Decimal("30"),
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("6"),
+                f"field_{field.id}_sum": Decimal("90"),
+                f"field_{field_2.id}_sum": Decimal("9"),
+                f"field_{field_3.id}_sum": Decimal("3"),
+            },
+            {
+                f"field_{field.id}": Decimal("20"),
+                f"field_{field.id}_sum": Decimal("60"),
+                f"field_{field_2.id}_sum": Decimal("6"),
+                f"field_{field_3.id}_sum": Decimal("6"),
+            },
+            {
+                f"field_{field.id}": Decimal("10"),
+                f"field_{field.id}_sum": Decimal("30"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("6"),
             },
             {
                 f"field_{field.id}": None,
-                f"field_{field_2.id}": Decimal("100"),
-                f"field_{field_3.id}": Decimal("100"),
+                f"field_{field.id}_sum": None,
+                f"field_{field_2.id}_sum": Decimal("100"),
+                f"field_{field_3.id}_sum": Decimal("100"),
             },
         ],
     }
@@ -1612,11 +1896,19 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by_ro
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=None, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_3, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_3.id}_sum",
+        order=1,
+        direction="ASC",
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=2, order_by="DESC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_2.id}_sum",
+        order=2,
+        direction="DESC",
     )
 
     RowHandler().create_rows(
@@ -1655,36 +1947,41 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by_ro
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": None,
-                f"field_{field_2.id}": Decimal("5"),
-                f"field_{field_3.id}": Decimal("1"),
+                f"field_{field.id}_sum": None,
+                f"field_{field_2.id}_sum": Decimal("5"),
+                f"field_{field_3.id}_sum": Decimal("1"),
                 "id": 5,
             },
             {
                 f"field_{field.id}": Decimal("3"),
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("2"),
+                f"field_{field.id}_sum": Decimal("3"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("2"),
                 "id": 4,
             },
             {
                 f"field_{field.id}": Decimal("3"),
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("3"),
+                f"field_{field.id}_sum": Decimal("3"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("3"),
                 "id": 3,
             },
             {
                 f"field_{field.id}": Decimal("2"),
-                f"field_{field_2.id}": Decimal("2"),
-                f"field_{field_3.id}": Decimal("3"),
+                f"field_{field.id}_sum": Decimal("2"),
+                f"field_{field_2.id}_sum": Decimal("2"),
+                f"field_{field_3.id}_sum": Decimal("3"),
                 "id": 2,
             },
             {
                 f"field_{field.id}": Decimal("1"),
-                f"field_{field_2.id}": Decimal("1"),
-                f"field_{field_3.id}": Decimal("4"),
+                f"field_{field.id}_sum": Decimal("1"),
+                f"field_{field_2.id}_sum": Decimal("1"),
+                f"field_{field_3.id}_sum": Decimal("4"),
                 "id": 1,
             },
         ],
@@ -1720,11 +2017,19 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_without_group_by
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field_3, aggregation_type="sum", order=3
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_3, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field.id}_sum",
+        order=1,
+        direction="ASC",
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=2, order_by="DESC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_2.id}_sum",
+        order=2,
+        direction="DESC",
     )
 
     RowHandler().create_rows(
@@ -1764,11 +2069,11 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_without_group_by
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
     # the results are still a dictionary, not sorted on the backend
-    assert result == {
+    assert result.data == {
         "result": {
-            f"field_{field.id}": Decimal("9"),
-            f"field_{field_2.id}": Decimal("14"),
-            f"field_{field_3.id}": Decimal("13"),
+            f"field_{field.id}_sum": Decimal("9"),
+            f"field_{field_2.id}_sum": Decimal("14"),
+            f"field_{field_3.id}_sum": Decimal("13"),
         }
     }
 
@@ -1800,8 +2105,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_field(data_fix
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="GROUP_BY",
+        reference=f"field_{field.id}",
+        order=1,
+        direction="ASC",
     )
 
     RowHandler().create_rows(
@@ -1869,27 +2178,27 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_field(data_fix
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": None,
-                f"field_{field_2.id}": Decimal("100"),
-                f"field_{field_3.id}": Decimal("100"),
+                f"field_{field_2.id}_sum": Decimal("100"),
+                f"field_{field_3.id}_sum": Decimal("100"),
             },
             {
                 f"field_{field.id}": Decimal("10"),
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("6"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("6"),
             },
             {
                 f"field_{field.id}": Decimal("20"),
-                f"field_{field_2.id}": Decimal("6"),
-                f"field_{field_3.id}": Decimal("6"),
+                f"field_{field_2.id}_sum": Decimal("6"),
+                f"field_{field_3.id}_sum": Decimal("6"),
             },
             {
                 f"field_{field.id}": Decimal("30"),
-                f"field_{field_2.id}": Decimal("9"),
-                f"field_{field_3.id}": Decimal("3"),
+                f"field_{field_2.id}_sum": Decimal("9"),
+                f"field_{field_3.id}_sum": Decimal("3"),
             },
         ],
     }
@@ -1922,8 +2231,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_row_id(data_fi
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=None, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="GROUP_BY",
+        reference=f"field_{field.id}",
+        order=1,
+        direction="ASC",
     )
 
     RowHandler().create_rows(
@@ -1962,36 +2275,36 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_row_id(data_fi
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": "",
-                f"field_{field_2.id}": Decimal("5"),
-                f"field_{field_3.id}": Decimal("1"),
+                f"field_{field_2.id}_sum": Decimal("5"),
+                f"field_{field_3.id}_sum": Decimal("1"),
                 "id": 5,
             },
             {
                 f"field_{field.id}": "A",
-                f"field_{field_2.id}": Decimal("1"),
-                f"field_{field_3.id}": Decimal("4"),
+                f"field_{field_2.id}_sum": Decimal("1"),
+                f"field_{field_3.id}_sum": Decimal("4"),
                 "id": 1,
             },
             {
                 f"field_{field.id}": "B",
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("2"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("2"),
                 "id": 4,
             },
             {
                 f"field_{field.id}": "H",
-                f"field_{field_2.id}": Decimal("2"),
-                f"field_{field_3.id}": Decimal("3"),
+                f"field_{field_2.id}_sum": Decimal("2"),
+                f"field_{field_3.id}_sum": Decimal("3"),
                 "id": 2,
             },
             {
                 f"field_{field.id}": "I",
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("3"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("3"),
                 "id": 3,
             },
         ],
@@ -2020,15 +2333,19 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_field_outside_series_or
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field, aggregation_type="sum", order=2
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="GROUP_BY",
+        reference=f"field_{field_2.id}",
+        order=1,
+        direction="ASC",
     )
 
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(
         ServiceImproperlyConfigured,
-        match=f"The field with ID {field_2.id} cannot be used for sorting.",
+        match=f"The sort reference 'field_{field_2.id}' cannot be used for sorting.",
     ):
         ServiceHandler().dispatch_service(service, dispatch_context)
 
@@ -2055,15 +2372,19 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_primary_field_no_group_
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field_2, aggregation_type="sum", order=2
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field, order=2, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="PRIMARY",
+        reference=f"field_{field.id}",
+        order=2,
+        direction="ASC",
     )
 
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(
         ServiceImproperlyConfigured,
-        match=f"The field with ID {field.id} cannot be used for sorting.",
+        match=f"The sort reference 'field_{field.id}' cannot be used for sorting.",
     ):
         ServiceHandler().dispatch_service(service, dispatch_context)
 
@@ -2093,15 +2414,19 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_primary_field_group_by_
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field_2, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field, order=2, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="PRIMARY",
+        reference=f"field_{field.id}",
+        order=2,
+        direction="ASC",
     )
 
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(
         ServiceImproperlyConfigured,
-        match=f"The field with ID {field.id} cannot be used for sorting.",
+        match=f"The sort reference 'field_{field.id}' cannot be used for sorting.",
     ):
         ServiceHandler().dispatch_service(service, dispatch_context)
 
@@ -2207,27 +2532,31 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by_ig
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": None,
-                f"field_{field_2.id}": Decimal("100"),
-                f"field_{field_3.id}": Decimal("100"),
+                f"field_{field.id}_sum": None,
+                f"field_{field_2.id}_sum": Decimal("100"),
+                f"field_{field_3.id}_sum": Decimal("100"),
+            },
+            {
+                f"field_{field.id}": Decimal("10"),
+                f"field_{field.id}_sum": Decimal("30"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("6"),
             },
             {
                 f"field_{field.id}": Decimal("30"),
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("6"),
+                f"field_{field.id}_sum": Decimal("90"),
+                f"field_{field_2.id}_sum": Decimal("9"),
+                f"field_{field_3.id}_sum": Decimal("3"),
             },
             {
-                f"field_{field.id}": Decimal("90"),
-                f"field_{field_2.id}": Decimal("9"),
-                f"field_{field_3.id}": Decimal("3"),
-            },
-            {
-                f"field_{field.id}": Decimal("60"),
-                f"field_{field_2.id}": Decimal("6"),
-                f"field_{field_3.id}": Decimal("6"),
+                f"field_{field.id}": Decimal("20"),
+                f"field_{field.id}_sum": Decimal("60"),
+                f"field_{field_2.id}_sum": Decimal("6"),
+                f"field_{field_3.id}_sum": Decimal("6"),
             },
         ],
     }
@@ -2259,8 +2588,12 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_group_by_fi
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field_2, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="GROUP_BY",
+        reference=f"field_{field_2.id}",
+        order=1,
+        direction="ASC",
     )
 
     RowHandler().create_rows(
@@ -2298,22 +2631,22 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_group_by_fi
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
-                f"field_{field.id}": Decimal("10"),
+                f"field_{field.id}_sum": Decimal("10"),
                 f"field_{field_2.id}": "A",
             },
             {
-                f"field_{field.id}": Decimal("60"),
+                f"field_{field.id}_sum": Decimal("60"),
                 f"field_{field_2.id}": "H",
             },
             {
-                f"field_{field.id}": Decimal("20"),
+                f"field_{field.id}_sum": Decimal("20"),
                 f"field_{field_2.id}": "K",
             },
             {
-                f"field_{field.id}": Decimal("30"),
+                f"field_{field.id}_sum": Decimal("30"),
                 f"field_{field_2.id}": "L",
             },
         ],
@@ -2346,8 +2679,12 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_series(
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field_2, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field.id}_sum",
+        order=1,
+        direction="ASC",
     )
 
     RowHandler().create_rows(
@@ -2385,22 +2722,22 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_series(
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
-                f"field_{field.id}": Decimal("10"),
+                f"field_{field.id}_sum": Decimal("10"),
                 f"field_{field_2.id}": "A",
             },
             {
-                f"field_{field.id}": Decimal("20"),
+                f"field_{field.id}_sum": Decimal("20"),
                 f"field_{field_2.id}": "K",
             },
             {
-                f"field_{field.id}": Decimal("30"),
+                f"field_{field.id}_sum": Decimal("30"),
                 f"field_{field_2.id}": "L",
             },
             {
-                f"field_{field.id}": Decimal("40"),
+                f"field_{field.id}_sum": Decimal("40"),
                 f"field_{field_2.id}": "Z",
             },
         ],
@@ -2433,66 +2770,240 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_primary_fie
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=None, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="GROUP_BY",
+        reference=f"field_{field_2.id}",
+        order=1,
+        direction="ASC",
     )
 
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {
-                f"field_{field.id}": 40,
-                f"field_{field_2.id}": "Z",
-            },
-            {
-                f"field_{field.id}": 20,
-                f"field_{field_2.id}": "K",
-            },
-            {
-                f"field_{field.id}": 30,
-                f"field_{field_2.id}": "L",
-            },
-            {
-                f"field_{field.id}": 10,
-                f"field_{field_2.id}": "A",
-            },
-            {
-                f"field_{field.id}": 60,
-                f"field_{field_2.id}": "H",
-            },
-            {
-                f"field_{field.id}": 50,
-                f"field_{field_2.id}": "M",
-            },
-        ],
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {
+                    f"field_{field.id}": 40,
+                    f"field_{field_2.id}": "Z",
+                },
+                {
+                    f"field_{field.id}": 20,
+                    f"field_{field_2.id}": "K",
+                },
+                {
+                    f"field_{field.id}": 30,
+                    f"field_{field_2.id}": "L",
+                },
+                {
+                    f"field_{field.id}": 10,
+                    f"field_{field_2.id}": "A",
+                },
+                {
+                    f"field_{field.id}": 60,
+                    f"field_{field_2.id}": "H",
+                },
+                {
+                    f"field_{field.id}": 50,
+                    f"field_{field_2.id}": "M",
+                },
+            ],
+        )
+        .created_rows
     )
 
     dispatch_context = FakeDispatchContext()
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
-                f"field_{field.id}": Decimal("10"),
+                f"field_{field.id}_sum": Decimal("10"),
                 f"field_{field_2.id}": "A",
                 "id": rows[3].id,
             },
             {
-                f"field_{field.id}": Decimal("60"),
+                f"field_{field.id}_sum": Decimal("60"),
                 f"field_{field_2.id}": "H",
                 "id": rows[4].id,
             },
             {
-                f"field_{field.id}": Decimal("20"),
+                f"field_{field.id}_sum": Decimal("20"),
                 f"field_{field_2.id}": "K",
                 "id": rows[1].id,
             },
             {
-                f"field_{field.id}": Decimal("30"),
+                f"field_{field.id}_sum": Decimal("30"),
                 f"field_{field_2.id}": "L",
                 "id": rows[2].id,
             },
         ],
     }
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_service_export_serialized(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_number_field(table=table)
+    field_3 = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="sum", order=1
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field_2, aggregation_type="min", order=2
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field_3, aggregation_type="max", order=3
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=field_3, order=1
+    )
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field.id}_sum",
+        order=1,
+        direction="ASC",
+    )
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_2.id}_min",
+        order=1,
+        direction="ASC",
+    )
+
+    result = LocalBaserowGroupedAggregateRowsUserServiceType().export_serialized(
+        service, import_export_config=None, files_zip=None, storage=None, cache=None
+    )
+
+    assert result == {
+        "filter_type": "AND",
+        "filters": [],
+        "id": service.id,
+        "integration_id": service.integration.id,
+        "service_aggregation_group_bys": [
+            {"field_id": field_3.id},
+        ],
+        "service_aggregation_series": [
+            {"aggregation_type": "sum", "field_id": field.id},
+            {"aggregation_type": "min", "field_id": field_2.id},
+            {"aggregation_type": "max", "field_id": field_3.id},
+        ],
+        "service_aggregation_sorts": [
+            {
+                "direction": "ASC",
+                "reference": f"field_{field.id}_sum",
+                "sort_on": "SERIES",
+            },
+            {
+                "direction": "ASC",
+                "reference": f"field_{field_2.id}_min",
+                "sort_on": "SERIES",
+            },
+        ],
+        "table_id": table.id,
+        "type": "local_baserow_grouped_aggregate_rows",
+        "view_id": view.id,
+    }
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_service_import_serialized(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_number_field(table=table)
+    field_3 = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+
+    serialized_service = {
+        "filter_type": "AND",
+        "filters": [],
+        "id": 999,
+        "integration_id": integration.id,
+        "service_aggregation_group_bys": [
+            {"field_id": field_3.id},
+        ],
+        "service_aggregation_series": [
+            {"aggregation_type": "sum", "field_id": field.id},
+            {"aggregation_type": "min", "field_id": field_2.id},
+            {"aggregation_type": "max", "field_id": field_3.id},
+        ],
+        "service_aggregation_sorts": [
+            {
+                "direction": "ASC",
+                "reference": f"field_{field.id}_sum",
+                "sort_on": "SERIES",
+            },
+            {
+                "direction": "DESC",
+                "reference": f"field_{field_2.id}_min",
+                "sort_on": "SERIES",
+            },
+        ],
+        "table_id": table.id,
+        "type": "local_baserow_grouped_aggregate_rows",
+        "view_id": view.id,
+    }
+    id_mapping = {}
+
+    instance = LocalBaserowGroupedAggregateRowsUserServiceType().import_serialized(
+        parent=integration,
+        serialized_values=serialized_service,
+        id_mapping=id_mapping,
+        import_formula=Mock(),
+    )
+
+    assert instance.content_type == ContentType.objects.get_for_model(
+        LocalBaserowGroupedAggregateRows
+    )
+    assert instance.filter_type == "AND"
+    assert instance.service_filters.count() == 0
+    assert instance.id != 999
+    assert instance.integration_id == integration.id
+    assert instance.table_id == table.id
+    assert instance.view_id == view.id
+
+    series = instance.service_aggregation_series.all()
+    assert series.count() == 3
+    assert series[0].aggregation_type == "sum"
+    assert series[0].field_id == field.id
+    assert series[1].aggregation_type == "min"
+    assert series[1].field_id == field_2.id
+    assert series[2].aggregation_type == "max"
+    assert series[2].field_id == field_3.id
+
+    group_bys = instance.service_aggregation_group_bys.all()
+    assert group_bys.count() == 1
+    assert group_bys[0].field_id == field_3.id
+
+    sorts = instance.service_aggregation_sorts.all()
+    assert sorts.count() == 2
+    assert sorts[0].direction == "ASC"
+    assert sorts[0].sort_on == "SERIES"
+    assert sorts[0].reference == f"field_{field.id}_sum"
+    assert sorts[1].direction == "DESC"
+    assert sorts[1].sort_on == "SERIES"
+    assert sorts[1].reference == f"field_{field_2.id}_min"

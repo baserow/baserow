@@ -7,10 +7,8 @@ from django.conf import settings
 from django.core.cache import caches
 from django.db import connection, models
 from django.db.models import Field
-from django.test.utils import override_settings
 
 import pytest
-from cachalot.settings import cachalot_settings
 from pytest_unordered import unordered
 
 from baserow.contrib.database.fields.exceptions import (
@@ -484,39 +482,43 @@ def test_order_by_fields_string_queryset(data_fixture):
         field=multiple_select_field, value="D", color="red"
     )
 
-    row_1, row_2, row_3, row_4 = RowHandler().force_create_rows(
-        user=None,
-        table=table,
-        rows_values=[
-            {
-                name_field.db_column: "BMW",
-                color_field.db_column: "Blue",
-                price_field.db_column: 10000,
-                description_field.db_column: "Sports car.",
-                single_select_field.db_column: option_a.id,
-                multiple_select_field.db_column: [option_c.id],
-            },
-            {
-                name_field.db_column: "Audi",
-                color_field.db_column: "Orange",
-                price_field.db_column: 20000,
-                description_field.db_column: "This is the most expensive car we have.",
-                single_select_field.db_column: option_b.id,
-                multiple_select_field.db_column: [option_d.id],
-            },
-            {
-                name_field.db_column: "Volkswagen",
-                color_field.db_column: "White",
-                price_field.db_column: 5000,
-                description_field.db_column: "A very old car.",
-            },
-            {
-                name_field.db_column: "Volkswagen",
-                color_field.db_column: "Green",
-                price_field.db_column: 4000,
-                description_field.db_column: "Strange color.",
-            },
-        ],
+    row_1, row_2, row_3, row_4 = (
+        RowHandler()
+        .force_create_rows(
+            user=None,
+            table=table,
+            rows_values=[
+                {
+                    name_field.db_column: "BMW",
+                    color_field.db_column: "Blue",
+                    price_field.db_column: 10000,
+                    description_field.db_column: "Sports car.",
+                    single_select_field.db_column: option_a.id,
+                    multiple_select_field.db_column: [option_c.id],
+                },
+                {
+                    name_field.db_column: "Audi",
+                    color_field.db_column: "Orange",
+                    price_field.db_column: 20000,
+                    description_field.db_column: "This is the most expensive car we have.",
+                    single_select_field.db_column: option_b.id,
+                    multiple_select_field.db_column: [option_d.id],
+                },
+                {
+                    name_field.db_column: "Volkswagen",
+                    color_field.db_column: "White",
+                    price_field.db_column: 5000,
+                    description_field.db_column: "A very old car.",
+                },
+                {
+                    name_field.db_column: "Volkswagen",
+                    color_field.db_column: "Green",
+                    price_field.db_column: 4000,
+                    description_field.db_column: "Strange color.",
+                },
+            ],
+        )
+        .created_rows
     )
 
     model = table.get_model()
@@ -690,6 +692,71 @@ def test_order_by_fields_string_queryset_with_user_field_names(data_fixture):
     assert results[2].id == rows[0].id
     assert results[3].id == rows[2].id
     assert results[4].id == rows[3].id
+
+
+@pytest.mark.django_db
+def test_order_by_fields_string_queryset_with_type(data_fixture):
+    table = data_fixture.create_database_table(name="Cars")
+    name_field = data_fixture.create_text_field(table=table, order=0, name="Name")
+    single_select_field = data_fixture.create_single_select_field(
+        table=table, name="Single"
+    )
+    option_a = data_fixture.create_select_option(
+        field=single_select_field, value="A", color="blue", order=2
+    )
+    option_b = data_fixture.create_select_option(
+        field=single_select_field, value="B", color="red", order=1
+    )
+
+    row_1, row_2 = (
+        RowHandler()
+        .force_create_rows(
+            user=None,
+            table=table,
+            rows_values=[
+                {
+                    name_field.db_column: "BMW",
+                    single_select_field.db_column: option_a.id,
+                },
+                {
+                    name_field.db_column: "Audi",
+                    single_select_field.db_column: option_b.id,
+                },
+            ],
+        )
+        .created_rows
+    )
+
+    model = table.get_model()
+
+    with pytest.raises(OrderByFieldNotPossible):
+        model.objects.all().order_by_fields_string(
+            f"field_{single_select_field.id}[unknown]"
+        )
+
+    results = model.objects.all().order_by_fields_string(
+        f"field_{single_select_field.id}[default]"
+    )
+    assert results[0].id == row_1.id
+    assert results[1].id == row_2.id
+
+    results = model.objects.all().order_by_fields_string(
+        f"-field_{single_select_field.id}[default]"
+    )
+    assert results[0].id == row_2.id
+    assert results[1].id == row_1.id
+
+    results = model.objects.all().order_by_fields_string(
+        f"field_{single_select_field.id}[order]"
+    )
+    assert results[0].id == row_2.id
+    assert results[1].id == row_1.id
+
+    results = model.objects.all().order_by_fields_string(
+        f"-field_{single_select_field.id}[order]"
+    )
+    assert results[0].id == row_1.id
+    assert results[1].id == row_2.id
 
 
 @pytest.mark.django_db
@@ -991,59 +1058,65 @@ def test_table_hierarchy(data_fixture):
     assert row.get_root() == workspace
 
 
-@override_settings(CACHALOT_ENABLED=True)
-@pytest.mark.django_db(transaction=True)
-def test_cachalot_cache_only_count_query_correctly(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    app = data_fixture.create_database_application(workspace=workspace, name="Test 1")
-    table = data_fixture.create_database_table(name="Cars", database=app)
-    cache = caches[settings.CACHALOT_CACHE]
+if settings.CACHALOT_ENABLED:
+    from cachalot.settings import cachalot_settings
 
-    queries = {}
+    @pytest.mark.django_db(transaction=True)
+    def test_cachalot_cache_only_count_query_correctly(data_fixture):
+        user = data_fixture.create_user()
+        workspace = data_fixture.create_workspace(user=user)
+        app = data_fixture.create_database_application(
+            workspace=workspace, name="Test 1"
+        )
+        table = data_fixture.create_database_table(name="Cars", database=app)
+        cache = caches[settings.CACHALOT_CACHE]
 
-    def get_mocked_query_cache_key(compiler):
-        sql, _ = compiler.as_sql()
-        sql_lower = sql.lower()
-        if "count(*)" in sql_lower:
-            key = "count"
-        elif f"database_table_{table.id}" in sql_lower:
-            key = "select_table"
-        else:
-            key = f"{time()}"
-        queries[key] = sql_lower
-        return key
+        queries = {}
 
-    cachalot_settings.CACHALOT_QUERY_KEYGEN = get_mocked_query_cache_key
-    cachalot_settings.CACHALOT_TABLE_KEYGEN = lambda _, table: table.rsplit("_", 1)[1]
+        def get_mocked_query_cache_key(compiler):
+            sql, _ = compiler.as_sql()
+            sql_lower = sql.lower()
+            if "count(*)" in sql_lower:
+                key = "count"
+            elif f"database_table_{table.id}" in sql_lower:
+                key = "select_table"
+            else:
+                key = f"{time()}"
+            queries[key] = sql_lower
+            return key
 
-    table_model = table.get_model()
-    row = table_model.objects.create()
+        cachalot_settings.CACHALOT_QUERY_KEYGEN = get_mocked_query_cache_key
+        cachalot_settings.CACHALOT_TABLE_KEYGEN = lambda _, table: table.rsplit("_", 1)[
+            1
+        ]
 
-    # listing items should not cache the result
-    assert [r.id for r in table_model.objects.all()] == [row.id]
-    assert cache.get("select_table") is None, queries["select_table"]
+        table_model = table.get_model()
+        row = table_model.objects.create()
 
-    def assert_cachalot_cache_queryset_count_of(expected_count):
-        # count() should save the result of the query in the cache
-        assert table_model.objects.count() == expected_count
+        # listing items should not cache the result
+        assert [r.id for r in table_model.objects.all()] == [row.id]
+        assert cache.get("select_table") is None, queries["select_table"]
 
-        # the count query has been cached
-        inserted_cache_entry = cache.get("count")
-        assert inserted_cache_entry is not None
-        assert inserted_cache_entry[1][0] == expected_count
+        def assert_cachalot_cache_queryset_count_of(expected_count):
+            # count() should save the result of the query in the cache
+            assert table_model.objects.count() == expected_count
 
-    assert_cachalot_cache_queryset_count_of(1)
+            # the count query has been cached
+            inserted_cache_entry = cache.get("count")
+            assert inserted_cache_entry is not None
+            assert inserted_cache_entry[1][0] == expected_count
 
-    # creating a new row should invalidate the cache result
-    table_model.objects.create()
+        assert_cachalot_cache_queryset_count_of(1)
 
-    # cachalot invalidate the cache by setting the timestamp for the table
-    # greater than the timestamp of the cache entry
-    invalidation_timestamp = cache.get(table.id)
-    assert invalidation_timestamp > cache.get("count")[0]
+        # creating a new row should invalidate the cache result
+        table_model.objects.create()
 
-    assert_cachalot_cache_queryset_count_of(2)
+        # cachalot invalidate the cache by setting the timestamp for the table
+        # greater than the timestamp of the cache entry
+        invalidation_timestamp = cache.get(table.id)
+        assert invalidation_timestamp > cache.get("count")[0]
+
+        assert_cachalot_cache_queryset_count_of(2)
 
 
 @pytest.mark.django_db

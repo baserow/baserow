@@ -1361,12 +1361,25 @@ def test_form_view_multiple_collaborators_field_options(api_client, data_fixture
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     response_json = response.json()
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response_json["error"] == "ERROR_FORM_VIEW_FIELD_TYPE_IS_NOT_SUPPORTED"
-    assert (
-        response_json["detail"]
-        == "The multiple_collaborators field type is not compatible with the form view."
-    )
+    assert response.status_code == HTTP_200_OK
+    assert response_json == {
+        "field_options": {
+            str(multiple_collaborators_field.id): {
+                "name": "",
+                "description": "",
+                "enabled": True,
+                "required": True,
+                "order": 32767,
+                "show_when_matching_conditions": False,
+                "condition_type": "AND",
+                "condition_groups": [],
+                "conditions": [],
+                "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
+            }
+        }
+    }
 
 
 @pytest.mark.django_db

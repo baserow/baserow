@@ -45,6 +45,9 @@
               :key="viewAggregation.getType()"
               :name="viewAggregation.getName()"
               :value="viewAggregation.getType()"
+              :disabled="
+                unsupportedAggregationTypes.includes(viewAggregation.getType())
+              "
             >
             </DropdownItem>
           </Dropdown>
@@ -127,6 +130,10 @@ export default {
     }
   },
   computed: {
+    unsupportedAggregationTypes() {
+      return this.$registry.get('service', 'local_baserow_aggregate_rows')
+        .unsupportedAggregationTypes
+    },
     viewAggregationTypes() {
       const selectedField = this.tableFields.find(
         (field) => field.id === this.values.field_id

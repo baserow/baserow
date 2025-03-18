@@ -38,8 +38,8 @@ ERROR_ORDER_BY_FIELD_NOT_FOUND = (
 ERROR_ORDER_BY_FIELD_NOT_POSSIBLE = (
     "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE",
     HTTP_400_BAD_REQUEST,
-    "It is not possible to order by {e.field_name} because the field type "
-    "{e.field_type} does not support filtering.",
+    "It is not possible to order by {e.field_name} using sort type {e.sort_type} "
+    "because the field type {e.field_type} does not support it.",
 )
 ERROR_FILTER_FIELD_NOT_FOUND = (
     "ERROR_FILTER_FIELD_NOT_FOUND",

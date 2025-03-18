@@ -1,4 +1,5 @@
 import traceback
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.cache import cache
@@ -9,7 +10,10 @@ from loguru import logger
 
 from baserow.config.celery import app
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist
-from baserow.contrib.database.views.handler import ViewIndexingHandler
+from baserow.contrib.database.views.handler import (
+    ViewIndexingHandler,
+    ViewSubscriptionHandler,
+)
 
 AUTO_INDEX_CACHE_KEY = "auto_index_view_cache_key"
 
@@ -105,3 +109,23 @@ def schedule_view_index_update(view_id: int):
         return
 
     transaction.on_commit(lambda: _schedule_view_index_update(view_id))
+
+
+@app.task(queue="export")
+def periodic_check_for_views_with_time_sensitive_filters():
+    """
+    Periodically checks for views that have time-sensitive filters. If a view has a
+    time-sensitive filter, this task ensure proper signals are emitted to notify
+    subscribers that the view results have changed.
+    """
+
+    with transaction.atomic():
+        ViewSubscriptionHandler.check_views_with_time_sensitive_filters()
+
+
+@app.on_after_finalize.connect
+def setup_periodic_tasks(sender, **kwargs):
+    sender.add_periodic_task(
+        timedelta(minutes=30),
+        periodic_check_for_views_with_time_sensitive_filters.s(),
+    )

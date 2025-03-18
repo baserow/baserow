@@ -291,6 +291,11 @@ class SignInUserActionType(ActionType):
             auth_provider
         ).type
 
+        # This check must always be performed, even if the `log_signin_action` call is
+        # rate limited.
+        if user.profile.to_be_deleted:
+            UserHandler().cancel_user_deletion(user)
+
         def log_signin_action():
             handler.user_signed_in_via_provider(user, auth_provider)
             cls.register_action(

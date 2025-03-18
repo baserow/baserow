@@ -297,7 +297,7 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         enabled_properties = DataSyncSyncedProperty.objects.filter(
             data_sync=instance
         ).prefetch_related(
-            Prefetch("field", queryset=specific_queryset(Field.objects.all()))
+            Prefetch("field", queryset=specific_queryset(Field.objects_and_trash.all()))
         )
         enabled_property_field_ids = [p.key for p in enabled_properties]
         model = table.get_model()

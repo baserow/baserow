@@ -19,6 +19,7 @@ from baserow.core.registry import (
     Registry,
 )
 from baserow.core.services.dispatch_context import DispatchContext
+from baserow.core.services.types import DispatchResult
 
 from .exceptions import ServiceTypeDoesNotExist
 from .models import Service
@@ -66,6 +67,29 @@ class ServiceType(
     # should be chosen, or via a `WorkflowAction`, in which case
     # `DISPATCH_WORKFLOW_ACTION` should be chosen.
     dispatch_type = None
+
+    def get_id_property(self, service: Service) -> str:
+        """
+        Returns the property name that contains the unique `ID` of a row for this
+        service.
+
+        :param service: the instance of the service.
+        :return: a string identifying the ID property name.
+        """
+
+        # Sane default
+        return "id"
+
+    def get_name_property(self, service: Service) -> Optional[str]:
+        """
+        We need the name of the records for some elements (like the record selector).
+        This method returns it depending on the service.
+
+        :param service: the instance of the service.
+        :return: a string identifying the name property name.
+        """
+
+        return None
 
     def prepare_values(
         self,
@@ -195,13 +219,13 @@ class ServiceType(
     def dispatch_transform(
         self,
         data: Any,
-    ) -> Any:
+    ) -> DispatchResult:
         """
         Responsible for taking the `dispatch_data` result and transforming its value
         for API consumer's consumption.
 
         :param data: The `dispatch_data` result.
-        :return: The transformed `dispatch_transform` result if any.
+        :return: The transformed `dispatch_transform` result.
         """
 
     def dispatch_data(
@@ -224,7 +248,7 @@ class ServiceType(
         self,
         service: ServiceSubClass,
         dispatch_context: DispatchContext,
-    ) -> Any:
+    ) -> DispatchResult:
         """
         Responsible for calling `dispatch_data` and `dispatch_transform` to execute
         the service's task, and generating the dispatch's response, respectively.
@@ -341,29 +365,6 @@ class ListServiceTypeMixin:
     """A mixin for services that return lists."""
 
     returns_list = True
-
-    def get_id_property(self, service: Service) -> str:
-        """
-        Returns the property name that contains the unique `ID` of a row for this
-        service.
-
-        :param service: the instance of the service.
-        :return: a string identifying the ID property name.
-        """
-
-        # Sane default
-        return "id"
-
-    def get_name_property(self, service: Service) -> Optional[str]:
-        """
-        We need the name of the records for some elements (like the record selector).
-        This method returns it depending on the service.
-
-        :param service: the instance of the service.
-        :return: a string identifying the name property name.
-        """
-
-        return None
 
     @abstractmethod
     def get_record_names(

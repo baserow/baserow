@@ -27,8 +27,8 @@ export default {
   },
   methods: {
     submit() {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
+      this.v$.$touch()
+      if (this.v$.$invalid) {
         return
       }
       this.$emit('submit', this.values)

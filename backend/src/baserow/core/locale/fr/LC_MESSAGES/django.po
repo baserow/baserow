@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2024-12-16 15:08+0000\n"
-"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"PO-Revision-Date: 2025-03-18 19:52+0000\n"
+"Last-Translator: Jérémie Pardou-Piquemal <jrmi@jeremiez.net>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/baserow/"
 "backend-core/fr/>\n"
 "Language: fr\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 5.9\n"
+"X-Generator: Weblate 5.11-dev\n"
 
 #: src/baserow/core/action/scopes.py:9
 #, python-format
@@ -404,7 +404,7 @@ msgid ""
 "hours."
 msgstr ""
 "Pour poursuivre la réinitialisation de votre mot de passe, il suffit de "
-"cliquer sur le bouton ci-dessous, et vous vous pourrez modifier votre mot de "
+"cliquer sur le bouton ci-dessous, et vous pourrez modifier votre mot de "
 "passe. Ce lien expirera dans %(hours)s heures."
 
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:149
@@ -484,11 +484,11 @@ msgid ""
 "time"
 msgstr ""
 "Utilisateur \"%(user_email)s\" (%(user_id)s) programmé pour être supprimé "
-"après le délais de grâce"
+"après le délai de grâce"
 
 #: src/baserow/core/user/actions.py:196
 msgid "Cancel user deletion"
-msgstr "Annulation la suppression d'un utilisateur"
+msgstr "Annulation de la suppression d'un utilisateur"
 
 #: src/baserow/core/user/actions.py:198
 #, python-format

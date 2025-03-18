@@ -17,7 +17,7 @@
         <div class="theme-config-block-section__properties">
           <slot></slot>
         </div>
-        <div class="theme-config-block-section__preview">
+        <div v-if="hasSlotPreview" class="theme-config-block-section__preview">
           <slot name="preview"></slot>
         </div>
       </div>
@@ -33,6 +33,11 @@ export default {
       type: String,
       required: false,
       default: null,
+    },
+  },
+  computed: {
+    hasSlotPreview() {
+      return !!this.$slots.preview
     },
   },
 }

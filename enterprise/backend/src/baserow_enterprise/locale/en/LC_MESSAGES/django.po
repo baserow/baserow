@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-17 08:48+0000\n"
+"POT-Creation-Date: 2025-03-05 11:01+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -60,6 +60,27 @@ msgstr ""
 
 #: src/baserow_enterprise/audit_log/models.py:32
 msgid "REDONE"
+msgstr ""
+
+#: src/baserow_enterprise/data_sync/actions.py:21
+msgid "Update periodic data sync interval"
+msgstr ""
+
+#: src/baserow_enterprise/data_sync/actions.py:22
+#, python-format
+msgid "Data sync table \"%(table_name)s\" (%(table_id)s) updated"
+msgstr ""
+
+#: src/baserow_enterprise/data_sync/notification_types.py:66
+#, python-format
+msgid "%(name)s periodic data sync has been deactivated."
+msgstr ""
+
+#: src/baserow_enterprise/data_sync/notification_types.py:73
+#, python-format
+msgid ""
+"The periodic data sync failed more than %(max_failures)s consecutive "
+"timesand was therefore deactivated."
 msgstr ""
 
 #: src/baserow_enterprise/role/actions.py:28

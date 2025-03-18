@@ -1,4 +1,3 @@
-import json
 from unittest.mock import patch
 
 from django.db import transaction
@@ -181,32 +180,25 @@ class PublicTestWorkflowActionType(NotificationWorkflowActionType):
 
 
 @pytest.mark.django_db
-def test_public_workflow_actions_view(
-    api_client, data_fixture, mutable_builder_workflow_action_registry
-):
+def test_public_workflow_actions_view(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    page = data_fixture.create_builder_page(user=user)
+    workspace = data_fixture.create_workspace(user=user)
 
-    mutable_builder_workflow_action_registry.unregister(
-        NotificationWorkflowActionType().type
-    )
-    mutable_builder_workflow_action_registry.register(PublicTestWorkflowActionType())
-
-    workflow_action = BuilderWorkflowActionHandler().create_workflow_action(
-        PublicTestWorkflowActionType(), test="hello", page=page
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    BuilderWorkflowActionHandler().create_workflow_action(
+        NotificationWorkflowActionType(), page=page
     )
 
-    url = reverse(
-        "api:builder:workflow_action:item",
-        kwargs={"workflow_action_id": workflow_action.id},
-    )
-    response = api_client.get(
-        url,
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
+    published_builder = data_fixture.create_builder_application(workspace=None)
+    published_page = data_fixture.create_builder_page(builder=published_builder)
+    BuilderWorkflowActionHandler().create_workflow_action(
+        NotificationWorkflowActionType(), page=published_page
     )
 
-    assert "test" not in response.json()
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
 
     url = reverse(
         "api:builder:domains:list_workflow_actions",
@@ -218,8 +210,23 @@ def test_public_workflow_actions_view(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    [workflow_action_in_response] = response.json()
-    assert "test" in workflow_action_in_response
+    response_json = response.json()
+    assert len(response_json) == 1
+    assert response_json[0]["type"] == NotificationWorkflowActionType.type
+
+    url = reverse(
+        "api:builder:domains:list_workflow_actions",
+        kwargs={"page_id": published_page.id},
+    )
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert len(response_json) == 1
+    assert response_json[0]["type"] == NotificationWorkflowActionType.type
 
 
 @pytest.mark.django_db
@@ -677,7 +684,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
         }
         response = api_client.post(
             url,
-            {"current_record": 123},
+            {"current_record": {"index": 123, "record_id": 123}},
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
@@ -689,7 +696,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_dispatch_local_baserow_upsert_row_workflow_action_with_adhoc_refinements(
+def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index_and_record_id(
     api_client, data_fixture
 ):
     with transaction.atomic():
@@ -705,17 +712,21 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_adhoc_refinement
             ],
         )
         field = table.field_set.get()
-        RowHandler().create_rows(
-            user,
-            table,
-            rows_values=[
-                {f"field_{field.id}": "Community Engagement"},
-                {f"field_{field.id}": "Construction"},
-                {f"field_{field.id}": "Complex Construction Design"},
-                {f"field_{field.id}": "Simple Construction Design"},
-                {f"field_{field.id}": "Landscape Design"},
-                {f"field_{field.id}": "Infrastructure Design"},
-            ],
+        rows = (
+            RowHandler()
+            .create_rows(
+                user,
+                table,
+                rows_values=[
+                    {f"field_{field.id}": "Community Engagement"},
+                    {f"field_{field.id}": "Construction"},
+                    {f"field_{field.id}": "Complex Construction Design"},
+                    {f"field_{field.id}": "Simple Construction Design"},
+                    {f"field_{field.id}": "Landscape Design"},
+                    {f"field_{field.id}": "Infrastructure Design"},
+                ],
+            )
+            .created_rows
         )
 
     builder = data_fixture.create_builder_application(workspace=workspace)
@@ -766,17 +777,6 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_adhoc_refinement
         kwargs={"workflow_action_id": workflow_action.id},
     )
 
-    advanced_filters = {
-        "filter_type": "OR",
-        "filters": [
-            {
-                "field": field.id,
-                "type": "contains",
-                "value": "construction",
-            }
-        ],
-    }
-
     with patch(
         "baserow.contrib.builder.handler.get_builder_used_property_names"
     ) as used_properties_mock:
@@ -786,36 +786,34 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_adhoc_refinement
         }
         model = table.get_model()
 
-        # 1. The filters reduce it to 3 results.
-        # 2. The search query reduces it to 2 results.
-        # 3. We sort alphabetically, and dispatch the first one,
-        #   "Complex Construction Design".
-        url_with_querystring = (
-            f"{url}?filters={json.dumps(advanced_filters)}"
-            f"&search_query=design&order_by={field.db_column}"
-        )
-
-        # Dispatch at index=0, this will be "Complex Construction Design".
+        # Dispatch at index=0 but row 3 id, this will be "Complex Construction Design".
         response = api_client.post(
-            url_with_querystring,
-            {"current_record": 0, "data_source": {"element": table_element.id}},
+            url,
+            {
+                "current_record": {"index": 0, "record_id": rows[2].id},
+                "data_source": {"element": table_element.id},
+            },
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
         assert response.status_code == HTTP_200_OK
-        row3 = model.objects.get(pk=3)
-        assert getattr(row3, f"field_{field.id}") == "Updated row 3"
+        row3 = model.objects.get(pk=rows[2].id)
+        assert getattr(row3, f"field_{field.id}") == f"Updated row {rows[2].id}"
 
-        # Dispatch at index=0, this will now be "Simple Construction Design".
+        # Dispatch at index=0 but row 4 id,
+        # this will now be "Simple Construction Design".
         response = api_client.post(
-            url_with_querystring,
-            {"current_record": 0, "data_source": {"element": table_element.id}},
+            url,
+            {
+                "current_record": {"index": 0, "record_id": rows[3].id},
+                "data_source": {"element": table_element.id},
+            },
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
         assert response.status_code == HTTP_200_OK
-        row4 = model.objects.get(pk=4)
-        assert getattr(row4, f"field_{field.id}") == "Updated row 4"
+        row4 = model.objects.get(pk=rows[3].id)
+        assert getattr(row4, f"field_{field.id}") == f"Updated row {rows[3].id}"
 
 
 @pytest.mark.django_db

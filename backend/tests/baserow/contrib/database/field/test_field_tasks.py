@@ -481,14 +481,18 @@ def test_run_delete_mentions_marked_for_deletion(data_fixture):
 
     # Create a user mention
     with freeze_time("2023-02-27 9:00"):
-        row_1, row_2 = RowHandler().create_rows(
-            user=user,
-            table=table,
-            rows_values=[
-                {f"field_{rich_text_field.id}": f"Hello @{user.id}!"},
-                {f"field_{rich_text_field.id}": f"Hi @{user.id}!"},
-            ],
-            model=model,
+        row_1, row_2 = (
+            RowHandler()
+            .create_rows(
+                user=user,
+                table=table,
+                rows_values=[
+                    {f"field_{rich_text_field.id}": f"Hello @{user.id}!"},
+                    {f"field_{rich_text_field.id}": f"Hi @{user.id}!"},
+                ],
+                model=model,
+            )
+            .created_rows
         )
 
     mentions = RichTextFieldMention.objects.all()

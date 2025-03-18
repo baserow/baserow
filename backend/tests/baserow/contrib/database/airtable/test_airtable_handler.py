@@ -1,6 +1,5 @@
 import json
 import os
-from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -33,12 +32,12 @@ def test_fetch_publicly_shared_base():
     )
     path = os.path.join(base_path, "airtable_base.html")
 
-    with open(path, "rb") as file:
+    with open(path, "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file,
+            body=file_handler,
             headers={"Set-Cookie": "brw=test;"},
         )
 
@@ -76,12 +75,12 @@ def test_fetch_table():
     application_response_path = os.path.join(base_path, "airtable_application.json")
     table_response_path = os.path.join(base_path, "airtable_table.json")
 
-    with open(path, "rb") as file:
+    with open(path, "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file,
+            body=file_handler,
             headers={"Set-Cookie": "brw=test;"},
         )
         request_id, init_data, cookies = AirtableHandler.fetch_publicly_shared_base(
@@ -162,49 +161,83 @@ def test_to_baserow_database_export():
     base_path = os.path.join(
         settings.BASE_DIR, "../../../tests/airtable_responses/basic"
     )
-    path = os.path.join(base_path, "airtable_base.html")
-    user_table_path = os.path.join(base_path, "airtable_application.json")
-    data_table_path = os.path.join(base_path, "airtable_table.json")
-    user_table_json = json.loads(Path(user_table_path).read_text())
-    data_table_json = json.loads(Path(data_table_path).read_text())
 
-    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb") as file:
+    with open(
+        os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(path, "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
-        request_id, init_data, cookies = AirtableHandler.fetch_publicly_shared_base(
-            "appZkaH3aWX3ZjT3b"
+
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
+            status=200,
+            body=file_handler.read(),
         )
 
-    schema, tables = AirtableHandler.extract_schema([user_table_json, data_table_json])
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
+        "appZkaH3aWX3ZjT3b"
+    )
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
         init_data, schema, tables, AirtableImportConfig()
     )
@@ -222,7 +255,7 @@ def test_to_baserow_database_export():
     assert baserow_database_export["name"] == "Test"
     assert baserow_database_export["order"] == 1
     assert baserow_database_export["type"] == "database"
-    assert len(baserow_database_export["tables"]) == 2
+    assert len(baserow_database_export["tables"]) == 3  # 2 + import report table
 
     assert baserow_database_export["tables"][0]["id"] == "tblRpq315qnnIcg5IjI"
     assert baserow_database_export["tables"][0]["name"] == "Users"
@@ -232,7 +265,7 @@ def test_to_baserow_database_export():
     assert baserow_database_export["tables"][1]["id"] == "tbl7glLIGtH8C8zGCzb"
     assert baserow_database_export["tables"][1]["name"] == "Data"
     assert baserow_database_export["tables"][1]["order"] == 1
-    assert len(baserow_database_export["tables"][1]["fields"]) == 25
+    assert len(baserow_database_export["tables"][1]["fields"]) == 26
 
     # We don't have to check all the fields and rows, just a single one, because we have
     # separate tests for mapping the Airtable fields and values to Baserow.
@@ -255,7 +288,7 @@ def test_to_baserow_database_export():
         "type": "email",
         "id": "fldB7wkyR0buF1sRF9O",
         "name": "Email",
-        "description": None,
+        "description": "This is an email",
         "order": 1,
         "primary": False,
         "read_only": False,
@@ -295,11 +328,11 @@ def test_to_baserow_database_export():
     )
     assert baserow_database_export["tables"][0]["views"] == [
         {
-            "id": 1,
+            "id": "viwFSKLuVm97DnNVD91",
             "type": "grid",
-            "name": "Grid",
+            "name": "All",
             "order": 1,
-            "row_identifier_type": "id",
+            "row_identifier_type": "count",
             "row_height_size": "small",
             "filter_type": "AND",
             "filters_disabled": False,
@@ -310,61 +343,144 @@ def test_to_baserow_database_export():
             "group_bys": [],
             "ownership_type": "collaborative",
             "public": False,
-            "field_options": [],
+            "field_options": [
+                {
+                    "aggregation_raw_type": "",
+                    "aggregation_type": "",
+                    "field_id": "fldG9y88Zw7q7u4Z7i4",
+                    "hidden": False,
+                    "id": "viwFSKLuVm97DnNVD91_columnOrder_0",
+                    "order": 1,
+                    "width": 200,
+                },
+                {
+                    "aggregation_raw_type": "",
+                    "aggregation_type": "",
+                    "field_id": "fldB7wkyR0buF1sRF9O",
+                    "hidden": False,
+                    "id": "viwFSKLuVm97DnNVD91_columnOrder_1",
+                    "order": 2,
+                    "width": 200,
+                },
+                {
+                    "aggregation_raw_type": "",
+                    "aggregation_type": "",
+                    "field_id": "fldFh5wIL430N62LN6t",
+                    "hidden": False,
+                    "id": "viwFSKLuVm97DnNVD91_columnOrder_2",
+                    "order": 3,
+                    "width": 200,
+                },
+                {
+                    "aggregation_raw_type": "",
+                    "aggregation_type": "",
+                    "field_id": "fldZBmr4L45mhjILhlA",
+                    "hidden": False,
+                    "id": "viwFSKLuVm97DnNVD91_columnOrder_3",
+                    "order": 4,
+                    "width": 200,
+                },
+            ],
             "owned_by": None,
         }
     ]
 
+    assert baserow_database_export["tables"][2]["rows"][0] == {
+        "id": 1,
+        "order": "1.00000000000000000000",
+        "created_on": None,
+        "updated_on": None,
+        "field_object_name": "Name lookup (from Users)",
+        "field_scope": "scope_field",
+        "field_table": "table_Data",
+        "field_error_type": "error_type_unsupported_feature",
+        "field_message": 'Field "Name lookup (from Users)" with field type lookup was not imported because it is not supported.',
+    }
+
 
 @pytest.mark.django_db
 @responses.activate
-def test_config_skip_files():
+def test_config_skip_files(tmpdir, data_fixture):
     base_path = os.path.join(
         settings.BASE_DIR, "../../../tests/airtable_responses/basic"
     )
-    path = os.path.join(base_path, "airtable_base.html")
-    user_table_path = os.path.join(base_path, "airtable_application.json")
-    data_table_path = os.path.join(base_path, "airtable_table.json")
-    user_table_json = json.loads(Path(user_table_path).read_text())
-    data_table_json = json.loads(Path(data_table_path).read_text())
 
-    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb") as file:
+    with open(
+        os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(path, "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
-        request_id, init_data, cookies = AirtableHandler.fetch_publicly_shared_base(
-            "appZkaH3aWX3ZjT3b"
+
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
+            status=200,
+            body=file_handler.read(),
         )
 
-    schema, tables = AirtableHandler.extract_schema([user_table_json, data_table_json])
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
+        "appZkaH3aWX3ZjT3b"
+    )
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
         init_data, schema, tables, AirtableImportConfig(skip_files=True)
     )
@@ -379,44 +495,106 @@ def test_to_baserow_database_export_without_primary_value():
     base_path = os.path.join(
         settings.BASE_DIR, "../../../tests/airtable_responses/basic"
     )
-    path = os.path.join(base_path, "airtable_base.html")
-    user_table_path = os.path.join(base_path, "airtable_application.json")
-    user_table_json = json.loads(Path(user_table_path).read_text())
 
-    # Remove the data table because we don't need that one.
-    del user_table_json["data"]["tableSchemas"][1]
-    user_table_json["data"]["tableDatas"][0]["rows"] = []
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.signed/file-sample.txt",
+            status=200,
+            body=file_handler.read(),
+        )
 
-    # Rename the primary column so that we depend on the fallback in the migrations.
-    user_table_json["data"]["tableSchemas"][0][
-        "primaryColumnId"
-    ] = "fldG9y88Zw7q7u4Z7i4_unknown"
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            status=200,
+            body=file_handler.read(),
+        )
 
-    with open(path, "rb") as file:
+    with open(
+        os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
-        request_id, init_data, cookies = AirtableHandler.fetch_publicly_shared_base(
-            "appZkaH3aWX3ZjT3b"
+
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
+            status=200,
+            body=file_handler.read(),
         )
 
-    schema, tables = AirtableHandler.extract_schema(deepcopy([user_table_json]))
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
+        "appZkaH3aWX3ZjT3b"
+    )
+
+    # Rename the primary column so that we depend on the fallback in the migrations.
+    schema["tableSchemas"][0]["primaryColumnId"] = "fldG9y88Zw7q7u4Z7i4_unknown"
+
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
-        init_data,
-        schema,
-        tables,
-        AirtableImportConfig(),
+        init_data, schema, tables, AirtableImportConfig(skip_files=True)
     )
     assert baserow_database_export["tables"][0]["fields"][0]["primary"] is True
+    assert baserow_database_export["tables"][2]["rows"][0] == {
+        "id": 1,
+        "order": "1.00000000000000000000",
+        "created_on": None,
+        "updated_on": None,
+        "field_object_name": "Name",
+        "field_scope": "scope_field",
+        "field_table": "table_Users",
+        "field_error_type": "error_type_unsupported_feature",
+        "field_message": 'Changed primary field to "Name" because the original primary field is incompatible.',
+    }
 
-    user_table_json["data"]["tableSchemas"][0]["columns"] = []
-    schema, tables = AirtableHandler.extract_schema(deepcopy([user_table_json]))
+    schema["tableSchemas"][0]["columns"] = []
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
-        init_data, schema, tables, AirtableImportConfig()
+        init_data, schema, tables, AirtableImportConfig(skip_files=True)
     )
     assert baserow_database_export["tables"][0]["fields"] == [
         {
@@ -432,6 +610,17 @@ def test_to_baserow_database_export_without_primary_value():
             "immutable_properties": False,
         }
     ]
+    assert baserow_database_export["tables"][2]["rows"][0] == {
+        "id": 1,
+        "order": "1.00000000000000000000",
+        "created_on": None,
+        "updated_on": None,
+        "field_object_name": "Primary field (auto created)",
+        "field_scope": "scope_field",
+        "field_table": "table_Users",
+        "field_error_type": "error_type_unsupported_feature",
+        "field_message": 'Created new primary field "Primary field (auto created)" because none of the provided fields are compatible.',
+    }
 
 
 @pytest.mark.django_db
@@ -445,53 +634,77 @@ def test_import_from_airtable_to_workspace(
     )
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
-    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb") as file:
+    with open(
+        os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 
-    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
+            status=200,
+            body=file_handler.read(),
         )
 
     progress = Progress(1000)
@@ -511,10 +724,21 @@ def test_import_from_airtable_to_workspace(
 
     assert database.name == "Test"
     all_tables = database.table_set.all()
-    assert len(all_tables) == 2
+    assert len(all_tables) == 3  # 2 + import report
 
     assert all_tables[0].name == "Users"
     assert all_tables[1].name == "Data"
+    assert all_tables[2].name == "Airtable import report"
+
+    table_0_views = all_tables[0].view_set.all()
+    assert table_0_views[0].name == "All"
+    table_1_views = all_tables[1].view_set.all()
+    assert table_1_views[0].name == "Grid view"
+    assert table_1_views[1].name == "With filters and sorts"
+    table_1_view_1_sorts = table_1_views[1].viewsort_set.all()
+    assert len(table_1_view_1_sorts) == 2
+    table_1_view_1_group_bys = table_1_views[1].viewgroupby_set.all()
+    assert len(table_1_view_1_group_bys) == 1
 
     user_fields = all_tables[0].field_set.all()
     assert len(user_fields) == 4
@@ -539,6 +763,109 @@ def test_import_from_airtable_to_workspace(
 
 @pytest.mark.django_db
 @responses.activate
+def test_import_from_airtable_to_workspace_with_report_table(data_fixture, tmpdir):
+    workspace = data_fixture.create_workspace()
+    base_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/airtable_responses/basic"
+    )
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.signed/file-sample.txt",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/appZkaH3aWX3ZjT3b",
+            status=200,
+            body=file_handler.read(),
+            headers={"Set-Cookie": "brw=test;"},
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    progress = Progress(1000)
+
+    database = AirtableHandler.import_from_airtable_to_workspace(
+        workspace,
+        "appZkaH3aWX3ZjT3b",
+        storage=storage,
+        progress_builder=progress.create_child_builder(represents_progress=1000),
+    )
+
+    report_table = database.table_set.last()
+    assert report_table.name == "Airtable import report"
+
+    model = report_table.get_model(attribute_names=True)
+    row = model.objects.last()
+    assert row.object_name == "All interfaces"
+    assert row.scope.value == "Interfaces"
+    assert row.table is None
+    assert row.error_type.value == "Unsupported feature"
+    assert row.message == "Baserow doesn't support interfaces."
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_import_from_airtable_to_workspace_duplicated_single_select(
     data_fixture, tmpdir, django_assert_num_queries
 ):
@@ -548,21 +875,23 @@ def test_import_from_airtable_to_workspace_duplicated_single_select(
     )
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
-    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/shra2B9gmVj6kxvNz",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 
-    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/application/appHI27Un8BKJ9iKA/read",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     progress = Progress(1000)
@@ -601,21 +930,23 @@ def test_import_from_airtable_to_workspace_duplicated_multi_select(
     )
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
-    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/shra2B9gmVj6kxvNz",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 
-    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/application/appHI27Un8BKJ9iKA/read",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     progress = Progress(1000)
@@ -657,12 +988,12 @@ def test_import_unsupported_publicly_shared_view(data_fixture, tmpdir):
     )
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
-    with open(os.path.join(base_path, "airtable_view.html"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_view.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 

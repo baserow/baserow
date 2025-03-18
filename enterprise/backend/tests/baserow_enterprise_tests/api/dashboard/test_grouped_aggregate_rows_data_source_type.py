@@ -4,14 +4,12 @@ from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
-from baserow.contrib.integrations.local_baserow.models import (
-    LocalBaserowTableServiceSort,
-)
 from baserow.test_utils.helpers import AnyDict, AnyInt
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowGroupedAggregateRows,
     LocalBaserowTableServiceAggregationGroupBy,
     LocalBaserowTableServiceAggregationSeries,
+    LocalBaserowTableServiceAggregationSortBy,
 )
 
 
@@ -38,6 +36,13 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
     )
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=data_source1.service, field=field_3, order=1
+    )
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=data_source1.service,
+        sort_on="GROUP_BY",
+        reference=f"field_{field_3.id}",
+        direction="ASC",
+        order=1,
     )
     enterprise_data_fixture.create_local_baserow_table_service_sort(
         service=data_source1.service,
@@ -69,18 +74,37 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
             {"aggregation_type": "sum", "field_id": field.id, "order": 1},
             {"aggregation_type": "sum", "field_id": field_2.id, "order": 1},
         ],
-        "context_data": {},
+        "context_data": {
+            "fields": {
+                f"field_{field_3.id}": {
+                    "description": None,
+                    "id": field_3.id,
+                    "immutable_properties": False,
+                    "immutable_type": False,
+                    "name": field_3.name,
+                    "number_decimal_places": 0,
+                    "number_negative": False,
+                    "number_prefix": "",
+                    "number_separator": "",
+                    "number_suffix": "",
+                    "order": 0,
+                    "primary": False,
+                    "read_only": False,
+                    "table_id": table.id,
+                    "type": "number",
+                },
+            },
+        },
         "context_data_schema": None,
         "dashboard_id": dashboard.id,
         "filter_type": "AND",
         "filters": [],
-        "sortings": [
+        "aggregation_sorts": [
             {
-                "field": field_3.id,
-                "id": AnyInt(),
-                "trashed": False,
-                "order": 2,
-                "order_by": "ASC",
+                "sort_on": "GROUP_BY",
+                "reference": f"field_{field_3.id}",
+                "direction": "ASC",
+                "order": 1,
             }
         ],
         "id": data_source1.id,
@@ -138,7 +162,13 @@ def test_grouped_aggregate_rows_update_data_source(api_client, enterprise_data_f
                 {"field_id": field_2.id, "aggregation_type": "sum"},
             ],
             "aggregation_group_bys": [{"field_id": field_3.id}],
-            "sortings": [{"field": field.id}],
+            "aggregation_sorts": [
+                {
+                    "sort_on": "SERIES",
+                    "reference": f"field_{field.id}_sum",
+                    "direction": "ASC",
+                }
+            ],
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -164,13 +194,12 @@ def test_grouped_aggregate_rows_update_data_source(api_client, enterprise_data_f
     assert response_json["aggregation_group_bys"] == [
         {"field_id": field_3.id, "order": 0}
     ]
-    assert response_json["sortings"] == [
+    assert response_json["aggregation_sorts"] == [
         {
-            "id": AnyInt(),
-            "field": field.id,
-            "trashed": False,
+            "sort_on": "SERIES",
+            "reference": f"field_{field.id}_sum",
+            "direction": "ASC",
             "order": 0,
-            "order_by": "ASC",
         }
     ]
 
@@ -212,11 +241,19 @@ def test_grouped_aggregate_rows_dispatch_dashboard_data_source(
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_3, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_3.id}_sum",
+        order=1,
+        direction="ASC",
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=2, order_by="DESC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_2.id}_sum",
+        order=2,
+        direction="DESC",
     )
 
     RowHandler().create_rows(
@@ -295,24 +332,28 @@ def test_grouped_aggregate_rows_dispatch_dashboard_data_source(
     assert response_json == {
         "result": [
             {
-                f"field_{field.id}": 90.0,
-                f"field_{field_2.id}": 9.0,
-                f"field_{field_3.id}": 3.0,
-            },
-            {
-                f"field_{field.id}": 60.0,
-                f"field_{field_2.id}": 6.0,
-                f"field_{field_3.id}": 6.0,
-            },
-            {
                 f"field_{field.id}": 30.0,
-                f"field_{field_2.id}": 3.0,
-                f"field_{field_3.id}": 6.0,
+                f"field_{field.id}_sum": 90.0,
+                f"field_{field_2.id}_sum": 9.0,
+                f"field_{field_3.id}_sum": 3.0,
+            },
+            {
+                f"field_{field.id}": 20.0,
+                f"field_{field.id}_sum": 60.0,
+                f"field_{field_2.id}_sum": 6.0,
+                f"field_{field_3.id}_sum": 6.0,
+            },
+            {
+                f"field_{field.id}": 10.0,
+                f"field_{field.id}_sum": 30.0,
+                f"field_{field_2.id}_sum": 3.0,
+                f"field_{field_3.id}_sum": 6.0,
             },
             {
                 f"field_{field.id}": None,
-                f"field_{field_2.id}": 100.0,
-                f"field_{field_3.id}": 100.0,
+                f"field_{field.id}_sum": None,
+                f"field_{field_2.id}_sum": 100.0,
+                f"field_{field_3.id}_sum": 100.0,
             },
         ],
     }

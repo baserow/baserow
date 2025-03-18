@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING, Dict, List, Set
 
-from django.contrib.auth.models import AbstractUser
-
 from antlr4.tree import Tree
 
 from baserow.contrib.builder.data_providers.registries import (
@@ -11,6 +9,7 @@ from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.formula_importer import BaserowFormulaImporter
 from baserow.core.formula import BaserowFormula
 from baserow.core.formula.exceptions import InvalidBaserowFormula
+from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import merge_dicts_no_duplicates, to_path
 
 if TYPE_CHECKING:
@@ -176,10 +175,10 @@ def get_data_source_property_names(
 
 
 def get_builder_used_property_names(
-    user: AbstractUser, builder: "Builder"
+    user: UserSourceUser, builder: "Builder"
 ) -> Dict[str, Dict[int, List[str]]]:
     """
-    Given a User and a Builder, return all property names used in the all the
+    Given a UserSourceUser and a Builder, return all property names used in the all the
     pages.
 
     This involves looping over all Elements, Workflow Actions, and Data Sources
@@ -204,18 +203,22 @@ def get_builder_used_property_names(
         BuilderWorkflowActionService,
     )
 
+    # We query the data source first to populate the data source cache
+    data_sources = DataSourceService().get_builder_data_sources(
+        user, builder, with_cache=True
+    )
+
     elements = list(ElementService().get_builder_elements(user, builder))
     element_map = {e.id: e for e in elements}
 
     element_results = get_element_property_names(elements, element_map)
 
+    ds_results = get_data_source_property_names(data_sources)
+
     workflow_actions = BuilderWorkflowActionService().get_builder_workflow_actions(
         user, builder
     )
     wa_results = get_workflow_action_property_names(workflow_actions, element_map)
-
-    data_sources = DataSourceService().get_builder_data_sources(user, builder)
-    ds_results = get_data_source_property_names(data_sources)
 
     results = {
         "internal": merge_dicts_no_duplicates(

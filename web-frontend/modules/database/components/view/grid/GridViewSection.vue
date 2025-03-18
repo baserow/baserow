@@ -23,7 +23,7 @@
       class="grid-view__head-group-width-handle"
       :style="{ left: left + 'px' }"
       :width="groupBy.width"
-      :min="100"
+      :min="GRID_VIEW_MIN_FIELD_WIDTH"
       @move="moveGroupWidth(groupBy, view, $event)"
       @update="updateGroupWidth(groupBy, view, database, readOnly, $event)"
     ></HorizontalResize>

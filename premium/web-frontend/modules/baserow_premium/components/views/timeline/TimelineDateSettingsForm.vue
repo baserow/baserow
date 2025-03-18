@@ -5,75 +5,69 @@
         class="timeline-date-settings-form__alert"
         :error="incompatibleFieldsError"
       ></Error>
-      <FormElement class="control">
-        <label class="control__label control__label--small">
-          {{ $t('timelineDateSettingsForm.startDateField') }}
-        </label>
-        <div class="control__elements">
-          <Dropdown
-            v-model="values.startDateFieldId"
-            fixed-items
-            :show-search="true"
-            :disabled="readOnly"
-            :placeholder="readOnly ? ' ' : $t('action.makeChoice')"
+
+      <FormGroup
+        :label="$t('timelineDateSettingsForm.startDateField')"
+        :error="v$.values.startDateFieldId.$error"
+        small-label
+        required
+        class="margin-bottom-2"
+      >
+        <Dropdown
+          v-model="v$.values.startDateFieldId.$model"
+          fixed-items
+          :show-search="true"
+          :disabled="readOnly"
+          :placeholder="readOnly ? ' ' : $t('action.makeChoice')"
+        >
+          <DropdownItem :key="null" name="" :value="null">
+            <div :style="{ height: '15px' }"></div>
+          </DropdownItem>
+          <DropdownItem
+            v-for="dateField in availableStartDateFields"
+            :key="dateField.id"
+            :name="getDateFieldNameAndAttrs(dateField)"
+            :value="dateField.id"
+            :icon="fieldIcon(dateField.type)"
           >
-            <DropdownItem :key="null" name="" :value="null">
-              <div :style="{ height: '15px' }"></div>
-            </DropdownItem>
-            <DropdownItem
-              v-for="dateField in availableStartDateFields"
-              :key="dateField.id"
-              :name="getDateFieldNameAndAttrs(dateField)"
-              :value="dateField.id"
-              :icon="fieldIcon(dateField.type)"
-            >
-            </DropdownItem>
-          </Dropdown>
-          <div
-            v-if="
-              fieldHasErrors('startDateFieldId') &&
-              !$v.values.startDateFieldId.required
-            "
-            class="error"
-          >
+          </DropdownItem>
+        </Dropdown>
+
+        <template #error>
+          <span v-if="v$.values.startDateFieldId.required.$invalid">
             {{ $t('error.requiredField') }}
-          </div>
-        </div>
-      </FormElement>
-      <FormElement class="control margin-top-2">
-        <label class="control__label control__label--small">
-          {{ $t('timelineDateSettingsForm.endDateField') }}
-        </label>
-        <div class="control__elements">
-          <Dropdown
-            v-model="values.endDateFieldId"
-            fixed-items
-            :show-search="true"
-            :disabled="readOnly"
+          </span>
+        </template>
+      </FormGroup>
+      <FormGroup
+        :label="$t('timelineDateSettingsForm.endDateField')"
+        :error="fieldHasErrors('endDateFieldId')"
+        small-label
+        required
+      >
+        <Dropdown
+          v-model="v$.values.endDateFieldId.$model"
+          fixed-items
+          :show-search="true"
+          :disabled="readOnly"
+        >
+          <DropdownItem :key="null" name="" :value="null">
+            <div :style="{ height: '15px' }"></div>
+          </DropdownItem>
+          <DropdownItem
+            v-for="dateField in availableEndDateFields"
+            :key="dateField.id"
+            :name="getDateFieldNameAndAttrs(dateField)"
+            :value="dateField.id"
+            :icon="fieldIcon(dateField.type)"
           >
-            <DropdownItem :key="null" name="" :value="null">
-              <div :style="{ height: '15px' }"></div>
-            </DropdownItem>
-            <DropdownItem
-              v-for="dateField in availableEndDateFields"
-              :key="dateField.id"
-              :name="getDateFieldNameAndAttrs(dateField)"
-              :value="dateField.id"
-              :icon="fieldIcon(dateField.type)"
-            >
-            </DropdownItem>
-          </Dropdown>
-          <div
-            v-if="
-              fieldHasErrors('endDateFieldId') &&
-              !$v.values.endDateFieldId.required
-            "
-            class="error"
-          >
-            {{ $t('error.requiredField') }}
-          </div>
-        </div>
-      </FormElement>
+          </DropdownItem>
+        </Dropdown>
+
+        <template #error>
+          {{ v$.values.endDateFieldId.$errors[0]?.$message }}
+        </template>
+      </FormGroup>
       <slot></slot>
     </form>
     <p v-else>
@@ -83,7 +77,9 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, getCurrentInstance } from 'vue'
+import { required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import {
   filterDateFields,
@@ -108,12 +104,40 @@ export default {
       required: true,
     },
   },
+  setup() {
+    const instance = getCurrentInstance()
+    const values = reactive({
+      values: {
+        startDateFieldId: instance.proxy.view.start_date_field || null,
+        endDateFieldId: instance.proxy.view.end_date_field || null,
+      },
+    })
+
+    const rules = {
+      values: {
+        startDateFieldId: {
+          required: helpers.withMessage(
+            instance.proxy.$t('error.requiredField'),
+            required
+          ),
+        },
+        endDateFieldId: {
+          required: helpers.withMessage(
+            instance.proxy.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
+
+    return {
+      values: values.values,
+      v$: useVuelidate(rules, values, { $lazy: true }),
+      loading: false,
+    }
+  },
   data() {
     return {
-      values: {
-        startDateFieldId: this.view.start_date_field || null,
-        endDateFieldId: this.view.end_date_field || null,
-      },
       incompatibleFieldsError: {
         visible: false,
         title: this.$t('timelineDateSettingsForm.incompatibleFieldsErrorTitle'),
@@ -209,17 +233,11 @@ export default {
       return start && end && dateFieldsAreCompatible(start, end)
     },
     submit() {
-      this.$v.$touch()
-      if (this.$v.$invalid || !this.dateSettingsAreValid()) {
+      this.v$.$touch()
+      if (this.v$.$invalid || !this.dateSettingsAreValid()) {
         return
       }
       this.$emit('submitted', this.values)
-    },
-  },
-  validations: {
-    values: {
-      startDateFieldId: { required },
-      endDateFieldId: { required },
     },
   },
 }

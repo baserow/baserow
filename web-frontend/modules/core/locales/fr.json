@@ -875,8 +875,8 @@
         "noExports": "Il n'y a pas d'export pour ce projet.",
         "created": "Créé le",
         "importingState": "Import en cours",
-        "exportingState": "Export en cours",
-        "exportingTableState": "Export de la table :{table}",
+        "exportingState": "Export en cours...",
+        "exportingTableState": "Export en cours : {table}",
         "exportingCreateArchiveState": "Création de l'archive"
     },
     "exportWorkspaceForm": {
@@ -907,7 +907,9 @@
         "import": "Importer",
         "done": "Valider",
         "databases": "Bases de données",
-        "importingState": "Import en cours"
+        "importingState": "Import en cours...",
+        "importingTableStructure": "Création en cours : {table}",
+        "importingTableData": "Import en cours : {table}"
     },
     "user": {
         "isStaff": "Est collaborateur",

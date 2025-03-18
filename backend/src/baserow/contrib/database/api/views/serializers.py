@@ -220,14 +220,14 @@ class UpdateViewFilterGroupSerializer(serializers.ModelSerializer):
 class ViewSortSerializer(serializers.ModelSerializer):
     class Meta:
         model = ViewSort
-        fields = ("id", "view", "field", "order")
+        fields = ("id", "view", "field", "order", "type")
         extra_kwargs = {"id": {"read_only": True}}
 
 
 class CreateViewSortSerializer(serializers.ModelSerializer):
     class Meta:
         model = ViewSort
-        fields = ("field", "order")
+        fields = ("field", "order", "type")
         extra_kwargs = {
             "order": {"default": ViewSort._meta.get_field("order").default},
         }
@@ -236,11 +236,12 @@ class CreateViewSortSerializer(serializers.ModelSerializer):
 class UpdateViewSortSerializer(serializers.ModelSerializer):
     class Meta(CreateViewFilterSerializer.Meta):
         model = ViewSort
-        fields = ("field", "order")
+        fields = ("field", "order", "type")
         extra_kwargs = {
             "field": {"required": False},
             "order": {"required": False},
             "width": {"required": False},
+            "type": {"required": False},
         }
 
 
@@ -253,6 +254,7 @@ class ViewGroupBySerializer(serializers.ModelSerializer):
             "field",
             "order",
             "width",
+            "type",
         )
         extra_kwargs = {"id": {"read_only": True}}
 
@@ -264,10 +266,12 @@ class CreateViewGroupBySerializer(serializers.ModelSerializer):
             "field",
             "order",
             "width",
+            "type",
         )
         extra_kwargs = {
             "order": {"default": ViewGroupBy._meta.get_field("order").default},
             "width": {"default": ViewGroupBy._meta.get_field("width").default},
+            "type": {"default": ViewGroupBy._meta.get_field("type").default},
         }
 
 
@@ -278,11 +282,13 @@ class UpdateViewGroupBySerializer(serializers.ModelSerializer):
             "field",
             "order",
             "width",
+            "type",
         )
         extra_kwargs = {
             "field": {"required": False},
             "order": {"required": False},
             "width": {"required": False},
+            "type": {"required": False},
         }
 
 
@@ -540,7 +546,7 @@ class PublicViewSortSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ViewSort
-        fields = ("id", "view", "field", "order")
+        fields = ("id", "view", "field", "order", "type")
         extra_kwargs = {"id": {"read_only": True}}
 
 
@@ -555,6 +561,7 @@ class PublicViewGroupBySerializer(serializers.ModelSerializer):
             "field",
             "order",
             "width",
+            "type",
         )
         extra_kwargs = {"id": {"read_only": True}}
 

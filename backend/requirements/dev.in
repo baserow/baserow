@@ -40,6 +40,7 @@ mypy-extensions==1.0.0
 isort==5.13.2
 ipython
 fakeredis[lua]==2.23.2
+pytest-retry==1.7.0
 ipdb
 # build is used to compile a wheel package with `python -m build .` command.
 build

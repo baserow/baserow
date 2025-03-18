@@ -1,10 +1,10 @@
 import EditUserContext from '@baserow/modules/core/components/admin/users/contexts/EditUserContext'
 import Error from '@baserow/modules/core/components/Error'
 import ChangeUserPasswordModal from '@baserow/modules/core/components/admin/users/modals/ChangeUserPasswordModal'
+import ChangePasswordForm from '@baserow/modules/core/components/admin/users/forms/ChangePasswordForm'
 import EditUserModal from '@baserow/modules/core/components/admin/users/modals/EditUserModal'
 import CrudTableSearch from '@baserow/modules/core/components/crudTable/CrudTableSearch'
 import DeleteUserModal from '@baserow/modules/core/components/admin/users/modals/DeleteUserModal'
-
 export default class UserAdminUserHelpers {
   constructor(userAdminComponent) {
     this.c = userAdminComponent
@@ -98,15 +98,16 @@ export default class UserAdminUserHelpers {
       repeatPassword
     )
 
-    return this.getModalFieldErrorText(changePasswordModal)
+    const wrapper = changePasswordModal.findComponent(ChangePasswordForm)
+    return wrapper.vm.v$.values.$errors
   }
 
   getModalFieldErrorText(modal) {
-    return modal
-      .find('.control__messages--error')
-      .text()
-      .replace(/\n/gm, '')
-      .replace(/\s\s+/g, ' ')
+    // return modalMounted
+    //   .find('.control__messages--error')
+    //   .text()
+    //   .replace(/\n/gm, '')
+    //   .replace(/\s\s+/g, ' ')
   }
 
   async changePassword(password, repeatPassword) {

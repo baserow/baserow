@@ -91,8 +91,7 @@ export default {
      * @returns {Promise<void>}
      */
     async createAndMonitorJob(job) {
-      await this.$store.dispatch('job/create', job)
-      this.job = job
+      this.job = await this.$store.dispatch('job/create', job)
     },
     /**
      * Called from a component to cancel any job currently running.

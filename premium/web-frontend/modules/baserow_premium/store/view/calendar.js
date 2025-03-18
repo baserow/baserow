@@ -25,6 +25,7 @@ import {
   getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
+import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
@@ -304,6 +305,7 @@ export const actions = {
     { commit, getters, rootGetters },
     { dateTime, fields, includeFieldOptions = false }
   ) {
+    const calendarId = getters.getLastCalendarId
     commit('SET_SELECTED_DATE', dateTime)
 
     const df = getters.getDateField(fields)
@@ -335,6 +337,12 @@ export const actions = {
         publicUrl: rootGetters['page/view/public/getIsPublic'],
         publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       })
+      // Don't do anything if the calendarId does not match the current view calendarId
+      // because that probably means the user switched to another view or table, and
+      // the data that is returned here shouldn't do anything.
+      if (calendarId !== getters.getLastCalendarId) {
+        return
+      }
       const lastRequest = dateTime.isSame(getters.getSelectedDate(fields))
       if (lastRequest) {
         Object.keys(data.rows).forEach((key) => {
@@ -390,6 +398,12 @@ export const actions = {
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       filters,
     })
+    // Don't do anything if the calendarId does not match the current view calendarId
+    // because that probably means the user switched to another view or table, and
+    // the data that is returned here shouldn't do anything.
+    if (calendarId !== getters.getLastCalendarId) {
+      return
+    }
     const newRows = data.rows[date].results
     const newCount = data.rows[date].count
     newRows.forEach((row) => {
@@ -568,7 +582,14 @@ export const actions = {
     if (stack === undefined) {
       return
     }
-    const sortings = [{ field: dateFieldId, value: 'ASC', order: 'ASC' }]
+    const sortings = [
+      {
+        field: dateFieldId,
+        value: 'ASC',
+        order: 'ASC',
+        type: DEFAULT_SORT_TYPE_KEY,
+      },
+    ]
     const sortedRows = clone(stack.results)
     sortedRows.push(row)
     sortedRows.sort(getRowSortFunction(this.$registry, sortings, fields))
@@ -713,7 +734,14 @@ export const actions = {
       }
       newStackResults.push(newRow)
       newStackCount++
-      const sortings = [{ field: dateFieldId, value: 'ASC', order: 'ASC' }]
+      const sortings = [
+        {
+          field: dateFieldId,
+          value: 'ASC',
+          order: 'ASC',
+          type: DEFAULT_SORT_TYPE_KEY,
+        },
+      ]
       newStackResults.sort(getRowSortFunction(this.$registry, sortings, fields))
       newIndex = newStackResults.findIndex((r) => r.id === newRow.id)
       const newIsLast = newIndex === newStackResults.length - 1

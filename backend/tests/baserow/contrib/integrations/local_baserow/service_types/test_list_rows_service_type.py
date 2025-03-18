@@ -231,7 +231,7 @@ def test_local_baserow_list_rows_service_dispatch_transform(data_fixture):
     )
     result = service_type.dispatch_transform(dispatch_data)
 
-    assert [dict(r) for r in result["results"]] == [
+    assert [dict(r) for r in result.data["results"]] == [
         {
             "id": rows[0].id,
             fields[0].db_column: "BMW",
@@ -245,7 +245,7 @@ def test_local_baserow_list_rows_service_dispatch_transform(data_fixture):
             "order": AnyStr(),
         },
     ]
-    assert result["has_next_page"] is False
+    assert result.data["has_next_page"] is False
 
 
 @pytest.mark.django_db
@@ -322,14 +322,18 @@ def test_local_baserow_list_rows_service_dispatch_data_with_view_and_service_fil
         ],
     )
     field = table.field_set.get(name="Ingredient")
-    [row_1, row_2, _] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": "Cheese"},
-            {f"field_{field.id}": "Chicken"},
-            {f"field_{field.id}": "Milk"},
-        ],
+    [row_1, row_2, _] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "Cheese"},
+                {f"field_{field.id}": "Chicken"},
+                {f"field_{field.id}": "Milk"},
+            ],
+        )
+        .created_rows
     )
 
     view = data_fixture.create_grid_view(user, table=table, owned_by=user)
@@ -385,15 +389,19 @@ def test_local_baserow_list_rows_service_dispatch_data_with_varying_filter_types
     )
     ingredient = table.field_set.get(name="Ingredient")
     cost = table.field_set.get(name="Cost")
-    [row_1, row_2, row_3, _] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{ingredient.id}": "Duck", f"field_{cost.id}": 50},
-            {f"field_{ingredient.id}": "Duckling", f"field_{cost.id}": 25},
-            {f"field_{ingredient.id}": "Goose", f"field_{cost.id}": 150},
-            {f"field_{ingredient.id}": "Beef", f"field_{cost.id}": 250},
-        ],
+    [row_1, row_2, row_3, _] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{ingredient.id}": "Duck", f"field_{cost.id}": 50},
+                {f"field_{ingredient.id}": "Duckling", f"field_{cost.id}": 25},
+                {f"field_{ingredient.id}": "Goose", f"field_{cost.id}": 150},
+                {f"field_{ingredient.id}": "Beef", f"field_{cost.id}": 250},
+            ],
+        )
+        .created_rows
     )
 
     view = data_fixture.create_grid_view(
@@ -470,14 +478,18 @@ def test_local_baserow_list_rows_service_dispatch_data_with_view_and_service_sor
     )
     ingredients = table.field_set.get(name="Ingredient")
     cost = table.field_set.get(name="Cost")
-    [row_1, row_2, row_3] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{ingredients.id}": "Duck", f"field_{cost.id}": 50},
-            {f"field_{ingredients.id}": "Goose", f"field_{cost.id}": 150},
-            {f"field_{ingredients.id}": "Beef", f"field_{cost.id}": 250},
-        ],
+    [row_1, row_2, row_3] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{ingredients.id}": "Duck", f"field_{cost.id}": 50},
+                {f"field_{ingredients.id}": "Goose", f"field_{cost.id}": 150},
+                {f"field_{ingredients.id}": "Beef", f"field_{cost.id}": 250},
+            ],
+        )
+        .created_rows
     )
     view = data_fixture.create_grid_view(user, table=table, owned_by=user)
     service_type = LocalBaserowListRowsUserServiceType()
@@ -943,7 +955,7 @@ def test_can_dispatch_table_with_deleted_field(data_fixture):
     result = service.get_type().dispatch(service, dispatch_context)
 
     assert (
-        len(result["results"][0].keys()) == 2 + 1
+        len(result.data["results"][0].keys()) == 2 + 1
     )  # We also have the order at that point
 
 
@@ -975,8 +987,8 @@ def test_can_dispatch_interesting_table(data_fixture):
     # Normal dispatch
     result = service.get_type().dispatch(service, dispatch_context)
 
-    assert len(result["results"]) == 2
-    assert len(result["results"][0].keys()) == table.field_set.count() + 2
+    assert len(result.data["results"]) == 2
+    assert len(result.data["results"][0].keys()) == table.field_set.count() + 2
 
     # Now can we dispatch the table if all fields are hidden?
     field_names = {
@@ -992,7 +1004,7 @@ def test_can_dispatch_interesting_table(data_fixture):
     result = service.get_type().dispatch(service, dispatch_context)
 
     assert (
-        len(result["results"][0].keys()) == 1 + 1
+        len(result.data["results"][0].keys()) == 1 + 1
     )  # We also have the order at that point
 
     # Test with a filter on a single select field. Single select have a select_related
@@ -1000,15 +1012,19 @@ def test_can_dispatch_interesting_table(data_fixture):
     service_filter = data_fixture.create_local_baserow_table_service_filter(
         service=service,
         field=single_select_field,
-        value="'A'",
+        type="not_equal",
+        value="'Nothing'",
+        value_is_formula=True,
         order=0,
     )
 
     dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
 
-    assert len(result["results"][0].keys()) == 1 + 1
+    result = service.get_type().dispatch(service, dispatch_context)
 
-    # Let's remove the filter to not interfer with the sort
+    assert len(result.data["results"][0].keys()) == 2 + 1
+
+    # Let's remove the filter to not interfere with the sort
     service_filter.delete()
 
     # Test with a sort
@@ -1017,16 +1033,22 @@ def test_can_dispatch_interesting_table(data_fixture):
     )
 
     dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
-    assert len(result["results"][0].keys()) == 1 + 1
+
+    result = service.get_type().dispatch(service, dispatch_context)
+
+    assert len(result.data["results"][0].keys()) == 2 + 1
 
     service_sort.delete()
 
-    # Now with a search
-    service.search_query = "'A'"
+    # Now with a search query
+    service.search_query = "1"
     service.save()
 
     dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
-    assert len(result["results"][0].keys()) == 1 + 1
+
+    result = service.get_type().dispatch(service, dispatch_context)
+
+    assert len(result.data["results"][0].keys()) == 1 + 1
 
 
 @pytest.mark.parametrize(
@@ -1063,7 +1085,7 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
 
     results = service_type.dispatch_transform(dispatch_data)
 
-    assert results == {
+    assert results.data == {
         "has_next_page": False,
         "results": mock_serializer_instance.data,
     }

@@ -24,6 +24,7 @@ from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
 
+from baserow.core.db import specific_iterator
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 
@@ -1339,10 +1340,17 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             base_queryset = Application.objects
 
         try:
-            application = base_queryset.select_related("workspace", "content_type").get(
-                id=application_id
-            )
-        except Application.DoesNotExist as e:
+            application = specific_iterator(
+                base_queryset.select_related("workspace", "content_type").filter(
+                    id=application_id
+                ),
+                per_content_type_queryset_hook=(
+                    lambda model, queryset: application_type_registry.get_by_model(
+                        model
+                    ).enhance_queryset(queryset)
+                ),
+            )[0]
+        except IndexError as e:
             raise ApplicationDoesNotExist(
                 f"The application with id {application_id} does not exist."
             ) from e
@@ -1938,6 +1946,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         # hash mismatch, which means the workspace has already been deleted, we can
         # create a new workspace and import the exported applications into that
         # workspace.
+        imported_id_mapping = None
         if not installed_template or installed_template.export_hash != export_hash:
             # It is optionally possible for a template to have additional files.
             # They are stored in a ZIP file and are generated when the template
@@ -1951,13 +1960,14 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
                 files_buffer = BytesIO()
 
             workspace = Workspace.objects.create(name=parsed_json["name"])
-            self.import_applications_to_workspace(
+            _, id_mapping = self.import_applications_to_workspace(
                 workspace,
                 parsed_json["export"],
                 files_buffer=files_buffer,
                 import_export_config=config,
                 storage=storage,
             )
+            imported_id_mapping = id_mapping
 
             if files_buffer:
                 files_buffer.close()
@@ -1973,6 +1983,13 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             "keywords": keywords,
             "workspace": workspace,
         }
+
+        # If the template was imported, then we'll map the desired open_application
+        # id to the actually imported application id.
+        if "open_application" in parsed_json and imported_id_mapping is not None:
+            kwargs["open_application"] = imported_id_mapping["applications"].get(
+                parsed_json["open_application"], None
+            )
 
         if not installed_template:
             installed_template = Template.objects.create(slug=slug, **kwargs)

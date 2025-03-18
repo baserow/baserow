@@ -33,12 +33,24 @@ export default (client) => {
         before_id: beforeId,
       })
     },
-    dispatch(dataSourceId, dispatchContext, dispatchRefinements) {
+    dispatch(
+      dataSourceId,
+      dispatchContext,
+      dispatchRefinements,
+      signal = null
+    ) {
       const params = prepareDispatchParams(dispatchRefinements)
+
+      const config = { params }
+
+      if (signal !== null) {
+        config.signal = signal
+      }
+
       return client.post(
         `builder/data-source/${dataSourceId}/dispatch/`,
         dispatchContext,
-        { params }
+        config
       )
     },
     dispatchAll(pageId, params) {

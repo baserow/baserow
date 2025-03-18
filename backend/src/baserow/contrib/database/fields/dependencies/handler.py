@@ -105,7 +105,7 @@ class FieldDependencyHandler:
             return []
 
         query_parameters = {
-            "pks": tuple(field_ids),
+            "pks": list(field_ids),
             "max_depth": settings.MAX_FIELD_REFERENCE_DEPTH,
             "table_id": table_id,
             "database_id": database_id_prefilter,
@@ -117,11 +117,11 @@ class FieldDependencyHandler:
         if associated_relations_changed:
             associated_relations_changed_query = f"""
                 OR (
-                    first.via_id IN %(pks)s
-                    OR linkrowfield.link_row_related_field_id IN %(pks)s
+                    first.via_id = ANY(%(pks)s)
+                    OR linkrowfield.link_row_related_field_id = ANY(%(pks)s)
                 )
                 AND NOT (
-                    first.dependant_id IN %(pks)s
+                    first.dependant_id = ANY(%(pks)s)
                 )
             """
         else:
@@ -167,7 +167,7 @@ class FieldDependencyHandler:
                     */
                     CASE
                         WHEN (
-                            first.via_id IS NOT NULL
+                            first.via_id IS DISTINCT FROM NULL
                             AND (
                                 dependant.table_id != %(table_id)s
                                 OR dependency.table_id = %(table_id)s
@@ -186,7 +186,7 @@ class FieldDependencyHandler:
                 LEFT OUTER JOIN {field_table} as dependency
                     ON first.dependency_id = dependency.id
                 WHERE
-                    first.dependency_id IN %(pks)s
+                    first.dependency_id = ANY(%(pks)s)
                     {associated_relations_changed_query}
                 -- LIMITING_FK_EDGES_CLAUSE_1
                 -- DISALLOWED_ANCESTORS_NODES_CLAUSE_1

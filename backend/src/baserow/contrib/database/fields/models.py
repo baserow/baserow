@@ -498,6 +498,11 @@ class LinkRowField(Field):
 
     @property
     def link_row_table_primary_field(self):
+        # It's possible to optionally preset the `link_row_table_primary_field` using
+        # the setter. If that's the case, then it must be returned.
+        if hasattr(self, "_link_row_table_primary_field"):
+            return self._link_row_table_primary_field
+
         # LinkRowFieldType.enhance_field_queryset prefetches the primary field
         # into RELATED_PPRIMARY_FIELD_ATTR. Let's check if it's already there first.
         if related_primary_field_set := getattr(
@@ -509,6 +514,10 @@ class LinkRowField(Field):
             return self.link_row_table.field_set.get(primary=True)
         except Field.DoesNotExist:
             return None
+
+    @link_row_table_primary_field.setter
+    def link_row_table_primary_field(self, value):
+        self._link_row_table_primary_field = value
 
     @property
     def is_self_referencing(self):

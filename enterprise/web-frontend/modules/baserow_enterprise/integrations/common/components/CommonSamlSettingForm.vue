@@ -63,6 +63,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import SamlSettingsForm from '@baserow_enterprise/components/admin/forms/SamlSettingsForm'
 import authProviderForm from '@baserow/modules/core/mixins/authProviderForm'
 import AuthProviderWithModal from '@baserow/modules/builder/components/userSource/AuthProviderWithModal'
@@ -82,8 +83,11 @@ export default {
       required: true,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
-    return { inError: false }
+    return { inError: false, values: {} }
   },
   computed: {
     relayStateUrls() {
@@ -94,14 +98,14 @@ export default {
     },
   },
   watch: {
-    '$v.$anyDirty'() {
+    'v$.$anyDirty'() {
       this.checkValidity()
     },
   },
   methods: {
     copyToClipboard,
     checkValidity() {
-      if (!this.$refs.form.isFormValid() && this.$refs.form.$v.$anyDirty) {
+      if (!this.$refs.form.isFormValid() && this.$refs.form.v$.$anyDirty) {
         this.inError = true
       } else {
         this.inError = false

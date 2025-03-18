@@ -54,12 +54,20 @@ export default {
   },
   methods: {
     onHome() {
-      this.$router.push({
-        name: 'application-builder-page',
-        params: { pathMatch: '/' },
-        // We remove the query parameters. Important if we have some with error
-        query: null,
-      })
+      if (
+        this.$route.name === 'application-builder-page' &&
+        this.$route.params.pathMatch === '/'
+      ) {
+        // Reload the current page
+        this.$router.go(0)
+      } else {
+        // Navigate to the home route
+        this.$router.push({
+          name: 'application-builder-page',
+          params: { pathMatch: '/' },
+          query: null, // Remove query parameters
+        })
+      }
     },
   },
 }

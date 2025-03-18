@@ -183,8 +183,10 @@ class BuilderConfig(AppConfig):
             ImageElementType,
             InputTextElementType,
             LinkElementType,
+            MenuElementType,
             RecordSelectorElementType,
             RepeatElementType,
+            SimpleContainerElementType,
             TableElementType,
             TextElementType,
         )
@@ -207,6 +209,8 @@ class BuilderConfig(AppConfig):
         element_type_registry.register(DateTimePickerElementType())
         element_type_registry.register(HeaderElementType())
         element_type_registry.register(FooterElementType())
+        element_type_registry.register(MenuElementType())
+        element_type_registry.register(SimpleContainerElementType())
 
         from .domains.domain_types import CustomDomainType, SubDomainType
         from .domains.registries import domain_type_registry
@@ -261,11 +265,11 @@ class BuilderConfig(AppConfig):
         theme_config_block_registry.register(ColorThemeConfigBlockType())
         theme_config_block_registry.register(TypographyThemeConfigBlockType())
         theme_config_block_registry.register(ButtonThemeConfigBlockType())
-        theme_config_block_registry.register(LinkThemeConfigBlockType())
         theme_config_block_registry.register(ImageThemeConfigBlockType())
         theme_config_block_registry.register(PageThemeConfigBlockType())
         theme_config_block_registry.register(InputThemeConfigBlockType())
         theme_config_block_registry.register(TableThemeConfigBlockType())
+        theme_config_block_registry.register(LinkThemeConfigBlockType())
 
         from .workflow_actions.registries import builder_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (
@@ -315,4 +319,5 @@ class BuilderConfig(AppConfig):
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
+        import baserow.contrib.builder.signals  # noqa: F403, F401
         import baserow.contrib.builder.ws.signals  # noqa: F403, F401

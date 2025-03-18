@@ -26,6 +26,13 @@
           />
         </div>
       </div>
+      <Alert
+        v-if="!domain.last_published"
+        type="warning"
+        class="margin-bottom-0"
+      >
+        <p>{{ $t('domainCard.unpublishedDomainWarning') }}</p>
+      </Alert>
     </template>
     <component
       :is="domainType.detailsComponent"

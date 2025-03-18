@@ -62,8 +62,8 @@
         "linkDescription": "Un lien vers une page/URL",
         "image": "Image",
         "imageDescription": "Affiche une image",
-        "inputText": "Saisie de texte",
-        "inputTextDescription": "Un champ de saisie de texte",
+        "inputText": "Champ de saisie",
+        "inputTextDescription": "Un champ de saisie",
         "columnDescription": "Conteneur multi-colonnes",
         "column": "Colonnes",
         "table": "Table",
@@ -98,7 +98,11 @@
         "notAllowedInsideSameType": "Cet élément n'est pas autorisé dans un conteneur du même type",
         "header": "En-tête multi-pages",
         "notAllowedInsideContainer": "Cet élément n'est pas autorisé à l'intérieur d'un conteneur",
-        "notAllowedLocation": "Cet élément n'est pas autorisé à cet endroit"
+        "notAllowedLocation": "Cet élément n'est pas autorisé à cet endroit",
+        "menu": "Menu",
+        "simpleContainerDescription": "Un conteneur pour grouper des éléments",
+        "simpleContainer": "Conteneur",
+        "menuDescription": "Un élément de menu"
     },
     "elementMenu": {
         "moveDown": "Descendre",
@@ -174,7 +178,9 @@
         "title": "Publication",
         "noDomain": "Vous devez disposer d’au moins un domaine pour publier votre application.",
         "description": "Mettez votre application en ligne en publiant sur l’un des domaines. Notez que votre application peut avoir plusieurs domaines, chacun avec une version différente de l’application.",
-        "importingState": "Import en cours…"
+        "importingState": "Import en cours…",
+        "addDomain": "Ajouter un domaine",
+        "publishSucceedLink": "Voir le site"
     },
     "pageActionTypes": {
         "preview": "Aperçu",
@@ -233,7 +239,8 @@
     },
     "domainCard": {
         "refresh": "Actualiser les paramètres",
-        "detailLabel": "Afficher les détails"
+        "detailLabel": "Afficher les détails",
+        "unpublishedDomainWarning": "Veuillez publier l'application pour la rendre disponible sur ce domaine."
     },
     "domainTypes": {
         "customName": "Domaine personnalisé",
@@ -646,8 +653,8 @@
         "allVisitors": "Tous les visiteurs",
         "loggedInVisitors": "Visiteurs connectés",
         "notLoggedInVisitors": "Visiteurs déconnectés",
-        "warningTitle": "Nous améliorons constamment la sécurité",
-        "warningMessage": "Pour l'instant, la visibilité d'une information n'est appliquée que dans l'interface utilisateur, les données sous-jacentes restant accessibles à partir de l'API. Veuillez consulter la <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>documentation</a> pour plus d'informations sur la sécurité des données.",
+        "warningTitle": "C'est un dispositif de sécurité",
+        "warningMessage": "Veuillez consulter la <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>documentation</a> pour plus d'informations sur la sécurité des données.",
         "excludedRolesLabel": "tous les rôles sauf",
         "switchAllowLabel": "Autoriser",
         "switchDisallowLabel": "Interdir",
@@ -781,7 +788,8 @@
         "textColor": "Couleur du texte",
         "button": "Bouton",
         "borderColor": "Couleur de la bordure",
-        "weight": "Graisse de la police"
+        "weight": "Graisse de la police",
+        "activeState": "État actif"
     },
     "linkThemeConfigBlock": {
         "color": "Couleur",
@@ -791,7 +799,8 @@
         "alignment": "Alignement",
         "fontFamily": "Police",
         "size": "Taille de la police",
-        "weight": "Graisse de la police"
+        "weight": "Graisse de la police",
+        "activeState": "État actif"
     },
     "imageThemeConfigBlock": {
         "alignment": "Alignement",
@@ -944,7 +953,7 @@
         "searchHeading": "Chercher",
         "optionUnavailable": "Non disponible",
         "noPropertiesAvailable": "Aucun champ disponible.",
-        "formDescription": "Choisissez les propriétés de la source de données que les utilisateurs externes peuvent filtrer, trier et rechercher."
+        "formDescription": "Choisissez les propriétés de la source de données que les utilisateurs de l'application peuvent filtrer, trier et rechercher."
     },
     "dataSourceItem": {
         "notConfigured": "Non configurée"
@@ -1026,5 +1035,50 @@
     "queryParamTypes": {
         "textName": "Texte",
         "numericName": "Numérique"
+    },
+    "addElementCategory": {
+        "suggestedElement": "Éléments suggérés",
+        "baseElement": "Éléments basiques",
+        "formElement": "Éléments de formulaire",
+        "layoutElement": "Éléments de mise en page"
+    },
+    "orientations": {
+        "horizontal": "Horizontale",
+        "vertical": "Verticale",
+        "label": "Orientation"
+    },
+    "menuElement": {
+        "spacer": "Espacement",
+        "missingLinkValue": "Nom du lien manquant...",
+        "emptyLinkValue": "Nom du lien vide...",
+        "missingButtonValue": "Nom du bouton manquant...",
+        "missingValue": "Aucune entrée de menu",
+        "emptyButtonValue": "Nom du bouton vide...",
+        "separator": "Séparateur"
+    },
+    "menuElementForm": {
+        "menuItemsLabel": "Entrées du menu",
+        "addMenuItemLink": "Ajouter...",
+        "menuItemTypeItem": "Item",
+        "menuItemAddSeparator": "Séparateur",
+        "menuItemVariantLink": "Lien",
+        "menuItemVariantLabel": "Variante",
+        "namePlaceholder": "Page",
+        "noMenuItemsMessage": "Cliquez sur \"Ajouter\" pour ajouter votre première entrée de menu.",
+        "menuItemAddLink": "Lien",
+        "alignment": "Alignement",
+        "menuItemAddButton": "Bouton",
+        "menuItemDefaultName": "Page",
+        "menuItemTypeLabel": "Type",
+        "menuItemSubLinkDefaultName": "Lien enfant",
+        "menuItemLabelLabel": "Label",
+        "menuItemAddSpacer": "Espacement",
+        "menuItemTypeSeparator": "Séparateur",
+        "menuItemVariantButton": "Bouton",
+        "addSubLink": "Ajouter un lien enfant",
+        "eventDescription": "Pour configurer les actions de ce bouton, ouvrez l'onglet « Événements » de l'élément courant."
+    },
+    "simpleContainerElementForm": {
+        "noConfigurationOptions": "L'élément conteneur n'a pas de configuration."
     }
 }

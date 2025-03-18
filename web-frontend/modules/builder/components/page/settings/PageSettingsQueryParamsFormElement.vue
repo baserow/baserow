@@ -2,10 +2,7 @@
   <FormGroup
     small-label
     :label="$t('pageForm.queryParamsTitle')"
-    :error="
-      hasErrors ||
-      (validationState.$dirty && !validationState.uniqueQueryParams)
-    "
+    :error="hasErrors || validationState.uniqueQueryParams.$invalid"
     required
   >
     <div
@@ -33,6 +30,7 @@
         </Dropdown>
       </div>
       <ButtonIcon
+        tag="a"
         class="filters__remove page-settings-query-params__remove"
         icon="iconoir-bin"
         @click="deleteQueryParam(index)"
@@ -57,12 +55,10 @@
         }}
       </ButtonText>
     </div>
-    <span
-      v-if="validationState.$dirty && !validationState.uniqueQueryParams"
-      class="error"
-    >
+
+    <template #error>
       {{ $t('pageErrors.errorUniqueValidQueryParams') }}
-    </span>
+    </template>
   </FormGroup>
 </template>
 

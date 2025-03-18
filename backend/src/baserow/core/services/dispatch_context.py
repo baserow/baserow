@@ -10,6 +10,13 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 class DispatchContext(RuntimeFormulaContext, ABC):
     own_properties = []
 
+    """
+    Should return the record id requested for the given service. Used by list
+    services to select only one record. For instance by the builder current record
+    data provider to narrow down the result of a list service.
+    """
+    only_record_id = None
+
     def __init__(self):
         self.cache = {}  # can be used by data providers to save queries
         super().__init__()
@@ -47,7 +54,8 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     @abstractmethod
     def is_publicly_searchable(self) -> bool:
         """
-        Responsible for returning whether external users can apply search or not.
+        Responsible for returning whether external service visitors
+        can apply search or not.
         """
 
     @abstractmethod
@@ -70,7 +78,8 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     @abstractmethod
     def is_publicly_filterable(self) -> bool:
         """
-        Responsible for returning whether external users can apply filters or not.
+        Responsible for returning whether external service visitors
+        can apply filters or not.
         """
 
     @abstractmethod
@@ -84,7 +93,8 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     @abstractmethod
     def is_publicly_sortable(self) -> bool:
         """
-        Responsible for returning whether external users can apply sortings or not.
+        Responsible for returning whether external service visitors
+        can apply sortings or not.
         """
 
     @abstractmethod

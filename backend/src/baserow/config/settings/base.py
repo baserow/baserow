@@ -17,7 +17,6 @@ from corsheaders.defaults import default_headers
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
-from baserow.cachalot_patch import patch_cachalot_for_baserow
 from baserow.config.settings.utils import (
     Setting,
     get_crontab_from_env,
@@ -110,6 +109,7 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "baserow.core.cache.LocalCacheMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "baserow.api.user_sources.middleware.AddUserSourceUserMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -253,68 +253,6 @@ CACHES = {
     },
 }
 
-
-CACHALOT_TIMEOUT = int(os.getenv("BASEROW_CACHALOT_TIMEOUT", 60 * 60 * 24 * 7))
-BASEROW_CACHALOT_ONLY_CACHABLE_TABLES = os.getenv(
-    "BASEROW_CACHALOT_ONLY_CACHABLE_TABLES", None
-)
-BASEROW_CACHALOT_MODE = os.getenv("BASEROW_CACHALOT_MODE", "default")
-if BASEROW_CACHALOT_MODE == "full":
-    CACHALOT_ONLY_CACHABLE_TABLES = []
-
-elif BASEROW_CACHALOT_ONLY_CACHABLE_TABLES:
-    # Please avoid to add tables with more than 50 modifications per minute
-    # to this list, as described here:
-    # https://django-cachalot.readthedocs.io/en/latest/limits.html
-    CACHALOT_ONLY_CACHABLE_TABLES = BASEROW_CACHALOT_ONLY_CACHABLE_TABLES.split(",")
-else:
-    CACHALOT_ONLY_CACHABLE_TABLES = [
-        "auth_user",
-        "django_content_type",
-        "core_settings",
-        "core_userprofile",
-        "core_application",
-        "core_operation",
-        "core_template",
-        "core_trashentry",
-        "core_workspace",
-        "core_workspaceuser",
-        "core_workspaceuserinvitation",
-        "core_authprovidermodel",
-        "core_passwordauthprovidermodel",
-        "database_database",
-        "database_table",
-        "database_field",
-        "database_fieldependency",
-        "database_linkrowfield",
-        "database_selectoption",
-        "baserow_premium_license",
-        "baserow_premium_licenseuser",
-        "baserow_enterprise_role",
-        "baserow_enterprise_roleassignment",
-        "baserow_enterprise_team",
-        "baserow_enterprise_teamsubject",
-    ]
-
-# This list will have priority over CACHALOT_ONLY_CACHABLE_TABLES.
-BASEROW_CACHALOT_UNCACHABLE_TABLES = os.getenv(
-    "BASEROW_CACHALOT_UNCACHABLE_TABLES", None
-)
-
-if BASEROW_CACHALOT_UNCACHABLE_TABLES:
-    CACHALOT_UNCACHABLE_TABLES = list(
-        filter(bool, BASEROW_CACHALOT_UNCACHABLE_TABLES.split(","))
-    )
-
-CACHALOT_ENABLED = os.getenv("BASEROW_CACHALOT_ENABLED", "false") == "true"
-CACHALOT_CACHE = "cachalot"
-CACHALOT_UNCACHABLE_TABLES = [
-    "django_migrations",
-    "core_action",
-    "database_token",
-    "baserow_enterprise_auditlogentry",
-]
-
 BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = int(
     # Default TTL is 10 minutes: 60 seconds * 10
     os.getenv("BASEROW_BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS")
@@ -325,26 +263,6 @@ BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
     os.getenv("BASEROW_BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS")
     or 300
 )
-
-
-def install_cachalot():
-    global INSTALLED_APPS
-
-    INSTALLED_APPS.append("cachalot")
-
-    patch_cachalot_for_baserow()
-
-
-if CACHALOT_ENABLED:
-    install_cachalot()
-
-    CACHES[CACHALOT_CACHE] = {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
-        "KEY_PREFIX": f"baserow-{CACHALOT_CACHE}-cache",
-        "VERSION": VERSION,
-    }
 
 
 CELERY_SINGLETON_BACKEND_CLASS = (
@@ -499,7 +417,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.31.1",
+    "VERSION": "1.32.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -1062,6 +980,10 @@ BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS = int(
 BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK = (
     int(os.getenv("BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK", "0")) or None
 )
+BASEROW_WEBHOOKS_BATCH_LIMIT = int(os.getenv("BASEROW_WEBHOOKS_BATCH_LIMIT", 5))
+BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE = int(
+    os.getenv("BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE", BATCH_ROWS_SIZE_LIMIT)
+)
 
 # ======== WARNING ========
 # Please read and understand everything at:
@@ -1344,3 +1266,92 @@ BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL = 5
 BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE = int(
     os.getenv("BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE", "") or 10
 )
+
+BASEROW_USE_LOCAL_CACHE = str_to_bool(os.getenv("BASEROW_USE_LOCAL_CACHE", "true"))
+
+
+# -- CACHALOT SETTINGS --
+
+CACHALOT_TIMEOUT = int(os.getenv("BASEROW_CACHALOT_TIMEOUT", 60 * 60 * 24 * 7))
+BASEROW_CACHALOT_ONLY_CACHABLE_TABLES = os.getenv(
+    "BASEROW_CACHALOT_ONLY_CACHABLE_TABLES", None
+)
+BASEROW_CACHALOT_MODE = os.getenv("BASEROW_CACHALOT_MODE", "default")
+if BASEROW_CACHALOT_MODE == "full":
+    CACHALOT_ONLY_CACHABLE_TABLES = []
+
+elif BASEROW_CACHALOT_ONLY_CACHABLE_TABLES:
+    # Please avoid to add tables with more than 50 modifications per minute to this
+    # list, as described here:
+    # https://django-cachalot.readthedocs.io/en/latest/limits.html
+    CACHALOT_ONLY_CACHABLE_TABLES = BASEROW_CACHALOT_ONLY_CACHABLE_TABLES.split(",")
+else:
+    CACHALOT_ONLY_CACHABLE_TABLES = [
+        "auth_user",
+        "django_content_type",
+        "core_settings",
+        "core_userprofile",
+        "core_application",
+        "core_operation",
+        "core_template",
+        "core_trashentry",
+        "core_workspace",
+        "core_workspaceuser",
+        "core_workspaceuserinvitation",
+        "core_authprovidermodel",
+        "core_passwordauthprovidermodel",
+        "database_database",
+        "database_table",
+        "database_field",
+        "database_fieldependency",
+        "database_linkrowfield",
+        "database_selectoption",
+        "baserow_premium_license",
+        "baserow_premium_licenseuser",
+        "baserow_enterprise_role",
+        "baserow_enterprise_roleassignment",
+        "baserow_enterprise_team",
+        "baserow_enterprise_teamsubject",
+    ]
+
+# This list will have priority over CACHALOT_ONLY_CACHABLE_TABLES.
+BASEROW_CACHALOT_UNCACHABLE_TABLES = os.getenv(
+    "BASEROW_CACHALOT_UNCACHABLE_TABLES", None
+)
+
+if BASEROW_CACHALOT_UNCACHABLE_TABLES:
+    CACHALOT_UNCACHABLE_TABLES = list(
+        filter(bool, BASEROW_CACHALOT_UNCACHABLE_TABLES.split(","))
+    )
+
+CACHALOT_ENABLED = str_to_bool(os.getenv("BASEROW_CACHALOT_ENABLED", ""))
+CACHALOT_CACHE = "cachalot"
+CACHALOT_UNCACHABLE_TABLES = [
+    "django_migrations",
+    "core_action",
+    "database_token",
+    "baserow_enterprise_auditlogentry",
+]
+
+
+def install_cachalot():
+    from baserow.cachalot_patch import patch_cachalot_for_baserow
+
+    global INSTALLED_APPS
+
+    INSTALLED_APPS.append("cachalot")
+
+    patch_cachalot_for_baserow()
+
+
+if CACHALOT_ENABLED:
+    install_cachalot()
+
+    CACHES[CACHALOT_CACHE] = {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+        "KEY_PREFIX": f"baserow-{CACHALOT_CACHE}-cache",
+        "VERSION": VERSION,
+    }
+# -- END CACHALOT SETTINGS --

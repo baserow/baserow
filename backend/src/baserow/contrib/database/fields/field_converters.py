@@ -2,12 +2,11 @@ from dataclasses import dataclass
 
 from django.db import models, transaction
 
-from psycopg2 import sql
-
 from baserow.contrib.database.db.schema import (
     lenient_schema_editor,
     safe_django_schema_editor,
 )
+from baserow.core.psycopg import sql
 
 from .models import (
     AutonumberField,

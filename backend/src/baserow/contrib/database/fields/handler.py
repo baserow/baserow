@@ -17,12 +17,11 @@ from typing import (
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import connection
-from django.db.models import QuerySet
+from django.db.models import Prefetch, QuerySet
 from django.db.utils import DatabaseError, DataError, ProgrammingError
 
 from loguru import logger
 from opentelemetry import trace
-from psycopg2 import sql
 
 from baserow.contrib.database.db.schema import (
     lenient_schema_editor,
@@ -51,9 +50,9 @@ from baserow.contrib.database.fields.operations import (
 )
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.core.db import specific_iterator
+from baserow.core.db import specific_iterator, sql
 from baserow.core.handler import CoreHandler
-from baserow.core.models import TrashEntry
+from baserow.core.models import TrashEntry, User
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.exceptions import RelatedTableTrashedException
 from baserow.core.trash.handler import TrashHandler
@@ -228,9 +227,36 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         if specific:
-            return specific_iterator(filtered_qs.select_related("content_type"))
+            return specific_iterator(
+                filtered_qs.select_related("content_type"),
+                per_content_type_queryset_hook=(
+                    lambda field, queryset: field_type_registry.get_by_model(
+                        field
+                    ).enhance_field_queryset(queryset, field)
+                ),
+            )
         else:
             return filtered_qs
+
+    def get_base_fields_queryset(self) -> QuerySet[Field]:
+        """
+        Returns a base queryset with proper select and prefetch related fields to use in
+        queries that need to fetch fields.
+
+        :return: A queryset with select and prefetch related fields set.
+        """
+
+        return Field.objects.select_related(
+            "content_type", "table__database__workspace"
+        ).prefetch_related(
+            Prefetch(
+                "table__database__workspace__users",
+                queryset=User.objects.filter(profile__to_be_deleted=False).order_by(
+                    "first_name"
+                ),
+            ),
+            "select_options",
+        )
 
     def get_fields(
         self,
@@ -337,7 +363,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         # already exists. If so the field cannot be created and an exception is raised.
         if primary and Field.objects.filter(table=table, primary=True).exists():
             raise PrimaryFieldAlreadyExists(
-                f"A primary field already exists for the " f"table {table}."
+                f"A primary field already exists for the table {table}."
             )
 
         # Figure out which model to use and which field types are allowed for the given
@@ -553,6 +579,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             raise IncompatiblePrimaryFieldTypeError(to_field_type_name)
 
         if baserow_field_type_changed:
+            ViewHandler().before_field_type_change(field)
             dependants_broken_due_to_type_change = (
                 from_field_type.get_dependants_which_will_break_when_field_type_changes(
                     field, to_field_type, field_cache

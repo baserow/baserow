@@ -23,9 +23,6 @@ from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.core.exceptions import PermissionException
 from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
 from baserow.core.user_sources.user_source_user import UserSourceUser
-from tests.baserow.contrib.builder.api.user_sources.helpers import (
-    create_user_table_and_role,
-)
 
 
 @pytest.fixture
@@ -110,12 +107,12 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
     page2 = data_fixture.create_builder_page(user=user, builder=builder_to)
 
     domain = data_fixture.create_builder_custom_domain(
-        domain_name="test.getbaserow.io", published_to=builder_to
+        domain_name="xyztest.getbaserow.io", published_to=builder_to
     )
 
     url = reverse(
         "api:builder:domains:get_builder_by_domain_name",
-        kwargs={"domain_name": "test.getbaserow.io"},
+        kwargs={"domain_name": "xyztest.getbaserow.io"},
     )
 
     # Anonymous request
@@ -131,10 +128,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
 
     del response_json["theme"]  # We are not testing the theme response here.
 
-    assert (
-        builder_to.page_set(manager="objects_with_shared").filter(shared=True).count()
-        == 1
-    )
+    assert builder_to.page_set.filter(shared=True).count() == 1
 
     shared_page = builder_to.shared_page
 
@@ -218,14 +212,14 @@ def test_get_builder_missing_domain_name(api_client, data_fixture):
 def test_get_non_public_builder(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    page2 = data_fixture.create_builder_page(builder=page.builder, user=user)
-    domain = data_fixture.create_builder_custom_domain(
-        domain_name="test.getbaserow.io", builder=page.builder
+    data_fixture.create_builder_page(builder=page.builder, user=user)
+    data_fixture.create_builder_custom_domain(
+        domain_name="notpublic.getbaserow.io", builder=page.builder
     )
 
     url = reverse(
         "api:builder:domains:get_builder_by_domain_name",
-        kwargs={"domain_name": "test.getbaserow.io"},
+        kwargs={"domain_name": "notpublic.getbaserow.io"},
     )
     response = api_client.get(
         url,
@@ -263,10 +257,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
 
     del response_json["theme"]  # We are not testing the theme response here.
 
-    assert (
-        page.builder.page_set(manager="objects_with_shared").filter(shared=True).count()
-        == 1
-    )
+    assert page.builder.page_set.filter(shared=True).count() == 1
 
     shared_page = page.builder.shared_page
 
@@ -768,8 +759,7 @@ def user_source_user_fixture(data_fixture):
     )
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
-    user_source, _ = create_user_table_and_role(
-        data_fixture,
+    user_source, _ = data_fixture.create_user_table_and_role(
         user,
         builder,
         "foo_user_role",
@@ -857,10 +847,12 @@ def test_public_dispatch_data_source_view_returns_all_fields(
         "has_next_page": False,
         "results": [
             {
+                "id": rows[0].id,
                 f"field_{fields[0].id}": "Paneer Tikka",
                 f"field_{fields[1].id}": "5",
             },
             {
+                "id": rows[1].id,
                 f"field_{fields[0].id}": "Gobi Manchurian",
                 f"field_{fields[1].id}": "8",
             },
@@ -1084,8 +1076,7 @@ def test_public_dispatch_data_sources_list_rows_with_elements_and_role(
 
     page = data_source_element_roles_fixture["page"]
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -1134,7 +1125,7 @@ def test_public_dispatch_data_sources_list_rows_with_elements_and_role(
 
     expected_results = []
     for row in data_source_element_roles_fixture["rows"]:
-        result = {}
+        result = {"id": row.id}
         if expect_fields:
             # Field should only be visible if the user's role allows them
             # to see the data source fields.
@@ -1268,8 +1259,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
     page.roles = page_roles
     page.save()
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -1318,15 +1308,17 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
 
     assert response.status_code == HTTP_200_OK
 
+    rows = data_source_element_roles_fixture["rows"]
+
     if expect_fields:
         field_name = f"field_{field_id}"
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
                 "results": [
-                    {field_name: "Apple"},
-                    {field_name: "Banana"},
-                    {field_name: "Cherry"},
+                    {field_name: "Apple", "id": rows[0].id},
+                    {field_name: "Banana", "id": rows[1].id},
+                    {field_name: "Cherry", "id": rows[2].id},
                 ],
             },
         }
@@ -1447,8 +1439,7 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_all(
     page.roles = page_roles
     page.save()
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -1582,8 +1573,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_logged_in(
     page.roles = page_roles
     page.save()
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -1632,15 +1622,17 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_logged_in(
 
     assert response.status_code == HTTP_200_OK
 
+    rows = data_source_element_roles_fixture["rows"]
+
     if expect_fields:
         field_name = f"field_{field_id}"
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
                 "results": [
-                    {field_name: "Apple"},
-                    {field_name: "Banana"},
-                    {field_name: "Cherry"},
+                    {field_name: "Apple", "id": rows[0].id},
+                    {field_name: "Banana", "id": rows[1].id},
+                    {field_name: "Cherry", "id": rows[2].id},
                 ],
             },
         }
@@ -1737,8 +1729,7 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_logged_in(
     page.roles = page_roles
     page.save()
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -1833,8 +1824,7 @@ def test_list_elements_with_page_visibility_all(
     page.roles = page_roles
     page.save()
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -2007,8 +1997,7 @@ def test_list_elements_with_page_visibility_logged_in(
     page.roles = page_roles
     page.save()
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,

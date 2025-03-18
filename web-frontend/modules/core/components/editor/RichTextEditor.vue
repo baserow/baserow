@@ -110,6 +110,8 @@ const richTextEditorExtensions = ({
     Markdown.configure({
       html: false,
       breaks: true,
+      transformPastedText: true,
+      transformCopiedText: true,
     }),
     History,
   ]
@@ -287,6 +289,15 @@ export default {
               return true
             }
           },
+          handlePaste: (view, event) => {
+            const plainText = event.clipboardData.getData('text/plain')
+            if (plainText.startsWith('"') && plainText.endsWith('"')) {
+              const cleanText = plainText.slice(1, -1)
+              this.editor.commands.insertContent(cleanText)
+              return true
+            }
+            return false
+          },
         },
         extensions,
         onUpdate: () => {
@@ -337,7 +348,6 @@ export default {
         this.registerResizeObserver()
         this.registerAutoCollapseFloatingMenuHandler()
         this.registerAutoHideBubbleMenuHandler()
-        this.registerOnPasteHandler()
       } else {
         this.unregisterResizeObserver()
       }
@@ -366,12 +376,6 @@ export default {
       elem.addEventListener('scroll', handler)
       this.$once('hook:unmounted', () => {
         elem.removeEventListener('scroll', handler)
-      })
-    },
-    registerOnPasteHandler() {
-      document.addEventListener('paste', this.onPaste)
-      this.$once('hook:unmounted', () => {
-        document.removeEventListener('paste', this.onPaste)
       })
     },
     renderHTMLMention() {
@@ -475,22 +479,6 @@ export default {
         this.dragging = false
         this.dragTarget = null
       }
-    },
-    onPaste(event) {
-      if (
-        !event.clipboardData.types.includes('text/plain') ||
-        event.clipboardData.getData('text/plain').startsWith('file:///')
-      ) {
-        const { items } = event.clipboardData
-        for (const item of items) {
-          if (item.type.includes('image')) {
-            const file = item.getAsFile()
-            this.uploadFiles([file])
-            return true
-          }
-        }
-      }
-      return false
     },
   },
 }

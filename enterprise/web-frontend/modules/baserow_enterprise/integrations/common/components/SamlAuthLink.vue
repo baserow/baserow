@@ -9,22 +9,14 @@
           <ABFormGroup
             v-if="hasMultipleSamlProvider"
             :label="$t('samlAuthLink.provideEmail')"
-            :error-message="
-              $v.values.email.$dirty
-                ? !$v.values.email.required
-                  ? $t('error.requiredField')
-                  : !$v.values.email.email
-                  ? $t('error.invalidEmail')
-                  : ''
-                : ''
-            "
-            :autocomplete="readOnly ? 'off' : ''"
+            :error-message="v$.values.email.$errors[0]?.$message"
+            :autocomplete="isEditMode ? 'off' : ''"
             required
           >
             <ABInput
-              v-model="values.email"
+              v-model="v$.values.email.$model"
               :placeholder="$t('samlAuthLink.emailPlaceholder')"
-              @blur="$v.values.email.$touch()"
+              @blur="v$.values.email.$touch"
             />
           </ABFormGroup>
           <div class="saml-auth-link__modal-footer">
@@ -39,9 +31,10 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
-import { required, email } from 'vuelidate/lib/validators'
+import { required, email, helpers } from '@vuelidate/validators'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
 
 export default {
@@ -78,6 +71,9 @@ export default {
       },
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       loading: false,
@@ -106,9 +102,9 @@ export default {
       await this.beforeLogin()
 
       if (this.hasMultipleSamlProvider) {
-        this.$v.$touch()
+        this.v$.$touch()
 
-        if (this.$v.$invalid) {
+        if (this.v$.$invalid) {
           this.focusOnFirstError()
           return
         }
@@ -135,10 +131,18 @@ export default {
       window.location = urlWithParams.toString()
     },
   },
-  validations: {
-    values: {
-      email: { required, email },
-    },
+  validations() {
+    return {
+      values: {
+        email: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          email: helpers.withMessage(this.$t('error.invalidEmail'), email),
+        },
+      },
+    }
   },
 }
 </script>

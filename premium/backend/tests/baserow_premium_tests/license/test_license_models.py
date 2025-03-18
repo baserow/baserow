@@ -74,6 +74,15 @@ def test_premium_license_model_is_active():
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_premium_license_model_valid_payload():
+    invalid_license = License(license="invalid")
+    assert not invalid_license.valid_payload
+    valid_license = License(license=VALID_ONE_SEAT_LICENSE.decode())
+    assert valid_license.valid_payload
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_premium_license_model_save():
     license_1 = License(license=VALID_ONE_SEAT_LICENSE.decode())
     license_2 = License(license=VALID_TWO_SEAT_LICENSE.decode())

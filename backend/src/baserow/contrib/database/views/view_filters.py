@@ -21,6 +21,7 @@ from baserow.contrib.database.fields.field_filters import (
     FilterBuilder,
     OptionallyAnnotatedQ,
     filename_contains_filter,
+    map_ids_from_csv_string,
     parse_ids_from_csv_string,
 )
 from baserow.contrib.database.fields.field_types import (
@@ -436,6 +437,10 @@ class HigherThanOrEqualViewFilterType(NumericComparisonViewFilterType):
 
 
 class TimezoneAwareDateViewFilterType(ViewFilterType):
+    @property
+    def time_sensitive(self) -> bool:
+        return True
+
     compatible_field_types = [
         DateFieldType.type,
         LastModifiedFieldType.type,
@@ -1102,12 +1107,11 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
         return filter_function(field_name, value, model_field, field)
 
     def set_import_serialized_value(self, value, id_mapping):
+        mapping = id_mapping["database_field_select_options"]
         try:
-            value = int(value)
-        except ValueError:
+            return map_ids_from_csv_string(value, mapping)[0]
+        except IndexError:
             return ""
-
-        return str(id_mapping["database_field_select_options"].get(value, ""))
 
 
 class SingleSelectNotEqualViewFilterType(
@@ -1159,13 +1163,8 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         return filter_function(field_name, option_ids, model_field, field)
 
     def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
-        # Parses the old option ids and remaps them to the new option ids.
-        old_options_ids = parse_ids_from_csv_string(value or "")
         select_option_map = id_mapping["database_field_select_options"]
-        new_values = []
-        for old_id in old_options_ids:
-            if new_id := select_option_map.get(old_id):
-                new_values.append(str(new_id))
+        new_values = map_ids_from_csv_string(value or "", select_option_map)
         return ",".join(new_values)
 
 
@@ -1414,15 +1413,8 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         return filter_function(field_name, option_ids, model_field, field)
 
     def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
-        # Parses the old option ids and remaps them to the new option ids.
-        old_options_ids = parse_ids_from_csv_string(value or "")
         select_option_map = id_mapping["database_field_select_options"]
-
-        new_values = []
-        for old_id in old_options_ids:
-            if new_id := select_option_map.get(old_id):
-                new_values.append(str(new_id))
-
+        new_values = map_ids_from_csv_string(value or "", select_option_map)
         return ",".join(new_values)
 
 
@@ -1776,6 +1768,10 @@ DATE_FILTER_OPERATOR_DELTA_MAP = {
 
 class BaseDateMultiStepViewFilterType(ViewFilterType):
     incompatible_operators = []
+
+    @property
+    def time_sensitive(self) -> bool:
+        return True
 
     def get_filter_date(
         self,
