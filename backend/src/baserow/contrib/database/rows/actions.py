@@ -838,7 +838,7 @@ class UpdateRowsActionType(UndoableActionType):
             table.database.id,
             table.database.name,
             [row.id for row in updated_rows],
-            result.updated_row_values,
+            result.updated_rows_values,
             result.original_rows_values_by_id,
             result.updated_fields_metadata_by_row_id,
         )
