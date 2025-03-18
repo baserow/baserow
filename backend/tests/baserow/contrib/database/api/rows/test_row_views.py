@@ -3960,6 +3960,9 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
                                 "value": f"unnamed row {table2_row2.id}"
                             },
                         },
+                        "linked_table_id": linkrow_field.link_row_table_id,
+                        "linked_field_id": linkrow_field.link_row_related_field_id,
+                        "primary_value": "unnamed row 1",
                     },
                 },
             },

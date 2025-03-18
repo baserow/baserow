@@ -2067,6 +2067,9 @@ def test_link_row_serialize_metadata_for_row_history(
                 table2_row3.id: {"value": f"unnamed row {table2_row3.id}"},
             },
             "type": "link_row",
+            "linked_table_id": field.link_row_table_id,
+            "linked_field_id": field.link_row_related_field_id,
+            "primary_value": "unnamed row 1",
         }
 
     # empty values
@@ -2085,6 +2088,9 @@ def test_link_row_serialize_metadata_for_row_history(
             "id": AnyInt(),
             "linked_rows": {},
             "type": "link_row",
+            "linked_table_id": field.link_row_table_id,
+            "linked_field_id": field.link_row_related_field_id,
+            "primary_value": "unnamed row 2",
         }
 
 
