@@ -207,13 +207,6 @@ export class AIFieldType extends FieldType {
       .getGroupByComponent(field)
   }
 
-  getGroupByIndicator(field, registry) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getGroupByIndicator(field, registry)
-  }
-
   getRowValueFromGroupValue(field, value) {
     return this.app.$registry
       .get('aiFieldOutputType', field.ai_output_type)

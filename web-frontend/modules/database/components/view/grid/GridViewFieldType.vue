@@ -281,6 +281,7 @@ import InsertFieldContext from '@baserow/modules/database/components/field/Inser
 import DuplicateFieldModal from '@baserow/modules/database/components/field/DuplicateFieldModal'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
+import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
 export default {
   name: 'GridViewFieldType',
@@ -455,7 +456,7 @@ export default {
           await this.$store.dispatch('view/createSort', {
             view,
             field,
-            values,
+            values: { ...values, type: DEFAULT_SORT_TYPE_KEY },
           })
         } else {
           await this.$store.dispatch('view/updateSort', {

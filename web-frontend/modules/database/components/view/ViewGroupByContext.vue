@@ -222,11 +222,6 @@ export default {
         notifyIf(error, 'view')
       }
     },
-    getGroupByIndicator(field, index) {
-      return this.$registry
-        .get('field', field.type)
-        .getGroupByIndicator(field, this.$registry)[index]
-    },
     getSortTypes(field) {
       return this.getFieldType(field).getSortTypes(field, this.$registry)
     },
