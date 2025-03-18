@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2025-03-15 23:01+0000\n"
-"Last-Translator: vuod <vuod@vivaldi.net>\n"
+"PO-Revision-Date: 2025-03-18 13:24+0000\n"
+"Last-Translator: Jérémie Pardou-Piquemal <jrmi@jeremiez.net>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/baserow/"
 "backend-core/fr/>\n"
 "Language: fr\n"
@@ -397,7 +397,7 @@ msgstr ""
 "cet e-mail."
 
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:154
-#, fuzzy, python-format
+#, python-format
 msgid ""
 "To continue with your password reset, simply click the button below, and you "
 "will be able to change your password. This link will expire in %(hours)s "
