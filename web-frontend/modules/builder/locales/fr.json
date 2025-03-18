@@ -174,7 +174,9 @@
         "title": "Publication",
         "noDomain": "Vous devez disposer d’au moins un domaine pour publier votre application.",
         "description": "Mettez votre application en ligne en publiant sur l’un des domaines. Notez que votre application peut avoir plusieurs domaines, chacun avec une version différente de l’application.",
-        "importingState": "Import en cours…"
+        "importingState": "Import en cours…",
+        "addDomain": "Ajouter un domaine",
+        "publishSucceedLink": "Voir le site"
     },
     "pageActionTypes": {
         "preview": "Aperçu",
