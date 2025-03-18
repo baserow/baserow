@@ -1,6 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
+from itertools import groupby
 from typing import Any, Dict, List, NamedTuple, NewType, Optional
 
 from django.conf import settings
@@ -139,9 +140,9 @@ class RowHistoryHandler:
     def _update_related_tables_entries(
         cls,
         related_rows_diff: RelatedRowsDiff,
-        changed_fields_metadata: Dict[str, Any],
+        fields_metadata: Dict[str, Any],
         row_diff: RowChangeDiff,
-    ):
+    ) -> RelatedRowsDiff:
         """
         Updates the record of changes in related tables when link_row fields are
         modified.
@@ -151,15 +152,16 @@ class RowHistoryHandler:
         rows in the related table, so that history can be properly displayed for both
         sides of the relationship.
 
+        The method updates related_rows_diff in-place, maintaining a record of which
+        rows were added or removed from each link relationship.
+
         :param related_rows_diff: Nested dictionary tracking changes for each affected
             related row
-        :param changed_fields_metadata: Metadata about the fields that were changed in
+        :param fields_metadata: Metadata about the fields that were changed in
             this update
         :param row_diff: The changes made to the current row, including before/after
             values
-
-        The method updates related_rows_diff in-place, maintaining a record of which
-        rows were added or removed from each link relationship.
+        :return: The updated related_rows_diff dictionary
         """
 
         def _init_linked_row_diff(linked_field_id):
@@ -196,7 +198,7 @@ class RowHistoryHandler:
 
         row_id = row_diff.row_id
         for field_name in row_diff.changed_field_names:
-            field_metadata = changed_fields_metadata[field_name]
+            field_metadata = fields_metadata[field_name]
 
             # Ignore fields that are not link_row fields or that doesn't have a related
             # field in the linked table.
@@ -214,6 +216,8 @@ class RowHistoryHandler:
 
             row_ids_removed = before_set - after_set
             _update_linked_row_diff(field_metadata, row_ids_removed, "removed")
+
+        return related_rows_diff
 
     @classmethod
     def _construct_related_rows_entries(
@@ -323,11 +327,14 @@ class RowHistoryHandler:
 
         if row_history_entries:
             row_history_entries = RowHistory.objects.bulk_create(row_history_entries)
-            rows_history_updated.send(
-                RowHistoryHandler,
-                table_id=table_id,
-                row_history_entries=row_history_entries,
-            )
+            for table_id, per_table_row_history_entries in groupby(
+                row_history_entries, lambda e: e.table_id
+            ):
+                rows_history_updated.send(
+                    RowHistoryHandler,
+                    table_id=table_id,
+                    row_history_entries=list(per_table_row_history_entries),
+                )
 
     @classmethod
     @baserow_trace(tracer)

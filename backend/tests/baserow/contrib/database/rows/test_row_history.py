@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 import pytest
 from freezegun import freeze_time
@@ -632,7 +633,9 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
         user, table_a, [{primary_a.db_column: "a1"}, {primary_a.db_column: "a2"}]
     )
 
-    with freeze_time("2021-01-01 12:00"):
+    with freeze_time("2021-01-01 12:00"), patch(
+        "baserow.contrib.database.rows.signals.rows_history_updated.send"
+    ) as mock_signal:
         action_type_registry.get_by_type(UpdateRowsActionType).do(
             user,
             table_a,
@@ -649,6 +652,7 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
                 },
             ],
         )
+
     assert RowHistory.objects.count() == 6
 
     history_entries = RowHistory.objects.order_by("table_id", "row_id").values(
@@ -662,6 +666,31 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
         "after_values",
         "fields_metadata",
     )
+
+    # Signal should be called once per table with row history entries for that table
+    entry_ids = [rhe.id for rhe in RowHistory.objects.order_by("table_id", "row_id")]
+    assert mock_signal.call_count == 3
+
+    per_table_args = {}
+    for args in mock_signal.call_args_list:
+        per_table_args[args[1]["table_id"]] = [
+            rhe.id for rhe in args[1]["row_history_entries"]
+        ]
+
+    assert len(per_table_args) == 3
+    assert len(entry_ids) == 6
+
+    # table_a
+    assert table_a.id in per_table_args
+    assert per_table_args[table_a.id] == entry_ids[:2]
+
+    # table_b
+    assert table_b.id in per_table_args
+    assert per_table_args[table_b.id] == entry_ids[2:4]
+
+    # table_c
+    assert table_c.id in per_table_args
+    assert per_table_args[table_c.id] == entry_ids[4:]
 
     expected_entries = [
         {
