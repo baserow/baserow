@@ -237,16 +237,25 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
             id__in=ViewSort.objects.filter(field=field).values("view_id"),
             db_index_name__isnull=False,
         )
-        if len(views):
-            if model is None:
-                model = field.table.get_model()
-            for view in views:
-                cls.drop_index(
-                    view=view,
-                    db_index=django_models.Index("id", name=view.db_index_name),
-                    model=model,
-                )
-            View.objects.filter(id__in=[v.id for v in views]).update(db_index_name=None)
+        if not views:
+            return
+
+        if model is None:
+            model = field.table.get_model()
+
+        dropped_indexes = set()
+        for view in views:
+            if view.db_index_name in dropped_indexes:
+                continue
+
+            cls.drop_index(
+                view=view,
+                db_index=django_models.Index("id", name=view.db_index_name),
+                model=model,
+            )
+            dropped_indexes.add(view.db_index_name)
+
+        View.objects.filter(id__in=[v.id for v in views]).update(db_index_name=None)
 
     @classmethod
     def _get_index_hash(
