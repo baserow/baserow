@@ -61,12 +61,13 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   getTemplatePage(application) {
-    if (application.pages.length === 0) {
+    const notSharedPages = application.pages.filter((p) => p.shared === false)
+    if (notSharedPages.length === 0) {
       return null
     }
     return {
       builder: application,
-      page: application.pages.filter((p) => p.shared === false)[0],
+      page: notSharedPages[0],
     }
   }
 
