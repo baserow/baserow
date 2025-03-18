@@ -104,6 +104,7 @@
         <Dropdown
           v-model="values.aggregation_type"
           :error="fieldHasErrors('aggregation_type')"
+          :disabled="fieldsLoading"
           @change="v$.values.aggregation_type.$touch"
         >
           <DropdownItem

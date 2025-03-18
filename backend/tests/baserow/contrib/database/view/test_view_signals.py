@@ -12,8 +12,8 @@ from baserow.contrib.database.views.handler import ViewHandler, ViewSubscription
 from baserow.contrib.database.views.signals import (
     view_loaded_create_indexes_and_columns,
 )
-from baserow.core.trash.handler import TrashHandler
 from baserow.core.cache import local_cache
+from baserow.core.trash.handler import TrashHandler
 
 
 @patch("baserow.contrib.database.views.handler.ViewIndexingHandler")

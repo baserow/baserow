@@ -88,7 +88,9 @@ class IntegrationsView(APIView):
         if the user has access to that application.
         """
 
-        application = CoreHandler().get_application(application_id)
+        application = CoreHandler().get_application(
+            application_id, enhance_specific_queryset=False
+        )
 
         integrations = IntegrationService().get_integrations(request.user, application)
 

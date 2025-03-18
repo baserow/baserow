@@ -61,7 +61,7 @@
           </Tabs>
         </div>
       </div>
-      <div v-else class="loading"></div>
+      <div v-else class="loading-spinner"></div>
     </div>
   </form>
 </template>

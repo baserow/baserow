@@ -1323,7 +1323,10 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         return application
 
     def get_application(
-        self, application_id: int, base_queryset: Optional[QuerySet] = None
+        self,
+        application_id: int,
+        base_queryset: Optional[QuerySet] = None,
+        enhance_specific_queryset: bool = True,
     ) -> Application:
         """
         Selects an application with a given id from the database.
@@ -1331,6 +1334,8 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :param application_id: The identifier of the application that must be returned.
         :param base_queryset: The base queryset from where to select the application
             object. This can for example be used to do a `select_related`.
+        :param enhance_specific_queryset: Determines whether the specific iterator
+            should call `enhance_queryset` per application type.
         :raises ApplicationDoesNotExist: When the application with the provided id
             does not exist.
         :return: The requested application instance of the provided id.
@@ -1348,7 +1353,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
                     lambda model, queryset: application_type_registry.get_by_model(
                         model
                     ).enhance_queryset(queryset)
-                ),
+                )
+                if enhance_specific_queryset
+                else None,
             )[0]
         except IndexError as e:
             raise ApplicationDoesNotExist(
