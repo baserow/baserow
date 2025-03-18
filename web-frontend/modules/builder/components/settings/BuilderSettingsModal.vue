@@ -32,7 +32,7 @@
         :builder="builder"
         :hide-after-create="hideAfterCreate"
         :force-display-form="displaySelectedSettingForm"
-        @hide-modal="hide()"
+        @hide-modal="emitCreatedRecord($event)"
       ></component>
     </template>
   </Modal>
@@ -116,6 +116,17 @@ export default {
       builderApplicationType.loadExtraData(this.builder)
 
       return modal.methods.show.call(this, ...args)
+    },
+    /**
+     * If this modal is being used with the `hideAfterCreate` prop set to `true`,
+     * then once a record has been created, we want to hide the modal, and then
+     * emit the newly created record ID so that it can be used by the component
+     * implementing this modal.
+     * @param createdRecordId - The ID of the newly created record.
+     */
+    emitCreatedRecord(createdRecordId) {
+      this.hide()
+      this.$emit('created', createdRecordId)
     },
   },
 }
