@@ -3,6 +3,7 @@
     <FormGroup
       small-label
       :label="$t('generalForm.labelTitle')"
+      required
       class="margin-bottom-2"
     >
       <InjectedFormulaInput
@@ -14,6 +15,7 @@
     <FormGroup
       :label="$t('generalForm.requiredTitle')"
       class="margin-bottom-2"
+      required
       small-label
     >
       <Checkbox v-model="values.required" />
@@ -21,19 +23,21 @@
 
     <FormGroup
       small-label
-      :label="$t('generalForm.valueTitle')"
+      required
+      :label="$t('generalForm.defaultValueTitle')"
       class="margin-bottom-2"
-      :error-message="valueErrorMessage"
     >
       <InjectedFormulaInput
         v-model="values.value"
         data-test-id="rating-form-value"
-        :placeholder="$t('generalForm.valuePlaceholder')"
-        @blur="v$.values.value.$touch()"
+        :placeholder="$t('generalForm.defaultValuePlaceholder')"
       />
     </FormGroup>
 
-    <RatingFormFields :values="values" />
+    <RatingFormFields
+      :default-values="defaultValues"
+      @values-changed="emitChange"
+    />
   </form>
 </template>
 
@@ -42,8 +46,6 @@ import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import Checkbox from '@baserow/modules/core/components/Checkbox'
 import RatingFormFields from '@baserow/modules/builder/components/elements/components/forms/RatingFormFields.vue'
-import { useVuelidate } from '@vuelidate/core'
-import { required } from '@vuelidate/validators'
 
 export default {
   name: 'RatingInputElementForm',
@@ -53,35 +55,14 @@ export default {
     RatingFormFields,
   },
   mixins: [elementForm],
-  setup() {
-    return { v$: useVuelidate() }
-  },
   data() {
     return {
       values: {
         value: '',
         required: false,
         label: '',
-        editing: true,
-        max_value: 5,
-        color: '#fcbb03',
-        rating_style: 'star',
       },
-    }
-  },
-  computed: {
-    valueErrorMessage() {
-      if (!this.v$.values.value.$error) {
-        return ''
-      }
-      return this.$t('error.requiredField')
-    },
-  },
-  validations() {
-    return {
-      values: {
-        value: { required },
-      },
+      allowedValues: ['value', 'required', 'label'],
     }
   },
 }

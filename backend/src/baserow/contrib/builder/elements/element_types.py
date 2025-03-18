@@ -1238,7 +1238,7 @@ class RatingElementType(ElementType):
             "max_value": 5,
             "value": "5",
             "color": "dark-orange",
-            "rating_style": "STAR",
+            "rating_style": "star",
         }
 
     @property
@@ -1289,7 +1289,7 @@ class RatingInputElementType(InputElementType):
             "max_value": 5,
             "value": "5",
             "color": "dark-orange",
-            "rating_style": "STAR",
+            "rating_style": "star",
             "label": "",
             "required": False,
         }

@@ -2093,18 +2093,6 @@ export class RatingInputElementType extends FormElementType {
     }
   }
 
-  getDefaultValues(page, values) {
-    return {
-      ...values,
-      max_value: 5,
-      color: '#fcbb03',
-      style: 'star',
-      value: 0,
-      required: false,
-      label: '',
-    }
-  }
-
   isValid(element, value) {
     if (element.required && (value === null || value === undefined)) {
       return false
@@ -2152,16 +2140,6 @@ export class RatingElementType extends ElementType {
       )
     } catch {
       return 0
-    }
-  }
-
-  getDefaultValues(page, values) {
-    return {
-      ...values,
-      max_value: 5,
-      color: '#fcbb03',
-      style: 'star',
-      value: 0,
     }
   }
 

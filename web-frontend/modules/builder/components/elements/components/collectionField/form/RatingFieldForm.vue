@@ -9,7 +9,11 @@
     >
       <InjectedFormulaInput v-model="values.value" />
     </FormGroup>
-    <RatingFormFields :values="values" />
+    <RatingFormFields
+      :default-values="defaultValues"
+      horizontal
+      @values-changed="emitChange"
+    />
   </form>
 </template>
 
@@ -27,11 +31,8 @@ export default {
   mixins: [collectionFieldForm],
   data() {
     return {
-      allowedValues: ['max_value', 'color', 'rating_style', 'value'],
+      allowedValues: ['value'],
       values: {
-        max_value: 5,
-        color: '#fcbb03',
-        rating_style: 'star',
         value: '',
       },
     }

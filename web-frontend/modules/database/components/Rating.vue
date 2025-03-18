@@ -2,13 +2,14 @@
   <div
     :class="[
       data.staticClass,
-      props.customColor ? 'custom-rating' : `rating color--${props.color}`,
+      props.customColor ? 'rating' : `rating color--${props.color}`,
+      props.showUnselected ? 'rating--show-unselected' : '',
       props.readOnly ? '' : 'editing',
     ]"
     :style="{ '--rating-color': props.customColor }"
   >
     <i
-      v-for="index in props.readOnly && !props.showMaxValueInReadOnly
+      v-for="index in props.readOnly && !props.showUnselected
         ? props.value
         : props.maxValue"
       :key="index"
@@ -27,6 +28,8 @@
 </template>
 
 <script>
+import { RATING_STYLES } from '@baserow/modules/core/enums'
+
 export default {
   name: 'Rating',
   props: {
@@ -45,6 +48,13 @@ export default {
     ratingStyle: {
       default: 'star',
       type: String,
+      validator(value) {
+        return RATING_STYLES[value] === undefined
+      },
+    },
+    showUnselected: {
+      type: Boolean,
+      default: false,
     },
     // to use one of predefined colors classes
     color: {
@@ -55,10 +65,6 @@ export default {
     customColor: {
       default: '',
       type: String,
-    },
-    showMaxValueInReadOnly: {
-      type: Boolean,
-      default: false,
     },
   },
 }

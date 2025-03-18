@@ -251,6 +251,8 @@
     "labelTitle": "Label",
     "labelPlaceholder": "Enter label",
     "valueTitle": "Value",
+    "defaultValueTitle": "Default value",
+    "defaultValuePlaceholder": "Enter default value",
     "valuePlaceholder": "Enter value",
     "placeholderTitle": "Placeholder",
     "placeholderPlaceholder": "Enter a placeholder",
@@ -1008,7 +1010,7 @@
   "ratingElementForm": {
     "value": "Value",
     "valuePlaceholder": "Enter a value or formula",
-    "maxValue": "Maximum Value",
+    "maxValue": "Maximum",
     "color": "Color",
     "ratingStyle": "Style",
     "star": "Star",

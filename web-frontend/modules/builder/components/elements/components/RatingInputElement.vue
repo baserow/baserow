@@ -1,23 +1,18 @@
 <template>
-  <div class="rating-element" :key="this.resolvedValue">
-    <ABFormGroup
-      :label="labelResolved"
-      :required="!readOnly && element.required"
-      :error-message="displayFormDataError ? $t('error.requiredField') : ''"
-    >
-      <div>
-        <Rating
-          v-model="inputValue"
-          :max-value="maxValue"
-          :custom-color="element.color"
-          :rating-style="element.rating_style || 'star'"
-          :read-only="readOnly"
-          :show-max-value-in-read-only="true"
-          @update="onUpdate"
-        />
-      </div>
-    </ABFormGroup>
-  </div>
+  <ABFormGroup
+    :label="labelResolved"
+    :required="element.required"
+    :error-message="displayFormDataError ? $t('error.requiredField') : ''"
+  >
+    <Rating
+      :value="inputValue"
+      :max-value="element.max_value"
+      :custom-color="element.color"
+      :rating-style="element.rating_style || 'star'"
+      show-unselected
+      @update="inputValue = $event"
+    />
+  </ABFormGroup>
 </template>
 
 <script>
@@ -36,35 +31,16 @@ export default {
     Rating,
   },
   mixins: [formElement],
-  props: {
-    element: {
-      type: Object,
-      required: true,
-    },
-    readOnly: {
-      type: Boolean,
-      default: false,
-    },
-    editing: {
-      type: Boolean,
-      default: false,
-    },
-  },
   setup() {
     return { v$: useVuelidate() }
   },
   computed: {
-    resolvedValue() {
+    resolvedDefaultValue() {
       try {
         return ensurePositiveInteger(this.resolveFormula(this.element.value))
       } catch {
         return 0
       }
-    },
-    maxValue() {
-      return (
-        ensurePositiveInteger(this.element.max_value, { allowNull: true }) || 5
-      )
     },
     labelResolved() {
       return ensureString(this.resolveFormula(this.element.label))
@@ -77,21 +53,16 @@ export default {
       }
     },
   },
-  validations() {
-    return this.rules
-  },
   watch: {
-    resolvedValue: {
-      handler(newValue) {
-        this.inputValue = newValue
+    resolvedDefaultValue: {
+      handler(value) {
+        this.inputValue = value
       },
       immediate: true,
     },
   },
-  methods: {
-    onUpdate(value) {
-      this.inputValue = value
-    },
+  validations() {
+    return this.rules
   },
 }
 </script>

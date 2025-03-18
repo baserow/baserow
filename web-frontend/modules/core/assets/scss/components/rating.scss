@@ -3,8 +3,7 @@
   pointer-events: initial;
 }
 
-// Create a placeholder
-%rating-base {
+.rating {
   @extend %ellipsis;
 
   display: block;
@@ -12,15 +11,23 @@
   user-select: none;
   pointer-events: none;
 
+  & .rating__star {
+    color: transparent;
+  }
+
+  &.rating--show-unselected .rating__star {
+    color: $color-neutral-200;
+  }
+
   @include flex-align-items(2px);
 
   & > .rating__star:first-child {
     padding-left: 0;
   }
-}
 
-.rating {
-  @extend %rating-base;
+  & .rating__star.rating__star--selected {
+    color: var(--rating-color, inherit);
+  }
 
   &.editing {
     & > .rating__star {
@@ -31,13 +38,13 @@
     // If we hover the rating, all stars should be colored and semi-transparent
     // by default
     &:hover > .rating__star {
-      color: inherit;
+      color: var(--rating-color, inherit);
       opacity: 0.6;
     }
 
     // but selected stars should have full opacity.
     & > .rating__star.rating__star--selected {
-      color: inherit;
+      color: var(--rating-color, inherit);
       opacity: 1;
     }
 
@@ -50,35 +57,8 @@
     // selected star after the hovered star should be colored and be
     // semi-transparent
     & > .rating__star:hover ~ .rating__star.rating__star--selected {
-      color: inherit;
+      color: var(--rating-color, inherit);
       opacity: 0.6;
-    }
-  }
-}
-
-.custom-rating {
-  @extend %rating-base;
-
-  .rating__star.rating__star {
-    color: var(--rating-color) !important;
-    opacity: 0.3;
-
-    &.rating__star--selected {
-      opacity: 1;
-    }
-  }
-
-  &.editing {
-    .rating__star.rating__star:hover {
-      opacity: 1;
-
-      ~ .rating__star {
-        opacity: 0.3;
-      }
-    }
-
-    &:hover .rating__star.rating__star {
-      opacity: 1;
     }
   }
 }

@@ -1,17 +1,12 @@
 <template>
-  <div class="rating-field">
-    <div>
-      <Rating
-        :value="value"
-        :max-value="maxValue"
-        :color="'custom'"
-        :custom-color="color"
-        :rating-style="ratingStyle || 'star'"
-        :read-only="true"
-        :show-max-value-in-read-only="true"
-      />
-    </div>
-  </div>
+  <Rating
+    :value="value"
+    :max-value="maxValue"
+    :custom-color="color"
+    :rating-style="ratingStyle || 'star'"
+    read-only
+    show-unselected
+  />
 </template>
 
 <script>
@@ -31,7 +26,7 @@ export default {
     },
     maxValue: {
       type: Number,
-      default: 5,
+      required: true,
     },
     color: {
       type: String,

@@ -613,7 +613,7 @@ class BaseRatingElement(Element):
     )
     rating_style = models.CharField(
         choices=RatingStyleChoices,
-        default="star",
+        default=RatingStyleChoices.STAR,
         max_length=50,
         blank=False,
         help_text=(

@@ -1,13 +1,33 @@
+<template>
+  <Rating
+    class="rating-element"
+    :value="resolvedValue"
+    :max-value="element.max_value"
+    :custom-color="element.color"
+    :rating-style="element.rating_style || 'star'"
+    read-only
+    show-unselected
+  />
+</template>
+
 <script>
-import RatingInputElement from './RatingInputElement'
+import Rating from '@baserow/modules/database/components/Rating'
+import formElement from '@baserow/modules/builder/mixins/formElement'
+import { ensurePositiveInteger } from '@baserow/modules/core/utils/validator'
 
 export default {
-  name: 'RatingElement',
-  extends: RatingInputElement,
-  props: {
-    readOnly: {
-      type: Boolean,
-      default: true,
+  name: 'RatingInputElement',
+  components: {
+    Rating,
+  },
+  mixins: [formElement],
+  computed: {
+    resolvedValue() {
+      try {
+        return ensurePositiveInteger(this.resolveFormula(this.element.value))
+      } catch {
+        return 0
+      }
     },
   },
 }
