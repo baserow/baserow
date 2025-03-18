@@ -19,10 +19,7 @@
         </slot>
       </template>
       <template #footer>
-        <a
-          class="select__footer-button"
-          @click="$refs.userSourcesSettingsModal.show(true)"
-        >
+        <a class="select__footer-button" @click="openUserSettings">
           <i class="iconoir-plus"></i>
           {{ $t('userSourceDropdown.addUserSource') }}
         </a>
@@ -30,7 +27,6 @@
           ref="userSourcesSettingsModal"
           hide-after-create
           :builder="builder"
-          :selected-type="builderSettingsUserSources"
           @created="$emit('input', $event)"
         />
       </template>
@@ -60,9 +56,12 @@ export default {
       required: true,
     },
   },
-  computed: {
-    builderSettingsUserSources() {
-      return UserSourcesBuilderSettingsType.getType()
+  methods: {
+    openUserSettings() {
+      this.$refs.userSourcesSettingsModal.show(
+        UserSourcesBuilderSettingsType.getType(),
+        true
+      )
     },
   },
 }
