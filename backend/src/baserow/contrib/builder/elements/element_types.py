@@ -2010,7 +2010,7 @@ class MenuElementType(ElementType):
         from baserow.contrib.builder.api.theme.serializers import (
             DynamicConfigBlockSerializer,
         )
-        from baserow.contrib.builder.theme.theme_config_block_types import (  # MenuThemeConfigBlockType,
+        from baserow.contrib.builder.theme.theme_config_block_types import (
             ButtonThemeConfigBlockType,
             LinkThemeConfigBlockType,
         )
