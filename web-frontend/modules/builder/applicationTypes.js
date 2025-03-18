@@ -66,7 +66,7 @@ export class BuilderApplicationType extends ApplicationType {
     }
     return {
       builder: application,
-      page: application.pages.filter((p) => p.name !== '__shared__')[0],
+      page: application.pages.filter((p) => p.shared === false)[0],
     }
   }
 
