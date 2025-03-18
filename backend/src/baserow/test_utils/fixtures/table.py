@@ -101,12 +101,15 @@ class TableFixtures:
         if not table_b.field_set.filter(primary=True).exists():
             self.create_text_field(table=table_b, name="primary", primary=True)
 
+        has_related_field = kwargs.pop("has_related_field", True)
+
         link_field = FieldHandler().create_field(
             user=user,
             table=table_a,
             type_name="link_row",
             name="link",
             link_row_table=table_b,
+            has_related_field=has_related_field,
         )
 
         return table_a, table_b, link_field

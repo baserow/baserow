@@ -3456,6 +3456,9 @@ class LinkRowFieldType(
                 **already_serialized_linked_rows,
                 **new_serialized_linked_rows,
             },
+            "linked_table_id": field.link_row_table_id,
+            "linked_field_id": field.link_row_related_field_id,
+            "primary_value": str(row),
         }
 
     def are_row_values_equal(self, value1: any, value2: any) -> bool:
@@ -6839,7 +6842,7 @@ class PasswordFieldType(FieldType):
         # `False` as string depending on whether the value is set.
         return bool(value)
 
-    def prepare_row_history_value_from_action_meta_data(self, value):
+    def prepare_value_for_row_history(self, value):
         # We don't want to expose the hash of the password, so we just show `True` or
         # `False` as string depending on whether the value is set.
         return bool(value)
