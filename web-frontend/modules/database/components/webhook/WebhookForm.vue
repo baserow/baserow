@@ -114,14 +114,14 @@
           v-for="webhookEvent in webhookEventTypes"
           :key="webhookEvent.type"
           v-tooltip="
-            webhookEvent.isDeactivated()
+            webhookEvent.isDeactivated(database.workspace.id)
               ? webhookEvent.getDeactivatedText()
               : null
           "
           class="webhook__type"
           tooltip-position="bottom-cursor"
           @mousedown="
-            webhookEvent.isDeactivated() &&
+            webhookEvent.isDeactivated(database.workspace.id) &&
               !values.events.includes(webhookEvent.type) &&
               $refs[`${webhookEvent.getName()}DeactivatedClickModal`][0].show()
           "
@@ -130,12 +130,15 @@
             :checked="values.events.includes(webhookEvent.type)"
             :disabled="
               !values.events.includes(webhookEvent.type) &&
-              webhookEvent.isDeactivated()
+              webhookEvent.isDeactivated(database.workspace.id)
             "
             @input="toggleEventType(webhookEvent, $event)"
           >
             {{ webhookEvent.getName() }}
-            <div v-if="webhookEvent.isDeactivated()" class="deactivated-label">
+            <div
+              v-if="webhookEvent.isDeactivated(database.workspace.id)"
+              class="deactivated-label"
+            >
               <i class="iconoir-lock"></i>
             </div>
           </Checkbox>
@@ -200,7 +203,7 @@
           </div>
           <component
             :is="webhookEvent.getDeactivatedClickModal()"
-            v-if="webhookEvent.isDeactivated()"
+            v-if="webhookEvent.isDeactivated(database.workspace.id)"
             :ref="`${webhookEvent.getName()}DeactivatedClickModal`"
             :workspace="database.workspace"
             :name="webhookEvent.getFeatureName()"
