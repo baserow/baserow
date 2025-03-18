@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2023-01-26 15:50+0000\n"
-"PO-Revision-Date: 2025-03-15 23:01+0000\n"
-"Last-Translator: vuod <vuod@vivaldi.net>\n"
+"PO-Revision-Date: 2025-03-18 13:24+0000\n"
+"Last-Translator: Jérémie Pardou-Piquemal <jrmi@jeremiez.net>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/baserow/"
 "enterprise-backend/fr/>\n"
 "Language: fr\n"
@@ -48,7 +48,6 @@ msgid "Timestamp"
 msgstr "Heure"
 
 #: audit_log/job_types.py:150
-#, fuzzy
 msgid "IP Address"
 msgstr "Adresse IP"
 
@@ -65,9 +64,8 @@ msgid "REDONE"
 msgstr "Fait"
 
 #: role/actions.py:28
-#, fuzzy
 msgid "Assign multiple roles"
-msgstr "Assignation de rôles"
+msgstr "Assigner plusieurs roles"
 
 #: role/actions.py:29
 msgid "Multiple roles have been assigned"
