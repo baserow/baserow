@@ -146,7 +146,9 @@
         "multipleSelectCheckboxes": "Cases à cocher",
         "duration": "Durée",
         "password": "Mot de passe",
-        "ai": "Prompt pour l'IA"
+        "ai": "Prompt pour l'IA",
+        "multipleCollaboratorsCheckboxes": "Cases à cocher",
+        "multipleCollaboratorsDropdown": "Liste déroulante"
     },
     "fieldErrors": {
         "invalidNumber": "Nombre invalide",
