@@ -237,9 +237,7 @@ export default {
       this.$emit('input', newSortings)
     },
     getSortIndicator(field, index) {
-      return this.getFieldType(field).getSortIndicator(field)[
-        index
-      ]
+      return this.getFieldType(field).getSortIndicator(field)[index]
     },
   },
 }

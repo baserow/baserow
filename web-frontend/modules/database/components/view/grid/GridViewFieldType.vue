@@ -493,9 +493,9 @@ export default {
       this.$emit('dragging', { field, event })
     },
     getSortIndicator(field, index) {
-      return this.$registry
-        .get('field', field.type)
-        .getSortIndicator(field)[index]
+      return this.$registry.get('field', field.type).getSortIndicator(field)[
+        index
+      ]
     },
     getCanSortInView(field) {
       return this.$registry.get('field', field.type).getCanSortInView(field)
