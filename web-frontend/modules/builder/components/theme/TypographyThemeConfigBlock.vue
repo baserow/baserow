@@ -204,6 +204,20 @@
               />
             </template>
           </FormGroup>
+          <FormGroup
+            horizontal-narrow
+            small-label
+            class="margin-bottom-2"
+            :label="$t('typographyThemeConfigBlock.decoration')"
+          >
+            <TextDecorationSelector
+              v-model="values[`heading_${level}_text_decoration`]" />
+            <template #after-input>
+              <ResetButton
+                v-model="values[`heading_${level}_text_decoration`]"
+                :default-value="theme?.[`heading_${level}_text_decoration`]"
+              /> </template
+          ></FormGroup>
         </template>
         <template #preview>
           <ABHeading
@@ -234,6 +248,7 @@ import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/Ho
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
 import FontWeightSelector from '@baserow/modules/builder/components/FontWeightSelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
+import TextDecorationSelector from '@baserow/modules/builder/components/TextDecorationSelector'
 import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
 
 const fontSizeMin = 1
@@ -250,6 +265,7 @@ export default {
     FontFamilySelector,
     FontWeightSelector,
     PixelValueSelector,
+    TextDecorationSelector,
   },
   mixins: [themeConfigBlock],
   setup() {
@@ -269,6 +285,7 @@ export default {
           o[`heading_${i}_font_family`] = ''
           o[`heading_${i}_font_weight`] = ''
           o[`heading_${i}_text_alignment`] = ''
+          o[`heading_${i}_text_decoration`] = [false, false, false]
           return o
         }, {}),
       },

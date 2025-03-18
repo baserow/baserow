@@ -8,7 +8,7 @@ from baserow.contrib.builder.constants import (
     FontWeights,
     HorizontalAlignments,
 )
-from baserow.core.fields import AutoOneToOneField
+from baserow.core.fields import AutoOneToOneField, MultipleFlagField
 from baserow.core.user_files.models import UserFile
 
 
@@ -84,6 +84,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         max_length=10,
         default=HorizontalAlignments.LEFT,
     )
+    heading_1_text_decoration = MultipleFlagField(
+        default=[False, False, False, False],
+        num_flags=4,
+        db_default="0000",
+        help_text=("The text decoration flags [underline, strike, uppercase, italic]"),
+    )
     heading_2_font_family = models.CharField(
         max_length=250,
         default="inter",
@@ -102,6 +108,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         choices=HorizontalAlignments.choices,
         max_length=10,
         default=HorizontalAlignments.LEFT,
+    )
+    heading_2_text_decoration = MultipleFlagField(
+        default=[False, False, False, False],
+        num_flags=4,
+        db_default="0000",
+        help_text=("The text decoration flags [underline, strike, uppercase, italic]"),
     )
     heading_3_font_family = models.CharField(
         max_length=250,
@@ -122,6 +134,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         max_length=10,
         default=HorizontalAlignments.LEFT,
     )
+    heading_3_text_decoration = MultipleFlagField(
+        default=[False, False, False, False],
+        num_flags=4,
+        db_default="0000",
+        help_text=("The text decoration flags [underline, strike, uppercase, italic]"),
+    )
     heading_4_font_family = models.CharField(
         max_length=250,
         default="inter",
@@ -140,6 +158,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         choices=HorizontalAlignments.choices,
         max_length=10,
         default=HorizontalAlignments.LEFT,
+    )
+    heading_4_text_decoration = MultipleFlagField(
+        default=[False, False, False, False],
+        num_flags=4,
+        db_default="0000",
+        help_text=("The text decoration flags [underline, strike, uppercase, italic]"),
     )
     heading_5_font_family = models.CharField(
         max_length=250,
@@ -160,6 +184,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         max_length=10,
         default=HorizontalAlignments.LEFT,
     )
+    heading_5_text_decoration = MultipleFlagField(
+        default=[False, False, False, False],
+        num_flags=4,
+        db_default="0000",
+        help_text=("The text decoration flags [underline, strike, uppercase, italic]"),
+    )
     heading_6_font_family = models.CharField(
         max_length=250,
         default="inter",
@@ -178,6 +208,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         choices=HorizontalAlignments.choices,
         max_length=10,
         default=HorizontalAlignments.LEFT,
+    )
+    heading_6_text_decoration = MultipleFlagField(
+        default=[False, False, False, False],
+        num_flags=4,
+        db_default="0000",
+        help_text=("The text decoration flags [underline, strike, uppercase, italic]"),
     )
 
 
@@ -317,6 +353,24 @@ class LinkThemeConfigBlockMixin(models.Model):
         default="#275d9f",
         blank=True,
         help_text="The hover color of links when active",
+    )
+    link_default_text_decoration = MultipleFlagField(
+        default=[True, False, False, False],
+        num_flags=4,
+        db_default="1000",
+        help_text=("The text decoration flags [underline, strike, uppercase, italic]"),
+    )
+    link_hover_text_decoration = MultipleFlagField(
+        default=[True, False, False, False],
+        num_flags=4,
+        db_default="1000",
+        help_text=("The text decoration flags [underline, strike, uppercase, italic]"),
+    )
+    link_active_text_decoration = MultipleFlagField(
+        default=[True, False, False, False],
+        num_flags=4,
+        db_default="1000",
+        help_text=("The text decoration flags [underline, strike, uppercase, italic]"),
     )
 
     class Meta:
@@ -573,9 +627,3 @@ class TableThemeConfigBlock(ThemeConfigBlock):
     table_horizontal_separator_size = models.SmallIntegerField(
         default=1, help_text="Table horizontal separator size"
     )
-
-
-class MenuThemeConfigBlock(
-    LinkThemeConfigBlockMixin, ButtonThemeConfigBlockMixin, ThemeConfigBlock
-):
-    pass

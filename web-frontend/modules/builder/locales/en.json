@@ -140,11 +140,11 @@
     "elementInProgress": "Adding element..."
   },
   "addElementCategory": {
-      "suggestedElement": "Suggested elements",
-      "baseElement": "Base elements",
-      "layoutElement": "Layout elements",
-      "formElement": "Form elements"
-    },
+    "suggestedElement": "Suggested elements",
+    "baseElement": "Base elements",
+    "layoutElement": "Layout elements",
+    "formElement": "Form elements"
+  },
   "elementMenu": {
     "moveUp": "Move up",
     "moveDown": "Move down",
@@ -563,6 +563,7 @@
     "weight": "Weight",
     "textAlignment": "Alignment",
     "bodyLabel": "Body",
+    "decoration": "Text decoration",
     "fontFamily": "Font"
   },
   "fontWeightType": {
@@ -595,6 +596,10 @@
     "size": "Font size",
     "weight": "Font weight"
   },
+  "linkDecorations": {
+    "normal": "Normal",
+    "plain": "Plain"
+  },
   "linkThemeConfigBlock": {
     "color": "Color",
     "link": "Link",
@@ -604,7 +609,8 @@
     "alignment": "Alignment",
     "fontFamily": "Font",
     "size": "Font size",
-    "weight": "Font weight"
+    "weight": "Font weight",
+    "decoration": "Text decoration"
   },
   "inputThemeConfigBlock": {
     "label": "Label",
@@ -972,5 +978,11 @@
   "authProviderWithModal": {
     "authProviderInError": "Please edit this provider to fix the error.",
     "title": "Edit provider: {name}"
+  },
+  "textDecorationSelector": {
+    "underline": "Underline",
+    "stroke": "Stroke",
+    "italic": "Italic",
+    "uppercase": "Uppercase"
   }
 }

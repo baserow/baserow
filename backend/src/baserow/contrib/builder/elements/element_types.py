@@ -2011,7 +2011,8 @@ class MenuElementType(ElementType):
             DynamicConfigBlockSerializer,
         )
         from baserow.contrib.builder.theme.theme_config_block_types import (
-            MenuThemeConfigBlockType,
+            ButtonThemeConfigBlockType,
+            LinkThemeConfigBlockType,
         )
 
         overrides = {
@@ -2019,7 +2020,9 @@ class MenuElementType(ElementType):
             "styles": DynamicConfigBlockSerializer(
                 required=False,
                 property_name="menu",
-                theme_config_block_type_name=MenuThemeConfigBlockType.type,
+                theme_config_block_type_name=[
+                    [ButtonThemeConfigBlockType.type, LinkThemeConfigBlockType.type]
+                ],
                 serializer_kwargs={"required": False},
             ),
         }

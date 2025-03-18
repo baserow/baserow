@@ -257,7 +257,6 @@ class BuilderConfig(AppConfig):
             ImageThemeConfigBlockType,
             InputThemeConfigBlockType,
             LinkThemeConfigBlockType,
-            MenuThemeConfigBlockType,
             PageThemeConfigBlockType,
             TableThemeConfigBlockType,
             TypographyThemeConfigBlockType,
@@ -266,12 +265,11 @@ class BuilderConfig(AppConfig):
         theme_config_block_registry.register(ColorThemeConfigBlockType())
         theme_config_block_registry.register(TypographyThemeConfigBlockType())
         theme_config_block_registry.register(ButtonThemeConfigBlockType())
-        theme_config_block_registry.register(LinkThemeConfigBlockType())
         theme_config_block_registry.register(ImageThemeConfigBlockType())
         theme_config_block_registry.register(PageThemeConfigBlockType())
         theme_config_block_registry.register(InputThemeConfigBlockType())
         theme_config_block_registry.register(TableThemeConfigBlockType())
-        theme_config_block_registry.register(MenuThemeConfigBlockType())
+        theme_config_block_registry.register(LinkThemeConfigBlockType())
 
         from .workflow_actions.registries import builder_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (

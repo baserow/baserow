@@ -15,7 +15,6 @@ from .models import (
     ImageThemeConfigBlock,
     InputThemeConfigBlock,
     LinkThemeConfigBlock,
-    MenuThemeConfigBlock,
     PageThemeConfigBlock,
     TableThemeConfigBlock,
     ThemeConfigBlock,
@@ -32,6 +31,41 @@ class ColorThemeConfigBlockType(ThemeConfigBlockType):
 class TypographyThemeConfigBlockType(ThemeConfigBlockType):
     type = "typography"
     model_class = TypographyThemeConfigBlock
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "heading_1_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "heading_2_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "heading_3_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "heading_4_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "heading_5_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "heading_6_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+        }
 
     def import_serialized(
         self,
@@ -63,6 +97,26 @@ class ButtonThemeConfigBlockType(ThemeConfigBlockType):
 class LinkThemeConfigBlockType(ThemeConfigBlockType):
     type = "link"
     model_class = LinkThemeConfigBlock
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "link_default_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Default text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "link_hover_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Hover text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+            "link_active_text_decoration": serializers.ListField(
+                child=serializers.BooleanField(),
+                help_text="Active text decoration: [underline, stroke, uppercase, italic]",
+                required=False,
+            ),
+        }
 
 
 class ImageThemeConfigBlockType(ThemeConfigBlockType):
@@ -183,8 +237,3 @@ class InputThemeConfigBlockType(ThemeConfigBlockType):
 class TableThemeConfigBlockType(ThemeConfigBlockType):
     type = "table"
     model_class = TableThemeConfigBlock
-
-
-class MenuThemeConfigBlockType(ThemeConfigBlockType):
-    type = "menu"
-    model_class = MenuThemeConfigBlock
