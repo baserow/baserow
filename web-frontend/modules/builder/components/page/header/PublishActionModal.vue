@@ -48,6 +48,7 @@
           />
         </div>
       </template>
+      <div v-else-if="fetchingDomains" class="loading-spinner"></div>
       <p v-else>{{ $t('publishActionModal.noDomain') }}</p>
     </template>
 
@@ -79,14 +80,15 @@
         >
           {{ $t('publishActionModal.publish') }}
         </Button>
-        <Button v-else tag="a" @click="openDomainSettings">{{
-          $t('publishActionModal.addDomain')
-        }}</Button>
+        <template v-else-if="!fetchingDomains">
+          <Button tag="a" @click="openDomainSettings">
+            {{ $t('publishActionModal.addDomain') }}
+          </Button>
+        </template>
         <BuilderSettingsModal
           ref="domainSettingsModal"
           hide-after-create
           :builder="builder"
-          :selected-type="builderSettingsDomains"
         />
       </div>
     </div>
@@ -116,12 +118,9 @@ export default {
     },
   },
   data() {
-    return { selectedDomainId: null, loading: false }
+    return { selectedDomainId: null, loading: false, fetchingDomains: false }
   },
   computed: {
-    builderSettingsDomains() {
-      return DomainsBuilderSettingsType.getType()
-    },
     ...mapGetters({ domains: 'domain/getDomains' }),
     selectedDomain() {
       return this.domains.find((domain) => domain.id === this.selectedDomainId)
@@ -150,11 +149,14 @@ export default {
       this.job = null
       this.loading = false
       this.selectedDomainId = null
+      this.fetchingDomains = true
       try {
         await this.actionFetchDomains({ builderId: this.builder.id })
         this.hideError()
       } catch (error) {
         this.handleError(error)
+      } finally {
+        this.fetchingDomains = false
       }
     },
     async publishSite() {
@@ -201,9 +203,12 @@ export default {
     },
     openDomainSettings() {
       // Open the builder settings modal, which is instructed to select the domain
-      // settings instance first, and pass `displaySelectedSettingForm=true` into
-      // `show` so that the 'create' form is immediately presented.
-      this.$refs.domainSettingsModal.show(true)
+      // settings instance first, and pass `DomainsBuilderSettingsType.getType()` into
+      // `show` so that the create domain form is immediately presented.
+      this.$refs.domainSettingsModal.show(
+        DomainsBuilderSettingsType.getType(),
+        true
+      )
     },
   },
 }

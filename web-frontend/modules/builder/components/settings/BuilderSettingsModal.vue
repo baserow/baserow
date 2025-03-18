@@ -51,15 +51,6 @@ export default {
       required: true,
     },
     /**
-     * If you want a specific builder setting to be selected when the modal is
-     * shown, provide the type of the setting here.
-     */
-    selectedType: {
-      type: String,
-      required: false,
-      default: null,
-    },
-    /**
      * If you want the selected setting form to hide the builder settings modal
      * after a record is created, set this to `true`.
      */
@@ -95,26 +86,25 @@ export default {
     },
   },
   methods: {
-    show(displaySelectedSettingForm, hideAfterCreate, ...args) {
+    show(
+      selectSettingType = null,
+      displaySelectedSettingForm = false,
+      ...args
+    ) {
       // If we've been instructed to show a specific setting component,
       // then ensure it's displayed first.
-      if (this.selectedType) {
-        this.settingSelected = this.registeredSettings.find(
-          (setting) => setting.getType() === this.selectedType
-        )
+      if (selectSettingType) {
+        this.settingSelected = this.$registry.get('builderSettings')
       }
 
-      // If no `selectedType` was provided, or one was provided, and
-      // it's not found in the registry, then choose the first setting.
+      // If no `selectSettingType` was provided then choose the first setting.
       if (!this.settingSelected) {
         this.settingSelected = this.registeredSettings[0]
       }
 
       // If we've been instructed to show the modal, and make the
       // selected setting component's form display, then do so.
-      if (displaySelectedSettingForm !== undefined) {
-        this.displaySelectedSettingForm = displaySelectedSettingForm
-      }
+      this.displaySelectedSettingForm = displaySelectedSettingForm
 
       const builderApplicationType = this.$registry.get(
         'application',
