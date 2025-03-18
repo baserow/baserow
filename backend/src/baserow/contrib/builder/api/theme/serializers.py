@@ -67,8 +67,6 @@ class DynamicConfigBlockSerializer(serializers.Serializer):
             ref_name = f"{all_type_names}ConfigBlockSerializer"
             meta_ref_name = f"{all_type_names}ConfigBlockSerializer"
 
-        print("Serializer for ", f"{all_type_names}ConfigBlockSerializer")
-
         self.Meta = DynamicMeta
 
 
