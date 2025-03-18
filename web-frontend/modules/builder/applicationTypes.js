@@ -60,6 +60,17 @@ export class BuilderApplicationType extends ApplicationType {
     return PageTemplate
   }
 
+  getTemplatePage(application) {
+    const notSharedPages = application.pages.filter((p) => p.shared === false)
+    if (notSharedPages.length === 0) {
+      return null
+    }
+    return {
+      builder: application,
+      page: notSharedPages[0],
+    }
+  }
+
   populate(application) {
     const values = super.populate(application)
     values.pages = values.pages.map(populatePage)
