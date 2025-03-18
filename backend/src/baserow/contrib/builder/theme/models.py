@@ -627,9 +627,3 @@ class TableThemeConfigBlock(ThemeConfigBlock):
     table_horizontal_separator_size = models.SmallIntegerField(
         default=1, help_text="Table horizontal separator size"
     )
-
-
-class MenuThemeConfigBlock(
-    LinkThemeConfigBlockMixin, ButtonThemeConfigBlockMixin, ThemeConfigBlock
-):
-    pass

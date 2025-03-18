@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="text-decoration-selector">
     <SwitchButton
       :value="value[0]"
       :icon="'iconoir-underline'"
@@ -34,7 +34,7 @@ export default {
     value: {
       type: Array,
       required: false,
-      default: () => [false, false, false],
+      default: () => [false, false, false, false],
     },
   },
   methods: {

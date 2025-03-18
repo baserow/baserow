@@ -1,5 +1,5 @@
 <template>
-  <Button
+  <ButtonIcon
     type="secondary"
     v-bind="restProps"
     :loading="loading"
@@ -10,12 +10,12 @@
     @click.prevent="select()"
   >
     <slot></slot>
-  </Button>
+  </ButtonIcon>
 </template>
 
 <script>
 export default {
-  name: 'RadioButton',
+  name: 'SwitchButton',
   model: {
     prop: 'modelValue',
     event: 'input',

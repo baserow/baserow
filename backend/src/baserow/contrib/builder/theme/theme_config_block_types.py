@@ -15,7 +15,6 @@ from .models import (
     ImageThemeConfigBlock,
     InputThemeConfigBlock,
     LinkThemeConfigBlock,
-    MenuThemeConfigBlock,
     PageThemeConfigBlock,
     TableThemeConfigBlock,
     ThemeConfigBlock,
@@ -238,8 +237,3 @@ class InputThemeConfigBlockType(ThemeConfigBlockType):
 class TableThemeConfigBlockType(ThemeConfigBlockType):
     type = "table"
     model_class = TableThemeConfigBlock
-
-
-class MenuThemeConfigBlockType(ThemeConfigBlockType):
-    type = "menu"
-    model_class = MenuThemeConfigBlock
