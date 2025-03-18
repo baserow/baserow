@@ -29,6 +29,7 @@ RowId = NewType("RowId", int)
 
 class UpdatedRowsData(NamedTuple):
     updated_rows: list[GeneratedTableModelForUpdate]
+    updated_rows_values: list[RowValues]
     original_rows_values_by_id: dict[RowId, RowValues]
     updated_fields_metadata_by_row_id: dict[RowId, FieldsMetadata]
     errors: dict[int, dict[str, Any]] | None = None

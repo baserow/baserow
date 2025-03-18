@@ -2029,8 +2029,16 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
             updated_rows_to_return, updated_fields, fields_metadata_by_row_id
         )
+        prepared_rows_values = [
+            {
+                "id": updated_row.id,
+                **self.get_internal_values_for_fields(updated_row, updated_field_ids),
+            }
+            for updated_row in updated_rows_to_return
+        ]
         updated_rows = UpdatedRowsData(
             updated_rows_to_return,
+            prepared_rows_values,
             original_row_values_by_id,
             fields_metadata_by_row_id,
             report,
