@@ -7,6 +7,7 @@
       :error-message="getFirstErrorMessage('domain_name') || serverErrorMessage"
     >
       <FormInput
+        ref="domainName"
         v-model="v$.values.domain_name.$model"
         size="large"
         @input="handleInput"
@@ -44,6 +45,9 @@ export default {
           : ''
         : ''
     },
+  },
+  mounted() {
+    this.$refs.domainName.focus()
   },
   methods: {
     handleInput() {
