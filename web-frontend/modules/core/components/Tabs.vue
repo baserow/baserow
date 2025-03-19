@@ -41,6 +41,14 @@
 <script>
 export default {
   name: 'Tabs',
+  provide() {
+    return {
+      tabsProvider: {
+        registerTab: this.registerTab,
+        unregisterTab: this.unregisterTab,
+      },
+    }
+  },
   props: {
     /**
      * The index of the selected tab.
@@ -99,6 +107,7 @@ export default {
       tabs: [], // all the tabs
     }
   },
+
   watch: {
     selectedIndex: {
       handler(i) {
@@ -109,17 +118,40 @@ export default {
       immediate: true,
     },
   },
-  created() {
-    this.tabs = this.$children
-  },
   mounted() {
-    if (this.route) {
-      this.tabs.forEach((tab) => {
-        tab.isActive = this.route.name === tab.to.name
-      })
-    } else this.selectTab(this.internalSelectedIndex)
+    // We'll call selectTab once all tabs are registered and mounted
+    this.$nextTick(() => {
+      if (this.route) {
+        this.tabs.forEach((tab) => {
+          tab.isActive = this.route.name === tab.to.name
+        })
+      } else {
+        this.selectTab(this.internalSelectedIndex)
+      }
+    })
   },
   methods: {
+    registerTab(tab) {
+      this.tabs.push(tab)
+      // Sort tabs by their DOM order
+      this.tabs.sort((a, b) => {
+        return a.$el && b.$el
+          ? Array.from(a.$el.parentNode.children).indexOf(a.$el) -
+              Array.from(b.$el.parentNode.children).indexOf(b.$el)
+          : 0
+      })
+
+      // If this is a route-based tab and it matches the current route, select it
+      if (this.route && tab.to && this.route.name === tab.to.name) {
+        tab.isActive = true
+      }
+    },
+    unregisterTab(tab) {
+      const index = this.tabs.indexOf(tab)
+      if (index !== -1) {
+        this.tabs.splice(index, 1)
+      }
+    },
     isActive(i) {
       if (this.route) return this.route.name === this.tabs[i].to.name
       else return this.internalSelectedIndex === i
