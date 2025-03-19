@@ -37,6 +37,8 @@ import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { resolveFormula } from '@baserow/modules/core/formula'
 import FormContainerElement from '@baserow/modules/builder/components/elements/components/FormContainerElement.vue'
 import FormContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/FormContainerElementForm.vue'
+import SimpleContainerElement from '@baserow/modules/builder/components/elements/components/SimpleContainerElement.vue'
+import SimpleContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/SimpleContainerElementForm.vue'
 import ChoiceElement from '@baserow/modules/builder/components/elements/components/ChoiceElement.vue'
 import ChoiceElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ChoiceElementForm.vue'
 import CheckboxElement from '@baserow/modules/builder/components/elements/components/CheckboxElement.vue'
@@ -51,6 +53,8 @@ import MultiPageContainerElementForm from '@baserow/modules/builder/components/e
 import MultiPageContainerElement from '@baserow/modules/builder/components/elements/components/MultiPageContainerElement'
 import DateTimePickerElement from '@baserow/modules/builder/components/elements/components/DateTimePickerElement'
 import DateTimePickerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/DateTimePickerElementForm'
+import MenuElement from '@baserow/modules/builder/components/elements/components/MenuElement'
+import MenuElementForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementForm'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import {
   ContainerElementTypeMixin,
@@ -63,6 +67,10 @@ import { FormattedDate, FormattedDateTime } from '@baserow/modules/builder/date'
 export class ElementType extends Registerable {
   get name() {
     return null
+  }
+
+  category() {
+    return 'baseElement'
   }
 
   get description() {
@@ -695,6 +703,10 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     return 'form_container'
   }
 
+  category() {
+    return 'formElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.formContainer')
   }
@@ -777,6 +789,10 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
     return 'column'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.column')
   }
@@ -842,9 +858,65 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
   }
 }
 
+export class SimpleContainerElementType extends ContainerElementTypeMixin(
+  ElementType
+) {
+  static getType() {
+    return 'simple_container'
+  }
+
+  category() {
+    return 'layoutElement'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.simpleContainer')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.simpleContainerDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-square'
+  }
+
+  get component() {
+    return SimpleContainerElement
+  }
+
+  get generalFormComponent() {
+    return SimpleContainerElementForm
+  }
+
+  getDefaultValues(page, values) {
+    const superValues = super.getDefaultValues(page, values)
+    return {
+      ...superValues,
+      style_padding_left: 0,
+      style_padding_right: 0,
+      style_padding_top: 0,
+      style_padding_bottom: 0,
+    }
+  }
+
+  getDefaultChildValues(page, values) {
+    // Unlike other container we don't want to affect the child padding.
+    return {}
+  }
+
+  getElementPlaces(element) {
+    return [null]
+  }
+}
+
 export class TableElementType extends CollectionElementTypeMixin(ElementType) {
   static getType() {
     return 'table'
+  }
+
+  category() {
+    return 'layoutElement'
   }
 
   get name() {
@@ -915,6 +987,10 @@ export class RepeatElementType extends CollectionElementTypeMixin(
     return 'repeat'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.repeat')
   }
@@ -959,6 +1035,10 @@ export class FormElementType extends ElementType {
 
   formDataType(element) {
     return null
+  }
+
+  category() {
+    return 'formElement'
   }
 
   /**
@@ -1815,6 +1895,10 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     return 'header'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.header')
   }
@@ -1897,6 +1981,10 @@ export class FooterElementType extends HeaderElementType {
     return 'footer'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   getPagePlace() {
     return PAGE_PLACES.FOOTER
   }
@@ -1955,5 +2043,110 @@ export class FooterElementType extends HeaderElementType {
       }
     }
     return null
+  }
+}
+
+export class MenuElementType extends ElementType {
+  static getType() {
+    return 'menu'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.menu')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.menuDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-menu'
+  }
+
+  get component() {
+    return MenuElement
+  }
+
+  get generalFormComponent() {
+    return MenuElementForm
+  }
+
+  getEventByName(element, name) {
+    return this.getEvents(element).find((event) => event.name === name)
+  }
+
+  getEvents(element) {
+    return (element.menu_items || [])
+      .map((item) => {
+        const { type: menuItemType, name, uid } = item
+        if (menuItemType === 'button') {
+          return [
+            new ClickEvent({
+              ...this.app,
+              namePrefix: uid,
+              labelSuffix: `- ${name}`,
+              applicationContextAdditions: { allowSameElement: true },
+            }),
+          ]
+        }
+        return []
+      })
+      .flat()
+  }
+
+  isInError({ page, element, builder }) {
+    // There must be at least one menu item
+    if (!element.menu_items?.length) {
+      return true
+    }
+
+    const workflowActions = this.app.store.getters[
+      'workflowAction/getElementWorkflowActions'
+    ](page, element.id)
+
+    const hasInvalidMenuItem = element.menu_items.some((menuItem) => {
+      if (menuItem.children?.length) {
+        return menuItem.children.some((child) => {
+          return this.menuItemIsInError(child, builder, workflowActions)
+        })
+      } else {
+        return this.menuItemIsInError(menuItem, builder, workflowActions)
+      }
+    })
+
+    return hasInvalidMenuItem || super.isInError({ page, element, builder })
+  }
+
+  menuItemIsInError(element, builder, workflowActions) {
+    if (['separator', 'spacer'].includes(element.type)) {
+      return false
+    } else if (element.type === 'button') {
+      // For button variants, there must be at least one workflow action
+      return !element.name || !workflowActions.length
+    } else if (element.type === 'link') {
+      if (!element.name) {
+        return true
+      }
+
+      if (!element.children?.length) {
+        if (element.navigation_type === 'page') {
+          if (!element.navigate_to_page_id) {
+            return true
+          }
+          return pathParametersInError(
+            element,
+            this.app.store.getters['page/getVisiblePages'](builder)
+          )
+        } else if (element.navigation_type === 'custom') {
+          return !element.navigate_to_url
+        }
+      }
+    }
+
+    return false
+  }
+
+  getDisplayName(element, applicationContext) {
+    return this.name
   }
 }

@@ -5,6 +5,8 @@
       'segment-control--transparent': transparent,
       'segment-control--icons-only': iconsOnly,
       'segment-control--small': size === 'small',
+      'segment-control--large': size === 'large',
+      'segment-control--rounded': type === 'rounded',
     }"
   >
     <button
@@ -68,7 +70,15 @@ export default {
       required: false,
       default: 'regular',
       validator: function (value) {
-        return ['regular', 'small'].includes(value)
+        return ['regular', 'small', 'large'].includes(value)
+      },
+    },
+    type: {
+      type: String,
+      required: false,
+      default: 'regular',
+      validator: function (value) {
+        return ['regular', 'rounded'].includes(value)
       },
     },
   },
@@ -81,6 +91,9 @@ export default {
     setActiveIndex(index) {
       this.activeIndex = index
       this.$emit('update:activeIndex', index)
+    },
+    reset() {
+      this.activeIndex = this.initialActiveIndex
     },
   },
 }

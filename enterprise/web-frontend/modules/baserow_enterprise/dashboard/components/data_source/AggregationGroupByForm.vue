@@ -6,6 +6,7 @@
     <Dropdown
       :value="aggregationGroupBy"
       :show-search="true"
+      :error="v$.aggregationGroupBy?.$error || false"
       fixed-items
       @change="groupByChangedByUser($event)"
     >
@@ -22,6 +23,15 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+
+const includesIfSet = (array) => (value) => {
+  if (value === null || value === undefined) {
+    return true
+  }
+  return array.includes(value)
+}
+
 export default {
   name: 'AggregationGroupByForm',
   props: {
@@ -34,14 +44,22 @@ export default {
       required: true,
     },
   },
+  setup() {
+    return { v$: useVuelidate() }
+  },
   data() {
     return {
       aggregationGroupBy: 'none',
     }
   },
   computed: {
+    compatibleFields() {
+      return this.tableFields.filter((field) =>
+        this.$registry.exists('groupedAggregationGroupedBy', field.type)
+      )
+    },
     groupByOptions() {
-      const tableFieldOptions = this.tableFields.map((field) => {
+      const tableFieldOptions = this.compatibleFields.map((field) => {
         return {
           name: field.name,
           value: field.id,
@@ -64,6 +82,22 @@ export default {
       },
       immediate: true,
     },
+  },
+  mounted() {
+    this.v$.$touch()
+  },
+  validations() {
+    const self = this
+    return {
+      aggregationGroupBy: {
+        isValidGroupBy: (value) => {
+          const validGroupByValues = self.groupByOptions.map(
+            (item) => item.value
+          )
+          return includesIfSet(validGroupByValues)(value)
+        },
+      },
+    }
   },
   methods: {
     groupByChangedByUser(value) {

@@ -289,6 +289,36 @@ export class TypographyThemeConfigBlockType extends ThemeConfigBlockType {
         `heading_${level}_font_weight`,
         `--heading-h${level}-font-weight`
       )
+      style.addIfExists(
+        theme,
+        `heading_${level}_text_decoration`,
+        `--heading-h${level}-text-decoration`,
+        (v) => {
+          const value = []
+          if (v[0]) {
+            value.push('underline')
+          }
+          if (v[1]) {
+            value.push('line-through')
+          }
+          if (value.length === 0) {
+            return 'none'
+          }
+          return value.join(' ')
+        }
+      )
+      style.addIfExists(
+        theme,
+        `heading_${level}_text_decoration`,
+        `--heading-h${level}-text-transform`,
+        (v) => (v[2] ? 'uppercase' : 'none')
+      )
+      style.addIfExists(
+        theme,
+        `heading_${level}_text_decoration`,
+        `--heading-h${level}-font-style`,
+        (v) => (v[3] ? 'italic' : 'none')
+      )
     })
     style.addPixelValueIfExists(theme, `body_font_size`)
     style.addColorIfExists(theme, `body_text_color`)
@@ -328,6 +358,10 @@ export class ButtonThemeConfigBlockType extends ThemeConfigBlockType {
     style.addColorIfExists(theme, 'button_hover_text_color')
     style.addColorIfExists(theme, 'button_border_color')
     style.addColorIfExists(theme, 'button_hover_border_color')
+    style.addColorIfExists(theme, 'button_active_background_color')
+    style.addColorIfExists(theme, 'button_active_text_color')
+    style.addColorIfExists(theme, 'button_active_border_color')
+
     style.addIfExists(theme, 'button_width', null, (v) =>
       v === WIDTHS_NEW.FULL ? '100%' : 'auto'
     )
@@ -378,6 +412,7 @@ export class LinkThemeConfigBlockType extends ThemeConfigBlockType {
     })
     style.addColorIfExists(theme, 'link_text_color')
     style.addColorIfExists(theme, 'link_hover_text_color')
+    style.addColorIfExists(theme, 'link_active_text_color')
     style.addIfExists(
       theme,
       'link_text_alignment',
@@ -393,6 +428,96 @@ export class LinkThemeConfigBlockType extends ThemeConfigBlockType {
       const fontFamilyType = this.app.$registry.get('fontFamily', v)
       return `"${fontFamilyType.name}","${fontFamilyType.safeFont}"`
     })
+    style.addIfExists(
+      theme,
+      'link_default_text_decoration',
+      '--link-default-text-decoration',
+      (v) => {
+        const value = []
+        if (v[0]) {
+          value.push('underline')
+        }
+        if (v[1]) {
+          value.push('line-through')
+        }
+        if (value.length === 0) {
+          return 'none'
+        }
+        return value.join(' ')
+      }
+    )
+    style.addIfExists(
+      theme,
+      'link_default_text_decoration',
+      '--link-default-text-transform',
+      (v) => (v[2] ? 'uppercase' : 'none')
+    )
+    style.addIfExists(
+      theme,
+      'link_default_text_decoration',
+      '--link-default-font-style',
+      (v) => (v[3] ? 'italic' : 'none')
+    )
+    style.addIfExists(
+      theme,
+      'link_hover_text_decoration',
+      '--link-hover-text-decoration',
+      (v) => {
+        const value = []
+        if (v[0]) {
+          value.push('underline')
+        }
+        if (v[1]) {
+          value.push('line-through')
+        }
+        if (value.length === 0) {
+          return 'none'
+        }
+        return value.join(' ')
+      }
+    )
+    style.addIfExists(
+      theme,
+      'link_hover_text_decoration',
+      '--link-hover-text-transform',
+      (v) => (v[2] ? 'uppercase' : 'none')
+    )
+    style.addIfExists(
+      theme,
+      'link_hover_text_decoration',
+      '--link-hover-font-style',
+      (v) => (v[3] ? 'italic' : 'none')
+    )
+    style.addIfExists(
+      theme,
+      'link_active_text_decoration',
+      '--link-active-text-decoration',
+      (v) => {
+        const value = []
+        if (v[0]) {
+          value.push('underline')
+        }
+        if (v[1]) {
+          value.push('line-through')
+        }
+        if (value.length === 0) {
+          return 'none'
+        }
+        return value.join(' ')
+      }
+    )
+    style.addIfExists(
+      theme,
+      'link_active_text_decoration',
+      '--link-active-text-transform',
+      (v) => (v[2] ? 'uppercase' : 'none')
+    )
+    style.addIfExists(
+      theme,
+      'link_active_text_decoration',
+      '--link-active-font-style',
+      (v) => (v[3] ? 'italic' : 'none')
+    )
     style.addPixelValueIfExists(theme, `link_font_size`)
     style.addFontWeightIfExists(theme, `link_font_weight`)
     return style.toObject()

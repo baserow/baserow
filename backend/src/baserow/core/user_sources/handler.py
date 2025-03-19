@@ -12,7 +12,7 @@ from loguru import logger
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationOperationNotSupported
 from baserow.core.integrations.handler import IntegrationHandler
-from baserow.core.models import Application
+from baserow.core.models import Application, Workspace
 from baserow.core.registries import application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_sources.exceptions import UserSourceDoesNotExist
@@ -374,7 +374,7 @@ class UserSourceHandler:
     ):
         """
         Responsible for iterating over all registered user source types, and asking the
-        implementation to count the number of external users it points to.
+        implementation to count the number of application users it points to.
 
         :param user_source_type: Optionally, a specific user source type to update.
         :param update_in_chunks: Whether to update the user count in chunks or not.
@@ -399,8 +399,45 @@ class UserSourceHandler:
             except Exception as e:
                 if not settings.TESTS:
                     logger.exception(
-                        f"Counting {user_source_type.type} external users failed: {e}"
+                        f"Counting {user_source_type.type} application users failed: {e}"
                     )
                 if raise_on_error:
                     raise e
                 continue
+
+    def aggregate_user_counts(
+        self,
+        workspace: Optional[Workspace] = None,
+        base_queryset: Optional[QuerySet] = None,
+    ) -> int:
+        """
+        Responsible for returning the sum total of all user counts in the instance.
+        If a workspace is provided, this aggregation is reduced to applications
+        within this workspace.
+
+        :param workspace: The workspace to filter the aggregation by.
+        :param base_queryset: The base queryset to use to build the query.
+        :return: The total number of user source users in the instance, or within the
+            workspace if provided.
+        """
+
+        queryset = (
+            base_queryset
+            if base_queryset is not None
+            else self.get_user_sources(
+                base_queryset=UserSource.objects.filter(
+                    application__workspace=workspace
+                )
+                if workspace
+                else None
+            )
+        )
+
+        user_source_counts: List[int] = []
+        for user_source in queryset:
+            user_source_type: UserSourceType = user_source.get_type()  # type: ignore
+            user_source_count = user_source_type.get_user_count(user_source)
+            if user_source_count is not None:
+                user_source_counts.append(user_source_count.count)
+
+        return sum(user_source_counts)

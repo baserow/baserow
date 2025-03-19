@@ -51,6 +51,44 @@
           <ColorInput v-model="v$.values.main_error_color.$model" small />
         </FormGroup>
       </template>
+      <template #preview>
+        <div
+          class="color-theme-config-block__color-preview margin-bottom-1"
+          :style="{
+            '--preview-color': 'var(--main-primary-color)',
+          }"
+        />
+        <div
+          class="color-theme-config-block__color-preview margin-bottom-1"
+          :style="{
+            '--preview-color': 'var(--main-secondary-color)',
+          }"
+        />
+        <div
+          class="color-theme-config-block__color-preview margin-bottom-1"
+          :style="{
+            '--preview-color': 'var(--main-border-color)',
+          }"
+        />
+        <div
+          class="color-theme-config-block__color-preview margin-bottom-1"
+          :style="{
+            '--preview-color': 'var(--main-success-color)',
+          }"
+        />
+        <div
+          class="color-theme-config-block__color-preview margin-bottom-1"
+          :style="{
+            '--preview-color': 'var(--main-warning-color)',
+          }"
+        />
+        <div
+          class="color-theme-config-block__color-preview margin-bottom-1"
+          :style="{
+            '--preview-color': 'var(--main-error-color)',
+          }"
+        />
+      </template>
     </ThemeConfigBlockSection>
 
     <ThemeConfigBlockSection :title="$t('colorThemeConfigBlock.customColors')">
@@ -73,6 +111,16 @@
             {{ $t('colorThemeConfigBlock.addCustomColor') }}
           </ButtonText>
         </div>
+      </template>
+      <template #preview>
+        <div
+          v-for="customColor in values.custom_colors"
+          :key="customColor.value"
+          class="color-theme-config-block__color-preview margin-bottom-1"
+          :style="{
+            '--preview-color': customColor.color,
+          }"
+        />
       </template>
     </ThemeConfigBlockSection>
   </div>
@@ -136,7 +184,6 @@ export default {
      * doesn't duplicate the name of an existing custom color.
      */
     addCustomColor() {
-      console.log('addCustomColor')
       // To avoid duplicating names, newColorId is incremented until an unused
       // value is found.
       const existingNames = this.values.custom_colors.map((color) => color.name)

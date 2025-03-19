@@ -303,7 +303,11 @@ def test_saml_assertion_consumer_service(api_client, enterprise_data_fixture):
         assert response.headers["Location"].startswith(
             f"{get_frontend_default_redirect_url()}?token="
         )
-        token = response.headers["Location"].split("=")[1]
+        # Extract the token from the URL, handling the new format with user_session
+        redirect_url = response.headers["Location"]
+        query_params = dict(parse_qsl(urlparse(redirect_url).query))
+        token = query_params.get("token")
+
         # ensure the token is valid and a user has been created
         response = api_client.post(
             reverse("api:user:token_verify"),

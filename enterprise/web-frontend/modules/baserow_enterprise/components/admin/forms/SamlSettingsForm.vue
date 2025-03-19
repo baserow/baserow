@@ -3,7 +3,7 @@
     <FormGroup
       small-label
       required
-      :error="fieldHasErrors('domain')"
+      :error="fieldHasErrors('domain') || !!serverErrors.domain"
       class="margin-bottom-2"
     >
       <template #label>
@@ -21,12 +21,15 @@
         ref="domain"
         v-model="v$.values.domain.$model"
         size="large"
-        :error="fieldHasErrors('domain') || serverErrors.domain"
+        :error="fieldHasErrors('domain') || !!serverErrors.domain"
         :placeholder="$t('samlSettingsForm.domainPlaceholder')"
         @input="onDomainInput()"
+        @blur="v$.values.domain.$touch"
       ></FormInput>
       <template #error>
-        {{ v$.values.domain.$errors[0]?.$message }}
+        {{
+          v$.values.domain.$errors[0]?.$message || serverErrors.domain[0].error
+        }}
       </template>
     </FormGroup>
 
@@ -41,13 +44,17 @@
         ref="metadata"
         v-model="v$.values.metadata.$model"
         :rows="12"
-        :error="fieldHasErrors('metadata') || serverErrors.metadata"
+        :error="fieldHasErrors('metadata') || !!serverErrors.metadata"
         :placeholder="$t('samlSettingsForm.metadataPlaceholder')"
         @input="onMetadataInput()"
+        @blur="v$.values.metadata.$touch"
       ></FormTextarea>
 
       <template #error>
-        {{ v$.values.metadata.$errors[0]?.$message }}
+        {{
+          v$.values.metadata.$errors[0]?.$message ||
+          serverErrors.metadata[0].error
+        }}
       </template>
     </FormGroup>
 
@@ -110,6 +117,7 @@
             v-model="v$.values.email_attr_key.$model"
             :error="fieldHasErrors('email_attr_key')"
             :placeholder="defaultAttrs.email_attr_key"
+            @blur="v$.values.email_attr_key.$touch"
           ></FormInput>
           <template #helper>
             {{ $t('samlSettingsForm.emailAttrKeyHelper') }}
@@ -131,6 +139,7 @@
             v-model="v$.values.first_name_attr_key.$model"
             :error="fieldHasErrors('first_name_attr_key')"
             :placeholder="defaultAttrs.first_name_attr_key"
+            @blur="v$.values.first_name_attr_key.$touch"
           ></FormInput>
           <template #helper>
             {{ $t('samlSettingsForm.firstNameAttrKeyHelper') }}

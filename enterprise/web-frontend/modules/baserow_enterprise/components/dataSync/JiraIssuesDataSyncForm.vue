@@ -15,6 +15,7 @@
         :error="fieldHasErrors('jira_url')"
         :disabled="disabled"
         @focus.once="$event.target.select()"
+        @blur="v$.values.jira_url.$touch"
       />
       <template #error>
         {{ v$.values.jira_url.$errors[0]?.$message }}
@@ -36,6 +37,7 @@
         :error="fieldHasErrors('jira_username')"
         :disabled="disabled"
         @focus.once="$event.target.select()"
+        @blur="v$.values.jira_username.$touch"
       />
       <template #error>
         {{ v$.values.jira_username.$errors[0]?.$message }}
@@ -49,13 +51,8 @@
       small-label
       class="margin-bottom-2"
       :protected-edit="update"
-      @enabled-protected-edit="allowedValues.push('jira_api_token')"
-      @disable-protected-edit="
-        ;[
-          allowedValues.splice(allowedValues.indexOf('jira_api_token'), 1),
-          delete values['jira_api_token'],
-        ]
-      "
+      @enabled-protected-edit="values.jira_api_token = ''"
+      @disable-protected-edit="values.jira_api_token = undefined"
     >
       <template #label>{{ $t('jiraIssuesDataSync.apiToken') }}</template>
       <FormInput
@@ -65,6 +62,7 @@
         :error="fieldHasErrors('jira_api_token')"
         :disabled="disabled"
         @focus.once="$event.target.select()"
+        @blur="v$.values.jira_api_token.$touch"
       />
       <template #error>
         {{ v$.values.jira_api_token.$errors[0]?.$message }}
@@ -111,17 +109,19 @@ export default {
     return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
-    const allowedValues = ['jira_url', 'jira_username', 'jira_project_key']
-    if (!this.update) {
-      allowedValues.push('jira_api_token')
-    }
+    const allowedValues = [
+      'jira_url',
+      'jira_username',
+      'jira_project_key',
+      'jira_api_token',
+    ]
     return {
       allowedValues,
       values: {
         jira_url: '',
         jira_username: '',
         jira_project_key: '',
-        jira_api_token: '',
+        jira_api_token: this.update ? undefined : '',
       },
     }
   },
@@ -145,7 +145,7 @@ export default {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             requiredIf(() => {
-              return this.allowedValues.includes('gitlab_access_token')
+              return this.values.jira_api_token !== undefined
             })
           ),
         },

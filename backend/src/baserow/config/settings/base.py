@@ -423,7 +423,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.31.1",
+    "VERSION": "1.32.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -986,6 +986,10 @@ BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS = int(
 BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK = (
     int(os.getenv("BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK", "0")) or None
 )
+BASEROW_WEBHOOKS_BATCH_LIMIT = int(os.getenv("BASEROW_WEBHOOKS_BATCH_LIMIT", 5))
+BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE = int(
+    os.getenv("BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE", BATCH_ROWS_SIZE_LIMIT)
+)
 
 # ======== WARNING ========
 # Please read and understand everything at:
@@ -1271,7 +1275,9 @@ BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE = int(
 
 BASEROW_USE_LOCAL_CACHE = str_to_bool(os.getenv("BASEROW_USE_LOCAL_CACHE", "true"))
 
+
 # -- CACHALOT SETTINGS --
+
 CACHALOT_TIMEOUT = int(os.getenv("BASEROW_CACHALOT_TIMEOUT", 60 * 60 * 24 * 7))
 BASEROW_CACHALOT_ONLY_CACHABLE_TABLES = os.getenv(
     "BASEROW_CACHALOT_ONLY_CACHABLE_TABLES", None

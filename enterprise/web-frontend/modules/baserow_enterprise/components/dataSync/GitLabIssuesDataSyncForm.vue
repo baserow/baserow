@@ -15,6 +15,7 @@
         :error="fieldHasErrors('gitlab_url')"
         :disabled="disabled"
         @focus.once="$event.target.select()"
+        @blur="v$.values.gitlab_url.$touch"
       />
       <template #error>
         {{ v$.values.gitlab_url.$errors[0]?.$message }}
@@ -34,6 +35,7 @@
         :error="fieldHasErrors('gitlab_project_id')"
         :disabled="disabled"
         size="large"
+        @blur="v$.values.gitlab_project_id.$touch"
       />
       <template #error>
         {{ v$.values.gitlab_project_id.$errors[0]?.$message }}
@@ -48,19 +50,15 @@
       :helper-text="$t('gitlabIssuesDataSync.accessTokenHelper')"
       small-label
       :protected-edit="update"
-      @enabled-protected-edit="allowedValues.push('gitlab_access_token')"
-      @disable-protected-edit="
-        ;[
-          allowedValues.splice(allowedValues.indexOf('gitlab_access_token'), 1),
-          delete values['gitlab_access_token'],
-        ]
-      "
+      @enabled-protected-edit="values.gitlab_access_token = ''"
+      @disable-protected-edit="values.gitlab_access_token = undefined"
     >
       <FormInput
         v-model="v$.values.gitlab_access_token.$model"
         :error="fieldHasErrors('gitlab_access_token')"
         :disabled="disabled"
         size="large"
+        @blur="v$.values.gitlab_access_token.$touch"
       />
       <template #error>
         {{ v$.values.gitlab_access_token.$errors[0]?.$message }}
@@ -93,15 +91,17 @@ export default {
     return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
-    const allowedValues = ['gitlab_url', 'gitlab_project_id']
-    if (!this.update) {
-      allowedValues.push('gitlab_access_token')
-    }
+    const allowedValues = [
+      'gitlab_url',
+      'gitlab_project_id',
+      'gitlab_access_token',
+    ]
     return {
       allowedValues,
       values: {
         gitlab_url: 'https://gitlab.com',
         gitlab_project_id: '',
+        gitlab_access_token: this.update ? undefined : '',
       },
     }
   },
@@ -125,7 +125,7 @@ export default {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             requiredIf(() => {
-              return this.allowedValues.includes('gitlab_access_token')
+              return this.values.gitlab_access_token !== undefined
             })
           ),
         },

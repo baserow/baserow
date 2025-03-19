@@ -8,6 +8,9 @@
   font-weight: var(--heading-h1-font-weight, 700);
   text-align: var(--heading-h1-text-alignment, left);
   font-family: var(--heading-h1-font-family, Inter);
+  text-decoration: var(--heading-h1-text-decoration, none);
+  text-transform: var(--heading-h1-text-transform, none);
+  font-style: var(--heading-h1-font-style, none);
 }
 
 .ab-heading--h2 {
@@ -16,6 +19,9 @@
   font-weight: var(--heading-h2-font-weight, 600);
   text-align: var(--heading-h2-text-alignment, left);
   font-family: var(--heading-h2-font-family, Inter);
+  text-decoration: var(--heading-h2-text-decoration, none);
+  text-transform: var(--heading-h2-text-transform, none);
+  font-style: var(--heading-h2-font-style, none);
 }
 
 .ab-heading--h3 {
@@ -24,6 +30,9 @@
   font-weight: var(--heading-h3-font-weight, 500);
   text-align: var(--heading-h3-text-alignment, left);
   font-family: var(--heading-h3-font-family, Inter);
+  text-decoration: var(--heading-h3-text-decoration, none);
+  text-transform: var(--heading-h3-text-transform, none);
+  font-style: var(--heading-h3-font-style, none);
 }
 
 .ab-heading--h4 {
@@ -32,6 +41,9 @@
   font-weight: var(--heading-h4-font-weight, 500);
   text-align: var(--heading-h4-text-alignment, left);
   font-family: var(--heading-h4-font-family, Inter);
+  text-decoration: var(--heading-h4-text-decoration, none);
+  text-transform: var(--heading-h4-text-transform, none);
+  font-style: var(--heading-h4-font-style, none);
 }
 
 .ab-heading--h5 {
@@ -40,6 +52,9 @@
   font-weight: var(--heading-h5-font-weight, 400);
   text-align: var(--heading-h5-text-alignment, left);
   font-family: var(--heading-h5-font-family, Inter);
+  text-decoration: var(--heading-h5-text-decoration, none);
+  text-transform: var(--heading-h5-text-transform, none);
+  font-style: var(--heading-h5-font-style, none);
 }
 
 .ab-heading--h6 {
@@ -48,5 +63,7 @@
   font-weight: var(--heading-h6-font-weight, 400);
   text-align: var(--heading-h6-text-alignment, left);
   font-family: var(--heading-h6-font-family, Inter);
-  font-style: italic;
+  text-decoration: var(--heading-h6-text-decoration, underline);
+  text-transform: var(--heading-h6-text-transform, none);
+  font-style: var(--heading-h6-font-style, italic);
 }

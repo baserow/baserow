@@ -48,6 +48,7 @@ from baserow.contrib.database.views.handler import (
     ViewIndexingHandler,
 )
 from baserow.contrib.database.views.models import (
+    DEFAULT_SORT_TYPE_KEY,
     OWNERSHIP_TYPE_COLLABORATIVE,
     FormView,
     GridView,
@@ -795,6 +796,27 @@ def test_field_type_changed(data_fixture):
 
 
 @pytest.mark.django_db
+def test_field_type_changed_unsupported_order_by_type(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_single_select_field(table=table)
+    grid_view = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_sort(
+        view=grid_view, field=field, order="ASC", type="order"
+    )
+    data_fixture.create_view_group_by(
+        view=grid_view, field=field, order="ASC", type="order"
+    )
+
+    field_handler = FieldHandler()
+    long_text_field = field_handler.update_field(
+        user=user, field=field, new_type_name="text"
+    )
+    assert ViewSort.objects.all().count() == 0
+    assert ViewGroupBy.objects.all().count() == 0
+
+
+@pytest.mark.django_db
 def test_field_type_single_field_num_queries(data_fixture, django_assert_num_queries):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -817,7 +839,7 @@ def test_field_type_single_field_num_queries(data_fixture, django_assert_num_que
     handler = ViewHandler()
 
     # Should be equal to the `test_field_type_changed_two_fields_num_queries`.
-    with django_assert_num_queries(9):
+    with django_assert_num_queries(11):
         handler.fields_type_changed([password_field_1])
 
     assert ViewFilter.objects.all().count() == 0
@@ -864,7 +886,7 @@ def test_field_type_changed_two_fields_num_queries(
     handler = ViewHandler()
 
     # Should be equal to the `test_field_type_single_field_num_queries`.
-    with django_assert_num_queries(9):
+    with django_assert_num_queries(11):
         handler.fields_type_changed([password_field_1, password_field_2])
 
     assert ViewFilter.objects.all().count() == 0
@@ -4093,7 +4115,9 @@ def test_get_group_by_on_all_fields_in_interesting_table(data_fixture):
     fields_to_group_by = [
         field
         for field in all_fields
-        if field_type_registry.get_by_model(field).check_can_group_by(field)
+        if field_type_registry.get_by_model(field).check_can_group_by(
+            field, DEFAULT_SORT_TYPE_KEY
+        )
     ]
 
     actual_result_per_field_name = {}
@@ -4383,3 +4407,44 @@ def test_get_queryset_apply_sorts(data_fixture):
 
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_2.id, row_1.id]
+
+
+@pytest.mark.django_db
+def test_can_duplicate_views_with_multiple_collaborator_has_filter(data_fixture):
+    user_1 = data_fixture.create_user()
+    user_2 = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(users=[user_1, user_2])
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_multiple_collaborators_field(table=table)
+    grid = data_fixture.create_public_password_protected_grid_view(table=table, order=1)
+    view_filter = data_fixture.create_view_filter(
+        view=grid, field=field, type="multiple_collaborators_has", value=user_1.id
+    )
+
+    rows = (
+        RowHandler()
+        .force_create_rows(
+            user_1,
+            table,
+            [
+                {field.db_column: []},
+                {field.db_column: [{"id": user_1.id, "name": user_1.first_name}]},
+                {field.db_column: [{"id": user_2.id, "name": user_2.first_name}]},
+            ],
+        )
+        .created_rows
+    )
+
+    results = ViewHandler().get_queryset(grid)
+    assert len(results) == 1
+    assert list(getattr(results[0], field.db_column).values_list("id", flat=True)) == [
+        user_1.id
+    ]
+
+    new_grid = ViewHandler().duplicate_view(user_1, grid)
+    new_results = ViewHandler().get_queryset(new_grid)
+    assert len(new_results) == 1
+    assert list(
+        getattr(new_results[0], field.db_column).values_list("id", flat=True)
+    ) == [user_1.id]

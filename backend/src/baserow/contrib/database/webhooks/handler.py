@@ -11,12 +11,14 @@ from requests import PreparedRequest, Response
 
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.views.models import View
 from baserow.core.handler import CoreHandler
 from baserow.core.utils import extract_allowed, set_allowed_attrs
 
 from .exceptions import (
     TableWebhookDoesNotExist,
     TableWebhookEventConfigFieldNotInTable,
+    TableWebhookEventConfigViewNotInTable,
     TableWebhookMaxAllowedCountExceeded,
 )
 from .models import (
@@ -39,18 +41,21 @@ from .validators import get_webhook_request_function
 
 
 class WebhookHandler:
-    def find_webhooks_to_call(self, table_id: int, event_type: str) -> QuerySet:
+    def find_webhooks_to_call(
+        self, table_id: int, event_type: str, additional_filters: Q | None = None
+    ) -> QuerySet[TableWebhook]:
         """
         This function is responsible for finding all the webhooks related to a table
         that must be triggered on a specific event.
         """
 
-        q = Q()
-        q.add(Q(events__event_type__in=[event_type]), Q.OR)
+        q = Q(events__event_type__in=[event_type])
+        if additional_filters is not None:
+            q &= additional_filters
 
         event_type_object = webhook_event_type_registry.get(event_type)
         if event_type_object.should_trigger_when_all_event_types_selected:
-            q.add(Q(include_all_events=True), Q.OR)
+            q |= Q(include_all_events=True)
 
         return (
             TableWebhook.objects.filter(
@@ -170,14 +175,25 @@ class WebhookHandler:
             # could have been deleted.
             if not event_object:
                 continue
-            event_fields = Field.objects.filter(
-                table_id=webhook.table_id, id__in=event["fields"]
-            )
-            for field_id in event["fields"]:
-                if not next((f for f in event_fields if field_id == f.id), None):
+
+            # Set fields
+            field_ids = event.get("fields", [])
+            fields = Field.objects.filter(table_id=webhook.table_id, id__in=field_ids)
+            for field_id in field_ids:
+                if not next((f for f in fields if field_id == f.id), None):
                     raise TableWebhookEventConfigFieldNotInTable(field_id)
 
-            event_object.fields.set(event_fields)
+            event_object.fields.set(fields)
+
+            # Set views
+            view_ids = event.get("views", [])
+            views = View.objects.filter(id__in=view_ids, table_id=webhook.table_id)
+            for view_id in view_ids:
+                if not next((v for v in views if view_id == v.id), None):
+                    raise TableWebhookEventConfigViewNotInTable(view_id)
+
+            event_object.views.set(views)
+            event_object.get_type().after_update(event_object)
 
     def create_table_webhook(
         self,
@@ -223,19 +239,23 @@ class WebhookHandler:
         values = extract_allowed(kwargs, allowed_fields)
         webhook = TableWebhook.objects.create(table_id=table.id, **values)
 
+        webhook_events = []
         if events is not None and not values.get("include_all_events"):
-            event_headers = []
-            for event in events:
-                event_object = TableWebhookEvent(
-                    event_type=event, webhook_id=webhook.id
+            for event_type in events:
+                webhook_event = TableWebhookEvent(
+                    event_type=event_type, webhook=webhook
                 )
-                event_object.full_clean()
-                event_headers.append(event_object)
+                webhook_event.full_clean()
+                webhook_events.append(webhook_event)
 
-            webhook_events = TableWebhookEvent.objects.bulk_create(event_headers)
+            webhook_events = TableWebhookEvent.objects.bulk_create(webhook_events)
 
         if event_config is not None and not values.get("include_all_events"):
             self._update_webhook_event_config(webhook, event_config, webhook_events)
+
+        for webhook_event in webhook_events:
+            webhook_event_type = webhook_event.get_type()
+            webhook_event_type.after_create(webhook_event)
 
         if headers is not None:
             header_objects = []
@@ -247,7 +267,6 @@ class WebhookHandler:
                 header_objects.append(header)
 
             TableWebhookHeader.objects.bulk_create(header_objects)
-
         return webhook
 
     def update_table_webhook(
@@ -303,6 +322,7 @@ class WebhookHandler:
             kwargs.get("include_all_events", False) and not old_include_all_events
         )
 
+        created_events = []
         if not should_update_events:
             TableWebhookEvent.objects.filter(webhook=webhook).delete()
         elif events is not None:
@@ -327,10 +347,14 @@ class WebhookHandler:
             ]
 
             if len(events_to_create) > 0:
-                TableWebhookEvent.objects.bulk_create(events_to_create)
+                created_events = TableWebhookEvent.objects.bulk_create(events_to_create)
 
         if event_config is not None and should_update_events:
             self._update_webhook_event_config(webhook, event_config)
+
+        for webhook_event in created_events:
+            webhook_event_type = webhook_event.get_type()
+            webhook_event_type.after_create(webhook_event)
 
         if headers is not None:
             existing_headers = webhook.headers.all()

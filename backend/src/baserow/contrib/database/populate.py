@@ -95,7 +95,9 @@ def load_test_data():
             ("Rabbit", select_by_name["Meat"], fake.sentence(nb_words=10)),
         ]
 
-        RowHandler().import_rows(user, products_table, data, send_realtime_update=False)
+        RowHandler().import_rows(
+            user, products_table, data=data, send_realtime_update=False
+        )
 
     try:
         suppliers_table = Table.objects.get(name="Suppliers", database=database)
@@ -195,7 +197,7 @@ def load_test_data():
         ]
 
         RowHandler().import_rows(
-            user, suppliers_table, data, send_realtime_update=False
+            user, suppliers_table, data=data, send_realtime_update=False
         )
 
     try:
@@ -253,7 +255,7 @@ def load_test_data():
         ]
 
         RowHandler().import_rows(
-            user, retailers_table, data, send_realtime_update=False
+            user, retailers_table, data=data, send_realtime_update=False
         )
 
     try:
@@ -358,5 +360,5 @@ def load_test_data():
         ]
 
         RowHandler().import_rows(
-            user, user_accounts_table, data, send_realtime_update=False
+            user, user_accounts_table, data=data, send_realtime_update=False
         )

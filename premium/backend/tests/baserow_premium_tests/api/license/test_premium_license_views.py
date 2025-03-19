@@ -107,7 +107,7 @@ def test_admin_list_licenses(api_client, data_fixture, django_assert_num_queries
         # We expect one to count the total number of users, one query for the user
         # check, one for the fetching the licenses including the count of
         # seats that are taken.
-        with django_assert_num_queries(3):
+        with django_assert_num_queries(5):
             response = api_client.get(
                 reverse("api:premium:license:list"),
                 format="json",
@@ -303,7 +303,7 @@ def test_admin_get_license(api_client, data_fixture, django_assert_num_queries):
 
     with freeze_time("2021-09-01 00:00"):
         admin_token = data_fixture.generate_token(admin_user)
-        with django_assert_num_queries(5):
+        with django_assert_num_queries(6):
             response = api_client.get(
                 reverse("api:premium:license:item", kwargs={"id": license.id}),
                 format="json",

@@ -43,7 +43,14 @@ import SegmentControl from '@baserow/modules/core/components/SegmentControl'
         size: {
             control: {
                 type: 'select',
-                options: ['regular', 'small'],
+                options: ['regular', 'small', 'large'],
+            },
+            defaultValue: 'regular',
+        },
+        type: {
+            control: {
+                type: 'select',
+                options: ['regular', 'rounded'],
             },
             defaultValue: 'regular',
         },

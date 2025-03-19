@@ -1,6 +1,7 @@
 <template>
   <FieldNumberSubForm
     v-if="formulaType === 'number'"
+    ref="subForm"
     :default-values="defaultValues"
     :table="table"
     :view="view"
@@ -12,6 +13,7 @@
   </FieldNumberSubForm>
   <FieldDateSubForm
     v-else-if="['date', 'last_modified', 'created_on'].includes(formulaType)"
+    ref="subForm"
     :default-values="defaultValues"
     :table="table"
     :view="view"
@@ -22,6 +24,7 @@
   </FieldDateSubForm>
   <FieldDurationSubForm
     v-else-if="formulaType === 'duration'"
+    ref="subForm"
     :default-values="defaultValues"
     :table="table"
     :view="view"
@@ -66,6 +69,11 @@ export default {
       allowedValues: [],
       values: {},
     }
+  },
+  methods: {
+    isDirty() {
+      return this.$refs.subForm?.isDirty()
+    },
   },
 }
 </script>

@@ -105,7 +105,11 @@
         "notAllowedInsideSameType": "Dit element is niet toegestaan in een container van hetzelfde type",
         "notAllowedLocation": "Dit element is niet toegestaan op deze locatie",
         "dateTimePicker": "Datum tijd kiezer",
-        "dateTimePickerDescription": "Een invoerveld voor datum en tijd"
+        "dateTimePickerDescription": "Een invoerveld voor datum en tijd",
+        "simpleContainer": "Container",
+        "menu": "Menu",
+        "menuDescription": "Menu element",
+        "simpleContainerDescription": "Een container voor andere elementen"
     },
     "addElementButton": {
         "label": "Element"
@@ -178,7 +182,9 @@
         "publishFailedDescription": "Het publiceren van de site is mislukt. Probeer het later opnieuw.",
         "openInNewTab": "Openen in nieuw tabblad",
         "noDomain": "Je moet ten minste één domein hebben om uw applicatie te kunnen publiceren.",
-        "importingState": "importeren"
+        "importingState": "importeren",
+        "addDomain": "Domein toevoegen",
+        "publishSucceedLink": "Bekijk site"
     },
     "lastPublishedDomainDate": {
         "neverPublished": "nooit",
@@ -212,7 +218,8 @@
     },
     "domainCard": {
         "refresh": "Instellingen vernieuwen",
-        "detailLabel": "Toon details"
+        "detailLabel": "Toon details",
+        "unpublishedDomainWarning": "Publiceer de applicatie om deze beschikbaar te maken op dit domein."
     },
     "domainTypes": {
         "customName": "Aangepast domein",
@@ -743,7 +750,8 @@
         "size": "Lettergrootte",
         "backgroundColor": "Achtergrond kleur",
         "button": "Knop",
-        "weight": "Lettertype gewicht"
+        "weight": "Lettertype gewicht",
+        "activeState": "Actieve status"
     },
     "linkThemeConfigBlock": {
         "color": "Kleur",
@@ -753,7 +761,8 @@
         "alignment": "Uitlijning",
         "fontFamily": "Lettertype",
         "size": "Lettergrootte",
-        "weight": "Lettertype gewicht"
+        "weight": "Lettertype gewicht",
+        "activeState": "Actieve status"
     },
     "imageThemeConfigBlock": {
         "alignment": "Uitlijning",
@@ -1024,5 +1033,50 @@
         "cornerRadiusLabel": "Hoekradius",
         "backgroundRadiusLabel": "Achtergrond",
         "borderRadiusLabel": "Rand"
+    },
+    "addElementCategory": {
+        "suggestedElement": "Voorgestelde elementen",
+        "baseElement": "Basis elementen",
+        "layoutElement": "Layout elementen",
+        "formElement": "Formulier elementen"
+    },
+    "menuElement": {
+        "spacer": "Spacer",
+        "missingLinkValue": "Ontbrekende linknaam...",
+        "missingButtonValue": "Ontbrekende knopnaam...",
+        "emptyLinkValue": "Lege linknaam...",
+        "missingValue": "Ontbrekend menu-item",
+        "separator": "Scheider",
+        "emptyButtonValue": "Lege knopnaam..."
+    },
+    "menuElementForm": {
+        "menuItemsLabel": "Menu items",
+        "addMenuItemLink": "Toevoegen...",
+        "alignment": "Uitlijning",
+        "menuItemDefaultName": "Pagina",
+        "menuItemLabelLabel": "Label",
+        "menuItemTypeLabel": "Type",
+        "menuItemTypeItem": "Item",
+        "menuItemTypeSeparator": "Scheider",
+        "menuItemVariantLabel": "Variant",
+        "menuItemAddButton": "Knop",
+        "eventDescription": "Om acties te configureren voor deze knop, open de events van dit element.",
+        "noMenuItemsMessage": "Klik 'Toevoegen' om je eerste menu item toe te voegen.",
+        "menuItemVariantLink": "Link",
+        "menuItemAddSeparator": "Scheider",
+        "menuItemSubLinkDefaultName": "Sublink",
+        "addSubLink": "Sublink toevoegen",
+        "menuItemVariantButton": "Knop",
+        "namePlaceholder": "Pagina",
+        "menuItemAddSpacer": "Spacer",
+        "menuItemAddLink": "Link"
+    },
+    "simpleContainerElementForm": {
+        "noConfigurationOptions": "Het container element heeft geen configuratieopties."
+    },
+    "orientations": {
+        "vertical": "Vertical",
+        "horizontal": "Horizontaal",
+        "label": "Oriëntatie"
     }
 }

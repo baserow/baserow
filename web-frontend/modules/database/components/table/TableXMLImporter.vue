@@ -27,7 +27,7 @@
         </div>
       </template>
       <div class="control__elements">
-        <div class="file-upload">
+        <div class="file-upload margin-top-1">
           <input
             v-show="false"
             ref="file"
@@ -60,6 +60,10 @@
         </div>
         <div v-if="v$.values.filename.$error" class="error">
           {{ v$.values.filename.$errors[0]?.$message }}
+        </div>
+
+        <div v-if="values.filename !== ''" class="control margin-top-1">
+          <slot name="upsertMapping" />
         </div>
       </div>
     </div>
@@ -148,7 +152,9 @@ export default {
       }
     },
     async reload() {
+      const fileName = this.values.filename
       this.resetImporterState()
+      this.values.filename = fileName
       this.state = 'parsing'
       await this.$ensureRender()
 

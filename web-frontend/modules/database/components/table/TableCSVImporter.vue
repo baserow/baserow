@@ -106,6 +106,9 @@
         </div>
       </div>
     </div>
+    <div v-if="values.filename !== ''" class="row">
+      <div class="col col-8 margin-top-1"><slot name="upsertMapping" /></div>
+    </div>
     <Alert v-if="error !== ''" type="error">
       <template #title> {{ $t('common.wrong') }} </template>
       {{ error }}
@@ -228,7 +231,10 @@ export default {
      * when the CSV doesn't have any entries the appropriate error will be shown.
      */
     async reload() {
+      const fileName = this.values.filename
       this.resetImporterState()
+      this.values.filename = fileName
+
       this.state = 'parsing'
       await this.$ensureRender()
 

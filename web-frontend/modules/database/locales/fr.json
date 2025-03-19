@@ -621,19 +621,21 @@
         "variance": "Variance",
         "notEmptyPercentage": "Pourcentage de renseignées",
         "notEmptyCount": "Renseignées",
-        "emptyCount": "Vides",
+        "emptyCount": "(Vides)",
         "emptyPercentage": "Pourcentage de vides",
-        "count": "Compter"
+        "count": "Compter",
+        "distribution": "Distribution",
+        "othersCount": "Autres"
     },
     "databaseForm": {
         "importLabel": "Souhaitez-vous importer des données existantes ?",
-        "airtableLabel": "Importer à partir d'Airtable (beta)",
+        "airtableLabel": "Importer à partir d'Airtable",
         "emptyLabel": "Base de donnée vierge"
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Partager un lien vers votre Base",
-        "airtableShareLinkDescription": "Pour importer une base Airtable, vous devez au préalable créer un lien de partage de la base que vous souhaitez copier. Dans Airtable cliquez sur le bouton « share » dans le coin en haut à droite après avoir ouvert votre base. Ensuite, vous devez choisir l'option « Access to base ». Dans la fenêtre modale qui s'ouvre puis cliquez sur le bouton « Create a shared link to the whole base » et enfin cliquez sur « Private read-only link ». Copiez alors le lien publique généré et collez-le dans le champ suivant.",
-        "airtableShareLinkBeta": "Attention : cette fonctionnalité est encore en version beta, vos tables, champs (sauf les formules, les champs rapportés et les calculs) et les données seront importés. En revanche, les vues ne le seront pas.",
+        "airtableShareLinkDescription": "Pour importer une base Airtable, vous devez au préalable créer un lien de partage de la base que vous souhaitez copier. Dans Airtable cliquez sur le bouton « share » dans le coin en haut à droite après avoir ouvert votre base. Ensuite, vous devez choisir l'option « Share via link ». Dans la fenêtre modale qui s'ouvre puis cliquez sur le bouton « Share publicly » et enfin cliquez sur « Enable shared base link ». Copiez alors le lien publique généré et collez-le dans le champ suivant.",
+        "airtableShareLinkBeta": "Cette fonctionnalité importera la plupart des données, mais il existe des incompatibilités. Un tableau nommé \"Rapport d'importation Airtable\" sera donc créé et contiendra la liste des éléments qui n'ont pas été importés ou qui ont été partiellement importés.",
         "airtableShareLinkPaste": "Collez le lien ici",
         "importButtonLabel": "Importer à partir de Airtable",
         "openButtonLabel": "Ouvrir la base importée",
@@ -719,7 +721,8 @@
         "showFieldAs": "Afficher le champ comme",
         "includeAllSelectOptionsHelper": "Choisissez les options qui doivent être incluses dans le formulaire à l'aide de cette liste déroulante",
         "noSelectOptions": "Il n'y a pas d'options disponibles.",
-        "includeAllSelectOptions": "inclure toutes les options sélectionnées"
+        "includeAllSelectOptions": "inclure toutes les options sélectionnées",
+        "noCollaboratorsAvailable": "Il n'y a pas de collaborateurs disponibles."
     },
     "duplicateFieldContext": {
         "duplicate": "Dupliquer le champ",
@@ -742,7 +745,8 @@
         "snapshotRestoredErrorTitle": "Une erreur s'est produite",
         "reset": "Créer une autre",
         "cancel": "Annuler",
-        "noSnapshots": "Il n'y a pas encore de sauvegarde pour cette application."
+        "noSnapshots": "Il n'y a pas encore de sauvegarde pour cette application.",
+        "nameAlreadyExists": "Une sauvegarde portant ce nom existe déjà."
     },
     "deleteSnapshotModal": {
         "content": "Êtes-vous sûr·e de vouloir supprimer définitivement la sauvegarde {nom} ?",
@@ -1087,5 +1091,14 @@
         "title": "Modifier les champs synchronisés",
         "fields": "Champs synchronisés",
         "syncTable": "Synchroniser lors de l'enregistrement"
+    },
+    "viewFieldConditionItem": {
+        "filterMisconfigured": "Le champ auquel ce filtre est associé a été supprimé."
+    },
+    "webhookPayloadTooLargeNotification": {
+        "body": "La charge utile pour le webhook {name} avec l'ID d'événement {event_id} était trop importante. Le contenu a été divisé en plusieurs lots, mais les données dépassant la limite de {batch_limit} ont été rejetées."
+    },
+    "webhookDeactivatedNotification": {
+        "body": "Le webhook {name} a été désactivé car il a échoué trop de fois consécutivement."
     }
 }

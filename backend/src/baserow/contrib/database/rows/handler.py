@@ -1,14 +1,13 @@
 from collections import defaultdict
 from copy import deepcopy
 from decimal import Decimal
+from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
     Dict,
     Iterable,
     List,
-    NamedTuple,
-    NewType,
     Optional,
     Set,
     Tuple,
@@ -17,24 +16,37 @@ from typing import (
     cast,
 )
 
+from django import db
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
+from django.db.models import Field as DjangoField
 from django.db.models import Model, QuerySet, Window
 from django.db.models.expressions import RawSQL
 from django.db.models.fields.related import ForeignKey, ManyToManyField
 from django.db.models.functions import RowNumber
 from django.utils.encoding import force_str
 
+from celery.utils import chunks
 from opentelemetry import metrics, trace
 
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
 from baserow.contrib.database.fields.dependencies.update_collector import (
     FieldUpdateCollector,
 )
+from baserow.contrib.database.fields.exceptions import (
+    FieldNotInTable,
+    IncompatibleField,
+)
 from baserow.contrib.database.fields.field_cache import FieldCache
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.registries import FieldType, field_type_registry
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
+from baserow.contrib.database.search.handler import SearchHandler
+from baserow.contrib.database.table.constants import (
+    CREATED_BY_COLUMN_NAME,
+    LAST_MODIFIED_BY_COLUMN_NAME,
+    ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
+)
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.table.operations import (
     CreateRowDatabaseTableOperationType,
@@ -49,20 +61,15 @@ from baserow.core.db import (
 )
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.handler import CoreHandler
+from baserow.core.psycopg import sql
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
 from baserow.core.utils import Progress, get_non_unique_values, grouper
 
-from ..search.handler import SearchHandler
-from ..table.constants import (
-    CREATED_BY_COLUMN_NAME,
-    LAST_MODIFIED_BY_COLUMN_NAME,
-    ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
-)
 from .constants import ROW_IMPORT_CREATION, ROW_IMPORT_VALIDATION
 from .error_report import RowErrorReport
-from .exceptions import RowDoesNotExist, RowIdsNotUnique
+from .exceptions import InvalidRowLength, RowDoesNotExist, RowIdsNotUnique
 from .operations import (
     DeleteDatabaseRowOperationType,
     MoveRowDatabaseRowOperationType,
@@ -77,18 +84,22 @@ from .signals import (
     rows_deleted,
     rows_updated,
 )
+from .types import (
+    CreatedRowsData,
+    FieldsMetadata,
+    FileImportConfiguration,
+    GeneratedTableModelForUpdate,
+    RowId,
+    RowsForUpdate,
+    UpdatedRowsData,
+)
 
 if TYPE_CHECKING:
+    from django.db.backends.utils import CursorWrapper
+
     from baserow.contrib.database.fields.models import Field
 
 tracer = trace.get_tracer(__name__)
-
-GeneratedTableModelForUpdate = NewType(
-    "GeneratedTableModelForUpdate", GeneratedTableModel
-)
-
-RowsForUpdate = NewType("RowsForUpdate", QuerySet)
-
 
 BATCH_SIZE = 1024
 
@@ -139,29 +150,18 @@ def prepare_field_errors(field_errors):
     }
 
 
-FieldsMetadata = NewType("FieldsMetadata", Dict[str, Any])
-RowValues = NewType("RowValues", Dict[str, Any])
-RowId = NewType("RowId", int)
-
-
-class UpdatedRowsWithOldValuesAndMetadata(NamedTuple):
-    updated_rows: List[GeneratedTableModelForUpdate]
-    original_rows_values_by_id: Dict[RowId, RowValues]
-    updated_fields_metadata_by_row_id: Dict[RowId, FieldsMetadata]
-
-
 class RowM2MChangeTracker:
     def __init__(self):
         self._deleted_m2m_rels: Dict[
-            str, Dict["Field", Dict[GeneratedTableModel, Set[int]]]
+            str, Dict["DjangoField", Dict[GeneratedTableModel, Set[int]]]
         ] = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
         self._created_m2m_rels: Dict[
-            str, Dict["Field", Dict[GeneratedTableModel, Set[int]]]
+            str, Dict["DjangoField", Dict[GeneratedTableModel, Set[int]]]
         ] = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
 
     def track_m2m_update_for_field_and_row(
         self,
-        field: "Field",
+        field: "DjangoField",
         field_name: str,
         row: GeneratedTableModel,
         new_values: Iterable[int],
@@ -181,7 +181,7 @@ class RowM2MChangeTracker:
     def track_m2m_created_for_new_row(
         self,
         row: GeneratedTableModel,
-        field: "Field",
+        field: "DjangoField",
         new_values: Iterable[Union[int, Model]],
     ):
         field_type = field_type_registry.get_by_model(field)
@@ -197,7 +197,7 @@ class RowM2MChangeTracker:
 
     def get_created_m2m_rels_per_field_for_type(
         self, field_type
-    ) -> Dict["Field", Dict[GeneratedTableModel, Set[int]]]:
+    ) -> Dict["DjangoField", Dict[GeneratedTableModel, Set[int]]]:
         return self._created_m2m_rels[field_type]
 
     def get_deleted_link_row_rels_for_update_collector(
@@ -816,6 +816,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_webhook_events=send_webhook_events,
             rows_values_refreshed_from_db=False,
             m2m_change_tracker=m2m_change_tracker,
+            fields=fields,
+            dependant_fields=dependant_fields,
         )
 
         return instance
@@ -1005,6 +1007,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             before_return=before_return,
             updated_field_ids=updated_field_ids,
             m2m_change_tracker=m2m_change_tracker,
+            fields=[f for f in updated_fields if f.id in updated_field_ids],
+            dependant_fields=dependant_fields,
         )
 
         return row
@@ -1017,7 +1021,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         updated_field_ids: Set[int],
         m2m_change_tracker: Optional[RowM2MChangeTracker] = None,
         skip_search_updates: bool = False,
-    ) -> List["Field"]:
+    ) -> List["DjangoField"]:
         """
         Prepares a list of fields that are dependent on the updated fields and updates
         them.
@@ -1084,7 +1088,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_webhook_events: bool = True,
         generate_error_report: bool = False,
         skip_search_update: bool = False,
-    ) -> List[GeneratedTableModel]:
+    ) -> CreatedRowsData:
         """
         Creates new rows for a given table without checking permissions. It also calls
         the rows_created signal.
@@ -1215,11 +1219,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_webhook_events=send_webhook_events,
             prepared_rows_values=prepared_rows_values,
             m2m_change_tracker=m2m_change_tracker,
+            fields=updated_fields,
+            dependant_fields=dependant_fields,
         )
 
-        if generate_error_report:
-            return inserted_rows, report
-        return rows_to_return
+        return CreatedRowsData(rows_to_return, report)
 
     def create_rows(
         self,
@@ -1232,7 +1236,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_webhook_events: bool = True,
         generate_error_report: bool = False,
         skip_search_update: bool = False,
-    ) -> List[GeneratedTableModel]:
+    ) -> CreatedRowsData:
         """
         Creates new rows for a given table if the user
         belongs to the related workspace. It also calls the rows_created signal.
@@ -1283,7 +1287,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         self,
         model: Type[GeneratedTableModel],
         created_rows: List[GeneratedTableModel],
-    ) -> List["Field"]:
+    ) -> List["DjangoField"]:
         """
         Generates a list of dependant fields that need to be updated after the rows have
         been created and updates them.
@@ -1437,11 +1441,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         return report
 
-    def create_rows_by_batch(
+    def force_create_rows_by_batch(
         self,
         user: AbstractUser,
         table: Table,
-        rows: List[Dict[str, Any]],
+        rows_values: List[Dict[str, Any]],
         progress: Optional[Progress] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
     ) -> Tuple[List[GeneratedTableModel], Dict[str, Dict[str, Any]]]:
@@ -1451,13 +1455,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         :param user: The user of whose behalf the rows are created.
         :param table: The table for which the rows should be created.
-        :param rows: List of rows values for rows that need to be created.
+        :param rows_values: List of rows values for rows that need to be created.
         :param progress: Give a progress instance to track the progress of the import.
         :param model: Optional model to prevent recomputing table model.
         :return: The created rows and the error report.
         """
 
-        if not rows:
+        if not rows_values:
             return [], {}
 
         if progress:
@@ -1468,7 +1472,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         report = {}
         all_created_rows = []
-        for count, chunk in enumerate(grouper(BATCH_SIZE, rows)):
+        for count, chunk in enumerate(grouper(BATCH_SIZE, rows_values)):
             row_start_index = count * BATCH_SIZE
             created_rows, creation_report = self.create_rows(
                 user=user,
@@ -1497,11 +1501,64 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         return all_created_rows, report
 
+    def force_update_rows_by_batch(
+        self,
+        user: AbstractUser,
+        table: Table,
+        rows_values: List[Dict[str, Any]],
+        progress: Progress,
+        model: Optional[Type[GeneratedTableModel]] = None,
+    ) -> Tuple[List[Dict[str, Any] | None], Dict[str, Dict[str, Any]]]:
+        """
+        Creates rows by batch and generates an error report instead of failing on first
+        error.
+
+        :param user: The user of whose behalf the rows are created.
+        :param table: The table for which the rows should be created.
+        :param rows_values: List of rows values for rows that need to be created.
+        :param progress: Give a progress instance to track the progress of the import.
+        :param model: Optional model to prevent recomputing table model.
+        :return: The created rows and the error report.
+        """
+
+        if not rows_values:
+            return [], {}
+
+        progress.increment(state=ROW_IMPORT_CREATION)
+
+        if model is None:
+            model = table.get_model()
+
+        report = {}
+        all_updated_rows = []
+        for count, chunk in enumerate(grouper(BATCH_SIZE, rows_values)):
+            updated_rows = self.force_update_rows(
+                user=user,
+                table=table,
+                model=model,
+                rows_values=chunk,
+                send_realtime_update=False,
+                send_webhook_events=False,
+                # Don't trigger loads of search updates for every batch of rows we
+                # create but instead a single one for this entire table at the end.
+                skip_search_update=True,
+                generate_error_report=True,
+            )
+
+            if progress:
+                progress.increment(len(chunk))
+            report.update(updated_rows.errors)
+            all_updated_rows.extend(updated_rows.updated_rows)
+
+        SearchHandler.field_value_updated_or_created(table)
+        return all_updated_rows, report
+
     def import_rows(
         self,
         user: AbstractUser,
         table: Table,
-        data: List[List[Any]],
+        data: list[list[Any]],
+        configuration: FileImportConfiguration | None = None,
         validate: bool = True,
         progress: Optional[Progress] = None,
         send_realtime_update: bool = True,
@@ -1517,11 +1574,14 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param user: The user of whose behalf the rows are created.
         :param table: The table for which the rows should be created.
         :param data: List of rows values for rows that need to be created.
+        :param configuration: Optional import configuration dict.
         :param validate: If True the data are validated before the import.
         :param progress: Give a progress instance to track the progress of the
             import.
         :param send_realtime_update: The parameter passed to the rows_created
             signal indicating if a realtime update should be send.
+
+        :raises InvalidRowLength:
 
         :return: The created row instances and the error report.
         """
@@ -1535,6 +1595,15 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         error_report = RowErrorReport(data)
+        configuration = configuration or {}
+        update_handler = UpsertRowsMappingHandler(
+            table=table,
+            upsert_fields=configuration.get("upsert_fields") or [],
+            upsert_values=configuration.get("upsert_values") or [],
+        )
+        # Pre-run upsert configuration validation.
+        # Can raise InvalidRowLength
+        update_handler.validate()
 
         model = table.get_model()
 
@@ -1599,9 +1668,39 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             else None
         )
 
-        created_rows, creation_report = self.create_rows_by_batch(
-            user, table, valid_rows, progress=creation_sub_progress, model=model
+        # split rows to insert and update lists. If there's no upsert field selected,
+        # this will not populate rows_values_to_update.
+        update_map = update_handler.process_map
+
+        rows_values_to_create = []
+        rows_values_to_update = []
+        if update_map:
+            for current_idx, import_idx in original_row_index_mapping.items():
+                row = valid_rows[current_idx]
+                if update_idx := update_map.get(import_idx):
+                    row["id"] = update_idx
+                    rows_values_to_update.append(row)
+                else:
+                    rows_values_to_create.append(row)
+        else:
+            rows_values_to_create = valid_rows
+
+        created_rows, creation_report = self.force_create_rows_by_batch(
+            user,
+            table,
+            rows_values_to_create,
+            progress=creation_sub_progress,
+            model=model,
         )
+
+        if rows_values_to_update:
+            updated_rows, updated_report = self.force_update_rows_by_batch(
+                user,
+                table,
+                rows_values_to_update,
+                progress=creation_sub_progress,
+                model=model,
+            )
 
         # Add errors to global report
         for index, error in creation_report.items():
@@ -1609,6 +1708,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 original_row_index_mapping[int(index)],
                 error,
             )
+
+        if rows_values_to_update:
+            for index, error in updated_report.items():
+                error_report.add_error(
+                    original_row_index_mapping[int(index)],
+                    error,
+                )
 
         if send_realtime_update:
             # Just send a single table_updated here as realtime update instead
@@ -1620,7 +1726,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
     def get_fields_metadata_for_row_history(
         self,
         row: GeneratedTableModelForUpdate,
-        updated_fields: List["Field"],
+        updated_fields: List["DjangoField"],
         metadata,
     ) -> FieldsMetadata:
         """
@@ -1642,7 +1748,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
     def get_fields_metadata_for_rows(
         self,
         rows: List[GeneratedTableModelForUpdate],
-        updated_fields: List["Field"],
+        updated_fields: List["DjangoField"],
         fields_metadata_by_row_id=None,
     ) -> Dict[RowId, FieldsMetadata]:
         """
@@ -1678,7 +1784,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
         skip_search_update: bool = False,
-    ) -> UpdatedRowsWithOldValuesAndMetadata:
+        generate_error_report: bool = False,
+    ) -> UpdatedRowsData:
         """
         Updates field values in batch based on provided rows with the new
         values.
@@ -1698,6 +1805,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param skip_search_update: If you want to instead trigger the search handler
             cells update later on after many create_rows calls then set this to True
             but make sure you trigger it eventually.
+        :param generate_error_report: Generate error report if set to True.
         :raises RowIdsNotUnique: When trying to update the same row multiple
             times.
         :raises RowDoesNotExist: When any of the rows don't exist.
@@ -1710,9 +1818,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         user_id = user and user.id
 
-        prepared_rows_values, _ = self.prepare_rows_in_bulk(
-            model._field_objects, rows_values
+        prepared_rows_values, errors = self.prepare_rows_in_bulk(
+            model._field_objects,
+            rows_values,
+            generate_error_report=generate_error_report,
         )
+        report = {index: err for index, err in errors.items()}
         row_ids = [r["id"] for r in prepared_rows_values]
 
         non_unique_ids = get_non_unique_values(row_ids)
@@ -1875,7 +1986,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             if (
                 not isinstance(model_field, ManyToManyField)
                 and field_id in updated_field_ids
-                and field_type.valid_for_bulk_update(model_field)
+                and field_type.valid_for_bulk_update(field_obj["field"])
             ):
                 bulk_update_fields.append(field_name)
 
@@ -1895,6 +2006,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if not skip_search_update:
             SearchHandler.field_value_updated_or_created(table)
 
+        # Reload rows from the database to get the updated values for formulas
         updated_rows_to_return = list(
             model.objects.all().enhance_by_fields().filter(id__in=row_ids)
         )
@@ -1910,17 +2022,21 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             m2m_change_tracker=m2m_change_tracker,
             send_realtime_update=send_realtime_update,
             send_webhook_events=send_webhook_events,
+            fields=[f for f in updated_fields if f.id in updated_field_ids],
+            dependant_fields=dependant_fields,
         )
 
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
             updated_rows_to_return, updated_fields, fields_metadata_by_row_id
         )
-
-        return UpdatedRowsWithOldValuesAndMetadata(
+        updated_rows = UpdatedRowsData(
             updated_rows_to_return,
             original_row_values_by_id,
             fields_metadata_by_row_id,
+            report,
         )
+
+        return updated_rows
 
     def update_rows(
         self,
@@ -1932,7 +2048,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
         skip_search_update: bool = False,
-    ) -> UpdatedRowsWithOldValuesAndMetadata:
+        generate_error_report: bool = False,
+    ) -> UpdatedRowsData:
         """
         Updates field values in batch based on provided rows with the new
         values.
@@ -1975,6 +2092,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_realtime_update,
             send_webhook_events,
             skip_search_update,
+            generate_error_report=generate_error_report,
         )
 
     def get_rows(
@@ -2103,6 +2221,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             updated_field_ids=[],
             prepared_rows_values=None,
             send_webhook_events=send_webhook_events,
+            fields=[],
+            dependant_fields=dependant_fields,
         )
 
         return row
@@ -2204,6 +2324,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             before_return=before_return,
             send_realtime_update=send_realtime_update,
             send_webhook_events=send_webhook_events,
+            fields=updated_fields,
+            dependant_fields=dependant_fields,
         )
 
     def update_dependencies_of_rows_deleted(self, table, row, model):
@@ -2265,7 +2387,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             triggered. Defaults to true.
         :param permanently_delete: If `true` the rows will be permanently deleted
             instead of trashed.
-        :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
         workspace = table.database.workspace
@@ -2275,8 +2396,46 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             workspace=workspace,
             context=table,
         )
+        return self.force_delete_rows(
+            user,
+            table,
+            row_ids,
+            model=model,
+            send_realtime_update=send_realtime_update,
+            send_webhook_events=send_webhook_events,
+            permanently_delete=permanently_delete,
+        )
 
-        if not model:
+    def force_delete_rows(
+        self,
+        user: AbstractUser,
+        table: Table,
+        row_ids: List[int],
+        model: Optional[Type[GeneratedTableModel]] = None,
+        send_realtime_update: bool = True,
+        send_webhook_events: bool = True,
+        permanently_delete: bool = False,
+    ) -> TrashedRows:
+        """
+        Trashes existing rows of the given table based on row_ids, without checking
+        user permissions.
+
+        :param user: The user of whose behalf the change is made.
+        :param table: The table for which the row must be deleted.
+        :param row_ids: The ids of the rows that must be deleted.
+        :param model: If the correct model has already been generated, it can be
+            provided so that it does not have to be generated for a second time.
+         :param send_realtime_update: If set to false then it is up to the caller to
+            send the rows_created or similar signal. Defaults to True.
+        :param send_webhook_events: If set the false then the webhooks will not be
+            triggered. Defaults to true.
+        :param permanently_delete: If `true` the rows will be permanently deleted
+            instead of trashed.
+        :raises RowDoesNotExist: When the row with the provided id does not exist.
+        """
+
+        workspace = table.database.workspace
+        if model is None:
             model = table.get_model()
 
         non_unique_ids = get_non_unique_values(row_ids)
@@ -2310,9 +2469,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
             TrashHandler.trash(user, workspace, table.database, trashed_rows)
 
-        rows_deleted_counter.add(
-            len(row_ids),
-        )
+        rows_deleted_counter.add(len(row_ids))
 
         updated_field_ids = []
         updated_fields = []
@@ -2359,6 +2516,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             before_return=before_return,
             send_realtime_update=send_realtime_update,
             send_webhook_events=send_webhook_events,
+            fields=updated_fields,
+            dependant_fields=dependant_fields,
         )
 
         return trashed_rows
@@ -2386,3 +2545,233 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             self,
             table=table,
         )
+
+
+def merge_values_expression(
+    row: list[str | int | float | None],
+    field_handlers: "list[UpsertFieldHandler]",
+    query_params: list,
+) -> sql.Composable:
+    """
+    Create a sql expression that will produce text value from a list of row values. Any
+    value, that should be interpolated, will be added to provided `query_params` list.
+
+    :param row: a list of values in a row
+    :param field_handlers: a list of field types for a row. The number of handlers
+            should equal the number of values in a row.
+    :param query_params: param values container
+    :return:
+    """
+
+    fields = []
+
+    for val, field_handler in zip(row, field_handlers):
+        fields.append(field_handler.get_field_concat_expression())
+        query_params.append(field_handler.prepare_value(val))
+
+    return UpsertRowsMappingHandler.SEPARATOR.join(fields)
+
+
+class UpsertFieldHandler:
+    """
+    Helper class to handle field's upsert handling.
+    """
+
+    def __init__(self, table: Table, field_id: id):
+        self.table = table
+        # TODO: here we are using field id, but it may be so the field_id
+        #  is `'id'` string.
+        try:
+            self._field_def = field_def = next(
+                (
+                    f
+                    for f in table.get_model().get_field_objects()
+                    if f["field"].id == field_id
+                )
+            )
+        except StopIteration:
+            raise FieldNotInTable(field_id)
+
+        self.field: Field = field_def["field"]
+        self.field_type: FieldType = field_def["type"]
+        if not self.field_type.can_upsert:
+            raise IncompatibleField(self.field.id)
+        self.field_name = self.field.db_column
+
+    def prepare_value(self, value: str) -> Any:
+        return self.field_type.prepare_value_for_db(self.field, value)
+
+    def get_field_concat_expression(self) -> sql.Composable:
+        column_type = sql.SQL(self.get_column_type() or "text")
+        return sql.SQL(" COALESCE(CAST({}::{} AS TEXT), '<NULL>')::TEXT ").format(
+            sql.Placeholder(), column_type
+        )
+
+    def get_column_type(self) -> str | None:
+        table_field: DjangoField = self.field_type.get_model_field(self.field)
+        return table_field.db_type(db.connection)
+
+
+class UpsertRowsMappingHandler:
+    """
+    Helper class for mapping new rows values to existing table rows during an upsert
+    operation.
+
+    This class processes upsert values from the provided data and matches them with
+    existing row IDs in the database. The resulting mapping helps determine which
+    imported rows should update existing ones.
+
+    ### Usage:
+
+    >>> importrows = ImportRowsMappingHandler(table, [1234], [['a'], ['b']])
+
+    # Returns a dictionary where:
+    # - Keys represent the index of the upsert values in the imported dataset.
+    # - Values represent the corresponding row ID in the database.
+    >>> importrows.process_map
+    {0: 1, 1: 2}
+
+    # In this example:
+    # - The first imported value ['a'] (index 0) corresponds to the row with ID 1.
+    # - The second imported value ['b'] (index 1) corresponds to the row with ID 2.
+    """
+
+    SEPARATOR = sql.SQL(" || '__-__' || ")
+    PER_CHUNK = 100
+
+    def __init__(
+        self, table: Table, upsert_fields: list[int], upsert_values: list[list[Any]]
+    ):
+        self.table = table
+        self.table_name = table.get_database_table_name()
+        self.import_fields = [UpsertFieldHandler(table, fidx) for fidx in upsert_fields]
+        self.upsert_values = upsert_values
+
+    def validate(self):
+        """
+        Validates if upsert configuration conforms formal requirements
+        :raises InvalidRowLength:
+        """
+
+        expected_length = len(self.import_fields)
+        for ridx, uval in enumerate(self.upsert_values):
+            if len(uval) != expected_length:
+                raise InvalidRowLength(ridx)
+
+    @cached_property
+    def process_map(self) -> dict[int, int]:
+        """
+        Calculates a map between import row indexes and table row ids.
+        """
+
+        # no upsert value fields, no need for mapping
+        if not self.import_fields:
+            return {}
+
+        script_template = sql.SQL(
+            """
+        CREATE TEMP TABLE table_upsert_indexes (id INT, upsert_value TEXT, group_index INT);
+
+        CREATE TEMP TABLE table_import (id INT, upsert_value TEXT);
+
+        CREATE TEMP VIEW table_import_indexes AS
+                SELECT id, upsert_value, RANK()
+                        OVER (PARTITION BY upsert_value ORDER BY id, upsert_value )
+                        AS group_index
+                FROM table_import ORDER BY id ;
+        """
+        )
+
+        self.execute(script_template)
+        self.insert_table_values()
+        self.insert_imported_values()
+        # this is just a list of pairs, not very usable.
+        calculated = self.calculate_map()
+
+        # map import row idx -> update row_id in table
+        return {r[1]: r[0] for r in calculated}
+
+    @cached_property
+    def connection(self):
+        return db.connection
+
+    @cached_property
+    def cursor(self):
+        return self.connection.cursor()
+
+    def execute(self, query, *args, **kwargs) -> "CursorWrapper":
+        self.cursor.execute(query, *args, **kwargs)
+        return self.cursor
+
+    def insert_table_values(self):
+        """
+        Populates temp upsert comparison table with values from an exsisting table.
+        Values from multiple source columns will be normalized to one text value.
+        """
+
+        columns = self.SEPARATOR.join(
+            [
+                sql.SQL("COALESCE(CAST({} AS TEXT), '<NULL>')::TEXT").format(
+                    sql.Identifier(field.field_name)
+                )
+                for field in self.import_fields
+            ]
+        )
+
+        query = sql.SQL(
+            """WITH subq AS (SELECT r.id,  {} AS upsert_value FROM {} r WHERE NOT trashed)
+                INSERT INTO table_upsert_indexes (id, upsert_value, group_index)
+                SELECT id, upsert_value, RANK()
+                        OVER (PARTITION BY upsert_value ORDER BY id, upsert_value )
+                        AS group_index
+                FROM subq ORDER BY id """
+        ).format(
+            columns, sql.Identifier(self.table_name)
+        )  # nosec B608
+
+        self.execute(query)
+
+    def insert_imported_values(self):
+        """
+        Builds and executes bulk insert queries for upsert comparison values
+        from import data.
+        """
+
+        for _chunk in chunks(enumerate(self.upsert_values), self.PER_CHUNK):
+            # put all params (processed values) for the query into a container
+            query_params = []
+            rows_query = []
+            for rowidx, row in _chunk:
+                # per-row insert query
+                query_params.append(rowidx)
+                row_to_add = sql.SQL("({}, {})").format(
+                    sql.Placeholder(),
+                    merge_values_expression(row, self.import_fields, query_params),
+                )
+                rows_query.append(row_to_add)
+
+            rows_placeholder = sql.SQL(",\n").join(rows_query)
+            script_template = sql.SQL(
+                "INSERT INTO table_import (id, upsert_value) VALUES {};"
+            ).format(
+                rows_placeholder
+            )  # nosec B608
+            self.execute(script_template, query_params)
+
+    def calculate_map(self) -> list[tuple[int, int]]:
+        """
+        Calculates a map between imported row index -> table row id
+        that can be used to detect if a row that is imported should be updated
+        (mapping exists) or inserted as a new one.
+        """
+
+        q = sql.SQL(
+            """
+        SELECT t.id, i.id
+            FROM table_upsert_indexes t
+            JOIN table_import_indexes i
+                ON (i.upsert_value = t.upsert_value
+                    AND i.group_index = t.group_index);
+        """
+        )
+        return self.execute(q).fetchall()

@@ -9,6 +9,7 @@ from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.domains.models import Domain
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.models import Builder
+from baserow.core.cache import global_cache
 from baserow.core.utils import Progress
 
 
@@ -171,29 +172,38 @@ def test_domain_publishing(data_fixture):
     page1 = data_fixture.create_builder_page(builder=builder)
     page2 = data_fixture.create_builder_page(builder=builder)
 
-    element1 = data_fixture.create_builder_heading_element(
-        page=page1, level=2, value="'foo'"
-    )
-    element2 = data_fixture.create_builder_text_element(page=page1)
-    element3 = data_fixture.create_builder_heading_element(page=page2)
+    data_fixture.create_builder_heading_element(page=page1, level=2, value="'foo'")
+    data_fixture.create_builder_text_element(page=page1)
+    data_fixture.create_builder_heading_element(page=page2)
 
     progress = Progress(100)
 
-    DomainHandler().publish(domain1, progress)
+    domain1 = DomainHandler().publish(domain1, progress)
+
+    # Pretend that someone visited the public builder-by-domain endpoint.
+    builder_by_domain_cache_key = DomainHandler.get_public_builder_by_domain_cache_key(
+        domain1.domain_name
+    )
+
+    # We populate the builder domain cache
+    global_cache.get(builder_by_domain_cache_key, default="before")
 
     domain1.refresh_from_db()
 
     assert domain1.published_to is not None
     assert domain1.published_to.workspace is None
-    assert domain1.published_to.page_set.count() == builder.page_set.count()
-    assert domain1.published_to.page_set.first().element_set.count() == 2
+    assert domain1.published_to.visible_pages.count() == builder.visible_pages.count()
+    assert domain1.published_to.visible_pages.first().element_set.count() == 2
 
     assert Builder.objects.count() == 2
 
     assert progress.progress == progress.total
 
-    # Lets publish it a second time.
+    # Let's publish it a second time.
     DomainHandler().publish(domain1, progress)
+
+    # Following a re-publish, the builder-by-domain cache is invalidated
+    assert global_cache.get(builder_by_domain_cache_key, default="after") == "after"
 
     assert Builder.objects.count() == 2
 
@@ -227,3 +237,44 @@ def test_get_domain_public_url(data_fixture):
     )
 
     assert domain1.get_public_url() == "http://mytest.com:3000"
+
+
+@pytest.mark.django_db
+def test_get_published_domain_applications(data_fixture):
+    user = data_fixture.create_user()
+
+    workspace1 = data_fixture.create_workspace(user=user)
+    data_fixture.create_builder_application(workspace=workspace1)
+    builder1 = data_fixture.create_builder_application(workspace=workspace1)
+    published_builder1 = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder1, published_to=published_builder1
+    )
+
+    # Get only published domain applications in workspace1
+    published_applications = DomainHandler().get_published_domain_applications(
+        workspace1
+    )
+    assert published_applications.count() == 1
+    assert published_applications.contains(published_builder1)
+
+    workspace2 = data_fixture.create_workspace(user=user)
+    data_fixture.create_builder_application(workspace=workspace2)
+    builder2 = data_fixture.create_builder_application(workspace=workspace2)
+    published_builder2 = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder2, published_to=published_builder2
+    )
+
+    # Get only published domain applications in workspace2
+    published_applications = DomainHandler().get_published_domain_applications(
+        workspace2
+    )
+    assert published_applications.count() == 1
+    assert published_applications.contains(published_builder2)
+
+    # Get published domain applications across the instance.
+    published_applications = DomainHandler().get_published_domain_applications()
+    assert published_applications.count() == 2
+    assert published_applications.contains(published_builder1)
+    assert published_applications.contains(published_builder2)

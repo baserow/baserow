@@ -1,3 +1,4 @@
+import uuid
 from copy import deepcopy
 
 from baserow.contrib.builder.elements.models import (
@@ -10,6 +11,8 @@ from baserow.contrib.builder.elements.models import (
     ImageElement,
     InputTextElement,
     LinkElement,
+    MenuElement,
+    MenuItemElement,
     RecordSelectorElement,
     RepeatElement,
     TableElement,
@@ -115,6 +118,37 @@ class ElementFixtures:
             RecordSelectorElement, user, page, **kwargs
         )
         return element
+
+    def create_builder_menu_element(self, user=None, page=None, **kwargs):
+        return self.create_builder_element(MenuElement, user, page, **kwargs)
+
+    def create_builder_menu_element_items(
+        self, user=None, page=None, menu_element=None, menu_items=None, **kwargs
+    ):
+        if not menu_element:
+            menu_element = self.create_builder_menu_element(
+                user=user, page=page, **kwargs
+            )
+
+        if not menu_items:
+            menu_items = [
+                {
+                    "variant": "link",
+                    "type": "link",
+                    "uid": uuid.uuid4(),
+                    "name": "Test Link",
+                }
+            ]
+
+        created_items = MenuItemElement.objects.bulk_create(
+            [
+                MenuItemElement(**item, menu_item_order=index)
+                for index, item in enumerate(menu_items)
+            ]
+        )
+        menu_element.menu_items.add(*created_items)
+
+        return menu_element
 
     def create_builder_element(self, model_class, user=None, page=None, **kwargs):
         if user is None:

@@ -20,4 +20,5 @@ class CoreEmailContextType(EmailContextType):
             "baserow_embedded_share_hostname": settings.BASEROW_EMBEDDED_SHARE_HOSTNAME,
             "logo_url": settings.PUBLIC_WEB_FRONTEND_URL + "/img/logo.svg",
             "logo_additional_text": "",
+            "show_baserow_description": True,
         }

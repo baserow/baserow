@@ -35,13 +35,8 @@
       small-label
       :protected-edit="update && field.protectedEdit"
       class="margin-bottom-2"
-      @enabled-protected-edit="allowedValues.push(field.name)"
-      @disable-protected-edit="
-        ;[
-          allowedValues.splice(allowedValues.indexOf(field.name), 1),
-          delete values[field.name],
-        ]
-      "
+      @enabled-protected-edit="values.postgresql_password = ''"
+      @disable-protected-edit="values.postgresql_password = undefined"
     >
       <template #label>{{
         $t(`postgreSQLDataSync.${field.translationPrefix}`)
@@ -52,6 +47,7 @@
         :type="field.type"
         :error="fieldHasErrors(field.name)"
         :disabled="disabled"
+        @blur="v$.values[field.name].$touch()"
       >
       </FormInput>
       <template #error>
@@ -72,6 +68,7 @@
             size="large"
             :error="fieldHasErrors('postgresql_port')"
             :disabled="disabled"
+            @blur="v$.values.postgresql_port.$touch"
           >
           </FormInput>
           <template #error>
@@ -129,13 +126,11 @@ export default {
       'postgresql_username',
       'postgresql_port',
       'postgresql_database',
+      'postgresql_password',
       'postgresql_schema',
       'postgresql_table',
       'postgresql_sslmode',
     ]
-    if (!this.update) {
-      allowedValues.push('postgresql_password')
-    }
     return {
       allowedValues,
       values: {
@@ -143,6 +138,9 @@ export default {
         postgresql_username: '',
         postgresql_port: '5432',
         postgresql_database: '',
+        // If `undefined`, it's not included in the patch update request, and will then
+        // not be changed.
+        postgresql_password: this.update ? undefined : '',
         postgresql_schema: 'public',
         postgresql_table: '',
         postgresql_sslmode: 'prefer',
@@ -176,7 +174,7 @@ export default {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             requiredIf(() => {
-              return this.allowedValues.includes('postgresql_password')
+              return this.values.postgresql_password !== undefined
             })
           ),
         },

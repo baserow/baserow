@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Updating a cell no longer fails when a view is sorted or grouped by a linked field whose primary field is a formula.",
+    "domain": "database",
+    "issue_number": 3484,
+    "bullet_points": [],
+    "created_at": "2025-03-10"
+}

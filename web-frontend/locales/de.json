@@ -8,7 +8,12 @@
         "comingSoon": "In Kürze verfügbar...",
         "billable": "Abrechenbar",
         "all": "Alle",
-        "beta": "Beta"
+        "beta": "Beta",
+        "enabled": "Aktiviert",
+        "summarize": "Zusammenfassen",
+        "disabled": "Deaktiviert",
+        "or": "oder",
+        "and": "und"
     },
     "action": {
         "upload": "Hochladen",
@@ -40,7 +45,10 @@
         "reset": "Zurücksetzen",
         "set": "Festlegen",
         "logout": "Abmelden",
-        "backToHome": "Zurück zur Startseite"
+        "backToHome": "Zurück zur Startseite",
+        "hide": "Verstecken",
+        "close": "Schließen",
+        "getStarted": "Erste Schritte"
     },
     "adminType": {
         "settings": "Einstellungen",
@@ -58,7 +66,11 @@
         "databases": "Datenbanken",
         "databaseDesc": "Erstellen Sie eine geordnete Sammlung strukturierter Daten.",
         "builders": "Anwendungen",
-        "builderDesc": "Erstellen Sie Websites, Webanwendungen und Portale ganz einfach ohne Code."
+        "builderDesc": "Erstellen Sie Websites, Webanwendungen und Portale ganz einfach ohne Code.",
+        "dashboard": "Dashboard",
+        "dashboardDesc": "Visualisieren Sie Ihre Daten und Metriken mit Diagrammen, Tabellen oder Graphen.",
+        "dashboards": "Dashboards",
+        "dashboardDefaultName": "Unbenanntes Dashboard"
     },
     "settingType": {
         "account": "Konto",
@@ -88,7 +100,9 @@
         "invalidNumber": "Das Feld muss eine Zahl sein.",
         "email": "Das Feld muss eine E-Mailadresse sein.",
         "invalidURL": "Bitte geben Sie eine gültige URL ein.",
-        "alreadyInUse": "Dieser Feldname wird bereits verwendet."
+        "alreadyInUse": "Dieser Feldname wird bereits verwendet.",
+        "invalidCharacters": "Das Feld beinhaltet ungültige Zeichen.",
+        "decimalField": "Das Feld muss eine Dezimalzahl sein."
     },
     "permission": {
         "admin": "Administration",
@@ -255,7 +269,11 @@
         "hasNotValueEqual": "hat nicht den gleichen Wert",
         "hasValueContains": "enthält einen Wert",
         "hasNotValueContains": "enthält keinen Wert",
-        "hasValueContainsWord": "enthält ein Wort als Wert"
+        "hasValueContainsWord": "enthält ein Wort als Wert",
+        "hasAnySelectOptionEqual": "hat eine beliebige Select-Option gleich",
+        "hasNoneSelectOptionEqual": "hat keine Select-Option gleich",
+        "hasDateWithin": "Datum liegt zwischen",
+        "hasNotDateWithin": "Datum liegt nicht zwischen"
     },
     "viewType": {
         "grid": "Gitternetz",
@@ -384,7 +402,13 @@
         "maxNumberOfPendingWorkspaceInvitesReachedDescription": "Sie haben die maximale Anzahl an ausstehenden Einladungen für diesen Arbeitsbereich erreicht. Bitte lassen Sie die Eingeladenen die Einladung annehmen oder sagen Sie bestehende Einladungen ab um fortzufahren.",
         "outputParserDescription": "Das Modell hat mit einer falschen Ausgabe geantwortet. Bitte versuchen Sie es erneut.",
         "maxNumberOfPendingWorkspaceInvitesReachedTitle": "Maximale Anzahl an ausstehenden Einladungen erreicht",
-        "modelDoesNotBelongToTypeDescription": "Das ausgewählte Modell gehört nicht zum ausgewählten KI-Typ."
+        "modelDoesNotBelongToTypeDescription": "Das ausgewählte Modell gehört nicht zum ausgewählten KI-Typ.",
+        "cannotCreateRowsInTableDescription": "Es ist nicht möglich, in dieser Tabelle Zeilen zu erstellen.",
+        "fieldIsAlreadyPrimaryDescription": "Das gewählte neue Primärfeld ist bereits das Primärfeld.",
+        "cannotCreateRowsInTableTitle": "Zeilen können nicht erstellt werden",
+        "incompatiblePrimaryFieldTypeTitle": "Das Feld ist nicht kompatibel",
+        "incompatiblePrimaryFieldTypeDescription": "Das ausgewählte Feld kann nicht das Primärfeld sein, da es nicht kompatibel ist.",
+        "fieldIsAlreadyPrimaryTitle": "Das Feld ist bereits das Primärfeld"
     },
     "importerType": {
         "csv": "Importieren einer CSV-Datei",
@@ -409,7 +433,7 @@
         "queryParameters": "Abfrage Parameter",
         "pathParameters": "Pfad-Parameter",
         "requestBodySchema": "Aufbauschema anfordern",
-        "userFieldNamesDescription": "Wenn für den GET-Parameter \"user_field_names\" ein beliebiger Wert angegeben wird, sind die von diesem Endpunkt zurückgegebenen Feldnamen die tatsächlichen Namen der Felder.\n\n Wenn der GET-Parameter \"user_field_names\" nicht angegeben wird, lauten alle zurückgegebenen Feldnamen \"field_\", gefolgt von der ID des Feldes. Zum Beispiel bezieht sich \"field_1\" auf das Feld mit der ID \"1\".",
+        "userFieldNamesDescription": "Wenn für den GET-Parameter \"user_field_names\" ein Wert angegeben wird und dessen Inhalt einem der folgenden Werte entspricht: `y`, `yes`, `true`, `t`, `on`, `1` oder eine leere Zeichenkenne, sind die von diesem Endpunkt zurückgegebenen Feldnamen die tatsächlichen Namen der Felder.\n\nWenn der GET-Parameter \"user_field_names\" nicht angegeben wird oder nicht einem der oben genannten Werte entspricht, lauten alle zurückgegebenen Feldnamen \"field_\", gefolgt von der ID des Feldes. Zum Beispiel bezieht sich \"field_1\" auf das Feld mit der ID \"1\".",
         "singleRow": "Einzeln",
         "deleteRows": "Zeilen löschen",
         "updateRows": "Zeilen aktualisieren",
@@ -419,7 +443,8 @@
         "uploadFileDescription": "Der `file` Multipart, der den Dateiinhalt enthält.",
         "uploadFileViaUrl": "Datei per URL hochladen",
         "uploadFileViaUrlDescription": "Lädt eine Datei auf Baserow hoch, indem es sie von der angegebenen URL herunterlädt.",
-        "fileUploads": "Datei-Uploads"
+        "fileUploads": "Datei-Uploads",
+        "sendWebhookEventsDescription": "Ein Flag-Abfrageparameter, der nach der Operation Webhooks auslöst, wenn er auf `y`, `yes`, `true`, `t`, `on`, `1` oder `or` gesetzt wird und leer bleibt. Standardwert ist `true`"
     },
     "exporterType": {
         "csv": "Exportieren in CSV"
@@ -475,7 +500,7 @@
         "leftDescription": "Extrahiert die am weitesten links stehenden Zeichen aus der ersten Eingabe und hält an, wenn die durch die zweite Eingabe angegebene Anzahl von Zeichen extrahiert wurde.",
         "rightDescription": "Extrahiert die am weitesten rechts stehenden Zeichen aus der ersten Eingabe und hält an, wenn die durch die zweite Eingabe angegebene Anzahl von Zeichen extrahiert wurde.",
         "trimDescription": "Entfernt alle Leerzeichen auf der linken und rechten Seite der Eingabe.",
-        "regexReplaceDescription": "Ersetzt jeden Text in der ersten Eingabe, der mit der in der zweiten Eingabe angegebenen Regex übereinstimmt, durch den Text in der dritten Eingabe.",
+        "regexReplaceDescription": "Ersetzt jeden Text in der ersten Eingabe, der mit der in der zweiten Eingabe angegebenen Regex übereinstimmt, durch den Text in der dritten Eingabe. Gibt '#ERROR!' zurück, wenn das Regex-Muster ungültig ist.",
         "greatestDescription": "Gibt den größten Wert der beiden Eingaben zurück.",
         "leastDescription": "Gibt die kleinste der beiden Eingaben zurück.",
         "monthDescription": "Gibt die Anzahl der Monate im angegebenen Datum zurück.",

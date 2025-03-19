@@ -61,7 +61,7 @@ class AdminLicensesView(APIView):
             "Lists all the valid licenses that are registered to this instance. A "
             "premium license can be used to unlock the premium features for a fixed "
             "amount of users. An enterprise license can similarly be used to "
-            "unlock enterpise features. More information about self hosted licenses "
+            "unlock enterprise features. More information about self hosted licenses "
             "can be found on our pricing page https://baserow.io/pricing."
         ),
         responses={

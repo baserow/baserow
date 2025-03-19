@@ -48,7 +48,7 @@ def test_validate_login_page_id_raises_error_if_shared_page(
     builder = builder_fixture["builder"]
 
     # Set the builder's page to be the shared page
-    shared_page = builder.page_set(manager="objects_with_shared").get(shared=True)
+    shared_page = builder.page_set.get(shared=True)
     response = api_client.patch(
         reverse("api:applications:item", kwargs={"application_id": builder.id}),
         {"login_page_id": shared_page.id},

@@ -15,6 +15,7 @@ class ChangelogEntry(abc.ABC):
 
     def generate_entry_dict(
         self,
+        domain_type_name: str,
         message: str,
         issue_number: Optional[int] = None,
         bullet_points: List[str] = None,
@@ -25,6 +26,7 @@ class ChangelogEntry(abc.ABC):
         return {
             "type": self.type,
             "message": message,
+            "domain": domain_type_name,
             "issue_number": issue_number,
             "bullet_points": bullet_points,
             "created_at": datetime.now(tz=timezone.utc).strftime("%Y-%m-%d"),

@@ -22,7 +22,7 @@ export class LicenseType extends Registerable {
   }
 
   /**
-   * The a list of features that this license provides.
+   * A list of features that this license provides.
    */
   getFeatures() {
     throw new Error('Must be set by the implementing sub class.')
@@ -127,3 +127,4 @@ export class PremiumLicenseType extends LicenseType {
     return PremiumFeatures
   }
 }
+

@@ -1502,6 +1502,7 @@ describe('Buffered rows view store helper', () => {
           view: 1,
           field: 1,
           order: 'ASC',
+          type: 'default',
         },
       ],
     }
@@ -1669,6 +1670,7 @@ describe('Buffered rows view store helper', () => {
           view: 1,
           field: 1,
           order: 'ASC',
+          type: 'default',
         },
       ],
     }

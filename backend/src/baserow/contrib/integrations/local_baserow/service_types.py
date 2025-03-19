@@ -61,7 +61,11 @@ from baserow.contrib.database.views.exceptions import (
     AggregationTypeDoesNotExist,
     ViewDoesNotExist,
 )
+from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.service import ViewService
+from baserow.contrib.database.views.view_aggregations import (
+    DistributionViewAggregationType,
+)
 from baserow.contrib.integrations.local_baserow.api.serializers import (
     LocalBaserowTableServiceFieldMappingSerializer,
 )
@@ -90,7 +94,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
 )
-from baserow.core.cache import local_cache
+from baserow.core.cache import global_cache, local_cache
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.handler import CoreHandler
@@ -113,6 +117,9 @@ from baserow.core.utils import atomic_if_not_already
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
+
+
+SCHEMA_CACHE_TTL = 60 * 60  # 1 hour
 
 
 class LocalBaserowServiceType(ServiceType):
@@ -220,6 +227,8 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         return model.objects.all().enhance_by_fields(
             only_field_ids=extract_field_ids_from_list(only_field_names)
+            if only_field_names is not None
+            else None
         )
 
     def enhance_queryset(self, queryset):
@@ -482,6 +491,29 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         :return: A schema dictionary, or None if no `Table` has been applied.
         """
 
+        if service.table_id is None:
+            return None
+
+        properties = global_cache.get(
+            f"table_{service.table_id}_{service.table.version}__service_schema",
+            default=lambda: self._get_table_properties(service, allowed_fields),
+            timeout=SCHEMA_CACHE_TTL,
+        )
+
+        return self.get_schema_for_return_type(service, properties)
+
+    def _get_table_properties(
+        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Extracts the properties from the table model fields.
+
+        :param service: A `LocalBaserowTableService` subclass.
+        :param allowed_fields: The properties which are allowed to be included in the
+            properties.
+        :return: A schema dictionary, or None if no `Table` has been applied.
+        """
+
         field_objects = self.get_table_field_objects(service)
 
         if field_objects is None:
@@ -517,7 +549,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                 "searchable": field_type.is_searchable(field)
                 and field_type.type
                 not in self.unsupported_adhoc_searchable_field_types,
-                "sortable": field_type.check_can_order_by(field)
+                "sortable": field_type.check_can_order_by(field, DEFAULT_SORT_TYPE_KEY)
                 and field_type.type not in self.unsupported_adhoc_sortable_field_types,
                 "filterable": field_type.check_can_filter_by(field)
                 and field_type.type
@@ -526,7 +558,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                 "metadata": field_serializer.data,
             } | self.get_json_type_from_response_serializer_field(field, field_type)
 
-        return self.get_schema_for_return_type(service, properties)
+        return properties
 
     def get_schema_name(self, service: ServiceSubClass) -> str:
         """
@@ -570,7 +602,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         return local_cache.get(
             f"integration_service_{service.table_id}_table_model",
-            service.table.get_model,
+            lambda: service.table.get_model(),
         )
 
     def get_table_field_objects(
@@ -591,6 +623,18 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         return model.get_field_objects()
 
     def get_context_data(
+        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        if service.table_id is None:
+            return None
+
+        return global_cache.get(
+            f"table_{service.table_id}_{service.table.version}__service_context_data",
+            default=lambda: self._get_context_data(service, allowed_fields),
+            timeout=SCHEMA_CACHE_TTL,
+        )
+
+    def _get_context_data(
         self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         field_objects = self.get_table_field_objects(service)
@@ -622,6 +666,22 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
     def get_context_data_schema(
         self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
     ) -> Optional[Dict[str, Any]]:
+        if service.table_id is None:
+            return None
+
+        return global_cache.get(
+            f"table_{service.table_id}_{service.table.version}__service_context_data_schema",
+            default=lambda: self._get_context_data_schema(service, allowed_fields),
+            timeout=SCHEMA_CACHE_TTL,
+        )
+
+    def _get_context_data_schema(
+        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Returns the context data schema for the table associated with the service.
+        """
+
         field_objects = self.get_table_field_objects(service)
 
         if field_objects is None:
@@ -1184,6 +1244,10 @@ class LocalBaserowAggregateRowsUserServiceType(
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
     serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 
+    # Local Baserow aggregate rows does not currently support the distribution
+    # aggregation type, this will be resolved in a future release.
+    unsupported_aggregation_types = [DistributionViewAggregationType.type]
+
     def get_schema_name(self, service: LocalBaserowAggregateRows) -> str:
         """
         The Local Baserow aggregation schema name added to the `title` in
@@ -1322,6 +1386,19 @@ class LocalBaserowAggregateRowsUserServiceType(
         # The table and view will be prepared in the parent
         values = super().prepare_values(values, user, instance)
 
+        # Aggregation types are always checked for compatibility
+        # no matter if they have been already set previously
+        aggregation_type = values.get(
+            "aggregation_type", getattr(instance, "aggregation_type", "")
+        )
+
+        if aggregation_type in self.unsupported_aggregation_types:
+            raise DRFValidationError(
+                detail=f"The {aggregation_type} aggregation type "
+                "is not currently supported.",
+                code="unsupported_aggregation_type",
+            )
+
         if "table" in values:
             # Reset the field if the table has changed
             if (
@@ -1350,12 +1427,6 @@ class LocalBaserowAggregateRowsUserServiceType(
                         "related to the given table.",
                         code="invalid_field",
                     )
-
-            # Aggregation types are always checked for compatibility
-            # no matter if they have been already set previously
-            aggregation_type = values.get(
-                "aggregation_type", getattr(instance, "aggregation_type", "")
-            )
 
             if aggregation_type and field:
                 agg_type = field_aggregation_registry.get(aggregation_type)

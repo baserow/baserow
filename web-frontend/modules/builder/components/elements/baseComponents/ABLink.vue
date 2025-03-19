@@ -1,10 +1,13 @@
 <template>
   <a
-    :class="{
-      'ab-link': variant !== 'button',
-      'ab-button ab-button--medium': variant === 'button',
-      'ab-button--full-width': variant === 'button' && fullWidth === true,
-    }"
+    :class="[
+      {
+        'ab-link': variant !== 'button',
+        'ab-button ab-button--medium': variant === 'button',
+        'ab-button--full-width': variant === 'button' && fullWidth === true,
+      },
+      forceActiveClass,
+    ]"
     :target="`_${target}`"
     :href="url"
     :rel="isExternalLink ? 'noopener noreferrer' : null"
@@ -36,7 +39,7 @@ export default {
       },
     },
     /**
-     * @type {string} - Wheter the button should be full width.
+     * @type {Boolean} - Wheter the button should be full width.
      */
     fullWidth: {
       type: Boolean,
@@ -61,10 +64,21 @@ export default {
       type: String,
       required: true,
     },
+    /**
+     * @type {Boolean} - Whether the active class should be applied to the link.
+     */
+    forceActive: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   computed: {
     isExternalLink() {
       return !this.url.startsWith('/')
+    },
+    forceActiveClass() {
+      return this.forceActive ? `ab-${this.variant}--force-active` : ''
     },
   },
   methods: {

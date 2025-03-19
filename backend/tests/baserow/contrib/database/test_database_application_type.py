@@ -43,17 +43,27 @@ def test_import_export_database(data_fixture):
     data_fixture.create_view_sort(view=view, field=text_field)
 
     with freeze_time("2021-01-01 12:30"):
-        row, _ = RowHandler().force_create_rows(
-            user,
-            table,
-            [{f"field_{text_field.id}": "Test"}, {f"field_{text_field.id}": "Test 2"}],
+        row = (
+            RowHandler()
+            .force_create_rows(
+                user,
+                table,
+                [
+                    {f"field_{text_field.id}": "Test"},
+                    {f"field_{text_field.id}": "Test 2"},
+                ],
+            )
+            .created_rows[0]
         )
 
     with freeze_time("2021-01-02 13:30"):
-        res = RowHandler().force_update_rows(
-            user, table, [{"id": row.id, f"field_{text_field.id}": "Test"}]
+        row = (
+            RowHandler()
+            .force_update_rows(
+                user, table, [{"id": row.id, f"field_{text_field.id}": "Test"}]
+            )
+            .updated_rows[0]
         )
-        row = res.updated_rows[0]
 
     database_type = application_type_registry.get("database")
     config = ImportExportConfig(include_permission_data=True)

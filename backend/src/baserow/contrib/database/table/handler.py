@@ -486,7 +486,11 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         table = self.create_table_and_fields(user, database, name, fields)
 
         _, error_report = RowHandler().import_rows(
-            user, table, data, progress=progress, send_realtime_update=False
+            user,
+            table,
+            data=data,
+            progress=progress,
+            send_realtime_update=False,
         )
 
         table_created.send(self, table=table, user=user)

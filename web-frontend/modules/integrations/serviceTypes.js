@@ -5,6 +5,7 @@ import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow
 import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
 import { uuid } from '@baserow/modules/core/utils/string'
 import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowAdhocHeader'
+import { DistributionViewAggregationType } from '@baserow/modules/database/viewAggregationTypes'
 
 export class LocalBaserowTableServiceType extends ServiceType {
   get integrationType() {
@@ -237,6 +238,14 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
 
   get formComponent() {
     return LocalBaserowAggregateRowsForm
+  }
+
+  /**
+   * Local Baserow aggregate rows does not currently support the distribution
+   * aggregation type, this will be resolved in a future release.
+   */
+  get unsupportedAggregationTypes() {
+    return [DistributionViewAggregationType.getType()]
   }
 
   getResult(service, data) {

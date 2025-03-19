@@ -65,7 +65,7 @@ def number_lookup_filter_proc(
 
     linked_rows = t.row_handler.create_rows(
         user=t.user, table=t.other_table, rows_values=dict_rows
-    )
+    ).created_rows
 
     # helper to get linked rows by indexes
     def get_linked_rows(*indexes) -> list[int]:

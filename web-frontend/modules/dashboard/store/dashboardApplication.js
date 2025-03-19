@@ -174,19 +174,32 @@ export const actions = {
       }
     })
   },
-  async createWidget({ dispatch }, { dashboard, widget }) {
-    const { data } = await WidgetService(this.$client).create(
-      dashboard.id,
-      widget
-    )
+  async createWidget({ commit, dispatch }, { dashboard, widget }) {
+    const tempId = Date.now()
+    commit('ADD_WIDGET', { id: tempId, ...widget })
+    let widgetData
+    try {
+      const { data } = await WidgetService(this.$client).create(
+        dashboard.id,
+        widget
+      )
+      widgetData = data
+    } catch (error) {
+      commit('DELETE_WIDGET', tempId)
+      throw error
+    }
     return await dispatch('handleNewWidgetCreated', {
-      ...data,
+      tempWidgetId: tempId,
+      createdWidget: widgetData,
     })
   },
-  async handleNewWidgetCreated({ commit, dispatch }, createdWidget) {
-    commit('ADD_WIDGET', createdWidget)
-    await dispatch('fetchNewDataSources', createdWidget.dashboard_id)
+  async handleNewWidgetCreated(
+    { commit, dispatch },
+    { tempWidgetId, createdWidget }
+  ) {
+    commit('UPDATE_WIDGET', { widgetId: tempWidgetId, values: createdWidget })
     dispatch('selectWidget', createdWidget.id)
+    await dispatch('fetchNewDataSources', createdWidget.dashboard_id)
   },
   async dispatchDataSource({ commit }, dataSourceId) {
     commit('UPDATE_DATA', { dataSourceId, values: null })

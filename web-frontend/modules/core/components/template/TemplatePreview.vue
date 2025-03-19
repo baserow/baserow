@@ -102,20 +102,22 @@ export default {
           populateApplication(application, this.$registry)
         )
 
-        // Check if there is an application that can give us an initial page. The
-        // database application type would for example return the first table as page.
-        for (let i = 0; i < this.applications.length; i++) {
-          const application = this.applications[i]
-          const pageValue = this.$registry
-            .get('application', application.type)
-            .getTemplatePage(application)
-          if (pageValue !== null) {
-            application._.selected = true
-            this.selectPage({
-              application: application.type,
-              value: pageValue,
-            })
-            break
+        // A template can optionally have a preferred application that must be opened
+        // first in the preview. Try to select that one, and if that's not possible,
+        // then try to select the first application of the template.
+        const openApplication = this.applications.find(
+          (a) => a.id === this.template.open_application
+        )
+        if (openApplication) {
+          this.selectApplication(openApplication)
+        } else {
+          // Check if there is an application that can give us an initial page. The
+          // database application type would for example return the first table as page.
+          for (let i = 0; i < this.applications.length; i++) {
+            const application = this.applications[i]
+            if (this.selectApplication(application)) {
+              break
+            }
           }
         }
       } catch (error) {
@@ -124,6 +126,20 @@ export default {
       } finally {
         this.loading = false
       }
+    },
+    selectApplication(application) {
+      const pageValue = this.$registry
+        .get('application', application.type)
+        .getTemplatePage(application)
+      if (pageValue !== null) {
+        application._.selected = true
+        this.selectPage({
+          application: application.type,
+          value: pageValue,
+        })
+        return true
+      }
+      return false
     },
     selectPage({ application, value }) {
       this.page = {

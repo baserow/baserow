@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Introduce row update functionality during table import",
+    "domain": "database",
+    "issue_number": 2213,
+    "bullet_points": [],
+    "created_at": "2025-03-13"
+}

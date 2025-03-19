@@ -13,6 +13,7 @@
         :error="fieldHasErrors('github_issues_owner')"
         :disabled="disabled"
         size="large"
+        @blur="v$.values.github_issues_owner.$touch"
       />
       <template #error>
         <span>
@@ -34,6 +35,7 @@
         :error="fieldHasErrors('github_issues_repo')"
         :disabled="disabled"
         size="large"
+        @blur="v$.values.github_issues_repo.$touch"
       />
       <template #error>
         {{ v$.values.github_issues_repo.$errors[0]?.$message }}
@@ -47,16 +49,8 @@
       :helper-text="$t('githubIssuesDataSync.apiTokenHelper')"
       small-label
       :protected-edit="update"
-      @enabled-protected-edit="allowedValues.push('github_issues_api_token')"
-      @disable-protected-edit="
-        ;[
-          allowedValues.splice(
-            allowedValues.indexOf('github_issues_api_token'),
-            1
-          ),
-          delete values['github_issues_api_token'],
-        ]
-      "
+      @enabled-protected-edit="values.github_issues_api_token = ''"
+      @disable-protected-edit="values.github_issues_api_token = undefined"
     >
       <FormInput
         v-model="v$.values.github_issues_api_token.$model"
@@ -96,15 +90,16 @@ export default {
     return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
-    const allowedValues = ['github_issues_owner', 'github_issues_repo']
-    if (!this.update) {
-      allowedValues.push('github_issues_api_token')
-    }
     return {
-      allowedValues: ['github_issues_owner', 'github_issues_repo'],
+      allowedValues: [
+        'github_issues_owner',
+        'github_issues_repo',
+        'github_issues_api_token',
+      ],
       values: {
         github_issues_owner: '',
         github_issues_repo: '',
+        github_issues_api_token: this.update ? undefined : '',
       },
     }
   },
@@ -127,7 +122,7 @@ export default {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             requiredIf(() => {
-              return this.allowedValues.includes('github_issues_api_token')
+              return this.values.github_issues_api_token !== undefined
             })
           ),
         },

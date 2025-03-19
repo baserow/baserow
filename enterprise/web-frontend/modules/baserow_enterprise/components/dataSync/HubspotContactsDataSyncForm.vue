@@ -8,12 +8,15 @@
       :helper-text="$t('hubspotContactsDataSync.accessTokenHelper')"
       :protected-edit="update"
       small-label
+      @enabled-protected-edit="values.hubspot_access_token = ''"
+      @disable-protected-edit="values.hubspot_access_token = undefined"
     >
       <FormInput
         v-model="v$.values.hubspot_access_token.$model"
         :error="fieldHasErrors('hubspot_access_token')"
         :disabled="disabled"
         size="large"
+        @blur="v$.values.hubspot_access_token.$touch"
       />
       <template #error>
         {{ v$.values.hubspot_access_token.$errors[0]?.$message }}
@@ -49,7 +52,7 @@ export default {
     return {
       allowedValues: ['hubspot_access_token'],
       values: {
-        hubspot_access_token: '',
+        hubspot_access_token: this.update ? undefined : '',
       },
     }
   },

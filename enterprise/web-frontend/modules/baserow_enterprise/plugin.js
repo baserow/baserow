@@ -51,6 +51,7 @@ import {
   HubspotContactsDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
 import { ChartWidgetType } from '@baserow_enterprise/dashboard/widgetTypes'
+import { SingleSelectFormattingType } from '@baserow_enterprise/dashboard/chartFieldFormatting'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 import {
   CountViewAggregationType,
@@ -71,10 +72,20 @@ import {
   VarianceViewAggregationType,
   MedianViewAggregationType,
 } from '@baserow/modules/database/viewAggregationTypes'
+import { PeriodicDataSyncDeactivatedNotificationType } from '@baserow_enterprise/notificationTypes'
+import { RowsEnterViewWebhookEventType } from '@baserow_enterprise/webhookEventTypes'
 import {
-  FF_AB_SSO,
-  FF_DASHBOARDS,
-} from '@baserow/modules/core/plugins/featureFlags'
+  TextFieldType,
+  LongTextFieldType,
+  URLFieldType,
+  EmailFieldType,
+  NumberFieldType,
+  RatingFieldType,
+  BooleanFieldType,
+  SingleSelectFieldType,
+  PhoneNumberFieldType,
+  AutonumberFieldType,
+} from '@baserow/modules/database/fieldTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -145,16 +156,14 @@ export default (context) => {
     new LocalBaserowPasswordAppAuthProviderType(context)
   )
 
-  if (app.$featureFlagIsEnabled(FF_AB_SSO)) {
-    app.$registry.register(
-      'appAuthProvider',
-      new SamlAppAuthProviderType(context)
-    )
-    app.$registry.register(
-      'appAuthProvider',
-      new OpenIdConnectAppAuthProviderType(context)
-    )
-  }
+  app.$registry.register(
+    'appAuthProvider',
+    new SamlAppAuthProviderType(context)
+  )
+  app.$registry.register(
+    'appAuthProvider',
+    new OpenIdConnectAppAuthProviderType(context)
+  )
 
   app.$registry.register('roles', new EnterpriseAdminRoleType(context))
   app.$registry.register('roles', new EnterpriseMemberRoleType(context))
@@ -243,11 +252,64 @@ export default (context) => {
   )
 
   app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new TextFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new LongTextFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new NumberFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new URLFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new RatingFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new BooleanFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new EmailFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new SingleSelectFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new PhoneNumberFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new AutonumberFieldType(context)
+  )
+
+  app.$registry.register(
+    'notification',
+    new PeriodicDataSyncDeactivatedNotificationType(context)
+  )
+
+  app.$registry.register(
     'configureDataSync',
     new PeriodicIntervalFieldsConfigureDataSyncType(context)
   )
 
-  if (app.$featureFlagIsEnabled(FF_DASHBOARDS)) {
-    app.$registry.register('dashboardWidget', new ChartWidgetType(context))
-  }
+  app.$registry.register(
+    'webhookEvent',
+    new RowsEnterViewWebhookEventType(context)
+  )
+
+  app.$registry.register('dashboardWidget', new ChartWidgetType(context))
+  app.$registry.register(
+    'chartFieldFormatting',
+    new SingleSelectFormattingType(context)
+  )
 }

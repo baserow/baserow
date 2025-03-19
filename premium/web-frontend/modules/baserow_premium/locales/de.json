@@ -10,7 +10,8 @@
         },
         "exporterType": {
             "json": "Nach JSON exportieren",
-            "xml": "Exportieren nach XML"
+            "xml": "Exportieren nach XML",
+            "excel": "In Excel exportieren"
         },
         "deactivated": "Verfügbar in der Premium-Version"
     },
@@ -190,7 +191,8 @@
         "publicLogoRemoval": "Entfernung des öffentlichen Logos",
         "personalViews": "Persönliche Ansichten",
         "calendarView": "Kalenderansicht",
-        "aiFeatures": "KI-Feld"
+        "aiFeatures": "KI-Feld",
+        "timelineView": "Zeitleisten-Ansicht"
     },
     "premiumModal": {
         "description": "Ihr Konto hat keinen Zugang zu den Premium-Funktionen. Führen Sie ein Upgrade auf die Premium-Version durch, um {name} nutzen zu können. Sie können Ihr Konto erweitern, indem Sie eine Lizenz erwerben. Klicken Sie auf den Knopf unten, um die Preise zu sehen.",
@@ -211,7 +213,8 @@
         "baserowLogo": {
             "premiumModalName": "Entfernung des öffentlichen Logos",
             "label": "Baserow-Logo in öffentlicher Ansicht ausblenden"
-        }
+        },
+        "allowPublicExportLabel": "Export der geteilten Ansicht zulassen"
     },
     "viewsContext": {
         "personal": "Persönlich"
@@ -334,5 +337,8 @@
         "week": "Woche",
         "year": "Jahr",
         "disabledTooltip": "Diese Option ist nur für Datumsfelder verfügbar, bei denen „Zeit einschließen“ aktiviert ist."
+    },
+    "tableExcelExporter": {
+        "includeHeader": "Feldnamen als Überschrift einfügen"
     }
 }

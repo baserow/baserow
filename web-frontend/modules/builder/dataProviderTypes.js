@@ -313,10 +313,18 @@ export class PageParameterDataProviderType extends DataProviderType {
           const validators = queryParamNames.includes(name)
             ? QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS
             : PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS
+          let value
+          try {
+            value = validators[type](pageParamsValue[name])
+          } catch {
+            // Skip setting the parameter if the user-provided value
+            // doesn't pass our parameter `type` validation.
+            return null
+          }
           return this.app.store.dispatch('pageParameter/setParameter', {
             page,
             name,
-            value: validators[type](pageParamsValue[name]),
+            value,
           })
         })
       )

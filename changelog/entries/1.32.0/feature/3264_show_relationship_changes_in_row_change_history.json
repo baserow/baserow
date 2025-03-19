@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Show relationship changes (added or removed) in the related row's change history.",
+    "domain": "database",
+    "issue_number": 3264,
+    "bullet_points": [],
+    "created_at": "2025-03-18"
+}

@@ -44,7 +44,9 @@
     "serviceType": {
         "localBaserowGetRow": "Rij ophalen",
         "localBaserowListRows": "Rijen ophalen",
-        "localBaserowAggregateRows": "Veld samenvatten"
+        "localBaserowAggregateRows": "Veld samenvatten",
+        "misconfigured": "Verkeerd geconfigureerd",
+        "trashedField": "In prullenbak gestopt veld"
     },
     "userSourceType": {
         "localBaserow": "Baserow tabel authenticatie"
@@ -59,7 +61,8 @@
         "sortBy": "Sorteer op",
         "thenBy": "Dan op",
         "addSort": "Extra sortering toevoegen",
-        "noTableChosenForSorting": "Kies een tabel om te beginnen met het sorteren van gegevensbronnen."
+        "noTableChosenForSorting": "Kies een tabel om te beginnen met het sorteren van gegevensbronnen.",
+        "sortMisconfigured": "Het veld waar deze sortering aan gekoppeld is, is weggegooid."
     },
     "dataProviderType": {
         "dataSource": "Gegevensbron",

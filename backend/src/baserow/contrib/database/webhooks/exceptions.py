@@ -18,5 +18,21 @@ class TableWebhookEventConfigFieldNotInTable(Exception):
         )
 
 
+class TableWebhookEventConfigViewNotInTable(Exception):
+    """Raised when trying to update the"""
+
+    def __init__(self, view_id=None, *args, **kwargs):
+        self.view_id = view_id
+        super().__init__(
+            f"The view {view_id} does not belong to the table.",
+            *args,
+            **kwargs,
+        )
+
+
 class SkipWebhookCall(Exception):
     """Raised when the webhook call must be skipped"""
+
+
+class WebhookPayloadTooLarge(Exception):
+    """Raised when the webhook payload is too large and exceeds the batches limit."""

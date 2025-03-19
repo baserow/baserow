@@ -71,7 +71,7 @@ export default {
         title: '',
         description: '',
       },
-      emitValuesOnReset: false,
+      skipFirstValuesEmit: true,
     }
   },
   validations() {
@@ -98,8 +98,16 @@ export default {
   },
   watch: {
     widget: {
-      handler(value) {
-        this.reset(true)
+      async handler(value) {
+        this.setEmitValues(false)
+        // Reset the form to set default values
+        // again after a different widget is selected
+        await this.reset(true)
+        // Run form validation so that
+        // problems are highlighted immediately
+        this.v$.$touch()
+        await this.$nextTick()
+        this.setEmitValues(true)
       },
       deep: true,
     },

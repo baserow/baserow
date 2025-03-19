@@ -66,6 +66,7 @@ from baserow.core.registry import (
     Registry,
 )
 
+from ..views.models import DEFAULT_SORT_TYPE_KEY
 from .exceptions import (
     FieldTypeAlreadyRegistered,
     FieldTypeDoesNotExist,
@@ -126,8 +127,11 @@ class FieldType(
         field_type_registry.register(ExampleFieldType())
     """
 
-    _can_order_by = True
-    """Indicates whether it is possible to order by this field type."""
+    _can_order_by_types = [DEFAULT_SORT_TYPE_KEY]
+    """
+    Indicates by which types can be ordered. Leave empty if it's not possible to sort
+    by the field type.
+    """
 
     _can_be_primary_field = True
     """Some field types cannot be the primary field."""
@@ -206,6 +210,12 @@ class FieldType(
     some fields can depend on it like the `lookup` field.
     """
 
+    can_upsert = False
+    """
+    A field of this type may be used to calculate a match value during import, that
+    allows to update existing rows with imported data instead of adding them.
+    """
+
     @property
     def db_column_fields(self) -> Set[str]:
         if self._db_column_fields is not None:
@@ -280,9 +290,9 @@ class FieldType(
 
         return getattr(row, field_name)
 
-    def prepare_row_history_value_from_action_meta_data(self, value):
+    def prepare_value_for_row_history(self, value):
         """
-        Prepare the row action update action meta data value for the row history.
+        Prepare the value for the row history.
         This can be used to change the value to a different format if needed. It's
         for example used by the password field to mask the hash.
         """
@@ -855,15 +865,16 @@ class FieldType(
         field: Type[Field],
         field_name: str,
         order_direction: str,
+        sort_type: str,
         table_model: Optional["GeneratedTableModel"] = None,
     ) -> OptionallyAnnotatedOrderBy:
         """
         This hook can be called to generate a different order by expression.
-        By default the normal field sorting will be applied.
+        By default, the normal field sorting will be applied.
         Optionally a different expression can be generated. This is for example used
         by the single select field generates a mapping achieve the correct sorting
         based on the select option value.
-        Additionally an annotation can be returned which will get applied to the
+        Additionally, an annotation can be returned which will get applied to the
         queryset.
         If you are implementing this method you should also implement the
         get_value_for_filter method.
@@ -871,13 +882,15 @@ class FieldType(
         :param field: The related field object instance.
         :param field_name: The name of the field.
         :param order_direction: The sort order direction (either "ASC" or "DESC").
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         :param table_model: The table model instance that the field is part of,
             if available.
         :return: Either the expression that is added directly to the
             model.objects.order(), an AnnotatedOrderBy class or None.
         """
 
-        field_expr = self.get_sortable_column_expression(field, field_name)
+        field_expr = self.get_sortable_column_expression(field, field_name, sort_type)
 
         if order_direction == "ASC":
             field_order_by = field_expr.asc(nulls_first=True)
@@ -1602,36 +1615,38 @@ class FieldType(
 
         return self._can_filter_by
 
-    def check_can_order_by(self, field: Field) -> bool:
+    def check_can_order_by(self, field: Field, sort_type: str) -> bool:
         """
         Override this method if this field type can sometimes be ordered or sometimes
-        cannot be ordered depending on the individual field state. By default will just
-        return the bool property _can_order_by so if your field type doesn't depend
-        on the field state and is always just True or False just set _can_order_by
-        to the desired value.
+        cannot be ordered depending on the individual field state. By default, it will
+        check if the provided `sort_type` is in the `_can_order_by_types` property.
 
         :param field: The field to check to see if it can be ordered by or not.
+        :param sort_type: The sort type to check if it's compatible.
         :return: True if a view can be ordered by this field, False otherwise.
         """
 
-        return self._can_order_by
+        return sort_type in self._can_order_by_types
 
-    def check_can_group_by(self, field: Field) -> bool:
+    def check_can_group_by(self, field: Field, sort_type: str) -> bool:
         """
         Override this method if this field type can sometimes be grouped or sometimes
         cannot be grouped depending on the individual field state. By default will just
-        return the bool property _can_group_by so if your field type doesn't depend
-        on the field state and is always just True or False just set _can_group_by
-        to the desired value.
+        return the bool property _can_group_by and checks if the sort_type is in the
+        `_can_order_by_types` property.
 
         :param field: The field to check to see if it can be grouped by or not.
+        :param sort_type: The sort type to check if it's compatible.
         :return: True if a view can be grouped by this field, False otherwise.
         """
 
-        return self._can_group_by
+        return self._can_group_by and self.check_can_order_by(field, sort_type)
 
     def get_sortable_column_expression(
-        self, field: Field, field_name: str
+        self,
+        field: Field,
+        field_name: str,
+        sort_type: str,
     ) -> Expression | F:
         """
         Returns the expression that can be used to sort the field in the database.
@@ -1640,6 +1655,8 @@ class FieldType(
 
         :param field: The field where to get the sortable column expression for.
         :param field_name: The name of the field in the table.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         :return: The expression that can be used to sort the field in the database.
         """
 

@@ -80,13 +80,12 @@ export default {
       parseInt(from.params.builderId)
     )
 
-    // Unselect previously selected element
-    this.$store.dispatch('element/select', {
-      builder,
-      element: null,
-    })
-
     if (builder) {
+      // Unselect previously selected element
+      this.$store.dispatch('element/select', {
+        builder,
+        element: null,
+      })
       // We want to reload once only data for this builder next time
       this.$store.dispatch('application/forceUpdate', {
         application: builder,

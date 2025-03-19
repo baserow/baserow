@@ -15,6 +15,8 @@ from rest_framework.status import (
 from baserow.contrib.database.fields.models import Field, NumberField, TextField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.tokens.handler import TokenHandler
+from baserow.contrib.database.views.handler import ViewIndexingHandler
+from baserow.contrib.database.views.models import ViewSort
 from baserow.core.db import specific_iterator
 from baserow.test_utils.helpers import (
     independent_test_db_connection,
@@ -519,7 +521,7 @@ def test_update_field(api_client, data_fixture):
         url,
         {"name": existing_field.name},
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_FIELD_WITH_SAME_NAME_ALREADY_EXISTS"
@@ -530,7 +532,7 @@ def test_update_field(api_client, data_fixture):
         url,
         {"name": too_long_field_name},
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
@@ -718,6 +720,38 @@ def test_update_field_number_type_deprecation_error(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_change_field_type_with_active_sort_on_field(api_client, data_fixture):
+    import uuid
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name=uuid.uuid4())
+
+    grid = data_fixture.create_grid_view(table=table)
+
+    sort = data_fixture.create_view_sort(view=grid, field=text_field, order="ASC")
+    ViewIndexingHandler.update_index(view=grid)
+
+    grid.refresh_from_db()
+    assert grid.db_index_name is not None
+
+    # Change the field type from text to number
+    url = reverse("api:database:fields:item", kwargs={"field_id": text_field.id})
+    response = api_client.patch(
+        url, {"type": "number"}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+    # Sort is not removed
+    assert ViewSort.objects.filter(id=sort.id).exists()
+
+    # Sort index is removed
+    grid.refresh_from_db()
+    assert grid.db_index_name is None
+
+
+@pytest.mark.django_db
 def test_delete_field(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     user_2, token_2 = data_fixture.create_user_and_token()
@@ -858,8 +892,7 @@ def test_update_field_returns_with_error_if_cant_lock_field_if_locked_for_update
         with conn.cursor() as cursor:
             # nosec
             cursor.execute(
-                f"SELECT * FROM database_field where id = {text_field.id} "
-                f"FOR UPDATE"
+                f"SELECT * FROM database_field where id = {text_field.id} FOR UPDATE"
             )
             response = api_client.patch(
                 url,

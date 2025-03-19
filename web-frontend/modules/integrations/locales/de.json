@@ -47,7 +47,8 @@
     },
     "serviceType": {
         "localBaserowGetRow": "Einzelne Zeile abfragen",
-        "localBaserowListRows": "{multipleRows} auflisten"
+        "localBaserowListRows": "Mehrere Zeilen auflisten",
+        "localBaserowAggregateRows": "Feld zusammenfassen"
     },
     "userSourceType": {
         "localBaserow": "Baserow-Tabellen-Authentifizierung"
@@ -72,5 +73,13 @@
     "integrationsCommon": {
         "singleRow": "Einzelne Zeile",
         "multipleRows": "Mehrere Zeilen"
+    },
+    "localBaserowAggregateRowsForm": {
+        "filterTabTitle": "Filter",
+        "searchTabTitle": "Suche",
+        "aggregationFieldLabel": "Feld",
+        "aggregationTypeLabel": "Aggregierung",
+        "searchFieldPlaceHolder": "Geben Sie einen Suchbegriff ein...",
+        "noTableChosenForFiltering": "Wählen Sie eine Tabelle, um mit der Verwendung von Datenquellenfiltern zu beginnen."
     }
 }

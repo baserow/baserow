@@ -46,8 +46,8 @@ class Page(
         ALLOW_ALL_EXCEPT = "allow_all_except"
         DISALLOW_ALL_EXCEPT = "disallow_all_except"
 
-    objects = PageWithoutSharedManager()
-    objects_with_shared = models.Manager()
+    objects = models.Manager()
+    objects_without_shared = PageWithoutSharedManager()
 
     builder = models.ForeignKey("builder.Builder", on_delete=models.CASCADE)
     order = models.PositiveIntegerField()
@@ -98,7 +98,7 @@ class Page(
 
     @classmethod
     def get_last_order(cls, builder: "Builder"):
-        queryset = Page.objects.filter(builder=builder)
+        queryset = Page.objects_without_shared.filter(builder=builder)
         return cls.get_highest_order_of_queryset(queryset) + 1
 
 

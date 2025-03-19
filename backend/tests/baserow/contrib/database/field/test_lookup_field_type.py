@@ -825,19 +825,23 @@ def test_can_modify_row_containing_lookup(
         link_row_table=table2,
     )
 
-    a, b = RowHandler().create_rows(
-        user,
-        table2,
-        [
-            {
-                looked_up_field.db_column: f"2021-02-01",
-                table2_primary_field.db_column: "primary a",
-            },
-            {
-                looked_up_field.db_column: f"2022-02-03",
-                table2_primary_field.db_column: "primary b",
-            },
-        ],
+    a, b = (
+        RowHandler()
+        .create_rows(
+            user,
+            table2,
+            [
+                {
+                    looked_up_field.db_column: f"2021-02-01",
+                    table2_primary_field.db_column: "primary a",
+                },
+                {
+                    looked_up_field.db_column: f"2022-02-03",
+                    table2_primary_field.db_column: "primary b",
+                },
+            ],
+        )
+        .created_rows
     )
 
     table_row = RowHandler().create_row(
@@ -1347,20 +1351,24 @@ def test_deleting_table_with_dependants_works(
     )
 
     table2_model = table2.get_model()
-    a, b = RowHandler().create_rows(
-        user,
-        table2,
-        rows_values=[
-            {
-                looked_up_field.db_column: "2021-02-01",
-                table2_primary_field.db_column: "primary a",
-            },
-            {
-                looked_up_field.db_column: "2022-02-03",
-                table2_primary_field.db_column: "primary b",
-            },
-        ],
-        model=table2_model,
+    a, b = (
+        RowHandler()
+        .create_rows(
+            user,
+            table2,
+            rows_values=[
+                {
+                    looked_up_field.db_column: "2021-02-01",
+                    table2_primary_field.db_column: "primary a",
+                },
+                {
+                    looked_up_field.db_column: "2022-02-03",
+                    table2_primary_field.db_column: "primary b",
+                },
+            ],
+            model=table2_model,
+        )
+        .created_rows
     )
 
     table_model = table.get_model()
@@ -1847,34 +1855,42 @@ def test_can_modify_row_containing_lookup_diamond_dep(
     starting_row = RowHandler().create_row(
         user, table1, {primary_table1.db_column: "table1_primary_row_1"}
     )
-    table2_row1, table2_row2 = RowHandler().create_rows(
-        user,
-        table2,
-        [
-            {
-                primary_table2.db_column: "table2_row1",
-                table2_link_to_table1.db_column: [starting_row.id],
-            },
-            {
-                primary_table2.db_column: "table2_row2",
-                table2_link_to_table1.db_column: [starting_row.id],
-            },
-        ],
+    table2_row1, table2_row2 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table2,
+            [
+                {
+                    primary_table2.db_column: "table2_row1",
+                    table2_link_to_table1.db_column: [starting_row.id],
+                },
+                {
+                    primary_table2.db_column: "table2_row2",
+                    table2_link_to_table1.db_column: [starting_row.id],
+                },
+            ],
+        )
+        .created_rows
     )
 
-    table3_row1, table3_row2 = RowHandler().create_rows(
-        user,
-        table3,
-        [
-            {
-                primary_table3.db_column: "table3_row1",
-                table3_link_to_table2_a.db_column: [table2_row1.id],
-            },
-            {
-                primary_table3.db_column: "table3_row2",
-                table3_link_to_table2_b.db_column: [table2_row2.id],
-            },
-        ],
+    table3_row1, table3_row2 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table3,
+            [
+                {
+                    primary_table3.db_column: "table3_row1",
+                    table3_link_to_table2_a.db_column: [table2_row1.id],
+                },
+                {
+                    primary_table3.db_column: "table3_row2",
+                    table3_link_to_table2_b.db_column: [table2_row2.id],
+                },
+            ],
+        )
+        .created_rows
     )
 
     FieldHandler().create_field(

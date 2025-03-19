@@ -78,7 +78,6 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('element_updated', ({ store }, { element }) => {
     const selectedPage = store.getters['page/getSelected']
     if (selectedPage.id === element.page_id) {
-      console.log('it is')
       const builder = store.getters['application/get'](selectedPage.builder_id)
       store.dispatch('element/forceUpdate', {
         builder,

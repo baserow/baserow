@@ -15,13 +15,17 @@ from typing import (
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db.models import IntegerField, QuerySet
+from django.db.models import IntegerField, Q, QuerySet
 from django.db.models.functions import Cast
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.contrib.builder.api.elements.serializers import ChoiceOptionSerializer
+from baserow.contrib.builder.api.elements.serializers import (
+    ChoiceOptionSerializer,
+    MenuItemSerializer,
+    NestedMenuItemsMixin,
+)
 from baserow.contrib.builder.data_providers.exceptions import (
     FormDataProviderChunkInvalidException,
 )
@@ -47,13 +51,17 @@ from baserow.contrib.builder.elements.models import (
     FormContainerElement,
     HeaderElement,
     HeadingElement,
+    HorizontalAlignments,
     IFrameElement,
     ImageElement,
     InputTextElement,
     LinkElement,
+    MenuElement,
+    MenuItemElement,
     NavigationElementMixin,
     RecordSelectorElement,
     RepeatElement,
+    SimpleContainerElement,
     TableElement,
     TextElement,
     VerticalAlignments,
@@ -70,6 +78,7 @@ from baserow.contrib.builder.theme.theme_config_block_types import (
     TableThemeConfigBlockType,
 )
 from baserow.contrib.builder.types import ElementDict
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.constants import (
     DATE_FORMAT,
     DATE_FORMAT_CHOICES,
@@ -270,6 +279,17 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
         ]
 
 
+class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
+    type = "simple_container"
+    model_class = SimpleContainerElement
+
+    class SerializedDict(ContainerElementTypeMixin.SerializedDict):
+        pass
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {}
+
+
 class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
     type = "table"
     model_class = TableElement
@@ -303,10 +323,11 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name=["button", "table"],
+                property_name=["button", "table", "header_button"],
                 theme_config_block_type_name=[
                     ButtonThemeConfigBlockType.type,
                     TableThemeConfigBlockType.type,
+                    ButtonThemeConfigBlockType.type,
                 ],
                 serializer_kwargs={"required": False},
             ),
@@ -366,8 +387,11 @@ class RepeatElementType(
             **super().serializer_field_overrides,
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="button",
-                theme_config_block_type_name=ButtonThemeConfigBlockType.type,
+                property_name=["button", "header_button"],
+                theme_config_block_type_name=[
+                    ButtonThemeConfigBlockType.type,
+                    ButtonThemeConfigBlockType.type,
+                ],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -1961,3 +1985,327 @@ class FooterElementType(MultiPageContainerElementType):
 
     type = "footer"
     model_class = FooterElement
+
+
+class MenuElementType(ElementType):
+    """
+    A Menu element that provides navigation capabilities to the application.
+    """
+
+    type = "menu"
+    model_class = MenuElement
+    serializer_field_names = ["orientation", "alignment", "menu_items"]
+    allowed_fields = ["orientation", "alignment"]
+
+    serializer_mixins = [NestedMenuItemsMixin]
+    request_serializer_mixins = []
+
+    class SerializedDict(ElementDict):
+        orientation: str
+        alignment: str
+        menu_items: List[Dict]
+
+    @property
+    def serializer_field_overrides(self) -> Dict[str, Any]:
+        from baserow.contrib.builder.api.theme.serializers import (
+            DynamicConfigBlockSerializer,
+        )
+        from baserow.contrib.builder.theme.theme_config_block_types import (
+            ButtonThemeConfigBlockType,
+            LinkThemeConfigBlockType,
+        )
+
+        overrides = {
+            **super().serializer_field_overrides,
+            "styles": DynamicConfigBlockSerializer(
+                required=False,
+                property_name="menu",
+                theme_config_block_type_name=[
+                    [ButtonThemeConfigBlockType.type, LinkThemeConfigBlockType.type]
+                ],
+                serializer_kwargs={"required": False},
+            ),
+        }
+        return overrides
+
+    @property
+    def request_serializer_field_overrides(self) -> Dict[str, Any]:
+        return {
+            **self.serializer_field_overrides,
+            "menu_items": MenuItemSerializer(many=True, required=False),
+        }
+
+    def enhance_queryset(
+        self, queryset: QuerySet[MenuItemElement]
+    ) -> QuerySet[MenuItemElement]:
+        return queryset.prefetch_related("menu_items")
+
+    def before_delete(self, instance: MenuElement) -> None:
+        """
+        Handle any clean-up needed before the MenuElement is deleted.
+
+        Deletes all related objects of this MenuElement instance such as Menu
+        Items and Workflow actions.
+        """
+
+        self.delete_workflow_actions(instance)
+        instance.menu_items.all().delete()
+
+    def after_create(self, instance: MenuItemElement, values: Dict[str, Any]) -> None:
+        """
+        After a MenuElement is created, MenuItemElements are bulk-created
+        using the information in the "menu_items" array.
+        """
+
+        menu_items = values.get("menu_items", [])
+
+        created_menu_items = MenuItemElement.objects.bulk_create(
+            [
+                MenuItemElement(**item, menu_item_order=index)
+                for index, item in enumerate(menu_items)
+            ]
+        )
+        instance.menu_items.add(*created_menu_items)
+
+    def delete_workflow_actions(
+        self, instance: MenuElement, menu_item_uids_to_keep: Optional[List[str]] = None
+    ) -> None:
+        """
+        Deletes all Workflow actions related to a specific MenuElement instance.
+
+        :param instance: The MenuElement instance for which related Workflow
+            actions will be deleted.
+        :param menu_item_uids_to_keep: An optional list of UUIDs. If a related
+            Workflow action matches a UUID in this list, it will *not* be deleted.
+        :return: None
+        """
+
+        # Get all workflow actions associated with this menu element.
+        all_workflow_actions = BuilderWorkflowAction.objects.filter(element=instance)
+
+        # If there are menu items, only keep workflow actions that match
+        # existing menu items.
+        if menu_item_uids_to_keep:
+            workflow_actions_to_keep_query = Q()
+            for uid in menu_item_uids_to_keep:
+                workflow_actions_to_keep_query |= Q(event__startswith=uid)
+
+            # Find Workflow actions to delete (those not matching any
+            # current Menu Item).
+            workflow_actions_to_delete = all_workflow_actions.exclude(
+                workflow_actions_to_keep_query
+            )
+        else:
+            # Since there are no Menu Items, delete all Workflow actions
+            # for this element.
+            workflow_actions_to_delete = all_workflow_actions
+
+        # Delete the workflow actions that are no longer associated with
+        # any menu item.
+        if workflow_actions_to_delete.exists():
+            workflow_actions_to_delete.delete()
+
+    def after_update(self, instance: MenuElement, values, changes: Dict[str, Tuple]):
+        """
+        After the element has been updated we need to update the fields.
+
+        :param instance: The instance of the element that has been updated.
+        :param values: The values that have been updated.
+        :param changes: A dictionary containing all changes which were made to the
+            collection element prior to `after_update` being called.
+        :return: None
+        """
+
+        if "menu_items" in values:
+            instance.menu_items.all().delete()
+
+            menu_item_uids_to_keep = [item["uid"] for item in values["menu_items"]]
+            self.delete_workflow_actions(instance, menu_item_uids_to_keep)
+
+            items_to_create = []
+            child_uids_parent_uids = {}
+
+            keys_to_remove = ["parent_menu_item", "menu_item_order"]
+            for index, item in enumerate(values["menu_items"]):
+                for key in keys_to_remove:
+                    item.pop(key, None)
+
+                # Keep track of child-parent relationship via the uid
+                for child_index, child in enumerate(item.pop("children", [])):
+                    for key in keys_to_remove + ["children"]:
+                        child.pop(key, None)
+
+                    items_to_create.append(
+                        MenuItemElement(**child, menu_item_order=child_index)
+                    )
+                    child_uids_parent_uids[str(child["uid"])] = str(item["uid"])
+
+                items_to_create.append(MenuItemElement(**item, menu_item_order=index))
+
+            created_items = MenuItemElement.objects.bulk_create(items_to_create)
+            instance.menu_items.add(*created_items)
+
+            # Re-associate the child-parent
+            for item in instance.menu_items.all():
+                if parent_uid := child_uids_parent_uids.get(str(item.uid)):
+                    parent_item = instance.menu_items.filter(uid=parent_uid).first()
+                    item.parent_menu_item = parent_item
+                    item.save()
+
+        super().after_update(instance, values, changes)
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "orientation": RepeatElement.ORIENTATIONS.VERTICAL,
+            "alignment": HorizontalAlignments.LEFT,
+        }
+
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Any],
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ) -> Any:
+        if prop_name == "menu_items":
+            updated_menu_items = []
+            for item in value:
+                updated = {}
+                for item_key, item_value in item.items():
+                    new_value = super().deserialize_property(
+                        item_key,
+                        NavigationElementManager().deserialize_property(
+                            item_key, item_value, id_mapping, **kwargs
+                        ),
+                        id_mapping,
+                        files_zip=files_zip,
+                        storage=storage,
+                        cache=cache,
+                        **kwargs,
+                    )
+                    updated[item_key] = new_value
+                updated_menu_items.append(updated)
+            return updated_menu_items
+
+        return super().deserialize_property(
+            prop_name,
+            value,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+    def serialize_property(
+        self,
+        element: MenuElement,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ) -> Any:
+        if prop_name == "menu_items":
+            return MenuItemSerializer(
+                element.menu_items.all(),
+                many=True,
+            ).data
+
+        return super().serialize_property(
+            element,
+            prop_name,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values: Dict[str, Any],
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ) -> MenuElement:
+        menu_items = serialized_values.pop("menu_items", [])
+
+        instance = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+        menu_items_to_create = []
+        child_uids_parent_uids = {}
+
+        ids_uids = {i["id"]: i["uid"] for i in menu_items}
+        keys_to_remove = ["id", "menu_item_order", "children"]
+        for index, item in enumerate(menu_items):
+            for key in keys_to_remove:
+                item.pop(key, None)
+
+            # Keep track of child-parent relationship via the uid
+            if parent_id := item.pop("parent_menu_item", None):
+                child_uids_parent_uids[item["uid"]] = ids_uids[parent_id]
+
+            menu_items_to_create.append(MenuItemElement(**item, menu_item_order=index))
+
+        created_menu_items = MenuItemElement.objects.bulk_create(menu_items_to_create)
+        instance.menu_items.add(*created_menu_items)
+
+        # Re-associate the child-parent
+        for item in instance.menu_items.all():
+            if parent_uid := child_uids_parent_uids.get(str(item.uid)):
+                parent_item = instance.menu_items.filter(uid=parent_uid).first()
+                item.parent_menu_item = parent_item
+                item.save()
+
+        return instance
+
+    def formula_generator(
+        self, element: Element
+    ) -> Generator[str | Instance, str, None]:
+        """
+        Generator that returns formula fields for the MenuElementType.
+
+        The MenuElement has a menu_items field, which is a many-to-many
+        relationship with MenuItemElement. The MenuItemElement has navigation
+        related fields like page_parameters, yet does not have a type of its
+        own.
+
+        This method ensures that any formulas found inside MenuItemElements
+        are extracted correctly. It ensures that when a formula is declared
+        in page_parameters, etc, the resolved formula value is available
+        in the frontend.
+        """
+
+        yield from super().formula_generator(element)
+
+        for item in element.menu_items.all():
+            for index, data in enumerate(item.page_parameters or []):
+                new_formula = yield data["value"]
+                if new_formula is not None:
+                    item.page_parameters[index]["value"] = new_formula
+                    yield item
+
+            for index, data in enumerate(item.query_parameters or []):
+                new_formula = yield data["value"]
+                if new_formula is not None:
+                    item.query_parameters[index]["value"] = new_formula
+                    yield item
+
+            for formula_field in NavigationElementManager.simple_formula_fields:
+                formula = getattr(item, formula_field, "")
+                new_formula = yield formula
+                if new_formula is not None:
+                    setattr(item, formula_field, new_formula)
+                    yield item

@@ -65,11 +65,13 @@
     "publish": "Publish",
     "publishSucceedTitle": "Site published",
     "publishSucceedDescription": "The site has been successfully published.",
+    "publishSucceedLink": "View site",
     "publishFailedTitle": "Site publishing failed",
     "publishFailedDescription": "The site publishing has failed. Please try again later.",
     "openInNewTab": "Open in a new tab",
     "importingState": "Importing",
-    "noDomain": "You need to have at least one domain in order to publish your application."
+    "noDomain": "You need to have at least one domain in order to publish your application.",
+    "addDomain": "Add domain"
   },
   "lastPublishedDomainDate": {
     "neverPublished": "never",
@@ -123,7 +125,11 @@
     "notAllowedUnlessFooter": "This element is allowed only inside the page footer",
     "notAllowedInsideContainer": "This element is not allowed inside a container",
     "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
-    "notAllowedLocation": "This element is not allowed at this location"
+    "notAllowedLocation": "This element is not allowed at this location",
+    "menu": "Menu",
+    "menuDescription": "Menu element",
+    "simpleContainer": "Container",
+    "simpleContainerDescription": "A container for other elements"
   },
   "addElementButton": {
     "label": "Element"
@@ -132,6 +138,12 @@
     "title": "Add new element",
     "searchPlaceholder": "Search elements",
     "elementInProgress": "Adding element..."
+  },
+  "addElementCategory": {
+    "suggestedElement": "Suggested elements",
+    "baseElement": "Base elements",
+    "layoutElement": "Layout elements",
+    "formElement": "Form elements"
   },
   "elementMenu": {
     "moveUp": "Move up",
@@ -187,6 +199,44 @@
     "textFormatTypeLabel": "Format",
     "textFormatTypePlain": "Plain text",
     "textFormatTypeMarkdown": "Markdown"
+  },
+  "orientations": {
+    "label": "Orientation",
+    "horizontal": "Horizontal",
+    "vertical": "Vertical"
+  },
+  "menuElement": {
+    "missingValue": "Missing menu item",
+    "separator": "Separator",
+    "spacer": "Spacer",
+    "missingLinkValue": "Missing link name...",
+    "emptyLinkValue": "Empty link name...",
+    "missingButtonValue": "Missing button name...",
+    "emptyButtonValue": "Empty button name..."
+  },
+  "menuElementForm": {
+    "menuItemsLabel": "Menu items",
+    "addMenuItemLink": "Add...",
+    "alignment": "Alignment",
+    "menuItemDefaultName": "Page",
+    "menuItemLabelLabel": "Label",
+    "menuItemTypeLabel": "Type",
+    "menuItemTypeSeparator": "Separator",
+    "menuItemVariantLabel": "Variant",
+    "menuItemVariantLink": "Link",
+    "menuItemVariantButton": "Button",
+    "namePlaceholder": "Page",
+    "addSubLink": "Add sublink",
+    "menuItemSubLinkDefaultName": "Sublink",
+    "menuItemAddLink": "Link",
+    "menuItemAddButton": "Button",
+    "menuItemAddSeparator": "Separator",
+    "menuItemAddSpacer": "Spacer",
+    "eventDescription": "To configure actions for this button, open the Events tab of this element.",
+    "noMenuItemsMessage": "Click 'Add' to add your first menu item."
+  },
+  "simpleContainerElementForm": {
+    "noConfigurationOptions": "The container element does not have any configuration options."
   },
   "imageElement": {
     "missingValue": "Missing alt text...",
@@ -297,7 +347,8 @@
   },
   "domainCard": {
     "refresh": "Refresh settings",
-    "detailLabel": "Show details"
+    "detailLabel": "Show details",
+    "unpublishedDomainWarning": "Please publish the application to make it available on this domain."
   },
   "domainTypes": {
     "customName": "Custom domain",
@@ -511,6 +562,7 @@
     "weight": "Weight",
     "textAlignment": "Alignment",
     "bodyLabel": "Body",
+    "decoration": "Text decoration",
     "fontFamily": "Font"
   },
   "fontWeightType": {
@@ -530,6 +582,7 @@
     "button": "Button",
     "defaultState": "Default state",
     "hoverState": "Hover state",
+    "activeState": "Active state",
     "textAlignment": "Text alignment",
     "alignment": "Alignment",
     "width": "Width",
@@ -542,15 +595,21 @@
     "size": "Font size",
     "weight": "Font weight"
   },
+  "linkDecorations": {
+    "normal": "Normal",
+    "plain": "Plain"
+  },
   "linkThemeConfigBlock": {
     "color": "Color",
     "link": "Link",
     "defaultState": "Default state",
     "hoverState": "Hover state",
+    "activeState": "Active state",
     "alignment": "Alignment",
     "fontFamily": "Font",
     "size": "Font size",
-    "weight": "Font weight"
+    "weight": "Font weight",
+    "decoration": "Text decoration"
   },
   "inputThemeConfigBlock": {
     "label": "Label",
@@ -645,9 +704,6 @@
     "selectSourceFirst": "Choose a data source and/or property to begin configuring your fields.",
     "buttonColor": "Button color",
     "refreshFieldsFromDataSource": "refresh fields from data source",
-    "orientation": "Orientation",
-    "orientationHorizontal": "Horizontal",
-    "orientationVertical": "Vertical",
     "buttonLoadMoreLabel": "Show more label",
     "propertySelectorMissingArrays": "No multiple valued fields found to use as rows."
   },
@@ -677,7 +733,7 @@
     "searchHeading": "Search",
     "optionUnavailable": "Unavailable",
     "noPropertiesAvailable": "No fields available.",
-    "formDescription": "Choose which properties within this element's data source external users can filter, sort and search upon."
+    "formDescription": "Choose which properties within this element's data source page visitors can filter, sort and search upon."
   },
   "repeatElementForm": {
     "dataSource": "Data source",
@@ -685,9 +741,6 @@
     "itemsPerPagePlaceholder": "Enter value...",
     "itemsPerRowLabel": "Items per row",
     "itemsPerRowDescription": "Number of columns per row and device type.",
-    "orientationLabel": "Orientation",
-    "orientationVertical": "Vertical",
-    "orientationHorizontal": "Horizontal",
     "buttonLoadMoreLabel": "Show more label",
     "toggleEditorRepetitionsLabel": "Temporarily disable repetitions",
     "propertySelectorMissingArrays": "No multiple valued fields found to repeat with.",
@@ -902,6 +955,11 @@
     "label": "Property",
     "noProperties": "No properties available"
   },
+  "userSourceDropdown": {
+    "label": "User source",
+    "addUserSource": "Add new user source",
+    "noUserSources": "No user sources available"
+  },
   "dataSourceDropdown": {
     "label": "Data source",
     "noDataSources": "No data sources available",
@@ -924,5 +982,11 @@
   "authProviderWithModal": {
     "authProviderInError": "Please edit this provider to fix the error.",
     "title": "Edit provider: {name}"
+  },
+  "textDecorationSelector": {
+    "underline": "Underline",
+    "stroke": "Stroke",
+    "italic": "Italic",
+    "uppercase": "Uppercase"
   }
 }

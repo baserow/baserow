@@ -156,7 +156,7 @@ def test_create_uuid_row_in_bulk(data_fixture):
 
     rows = row_handler.create_rows(
         user=user, table=table, rows_values=[{}, {}], model=model
-    )
+    ).created_rows
 
     assert isinstance(rows[0].uuid, UUID)
     assert isinstance(rows[1].uuid, UUID)

@@ -1,3 +1,4 @@
+import zipfile
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
@@ -8,7 +9,9 @@ from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from openpyxl import load_workbook
 
 from baserow.contrib.database.export.handler import ExportHandler
+from baserow.contrib.database.export.models import EXPORT_JOB_FINISHED_STATUS
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.storage import get_default_storage
 from baserow.test_utils.helpers import setup_interesting_test_table
 
 
@@ -982,3 +985,270 @@ def test_can_export_every_interesting_different_field_to_excel_without_header(
     # Verify headers
     actual_headers = [cell.value for cell in worksheet[1]]
     assert actual_headers[0] == "1"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_can_trigger_export_files_with_premium_license(premium_data_fixture):
+    options = {"exporter_type": "file"}
+
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    grid_view = premium_data_fixture.create_grid_view(table=table)
+
+    ExportHandler().create_pending_export_job(user, table, grid_view, options)
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cannot_trigger_export_files_without_premium_license(premium_data_fixture):
+    options = {"exporter_type": "file"}
+
+    user = premium_data_fixture.create_user()
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    grid_view = premium_data_fixture.create_grid_view(table=table)
+
+    with pytest.raises(FeaturesNotAvailableError):
+        ExportHandler().create_pending_export_job(user, table, grid_view, options)
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cannnot_trigger_export_files_without_premium_license_for_group(
+    premium_data_fixture, alternative_per_workspace_license_service
+):
+    options = {"exporter_type": "file"}
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+
+    alternative_per_workspace_license_service.restrict_user_premium_to(user, [0])
+
+    grid_view = premium_data_fixture.create_grid_view(table=table)
+
+    with pytest.raises(FeaturesNotAvailableError):
+        ExportHandler().create_pending_export_job(user, table, grid_view, options)
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_export_empty_files_does_not_fail(premium_data_fixture):
+    storage = get_default_storage()
+
+    options = {"exporter_type": "file"}
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    grid_view = premium_data_fixture.create_grid_view(table=table)
+
+    handler = ExportHandler()
+    job = handler.create_pending_export_job(user, table, grid_view, options)
+
+    handler.run_export_job(job)
+
+    job.refresh_from_db()
+
+    assert job.state == EXPORT_JOB_FINISHED_STATUS
+    assert job.exported_file_name is not None
+
+    file_name = job.exported_file_name
+
+    export_file_path = ExportHandler.export_file_path(file_name)
+
+    assert storage.exists(export_file_path)
+
+    with storage.open(export_file_path, "rb") as zip_file:
+        with zipfile.ZipFile(zip_file) as archive:
+            file_list = archive.namelist()
+            assert len(file_list) == 0
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_export_non_empty_files_flat(premium_data_fixture, use_tmp_media_root):
+    storage = get_default_storage()
+
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    file_field = premium_data_fixture.create_file_field(table=table, name="File")
+
+    row_handler = RowHandler()
+    model = table.get_model()
+
+    user_file_1 = premium_data_fixture.create_user_file(
+        original_name="a.txt",
+        size=16,
+        mime_type="text/plain",
+        uploaded_by=user,
+    )
+    premium_data_fixture.save_content_in_user_file(
+        user_file_1, storage, "Content of a.txt"
+    )
+
+    user_file_2 = premium_data_fixture.create_user_file(
+        original_name="b.txt",
+        size=16,
+        mime_type="text/plain",
+        uploaded_by=user,
+    )
+    premium_data_fixture.save_content_in_user_file(
+        user_file_2, storage, "Content of b.txt"
+    )
+
+    user_file_3 = premium_data_fixture.create_user_file(
+        original_name="c.txt",
+        size=16,
+        mime_type="text/plain",
+        uploaded_by=user,
+    )
+    premium_data_fixture.save_content_in_user_file(
+        user_file_3, storage, "Content of c.txt"
+    )
+
+    row_handler.create_row(
+        user=user,
+        table=table,
+        values={
+            f"field_{file_field.id}": [
+                {"name": user_file_1.name, "visible_name": "a.txt"},
+                {"name": user_file_2.name, "visible_name": "b.txt"},
+            ]
+        },
+        model=model,
+    )
+    row_handler.create_row(
+        user=user,
+        table=table,
+        values={
+            f"field_{file_field.id}": [
+                {"name": user_file_2.name, "visible_name": "b.txt"},
+                {"name": user_file_3.name, "visible_name": "c.txt"},
+            ]
+        },
+        model=model,
+    )
+
+    grid_view = premium_data_fixture.create_grid_view(table=table)
+
+    options = {"exporter_type": "file", "organize_files": False}
+    handler = ExportHandler()
+    job = handler.create_pending_export_job(user, table, grid_view, options)
+
+    handler.run_export_job(job)
+
+    job.refresh_from_db()
+
+    assert job.state == EXPORT_JOB_FINISHED_STATUS
+    assert job.exported_file_name is not None
+
+    file_name = job.exported_file_name
+
+    export_file_path = ExportHandler.export_file_path(file_name)
+
+    assert storage.exists(export_file_path)
+
+    with storage.open(export_file_path, "rb") as zip_file:
+        with zipfile.ZipFile(zip_file) as archive:
+            file_list = archive.namelist()
+            assert len(file_list) == 3
+            assert user_file_1.name in file_list
+            assert user_file_2.name in file_list
+            assert user_file_3.name in file_list
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_export_non_empty_files_group_by_row(premium_data_fixture, use_tmp_media_root):
+    storage = get_default_storage()
+
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    file_field = premium_data_fixture.create_file_field(table=table, name="File")
+
+    row_handler = RowHandler()
+    model = table.get_model()
+
+    user_file_1 = premium_data_fixture.create_user_file(
+        original_name="a.txt",
+        size=16,
+        mime_type="text/plain",
+        uploaded_by=user,
+    )
+    premium_data_fixture.save_content_in_user_file(
+        user_file_1, storage, "Content of a.txt"
+    )
+
+    user_file_2 = premium_data_fixture.create_user_file(
+        original_name="b.txt",
+        size=16,
+        mime_type="text/plain",
+        uploaded_by=user,
+    )
+    premium_data_fixture.save_content_in_user_file(
+        user_file_2, storage, "Content of b.txt"
+    )
+
+    user_file_3 = premium_data_fixture.create_user_file(
+        original_name="c.txt",
+        size=16,
+        mime_type="text/plain",
+        uploaded_by=user,
+    )
+    premium_data_fixture.save_content_in_user_file(
+        user_file_3, storage, "Content of c.txt"
+    )
+
+    row_1 = row_handler.create_row(
+        user=user,
+        table=table,
+        values={
+            f"field_{file_field.id}": [
+                {"name": user_file_1.name, "visible_name": "a.txt"},
+                {"name": user_file_2.name, "visible_name": "b.txt"},
+            ]
+        },
+        model=model,
+    )
+    row_2 = row_handler.create_row(
+        user=user,
+        table=table,
+        values={
+            f"field_{file_field.id}": [
+                {"name": user_file_2.name, "visible_name": "b.txt"},
+                {"name": user_file_3.name, "visible_name": "c.txt"},
+            ]
+        },
+        model=model,
+    )
+
+    grid_view = premium_data_fixture.create_grid_view(table=table)
+
+    options = {"exporter_type": "file", "organize_files": True}
+    handler = ExportHandler()
+    job = handler.create_pending_export_job(user, table, grid_view, options)
+
+    handler.run_export_job(job)
+
+    job.refresh_from_db()
+
+    assert job.state == EXPORT_JOB_FINISHED_STATUS
+    assert job.exported_file_name is not None
+
+    file_name = job.exported_file_name
+
+    export_file_path = ExportHandler.export_file_path(file_name)
+
+    assert storage.exists(export_file_path)
+
+    with storage.open(export_file_path, "rb") as zip_file:
+        with zipfile.ZipFile(zip_file) as archive:
+            file_list = archive.namelist()
+            assert len(file_list) == 4
+            assert f"row_{row_1.id}/{user_file_1.name}" in file_list
+            assert f"row_{row_1.id}/{user_file_2.name}" in file_list
+            assert f"row_{row_2.id}/{user_file_2.name}" in file_list
+            assert f"row_{row_2.id}/{user_file_3.name}" in file_list

@@ -7,7 +7,6 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import transaction
-from django.db.models import Prefetch
 from django.db.transaction import Atomic
 from django.urls import include, path
 
@@ -175,7 +174,7 @@ class BuilderApplicationType(ApplicationType):
 
         pages = PageHandler().get_pages(
             builder,
-            base_queryset=Page.objects_with_shared.prefetch_related(
+            base_queryset=Page.objects.prefetch_related(
                 "element_set", "datasource_set"
             ),
         )
@@ -497,9 +496,7 @@ class BuilderApplicationType(ApplicationType):
 
     def enhance_queryset(self, queryset):
         queryset = queryset.select_related("favicon_file").prefetch_related(
-            "user_sources",
-            "integrations",
-            Prefetch("page_set", queryset=Page.objects_with_shared.all()),
+            "user_sources", "integrations", "page_set"
         )
         queryset = theme_config_block_registry.enhance_list_builder_queryset(queryset)
         return queryset

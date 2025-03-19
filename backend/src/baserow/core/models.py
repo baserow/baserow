@@ -472,6 +472,11 @@ class Template(models.Model):
         blank=True,
         help_text="Keywords related to the template that can be used for search.",
     )
+    open_application = models.IntegerField(
+        null=True,
+        help_text="The application ID that must be opened when the template is "
+        "previewed. If null, then the first will automatically be chosen.",
+    )
 
     class Meta:
         ordering = ("name",)

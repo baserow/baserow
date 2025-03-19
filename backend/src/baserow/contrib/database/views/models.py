@@ -4,7 +4,9 @@ from typing import Iterable, Optional, Union
 
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import Q
 from django.db.models.query import Prefetch
@@ -52,6 +54,9 @@ VIEW_OWNERSHIP_TYPES = [OWNERSHIP_TYPE_COLLABORATIVE]
 
 # Must be the same as `modules/database/constants.js`.
 DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY = "default"
+
+# Must be the same as `modules/database/constants.js`.
+DEFAULT_SORT_TYPE_KEY = "default"
 
 
 def get_default_view_content_type():
@@ -501,6 +506,13 @@ class ViewSort(HierarchicalModelMixin, models.Model):
         "and DESC (Descending) is from Z to A.",
         default=SORT_ORDER_ASC,
     )
+    type = models.CharField(
+        max_length=32,
+        default=DEFAULT_SORT_TYPE_KEY,
+        db_default=DEFAULT_SORT_TYPE_KEY,
+        help_text=f"Indicates the sort type. Will automatically fall back to `"
+        f"{DEFAULT_SORT_TYPE_KEY}` if incompatible with field type.",
+    )
 
     def get_parent(self):
         return self.view
@@ -535,6 +547,13 @@ class ViewGroupBy(HierarchicalModelMixin, models.Model):
         help_text="Indicates the sort order direction. ASC (Ascending) is from A to Z "
         "and DESC (Descending) is from Z to A.",
         default=SORT_ORDER_ASC,
+    )
+    type = models.CharField(
+        max_length=32,
+        default=DEFAULT_SORT_TYPE_KEY,
+        db_default=DEFAULT_SORT_TYPE_KEY,
+        help_text=f"Indicates the sort type. Will automatically fall back to `"
+        f"{DEFAULT_SORT_TYPE_KEY}` if incompatible with field type.",
     )
     width = models.PositiveIntegerField(
         default=200,
@@ -936,3 +955,68 @@ class FormViewFieldOptionsCondition(HierarchicalModelMixin, models.Model):
 
     class Meta:
         ordering = ("id",)
+
+
+class ViewRows(CreatedAndUpdatedOnMixin, models.Model):
+    view = models.OneToOneField(View, on_delete=models.CASCADE, related_name="rows")
+    row_ids = ArrayField(
+        models.PositiveIntegerField(),
+        default=list,
+        help_text="The rows that are shown in the view. This list can be used by webhooks "
+        "to determine which rows have been changed since the last check.",
+    )
+
+    @classmethod
+    def create_missing_for_views(cls, views: list[View], model=None):
+        """
+        Creates ViewRows objects for the given views if they don't already exist.
+
+        :param views: The views for which to create ViewRows objects.
+        """
+
+        from baserow.contrib.database.views.handler import ViewHandler
+
+        existing_view_ids = ViewRows.objects.filter(view__in=views).values_list(
+            "view_id", flat=True
+        )
+        view_map = {view.id: view for view in views}
+        missing_view_ids = list(set(view_map.keys()) - set(existing_view_ids))
+
+        view_rows = []
+        for view_id in missing_view_ids:
+            view = view_map[view_id]
+            row_ids = (
+                ViewHandler()
+                .get_queryset(view, model=model, apply_sorts=False)
+                .values_list("id", flat=True)
+            )
+            view_rows.append(ViewRows(view=view, row_ids=list(row_ids)))
+
+        return ViewRows.objects.bulk_create(view_rows, ignore_conflicts=True)
+
+    def get_diff(self, model=None):
+        """
+        Executes the view query and returns the current row IDs in the view,
+        along with the differences between the current state and the last saved state.
+        """
+
+        from baserow.contrib.database.views.handler import ViewHandler
+
+        rows = ViewHandler().get_queryset(self.view, model=model, apply_sorts=False)
+        previous_row_ids = set(self.row_ids)
+        new_row_ids = set(rows.order_by().values_list("id", flat=True))
+
+        row_ids_entered = new_row_ids - previous_row_ids
+        row_ids_exited = previous_row_ids - new_row_ids
+
+        return list(new_row_ids), list(row_ids_entered), list(row_ids_exited)
+
+
+class ViewSubscription(models.Model):
+    view = models.ForeignKey(View, on_delete=models.CASCADE, related_name="subscribers")
+    subscriber_content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    subscriber_id = models.PositiveIntegerField()
+    subscriber = GenericForeignKey("subscriber_content_type", "subscriber_id")
+
+    class Meta:
+        unique_together = ("view", "subscriber_content_type", "subscriber_id")

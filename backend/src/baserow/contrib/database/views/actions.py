@@ -755,6 +755,7 @@ class CreateViewSortActionType(UndoableActionType):
         "database_id",
         "view_sort_id",
         "sort_order",
+        "sort_type",
     ]
 
     @dataclasses.dataclass
@@ -769,10 +770,16 @@ class CreateViewSortActionType(UndoableActionType):
         database_name: str
         view_sort_id: int
         sort_order: str
+        sort_type: str
 
     @classmethod
     def do(
-        cls, user: AbstractUser, view: View, field: Field, sort_order: str
+        cls,
+        user: AbstractUser,
+        view: View,
+        field: Field,
+        sort_order: str,
+        sort_type: Optional[str] = None,
     ) -> ViewSort:
         """
         Creates a new view sort.
@@ -785,9 +792,13 @@ class CreateViewSortActionType(UndoableActionType):
         :param field: The field that needs to be sorted.
         :param sort_order: The desired order, can either be ascending (A to Z) or
             descending (Z to A).
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         """
 
-        view_sort = ViewHandler().create_sort(user, view, field, sort_order)
+        view_sort = ViewHandler().create_sort(
+            user, view, field, sort_order, sort_type=sort_type
+        )
 
         params = cls.Params(
             field.id,
@@ -800,6 +811,7 @@ class CreateViewSortActionType(UndoableActionType):
             view.table.database.name,
             view_sort.id,
             sort_order,
+            sort_type,
         )
         workspace = view.table.database.workspace
         cls.register_action(user, params, cls.scope(view.id), workspace)
@@ -822,7 +834,12 @@ class CreateViewSortActionType(UndoableActionType):
         view = view_handler.get_view(params.view_id)
 
         view_handler.create_sort(
-            user, view, field, params.sort_order, params.view_sort_id
+            user,
+            view,
+            field,
+            params.sort_order,
+            params.view_sort_id,
+            params.sort_type,
         )
 
 
@@ -840,8 +857,10 @@ class UpdateViewSortActionType(UndoableActionType):
         "database_id",
         "view_sort_id",
         "sort_order",
+        "sort_type",
         "original_field_id",
         "original_sort_order",
+        "original_sort_type",
     ]
 
     @dataclasses.dataclass
@@ -856,9 +875,11 @@ class UpdateViewSortActionType(UndoableActionType):
         database_name: str
         view_sort_id: int
         sort_order: str
+        sort_type: str
         original_field_id: int
         original_field_name: str
         original_sort_order: str
+        original_sort_type: str
 
     @classmethod
     def do(
@@ -867,6 +888,7 @@ class UpdateViewSortActionType(UndoableActionType):
         view_sort: ViewSort,
         field: Optional[Field] = None,
         order: Optional[str] = None,
+        sort_type: Optional[str] = None,
     ) -> ViewSort:
         """
         Updates the values of an existing view sort.
@@ -878,6 +900,8 @@ class UpdateViewSortActionType(UndoableActionType):
         :param view_sort: The view sort that needs to be updated.
         :param field: The field that must be sorted on.
         :param order: Indicates the sort order direction.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         """
 
         original_field_id = view_sort.field.id
@@ -885,9 +909,12 @@ class UpdateViewSortActionType(UndoableActionType):
         view_id = view_sort.view.id
         view_name = view_sort.view.name
         original_sort_order = view_sort.order
+        original_sort_type = view_sort.type
 
         handler = ViewHandler()
-        updated_view_sort = handler.update_sort(user, view_sort, field, order)
+        updated_view_sort = handler.update_sort(
+            user, view_sort, field, order, sort_type
+        )
 
         cls.register_action(
             user=user,
@@ -902,9 +929,11 @@ class UpdateViewSortActionType(UndoableActionType):
                 updated_view_sort.view.table.database.name,
                 updated_view_sort.id,
                 updated_view_sort.order,
+                updated_view_sort.type,
                 original_field_id,
                 original_field_name,
                 original_sort_order,
+                original_sort_type,
             ),
             scope=cls.scope(view_sort.view.id),
             workspace=view_sort.view.table.database.workspace,
@@ -923,7 +952,13 @@ class UpdateViewSortActionType(UndoableActionType):
         view_handler = ViewHandler()
         view_sort = view_handler.get_sort(user, params.view_sort_id)
 
-        view_handler.update_sort(user, view_sort, field, params.original_sort_order)
+        view_handler.update_sort(
+            user,
+            view_sort,
+            field,
+            params.original_sort_order,
+            params.original_sort_type,
+        )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
@@ -932,7 +967,9 @@ class UpdateViewSortActionType(UndoableActionType):
         view_handler = ViewHandler()
         view_sort = view_handler.get_sort(user, params.view_sort_id)
 
-        view_handler.update_sort(user, view_sort, field, params.sort_order)
+        view_handler.update_sort(
+            user, view_sort, field, params.sort_order, params.sort_type
+        )
 
 
 class DeleteViewSortActionType(UndoableActionType):
@@ -949,6 +986,7 @@ class DeleteViewSortActionType(UndoableActionType):
         "database_id",
         "view_sort_id",
         "sort_order",
+        "sort_type",
     ]
 
     @dataclasses.dataclass
@@ -963,6 +1001,7 @@ class DeleteViewSortActionType(UndoableActionType):
         database_name: str
         view_sort_id: int
         sort_order: str
+        sort_type: str
 
     @classmethod
     def do(cls, user: AbstractUser, view_sort: ViewSort):
@@ -983,6 +1022,7 @@ class DeleteViewSortActionType(UndoableActionType):
         field_id = view_sort.field.id
         field_name = view_sort.field.name
         sort_order = view_sort.order
+        sort_type = view_sort.type
 
         ViewHandler().delete_sort(user, view_sort)
 
@@ -997,6 +1037,7 @@ class DeleteViewSortActionType(UndoableActionType):
             view_sort.view.table.database.name,
             view_sort_id,
             sort_order,
+            sort_type,
         )
         workspace = view_sort.view.table.database.workspace
         cls.register_action(user, params, cls.scope(view_sort.view.id), workspace)
@@ -1012,7 +1053,12 @@ class DeleteViewSortActionType(UndoableActionType):
         field = FieldHandler().get_field(params.field_id)
 
         view_handler.create_sort(
-            user, view, field, params.sort_order, params.view_sort_id
+            user,
+            view,
+            field,
+            params.sort_order,
+            params.view_sort_id,
+            params.sort_type,
         )
 
     @classmethod
@@ -1100,7 +1146,8 @@ class UpdateViewFieldOptionsActionType(UndoableActionType):
         VIEW_ACTION_CONTEXT,
     )
     analytics_params = [
-        "view_id" "table_id",
+        "view_id",
+        "table_id",
         "database_id",
         "field_options",
         "original_field_options",
@@ -1934,6 +1981,7 @@ class CreateViewGroupByActionType(UndoableActionType):
         view_group_by_id: int
         group_by_order: str
         group_by_width: int
+        group_by_type: str
 
     @classmethod
     def do(
@@ -1943,6 +1991,7 @@ class CreateViewGroupByActionType(UndoableActionType):
         field: Field,
         group_by_order: str,
         group_by_width: int,
+        group_by_type: str,
     ) -> ViewGroupBy:
         """
         Creates a new view group_by.
@@ -1956,10 +2005,11 @@ class CreateViewGroupByActionType(UndoableActionType):
         :param group_by_order: The desired order, can either be ascending (A to Z) or
             descending (Z to A).
         :param group_by_width: The pixel width of the group by.
+        :param group_by_type: @TODO docs
         """
 
         view_group_by = ViewHandler().create_group_by(
-            user, view, field, group_by_order, group_by_width
+            user, view, field, group_by_order, group_by_width, group_by_type
         )
 
         params = cls.Params(
@@ -1974,6 +2024,7 @@ class CreateViewGroupByActionType(UndoableActionType):
             view_group_by.id,
             group_by_order,
             group_by_width,
+            group_by_type,
         )
         workspace = view.table.database.workspace
         cls.register_action(user, params, cls.scope(view.id), workspace)
@@ -2001,6 +2052,7 @@ class CreateViewGroupByActionType(UndoableActionType):
             field,
             params.group_by_order,
             params.group_by_width,
+            params.group_by_type,
             params.view_group_by_id,
         )
 
@@ -2020,10 +2072,12 @@ class UpdateViewGroupByActionType(UndoableActionType):
         "view_group_by_id",
         "group_by_order",
         "group_by_width",
+        "group_by_type",
         "original_field_id",
         "original_field_name",
         "original_group_by_order",
         "original_group_by_width",
+        "original_group_by_type",
     ]
 
     @dataclasses.dataclass
@@ -2039,10 +2093,12 @@ class UpdateViewGroupByActionType(UndoableActionType):
         view_group_by_id: int
         group_by_order: str
         group_by_width: int
+        group_by_type: str
         original_field_id: int
         original_field_name: str
         original_group_by_order: str
         original_group_by_width: int
+        original_group_by_type: str
 
     @classmethod
     def do(
@@ -2052,6 +2108,7 @@ class UpdateViewGroupByActionType(UndoableActionType):
         field: Optional[Field] = None,
         order: Optional[str] = None,
         width: Optional[int] = None,
+        sort_type: Optional[str] = None,
     ) -> ViewGroupBy:
         """
         Updates the values of an existing view group_by.
@@ -2064,6 +2121,8 @@ class UpdateViewGroupByActionType(UndoableActionType):
         :param field: The field that must be grouped on.
         :param order: Indicates the group by order direction.
         :param width: The visual pixel width of the group by.
+        :param sort_type: The sort type that must be used, `default` is set as default
+            when the sort is created.
         """
 
         original_field_id = view_group_by.field.id
@@ -2072,10 +2131,16 @@ class UpdateViewGroupByActionType(UndoableActionType):
         view_name = view_group_by.view.name
         original_group_by_order = view_group_by.order
         original_group_by_width = view_group_by.width
+        original_group_by_type = view_group_by.type
 
         handler = ViewHandler()
         updated_view_group_by = handler.update_group_by(
-            user, view_group_by, field, order, width
+            user,
+            view_group_by,
+            field,
+            order,
+            width,
+            sort_type,
         )
 
         cls.register_action(
@@ -2092,10 +2157,12 @@ class UpdateViewGroupByActionType(UndoableActionType):
                 updated_view_group_by.id,
                 updated_view_group_by.order,
                 updated_view_group_by.width,
+                updated_view_group_by.type,
                 original_field_id,
                 original_field_name,
                 original_group_by_order,
                 original_group_by_width,
+                original_group_by_type,
             ),
             scope=cls.scope(view_group_by.view.id),
             workspace=view_group_by.view.table.database.workspace,
@@ -2120,6 +2187,7 @@ class UpdateViewGroupByActionType(UndoableActionType):
             field,
             params.original_group_by_order,
             params.original_group_by_width,
+            params.original_group_by_type,
         )
 
     @classmethod
@@ -2130,7 +2198,12 @@ class UpdateViewGroupByActionType(UndoableActionType):
         view_group_by = view_handler.get_group_by(user, params.view_group_by_id)
 
         view_handler.update_group_by(
-            user, view_group_by, field, params.group_by_order, params.group_by_width
+            user,
+            view_group_by,
+            field,
+            params.group_by_order,
+            params.group_by_width,
+            params.group_by_type,
         )
 
 
@@ -2164,6 +2237,7 @@ class DeleteViewGroupByActionType(UndoableActionType):
         view_group_by_id: int
         group_by_order: str
         group_by_width: int
+        group_by_type: str
 
     @classmethod
     def do(cls, user: AbstractUser, view_group_by: ViewGroupBy):
@@ -2185,6 +2259,7 @@ class DeleteViewGroupByActionType(UndoableActionType):
         field_name = view_group_by.field.name
         group_by_order = view_group_by.order
         group_by_width = view_group_by.width
+        group_by_type = view_group_by.type
 
         ViewHandler().delete_group_by(user, view_group_by)
 
@@ -2200,6 +2275,7 @@ class DeleteViewGroupByActionType(UndoableActionType):
             view_group_by_id,
             group_by_order,
             group_by_width,
+            group_by_type,
         )
         workspace = view_group_by.view.table.database.workspace
         cls.register_action(user, params, cls.scope(view_group_by.view.id), workspace)
@@ -2220,6 +2296,7 @@ class DeleteViewGroupByActionType(UndoableActionType):
             field,
             params.group_by_order,
             params.group_by_width,
+            params.group_by_type,
             params.view_group_by_id,
         )
 

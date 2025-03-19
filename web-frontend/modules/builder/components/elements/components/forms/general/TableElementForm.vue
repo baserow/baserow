@@ -200,7 +200,12 @@
       </template>
       <p v-else>{{ $t('tableElementForm.selectSourceFirst') }}</p>
     </FormSection>
-    <FormGroup :label="$t('tableElementForm.orientation')" small-label required>
+    <FormGroup
+      :label="$t('orientations.label')"
+      small-label
+      required
+      class="margin-bottom-2"
+    >
       <DeviceSelector
         :device-type-selected="deviceTypeSelected"
         direction="row"
@@ -210,25 +215,34 @@
           <RadioButton
             v-model="values.orientation[deviceType.getType()]"
             icon="iconoir-view-columns-3"
-            :value="TABLE_ORIENTATION.HORIZONTAL"
+            :value="ORIENTATIONS.HORIZONTAL"
           >
-            {{ $t('tableElementForm.orientationHorizontal') }}
+            {{ $t('orientations.horizontal') }}
           </RadioButton>
           <RadioButton
             v-model="values.orientation[deviceType.getType()]"
             icon="iconoir-table-rows"
-            :value="TABLE_ORIENTATION.VERTICAL"
+            :value="ORIENTATIONS.VERTICAL"
           >
-            {{ $t('tableElementForm.orientationVertical') }}
+            {{ $t('orientations.vertical') }}
           </RadioButton>
         </template>
       </DeviceSelector>
     </FormGroup>
+    <CustomStyle
+      v-if="propertyOptionsAvailable"
+      v-model="values.styles"
+      style-key="header_button"
+      :config-block-types="['button']"
+      :theme="builder.theme"
+      :extra-args="{ noAlignment: true, noWidth: true }"
+    />
     <FormGroup
       v-if="propertyOptionsAvailable"
       small-label
-      class="margin-top-2 margin-bottom-2"
+      class="margin-bottom-2"
       :label="$t('collectionElementForm.propertyOptionLabel')"
+      required
     >
       <PropertyOptionForm
         :default-values="element"
@@ -258,7 +272,7 @@ import {
   helpers,
 } from '@vuelidate/validators'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
-import { TABLE_ORIENTATION } from '@baserow/modules/builder/enums'
+import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
 import { mapActions, mapGetters } from 'vuex'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
@@ -304,8 +318,8 @@ export default {
   },
   computed: {
     ...mapGetters({ deviceTypeSelected: 'page/getDeviceTypeSelected' }),
-    TABLE_ORIENTATION() {
-      return TABLE_ORIENTATION
+    ORIENTATIONS() {
+      return ORIENTATIONS
     },
     orderedCollectionTypes() {
       return this.$registry.getOrderedList('collectionField')

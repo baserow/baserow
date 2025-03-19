@@ -1,10 +1,13 @@
 import uuid
 
+from django.conf import settings
+from django.contrib.contenttypes.fields import GenericRelation
 from django.core.validators import MaxLengthValidator
 from django.db import models
 
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.views.models import View
 from baserow.core.models import CreatedAndUpdatedOnMixin
 
 from .validators import header_name_validator, header_value_validator, url_validator
@@ -58,6 +61,18 @@ class TableWebhook(CreatedAndUpdatedOnMixin, models.Model):
     def header_dict(self):
         return {header.name: header.value for header in self.headers.all()}
 
+    @property
+    def batch_limit(self) -> int:
+        """
+        This value will be used to limit the amount batches a single webhook can make to
+        paginate the payload. If the payload is too large to be sent in one go, the
+        event_type can split it into multiple batches. If the number of batches exceeds
+        this limit, a notification will be sent to workspace admins informing them that
+        the webhook couldn't send all the data.
+        """
+
+        return settings.BASEROW_WEBHOOKS_BATCH_LIMIT
+
     class Meta:
         ordering = ("id",)
 
@@ -68,6 +83,17 @@ class TableWebhookEvent(CreatedAndUpdatedOnMixin, models.Model):
     )
     event_type = models.CharField(max_length=50)
     fields = models.ManyToManyField(Field)
+    views = models.ManyToManyField(View)
+    view_subscriptions = GenericRelation(
+        "ViewSubscription",
+        content_type_field="subscriber_content_type",
+        object_id_field="subscriber_id",
+    )
+
+    def get_type(self):
+        from .registries import webhook_event_type_registry
+
+        return webhook_event_type_registry.get(self.event_type)
 
     class Meta:
         ordering = ("id",)
@@ -90,6 +116,13 @@ class TableWebhookCall(models.Model):
         editable=False,
         help_text="Event ID where the call originated from.",
     )
+    batch_id = models.PositiveIntegerField(
+        null=True,
+        help_text=(
+            "The batch ID for this call. Null if not part of a batch. "
+            "Used for batching multiple calls of the same event_id due to large data."
+        ),
+    )
     webhook = models.ForeignKey(
         TableWebhook, related_name="calls", on_delete=models.CASCADE
     )
@@ -111,3 +144,4 @@ class TableWebhookCall(models.Model):
 
     class Meta:
         ordering = ("-called_time",)
+        unique_together = ("event_id", "batch_id", "webhook", "event_type")

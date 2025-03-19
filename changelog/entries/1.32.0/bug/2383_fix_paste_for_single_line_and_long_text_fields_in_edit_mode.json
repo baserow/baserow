@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fix pasting markdown text into rich edit that resulted in unformatted markdown",
+    "issue_number": 2383,
+    "bullet_points": [],
+    "created_at": "2025-02-07"
+}

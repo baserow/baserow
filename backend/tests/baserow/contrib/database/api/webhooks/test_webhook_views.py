@@ -462,9 +462,7 @@ def test_update_webhook(api_client, data_fixture):
     assert response_json["include_all_events"] is False
     assert response_json["failed_triggers"] == 0
     assert response_json["events"] == ["rows.created"]
-    assert response_json["event_config"] == [
-        {"event_type": "rows.created", "fields": []}
-    ]
+    assert response_json["event_config"] == [{"event_type": "rows.created"}]
     assert response_json["headers"] == {"Baserow-add-1": "Value 1"}
     assert response_json["calls"] == []
 
@@ -530,7 +528,7 @@ def test_update_webhook_with_event_config(api_client, data_fixture):
     assert response_json["events"] == ["rows.updated", "rows.deleted"]
     assert response_json["event_config"] == [
         {"event_type": "rows.updated", "fields": [field_1.id, field_2.id]},
-        {"event_type": "rows.deleted", "fields": []},
+        {"event_type": "rows.deleted"},
     ]
 
     response = api_client.patch(
@@ -545,7 +543,7 @@ def test_update_webhook_with_event_config(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response_json["events"] == ["rows.deleted"]
     assert response_json["event_config"] == [
-        {"event_type": "rows.deleted", "fields": []},
+        {"event_type": "rows.deleted"},
     ]
 
     response = api_client.patch(
@@ -558,7 +556,7 @@ def test_update_webhook_with_event_config(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response_json["events"] == ["rows.deleted"]
     assert response_json["event_config"] == [
-        {"event_type": "rows.deleted", "fields": []},
+        {"event_type": "rows.deleted"},
     ]
 
 

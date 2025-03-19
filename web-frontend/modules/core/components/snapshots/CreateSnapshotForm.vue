@@ -13,6 +13,7 @@
           size="large"
           :error="fieldHasErrors('name')"
           class="snapshots-modal__name-input"
+          @blur="v$.values.name.$touch"
         />
       </slot>
 

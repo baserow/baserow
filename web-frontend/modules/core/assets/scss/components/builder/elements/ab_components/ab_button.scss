@@ -25,6 +25,13 @@
     text-decoration: none;
   }
 
+  &:not(.loading-spinner).ab-button--force-active {
+    background-color: var(--button-active-background-color, $black);
+    border-color: var(--button-active-border-color, $white);
+    color: var(--button-active-text-color, $white);
+    text-decoration: none;
+  }
+
   &[disabled],
   &[disabled]:hover {
     cursor: not-allowed;

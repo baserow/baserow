@@ -79,10 +79,16 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import UserFilesModal from '@baserow/modules/core/components/files/UserFilesModal'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
+import { useVuelidate } from '@vuelidate/core'
 
 export default {
   name: 'EnterpriseSettings',
   components: { UserFilesModal },
+  setup() {
+    return {
+      v$: useVuelidate({ $lazy: true }),
+    }
+  },
   computed: {
     IMAGE_FILE_TYPES() {
       return IMAGE_FILE_TYPES

@@ -1353,8 +1353,8 @@ export const actions = {
    * to the delete field.
    */
   fieldUpdated({ dispatch, commit, getters }, { field, fieldType }) {
-    // Remove all filters are not compatible anymore.
     getters.getAll.forEach((view) => {
+      // Remove all filters are not compatible anymore.
       view.filters
         .filter((filter) => filter.field === field.id)
         .forEach((filter) => {
@@ -1364,19 +1364,33 @@ export const actions = {
             commit('DELETE_FILTER', { view, id: filter.id })
           }
         })
+
+      // Remove all sorts are not compatible anymore.
+      view.sortings
+        .filter((sort) => sort.field === field.id)
+        .forEach((sort) => {
+          const sortTypes = fieldType.getSortTypes(field)
+          const compatible =
+            fieldType.getCanSortInView(field) &&
+            Object.prototype.hasOwnProperty.call(sortTypes, sort.type)
+          if (!compatible) {
+            dispatch('deleteFieldSortings', { field })
+          }
+        })
+
+      // Remove all sorts are not compatible anymore.
+      view.group_bys
+        .filter((groupBy) => groupBy.field === field.id)
+        .forEach((groupBy) => {
+          const sortTypes = fieldType.getSortTypes(field)
+          const compatible =
+            fieldType.getCanSortInView(field) &&
+            Object.prototype.hasOwnProperty.call(sortTypes, groupBy.type)
+          if (!compatible) {
+            dispatch('deleteFieldGroupBys', { field })
+          }
+        })
     })
-
-    // Remove all the field sortings because the new field does not support sortings
-    // at all.
-    if (!fieldType.getCanSortInView(field)) {
-      dispatch('deleteFieldSortings', { field })
-    }
-
-    // Remove all the field group bys because the new field does not support group bys
-    // at all.
-    if (!fieldType.getCanGroupByInView(field)) {
-      dispatch('deleteFieldGroupBys', { field })
-    }
   },
   /**
    * Is called when a field is deleted. It will remove all filters and sortings

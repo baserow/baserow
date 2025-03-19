@@ -13,6 +13,7 @@
         size="large"
         :error="fieldHasErrors('name')"
         :placeholder="$t('oauthSettingsForm.providerNamePlaceholder')"
+        @blur="v$.values.name.$touch"
       ></FormInput>
 
       <template #error>
@@ -33,6 +34,7 @@
         size="large"
         :error="fieldHasErrors('client_id')"
         :placeholder="$t('oauthSettingsForm.clientIdPlaceholder')"
+        @blur="v$.values.client_id.$touch"
       ></FormInput>
 
       <template #error>
@@ -53,6 +55,7 @@
         size="large"
         :error="fieldHasErrors('secret')"
         :placeholder="$t('oauthSettingsForm.secretPlaceholder')"
+        @blur="v$.values.secret.$touch"
       ></FormInput>
 
       <template #error>

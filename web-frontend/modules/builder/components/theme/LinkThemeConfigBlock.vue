@@ -99,6 +99,22 @@
             />
           </template>
         </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('linkThemeConfigBlock.decoration')"
+        >
+          <TextDecorationSelector
+            v-model="values.link_default_text_decoration"
+          />
+          <template #after-input>
+            <ResetButton
+              v-model="values.link_default_text_decoration"
+              :default-value="theme?.link_default_text_decoration"
+            />
+          </template>
+        </FormGroup>
       </template>
       <template #preview>
         <ABLink url="">{{ $t('linkThemeConfigBlock.link') }}</ABLink>
@@ -126,9 +142,68 @@
             />
           </template>
         </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('linkThemeConfigBlock.decoration')"
+        >
+          <TextDecorationSelector v-model="values.link_hover_text_decoration" />
+          <template #after-input>
+            <ResetButton
+              v-model="values.link_hover_text_decoration"
+              :default-value="theme?.link_hover_text_decoration"
+            />
+          </template>
+        </FormGroup>
       </template>
       <template #preview>
         <ABLink url="" class="ab-link--force-hover">
+          {{ $t('linkThemeConfigBlock.link') }}
+        </ABLink>
+      </template>
+    </ThemeConfigBlockSection>
+    <ThemeConfigBlockSection :title="$t('linkThemeConfigBlock.activeState')">
+      <template #default>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          required
+          class="margin-bottom-2"
+          :label="$t('linkThemeConfigBlock.color')"
+        >
+          <ColorInput
+            v-model="v$.values.link_active_text_color.$model"
+            :color-variables="colorVariables"
+            :default-value="theme?.link_active_text_color"
+            small
+          />
+          <template #after-input>
+            <ResetButton
+              v-model="v$.values.link_active_text_color.$model"
+              :default-value="theme?.link_active_text_color"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('linkThemeConfigBlock.decoration')"
+        >
+          <TextDecorationSelector
+            v-model="values.link_active_text_decoration"
+          />
+          <template #after-input>
+            <ResetButton
+              v-model="values.link_active_text_decoration"
+              :default-value="theme?.link_active_text_decoration"
+            />
+          </template>
+        </FormGroup>
+      </template>
+      <template #preview>
+        <ABLink url="" class="ab-link--force-active">
           {{ $t('linkThemeConfigBlock.link') }}
         </ABLink>
       </template>
@@ -145,6 +220,7 @@ import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/Ho
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
 import FontWeightSelector from '@baserow/modules/builder/components/FontWeightSelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
+import TextDecorationSelector from '@baserow/modules/builder/components/TextDecorationSelector'
 import {
   required,
   integer,
@@ -170,6 +246,7 @@ export default {
     FontFamilySelector,
     FontWeightSelector,
     PixelValueSelector,
+    TextDecorationSelector,
   },
   mixins: [themeConfigBlock],
   setup() {
@@ -193,9 +270,13 @@ export default {
         link_text_color: this.theme?.link_text_color,
         link_text_alignment: this.theme?.link_text_alignment,
         link_hover_text_color: this.theme?.link_hover_text_color,
+        link_active_text_color: this.theme?.link_active_text_color,
         link_font_family: this.theme?.link_font_family,
         link_font_weight: this.theme?.link_font_weight,
         link_font_size: this.theme?.link_font_size,
+        link_default_text_decoration: this.theme?.link_default_text_decoration,
+        link_hover_text_decoration: this.theme?.link_hover_text_decoration,
+        link_active_text_decoration: this.theme?.link_active_text_decoration,
       },
     }
   },
@@ -234,8 +315,12 @@ export default {
         link_text_color: {},
         link_text_alignment: {},
         link_hover_text_color: {},
+        link_active_text_color: {},
         link_font_family: {},
         link_font_weight: {},
+        link_default_text_decoration: {},
+        link_hover_text_decoration: {},
+        link_active_text_decoration: {},
       },
     }
   },

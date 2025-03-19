@@ -17,6 +17,7 @@ from rest_framework.status import (
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.file_import.models import FileImportJob
 from baserow.contrib.database.table.models import Table
+from baserow.core.jobs.models import Job
 from baserow.test_utils.helpers import (
     assert_serialized_rows_contain_same_values,
     independent_test_db_connection,
@@ -248,7 +249,7 @@ def test_create_table_with_data(
     with patch_filefield_storage():
         with job.data_file.open("r") as fin:
             data = json.load(fin)
-            assert data == [
+            assert data.get("data") == [
                 ["A", "B", "C", "D"],
                 ["1-1", "1-2", "1-3", "1-4", "1-5"],
                 ["2-1", "2-2", "2-3"],
@@ -647,3 +648,144 @@ def test_async_duplicate_interesting_table(api_client, data_fixture):
 
     for original_row, duplicated_row in zip(original_rows, duplicated_rows):
         assert_serialized_rows_contain_same_values(original_row, duplicated_row)
+
+
+@pytest.mark.django_db
+def test_import_table_call(api_client, data_fixture):
+    """
+    A simple test to check import table validation
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=table, user=user)
+    data_fixture.create_number_field(table=table, user=user)
+
+    url = reverse("api:database:tables:import_async", kwargs={"table_id": table.id})
+
+    valid_data_no_configuration = {"data": [["1", 1], ["2", 1]]}
+
+    response = api_client.post(
+        url,
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        data=valid_data_no_configuration,
+        format="json",
+    )
+    assert response.status_code == HTTP_200_OK
+    rdata = response.json()
+
+    assert isinstance(rdata.get("id"), int)
+    assert rdata.get("type") == "file_import"
+    Job.objects.all().delete()
+
+    valid_data_with_configuration = {"data": [["1", 1], ["2", 1]], "configuration": {}}
+    response = api_client.post(
+        url,
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        data=valid_data_with_configuration,
+        format="json",
+    )
+    rdata = response.json()
+
+    assert response.status_code == HTTP_200_OK
+    assert isinstance(rdata.get("id"), int)
+    assert rdata.get("type") == "file_import"
+    Job.objects.all().delete()
+
+    invalid_data_with_configuration = {
+        "data": [["1", 1], ["2", 1]],
+        "configuration": {"upsert_fields": []},
+    }
+    response = api_client.post(
+        url,
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        data=invalid_data_with_configuration,
+        format="json",
+    )
+    rdata = response.json()
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert rdata == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            "configuration": {
+                "upsert_fields": [
+                    {
+                        "error": "Ensure this field has at least 1 elements.",
+                        "code": "min_length",
+                    }
+                ]
+            }
+        },
+    }
+    Job.objects.all().delete()
+
+    invalid_data = {}
+    response = api_client.post(
+        url, HTTP_AUTHORIZATION=f"JWT {token}", data=invalid_data
+    )
+    rdata = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert rdata == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {"data": [{"error": "This field is required.", "code": "required"}]},
+    }
+
+    invalid_data = {
+        "data": [["1", 1], ["2", 1]],
+        "configuration": {"upsert_fields": [1, 2]},
+    }
+    response = api_client.post(
+        url,
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        data=invalid_data,
+        format="json",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    rdata = response.json()
+
+    assert rdata == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            "configuration": {
+                "upsert_value": [
+                    {
+                        "error": "upsert_values must not be empty when upsert_fields are provided.",
+                        "code": "invalid",
+                    }
+                ]
+            }
+        },
+    }
+
+    invalid_data = {
+        "data": [["1", 1], ["2", 1]],
+        "configuration": {"upsert_fields": [1, 2], "upsert_values": [["a"]]},
+    }
+    response = api_client.post(
+        url,
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        data=invalid_data,
+        format="json",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    rdata = response.json()
+
+    assert rdata == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            "data": [
+                {
+                    "error": "`data` and `configuration.upsert_values` should have the same length.",
+                    "code": "invalid",
+                }
+            ],
+            "configuration": {
+                "upsert_values": {
+                    "error": "`data` and `configuration.upsert_values` should have the same length.",
+                    "code": "invalid",
+                }
+            },
+        },
+    }

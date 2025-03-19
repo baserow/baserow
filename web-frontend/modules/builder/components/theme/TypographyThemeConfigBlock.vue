@@ -11,10 +11,10 @@
           class="margin-bottom-2"
           :label="$t('typographyThemeConfigBlock.fontFamily')"
         >
-          <FontFamilySelector v-model="values.body_font_family" />
+          <FontFamilySelector v-model="v$.values.body_font_family.$model" />
           <template #after-input>
             <ResetButton
-              v-model="values.body_font_family"
+              v-model="v$.values.body_font_family.$model"
               :default-value="theme?.body_font_family"
             />
           </template>
@@ -26,13 +26,13 @@
           :label="$t('typographyThemeConfigBlock.weight')"
         >
           <FontWeightSelector
-            v-model="values.body_font_weight"
-            :font="values.body_font_family"
+            v-model="v$.values.body_font_weight.$model"
+            :font="v$.values.body_font_family.$model"
           />
           <template #after-input>
             <ResetButton
               v-if="values.body_font_family === theme?.body_font_family"
-              v-model="values.body_font_weight"
+              v-model="v$.values.body_font_weight.$model"
               :default-value="theme?.body_font_weight"
             />
           </template>
@@ -59,20 +59,6 @@
         </FormGroup>
         <FormGroup
           v-if="!extraArgs?.noAlignment"
-          horizontal-narrow
-          small-label
-          class="margin-bottom-2"
-          :label="$t('typographyThemeConfigBlock.textAlignment')"
-        >
-          <HorizontalAlignmentsSelector v-model="values.body_text_alignment" />
-          <template #after-input>
-            <ResetButton
-              v-model="values.body_text_alignment"
-              :default-value="theme?.body_text_alignment"
-            />
-          </template>
-        </FormGroup>
-        <FormGroup
           horizontal-narrow
           small-label
           class="margin-bottom-2"
@@ -218,6 +204,20 @@
               />
             </template>
           </FormGroup>
+          <FormGroup
+            horizontal-narrow
+            small-label
+            class="margin-bottom-2"
+            :label="$t('typographyThemeConfigBlock.decoration')"
+          >
+            <TextDecorationSelector
+              v-model="values[`heading_${level}_text_decoration`]" />
+            <template #after-input>
+              <ResetButton
+                v-model="values[`heading_${level}_text_decoration`]"
+                :default-value="theme?.[`heading_${level}_text_decoration`]"
+              /> </template
+          ></FormGroup>
         </template>
         <template #preview>
           <ABHeading
@@ -248,6 +248,7 @@ import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/Ho
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
 import FontWeightSelector from '@baserow/modules/builder/components/FontWeightSelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
+import TextDecorationSelector from '@baserow/modules/builder/components/TextDecorationSelector'
 import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
 
 const fontSizeMin = 1
@@ -264,6 +265,7 @@ export default {
     FontFamilySelector,
     FontWeightSelector,
     PixelValueSelector,
+    TextDecorationSelector,
   },
   mixins: [themeConfigBlock],
   setup() {
@@ -274,13 +276,16 @@ export default {
       values: {
         body_font_size: 0,
         body_text_color: '',
+        body_font_weight: '',
         body_font_family: '',
         body_text_alignment: '',
         ...headings.reduce((o, i) => {
           o[`heading_${i}_font_size`] = 0
           o[`heading_${i}_text_color`] = ''
           o[`heading_${i}_font_family`] = ''
+          o[`heading_${i}_font_weight`] = ''
           o[`heading_${i}_text_alignment`] = ''
+          o[`heading_${i}_text_decoration`] = [false, false, false]
           return o
         }, {}),
       },
@@ -363,6 +368,8 @@ export default {
             maxValue(bodyFontSizeMax)
           ),
         },
+        body_font_family: {},
+        body_font_weight: {},
       },
     }
   },

@@ -10,12 +10,12 @@
         class="margin-bottom-2"
       >
         <Dropdown
-          v-model="values.aggregation_type"
+          :value="values.aggregation_type"
           :error="fieldHasErrors('aggregation_type')"
-          @change="v$.values.aggregation_type.$touch"
+          @change="aggregationTypeChanged"
         >
           <DropdownItem
-            v-for="aggregation in groupedAggregationTypes"
+            v-for="aggregation in aggregationTypesAvailableForSelection"
             :key="aggregation.getType()"
             :name="aggregation.getName()"
             :value="aggregation.getType()"
@@ -33,11 +33,10 @@
         <Dropdown
           v-model="values.field_id"
           :error="fieldHasErrors('field_id')"
-          :disabled="compatibleFields.length === 0"
           @change="v$.values.field_id.$touch"
         >
           <DropdownItem
-            v-for="field in compatibleFields"
+            v-for="field in fieldsAvailableForSelection"
             :key="field.id"
             :name="field.name"
             :value="field.id"
@@ -47,7 +46,7 @@
         </Dropdown>
       </FormGroup>
     </FormSection>
-    <FormSection>
+    <FormSection v-if="aggregationSeries.length > 1">
       <ButtonText
         icon="iconoir-bin"
         type="secondary"
@@ -75,6 +74,10 @@ export default {
       type: Array,
       required: true,
     },
+    aggregationSeries: {
+      type: Array,
+      required: true,
+    },
     seriesIndex: {
       type: Number,
       required: true,
@@ -90,15 +93,41 @@ export default {
         field_id: null,
         aggregation_type: null,
       },
-      emitValuesOnReset: false,
+      skipFirstValuesEmit: true,
     }
   },
   computed: {
     groupedAggregationTypes() {
-      return this.$registry.getOrderedList('groupedAggregation')
+      const allAggregationTypes =
+        this.$registry.getOrderedList('groupedAggregation')
+      return allAggregationTypes.filter((aggType) => {
+        return this.tableFields.some((tableField) =>
+          aggType.fieldIsCompatible(tableField)
+        )
+      })
+    },
+    aggregationTypesAvailableForSelection() {
+      return this.groupedAggregationTypes.filter(
+        (aggregationType) =>
+          this.isSeriesRepeated(
+            this.values.field_id,
+            aggregationType.getType()
+          ) === false ||
+          this.values.aggregation_type === aggregationType.getType()
+      )
     },
     aggregationTypeNames() {
       return this.groupedAggregationTypes.map((aggType) => aggType.getType())
+    },
+    usedSeries() {
+      return this.aggregationSeries
+        .filter(
+          (series) =>
+            series.aggregation_type !== null && series.field_id !== null
+        )
+        .map((series) => {
+          return `${series.field_id}_${series.aggregation_type}`
+        })
     },
     compatibleFields() {
       if (!this.values.aggregation_type) {
@@ -112,34 +141,15 @@ export default {
         aggType.fieldIsCompatible(tableField)
       )
     },
+    fieldsAvailableForSelection() {
+      return this.compatibleFields.filter(
+        (field) =>
+          this.isSeriesRepeated(field.id, this.values.aggregation_type) ===
+            false || this.values.field_id === field.id
+      )
+    },
     compatibleTableFieldIds() {
       return this.compatibleFields.map((field) => field.id)
-    },
-  },
-  watch: {
-    'values.aggregation_type': {
-      handler(aggregationType) {
-        if (
-          aggregationType !== null &&
-          aggregationType !== this.defaultValues.aggregation_type &&
-          this.values.field_id !== null
-        ) {
-          // If both the field and aggregation type
-          // are selected, check if they are still
-          // compatible.
-          const aggType = this.$registry.get(
-            'groupedAggregation',
-            aggregationType
-          )
-          const field = this.tableFields.filter(
-            (field) => field.id === this.values.field_id
-          )
-          if (!aggType.fieldIsCompatible(field)) {
-            this.values.field_id = null
-          }
-        }
-      },
-      immediate: true,
     },
   },
   mounted() {
@@ -167,9 +177,29 @@ export default {
     }
   },
   methods: {
+    isSeriesRepeated(fieldId, aggregationType) {
+      if (fieldId === null || aggregationType === null) {
+        return false
+      }
+      return this.usedSeries.includes(`${fieldId}_${aggregationType}`)
+    },
     fieldIconClass(field) {
       const fieldType = this.$registry.get('field', field.type)
       return fieldType.iconClass
+    },
+    aggregationTypeChanged(aggregationType) {
+      this.values.aggregation_type = aggregationType
+      const aggType = this.$registry.get('groupedAggregation', aggregationType)
+      const field = this.tableFields.find(
+        (field) => field.id === this.values.field_id
+      )
+      if (
+        (field && !aggType.fieldIsCompatible(field)) ||
+        this.fieldHasErrors('field_id')
+      ) {
+        this.values.field_id = null
+      }
+      this.v$.values.aggregation_type.$touch()
     },
   },
 }

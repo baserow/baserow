@@ -10,12 +10,14 @@
         deleted.
       {% endblocktrans %}
     </mj-text>
-    <mj-text mj-class="text">
-      {% blocktrans trimmed %}
-        Baserow is an open source no-code database tool which allows you to collaborate
-        on projects, customers and more. It gives you the powers of a developer without
-        leaving your browser.
-      {% endblocktrans %}
-    </mj-text>
+    <mj-raw><!-- htmlmin:ignore -->{% if show_baserow_description %}<!-- htmlmin:ignore --></mj-raw>
+      <mj-text mj-class="text">
+        {% blocktrans trimmed %}
+          Baserow is an open source no-code database tool which allows you to collaborate
+          on projects, customers and more. It gives you the powers of a developer without
+          leaving your browser.
+        {% endblocktrans %}
+      </mj-text>
+    <mj-raw><!-- htmlmin:ignore -->{% endif %}<!-- htmlmin:ignore --></mj-raw>
   </mj-column>
 </mj-section>

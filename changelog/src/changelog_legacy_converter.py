@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List
 
+from domains import DatabaseDomain
 from changelog_entry import (
     BreakingChangeChangelogEntry,
     BugChangelogEntry,
@@ -67,7 +68,7 @@ def sanitise_release_name(release_name: str):
 
 
 def main():
-    changelog_file = open("../../changelog.md", "r")
+    changelog_file = open("../changelog.md", "r")
 
     lines = changelog_file.readlines()
 
@@ -110,6 +111,7 @@ def main():
                 current_changelog_type = FeatureChangelogEntry.type
 
             ChangelogHandler().add_entry(
+                DatabaseDomain.type,
                 current_changelog_type,
                 message,
                 issue_number,

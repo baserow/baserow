@@ -255,7 +255,7 @@ def test_last_modified_field_adjacent_row(data_fixture):
             {},
         ],
         model=table_model,
-    )
+    ).created_rows
 
     previous_row = handler.get_adjacent_row(
         table_model, row_b.id, previous=True, view=grid_view
@@ -278,14 +278,16 @@ def test_last_modified_field_can_be_looked_up(data_fixture):
 
     row_handler = RowHandler()
 
-    row_b1, _ = row_handler.create_rows(user=user, table=table_b, rows_values=[{}, {}])
+    row_b1, _ = row_handler.create_rows(
+        user=user, table=table_b, rows_values=[{}, {}]
+    ).created_rows
 
     with freeze_time("2020-01-01 12:00"):
         row_a1, _ = row_handler.create_rows(
             user=user,
             table=table_a,
             rows_values=[{link_row.db_column: [row_b1.id]}, {}],
-        )
+        ).created_rows
 
     updated_row_b1 = row_handler.get_row(user=user, table=table_b, row_id=row_b1.id)
     assert getattr(updated_row_b1, lookup_last_modified_field.db_column) == [

@@ -318,7 +318,7 @@ def setup_interesting_test_table(
 
         blank_row, row = row_handler.force_create_rows(
             user, table, [{}, row_values], model=model
-        )
+        ).created_rows
 
     # Setup the link rows
     linked_row_1, linked_row_2, linked_row_3 = row_handler.force_create_rows(
@@ -337,7 +337,7 @@ def setup_interesting_test_table(
                 link_table_primary_text_field.db_column: "",
             },
         ],
-    )
+    ).created_rows
     linked_row_4, linked_row_5, linked_row_6 = row_handler.force_create_rows(
         user=user,
         table=decimal_link_table,
@@ -352,7 +352,7 @@ def setup_interesting_test_table(
                 decimal_table_primary_decimal_field.db_column: None,
             },
         ],
-    )
+    ).created_rows
     with freeze_time("2020-01-01 12:00"):
         user_file_1 = data_fixture.create_user_file(
             original_name=f"name{file_suffix}.txt",
@@ -372,7 +372,7 @@ def setup_interesting_test_table(
                 file_link_table_primary_file_field.db_column: None,
             },
         ],
-    )
+    ).created_rows
     link_row_9, link_row_10 = row_handler.force_create_rows(
         user=user,
         table=multiple_collaborators_link_table,
@@ -389,7 +389,7 @@ def setup_interesting_test_table(
                 ],
             },
         ],
-    )
+    ).created_rows
 
     link_row_field_id = name_to_field_id["link_row"]
     link_row_field_without_related_id = name_to_field_id["link_row_without_related"]

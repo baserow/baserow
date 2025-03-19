@@ -159,7 +159,9 @@ class PageService:
             context=builder,
         )
 
-        all_pages = self.handler.get_pages(builder, base_queryset=Page.objects)
+        all_pages = self.handler.get_pages(
+            builder, base_queryset=Page.objects_without_shared
+        )
 
         user_pages = CoreHandler().filter_queryset(
             user,

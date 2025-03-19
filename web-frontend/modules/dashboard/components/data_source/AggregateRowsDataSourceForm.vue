@@ -110,6 +110,9 @@
             :key="viewAggregation.getType()"
             :name="viewAggregation.getName()"
             :value="viewAggregation.getType()"
+            :disabled="
+              unsupportedAggregationTypes.includes(viewAggregation.getType())
+            "
           >
           </DropdownItem>
         </Dropdown>
@@ -170,7 +173,7 @@ export default {
       },
       tableLoading: false,
       databaseSelectedId: null,
-      emitValuesOnReset: false,
+      skipFirstValuesEmit: true,
     }
   },
   computed: {
@@ -224,16 +227,23 @@ export default {
     aggregationTypeNames() {
       return this.viewAggregationTypes.map((aggType) => aggType.getType())
     },
+    unsupportedAggregationTypes() {
+      return this.$registry.get('service', 'local_baserow_aggregate_rows')
+        .unsupportedAggregationTypes
+    },
   },
   watch: {
     dataSource: {
-      handler(values) {
+      async handler(values) {
+        this.setEmitValues(false)
         // Reset the form to set default values
         // again after a different widget is selected
-        this.reset(true)
+        await this.reset(true)
         // Run form validation so that
         // problems are highlighted immediately
-        this.v$.$validate()
+        this.v$.$touch()
+        await this.$nextTick()
+        this.setEmitValues(true)
       },
       deep: true,
     },

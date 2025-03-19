@@ -1,11 +1,14 @@
 <template>
   <div>
+    <DefaultErrorPage v-if="error && !view" :error="error" />
     <Table
+      v-else
       :database="database"
       :table="table"
       :fields="fields"
       :views="views"
       :view="view"
+      :view-error="error"
       :table-loading="tableLoading"
       store-prefix="page/"
       @selected-view="selectedView"
@@ -17,6 +20,7 @@
         (row, activeSearchTerm) => setAdjacentRow(false, row, activeSearchTerm)
       "
     ></Table>
+    <NuxtChild :database="database" :table="table" :fields="fields" />
   </div>
 </template>
 
@@ -26,13 +30,15 @@ import { mapState } from 'vuex'
 import Table from '@baserow/modules/database/components/table/Table'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { getDefaultView } from '@baserow/modules/database/utils/view'
+import DefaultErrorPage from '@baserow/modules/core/components/DefaultErrorPage'
+import { normalizeError } from '@baserow/modules/database/utils/errors'
 
 /**
  * This page component is the skeleton for a table. Depending on the selected view it
  * will load the correct components into the header and body.
  */
 export default {
-  components: { Table },
+  components: { DefaultErrorPage, Table },
   /**
    * When the user leaves to another page we want to unselect the selected table. This
    * way it will not be highlighted the left sidebar.
@@ -55,6 +61,7 @@ export default {
     function parseIntOrNull(x) {
       return x != null ? parseInt(x) : null
     }
+
     const currentRowId = parseIntOrNull(to.params?.rowId)
     const currentTableId = parseIntOrNull(to.params.tableId)
 
@@ -115,37 +122,44 @@ export default {
    * Prepares all the table, field and view data for the provided database, table and
    * view id.
    */
-  async asyncData({ store, params, error, app, redirect, route }) {
+  async asyncData({ store, params, query, error, app, redirect, route }) {
     // @TODO figure out why the id's aren't converted to an int in the route.
     const databaseId = parseInt(params.databaseId)
     const tableId = parseInt(params.tableId)
     const viewId = params.viewId ? parseInt(params.viewId) : null
-    const data = {}
-
+    // let's use undefined for view, as it's explicitly checked in components
+    const data = { error: null, view: undefined, fields: null }
     // Try to find the table in the already fetched applications by the
     // workspacesAndApplications middleware and select that one. By selecting the table, the
     // fields and views are also going to be fetched.
     try {
-      const { database, table } = await store.dispatch('table/selectById', {
-        databaseId,
-        tableId,
-      })
+      const { database, table, error } = await store.dispatch(
+        'table/selectById',
+        {
+          databaseId,
+          tableId,
+        }
+      )
       await store.dispatch('workspace/selectById', database.workspace.id)
       data.database = database
       data.table = table
+
+      if (error) {
+        data.error = normalizeError(error)
+        return data
+      }
     } catch (e) {
       // In case of a network error we want to fail hard.
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
       }
-
-      return error({ statusCode: 404, message: 'Table not found.' })
+      data.error = normalizeError(e)
+      return data
     }
 
     // After selecting the table the fields become available which need to be added to
     // the data.
     data.fields = store.getters['field/getAll']
-    data.view = undefined
 
     // Without a viewId, redirect the user to the default or the first available view.
     if (viewId === null) {
@@ -154,14 +168,11 @@ export default {
       const viewToUse = getDefaultView(app, store, workspaceId, rowId !== null)
 
       if (viewToUse !== undefined) {
+        params.viewId = viewToUse.id
         return redirect({
           name: route.name,
-          params: {
-            databaseId,
-            tableId,
-            viewId: viewToUse.id,
-            rowId: params.rowId,
-          },
+          params,
+          query,
         })
       }
     }
@@ -194,18 +205,17 @@ export default {
         if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
           throw e
         }
+        data.error = normalizeError(e)
 
-        return error({ statusCode: 404, message: 'View not found.' })
+        return data
       }
     }
-
     if (params.rowId) {
       await store.dispatch('rowModalNavigation/fetchRow', {
         tableId,
         rowId: params.rowId,
       })
     }
-
     return data
   },
   head() {

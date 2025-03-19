@@ -1007,6 +1007,19 @@ class ViewFilterType(Instance):
             for t in self.compatible_field_types
         )
 
+    @property
+    def time_sensitive(self) -> bool:
+        """
+        Indicates if the filter results depend on the current time.
+        For example, filters like 'date_is' with operators like `today` or `yesterday`
+        will return different results as time passes, even if the underlying
+        data hasn't changed.
+
+        :returns: True if the filter results change based on current time
+        """
+
+        return False
+
 
 class ViewFilterTypeRegistry(Registry):
     """
@@ -1019,6 +1032,21 @@ class ViewFilterTypeRegistry(Registry):
     name = "view_filter"
     does_not_exist_exception_class = ViewFilterTypeDoesNotExist
     already_registered_exception_class = ViewFilterTypeAlreadyRegistered
+
+    def get_time_sensitive_filter_types(self) -> List[str]:
+        """
+        Returns a list of filter types that are time-dependent. For example, filters
+        like `date_is` with operators like `today` or `yesterday` will return different
+        results as time passes, even if the underlying data hasn't changed.
+
+        :returns: A list of filter types that are time-sensitive
+        """
+
+        return [
+            filter_type.type
+            for filter_type in self.registry.values()
+            if filter_type.time_sensitive
+        ]
 
 
 class ViewAggregationType(Instance):

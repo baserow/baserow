@@ -1066,13 +1066,17 @@ def test_link_row_field_can_be_sorted_when_linking_an_ai_field(premium_data_fixt
         field=primary_b, value="b", color="green", order=0
     )
 
-    row_b1, row_b2 = RowHandler().force_create_rows(
-        user,
-        table_b,
-        [
-            {primary_b.db_column: opt_1.id},
-            {primary_b.db_column: opt_2.id},
-        ],
+    row_b1, row_b2 = (
+        RowHandler()
+        .force_create_rows(
+            user,
+            table_b,
+            [
+                {primary_b.db_column: opt_1.id},
+                {primary_b.db_column: opt_2.id},
+            ],
+        )
+        .created_rows
     )
 
     table_a, table_b, link_field = premium_data_fixture.create_two_linked_tables(

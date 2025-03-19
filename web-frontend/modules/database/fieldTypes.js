@@ -158,7 +158,10 @@ import FieldLookupSubForm from '@baserow/modules/database/components/field/Field
 import FieldCountSubForm from '@baserow/modules/database/components/field/FieldCountSubForm'
 import FieldRollupSubForm from '@baserow/modules/database/components/field/FieldRollupSubForm'
 import RowEditFieldFormula from '@baserow/modules/database/components/row/RowEditFieldFormula'
-import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database/constants'
+import {
+  DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY,
+  DEFAULT_SORT_TYPE_KEY,
+} from '@baserow/modules/database/constants'
 import ViewService from '@baserow/modules/database/services/view'
 import FormService from '@baserow/modules/database/services/view/form'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
@@ -382,10 +385,6 @@ export class FieldType extends Registerable {
     return false
   }
 
-  getGroupByIndicator(field, registry) {
-    return this.getSortIndicator(field, registry)
-  }
-
   /**
    * In some cases, the group by value can not be directly compared to a row value
    * because the format is different for technical reasons in the backend. This
@@ -522,6 +521,28 @@ export class FieldType extends Registerable {
    */
   getSortIndicator() {
     return ['text', 'A', 'Z']
+  }
+
+  /**
+   * Should return a mapping containing all the available sort types for this field
+   * type. It always returns the default type, which uses the `getSort` and
+   * `getSortIndicator` by default.
+   */
+  getSortTypes(field) {
+    return {
+      [DEFAULT_SORT_TYPE_KEY]: {
+        function: this.getSort,
+        indicator: this.getSortIndicator(field),
+      },
+    }
+  }
+
+  /**
+   * Can a field of this type be used to perform an update during import on rows that
+   * contain the same value as imported one.
+   */
+  canUpsert() {
+    return false
   }
 
   /**
@@ -969,6 +990,10 @@ export class TextFieldType extends FieldType {
     return field.text_default
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -1078,6 +1103,10 @@ export class LongTextFieldType extends FieldType {
 
   getEmptyValue(field) {
     return ''
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {
@@ -1529,6 +1558,10 @@ export class NumberFieldType extends FieldType {
     return ['text', '1', '9']
   }
 
+  canUpsert() {
+    return true
+  }
+
   /**
    * When searching a cell's value, this should return the value to match the user's
    * search term against. We can't use `toHumanReadableString` here as it needs to be
@@ -1743,6 +1776,10 @@ export class RatingFieldType extends FieldType {
     return 0
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       if (a[name] === b[name]) {
@@ -1875,6 +1912,10 @@ export class BooleanFieldType extends FieldType {
 
   getSortIndicator() {
     return ['icon', 'baserow-icon-circle-empty', 'baserow-icon-circle-checked']
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {
@@ -2227,6 +2268,10 @@ export class DateFieldType extends BaseDateFieldType {
   }
 
   canParseQueryParameter() {
+    return true
+  }
+
+  canUpsert() {
     return true
   }
 
@@ -2696,6 +2741,10 @@ export class DurationFieldType extends FieldType {
     return this.formatValue(field, value)
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const aValue = a[name]
@@ -2843,6 +2892,10 @@ export class URLFieldType extends FieldType {
     return isValidURL(value) ? value : ''
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -2940,6 +2993,10 @@ export class EmailFieldType extends FieldType {
   prepareValueForPaste(field, clipboardData) {
     const value = clipboardData
     return isValidEmail(value) ? value : ''
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {
@@ -3264,6 +3321,40 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       const stringB = b[name] === null ? '' : '' + b[name].value
       return collatedStringCompare(stringA, stringB, order)
     }
+  }
+
+  getSortByOptionOrder(name, order, field) {
+    const getOrder = function (row, name, field) {
+      let id = null
+
+      try {
+        id = row[name].id || null
+      } catch (e) {
+        return -1
+      }
+
+      return field.select_options.findIndex((o) => o.id === id) || -1
+    }
+
+    return (a, b) => {
+      const aOrder = getOrder(a, name, field)
+      const bOrder = getOrder(b, name, field)
+
+      if (order === 'ASC') {
+        return aOrder - bOrder
+      } else if (order === 'DESC') {
+        return bOrder - aOrder
+      }
+    }
+  }
+
+  getSortTypes(field) {
+    const defaultTypes = super.getSortTypes(field)
+    defaultTypes.order = {
+      function: this.getSortByOptionOrder,
+      indicator: ['text', 'First', 'Last'],
+    }
+    return defaultTypes
   }
 
   parseFromLinkedRowItemValue(field, value) {
@@ -3754,6 +3845,10 @@ export class PhoneNumberFieldType extends FieldType {
     return isSimplePhoneNumber(value) ? value : ''
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -3910,6 +4005,10 @@ export class FormulaFieldType extends mix(
 
   getSort(name, order, field) {
     return this.getFormulaType(field)?.getSort(name, order, field)
+  }
+
+  getSortTypes(field) {
+    return this.getFormulaType(field)?.getSortTypes(field)
   }
 
   getEmptyValue(field) {
@@ -4335,6 +4434,27 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   canBeReferencedByFormulaField() {
     return true
   }
+
+  getCanGroupByInView(field) {
+    return true
+  }
+
+  getRowValueFromGroupValue(field, value) {
+    return value.map((optId) => {
+      return { id: optId }
+    })
+  }
+
+  getGroupValueFromRowValue(field, value) {
+    return value && value.map((o) => o.id)
+  }
+
+  isEqual(field, value1, value2) {
+    const value1Ids = value1.map((v) => v.id)
+    const value2Ids = value2.map((v) => v.id)
+
+    return _.isEqual(value1Ids, value2Ids)
+  }
 }
 
 export class UUIDFieldType extends FieldType {
@@ -4377,6 +4497,10 @@ export class UUIDFieldType extends FieldType {
 
   getCardComponent() {
     return RowCardFieldUUID
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {
@@ -4456,6 +4580,10 @@ export class AutonumberFieldType extends FieldType {
 
   getCardComponent() {
     return RowCardFieldAutonumber
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {

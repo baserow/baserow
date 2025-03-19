@@ -15,6 +15,7 @@
         :view="view"
         :forced-type="forcedType"
         :all-fields-in-table="allFieldsInTable"
+        :default-values="defaultValues"
         :database="database"
         @submitted="submit"
         @keydown-enter="$refs.submitButton.focus()"
@@ -88,6 +89,11 @@ export default {
     return {
       loading: false,
       showDescription: false,
+      defaultValues: {
+        name: '',
+        type: this.forcedType || '',
+        description: null,
+      },
     }
   },
   methods: {

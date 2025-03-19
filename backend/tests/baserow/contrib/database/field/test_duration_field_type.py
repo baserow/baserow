@@ -98,7 +98,7 @@ def test_create_duration_field_rows(data_fixture):
             {f"field_{duration_field.id}": timedelta(seconds=3661)},
         ],
         model=model,
-    )
+    ).created_rows
 
     assert len(rows) == 2
     assert getattr(rows[0], f"field_{duration_field.id}") == timedelta(seconds=3660)
@@ -779,20 +779,24 @@ def test_duration_field_view_filters(data_fixture):
     )
 
     model = table.get_model()
-    rows = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {field.db_column: None},
-            {field.db_column: "0:1.123"},
-            {field.db_column: 1.123},
-            {field.db_column: 60},  # 1min
-            {field.db_column: "24:0:0"},  # 1day
-            {field.db_column: "1 0"},  # 1day
-            {field.db_column: 3601},  # 1hour 1sec
-            {field.db_column: "1:0:0"},  # 1 hour
-        ],
-        model=model,
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {field.db_column: None},
+                {field.db_column: "0:1.123"},
+                {field.db_column: 1.123},
+                {field.db_column: 60},  # 1min
+                {field.db_column: "24:0:0"},  # 1day
+                {field.db_column: "1 0"},  # 1day
+                {field.db_column: 3601},  # 1hour 1sec
+                {field.db_column: "1:0:0"},  # 1 hour
+            ],
+            model=model,
+        )
+        .created_rows
     )
 
     #
@@ -1105,14 +1109,18 @@ def test_duration_field_can_be_looked_up(data_fixture):
     )
 
     model_b = table_b.get_model()
-    row_b_1, row_b_2 = RowHandler().create_rows(
-        user=user,
-        table=table_b,
-        rows_values=[
-            {duration_field.db_column: 24 * 3600},
-            {duration_field.db_column: 60},
-        ],
-        model=model_b,
+    row_b_1, row_b_2 = (
+        RowHandler()
+        .create_rows(
+            user=user,
+            table=table_b,
+            rows_values=[
+                {duration_field.db_column: 24 * 3600},
+                {duration_field.db_column: 60},
+            ],
+            model=model_b,
+        )
+        .created_rows
     )
 
     assert list(model_b.objects.values_list(duration_formula.db_column, flat=True)) == [
@@ -1121,13 +1129,17 @@ def test_duration_field_can_be_looked_up(data_fixture):
     ]
 
     model_a = table_a.get_model()
-    (row,) = RowHandler().create_rows(
-        user=user,
-        table=table_a,
-        rows_values=[
-            {f"field_{link_field.id}": [row_b_1.id, row_b_2.id]},
-        ],
-        model=model_a,
+    (row,) = (
+        RowHandler()
+        .create_rows(
+            user=user,
+            table=table_a,
+            rows_values=[
+                {f"field_{link_field.id}": [row_b_1.id, row_b_2.id]},
+            ],
+            model=model_a,
+        )
+        .created_rows
     )
     assert getattr(row, f"field_{lookup_field.id}") == [
         {"id": row_b_1.id, "value": "1 day"},

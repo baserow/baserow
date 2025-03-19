@@ -1,7 +1,7 @@
 <template>
   <div class="local-baserow-adhoc-header__container">
-    <ul class="header__filter">
-      <li class="header__filter-item">
+    <div class="local-baserow-adhoc-header">
+      <div class="local-baserow-adhoc-header__item">
         <ViewFilter
           v-if="filterableFields.length"
           read-only
@@ -10,8 +10,8 @@
           :disable-filter="false"
           @changed="handleFiltersChange"
         ></ViewFilter>
-      </li>
-      <li class="header__filter-item">
+      </div>
+      <div class="local-baserow-adhoc-header__item">
         <ViewSort
           v-if="sortableFields.length"
           read-only
@@ -19,8 +19,9 @@
           :fields="sortableFields"
           @changed="handleSortingsChange"
         ></ViewSort>
-      </li>
-      <li class="header__filter-item header__filter-item--right">
+      </div>
+      <div class="flex-grow-1" />
+      <div class="local-baserow-adhoc-header__item">
         <ViewSearch
           v-if="searchableFields.length"
           read-only
@@ -29,8 +30,8 @@
           :fields="searchableFields"
           @refresh="handleSearchChange"
         ></ViewSearch>
-      </li>
-    </ul>
+      </div>
+    </div>
   </div>
 </template>
 

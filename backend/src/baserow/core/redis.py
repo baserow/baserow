@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 from typing import Any, Optional
 
 from redis.client import Redis
@@ -99,3 +100,20 @@ class RedisQueue:
         """
 
         self.redis_connection.delete(self.queue_key)
+
+
+class WebhookRedisQueue(RedisQueue):
+    queues = defaultdict(list)
+
+    def enqueue_task(self, task_object):
+        self.queues[self.queue_key].append(task_object)
+        return True
+
+    def get_and_pop_next(self):
+        try:
+            return self.queues[self.queue_key].pop(0)
+        except IndexError:
+            return None
+
+    def clear(self):
+        self.queues[self.queue_key] = []

@@ -386,6 +386,10 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
         service = workflow_action.service.specific
         yield from service.get_type().formula_generator(service)
 
+    def enhance_queryset(self, queryset):
+        queryset = queryset.select_related("service")
+        return super().enhance_queryset(queryset)
+
 
 class UpsertRowWorkflowActionType(BuilderWorkflowServiceActionType):
     type = "upsert_row"

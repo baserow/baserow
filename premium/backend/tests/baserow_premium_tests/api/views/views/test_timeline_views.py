@@ -1162,6 +1162,7 @@ def test_get_public_timeline_view(api_client, premium_data_fixture):
                     "field": visible_sort.field.id,
                     "id": visible_sort.id,
                     "order": "DESC",
+                    "type": "default",
                     "view": timeline_view.slug,
                 }
             ],

@@ -1,4 +1,10 @@
-from baserow_enterprise.api.sso.utils import get_valid_frontend_url
+import pytest
+
+from baserow_enterprise.api.sso.utils import (
+    get_valid_frontend_url,
+    redirect_user_on_success,
+    urlencode_user_tokens,
+)
 
 
 def test_get_valid_front_url():
@@ -98,3 +104,22 @@ def test_get_valid_front_url_w_params():
         )
         == "http://localhost:3000/dashboard?test=value"
     )
+
+
+@pytest.mark.django_db()
+def test_urlencode_user_tokens(enterprise_data_fixture):
+    user = enterprise_data_fixture.create_user()
+    url = urlencode_user_tokens("http://localhost:3000/dashboard", user)
+    assert "token=" in url
+    assert "user_session=" in url
+
+
+@pytest.mark.django_db()
+def test_redirect_user_on_success(enterprise_data_fixture):
+    user = enterprise_data_fixture.create_user()
+    response = redirect_user_on_success(user)
+    assert response.status_code == 302
+    assert response.has_header("Location")
+    location = response.headers["Location"]
+    assert "token=" in location
+    assert "user_session=" in location

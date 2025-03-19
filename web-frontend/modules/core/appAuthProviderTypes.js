@@ -41,4 +41,13 @@ export class AppAuthProviderType extends BaseAuthProviderType {
   handleError(userSource, authProvider, route) {
     return null
   }
+
+  /**
+   * Returns whether the provider is enabled or not.
+   * @param {Number} workspaceId The workspace id.
+   * @returns {Boolean} True if the provider is disabled, false otherwise.
+   */
+  isDeactivated(workspaceId) {
+    return false
+  }
 }

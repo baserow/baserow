@@ -55,6 +55,10 @@ class Builder(Application):
         # but it's a more generic type
         return self.application_ptr
 
+    @property
+    def visible_pages(self):
+        return self.page_set(manager="objects_without_shared")
+
     @cached_property
     def shared_page(self):
         from baserow.contrib.builder.pages.handler import PageHandler

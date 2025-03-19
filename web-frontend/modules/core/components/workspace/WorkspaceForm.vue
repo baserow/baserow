@@ -12,6 +12,7 @@
         :error="fieldHasErrors('name')"
         size="large"
         @focus.once="$event.target.select()"
+        @blur="v$.values.name.$touch"
       ></FormInput>
 
       <template #error>{{ $t('error.requiredField') }}</template>

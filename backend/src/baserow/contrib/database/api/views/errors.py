@@ -57,7 +57,7 @@ ERROR_VIEW_SORT_FIELD_ALREADY_EXISTS = (
 ERROR_VIEW_SORT_FIELD_NOT_SUPPORTED = (
     "ERROR_VIEW_SORT_FIELD_NOT_SUPPORTED",
     HTTP_400_BAD_REQUEST,
-    "The field does not support view sorting.",
+    "The field does not support view sorting on the given type.",
 )
 ERROR_VIEW_GROUP_BY_DOES_NOT_EXIST = (
     "ERROR_VIEW_GROUP_BY_DOES_NOT_EXIST",

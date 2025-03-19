@@ -255,7 +255,9 @@
         "auditLogs": "Audit logs",
         "coBranding": "Co-branding logo vervanging",
         "support": "Directe ondersteuning",
-        "dataSync": "Data sync"
+        "dataSync": "Data sync",
+        "chartWidget": "Grafiek widget",
+        "advancedWebhooks": "Geavanceerde webhooks"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Directe ondersteuning"
@@ -443,12 +445,50 @@
         "hourly": "Uurlijks",
         "hour": "Uur",
         "minute": "Minuut",
-        "second": "Seconde"
+        "second": "Seconde",
+        "whenHourlyHelper": "Geef de exacte minuut en seconde wanneer de gegevenssynchronisatie moet plaatsvinden."
     },
     "configureDataSyncModal": {
         "periodicInterval": "Periodieke instellingen"
     },
     "oidcAuthLink": {
         "placeholderWithOIDC": "{login} met {provider}"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "addSeries": "Series toevoegen",
+        "data": "Data",
+        "sourceFieldLabel": "Bron",
+        "viewFieldLabel": "Weergave",
+        "notSelected": "Niet geselecteerd",
+        "series": "Series"
+    },
+    "aggregationSeriesForm": {
+        "aggregationTypeLabel": "Samenvatting",
+        "deleteSeries": "Serie verwijderen",
+        "aggregationFieldLabel": "Veld"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Groep door",
+        "groupByNone": "Geen",
+        "groupByRowId": "Rij Id"
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Sorteer op",
+        "none": "Geen",
+        "ascending": "Oplopend",
+        "descending": "Aflopend"
+    },
+    "periodicDataSyncDeactivatedNotification": {
+        "body": "{name} periodieke gegevenssynchronisatie is gedeactiveerd omdat het te vaak achter elkaar mislukte."
+    },
+    "webhook": {
+        "rowsEnterVieweventType": "Rij komt in weergave"
+    },
+    "webhookForm": {
+        "triggerWhenRowsEnterView": "Geactiveerd wanneer rijen de weergave binnenkomen.",
+        "helpTriggerWhenRowsEnterView": "Triggert alleen wanneer `Rijen in de weergave komen` is geselecteerd en rijen die nu overeenkomen met de filters worden weergegeven."
+    },
+    "chartWidget": {
+        "name": "Grafiek"
     }
 }

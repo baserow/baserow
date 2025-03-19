@@ -1091,13 +1091,17 @@ def test_inserting_a_row_with_lookup_field_immediately_populates_it_with_empty_l
     primary_a_field = table_a.field_set.get(primary=True)
     primary_b_field = table_b.field_set.get(primary=True)
     target_field = data_fixture.create_text_field(name="target", table=table_b)
-    row_1, row_2 = RowHandler().create_rows(
-        user,
-        table_b,
-        rows_values=[
-            {primary_b_field.db_column: "1", target_field.db_column: "target 1"},
-            {primary_b_field.db_column: "2", target_field.db_column: "target 2"},
-        ],
+    row_1, row_2 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_b,
+            rows_values=[
+                {primary_b_field.db_column: "1", target_field.db_column: "target 1"},
+                {primary_b_field.db_column: "2", target_field.db_column: "target 2"},
+            ],
+        )
+        .created_rows
     )
     RowHandler().create_rows(
         user,
@@ -1373,7 +1377,7 @@ def test_formula_field_adjacent_row(data_fixture):
                 f"field_{text_field.id}": "C",
             },
         ],
-    )
+    ).created_rows
 
     previous_row = handler.get_adjacent_row(
         table_model, row_b.id, previous=True, view=grid_view

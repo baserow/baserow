@@ -5,6 +5,7 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+from domains import domain_types
 from changelog_entry import changelog_entry_types
 from pygit2 import Repository
 
@@ -33,6 +34,7 @@ class ChangelogHandler:
 
     def add_entry(
         self,
+        domain_type_name: str,
         changelog_entry_type_name: str,
         message: str,
         issue_number: Optional[int] = None,
@@ -53,7 +55,7 @@ class ChangelogHandler:
 
         with open(full_path, "w+") as entry_file:
             entry = changelog_entry_type().generate_entry_dict(
-                message, issue_number, bullet_points=bullet_points
+                domain_type_name, message, issue_number, bullet_points=bullet_points
             )
             json.dump(entry, entry_file, indent=4)
 
@@ -126,6 +128,11 @@ class ChangelogHandler:
 
         changelog_file.write(f"# Changelog{LINE_BREAK_CHARACTER}{LINE_BREAK_CHARACTER}")
 
+        domain_prefixes = {
+            domain_type: domain().message_prefix
+            for domain_type, domain in domain_types.items()
+        }
+
         for release_folder in release_folders:
             entries = self.get_changelog_entries(release_folder)
 
@@ -144,8 +151,16 @@ class ChangelogHandler:
                 changelog_file.write(f"{heading}{LINE_BREAK_CHARACTER}")
 
                 for entry in entries_of_type:
+                    # Prefix the entry's message with the domain prefix.
+                    # Prefix with nothing if the `domain` doesn't exist,
+                    # for compatibility with older entries.
+                    domain_prefix = (
+                        domain_prefixes[entry["domain"]] if "domain" in entry else ""
+                    )
+                    entry_message = f"{domain_prefix}{entry['message']}"
+
                     entry_markdown_string = entry_type.get_markdown_string(
-                        entry["message"], entry["issue_number"]
+                        entry_message, entry["issue_number"]
                     )
 
                     changelog_file.write(
@@ -208,18 +223,6 @@ class ChangelogHandler:
             return int(potential_issue_number)
         except ValueError:
             return None
-
-    @staticmethod
-    def get_message() -> str:
-        branch_name = Repository(".").head.shorthand
-        branch_has_issue_number = ChangelogHandler.get_issue_number() is not None
-
-        if branch_has_issue_number:
-            message = " ".join(branch_name.split("-")[1:])
-        else:
-            message = branch_name
-
-        return message.replace("-", " ")
 
     def write_release_meta_data(self, name: str):
         # Make sure the parent dirs exist

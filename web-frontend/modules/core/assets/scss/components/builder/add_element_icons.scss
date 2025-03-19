@@ -1,0 +1,45 @@
+// Icon list
+$baserow-builder-icons: (
+  'auth_form',
+  'button',
+  'checkbox',
+  'choice',
+  'column',
+  'container',
+  'datetime_picker',
+  'fields',
+  'footer',
+  'form_container',
+  'header',
+  'heading',
+  'iframe',
+  'simple_container',
+  'positioned_container',
+  'menu',
+  'image',
+  'input_text',
+  'link',
+  'map',
+  'rating',
+  'rating_input',
+  'record_selector',
+  'repeat',
+  'rich_text',
+  'separator',
+  'table',
+  'text',
+  'video'
+);
+
+@mixin baserow-builder-icon($name) {
+  background-image: url('@baserow/modules/builder/assets/icons/element-' + $name + '.svg');
+}
+
+$baserow-builder-icon-prefix: 'add-element-card__element-type-icon-';
+
+// Generate builder icon classes
+@each $icon in $baserow-builder-icons {
+  .#{$baserow-builder-icon-prefix}#{$icon} {
+    @include baserow-builder-icon($icon);
+  }
+}

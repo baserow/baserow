@@ -322,14 +322,18 @@ def test_local_baserow_list_rows_service_dispatch_data_with_view_and_service_fil
         ],
     )
     field = table.field_set.get(name="Ingredient")
-    [row_1, row_2, _] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": "Cheese"},
-            {f"field_{field.id}": "Chicken"},
-            {f"field_{field.id}": "Milk"},
-        ],
+    [row_1, row_2, _] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "Cheese"},
+                {f"field_{field.id}": "Chicken"},
+                {f"field_{field.id}": "Milk"},
+            ],
+        )
+        .created_rows
     )
 
     view = data_fixture.create_grid_view(user, table=table, owned_by=user)
@@ -385,15 +389,19 @@ def test_local_baserow_list_rows_service_dispatch_data_with_varying_filter_types
     )
     ingredient = table.field_set.get(name="Ingredient")
     cost = table.field_set.get(name="Cost")
-    [row_1, row_2, row_3, _] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{ingredient.id}": "Duck", f"field_{cost.id}": 50},
-            {f"field_{ingredient.id}": "Duckling", f"field_{cost.id}": 25},
-            {f"field_{ingredient.id}": "Goose", f"field_{cost.id}": 150},
-            {f"field_{ingredient.id}": "Beef", f"field_{cost.id}": 250},
-        ],
+    [row_1, row_2, row_3, _] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{ingredient.id}": "Duck", f"field_{cost.id}": 50},
+                {f"field_{ingredient.id}": "Duckling", f"field_{cost.id}": 25},
+                {f"field_{ingredient.id}": "Goose", f"field_{cost.id}": 150},
+                {f"field_{ingredient.id}": "Beef", f"field_{cost.id}": 250},
+            ],
+        )
+        .created_rows
     )
 
     view = data_fixture.create_grid_view(
@@ -470,14 +478,18 @@ def test_local_baserow_list_rows_service_dispatch_data_with_view_and_service_sor
     )
     ingredients = table.field_set.get(name="Ingredient")
     cost = table.field_set.get(name="Cost")
-    [row_1, row_2, row_3] = RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{ingredients.id}": "Duck", f"field_{cost.id}": 50},
-            {f"field_{ingredients.id}": "Goose", f"field_{cost.id}": 150},
-            {f"field_{ingredients.id}": "Beef", f"field_{cost.id}": 250},
-        ],
+    [row_1, row_2, row_3] = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{ingredients.id}": "Duck", f"field_{cost.id}": 50},
+                {f"field_{ingredients.id}": "Goose", f"field_{cost.id}": 150},
+                {f"field_{ingredients.id}": "Beef", f"field_{cost.id}": 250},
+            ],
+        )
+        .created_rows
     )
     view = data_fixture.create_grid_view(user, table=table, owned_by=user)
     service_type = LocalBaserowListRowsUserServiceType()
