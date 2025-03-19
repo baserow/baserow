@@ -49,7 +49,7 @@ autobahn==24.4.2
     # via daphne
 automat==24.8.1
     # via twisted
-azure-core==1.32.0
+azure-core==1.32.1
     # via
     #   azure-storage-blob
     #   django-storages
