@@ -848,7 +848,7 @@ class UpdateRowsActionType(UndoableActionType):
 
     @classmethod
     def serialized_to_params(cls, serialized_params: Any) -> Any:
-        """`
+        """
         When storing integers as dictionary keys in a database, they are saved
         as strings. This method is designed to convert these string keys back
         into integers. This ensures that we can accurately use the row.id as a

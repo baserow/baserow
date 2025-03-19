@@ -1,5 +1,11 @@
 # Changelog
 
+## Released 1.32.1
+
+### Bug fixes
+* [Database] Fixed a bug in which sorting by a link row field caused the frontend to crash. [#3522](https://gitlab.com/baserow/baserow/-/issues/3522)
+
+
 ## Released 1.32.0
 
 ### New features
@@ -34,6 +40,7 @@
 * Preserve the precision of the currency field in the Airtable import. [#1058](https://gitlab.com/baserow/baserow/-/issues/1058)
 * [Builder] Fixed element position resets on editing of it's properties [#2342](https://gitlab.com/baserow/baserow/-/issues/2342)
 * Fix pasting markdown text into rich edit that resulted in unformatted markdown [#2383](https://gitlab.com/baserow/baserow/-/issues/2383)
+* [Database] Fix select option values in row history after API changes [#2509](https://gitlab.com/baserow/baserow/-/issues/2509)
 * [Database] Fixed a bug that prevented duplicating views filtered by a collaborator correctly. [#3017](https://gitlab.com/baserow/baserow/-/issues/3017)
 * [Database] Fixed unscrollable timezone dropdown issue when creating/editing a field. [#3041](https://gitlab.com/baserow/baserow/-/issues/3041)
 * [Database] Fix protected fields in the data sync forms. [#3191](https://gitlab.com/baserow/baserow/-/issues/3191)
@@ -58,7 +65,6 @@
 * [Builder] Fix crash when creating a builder application after deleting another one
 * Fix error when syncing a table with a trashed field.
 * [Database] Fix the progress bar percentage when importing applications into the workspace.
-* [Database] Fix select option values in row history after API changes.
 
 ### Refactors
 * Upgrade vuelidate [#2805](https://gitlab.com/baserow/baserow/-/issues/2805)
