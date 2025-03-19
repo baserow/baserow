@@ -1,3 +1,4 @@
+import csv
 from datetime import datetime, timedelta, timezone
 
 from django.conf import settings
@@ -984,3 +985,111 @@ def test_run_file_import_task_with_upsert(data_fixture, patch_filefield_storage)
     last = rows[-2]
     assert getattr(last, f1.db_column) == "aab"
     assert getattr(last, f6.db_column) == "aab-1-3-new"
+
+
+# test single fields and selected pairs
+@pytest.mark.parametrize(
+    "upsert_field_idx",
+    [[i] for i in range(11)]
+    + [
+        (
+            4,
+            5,
+        ),
+        (
+            5,
+            6,
+        ),
+        (6, 7),
+    ],
+)
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_for_field_types(
+    data_fixture, patch_filefield_storage, open_test_file, upsert_field_idx: list[int]
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    init_data = []
+    with open_test_file("baserow/database/file_import/upsert_base_data.csv", "rt") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            for idx, val in enumerate(row):
+                if val == "" or val == "NULL":
+                    row[idx] = None
+            init_data.append(row)
+
+    upsert_fields = [
+        data_fixture.create_text_field(table=table, name="Text"),
+        data_fixture.create_long_text_field(table=table, name="Long text"),
+        data_fixture.create_number_field(
+            table=table, name="Number", number_decimal_places=3
+        ),
+        data_fixture.create_rating_field(table=table, name="Rating"),
+        data_fixture.create_boolean_field(table=table, name="Boolean"),
+        data_fixture.create_date_field(table=table, name="Date"),
+        data_fixture.create_date_field(
+            table=table, date_include_time=True, name="Datetime"
+        ),
+        data_fixture.create_duration_field(
+            table=table, duration_format="d h", name="Duration"
+        ),
+        data_fixture.create_url_field(table=table, name="URL"),
+        data_fixture.create_phone_number_field(table=table, name="Phone number"),
+        data_fixture.create_email_field(table=table, name="Email"),
+    ]
+    single_select = data_fixture.create_single_select_field(
+        table=table, name="Single select"
+    )
+
+    for opt_value in ["aaa", "bbb", "ccc", "ddd"]:
+        data_fixture.create_select_option(field=single_select, value=opt_value)
+
+    model = table.get_model()
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data={"data": init_data[1:]},
+            table=table,
+            user=user,
+        )
+        run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.finished
+
+    assert len(model.objects.all()) == len(init_data) - 1
+    initial_rows = list(model.objects.all())
+
+    # reimport with one upsert field - table should remain the same
+    upsert_fields = [upsert_fields[uidx] for uidx in upsert_field_idx]
+
+    # sanity check: field name should match
+    assert [u.name for u in upsert_fields] == [
+        init_data[0][uidx] for uidx in upsert_field_idx
+    ]
+
+    # prepare upsert data, remember about using a list inside a list
+    upsert_data = [[r[uidx] for uidx in upsert_field_idx] for r in init_data[1:]]
+    # replace single select with bbb
+    dataset = [r[:-1] + ["bbb"] for r in init_data[1:]]
+
+    payload = {
+        "data": dataset,
+        "configuration": {
+            "upsert_fields": [u.id for u in upsert_fields],
+            "upsert_values": upsert_data,
+        },
+    }
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=payload,
+            table=table,
+            user=user,
+        )
+        run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.finished
+
+    assert len(model.objects.all()) == len(init_data) - 1
+    assert list(model.objects.all()) == initial_rows
