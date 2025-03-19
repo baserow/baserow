@@ -67,11 +67,10 @@
             @shown="toggleExpanded(item.id)"
             @hidden="toggleExpanded(item.id)"
           >
-            <ThemeProvider>
+            <ThemeProvider class="menu-element__sub-links">
               <div
                 v-for="child in item.children"
                 :key="child.id"
-                class="menu-element__sub-links"
                 :style="getStyleOverride('menu')"
               >
                 <ABLink
@@ -205,7 +204,7 @@ export default {
         contextRef.hide()
       } else {
         const containerRef = event.currentTarget
-        contextRef.show(containerRef, 'bottom', 'left', 0)
+        contextRef.show(containerRef, 'bottom', 'left', 10)
       }
     },
     getItemUrl(item) {
