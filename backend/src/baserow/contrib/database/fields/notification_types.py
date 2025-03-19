@@ -226,6 +226,10 @@ class UserMentionInRichTextFieldNotificationType(
         updated_field_ids: Optional[List[int]] = None,
     ) -> Iterable[Tuple["Field", "GeneratedTableModel", List[AbstractUser]]]:
         row_id_map = {row.id: row for row in rows}
+
+        if not rows:
+            return
+
         model = rows[0]._meta.model
         table = model.baserow_table
         workspace_user_ids = set(

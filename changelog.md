@@ -58,6 +58,7 @@
 * [Builder] Fix crash when creating a builder application after deleting another one
 * Fix error when syncing a table with a trashed field.
 * [Database] Fix the progress bar percentage when importing applications into the workspace.
+* [Database] Fix select option values in row history after API changes.
 
 ### Refactors
 * Upgrade vuelidate [#2805](https://gitlab.com/baserow/baserow/-/issues/2805)

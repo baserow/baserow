@@ -61,6 +61,10 @@
   width: 100%;
   gap: 10px;
   padding: 5px;
+  border-radius: 6px;
+
+  // We want the same color as page background
+  background-color: var(--page-background-color, #fff);
 }
 
 .menu-element__sub-link {
@@ -71,5 +75,5 @@
 }
 
 .menu-element__sub-link:hover {
-  background: $palette-neutral-100;
+  background: var(--page-background-color-contrast, $palette-neutral-100);
 }

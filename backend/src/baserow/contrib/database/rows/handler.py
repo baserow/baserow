@@ -340,11 +340,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         values = {}
         for field_id in updated_field_ids:
-            field = row._field_objects[field_id]
-            field_type = field["type"]
+            field_object = row.get_field_object_by_id(field_id, include_trash=True)
+            field_type = field_object["type"]
             if field_type.read_only:
                 continue
-            field_name = f"field_{field_id}"
+            field_name = field_object["name"]
             field_value = field_type.get_internal_value_from_db(row, field_name)
             values[field_name] = field_value
         return values
@@ -1207,21 +1207,24 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             )
             rows_values_refreshed_from_db = True
 
-        rows_created.send(
-            self,
-            rows=rows_to_return,
-            before=before_row,
-            user=user,
-            table=table,
-            model=model,
-            rows_values_refreshed_from_db=rows_values_refreshed_from_db,
-            send_realtime_update=send_realtime_update,
-            send_webhook_events=send_webhook_events,
-            prepared_rows_values=prepared_rows_values,
-            m2m_change_tracker=m2m_change_tracker,
-            fields=updated_fields,
-            dependant_fields=dependant_fields,
-        )
+        # rows_to_return might be empty if all the values were invalid, so don't
+        # send the signal and run callbacks on an empty list.
+        if rows_to_return:
+            rows_created.send(
+                self,
+                rows=rows_to_return,
+                before=before_row,
+                user=user,
+                table=table,
+                model=model,
+                rows_values_refreshed_from_db=rows_values_refreshed_from_db,
+                send_realtime_update=send_realtime_update,
+                send_webhook_events=send_webhook_events,
+                prepared_rows_values=prepared_rows_values,
+                m2m_change_tracker=m2m_change_tracker,
+                fields=updated_fields,
+                dependant_fields=dependant_fields,
+            )
 
         return CreatedRowsData(rows_to_return, report)
 
@@ -2029,8 +2032,16 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
             updated_rows_to_return, updated_fields, fields_metadata_by_row_id
         )
+        updated_rows_values = [
+            {
+                "id": updated_row.id,
+                **self.get_internal_values_for_fields(updated_row, updated_field_ids),
+            }
+            for updated_row in updated_rows_to_return
+        ]
         updated_rows = UpdatedRowsData(
             updated_rows_to_return,
+            updated_rows_values,
             original_row_values_by_id,
             fields_metadata_by_row_id,
             report,
