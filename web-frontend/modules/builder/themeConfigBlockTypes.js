@@ -11,6 +11,7 @@ import { FONT_WEIGHTS } from '@baserow/modules/builder/fontWeights'
 import {
   resolveColor,
   colorRecommendation,
+  colorContrast,
 } from '@baserow/modules/core/utils/colors'
 import {
   WIDTHS_NEW,
@@ -47,6 +48,12 @@ export class ThemeStyle {
   addColorRecommendationIfExists(theme, propName, styleName) {
     return this.addIfExists(theme, propName, styleName, (v) =>
       colorRecommendation(resolveColor(v, this.colorVariables))
+    )
+  }
+
+  addColorContrastIfExists(theme, propName, styleName) {
+    return this.addIfExists(theme, propName, styleName, (v) =>
+      colorContrast(resolveColor(v, this.colorVariables))
     )
   }
 
@@ -647,6 +654,16 @@ export class PageThemeConfigBlockType extends ThemeConfigBlockType {
       $registry: this.app.$registry,
     })
     style.addColorIfExists(theme, 'page_background_color')
+    style.addColorRecommendationIfExists(
+      theme,
+      'page_background_color',
+      '--page-background-color-complement'
+    )
+    style.addColorContrastIfExists(
+      theme,
+      'page_background_color',
+      '--page-background-color-contrast'
+    )
     style.addIfExists(
       theme,
       'page_background_file',

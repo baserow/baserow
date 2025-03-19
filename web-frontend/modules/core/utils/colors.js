@@ -263,3 +263,19 @@ export const colorRecommendation = (hexColor) => {
     return 'white'
   }
 }
+
+/**
+ * Return the color lighten or darken depending on the initial color.
+ * @param {string} hexColor The hex string of the color.
+ * @returns The contrasted color.
+ */
+export const colorContrast = (hexColor, amount = 10) => {
+  // l is the luminance
+  const hsl = conversionsMap.hex.hsl(hexColor)
+  if (hsl.l > 0.5) {
+    hsl.l -= amount / 100
+  } else {
+    hsl.l += amount / 100
+  }
+  return conversionsMap.hsl.hex(hsl)
+}
