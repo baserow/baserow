@@ -13,6 +13,7 @@
     </FormGroup>
     <RatingFormFields
       :default-values="defaultValues"
+      :color-variables="colorVariables"
       @values-changed="emitChange"
     />
   </form>

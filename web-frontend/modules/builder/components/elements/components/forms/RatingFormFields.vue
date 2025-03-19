@@ -24,7 +24,7 @@
       :horizontal="horizontal"
       required
     >
-      <ColorInput v-model="values.color" />
+      <ColorInput v-model="values.color" :color-variables="colorVariables" />
     </FormGroup>
 
     <FormGroup
@@ -76,13 +76,18 @@ export default {
       type: Boolean,
       default: false,
     },
+    colorVariables: {
+      type: Array,
+      default: () => [],
+      required: false,
+    },
   },
   setup() {
     return { v$: useVuelidate() }
   },
   data() {
     return {
-      values: { color: '', max_value: 5, rating_style: 'star' },
+      values: { color: 'primary', max_value: 5, rating_style: 'star' },
       allowedValues: ['color', 'max_value', 'rating_style'],
     }
   },

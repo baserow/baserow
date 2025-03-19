@@ -2,7 +2,7 @@
   <Rating
     :value="value"
     :max-value="maxValue"
-    :custom-color="color"
+    :custom-color="resolveColor(color, colorVariables)"
     :rating-style="ratingStyle || 'star'"
     read-only
     show-unselected

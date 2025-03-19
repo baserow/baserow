@@ -7,7 +7,7 @@
     <Rating
       :value="inputValue"
       :max-value="element.max_value"
-      :custom-color="element.color"
+      :custom-color="resolveColor(element.color, colorVariables)"
       :rating-style="element.rating_style || 'star'"
       show-unselected
       @update="inputValue = $event"

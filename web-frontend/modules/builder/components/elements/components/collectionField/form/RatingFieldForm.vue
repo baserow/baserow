@@ -12,6 +12,7 @@
     <RatingFormFields
       :default-values="defaultValues"
       horizontal
+      :color-variables="colorVariables"
       @values-changed="emitChange"
     />
   </form>

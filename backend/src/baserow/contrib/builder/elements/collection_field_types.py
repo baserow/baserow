@@ -63,7 +63,7 @@ class RatingCollectionFieldType(CollectionFieldType):
                 help_text="The color of the rating.",
                 required=False,
                 allow_blank=True,
-                default="",
+                default="primary",
             ),
             "rating_style": serializers.ChoiceField(
                 choices=RatingStyleChoices.choices,

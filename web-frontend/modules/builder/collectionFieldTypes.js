@@ -297,8 +297,8 @@ export class RatingCollectionFieldType extends CollectionFieldType {
     }
 
     return {
-      maxValue: field.max_value,
-      color: field.color || '#fcbb03',
+      maxValue: field.max_value || 5,
+      color: field.color || 'primary',
       ratingStyle: field.rating_style || 'star',
       value,
     }

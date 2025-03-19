@@ -609,7 +609,7 @@ class BaseRatingElement(Element):
         max_length=50,
         blank=False,
         help_text="Color of the symbols.",
-        default="dark-orange",
+        default="primary",
     )
     rating_style = models.CharField(
         choices=RatingStyleChoices,

@@ -3,7 +3,7 @@
     class="rating-element"
     :value="resolvedValue"
     :max-value="element.max_value"
-    :custom-color="element.color"
+    :custom-color="resolveColor(element.color, colorVariables)"
     :rating-style="element.rating_style || 'star'"
     read-only
     show-unselected
