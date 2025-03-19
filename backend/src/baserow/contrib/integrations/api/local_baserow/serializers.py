@@ -12,9 +12,14 @@ class LocalBaserowViewSerializer(serializers.ModelSerializer):
 
 
 class LocalBaserowTableSerializer(serializers.ModelSerializer):
+    is_data_sync = serializers.BooleanField(
+        source="is_data_synced_table",
+        help_text="Whether this table is a data synced table or not.",
+    )
+
     class Meta:
         model = Table
-        fields = ("id", "database_id", "name")
+        fields = ("id", "database_id", "name", "is_data_sync")
 
 
 class LocalBaserowDatabaseSerializer(ApplicationSerializer):

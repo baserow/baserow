@@ -40,6 +40,11 @@
           :key="table.id"
           :name="table.name"
           :value="table.id"
+          :description="
+            table.is_data_sync
+              ? $t('localBaserowTableSelector.dataSyncedTableDescription')
+              : null
+          "
         >
           {{ table.name }}
         </DropdownItem>
@@ -107,6 +112,11 @@ export default {
       },
       default: 'regular',
     },
+    disallowDataSyncedTables: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   data() {
     return {
@@ -120,7 +130,11 @@ export default {
       )
     },
     tables() {
-      return this.databaseSelected?.tables || []
+      return (
+        this.databaseSelected?.tables.filter(
+          (table) => !(this.disallowDataSyncedTables && table.is_data_sync)
+        ) || []
+      )
     },
     views() {
       return (
