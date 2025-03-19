@@ -3802,7 +3802,7 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
     assert response.status_code == HTTP_200_OK
-    assert response.json() == {
+    expected_output = {
         "count": 1,
         "next": None,
         "previous": None,
@@ -3854,10 +3854,28 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
                     f"field_{boolean_field.id}": True,
                     f"field_{phone_field.id}": "123456790",
                     f"field_{date_field.id}": "2023-06-07",
-                    f"field_{datetime_field.id}": "2023-06-06T13:00",
+                    f"field_{datetime_field.id}": "2023-06-06 13:00:00+00:00",
                     f"field_{file_field.id}": [
-                        {"name": file1.name, "visible_name": "file 1"},
-                        {"name": file2.name, "visible_name": "file 2"},
+                        {
+                            "image_height": None,
+                            "image_width": None,
+                            "is_image": True,
+                            "mime_type": "text/plain",
+                            "name": AnyStr(),
+                            "size": 100,
+                            "uploaded_at": AnyStr(),
+                            "visible_name": "file 1",
+                        },
+                        {
+                            "image_height": None,
+                            "image_width": None,
+                            "is_image": True,
+                            "mime_type": "text/plain",
+                            "name": AnyStr(),
+                            "size": 100,
+                            "uploaded_at": AnyStr(),
+                            "visible_name": "file 2",
+                        },
                     ],
                     f"field_{single_select_field.id}": option_b.id,
                     f"field_{multiple_select_field.id}": [
@@ -3984,6 +4002,7 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
             },
         ],
     }
+    assert response.json() == expected_output
 
 
 @pytest.mark.django_db

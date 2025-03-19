@@ -826,3 +826,104 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
     ]
 
     assert list(history_entries) == expected_entries
+
+
+@pytest.mark.django_db
+@pytest.mark.row_history
+def test_update_rows_insert_entries_in_linked_rows_history_with_values(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(
+        user=user, database=database
+    )
+    primary_a = table_a.get_primary_field()
+    primary_b = table_b.get_primary_field()
+    link_b_to_a = link_a_to_b.link_row_related_field
+
+    row_handler = RowHandler()
+
+    row_b1, row_b2 = row_handler.force_create_rows(
+        user, table_b, [{primary_b.db_column: "b1"}, {primary_b.db_column: "b2"}]
+    ).created_rows
+    row_a1 = row_handler.force_create_row(user, table_a, {primary_a.id: "a1"})
+
+    with freeze_time("2021-01-01 12:00"):
+        action_type_registry.get_by_type(UpdateRowsActionType).do(
+            user,
+            table_a,
+            [
+                {"id": row_a1.id, link_a_to_b.db_column: ["b1", "b2"]},
+            ],
+        )
+    assert RowHistory.objects.count() == 3
+
+    history_entries = RowHistory.objects.order_by("table_id", "row_id").values(
+        "user_id",
+        "user_name",
+        "table_id",
+        "row_id",
+        "action_timestamp",
+        "action_type",
+        "before_values",
+        "after_values",
+        "fields_metadata",
+    )
+
+    expected_entries = [
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table_a.id,
+            "row_id": 1,
+            "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
+            "action_type": "update_rows",
+            "before_values": {link_a_to_b.db_column: []},
+            "after_values": {link_a_to_b.db_column: [1, 2]},
+            "fields_metadata": {
+                link_a_to_b.db_column: {
+                    "id": link_a_to_b.id,
+                    "type": "link_row",
+                    "linked_rows": {"1": {"value": "b1"}, "2": {"value": "b2"}},
+                    "primary_value": "a1",
+                    "linked_field_id": link_b_to_a.id,
+                    "linked_table_id": table_b.id,
+                }
+            },
+        },
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table_b.id,
+            "row_id": 1,
+            "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
+            "action_type": "update_rows",
+            "before_values": {link_b_to_a.db_column: []},
+            "after_values": {link_b_to_a.db_column: [1]},
+            "fields_metadata": {
+                link_b_to_a.db_column: {
+                    "id": link_b_to_a.id,
+                    "type": "link_row",
+                    "linked_rows": {"1": {"value": "a1"}},
+                }
+            },
+        },
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table_b.id,
+            "row_id": 2,
+            "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
+            "action_type": "update_rows",
+            "before_values": {link_b_to_a.db_column: []},
+            "after_values": {link_b_to_a.db_column: [1]},
+            "fields_metadata": {
+                link_b_to_a.db_column: {
+                    "id": link_b_to_a.id,
+                    "type": "link_row",
+                    "linked_rows": {"1": {"value": "a1"}},
+                }
+            },
+        },
+    ]
+
+    assert list(history_entries) == expected_entries
