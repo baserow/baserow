@@ -340,11 +340,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         values = {}
         for field_id in updated_field_ids:
-            field = row._field_objects[field_id]
-            field_type = field["type"]
+            field_object = row.get_field_object_by_id(field_id, include_trash=True)
+            field_type = field_object["type"]
             if field_type.read_only:
                 continue
-            field_name = f"field_{field_id}"
+            field_name = field_object["name"]
             field_value = field_type.get_internal_value_from_db(row, field_name)
             values[field_name] = field_value
         return values
@@ -2029,8 +2029,16 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
             updated_rows_to_return, updated_fields, fields_metadata_by_row_id
         )
+        updated_rows_values = [
+            {
+                "id": updated_row.id,
+                **self.get_internal_values_for_fields(updated_row, updated_field_ids),
+            }
+            for updated_row in updated_rows_to_return
+        ]
         updated_rows = UpdatedRowsData(
             updated_rows_to_return,
+            updated_rows_values,
             original_row_values_by_id,
             fields_metadata_by_row_id,
             report,

@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix select option values in row history after API changes",
+    "domain": "database",
+    "issue_number": 2509,
+    "bullet_points": [],
+    "created_at": "2025-03-18"
+}
