@@ -1207,21 +1207,24 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             )
             rows_values_refreshed_from_db = True
 
-        rows_created.send(
-            self,
-            rows=rows_to_return,
-            before=before_row,
-            user=user,
-            table=table,
-            model=model,
-            rows_values_refreshed_from_db=rows_values_refreshed_from_db,
-            send_realtime_update=send_realtime_update,
-            send_webhook_events=send_webhook_events,
-            prepared_rows_values=prepared_rows_values,
-            m2m_change_tracker=m2m_change_tracker,
-            fields=updated_fields,
-            dependant_fields=dependant_fields,
-        )
+        # rows_to_return might be empty if all the values were invalid, so don't
+        # send the signal and run callbacks on an empty list.
+        if rows_to_return:
+            rows_created.send(
+                self,
+                rows=rows_to_return,
+                before=before_row,
+                user=user,
+                table=table,
+                model=model,
+                rows_values_refreshed_from_db=rows_values_refreshed_from_db,
+                send_realtime_update=send_realtime_update,
+                send_webhook_events=send_webhook_events,
+                prepared_rows_values=prepared_rows_values,
+                m2m_change_tracker=m2m_change_tracker,
+                fields=updated_fields,
+                dependant_fields=dependant_fields,
+            )
 
         return CreatedRowsData(rows_to_return, report)
 

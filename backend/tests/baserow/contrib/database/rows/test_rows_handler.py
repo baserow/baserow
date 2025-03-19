@@ -1797,3 +1797,13 @@ def test_can_move_rows_and_formulas_are_updated_correctly(data_fixture):
     row_a2.refresh_from_db()
     assert getattr(row_a1, lookup_a.db_column) == "b1"
     assert getattr(row_a2, lookup_a.db_column) == "b2"
+
+
+@pytest.mark.django_db
+def test_rows_created_is_not_sent_if_there_are_no_rows_to_create(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table()
+    with patch("baserow.contrib.database.rows.signals.rows_created.send") as mock:
+        RowHandler().force_create_rows(user, table, [])
+
+        assert mock.call_count == 0
