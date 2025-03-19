@@ -1,6 +1,6 @@
 # Changelog
 
-## Released 1.32.1
+## Released 1.32.0
 
 ### New features
 * Add support for collaborator fields in form views. [#1554](https://gitlab.com/baserow/baserow/-/issues/1554)
