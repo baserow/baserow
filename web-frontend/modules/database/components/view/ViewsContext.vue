@@ -1,6 +1,6 @@
 <template>
   <Context
-    ref="viewsContext"
+    ref="context"
     class="select"
     max-height-if-outside-viewport
     @shown="shown"

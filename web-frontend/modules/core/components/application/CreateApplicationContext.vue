@@ -1,5 +1,6 @@
 <template>
   <Context
+    ref="context"
     overflow-scroll
     max-height-if-outside-viewport
     class="create-application-context"

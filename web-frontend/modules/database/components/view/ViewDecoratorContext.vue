@@ -1,5 +1,5 @@
 <template>
-  <Context max-height-if-outside-viewport>
+  <Context ref="context" max-height-if-outside-viewport>
     <ViewDecoratorList
       v-if="activeDecorations.length === 0"
       :database="database"

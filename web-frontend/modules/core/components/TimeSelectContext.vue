@@ -1,5 +1,6 @@
 <template>
   <Context
+    ref="context"
     :hide-on-click-outside="hideOnClickOutside"
     class="time-select"
     max-height-if-outside-viewport
