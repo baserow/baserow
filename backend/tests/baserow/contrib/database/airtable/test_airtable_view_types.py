@@ -268,6 +268,65 @@ def test_import_grid_view():
     }
 
 
+def test_import_personal_view():
+    raw_airtable_table = deepcopy(RAW_AIRTABLE_TABLE)
+    raw_airtable_table["views"][0]["personalForUserId"] = "usr1234"
+    raw_airtable_view = raw_airtable_table["views"][0]
+
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        FIELD_MAPPING,
+        ROW_ID_MAPPING,
+        raw_airtable_table,
+        raw_airtable_view,
+        RAW_AIRTABLE_GRID_VIEW_DATA,
+        AirtableImportConfig(),
+        import_report,
+    )
+
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Grid view"
+    assert import_report.items[0].scope == SCOPE_VIEW
+    assert import_report.items[0].table == "Data"
+    assert serialized_view["name"] == "Grid view (Personal)"
+
+
+def test_import_locked_view():
+    raw_airtable_table = deepcopy(RAW_AIRTABLE_TABLE)
+    raw_airtable_table["views"][0]["lock"] = {
+        "lockLevelToEditViewName": "locked",
+        "lockLevelToEditViewDescription": "locked",
+        "lockLevelToEditViewLayout": "locked",
+        "lockLevelToEditViewConfig": "locked",
+        "lockLevelToCreateShareLink": "locked",
+        "lockLevelToDestroyView": "locked",
+        "allowFormSubmitterToIgnoreLockLevel": False,
+        "shouldWorkflowsRespectLockLevel": False,
+        "userId": "usripyu12348WK3n",
+        "description": None,
+    }
+    raw_airtable_view = raw_airtable_table["views"][0]
+
+    import_report = AirtableImportReport()
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        FIELD_MAPPING,
+        ROW_ID_MAPPING,
+        raw_airtable_table,
+        raw_airtable_view,
+        RAW_AIRTABLE_GRID_VIEW_DATA,
+        AirtableImportConfig(),
+        import_report,
+    )
+
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Grid view"
+    assert import_report.items[0].scope == SCOPE_VIEW
+    assert import_report.items[0].table == "Data"
+    assert serialized_view["name"] == "Grid view"
+
+
 def test_import_grid_view_xlarge_row_height():
     view_data = deepcopy(RAW_AIRTABLE_GRID_VIEW_DATA)
     view_data["metadata"]["grid"]["rowHeight"] = "xlarge"

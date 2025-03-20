@@ -19,6 +19,7 @@ from baserow.contrib.database.airtable.import_report import (
     ERROR_TYPE_DATA_TYPE_MISMATCH,
     ERROR_TYPE_UNSUPPORTED_FEATURE,
     SCOPE_FIELD,
+    SCOPE_VIEW,
     SCOPE_VIEW_COLOR,
     SCOPE_VIEW_FILTER,
     SCOPE_VIEW_GROUP_BY,
@@ -681,6 +682,36 @@ class AirtableViewType(Instance):
         else:
             return []
 
+    def _check_personal_or_locked(
+        self,
+        view_name: str,
+        raw_airtable_view: dict,
+        raw_airtable_table: dict,
+        import_report: AirtableImportReport,
+    ) -> str:
+        if raw_airtable_view.get("personalForUserId", ""):
+            import_report.add_failed(
+                view_name,
+                SCOPE_VIEW,
+                raw_airtable_table["name"],
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f'View "{view_name}" is personal, but was made collaborative because '
+                f"it can't be linked to a user. (Personal) was added to the name.",
+            )
+            view_name += " (Personal)"
+
+        if raw_airtable_view.get("lock", None):
+            import_report.add_failed(
+                view_name,
+                SCOPE_VIEW,
+                raw_airtable_table["name"],
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f'View "{view_name}" is locked, but was made collaborative because '
+                f"it Baserow does not support this yet.",
+            )
+
+        return view_name
+
     def to_serialized_baserow_view(
         self,
         field_mapping,
@@ -696,11 +727,16 @@ class AirtableViewType(Instance):
                 "The `baserow_view_type` must be implemented for the AirtableViewType."
             )
 
+        view_name = raw_airtable_view["name"]
+        view_name = self._check_personal_or_locked(
+            view_name, raw_airtable_view, raw_airtable_table, import_report
+        )
+
         view_type = view_type_registry.get(self.baserow_view_type)
         view = view_type.model_class(
             id=raw_airtable_view["id"],
             pk=raw_airtable_view["id"],
-            name=raw_airtable_view["name"],
+            name=view_name,
             order=raw_airtable_table["viewOrder"].index(raw_airtable_view["id"]) + 1,
         )
 
