@@ -110,6 +110,10 @@ export default {
           value: RATING_STYLES.FLAG,
           name: this.$t('ratingElementForm.flag'),
         },
+        {
+          value: RATING_STYLES.SMILE,
+          name: this.$t('ratingElementForm.smile'),
+        },
       ]
     },
   },

@@ -44,4 +44,5 @@ export const RATING_STYLES = {
   HEART: 'heart',
   THUMBS_UP: 'thumbs-up',
   FLAG: 'flag',
+  SMILE: 'smile',
 }

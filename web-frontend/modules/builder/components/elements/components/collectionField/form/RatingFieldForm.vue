@@ -2,7 +2,7 @@
   <form @submit.prevent @keydown.enter.prevent>
     <FormGroup
       small-label
-      :label="$t('ratingElementForm.value')"
+      :label="$t('ratingFieldForm.value')"
       class="margin-bottom-2"
       horizontal
       required
@@ -21,7 +21,7 @@
 <script>
 import collectionFieldForm from '@baserow/modules/builder/mixins/collectionFieldForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import RatingFormFields from '../../forms/RatingFormFields.vue'
+import RatingFormFields from '@baserow/modules/builder/components/elements/components/forms/RatingFormFields'
 
 export default {
   name: 'RatingFieldForm',

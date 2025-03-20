@@ -16,7 +16,7 @@ import formElement from '@baserow/modules/builder/mixins/formElement'
 import { ensurePositiveInteger } from '@baserow/modules/core/utils/validator'
 
 export default {
-  name: 'RatingInputElement',
+  name: 'RatingElement',
   components: {
     Rating,
   },

@@ -1008,15 +1008,13 @@
     "value": "Value"
   },
   "ratingElementForm": {
-    "value": "Value",
-    "valuePlaceholder": "Enter a value or formula",
     "maxValue": "Maximum",
     "color": "Color",
     "ratingStyle": "Style",
     "star": "Star",
     "heart": "Heart",
+    "smile": "Smile",
     "thumbsUp": "Thumbs Up",
-    "flag": "Flag",
-    "editable": "Use as form input"
+    "flag": "Flag"
   }
 }
