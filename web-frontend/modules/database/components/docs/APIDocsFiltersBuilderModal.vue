@@ -1,5 +1,5 @@
 <template>
-  <Modal :wide="true">
+  <Modal ref="modal" :wide="true">
     <h2 class="box__title">{{ $t('apiDocsFiltersBuilderModal.title') }}</h2>
     <div class="control margin-bottom-2">
       <div class="control__elements">

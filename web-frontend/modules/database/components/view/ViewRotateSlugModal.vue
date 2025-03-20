@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">{{ $t('viewRotateSlugModal.title') }}</h2>
     <Error :error="error"></Error>
     <div>

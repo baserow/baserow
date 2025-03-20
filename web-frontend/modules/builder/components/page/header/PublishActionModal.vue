@@ -1,5 +1,5 @@
 <template>
-  <Modal @show="onShow()">
+  <Modal ref="modal" @show="onShow()">
     <h2 class="box__title">
       {{ $t('publishActionModal.title') }}
     </h2>

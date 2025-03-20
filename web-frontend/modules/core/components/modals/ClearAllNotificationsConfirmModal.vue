@@ -1,5 +1,5 @@
 <template>
-  <Modal small>
+  <Modal ref="modal" small>
     <h2 class="box__title">
       {{ $t('clearAllNotificationsConfirmModal.title') }}
     </h2>

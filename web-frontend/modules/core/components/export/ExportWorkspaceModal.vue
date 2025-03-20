@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{ $t('exportWorkspaceModal.title') }} {{ workspace.name }}
     </h2>
