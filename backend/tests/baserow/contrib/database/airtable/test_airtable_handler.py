@@ -11,7 +11,10 @@ import pytest
 import responses
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
-from baserow.contrib.database.airtable.exceptions import AirtableShareIsNotABase
+from baserow.contrib.database.airtable.exceptions import (
+    AirtableBaseRequiresAuthentication,
+    AirtableShareIsNotABase,
+)
 from baserow.contrib.database.airtable.handler import AirtableHandler
 from baserow.contrib.database.airtable.job_types import AirtableImportJobType
 from baserow.contrib.database.airtable.models import AirtableImportJob
@@ -42,7 +45,8 @@ def test_fetch_publicly_shared_base():
         )
 
         request_id, init_data, cookies = AirtableHandler.fetch_publicly_shared_base(
-            "appZkaH3aWX3ZjT3b"
+            "appZkaH3aWX3ZjT3b",
+            AirtableImportConfig(),
         )
         assert request_id == "req8wbZoh7Be65osz"
         assert init_data["pageLoadId"] == "pglUrFAGTNpbxUymM"
@@ -62,7 +66,27 @@ def test_fetch_publicly_shared_base_not_base_request_id_missing():
     )
 
     with pytest.raises(AirtableShareIsNotABase):
-        AirtableHandler.fetch_publicly_shared_base(share_id)
+        AirtableHandler.fetch_publicly_shared_base(
+            share_id,
+            AirtableImportConfig(),
+        )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_fetch_publicly_shared_base_with_authentication():
+    responses.add(
+        responses.GET,
+        "https://airtable.com/appZkaH3aWX3ZjT3b",
+        status=200,
+        body="Sign in",
+        headers={"Set-Cookie": "brw=test;"},
+    )
+    with pytest.raises(AirtableBaseRequiresAuthentication):
+        AirtableHandler.fetch_publicly_shared_base(
+            "appZkaH3aWX3ZjT3b",
+            AirtableImportConfig(),
+        )
 
 
 @pytest.mark.django_db
@@ -84,7 +108,8 @@ def test_fetch_table():
             headers={"Set-Cookie": "brw=test;"},
         )
         request_id, init_data, cookies = AirtableHandler.fetch_publicly_shared_base(
-            "appZkaH3aWX3ZjT3b"
+            "appZkaH3aWX3ZjT3b",
+            AirtableImportConfig(),
         )
 
     cookies = {
@@ -236,7 +261,7 @@ def test_to_baserow_database_export():
         )
 
     init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
-        "appZkaH3aWX3ZjT3b"
+        "appZkaH3aWX3ZjT3b", AirtableImportConfig()
     )
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
         init_data, schema, tables, AirtableImportConfig()
@@ -479,7 +504,7 @@ def test_config_skip_files(tmpdir, data_fixture):
         )
 
     init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
-        "appZkaH3aWX3ZjT3b"
+        "appZkaH3aWX3ZjT3b", AirtableImportConfig()
     )
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
         init_data, schema, tables, AirtableImportConfig(skip_files=True)
@@ -570,7 +595,7 @@ def test_to_baserow_database_export_without_primary_value():
         )
 
     init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
-        "appZkaH3aWX3ZjT3b"
+        "appZkaH3aWX3ZjT3b", AirtableImportConfig()
     )
 
     # Rename the primary column so that we depend on the fallback in the migrations.

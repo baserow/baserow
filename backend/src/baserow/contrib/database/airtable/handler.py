@@ -43,6 +43,7 @@ from baserow.core.utils import (
 from .config import AirtableImportConfig
 from .exceptions import (
     AirtableBaseNotPublic,
+    AirtableBaseRequiresAuthentication,
     AirtableImportNotRespectingConfig,
     AirtableShareIsNotABase,
     AirtableSkipCellValue,
@@ -76,23 +77,32 @@ BASE_HEADERS = {
 
 class AirtableHandler:
     @staticmethod
-    def fetch_publicly_shared_base(share_id: str) -> Tuple[str, dict, dict]:
+    def fetch_publicly_shared_base(
+        share_id: str, config: AirtableImportConfig
+    ) -> Tuple[str, dict, dict]:
         """
         Fetches the initial page of the publicly shared page. It will parse the content
         and extract and return the initial data needed for future requests.
 
         :param share_id: The Airtable share id of the page that must be fetched. Note
             that the base must be shared publicly. The id stars with `shr`.
+        :param config: Additional configuration related to the import.
         :raises AirtableShareIsNotABase: When the URL doesn't point to a shared base.
         :return: The request ID, initial data and the cookies of the response.
         """
 
         url = f"{AIRTABLE_BASE_URL}/{share_id}"
-        response = requests.get(url, headers=BASE_HEADERS)  # nosec B113
+        response = requests.get(
+            url, headers=BASE_HEADERS, cookies=config.get_session_cookies()
+        )  # nosec B113
 
         if not response.ok:
             raise AirtableBaseNotPublic(
                 f"The base with share id {share_id} is not public."
+            )
+        elif "Sign in" in response.text:
+            raise AirtableBaseRequiresAuthentication(
+                f"The base with share id {share_id} requires authentication."
             )
 
         decoded_content = remove_invalid_surrogate_characters(response.content)
@@ -104,6 +114,7 @@ class AirtableHandler:
         raw_init_data = re.search("window.initData = (.*);\n", decoded_content).group(1)
         init_data = json.loads(raw_init_data)
         cookies = response.cookies.get_dict()
+        cookies.update(**config.get_session_cookies())
 
         if "sharedApplicationId" not in raw_init_data:
             raise AirtableShareIsNotABase("The `shared_id` is not a base.")
@@ -825,12 +836,12 @@ class AirtableHandler:
     def fetch_and_combine_airtable_data(
         cls,
         share_id: str,
+        config: AirtableImportConfig,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> Union[dict, dict, list]:
         """
-        @TODO docs
-
         :param share_id: The shared Airtable ID of which the data must be fetched.
+        :param config: Additional configuration related to the import.
         :param progress_builder: If provided will be used to build a child progress bar
             and report on this methods progress to the parent of the progress_builder.
         :return: The fetched init_data, schema, and list of tables enrichted with all
@@ -841,7 +852,9 @@ class AirtableHandler:
 
         # Execute the initial request to obtain the initial data that's needed to
         # make the request.
-        request_id, init_data, cookies = cls.fetch_publicly_shared_base(share_id)
+        request_id, init_data, cookies = cls.fetch_publicly_shared_base(
+            share_id, config
+        )
         progress.increment(state=AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE)
 
         # Loop over all the tables and make a request for each table to obtain the raw
@@ -946,6 +959,7 @@ class AirtableHandler:
 
         init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
             share_id,
+            config,
             progress.create_child_builder(represents_progress=100),
         )
 

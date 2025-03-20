@@ -41,12 +41,21 @@ class Command(BaseCommand):
             action="store_true",
             help="When provided, the files will not be downloaded and imported.",
         )
+        parser.add_argument(
+            "--airtable-session",
+            type=str,
+            default="",
+            help="",
+        )
+        parser.add_argument("--airtable-signature", type=str, help="", default="")
 
     @transaction.atomic
     def handle(self, *args, **options):
         workspace_id = options["workspace_id"]
         public_base_url = options["public_base_url"]
         skip_files = options["skip_files"]
+        airtable_session = options["airtable_session"]
+        airtable_signature = options["airtable_signature"]
 
         try:
             workspace = Workspace.objects.get(pk=workspace_id)
@@ -73,7 +82,11 @@ class Command(BaseCommand):
 
             try:
                 with NamedTemporaryFile() as download_files_buffer:
-                    config = AirtableImportConfig(skip_files=skip_files)
+                    config = AirtableImportConfig(
+                        skip_files=skip_files,
+                        session=airtable_session,
+                        session_signature=airtable_signature,
+                    )
                     AirtableHandler.import_from_airtable_to_workspace(
                         workspace,
                         share_id,

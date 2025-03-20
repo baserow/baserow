@@ -7,6 +7,7 @@ from baserow.api.applications.serializers import (
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
 from baserow.contrib.database.airtable.exceptions import (
     AirtableBaseNotPublic,
+    AirtableBaseRequiresAuthentication,
     AirtableShareIsNotABase,
 )
 from baserow.contrib.database.airtable.models import AirtableImportJob
@@ -41,6 +42,7 @@ class AirtableImportJobType(JobType):
         AirtableBaseNotPublic: "The Airtable base is not publicly shared.",
         AirtableShareIsNotABase: "The shared link is not a base. It's probably a "
         "view and the Airtable import tool only supports shared bases.",
+        AirtableBaseRequiresAuthentication: "The Airtable base requires authentication.",
     }
 
     request_serializer_field_names = [
@@ -48,6 +50,8 @@ class AirtableImportJobType(JobType):
         "database_id",
         "airtable_share_url",
         "skip_files",
+        "session",
+        "session_signature",
     ]
 
     request_serializer_field_overrides = {
@@ -63,6 +67,16 @@ class AirtableImportJobType(JobType):
         "skip_files": serializers.BooleanField(
             default=False,
             help_text="If true, then the files are not downloaded and imported.",
+        ),
+        "session": serializers.CharField(
+            default=None,
+            allow_null=True,
+            help_text="Optionally provide a session object that's used as authentication.",
+        ),
+        "session_signature": serializers.CharField(
+            default=None,
+            allow_null=True,
+            help_text="The matching session signature if a session is provided.",
         ),
     }
 
@@ -103,6 +117,8 @@ class AirtableImportJobType(JobType):
             "airtable_share_id": airtable_share_id,
             "workspace": workspace,
             "skip_files": values.get("skip_files", False),
+            "session": values.get("session", None),
+            "session_signature": values.get("session_signature", None),
         }
 
     def run(self, job, progress):
@@ -113,6 +129,8 @@ class AirtableImportJobType(JobType):
             job.workspace,
             job.airtable_share_id,
             job.skip_files,
+            job.session,
+            job.session_signature,
             progress_builder=progress.create_child_builder(
                 represents_progress=progress.total
             ),
