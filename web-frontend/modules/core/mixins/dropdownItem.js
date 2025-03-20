@@ -1,7 +1,7 @@
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
 
 export default {
-  inject: ['multiple'],
+  inject: ['multiple', 'dropdownProvider'],
   props: {
     value: {
       validator: () => true,
@@ -72,6 +72,18 @@ export default {
       }
       return parent
     },
+  },
+  mounted() {
+    // Register with parent dropdown
+    if (this.dropdownProvider && this.dropdownProvider.registerDropdownItem) {
+      this.dropdownProvider.registerDropdownItem(this)
+    }
+  },
+  beforeDestroy() {
+    // Unregister from parent dropdown
+    if (this.dropdownProvider && this.dropdownProvider.unregisterDropdownItem) {
+      this.dropdownProvider.unregisterDropdownItem(this)
+    }
   },
   methods: {
     select(value, disabled) {
