@@ -3,43 +3,119 @@ from typing import Optional
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 
+from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Application
-from baserow.core.operations import ListApplicationsWorkspaceOperationType
+from baserow.core.models import Application, Workspace
+from baserow.core.operations import (
+    ListApplicationsWorkspaceOperationType,
+    ReadApplicationOperationType,
+)
+from baserow.core.registries import application_type_registry
 
 
 class CoreService:
     def __init__(self):
         self.handler = CoreHandler()
 
+    def _filter_specific_queryset(self, user: AbstractUser, workspace: Workspace):
+        return lambda model, queryset: application_type_registry.get_by_model(
+            model
+        ).enhance_and_filter_queryset(queryset, user, workspace)
+
     def list_applications_in_workspace(
         self,
         user: AbstractUser,
-        workspace_id: int,
+        workspace: int | Workspace,
+        specific: bool = True,
         base_queryset: Optional[QuerySet] = None,
-    ) -> QuerySet:
+    ) -> QuerySet[Application]:
         """
         Get a list of all the applications in a workspace.
 
         :param user: The user trying to access the applications
-        :param workspace_id: The id of the workspace that has the applications
+        :param workspace: The workspace instance or the id of the workspace where the
+            applications must be listed. If the workspace is an integer, the workspace
+            will be fetched from the database and the permissions will be checked.
+            If a workspace instance is provided, the permissions will not be checked as
+            it is assumed that the workspace is already checked.
+        :param specific: If True the specific applications will be returned instead of
+            the base applications. Set this to False if you only need the base
+            applications to prevent unnecessary queries.
         :param base_queryset: The base queryset from where to select the applications
         :return: A list of applications
         """
 
-        if base_queryset is None:
-            base_queryset = Application.objects
+        if not isinstance(workspace, Workspace):
+            workspace = self.handler.get_workspace(workspace)
 
-        workspace = self.handler.get_workspace(workspace_id)
-        base_queryset = base_queryset.filter(
-            workspace=workspace, workspace__trashed=False
+            self.handler.check_permissions(
+                user,
+                ListApplicationsWorkspaceOperationType.type,
+                workspace=workspace,
+                context=workspace,
+            )
+
+        application_qs = self.handler.list_applications_in_workspace(
+            workspace, base_queryset
         )
 
-        base_queryset = CoreHandler().filter_queryset(
+        application_qs = self.handler.filter_queryset(
             user,
             ListApplicationsWorkspaceOperationType.type,
-            base_queryset,
+            application_qs,
             workspace=workspace,
         )
 
-        return self.handler.list_applications_in_workspace(workspace_id, base_queryset)
+        if specific:
+            application_qs = self.handler.filter_specific_applications(
+                application_qs,
+                per_content_type_queryset_hook=self._filter_specific_queryset(
+                    user, workspace
+                ),
+            )
+
+        return application_qs
+
+    def get_application(
+        self,
+        user: AbstractUser,
+        application_id: int,
+        specific: bool = True,
+        base_queryset: Optional[QuerySet] = None,
+    ) -> Application:
+        """
+        Returns the application with the given id if the user has the right permissions.
+
+        :param user: The user on whose behalf the application is requested.
+        :param application_id: The identifier of the application that must be returned.
+        :param specific: If True the specific application will be returned instead of
+            the base application. Set this to False if you only need the base
+            application to prevent unnecessary queries.
+        :param base_queryset: The base queryset from where to select the application
+            object.
+        :raises UserNotInWorkspace: If the user does not belong to the workspace of
+            the application.
+        :return: The requested application instance of the provided id.
+        """
+
+        application = self.handler.get_application(
+            application_id, base_queryset=base_queryset
+        )
+
+        CoreHandler().check_permissions(
+            user,
+            ReadApplicationOperationType.type,
+            workspace=application.workspace,
+            context=application,
+        )
+
+        if specific:
+            application = specific_iterator(
+                [application],
+                per_content_type_queryset_hook=self._filter_specific_queryset(
+                    user, application.workspace
+                ),
+                base_model=Application,
+            )[0]
+
+        return application

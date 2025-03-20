@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import transaction
+from django.db.models import Prefetch, QuerySet
 from django.db.transaction import Atomic
 from django.urls import include, path
 
@@ -17,11 +18,13 @@ from baserow.contrib.builder.builder_beta_init_application import (
 )
 from baserow.contrib.builder.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.operations import ListPagesBuilderOperationType
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.handler import ThemeHandler
 from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.contrib.builder.types import BuilderDict
+from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.models import Application, Workspace
@@ -494,9 +497,56 @@ class BuilderApplicationType(ApplicationType):
         except Domain.DoesNotExist:
             return None
 
-    def enhance_queryset(self, queryset):
+    def _get_base_enhanced_queryset(self, queryset):
         queryset = queryset.select_related("favicon_file").prefetch_related(
-            "user_sources", "integrations", "page_set"
+            "user_sources", "integrations"
         )
-        queryset = theme_config_block_registry.enhance_list_builder_queryset(queryset)
-        return queryset
+        return theme_config_block_registry.enhance_list_builder_queryset(queryset)
+
+    def enhance_queryset(self, queryset):
+        enhanced_queryset = self._get_base_enhanced_queryset(queryset)
+        return enhanced_queryset.prefetch_related("page_set")
+
+    def enhance_and_filter_queryset(
+        self,
+        queryset: QuerySet[Builder],
+        user: AbstractUser,
+        workspace: Workspace,
+    ) -> QuerySet[Builder]:
+        enhanced_queryset = self._get_base_enhanced_queryset(queryset)
+        return enhanced_queryset.prefetch_related(
+            Prefetch(
+                "page_set",
+                queryset=CoreHandler().filter_queryset(
+                    user,
+                    ListPagesBuilderOperationType.type,
+                    Page.objects.select_related("builder__workspace").all(),
+                    workspace=workspace,
+                ),
+                to_attr="pages",
+            ),
+        )
+
+    def fetch_pages_to_serialize(
+        self, builder: Builder, user: AbstractUser | None
+    ) -> List[Page]:
+        """
+        Serializes the pages of the builder application, making sure that the user has
+        the correct permissions to view them if provided, and fetching the related
+        elements and data sources correctly so additional queries are not needed.
+
+        :param builder: The builder application instance.
+        :param user: The user trying to access the pages.
+        :return: A list of serialized pages that belong to this instance with all
+            related elements and data sources fetched correctly.
+        """
+
+        base_queryset = Builder.objects.filter(id=builder.id)
+        if user:
+            instance = self.enhance_and_filter_queryset(
+                base_queryset, user, builder.workspace
+            ).first()
+            return instance and instance.pages or []
+        else:
+            instance = self.enhance_queryset(base_queryset).first()
+            return instance and list(instance.page_set.all()) or []

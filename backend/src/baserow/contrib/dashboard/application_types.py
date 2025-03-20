@@ -1,7 +1,9 @@
 from typing import cast
 
+from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import transaction
+from django.db.models import QuerySet
 from django.db.transaction import Atomic
 from django.urls import include, path
 
@@ -197,3 +199,11 @@ class DashboardApplicationType(ApplicationType):
             widgets_progress.increment()
 
         return application
+
+    def enhance_and_filter_queryset(
+        self,
+        queryset: QuerySet[Dashboard],
+        user: AbstractUser,
+        workspace: Workspace,
+    ) -> QuerySet[Dashboard]:
+        return queryset
