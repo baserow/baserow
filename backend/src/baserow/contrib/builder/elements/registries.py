@@ -503,16 +503,17 @@ class CollectionFieldType(
         # Generate a new `uid` for this collection field.
         deserialized_uid = str(uuid.uuid4())
 
-        # Ensure we have a mapping for the collection field uids.
-        if "builder_collection_fields_uids" not in id_mapping:
-            id_mapping["builder_collection_fields_uids"] = {}
+        if "uid" in serialized_values:
+            # Ensure we have a mapping for the collection field uids.
+            if "builder_collection_fields_uids" not in id_mapping:
+                id_mapping["builder_collection_fields_uids"] = {}
 
-        # Map the old uid to the new uid. This ensures that any workflow
-        # actions with an `event` pointing to the old uid will have the
-        # pointer to the new uid.
-        id_mapping["builder_collection_fields_uids"][
-            serialized_values["uid"]
-        ] = deserialized_uid
+            # Map the old uid to the new uid. This ensures that any workflow
+            # actions with an `event` pointing to the old uid will have the
+            # pointer to the new uid.
+            id_mapping["builder_collection_fields_uids"][
+                serialized_values["uid"]
+            ] = deserialized_uid
 
         deserialized_values = {
             "uid": deserialized_uid,

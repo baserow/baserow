@@ -51,7 +51,7 @@ class BuilderWorkflowAction(
         """
 
         default_event_types = [e.value for e in EventTypes]
-        return event not in default_event_types
+        return event and event not in default_event_types
 
     @property
     def target(self) -> Union[Element, CollectionField]:

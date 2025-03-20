@@ -8,6 +8,7 @@ from baserow.contrib.builder.workflow_actions.models import (
 
 
 def test_builder_workflow_action_is_collection_field_action():
+    assert not BuilderWorkflowAction.is_collection_field_action("")
     assert not BuilderWorkflowAction.is_collection_field_action("click")
     assert BuilderWorkflowAction.is_collection_field_action(
         "f1594a0a-3ff0-4c8c-a175-992039b11411_click"
