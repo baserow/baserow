@@ -144,7 +144,9 @@
         "singleSelectRadios": "라디오 버튼",
         "autonumber": "자동 번호",
         "password": "비밀번호",
-        "ai": "AI 프롬프트"
+        "ai": "AI 프롬프트",
+        "multipleCollaboratorsDropdown": "드롭다운",
+        "multipleCollaboratorsCheckboxes": "체크박스"
     },
     "fieldErrors": {
         "invalidNumber": "유효하지 않은 숫자",
