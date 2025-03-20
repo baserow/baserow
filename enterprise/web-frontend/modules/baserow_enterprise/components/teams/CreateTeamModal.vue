@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="margin-bottom-1">{{ $t('createTeamModal.title') }}</h2>
     <p>{{ $t('manageTeamModals.subheading') }}</p>
     <Error :error="error"></Error>

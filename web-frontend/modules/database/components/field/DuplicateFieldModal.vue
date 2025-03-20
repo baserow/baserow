@@ -1,5 +1,5 @@
 <template>
-  <Modal :tiny="true" @show="hideError()">
+  <Modal ref="modal" :tiny="true" @show="hideError()">
     <h2 class="box__title">
       {{ $t('duplicateFieldContext.duplicate') }}
     </h2>

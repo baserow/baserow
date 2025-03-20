@@ -1,5 +1,5 @@
 <template>
-  <Modal :left-sidebar="true" :left-sidebar-scrollable="true">
+  <Modal ref="modal" :left-sidebar="true" :left-sidebar-scrollable="true">
     <template #sidebar>
       <div class="modal-sidebar__head">
         <Avatar
