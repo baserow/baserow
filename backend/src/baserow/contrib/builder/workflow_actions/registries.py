@@ -1,6 +1,8 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Type
+from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
+from django.core.files.storage import Storage
 
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
@@ -34,6 +36,39 @@ class BuilderWorkflowActionType(
             values["element"] = ElementHandler().get_element(values["element_id"])
 
         return super().prepare_values(values, user, instance)
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values: Dict[str, Any],
+        id_mapping,
+        files_zip: Optional[ZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict[str, any]] = None,
+        **kwargs,
+    ) -> Type[BuilderWorkflowAction]:
+        """
+        Responsible for ensuring that when a new workflow action is created from a
+        serialized value, if the event points to a collection field (as opposed to an
+        element), the event's `uid` is migrated from the serialized value to the
+        corresponding `uid` in the `id_mapping` dict.
+
+        :param serialized_values: The serialized values for the new workflow action.
+        :param id_mapping: The mapping of old to new ids.
+        :param files_zip: An optional zip file for the related files.
+        :param storage: The storage instance.
+        :param cache: An optional cache dict.
+        :param kwargs: Additional keyword arguments.
+        :return: The new workflow action instance.
+        """
+
+        if BuilderWorkflowAction.is_collection_field_action(serialized_values["event"]):
+            exported_uid, exported_event = serialized_values["event"].split("_", 1)
+            imported_uid = id_mapping["builder_collection_fields_uids"][exported_uid]
+            serialized_values["event"] = f"{imported_uid}_{exported_event}"
+
+        return super().create_instance_from_serialized(
+            serialized_values, id_mapping, files_zip, storage, cache
+        )
 
     def deserialize_property(
         self,
