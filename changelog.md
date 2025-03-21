@@ -1,5 +1,11 @@
 # Changelog
 
+## Released 1.32.2
+
+### Bug fixes
+* [Database] Fixed a bug where the filters of a created and updated by fields could not load all collaborators.
+
+
 ## Released 1.32.1
 
 ### Bug fixes
