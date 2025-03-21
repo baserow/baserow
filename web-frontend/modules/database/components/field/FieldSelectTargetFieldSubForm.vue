@@ -43,12 +43,13 @@ import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
+import childForm from '@baserow/modules/core/mixins/childForm'
 import FieldService from '@baserow/modules/database/services/field'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'FieldSelectTargetFieldSubForm',
-  mixins: [form],
+  mixins: [form, childForm],
   props: {
     database: {
       type: Object,

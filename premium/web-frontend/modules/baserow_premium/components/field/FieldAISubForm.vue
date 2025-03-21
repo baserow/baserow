@@ -99,6 +99,7 @@
     <component
       :is="outputType.getFormComponent()"
       ref="childForm"
+      :parent-form="formProvider"
       v-bind="$props"
     />
   </div>
@@ -113,6 +114,7 @@
 import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
+import childForm from '@baserow/modules/core/mixins/childForm'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import SelectAIModelForm from '@baserow/modules/core/components/ai/SelectAIModelForm'
@@ -123,7 +125,7 @@ import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataPr
 export default {
   name: 'FieldAISubForm',
   components: { SelectAIModelForm, FormulaInputField },
-  mixins: [form, fieldSubForm],
+  mixins: [form, fieldSubForm, childForm],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

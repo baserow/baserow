@@ -4,6 +4,7 @@
       :fields="allFieldsInTable"
       :database="database"
       :default-values="defaultValues"
+      :parent-form="formProvider"
       @input="selectedThroughField = $event"
     ></FieldSelectThroughFieldSubForm>
     <FieldSelectTargetFieldSubForm
@@ -11,6 +12,7 @@
       :table="table"
       :through-field="selectedThroughField"
       :default-values="defaultValues"
+      :parent-form="formProvider"
       :label="$t('fieldRollupSubForm.selectTargetFieldLabel')"
       @input="selectedTargetField = $event"
     ></FieldSelectTargetFieldSubForm>
@@ -61,6 +63,7 @@ import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
+import childForm from '@baserow/modules/core/mixins/childForm'
 import lookupFieldSubForm from '@baserow/modules/database/mixins/lookupFieldSubForm'
 import FormulaTypeSubForms from '@baserow/modules/database/components/formula/FormulaTypeSubForms'
 import FieldSelectThroughFieldSubForm from '@baserow/modules/database/components/field/FieldSelectThroughFieldSubForm'
@@ -73,7 +76,7 @@ export default {
     FieldSelectTargetFieldSubForm,
     FormulaTypeSubForms,
   },
-  mixins: [form, fieldSubForm, lookupFieldSubForm],
+  mixins: [form, fieldSubForm, lookupFieldSubForm, childForm],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
