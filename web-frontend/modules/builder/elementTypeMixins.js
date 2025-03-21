@@ -67,8 +67,9 @@ export const CollectionElementTypeMixin = (Base) =>
      * of records, then it will not.
      * @param dataSource
      */
-    adhocFilteringSupported(dataSource) {
-      return dataSource.type !== LocalBaserowAggregateRowsServiceType.getType()
+    adhocRefinementsSupported(dataSource) {
+      const serviceType = this.app.$registry.get('service', dataSource.type)
+      return serviceType.adhocRefinementsSupported
     }
 
     /**
