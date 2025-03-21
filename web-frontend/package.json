@@ -1,6 +1,6 @@
 {
   "name": "baserow",
-  "version": "1.32.1",
+  "version": "1.32.2",
   "private": true,
   "description": "Baserow: open source no-code database web frontend.",
   "author": "Bram Wiepjes (Baserow)",
