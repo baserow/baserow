@@ -1,7 +1,7 @@
 # This a dev image for testing your plugin when installed into the Baserow all-in-one image
-FROM baserow/baserow:1.32.1 as base
+FROM baserow/baserow:1.32.2 as base
 
-FROM baserow/baserow:1.32.1
+FROM baserow/baserow:1.32.2
 
 ARG PLUGIN_BUILD_UID
 ENV PLUGIN_BUILD_UID=${PLUGIN_BUILD_UID:-9999}
