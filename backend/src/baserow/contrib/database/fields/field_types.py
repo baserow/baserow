@@ -1487,6 +1487,14 @@ class LastModifiedFieldType(CreatedOnLastModifiedBaseFieldType):
     source_field_name = "updated_on"
     model_field_class = BaserowLastModifiedField
     model_field_kwargs = {"sync_with": "updated_on"}
+    serializer_field_names = ["available_collaborators"]
+    serializer_field_overrides = {
+        "available_collaborators": serializers.ListField(
+            child=CollaboratorSerializer(),
+            read_only=True,
+            source="table.database.workspace.users.all",
+        ),
+    }
 
 
 class CreatedOnFieldType(CreatedOnLastModifiedBaseFieldType):
@@ -1505,6 +1513,14 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
 
     source_field_name = "last_modified_by"
     model_field_kwargs = {"sync_with": "last_modified_by"}
+    serializer_field_names = ["available_collaborators"]
+    serializer_field_overrides = {
+        "available_collaborators": serializers.ListField(
+            child=CollaboratorSerializer(),
+            read_only=True,
+            source="table.database.workspace.users.all",
+        ),
+    }
 
     def get_model_field(self, instance, **kwargs):
         kwargs["null"] = True
@@ -1722,6 +1738,14 @@ class CreatedByFieldType(ReadOnlyFieldType):
 
     source_field_name = "created_by"
     model_field_kwargs = {"sync_with_add": "created_by"}
+    serializer_field_names = ["available_collaborators"]
+    serializer_field_overrides = {
+        "available_collaborators": serializers.ListField(
+            child=CollaboratorSerializer(),
+            read_only=True,
+            source="table.database.workspace.users.all",
+        ),
+    }
 
     def get_model_field(self, instance, **kwargs):
         kwargs["null"] = True
