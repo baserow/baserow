@@ -112,9 +112,6 @@
             :key="viewAggregation.getType()"
             :name="viewAggregation.getName()"
             :value="viewAggregation.getType()"
-            :disabled="
-              unsupportedAggregationTypes.includes(viewAggregation.getType())
-            "
           >
           </DropdownItem>
         </Dropdown>
@@ -226,10 +223,6 @@ export default {
     },
     aggregationTypeNames() {
       return this.viewAggregationTypes.map((aggType) => aggType.getType())
-    },
-    unsupportedAggregationTypes() {
-      return this.$registry.get('service', 'local_baserow_aggregate_rows')
-        .unsupportedAggregationTypes
     },
   },
   watch: {
