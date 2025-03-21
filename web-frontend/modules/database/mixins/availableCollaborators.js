@@ -1,7 +1,20 @@
 export default {
   computed: {
     workspaceCollaborators() {
-      return this.field.available_collaborators
+      const workspace = this.$store.getters['workspace/getSelected']
+      const workspaceUsers = workspace.users.filter(
+        (user) => user.to_be_deleted === false
+      )
+      if (
+        Object.prototype.hasOwnProperty.call(
+          this.field,
+          'available_collaborators'
+        )
+      ) {
+        return this.field.available_collaborators
+      } else {
+        return workspaceUsers
+      }
     },
     availableCollaborators() {
       // When converting from a CollaboratorField to another field it can happen
