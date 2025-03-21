@@ -2180,7 +2180,7 @@ class FieldConverter(Instance):
         """
 
         raise NotImplementedError(
-            "Each field converter must have an alter_field " "method."
+            "Each field converter must have an alter_field method."
         )
 
 
@@ -2257,8 +2257,12 @@ class FieldAggregationType(Instance):
 
         results = queryset.aggregate(**aggregation_dict)
         results.update(distribution_dict)
+
+        raw_aggregation_result = results.get(
+            f"{field.db_column}_raw", results.get(field.db_column)
+        )
         return self._compute_final_aggregation(
-            results.get(f"{field.db_column}_raw", results[field.db_column]),
+            raw_aggregation_result,
             results.get("total", None),
         )
 
@@ -2270,8 +2274,6 @@ class FieldAggregationType(Instance):
         :param field: The field to check.
         :return: True if the field is compatible, False otherwise.
         """
-
-        from baserow.contrib.database.fields.registries import field_type_registry
 
         field_type = field_type_registry.get_by_model(field.specific_class)
 
@@ -2346,7 +2348,6 @@ class FieldAggregationType(Instance):
         if isinstance(aggregation, DistributionAggregation):
             return {}
 
-        aggregation_dict = {f"{field.db_column}_raw": aggregation}
         # Check if the returned aggregations contain a `AnnotatedAggregation`,
         # and if so, apply the annotations and only keep the actual aggregation in
         # the dict. This is needed because some aggregations require annotated values
@@ -2360,7 +2361,9 @@ class FieldAggregationType(Instance):
 
         return aggregation_dict
 
-    def _compute_final_aggregation(self, raw_aggregation_result, total_count: int):
+    def _compute_final_aggregation(
+        self, raw_aggregation_result, total_count: Optional[int] = None
+    ):
         """
         For field aggregation types that require 'with_total' the number of all
         rows to compute the final number this method will be called to compute
