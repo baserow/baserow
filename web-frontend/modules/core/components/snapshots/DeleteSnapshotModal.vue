@@ -1,5 +1,5 @@
 <template>
-  <Modal :tiny="true" :close-button="false">
+  <Modal ref="modal" :tiny="true" :close-button="false">
     <h3>{{ $t('deleteSnapshotModal.title') }}</h3>
     <p>
       {{ $t('deleteSnapshotModal.content', { name: snapshot.name }) }}

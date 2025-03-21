@@ -77,14 +77,14 @@
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import { required, maxLength } from '@vuelidate/validators'
-
 import form from '@baserow/modules/core/mixins/form'
+import childForm from '@baserow/modules/core/mixins/childForm'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import { NUMBER_FORMATS } from '@baserow/modules/database/utils/number'
 
 export default {
   name: 'FieldNumberSubForm',
-  mixins: [form, fieldSubForm],
+  mixins: [form, fieldSubForm, childForm],
   props: {
     allowSetNumberNegative: {
       type: Boolean,

@@ -1,5 +1,6 @@
 <template>
   <Modal
+    ref="modal"
     :full-height="true"
     :left-sidebar="true"
     :left-sidebar-scrollable="true"

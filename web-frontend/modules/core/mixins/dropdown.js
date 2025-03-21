@@ -17,6 +17,10 @@ export default {
       // The reactiveMultiple is an object to deal with the reactivity issue when you
       // use provide inject pattern. Don't change it.
       multiple: this.reactiveMultiple,
+      dropdownProvider: {
+        registerDropdownItem: this.registerDropdownItem,
+        unregisterDropdownItem: this.unregisterDropdownItem,
+      },
     }
   },
   props: {
@@ -156,6 +160,7 @@ export default {
       fixedItemsImmutable: this.fixedItems,
       reactiveMultiple: { value: this.multiple }, // Used for provide
       isDropdown: true, // Used for dropdown items to retrieve the parent dropdown component
+      registeredDropdownItems: [], // For storing registered dropdown items
     }
   },
   computed: {
@@ -212,22 +217,27 @@ export default {
     this.observer.disconnect()
   },
   methods: {
+    // Method to register a dropdown item
+    registerDropdownItem(item) {
+      if (!this.registeredDropdownItems.includes(item)) {
+        this.registeredDropdownItems.push(item)
+        this.hasDropdownItem = true
+      }
+    },
+    // Method to unregister a dropdown item
+    unregisterDropdownItem(item) {
+      const index = this.registeredDropdownItems.indexOf(item)
+      if (index !== -1) {
+        this.registeredDropdownItems.splice(index, 1)
+        this.hasDropdownItem = this.registeredDropdownItems.length > 0
+      }
+    },
     /**
      * Recursively finds all the children of this component that have the flag
      * 'isDropdownItem' set.
      */
     getDropdownItemComponents() {
-      const traverse = (children) =>
-        children.reduce(
-          (items, child) =>
-            child.isDropdownItem
-              ? [...items, ...traverse(child.$children), child]
-              : [...items, ...traverse(child.$children)],
-          []
-        )
-      const components = traverse(this.$children)
-      this.hasDropdownItem = components.length > 0
-      return components
+      return this.registeredDropdownItems
     },
     focusout(event) {
       // Hide only if we loose focus in favor of another element which is not a

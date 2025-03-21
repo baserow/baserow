@@ -34,8 +34,11 @@
 </template>
 
 <script>
+import form from '@baserow/modules/core/mixins/form'
+import childForm from '@baserow/modules/core/mixins/childForm'
 export default {
   name: 'PageSettingsPathParamsFormElement',
+  mixins: [form, childForm],
   props: {
     pathParams: {
       type: Array,

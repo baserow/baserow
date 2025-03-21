@@ -1,5 +1,9 @@
 <template>
-  <Context :overflow-scroll="true" :max-height-if-outside-viewport="true">
+  <Context
+    ref="context"
+    :overflow-scroll="true"
+    :max-height-if-outside-viewport="true"
+  >
     <ul class="context__menu">
       <li
         v-for="value in hiddenRecords"

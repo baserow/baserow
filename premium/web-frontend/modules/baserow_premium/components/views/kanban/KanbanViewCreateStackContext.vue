@@ -1,5 +1,5 @@
 <template>
-  <Context overflow-scroll max-height-if-outside-viewport>
+  <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <KanbanViewOptionForm ref="form" @submitted="submit">
       <div class="context__form-footer-actions">
         <Button

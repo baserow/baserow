@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h1>{{ $t('formSidebar.modal.title') }}</h1>
     <p>{{ $t('formSidebar.modal.descriptionPartOne') }}</p>
     <p>{{ $t('formSidebar.modal.descriptionPartTwo') }}</p>

@@ -98,13 +98,14 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
+import childForm from '@baserow/modules/core/mixins/childForm'
 import LocalBaserowTableSelector from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableSelector'
 
 export default {
   components: {
     LocalBaserowTableSelector,
   },
-  mixins: [form],
+  mixins: [form, childForm],
   props: {
     application: {
       type: Object,

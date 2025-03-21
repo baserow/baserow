@@ -1,5 +1,5 @@
 <template>
-  <Modal :small="true" @show="hideError()">
+  <Modal ref="modal" :small="true" @show="hideError()">
     <h2 class="box__title">
       {{ $t('changePrimaryFieldModal.title') }}
     </h2>

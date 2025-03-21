@@ -99,7 +99,6 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                        
                       <ul
                         class="select__items"
-                        style=""
                         tabindex="-1"
                       >
                         <li
@@ -327,7 +326,6 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                          
                         <ul
                           class="select__items"
-                          style=""
                           tabindex="-1"
                         >
                           <li
@@ -607,7 +605,6 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                          
                         <ul
                           class="select__items"
-                          style=""
                           tabindex="-1"
                         >
                           <li
@@ -1903,7 +1900,6 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                        
                       <ul
                         class="select__items"
-                        style=""
                         tabindex="-1"
                       >
                         <li
@@ -2131,7 +2127,6 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                          
                         <ul
                           class="select__items"
-                          style=""
                           tabindex="-1"
                         >
                           <li
@@ -2411,7 +2406,6 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                          
                         <ul
                           class="select__items"
-                          style=""
                           tabindex="-1"
                         >
                           <li

@@ -1,5 +1,5 @@
 <template>
-  <Modal :tiny="true" :close-button="false">
+  <Modal ref="modal" :tiny="true" :close-button="false">
     <h3>
       <template v-if="selectedIsTrashed">{{
         $t('trashEmptyModal.titleIsTrashed', { name })

@@ -1,5 +1,5 @@
 <template>
-  <Context overflow-scroll max-height-if-outside-viewport>
+  <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <div class="context__menu-title">
       {{ $t('gridViewRowsAddContext.title') }}
     </div>

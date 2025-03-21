@@ -77,6 +77,7 @@
           :name="values.name"
           :default-values="defaultValues"
           :database="database"
+          :parent-form="formProvider"
           @validate="v$.$touch"
           @suggested-field-name="handleSuggestedFieldName($event)"
         />

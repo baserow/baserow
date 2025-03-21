@@ -1,5 +1,5 @@
 <template>
-  <Modal @hidden="hidden">
+  <Modal ref="modal" @hidden="hidden">
     <div v-if="loadingViews" class="loading-overlay"></div>
     <h2 class="box__title">
       {{ $t('exportTableModal.title', { name: table.name }) }}

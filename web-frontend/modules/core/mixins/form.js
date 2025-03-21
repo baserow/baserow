@@ -32,6 +32,8 @@ export default {
       // emit values the first time values are set in
       // the form.
       skipFirstValuesEmit: false,
+      // Array to store registered child forms
+      registeredChildForms: [],
     }
   },
   mounted() {
@@ -53,7 +55,28 @@ export default {
       deep: true,
     },
   },
+  computed: {
+    formProvider() {
+      return {
+        registerChildForm: this.registerChildForm,
+        unregisterChildForm: this.unregisterChildForm,
+      }
+    },
+  },
   methods: {
+    // Method to register a child form
+    registerChildForm(childForm) {
+      if (!this.registeredChildForms.includes(childForm)) {
+        this.registeredChildForms.push(childForm)
+      }
+    },
+    // Method to unregister a child form
+    unregisterChildForm(childForm) {
+      const index = this.registeredChildForms.indexOf(childForm)
+      if (index !== -1) {
+        this.registeredChildForms.splice(index, 1)
+      }
+    },
     /**
      * Returns whether a key of the given defaultValue should be handled by this
      * form component. This is useful when the defaultValues also contain other
@@ -112,19 +135,19 @@ export default {
     getChildForms(predicate = (child) => 'isFormValid' in child, deep = false) {
       const children = []
 
-      const getDeep = (child) => {
-        if (predicate(child)) {
-          children.push(child)
-        }
-        if (deep) {
-          // Search into children of children
-          child.$children.forEach(getDeep)
-        }
-      }
+      const processChildren = (forms, depth = 0) => {
+        for (const form of forms) {
+          if (predicate(form)) {
+            children.push(form)
+          }
 
-      for (const child of this.$children) {
-        getDeep(child)
+          if (deep && depth < 10 && form.registeredChildForms) {
+            // Limit depth to avoid infinite recursion
+            processChildren(form.registeredChildForms, depth + 1)
+          }
+        }
       }
+      processChildren(this.registeredChildForms)
       return children
     },
     touch(deep = false) {
