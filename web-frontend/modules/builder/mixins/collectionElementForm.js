@@ -54,7 +54,7 @@ export default {
       return (
         this.selectedDataSource &&
         this.selectedDataSourceReturnsList &&
-        elementType.adhocFilteringSupported(this.selectedDataSource)
+        elementType.adhocRefinementsSupported(this.selectedDataSource)
       )
     },
     /**

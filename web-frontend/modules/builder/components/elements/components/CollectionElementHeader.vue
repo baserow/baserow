@@ -1,7 +1,7 @@
 <template>
   <component
     :is="serviceType.adhocHeaderComponent"
-    v-if="dataSource && elementType.adhocFilteringSupported(dataSource)"
+    v-if="dataSource && elementType.adhocRefinementsSupported(dataSource)"
     class="collection-element__header margin-bottom-1"
     :sortable-properties="
       elementType.adhocSortableProperties(element, dataSource)

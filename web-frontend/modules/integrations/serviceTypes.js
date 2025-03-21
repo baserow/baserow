@@ -8,6 +8,11 @@ import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/
 import { DistributionViewAggregationType } from '@baserow/modules/database/viewAggregationTypes'
 
 export class LocalBaserowTableServiceType extends ServiceType {
+  // Determines whether collection elements with data sources using this
+  // service are allowed to perform adhoc refinements (filtering, sorting, searching).
+  // By default, they cannot, only the list rows service type can.
+  adhocRefinementsSupported = false
+
   get integrationType() {
     return this.app.$registry.get(
       'integration',
@@ -112,6 +117,8 @@ export class LocalBaserowGetRowServiceType extends LocalBaserowTableServiceType 
 }
 
 export class LocalBaserowListRowsServiceType extends LocalBaserowTableServiceType {
+  adhocRefinementsSupported = true
+
   static getType() {
     return 'local_baserow_list_rows'
   }
