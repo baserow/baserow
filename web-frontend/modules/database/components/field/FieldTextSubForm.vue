@@ -11,12 +11,12 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-
+import childForm from '@baserow/modules/core/mixins/childForm'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 
 export default {
   name: 'FieldTextSubForm',
-  mixins: [form, fieldSubForm],
+  mixins: [form, fieldSubForm, childForm],
   data() {
     return {
       allowedValues: ['text_default'],

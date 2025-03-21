@@ -19,6 +19,7 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import form from '@baserow/modules/core/mixins/form'
+import childForm from '@baserow/modules/core/mixins/childForm'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import FieldSelectOptions from '@baserow/modules/database/components/field/FieldSelectOptions'
 import FieldService from '@baserow/modules/database/services/field'
@@ -27,7 +28,7 @@ import { randomColor } from '@baserow/modules/core/utils/colors'
 export default {
   name: 'FieldSelectOptionsSubForm',
   components: { FieldSelectOptions },
-  mixins: [form, fieldSubForm],
+  mixins: [form, fieldSubForm, childForm],
   data() {
     return {
       loading: false,

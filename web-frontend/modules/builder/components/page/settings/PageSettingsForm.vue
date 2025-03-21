@@ -46,6 +46,7 @@
           :query-params="localQueryParams"
           :has-errors="fieldHasErrors('query_params')"
           :validation-state="v$.values.query_params"
+          :parent-form="formProvider"
           @update="onQueryParamUpdate"
           @add="addQueryParam"
         />
@@ -54,6 +55,7 @@
         <PageSettingsPathParamsFormElement
           :disabled="!hasPermission"
           :path-params="values.path_params"
+          :parent-form="formProvider"
           @update="onPathParamUpdate"
         />
       </div>
