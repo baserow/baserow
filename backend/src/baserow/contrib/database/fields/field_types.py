@@ -1487,14 +1487,6 @@ class LastModifiedFieldType(CreatedOnLastModifiedBaseFieldType):
     source_field_name = "updated_on"
     model_field_class = BaserowLastModifiedField
     model_field_kwargs = {"sync_with": "updated_on"}
-    serializer_field_names = ["available_collaborators"]
-    serializer_field_overrides = {
-        "available_collaborators": serializers.ListField(
-            child=CollaboratorSerializer(),
-            read_only=True,
-            source="table.database.workspace.users.all",
-        ),
-    }
 
 
 class CreatedOnFieldType(CreatedOnLastModifiedBaseFieldType):
