@@ -4,7 +4,7 @@
     <p>
       {{ $t('databaseStep.description') }}
     </p>
-    <div class="margin-bottom-3">
+    <div class="margin-bottom-2">
       <SegmentControl
         :active-index.sync="selectedTypeIndex"
         :segments="types"
@@ -31,17 +31,22 @@
       ref="airtable"
       @input="updateValue($event)"
     ></AirtableImportForm>
+    <TemplateImportForm
+      v-if="selectedType === 'template'"
+      @selected-template="selectedTemplate"
+    ></TemplateImportForm>
   </div>
 </template>
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
-import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm.vue'
+import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm'
+import TemplateImportForm from '@baserow/modules/database/components/onboarding/TemplateImportForm'
 
 export default {
   name: 'DatabaseStep',
-  components: { AirtableImportForm },
+  components: { AirtableImportForm, TemplateImportForm },
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
@@ -59,6 +64,10 @@ export default {
         {
           type: 'airtable',
           label: this.$t('databaseStep.airtable'),
+        },
+        {
+          type: 'template',
+          label: this.$t('databaseStep.template'),
         },
       ],
       selectedTypeIndex: 0,
@@ -82,6 +91,7 @@ export default {
       if (this.selectedType === 'airtable') {
         const airtable = this.$refs.airtable
         return !!airtable && !airtable.v$.$invalid && airtable.v$.$dirty
+      } else if (this.selectedType === 'template') {
       } else {
         return !this.v$.$invalid && this.v$.$dirty
       }
@@ -91,6 +101,12 @@ export default {
         name: this.name,
         type: this.selectedType,
         ...airtable,
+      })
+    },
+    selectedTemplate(template) {
+      this.$emit('update-data', {
+        type: this.selectedType,
+        template,
       })
     },
   },

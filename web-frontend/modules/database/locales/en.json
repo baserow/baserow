@@ -1005,7 +1005,8 @@
     "databaseNameLabel": "Database name",
     "scratch": "From scratch",
     "import": "From file",
-    "airtable": "From Airtable"
+    "airtable": "From Airtable",
+    "template": "From template"
   },
   "ViewFilterTypeDateUpgradeToMultiStep": {
     "migrateButtonText": "Migrate to multi-step date filter",

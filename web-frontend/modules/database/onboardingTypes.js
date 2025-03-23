@@ -14,6 +14,7 @@ import FieldService from '@baserow/modules/database/services/field'
 import RowService from '@baserow/modules/database/services/row'
 import AirtableService from '@baserow/modules/database/services/airtable'
 import DatabaseScratchTrackFieldsStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackFieldsStep.vue'
+import DatabaseTemplatePreview from '@baserow/modules/database/components/onboarding/DatabaseTemplatePreview'
 
 const databaseTypeCondition = (data, type) => {
   const dependingType = DatabaseOnboardingType.getType()
@@ -52,8 +53,14 @@ export class DatabaseOnboardingType extends OnboardingType {
     return DatabaseStep
   }
 
-  getPreviewComponent() {
-    return DatabaseAppLayoutPreview
+  getPreviewComponent(data) {
+    const type = data[this.getType()]?.type
+    const template = data[this.getType()]?.template
+    if (type === 'template' && template) {
+      return DatabaseTemplatePreview
+    } else {
+      return DatabaseAppLayoutPreview
+    }
   }
 
   getAdditionalPreviewProps() {
