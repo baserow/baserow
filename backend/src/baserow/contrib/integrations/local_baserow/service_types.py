@@ -495,7 +495,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             return None
 
         properties = global_cache.get(
-            f"table_{service.table_id}_{service.table.version}__service_schema",
+            f"table_{service.table_id}__service_schema",
             default=lambda: self._get_table_properties(service, allowed_fields),
             timeout=SCHEMA_CACHE_TTL,
         )

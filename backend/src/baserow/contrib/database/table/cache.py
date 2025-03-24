@@ -67,11 +67,16 @@ def clear_generated_model_cache():
 
 
 def invalidate_table_in_model_cache(table_id: int):
+    from baserow.contrib.database.table.models import Table
+    from baserow.contrib.database.table.signals import table_schema_changed
+
+    # Send signal for other potential cached values
+    table_schema_changed.send(Table, table_id=table_id)
+
     if settings.BASEROW_DISABLE_MODEL_CACHE:
         return None
 
     new_version = str(uuid.uuid4())
     # Make sure to invalidate ourselves and any directly connected tables.
-    from baserow.contrib.database.table.models import Table
 
     Table.objects_and_trash.filter(id=table_id).update(version=new_version)

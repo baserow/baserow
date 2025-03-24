@@ -65,7 +65,8 @@ class LocalCache:
             ):
                 del self._local.cache[k]
         else:
-            del self._local.cache[key]
+            if key in self._local.cache:
+                del self._local.cache[key]
 
     def clear(self):
         """
