@@ -83,7 +83,4 @@ def invalidate_table_in_model_cache(table_id: int):
     new_version = str(uuid.uuid4())
     # Make sure to invalidate ourselves and any directly connected tables.
 
-    # Delete model local cache
-    local_cache.delete(f"database_table_model_{table_id}*")
-
     Table.objects_and_trash.filter(id=table_id).update(version=new_version)
