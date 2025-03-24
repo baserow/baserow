@@ -15,6 +15,7 @@ import RowService from '@baserow/modules/database/services/row'
 import AirtableService from '@baserow/modules/database/services/airtable'
 import DatabaseScratchTrackFieldsStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackFieldsStep.vue'
 import DatabaseTemplatePreview from '@baserow/modules/database/components/onboarding/DatabaseTemplatePreview'
+import TemplateService from '@baserow/modules/core/services/template'
 
 const databaseTypeCondition = (data, type) => {
   const dependingType = DatabaseOnboardingType.getType()
@@ -87,20 +88,41 @@ export class DatabaseOnboardingType extends OnboardingType {
       // Responds with the newly created job, so that the `getJobForPolling` can use
       // the response to mark the onboarding as an async job.
       return job
+    } else if (type === 'template') {
+      const workspace = responses[WorkspaceOnboardingType.getType()]
+      const template = data[this.getType()].template
+      const { data: job } = await TemplateService(
+        this.app.$client
+      ).asyncInstall(workspace.id, template.id)
+
+      // Responds with the newly created job, so that the `getJobForPolling` can use
+      // the response to mark the onboarding as an async job.
+      return job
     }
   }
 
   getJobForPolling(data, responses) {
     const type = data[this.getType()].type
-    if (type === 'airtable') {
+    if (type === 'airtable' || type === 'template') {
       return responses[this.getType()]
     }
   }
 
   getCompletedRoute(data, responses) {
     const type = data[this.getType()].type
+    let database = null
     if (type === 'airtable') {
-      const database = responses[this.getType()].database
+      database = responses[this.getType()].database
+    } else if (type === 'template') {
+      database = responses[this.getType()].installed_applications.find(
+        (application) => application.type === DatabaseApplicationType.getType()
+      )
+    }
+
+    // Deliberately open the database first because that's where the user must start
+    // their journey. If no database is not, return nothing, so that the dashboard
+    // is opened.
+    if (database) {
       const firstTableId = database.tables[0]?.id || 0
       return {
         name: 'database-table',

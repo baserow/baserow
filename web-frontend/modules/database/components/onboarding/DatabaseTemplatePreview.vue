@@ -1,6 +1,9 @@
 <template>
   <div :class="{ 'onboarding-tool-preview': true }">
-    <div ref="inner" class="onboarding-tool-preview__inner">
+    <div
+      ref="inner"
+      class="onboarding-tool-preview__inner onboarding-tool-preview__inner--reserve-space-right"
+    >
       <TemplatePreview :template="template"></TemplatePreview>
     </div>
   </div>
@@ -13,7 +16,6 @@ import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingType
 export default {
   name: 'DatabaseTemplatePreview',
   components: { TemplatePreview },
-  extends: TemplatePreview,
   props: {
     data: {
       type: Object,

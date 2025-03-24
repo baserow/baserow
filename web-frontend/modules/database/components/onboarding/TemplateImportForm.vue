@@ -31,7 +31,6 @@
 <script>
 import TemplateService from '@baserow/modules/core/services/template'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { clone } from '@baserow/modules/core/utils/object'
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
 
 export default {
@@ -46,30 +45,27 @@ export default {
   },
   computed: {
     templates() {
-      const allTemplates = []
+      let allTemplates = []
       this.categories.forEach((category) => {
         category.templates.forEach((template) => {
-          allTemplates.push(template)
+          // Categories can have the same templates. We should not have duplicates.
+          if (allTemplates.findIndex((t) => t.id === template.id) === -1) {
+            allTemplates.push(template)
+          }
         })
       })
 
-      return allTemplates.slice(0, 6)
+      // A couple selected templates have the keyword onboarding, and those are the
+      // ones we want to show if there no search query is provided.
+      const search = this.search || 'onboarding'
+      allTemplates = allTemplates.filter((template) => {
+        const keywords = template.keywords.split(',')
+        keywords.push(template.name)
+        const regex = new RegExp('(' + escapeRegExp(search) + ')', 'i')
+        return keywords.some((value) => value.match(regex))
+      })
 
-      // if (this.search === '') {
-      //   return this.categories
-      // }
-      //
-      // return clone(this.categories)
-      //   .map((category) => {
-      //     category.templates = category.templates.filter((template) => {
-      //       const keywords = template.keywords.split(',')
-      //       keywords.push(template.name)
-      //       const regex = new RegExp('(' + escapeRegExp(this.search) + ')', 'i')
-      //       return keywords.some((value) => value.match(regex))
-      //     })
-      //     return category
-      //   })
-      //   .filter((category) => category.templates.length > 0)
+      return allTemplates.slice(0, 6)
     },
   },
   async mounted() {

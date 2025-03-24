@@ -15,6 +15,10 @@
 
 .onboarding-tool-preview__inner {
   @include absolute(0, 0, 0, 0);
+
+  &--reserve-space-right {
+    right: -370px;
+  }
 }
 
 .onboarding-tool-preview__highlight {

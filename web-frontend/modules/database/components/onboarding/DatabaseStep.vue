@@ -43,10 +43,17 @@ import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm'
 import TemplateImportForm from '@baserow/modules/database/components/onboarding/TemplateImportForm'
+import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
 
 export default {
   name: 'DatabaseStep',
   components: { AirtableImportForm, TemplateImportForm },
+  props: {
+    data: {
+      required: true,
+      type: Object,
+    },
+  },
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
@@ -92,6 +99,8 @@ export default {
         const airtable = this.$refs.airtable
         return !!airtable && !airtable.v$.$invalid && airtable.v$.$dirty
       } else if (this.selectedType === 'template') {
+        const template = this.data[DatabaseOnboardingType.getType()].template
+        return !!template
       } else {
         return !this.v$.$invalid && this.v$.$dirty
       }
