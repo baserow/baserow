@@ -349,7 +349,7 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         table_qs = base_queryset if base_queryset else Table.objects.all()
 
         table_qs = table_qs.filter(database__workspace=workspace).select_related(
-            "database", "database__workspace"
+            "database__workspace", "data_sync"
         )
 
         if not include_trashed:

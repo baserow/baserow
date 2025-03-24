@@ -18,7 +18,7 @@
         >
           <Dropdown
             v-model="values.field_id"
-            :disabled="tableFields.length === 0"
+            :disabled="tableFields.length === 0 || fieldsLoading"
           >
             <DropdownItem
               v-for="field in tableFields"
@@ -38,7 +38,7 @@
         >
           <Dropdown
             v-model="values.aggregation_type"
-            :disabled="!values.field_id"
+            :disabled="!values.field_id || fieldsLoading"
           >
             <DropdownItem
               v-for="viewAggregation in viewAggregationTypes"
@@ -126,7 +126,6 @@ export default {
         filter_type: 'AND',
         aggregation_type: 'sum',
       },
-      tableLoading: false,
     }
   },
   computed: {

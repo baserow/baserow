@@ -44,7 +44,6 @@ from baserow.contrib.database.fields.operations import (
     CreateFieldOperationType,
     DeleteFieldOperationType,
     DuplicateFieldOperationType,
-    ListFieldsOperationType,
     ReadFieldOperationType,
     UpdateFieldOperationType,
 )
@@ -192,51 +191,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             raise FieldDoesNotExist(f"The field with id {field_id} does not exist.")
 
         return field
-
-    def list_workspace_fields(
-        self,
-        user: AbstractUser,
-        workspace,
-        base_queryset=None,
-        include_trashed=False,
-        specific: bool = True,
-    ) -> Iterable[Table]:
-        """
-        Lists available fields for a user/workspace combination.
-
-        :user: The user on whose behalf we want to return fields.
-        :workspace: The workspace for which the fields should be returned.
-        :base_queryset: specify a base queryset to use.
-        :return: Iterator over returned fields.
-        """
-
-        field_qs = base_queryset if base_queryset else Field.objects.all()
-
-        field_qs = field_qs.filter(table__database__workspace=workspace).select_related(
-            "table", "table__database", "table__database__workspace"
-        )
-
-        if not include_trashed:
-            field_qs = field_qs.filter(table__database__workspace__trashed=False)
-
-        filtered_qs = CoreHandler().filter_queryset(
-            user,
-            ListFieldsOperationType.type,
-            field_qs,
-            workspace=workspace,
-        )
-
-        if specific:
-            return specific_iterator(
-                filtered_qs.select_related("content_type"),
-                per_content_type_queryset_hook=(
-                    lambda field, queryset: field_type_registry.get_by_model(
-                        field
-                    ).enhance_field_queryset(queryset, field)
-                ),
-            )
-        else:
-            return filtered_qs
 
     def get_base_fields_queryset(self) -> QuerySet[Field]:
         """

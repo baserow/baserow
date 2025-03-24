@@ -124,6 +124,7 @@ import { required } from '@vuelidate/validators'
 import AggregationSeriesForm from '@baserow_enterprise/dashboard/components/data_source/AggregationSeriesForm'
 import AggregationGroupByForm from '@baserow_enterprise/dashboard/components/data_source/AggregationGroupByForm'
 import AggregationSortByForm from '@baserow_enterprise/dashboard/components/data_source/AggregationSortByForm'
+import tableFields from '@baserow/modules/database/mixins/tableFields'
 
 const includesIfSet = (array) => (value) => {
   if (value === null || value === undefined) {
@@ -139,7 +140,7 @@ export default {
     AggregationGroupByForm,
     AggregationSortByForm,
   },
-  mixins: [form],
+  mixins: [form, tableFields],
   props: {
     dashboard: {
       type: Object,
@@ -205,9 +206,6 @@ export default {
     },
     tableSelected() {
       return this.tables.find(({ id }) => id === this.values.table_id)
-    },
-    tableFields() {
-      return this.tableSelected?.fields || []
     },
     primaryTableField() {
       return this.tableFields.find((item) => item.primary === true)
@@ -326,6 +324,10 @@ export default {
     }
   },
   methods: {
+    /* Overrides the method in the tableFields mixin */
+    getTableId() {
+      return this.values.table_id
+    },
     getTableFieldById(fieldId) {
       return this.tableFields.find((tableField) => {
         return tableField.id === fieldId

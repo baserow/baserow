@@ -32,6 +32,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewFilterTypeDoesNotExist,
     ViewFilterTypeNotAllowedForField,
 )
+from baserow.core.cache import local_cache
 
 
 @pytest.mark.django_db
@@ -1135,6 +1136,7 @@ def test_model_coming_out_of_cache_queries_correctly(
             table=table, name=f"Color 1"
         )
 
+        local_cache.clear()
         with django_assert_num_queries(3):
             original_model = table.get_model()
 
@@ -1151,6 +1153,7 @@ def test_model_coming_out_of_cache_queries_correctly(
             ]
         )
 
+        local_cache.clear()
         with django_assert_num_queries(1):
             model = table.get_model()
 
@@ -1165,6 +1168,7 @@ def test_model_coming_out_of_cache_queries_correctly(
         # creation_counter when comparing fields.
         assert_no_duplicate_values(field_name_to_creation_counter_for_cached_model)
 
+        local_cache.clear()
         for row in model.objects.all():
             # One affect of this bug is that if you use this model with colliding
             # field.creation_counter values, when you access a value from a row

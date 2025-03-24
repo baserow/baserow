@@ -51,6 +51,8 @@ class Builder(Application):
             PageHandler().create_shared_page(self)
 
     def get_parent(self):
+        # If we had select related workspace we want to keep it
+        self.application_ptr.workspace = self.workspace
         # Parent is the Application here even if it's at the "same" level
         # but it's a more generic type
         return self.application_ptr

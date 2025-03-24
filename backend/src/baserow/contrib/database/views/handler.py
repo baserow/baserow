@@ -705,7 +705,14 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         if specific:
             views = views.select_related("content_type")
-            return specific_iterator(views)
+            return specific_iterator(
+                views,
+                per_content_type_queryset_hook=(
+                    lambda model, queryset: view_type_registry.get_by_model(
+                        model
+                    ).enhance_queryset(queryset)
+                ),
+            )
 
         return views
 
