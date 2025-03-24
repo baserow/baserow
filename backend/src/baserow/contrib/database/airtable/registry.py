@@ -732,12 +732,24 @@ class AirtableViewType(Instance):
             view_name, raw_airtable_view, raw_airtable_table, import_report
         )
 
+        # Extract the ordered views from the sections and put them in a flat list so
+        # that we can find the order for the Baserow view.
+        flattened_view_order = []
+        for view in raw_airtable_table["viewOrder"]:
+            if view in raw_airtable_table["viewSectionsById"]:
+                section_views = raw_airtable_table["viewSectionsById"][view][
+                    "viewOrder"
+                ]
+                flattened_view_order.extend(section_views)
+            else:
+                flattened_view_order.append(view)
+
         view_type = view_type_registry.get(self.baserow_view_type)
         view = view_type.model_class(
             id=raw_airtable_view["id"],
             pk=raw_airtable_view["id"],
             name=view_name,
-            order=raw_airtable_table["viewOrder"].index(raw_airtable_view["id"]) + 1,
+            order=flattened_view_order.index(raw_airtable_view["id"]) + 1,
         )
 
         filters_object = raw_airtable_view_data.get("filters", None)
