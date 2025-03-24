@@ -113,12 +113,21 @@ class AirtableImportJobType(JobType):
 
         airtable_share_id = extract_share_id_from_url(values["airtable_share_url"])
 
+        session = values.get("session", None)
+        signature = values.get("session_signature", None)
+
+        if bool(session) != bool(signature):
+            raise serializers.ValidationError(
+                f"Both 'session' and 'session_signature' must either be provided "
+                f"together or omitted together."
+            )
+
         return {
             "airtable_share_id": airtable_share_id,
             "workspace": workspace,
             "skip_files": values.get("skip_files", False),
-            "session": values.get("session", None),
-            "session_signature": values.get("session_signature", None),
+            "session": session,
+            "session_signature": session,
         }
 
     def run(self, job, progress):

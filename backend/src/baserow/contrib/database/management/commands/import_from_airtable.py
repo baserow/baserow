@@ -57,6 +57,15 @@ class Command(BaseCommand):
         airtable_session = options["airtable_session"]
         airtable_signature = options["airtable_signature"]
 
+        if bool(airtable_session) != bool(airtable_signature):
+            self.stderr.write(
+                self.style.ERROR(
+                    "Both --airtable-session and --airtable-signature must either be "
+                    "provided together or omitted together."
+                )
+            )
+            sys.exit(1)
+
         try:
             workspace = Workspace.objects.get(pk=workspace_id)
         except Workspace.DoesNotExist:

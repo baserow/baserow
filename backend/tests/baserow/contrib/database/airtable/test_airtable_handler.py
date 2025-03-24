@@ -9,6 +9,7 @@ from django.core.files.storage import FileSystemStorage
 
 import pytest
 import responses
+from rest_framework import serializers
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.exceptions import (
@@ -1075,6 +1076,33 @@ def test_create_and_start_airtable_import_job_while_other_job_is_running(data_fi
             AirtableImportJobType.type,
             workspace_id=workspace.id,
             airtable_share_url="https://airtable.com/shrXxmp0WmqsTkFWTz",
+        )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_create_and_start_airtable_import_job_without_both_session_and_signature(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    with pytest.raises(serializers.ValidationError):
+        JobHandler().create_and_start_job(
+            user,
+            AirtableImportJobType.type,
+            workspace_id=workspace.id,
+            airtable_share_url="https://airtable.com/shrXxmp0WmqsTkFWTz",
+            session="test",
+        )
+
+    with pytest.raises(serializers.ValidationError):
+        JobHandler().create_and_start_job(
+            user,
+            AirtableImportJobType.type,
+            workspace_id=workspace.id,
+            airtable_share_url="https://airtable.com/shrXxmp0WmqsTkFWTz",
+            session_signature="test",
         )
 
 
