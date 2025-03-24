@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix issue with 'this_week' and 'next_week' operators in date filters",
+    "domain": "database",
+    "issue_number": 3526,
+    "bullet_points": [],
+    "created_at": "2025-03-25"
+}
