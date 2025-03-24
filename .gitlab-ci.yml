@@ -348,6 +348,16 @@ collect-backend-coverage:
       artifacts: true
     - job: backend-test-group-5
       artifacts: true
+    - job: backend-test-group-6
+      artifacts: true
+    - job: backend-test-group-7
+      artifacts: true
+    - job: backend-test-group-8
+      artifacts: true
+    - job: backend-test-group-9
+      artifacts: true
+    - job: backend-test-group-10
+      artifacts: true
   script:
     - . /baserow/venv/bin/activate
     # The reports artifacts will be extracted before the script runs into reports by
