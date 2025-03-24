@@ -127,7 +127,7 @@ class AirtableImportJobType(JobType):
             "workspace": workspace,
             "skip_files": values.get("skip_files", False),
             "session": session,
-            "session_signature": session,
+            "session_signature": signature,
         }
 
     def run(self, job, progress):

@@ -79,9 +79,9 @@ def test_fetch_publicly_shared_base_with_authentication():
     responses.add(
         responses.GET,
         "https://airtable.com/appZkaH3aWX3ZjT3b",
-        status=200,
+        status=302,
         body="Sign in",
-        headers={"Set-Cookie": "brw=test;"},
+        headers={"Location": "/login?test"},
     )
     with pytest.raises(AirtableBaseRequiresAuthentication):
         AirtableHandler.fetch_publicly_shared_base(

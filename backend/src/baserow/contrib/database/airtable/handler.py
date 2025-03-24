@@ -93,16 +93,21 @@ class AirtableHandler:
 
         url = f"{AIRTABLE_BASE_URL}/{share_id}"
         response = requests.get(
-            url, headers=BASE_HEADERS, cookies=config.get_session_cookies()
+            url,
+            headers=BASE_HEADERS,
+            cookies=config.get_session_cookies(),
+            allow_redirects=False,
         )  # nosec B113
 
-        if not response.ok:
-            raise AirtableBaseNotPublic(
-                f"The base with share id {share_id} is not public."
-            )
-        elif "Sign in" in response.text:
+        if response.status_code == 302 and response.headers.get(
+            "Location", ""
+        ).startswith("/login"):
             raise AirtableBaseRequiresAuthentication(
                 f"The base with share id {share_id} requires authentication."
+            )
+        elif not response.ok:
+            raise AirtableBaseNotPublic(
+                f"The base with share id {share_id} is not public."
             )
 
         decoded_content = remove_invalid_surrogate_characters(response.content)
