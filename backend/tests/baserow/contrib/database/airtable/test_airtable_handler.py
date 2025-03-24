@@ -9,9 +9,13 @@ from django.core.files.storage import FileSystemStorage
 
 import pytest
 import responses
+from rest_framework import serializers
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
-from baserow.contrib.database.airtable.exceptions import AirtableShareIsNotABase
+from baserow.contrib.database.airtable.exceptions import (
+    AirtableBaseRequiresAuthentication,
+    AirtableShareIsNotABase,
+)
 from baserow.contrib.database.airtable.handler import AirtableHandler
 from baserow.contrib.database.airtable.job_types import AirtableImportJobType
 from baserow.contrib.database.airtable.models import AirtableImportJob
@@ -42,7 +46,8 @@ def test_fetch_publicly_shared_base():
         )
 
         request_id, init_data, cookies = AirtableHandler.fetch_publicly_shared_base(
-            "appZkaH3aWX3ZjT3b"
+            "appZkaH3aWX3ZjT3b",
+            AirtableImportConfig(),
         )
         assert request_id == "req8wbZoh7Be65osz"
         assert init_data["pageLoadId"] == "pglUrFAGTNpbxUymM"
@@ -62,7 +67,27 @@ def test_fetch_publicly_shared_base_not_base_request_id_missing():
     )
 
     with pytest.raises(AirtableShareIsNotABase):
-        AirtableHandler.fetch_publicly_shared_base(share_id)
+        AirtableHandler.fetch_publicly_shared_base(
+            share_id,
+            AirtableImportConfig(),
+        )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_fetch_publicly_shared_base_with_authentication():
+    responses.add(
+        responses.GET,
+        "https://airtable.com/appZkaH3aWX3ZjT3b",
+        status=302,
+        body="Sign in",
+        headers={"Location": "/login?test"},
+    )
+    with pytest.raises(AirtableBaseRequiresAuthentication):
+        AirtableHandler.fetch_publicly_shared_base(
+            "appZkaH3aWX3ZjT3b",
+            AirtableImportConfig(),
+        )
 
 
 @pytest.mark.django_db
@@ -84,7 +109,8 @@ def test_fetch_table():
             headers={"Set-Cookie": "brw=test;"},
         )
         request_id, init_data, cookies = AirtableHandler.fetch_publicly_shared_base(
-            "appZkaH3aWX3ZjT3b"
+            "appZkaH3aWX3ZjT3b",
+            AirtableImportConfig(),
         )
 
     cookies = {
@@ -236,7 +262,7 @@ def test_to_baserow_database_export():
         )
 
     init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
-        "appZkaH3aWX3ZjT3b"
+        "appZkaH3aWX3ZjT3b", AirtableImportConfig()
     )
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
         init_data, schema, tables, AirtableImportConfig()
@@ -479,7 +505,7 @@ def test_config_skip_files(tmpdir, data_fixture):
         )
 
     init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
-        "appZkaH3aWX3ZjT3b"
+        "appZkaH3aWX3ZjT3b", AirtableImportConfig()
     )
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
         init_data, schema, tables, AirtableImportConfig(skip_files=True)
@@ -570,7 +596,7 @@ def test_to_baserow_database_export_without_primary_value():
         )
 
     init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
-        "appZkaH3aWX3ZjT3b"
+        "appZkaH3aWX3ZjT3b", AirtableImportConfig()
     )
 
     # Rename the primary column so that we depend on the fallback in the migrations.
@@ -1050,6 +1076,33 @@ def test_create_and_start_airtable_import_job_while_other_job_is_running(data_fi
             AirtableImportJobType.type,
             workspace_id=workspace.id,
             airtable_share_url="https://airtable.com/shrXxmp0WmqsTkFWTz",
+        )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_create_and_start_airtable_import_job_without_both_session_and_signature(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    with pytest.raises(serializers.ValidationError):
+        JobHandler().create_and_start_job(
+            user,
+            AirtableImportJobType.type,
+            workspace_id=workspace.id,
+            airtable_share_url="https://airtable.com/shrXxmp0WmqsTkFWTz",
+            session="test",
+        )
+
+    with pytest.raises(serializers.ValidationError):
+        JobHandler().create_and_start_job(
+            user,
+            AirtableImportJobType.type,
+            workspace_id=workspace.id,
+            airtable_share_url="https://airtable.com/shrXxmp0WmqsTkFWTz",
+            session_signature="test",
         )
 
 

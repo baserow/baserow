@@ -70,14 +70,14 @@
       required
     >
       <FormTextarea
-        v-model="v$.values.submit_action_message.$model"
+        v-model="values.submit_action_message"
         class="form-view__meta-message-textarea"
         :placeholder="$t('formViewMetaControls.theMessage')"
         :rows="3"
         :disabled="readOnly"
         @blur="
           $emit('updated-form', {
-            submit_action_message: v$.values.submit_action_message.$model,
+            submit_action_message: values.submit_action_message,
           })
         "
       />
@@ -100,7 +100,8 @@
           ;[
             !v$.values.submit_action_redirect_url.$error &&
               $emit('updated-form', {
-                submit_action_redirect_url,
+                submit_action_redirect_url:
+                  v$.values.submit_action_redirect_url.$model,
               }),
           ]
         "
@@ -116,8 +117,8 @@
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
-import { reactive, getCurrentInstance } from 'vue'
 import { required, url, maxLength, helpers } from '@vuelidate/validators'
+import { reactive, getCurrentInstance } from 'vue'
 
 // Must be kept in sync with
 // `src/baserow/contrib/database/views/models.py::FormView::submit_action_redirect_url.max_length`
@@ -141,7 +142,13 @@ export default {
   },
   setup() {
     const instance = getCurrentInstance()
-    const values = reactive({ email: '', password: '' })
+
+    const values = reactive({
+      values: {
+        submit_action_message: '',
+        submit_action_redirect_url: '',
+      },
+    })
 
     const rules = {
       values: {
@@ -156,15 +163,14 @@ export default {
             maxLength(redirectUrlMaxLength)
           ),
         },
-        submit_action_message: {},
       },
     }
 
-    const v$ = useVuelidate(rules, { values }, { $lazy: true })
-
-    return { values, v$, loading: false }
+    return {
+      values: values.values,
+      v$: useVuelidate(rules, values, { $lazy: true }),
+    }
   },
-
   watch: {
     'view.submit_action_message'(value) {
       this.values.submit_action_message = value
