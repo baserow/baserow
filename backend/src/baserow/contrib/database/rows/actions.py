@@ -85,7 +85,7 @@ class CreateRowActionType(UndoableActionType):
         :return: The created row instance.
         """
 
-        if hasattr(table, "data_sync") and table.data_sync is not None:
+        if table.is_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )
@@ -176,7 +176,7 @@ class CreateRowsActionType(UndoableActionType):
         :return: The created list of rows instances.
         """
 
-        if hasattr(table, "data_sync") and table.data_sync is not None:
+        if table.is_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )
@@ -271,7 +271,7 @@ class ImportRowsActionType(UndoableActionType):
         :return: The created list of rows instances and the error report.
         """
 
-        if hasattr(table, "data_sync") and table.data_sync is not None:
+        if table.is_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )
@@ -365,7 +365,7 @@ class DeleteRowActionType(UndoableActionType):
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
-        if hasattr(table, "data_sync") and table.data_sync is not None:
+        if table.is_data_synced_table:
             raise CannotDeleteRowsInTable(
                 "Can't delete rows because it has a data sync."
             )
@@ -442,7 +442,7 @@ class DeleteRowsActionType(UndoableActionType):
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
-        if hasattr(table, "data_sync") and table.data_sync is not None:
+        if table.is_data_synced_table:
             raise CannotDeleteRowsInTable(
                 "Can't delete rows because it has a data sync."
             )

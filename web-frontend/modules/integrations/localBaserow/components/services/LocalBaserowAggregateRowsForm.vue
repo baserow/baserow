@@ -9,7 +9,7 @@
         ></LocalBaserowTableSelector>
       </div>
     </div>
-    <div class="row">
+    <div class="row margin-bottom-2">
       <div class="col col-6">
         <FormGroup
           small-label
@@ -54,7 +54,7 @@
         </FormGroup>
       </div>
     </div>
-    <div class="margin-top-2 row">
+    <div v-if="!fieldsLoading" class="row">
       <div class="col col-12">
         <Tabs>
           <Tab
@@ -89,6 +89,7 @@
         </Tabs>
       </div>
     </div>
+    <div v-else class="loading-spinner"></div>
   </form>
 </template>
 

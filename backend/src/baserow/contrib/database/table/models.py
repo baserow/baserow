@@ -946,6 +946,10 @@ class Table(
         ordering = ("order",)
 
     @property
+    def is_data_synced_table(self) -> bool:
+        return hasattr(self, "data_sync") and self.data_sync is not None
+
+    @property
     def tsvectors_are_supported(self) -> bool:
         return (
             SearchHandler.full_text_enabled()

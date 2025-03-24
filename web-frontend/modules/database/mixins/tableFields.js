@@ -40,7 +40,7 @@ export default {
   methods: {
     getTableId() {
       throw new Error(
-        'Not implemented error. This method should the table id we want the field for.'
+        'Not implemented error. This method should return the table id we want the field for.'
       )
     },
   },
