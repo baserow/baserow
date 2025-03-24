@@ -1,5 +1,7 @@
 import json
 import os
+import shutil
+import glob
 from datetime import datetime, timezone
 from json import JSONDecodeError
 from pathlib import Path
@@ -27,7 +29,7 @@ class ChangelogHandler:
 
     @property
     def changelog_path(self):
-        return f"{self.working_dir}/changelog.md"
+        return f"{self.working_dir}/../changelog.md"
 
     def __init__(self, working_dir: str = os.path.dirname(__file__)):
         self.working_dir = working_dir
@@ -182,17 +184,37 @@ class ChangelogHandler:
         self, name: Union[str, None] = None
     ) -> Optional[str]:
         release_name = name or datetime.now(tz=timezone.utc).strftime("%Y_%m_%d")
+        unreleased_path = f"{self.entries_file_path}/unreleased"
+        release_path = f"{self.entries_file_path}/{release_name}"
 
         try:
-            os.rename(
-                f"{self.entries_file_path}/unreleased",
-                f"{self.entries_file_path}/{release_name}",
-            )
-            os.mkdir(f"{self.entries_file_path}/unreleased")
+            shutil.copytree(unreleased_path, release_path)
+
+            # Delete all .gitignore files in the subfolders of release folder because
+            # there is not reason to have empty folders there.
+            for gitignore_file in glob.glob(
+                f"{release_path}/**/.gitkeep", recursive=True):
+                os.remove(gitignore_file)
+
+            # Delete all empty subfolders in the release folder because we don't need
+            # those anymore.
+            for root, dirs, _ in os.walk(release_path, topdown=False):
+                for dir_name in dirs:
+                    dir_path = os.path.join(root, dir_name)
+                    if not os.listdir(dir_path):
+                        os.rmdir(dir_path)
+
+            # Delete all *.json files in the subfolders of 'unreleased' folder
+            # because they have been copied to the release folder.
+            for json_file in glob.glob(f"{unreleased_path}/**/*.json", recursive=True):
+                os.remove(json_file)
+
             return release_name
-        except OSError:
+        except FileExistsError:
             print(f'Release with name "{release_name}" already exists.')
-            return None
+        except OSError as e:
+            print(f'OS error occurred: {e}')
+        return None
 
     @staticmethod
     def generate_entry_file_name(

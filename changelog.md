@@ -1,5 +1,15 @@
 # Changelog
 
+## Released 1.32.3
+
+### New features
+* [Database] Optionally provide session authentication for Airtable import.
+* [Core] Updated Posthog library and disabled session recording by default.
+
+### Bug fixes
+* [Database] Fix form meta controls validation.
+
+
 ## Released 1.32.2
 
 ### Bug fixes
