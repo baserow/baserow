@@ -228,6 +228,49 @@ def test_create_airtable_import_job_skip_files(
     assert args[1]["config"].skip_files is True
 
 
+@pytest.mark.django_db(transaction=True)
+@patch(
+    "baserow.contrib.database.airtable.actions.AirtableHandler"
+    ".import_from_airtable_to_workspace"
+)
+def test_create_airtable_import_job_with_session(
+    mock_import_from_airtable_to_workspace, data_fixture, api_client
+):
+    mock_import_from_airtable_to_workspace.return_value = (
+        data_fixture.create_database_application()
+    )
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    long_share_id = (
+        "shr22aXe5Hj32sPJB/tblU0bav59SSEyOkU/"
+        "viwyUDJYyQPYuFj1F?blocks=bipEYER8Qq7fLoPbr"
+    )
+
+    response = api_client.post(
+        reverse("api:jobs:list"),
+        {
+            "type": "airtable",
+            "workspace_id": workspace.id,
+            "airtable_share_url": f"https://airtable.com/{long_share_id}",
+            "session": "ses",
+            "session_signature": "sig",
+        },
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+
+    assert response.status_code == HTTP_200_OK
+    airtable_import_job = AirtableImportJob.objects.all().first()
+    assert airtable_import_job.session == "ses"
+    assert airtable_import_job.session_signature == "sig"
+    assert "session" not in response_json
+    assert "session_signature" not in response_json
+    args = mock_import_from_airtable_to_workspace.call_args
+    assert args[1]["config"].session == "ses"
+    assert args[1]["config"].session_signature == "sig"
+
+
 @pytest.mark.django_db
 def test_get_airtable_import_job(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()

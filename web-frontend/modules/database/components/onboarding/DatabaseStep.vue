@@ -29,7 +29,7 @@
     <AirtableImportForm
       v-if="selectedType === 'airtable'"
       ref="airtable"
-      @input="handleAirtableInput"
+      @input="updateValue($event)"
     ></AirtableImportForm>
   </div>
 </template>
@@ -63,7 +63,6 @@ export default {
       ],
       selectedTypeIndex: 0,
       name: '',
-      airtableUrl: '',
     }
   },
 
@@ -75,39 +74,30 @@ export default {
       return ['scratch', 'import'].includes(this.selectedType)
     },
   },
-  watch: {
-    selectedTypeIndex() {
-      this.airtableUrl = ''
-    },
-  },
   mounted() {
     this.updateValue()
   },
   methods: {
     isValid() {
-      return !this.v$.$invalid && this.v$.$dirty
+      if (this.selectedType === 'airtable') {
+        const airtable = this.$refs.airtable
+        return !!airtable && !airtable.v$.$invalid && airtable.v$.$dirty
+      } else {
+        return !this.v$.$invalid && this.v$.$dirty
+      }
     },
-    updateValue() {
+    updateValue(airtable = {}) {
       this.$emit('update-data', {
         name: this.name,
         type: this.selectedType,
-        airtableUrl: this.airtableUrl,
+        ...airtable,
       })
-    },
-    handleAirtableInput(event) {
-      this.v$.airtableUrl.$model = event
-      this.v$.airtableUrl.$touch()
-      this.updateValue()
     },
   },
   validations() {
     const rules = {}
     if (this.hasName) {
       rules.name = {
-        required: helpers.withMessage(this.$t('error.requiredField'), required),
-      }
-    } else if (this.selectedType === 'airtable') {
-      rules.airtableUrl = {
         required: helpers.withMessage(this.$t('error.requiredField'), required),
       }
     }

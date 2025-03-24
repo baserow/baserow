@@ -65,9 +65,16 @@ export class DatabaseOnboardingType extends OnboardingType {
     if (type === 'airtable') {
       const workspace = responses[WorkspaceOnboardingType.getType()]
       const airtableUrl = data[this.getType()].airtableUrl
+      const skipFiles = data[this.getType()].skipFiles
+      const useSession = data[this.getType()].useSession
+      const session = data[this.getType()].session
+      const sessionSignature = data[this.getType()].sessionSignature
       const { data: job } = await AirtableService(this.app.$client).create(
         workspace.id,
-        airtableUrl
+        airtableUrl,
+        skipFiles,
+        useSession ? session : null,
+        useSession ? sessionSignature : null
       )
 
       // Responds with the newly created job, so that the `getJobForPolling` can use

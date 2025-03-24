@@ -40,6 +40,8 @@ class ImportDatabaseFromAirtableActionType(ActionType):
         workspace_id: int
         workspace_name: str
         skip_files: bool
+        session: Optional[str]
+        session_signature: Optional[str]
 
     @classmethod
     def do(
@@ -48,6 +50,8 @@ class ImportDatabaseFromAirtableActionType(ActionType):
         workspace: Workspace,
         airtable_share_id: str,
         skip_files: bool,
+        session: Optional[str] = None,
+        session_signature: Optional[str] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
         **kwargs,
     ) -> Database:
@@ -59,7 +63,9 @@ class ImportDatabaseFromAirtableActionType(ActionType):
         information.
         """
 
-        config = AirtableImportConfig(skip_files=skip_files)
+        config = AirtableImportConfig(
+            skip_files=skip_files, session=session, session_signature=session_signature
+        )
 
         database = AirtableHandler.import_from_airtable_to_workspace(
             workspace,
@@ -76,6 +82,8 @@ class ImportDatabaseFromAirtableActionType(ActionType):
             workspace.id,
             workspace.name,
             skip_files,
+            session,
+            session_signature,
         )
         cls.register_action(user, params, cls.scope(workspace.id), workspace)
 

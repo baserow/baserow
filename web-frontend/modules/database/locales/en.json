@@ -781,7 +781,12 @@
     "errorJobAlreadyRunningDescription": "Another import job is already running. You need to wait for that one to finish before starting another.",
     "linkError": "The link should look like: https://airtable.com/shrxxxxxxxxxxxxxx",
     "skipFiles": "Skip importing files",
-    "skipFilesHelper": "An Airtable base with many files can slow down the import. Enabling this skips the import of the files."
+    "skipFilesHelper": "An Airtable base with many files can slow down the import. Enabling this skips the import of the files.",
+    "useSession": "Session authentication",
+    "useSessionHelper": "Use this if the publicly shared base requires authentication.",
+    "sessionDescription": "If the import responds with \"The Airtable base requires authentication.\" then it could be that the organizational settings in Airtable prevent accessing the Airtable base without authenticating first. To do this, the session and signature must be manually extracted. Visit the URL of the publicly shared base in your browser and sign in, if needed. Click on the application menu by clicking in the top right corner -> \"More tools\" -> \"Developer tools\". Open the \"Application\" (in Firefox \"Storage\") tab and click on \"https://airtable.com\". Now find the \"__Host-airtable-session\" and \"__Host-airtable-session.sig\" cookie values, and paste them in the inputs below.",
+    "sessionLabel": "Session cookie (__Host-airtable-session)",
+    "sessionSignatureLabel": "Session signature cookie (__Host-airtable-session.sig)"
   },
   "chooseSingleSelectField": {
     "addSelectField": "Add single select field",
