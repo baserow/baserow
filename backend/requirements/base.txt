@@ -127,7 +127,7 @@ distro==1.9.0
     #   openai
 dj-database-url==2.1.0
     # via -r base.in
-django==5.0.9
+django==5.0.13
     # via
     #   -r base.in
     #   channels
