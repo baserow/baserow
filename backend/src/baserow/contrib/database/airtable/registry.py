@@ -727,6 +727,7 @@ class AirtableViewType(Instance):
                 "The `baserow_view_type` must be implemented for the AirtableViewType."
             )
 
+        view_id = raw_airtable_view["id"]
         view_name = raw_airtable_view["name"]
         view_name = self._check_personal_or_locked(
             view_name, raw_airtable_view, raw_airtable_table, import_report
@@ -737,10 +738,13 @@ class AirtableViewType(Instance):
         flattened_view_order = []
         for view in raw_airtable_table["viewOrder"]:
             if view in raw_airtable_table["viewSectionsById"]:
-                section_views = raw_airtable_table["viewSectionsById"][view][
-                    "viewOrder"
-                ]
+                section = raw_airtable_table["viewSectionsById"][view]
+                section_views = section["viewOrder"]
                 flattened_view_order.extend(section_views)
+                # Baserow doesn't support sections, but we can prepend the name of the
+                # section.
+                if view_id in section_views:
+                    view_name = f"{section['name']} / {view_name}"
             else:
                 flattened_view_order.append(view)
 
