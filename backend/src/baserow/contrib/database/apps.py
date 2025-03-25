@@ -652,9 +652,13 @@ class DatabaseConfig(AppConfig):
         airtable_column_type_registry.register(CountAirtableColumnType())
         airtable_column_type_registry.register(AutoNumberAirtableColumnType())
 
-        from .airtable.airtable_view_types import GridAirtableViewType
+        from .airtable.airtable_view_types import (
+            GalleryAirtableViewType,
+            GridAirtableViewType,
+        )
 
         airtable_view_type_registry.register(GridAirtableViewType())
+        airtable_view_type_registry.register(GalleryAirtableViewType())
 
         from .airtable.airtable_filter_operators import (
             AirtableContainsOperator,

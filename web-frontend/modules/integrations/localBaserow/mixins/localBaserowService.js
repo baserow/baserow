@@ -1,4 +1,7 @@
+import tableFields from '@baserow/modules/database/mixins/tableFields'
+
 export default {
+  mixins: [tableFields],
   props: {
     builder: {
       type: Object,
@@ -47,18 +50,14 @@ export default {
     tableSelected() {
       return this.tables.find(({ id }) => id === this.values.table_id)
     },
-    tableFields() {
-      return this.tableSelected?.fields || []
-    },
-  },
-  watch: {
-    'values.table_id'(newValue, oldValue) {
-      if (oldValue && newValue !== oldValue) {
-        this.tableLoading = true
-      }
-    },
   },
   methods: {
+    /**
+     * Overrides the method in the tableFields mixin
+     */
+    getTableId() {
+      return this.values.table_id
+    },
     /**
      * Given an array of objects containing a `field` property (e.g. the data
      * source filters or sortings arrays), this method will return a new array

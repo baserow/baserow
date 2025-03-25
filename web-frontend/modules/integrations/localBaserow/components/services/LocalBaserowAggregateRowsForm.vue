@@ -9,7 +9,7 @@
         ></LocalBaserowTableSelector>
       </div>
     </div>
-    <div class="row">
+    <div class="row margin-bottom-2">
       <div class="col col-6">
         <FormGroup
           small-label
@@ -18,7 +18,7 @@
         >
           <Dropdown
             v-model="values.field_id"
-            :disabled="tableFields.length === 0"
+            :disabled="tableFields.length === 0 || fieldsLoading"
           >
             <DropdownItem
               v-for="field in tableFields"
@@ -38,7 +38,7 @@
         >
           <Dropdown
             v-model="values.aggregation_type"
-            :disabled="!values.field_id"
+            :disabled="!values.field_id || fieldsLoading"
           >
             <DropdownItem
               v-for="viewAggregation in viewAggregationTypes"
@@ -54,7 +54,7 @@
         </FormGroup>
       </div>
     </div>
-    <div class="margin-top-2 row">
+    <div v-if="!fieldsLoading" class="row">
       <div class="col col-12">
         <Tabs>
           <Tab
@@ -89,6 +89,7 @@
         </Tabs>
       </div>
     </div>
+    <div v-else class="loading-spinner"></div>
   </form>
 </template>
 
@@ -126,7 +127,6 @@ export default {
         filter_type: 'AND',
         aggregation_type: 'sum',
       },
-      tableLoading: false,
     }
   },
   computed: {

@@ -1688,7 +1688,7 @@ DATE_FILTER_OPERATOR_BOUNDS = {
     ),
     DateFilterOperators.THIS_WEEK: lambda filter_date: DateFilterBounds(
         filter_date + relativedelta(weekday=MO(-1)),
-        filter_date + relativedelta(weekday=MO(+1)),
+        filter_date + relativedelta(days=1, weekday=MO(+1)),
     ),
     DateFilterOperators.THIS_MONTH: lambda filter_date: DateFilterBounds(
         filter_date.replace(day=1),
@@ -1699,8 +1699,8 @@ DATE_FILTER_OPERATOR_BOUNDS = {
         filter_date.replace(day=1, month=1) + relativedelta(years=1),
     ),
     DateFilterOperators.NEXT_WEEK: lambda filter_date: DateFilterBounds(
-        filter_date + relativedelta(weekday=MO(+1)),
-        filter_date + relativedelta(weekday=MO(+2)),
+        filter_date + relativedelta(days=1, weekday=MO(+1)),
+        filter_date + relativedelta(days=1, weekday=MO(+2)),
     ),
     DateFilterOperators.NEXT_MONTH: lambda filter_date: DateFilterBounds(
         filter_date.replace(day=1) + relativedelta(months=1),
@@ -1716,7 +1716,7 @@ DATE_FILTER_OPERATOR_BOUNDS = {
     ),
     DateFilterOperators.NR_WEEKS_AGO: lambda filter_date: DateFilterBounds(
         filter_date + relativedelta(weekday=MO(-1)),
-        filter_date + relativedelta(weekday=MO(+1)),
+        filter_date + relativedelta(days=1, weekday=MO(+1)),
     ),
     DateFilterOperators.NR_MONTHS_AGO: lambda filter_date: DateFilterBounds(
         filter_date.replace(day=1), filter_date.replace(day=1) + relativedelta(months=1)
@@ -1731,7 +1731,7 @@ DATE_FILTER_OPERATOR_BOUNDS = {
     ),
     DateFilterOperators.NR_WEEKS_FROM_NOW: lambda filter_date: DateFilterBounds(
         filter_date + relativedelta(weekday=MO(-1)),
-        filter_date + relativedelta(weekday=MO(+1)),
+        filter_date + relativedelta(days=1, weekday=MO(+1)),
     ),
     DateFilterOperators.NR_MONTHS_FROM_NOW: lambda filter_date: DateFilterBounds(
         filter_date.replace(day=1), filter_date.replace(day=1) + relativedelta(months=1)

@@ -94,7 +94,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
 )
-from baserow.core.cache import global_cache, local_cache
+from baserow.core.cache import global_cache
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.handler import CoreHandler
@@ -495,7 +495,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             return None
 
         properties = global_cache.get(
-            f"table_{service.table_id}_{service.table.version}__service_schema",
+            f"table_{service.table_id}__service_schema",
             default=lambda: self._get_table_properties(service, allowed_fields),
             timeout=SCHEMA_CACHE_TTL,
         )
@@ -600,10 +600,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if not service.table_id:
             return None
 
-        return local_cache.get(
-            f"integration_service_{service.table_id}_table_model",
-            lambda: service.table.get_model(),
-        )
+        return service.table.get_model()
 
     def get_table_field_objects(
         self, service: LocalBaserowTableService

@@ -9,7 +9,7 @@
         ></LocalBaserowTableSelector>
       </div>
     </div>
-    <div class="row">
+    <div v-if="!fieldsLoading" class="row">
       <div class="col col-12">
         <Tabs>
           <Tab
@@ -55,6 +55,7 @@
         </Tabs>
       </div>
     </div>
+    <div v-else class="loading-spinner"></div>
   </form>
 </template>
 
@@ -92,7 +93,6 @@ export default {
         sortings: [],
         filter_type: 'AND',
       },
-      tableLoading: false,
     }
   },
 }

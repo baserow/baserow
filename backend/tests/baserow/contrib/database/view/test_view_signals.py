@@ -12,6 +12,7 @@ from baserow.contrib.database.views.handler import ViewHandler, ViewSubscription
 from baserow.contrib.database.views.signals import (
     view_loaded_create_indexes_and_columns,
 )
+from baserow.core.cache import local_cache
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -405,6 +406,7 @@ def test_rows_enter_and_exit_view_with_periodic_fields_updates(data_fixture):
         year_field = data_fixture.create_formula_field(
             table=table, formula="tonumber(datetime_format(field('today'), 'YYYY'))"
         )
+        local_cache.delete(f"database_table_model_{table.id}*")
 
         model = table.get_model()
 
@@ -418,7 +420,7 @@ def test_rows_enter_and_exit_view_with_periodic_fields_updates(data_fixture):
 
     with patch(
         "baserow.contrib.database.views.signals.rows_entered_view.send"
-    ) as p, freeze_time("2022-01-01"):
+    ) as p, freeze_time("2022-01-01"), local_cache.context():
         run_periodic_fields_updates(table.database.workspace_id)
 
         p.assert_called_once()
@@ -427,7 +429,7 @@ def test_rows_enter_and_exit_view_with_periodic_fields_updates(data_fixture):
 
     with patch(
         "baserow.contrib.database.views.signals.rows_exited_view.send"
-    ) as p, freeze_time("2023-01-01"):
+    ) as p, freeze_time("2023-01-01"), local_cache.context():
         run_periodic_fields_updates(table.database.workspace_id)
 
         p.assert_called_once()

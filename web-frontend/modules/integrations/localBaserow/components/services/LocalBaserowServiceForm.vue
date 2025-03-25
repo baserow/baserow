@@ -16,6 +16,7 @@
     <LocalBaserowTableSelector
       v-if="selectedIntegration"
       v-model="fakeTableId"
+      disallow-data-synced-tables
       :databases="databases"
       :display-view-dropdown="false"
     />

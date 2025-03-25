@@ -52,6 +52,7 @@ from baserow.contrib.database.table.constants import (
 from baserow.contrib.database.views.exceptions import ViewFilterTypeNotAllowedForField
 from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.registries import view_filter_type_registry
+from baserow.core.cache import local_cache
 from baserow.core.db import MultiFieldPrefetchQuerysetMixin, specific_iterator
 from baserow.core.fields import AutoTrueBooleanField
 from baserow.core.jobs.mixins import (
@@ -67,7 +68,7 @@ from baserow.core.mixins import (
     TrashableModelMixin,
 )
 from baserow.core.telemetry.utils import baserow_trace
-from baserow.core.utils import split_comma_separated_string
+from baserow.core.utils import are_kwargs_default, split_comma_separated_string
 
 extract_filter_sections_regex = re.compile(r"filter__(.+)__(.+)$")
 field_id_regex = re.compile(r"field_(\d+)$")
@@ -945,6 +946,10 @@ class Table(
         ordering = ("order",)
 
     @property
+    def is_data_synced_table(self) -> bool:
+        return hasattr(self, "data_sync") and self.data_sync is not None
+
+    @property
     def tsvectors_are_supported(self) -> bool:
         return (
             SearchHandler.full_text_enabled()
@@ -974,7 +979,19 @@ class Table(
         return f"{USER_TABLE_DATABASE_NAME_PREFIX}{self.id}"
 
     @baserow_trace(tracer)
-    def get_model(
+    def get_model(self, **kwargs):
+        """
+        Get model from local cache if the kwargs are the default values.
+        See `_get_model` doc for more information.
+        """
+
+        if are_kwargs_default(self._get_model, **kwargs):
+            return local_cache.get(
+                f"database_table_model_{self.id}", lambda: self._get_model(**kwargs)
+            )
+        return self._get_model(**kwargs)
+
+    def _get_model(
         self,
         fields=None,
         field_ids=None,
@@ -1107,7 +1124,12 @@ class Table(
         )
 
         if use_cache:
-            self.refresh_from_db(fields=["version"])
+            # We don't need to refresh the version if it has already been refreshed for
+            # this session.
+            local_cache.get(
+                f"database_table_model_{self.id}_refreshed",
+                lambda: self.refresh_from_db(fields=["version"]),
+            )
             field_attrs = get_cached_model_field_attrs(self)
         else:
             field_attrs = None

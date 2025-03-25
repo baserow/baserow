@@ -1323,7 +1323,10 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         return application
 
     def get_application(
-        self, application_id: int, base_queryset: Optional[QuerySet] = None
+        self,
+        application_id: int,
+        base_queryset: Optional[QuerySet] = None,
+        specific: bool = True,
     ) -> Application:
         """
         Selects an application with a given id from the database.
@@ -1331,6 +1334,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :param application_id: The identifier of the application that must be returned.
         :param base_queryset: The base queryset from where to select the application
             object. This can for example be used to do a `select_related`.
+        :param specific: Determines whether we want the specific application or not.
         :raises ApplicationDoesNotExist: When the application with the provided id
             does not exist.
         :return: The requested application instance of the provided id.
@@ -1339,18 +1343,21 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         if base_queryset is None:
             base_queryset = Application.objects
 
+        queryset = base_queryset.select_related("workspace").filter(id=application_id)
+
         try:
-            application = specific_iterator(
-                base_queryset.select_related("workspace", "content_type").filter(
-                    id=application_id
-                ),
-                per_content_type_queryset_hook=(
-                    lambda model, queryset: application_type_registry.get_by_model(
-                        model
-                    ).enhance_queryset(queryset)
-                ),
-            )[0]
-        except IndexError as e:
+            if specific:
+                application = specific_iterator(
+                    queryset.select_related("content_type"),
+                    per_content_type_queryset_hook=(
+                        lambda model, queryset: application_type_registry.get_by_model(
+                            model
+                        ).enhance_queryset(queryset)
+                    ),
+                )[0]
+            else:
+                application = queryset.get()
+        except (IndexError, Application.DoesNotExist) as e:
             raise ApplicationDoesNotExist(
                 f"The application with id {application_id} does not exist."
             ) from e
