@@ -1028,3 +1028,73 @@ def test_import_gallery_view_with_cover_column_type_fit():
     assert import_report.items[0].scope == SCOPE_VIEW
     assert import_report.items[0].table == "Data"
     assert serialized_view["card_cover_image_field_id"] == "fldwSc9PqedIhTSqhi3"
+
+
+def test_import_view_in_section_order():
+    raw_airtable_table = deepcopy(RAW_AIRTABLE_TABLE)
+    raw_airtable_table["viewOrder"] = ["vsc0001", "vsc0002", "viw00005"]
+    raw_airtable_table["viewSectionsById"] = {
+        "vsc0001": {
+            "id": "vsc0001",
+            "name": "Section 1",
+            "createdByUserId": "usr0001",
+            "pinnedForUserId": None,
+            "viewOrder": ["viw00001", "viw00002"],
+        },
+        "vsc0002": {
+            "id": "vsc0001",
+            "name": "Section 1",
+            "createdByUserId": "usr0001",
+            "pinnedForUserId": None,
+            "viewOrder": [RAW_AIRTABLE_VIEW["id"], "viw00004"],
+        },
+    }
+
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        FIELD_MAPPING,
+        ROW_ID_MAPPING,
+        raw_airtable_table,
+        RAW_AIRTABLE_VIEW,
+        RAW_AIRTABLE_GRID_VIEW_DATA,
+        AirtableImportConfig(),
+        import_report,
+    )
+
+    assert serialized_view["order"] == 3
+
+
+def test_import_view_in_section_name():
+    raw_airtable_table = deepcopy(RAW_AIRTABLE_TABLE)
+    raw_airtable_table["viewOrder"] = ["vsc0001", "vsc0002", "viw00005"]
+    raw_airtable_table["viewSectionsById"] = {
+        "vsc0001": {
+            "id": "vsc0001",
+            "name": "Section 1",
+            "createdByUserId": "usr0001",
+            "pinnedForUserId": None,
+            "viewOrder": ["viw00001", "viw00002"],
+        },
+        "vsc0002": {
+            "id": "vsc0001",
+            "name": "Section 2",
+            "createdByUserId": "usr0001",
+            "pinnedForUserId": None,
+            "viewOrder": [RAW_AIRTABLE_VIEW["id"], "viw00004"],
+        },
+    }
+
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        FIELD_MAPPING,
+        ROW_ID_MAPPING,
+        raw_airtable_table,
+        RAW_AIRTABLE_VIEW,
+        RAW_AIRTABLE_GRID_VIEW_DATA,
+        AirtableImportConfig(),
+        import_report,
+    )
+
+    assert serialized_view["name"] == "Section 2 / Grid view"

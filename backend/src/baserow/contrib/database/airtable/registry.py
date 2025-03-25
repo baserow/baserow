@@ -727,17 +727,33 @@ class AirtableViewType(Instance):
                 "The `baserow_view_type` must be implemented for the AirtableViewType."
             )
 
+        view_id = raw_airtable_view["id"]
         view_name = raw_airtable_view["name"]
         view_name = self._check_personal_or_locked(
             view_name, raw_airtable_view, raw_airtable_table, import_report
         )
+
+        # Extract the ordered views from the sections and put them in a flat list so
+        # that we can find the order for the Baserow view.
+        flattened_view_order = []
+        for view in raw_airtable_table["viewOrder"]:
+            if view in raw_airtable_table["viewSectionsById"]:
+                section = raw_airtable_table["viewSectionsById"][view]
+                section_views = section["viewOrder"]
+                flattened_view_order.extend(section_views)
+                # Baserow doesn't support sections, but we can prepend the name of the
+                # section.
+                if view_id in section_views:
+                    view_name = f"{section['name']} / {view_name}"
+            else:
+                flattened_view_order.append(view)
 
         view_type = view_type_registry.get(self.baserow_view_type)
         view = view_type.model_class(
             id=raw_airtable_view["id"],
             pk=raw_airtable_view["id"],
             name=view_name,
-            order=raw_airtable_table["viewOrder"].index(raw_airtable_view["id"]) + 1,
+            order=flattened_view_order.index(raw_airtable_view["id"]) + 1,
         )
 
         filters_object = raw_airtable_view_data.get("filters", None)
