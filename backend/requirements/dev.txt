@@ -61,7 +61,7 @@ decorator==5.1.1
     # via
     #   ipdb
     #   ipython
-django==5.0.9
+django==5.0.13
     # via
     #   -c base.txt
     #   django-extensions
