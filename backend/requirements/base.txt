@@ -6,14 +6,6 @@
 #
 advocate==1.0.0
     # via -r base.in
-aiohappyeyeballs==2.4.4
-    # via aiohttp
-aiohttp==3.11.11
-    # via
-    #   langchain
-    #   langchain-community
-aiosignal==1.3.2
-    # via aiohttp
 amqp==5.3.1
     # via kombu
 annotated-types==0.7.0
@@ -41,7 +33,6 @@ async-timeout==5.0.1
     # via redis
 attrs==24.3.0
     # via
-    #   aiohttp
     #   jsonschema
     #   service-identity
     #   twisted
@@ -123,10 +114,6 @@ cryptography==44.0.0
     #   service-identity
 daphne==4.1.2
     # via channels
-dataclasses-json==0.6.7
-    # via
-    #   langchain
-    #   langchain-community
 defusedxml==0.7.1
     # via pysaml2
 deprecated==1.2.15
@@ -140,7 +127,7 @@ distro==1.9.0
     #   openai
 dj-database-url==2.1.0
     # via -r base.in
-django==5.0.9
+django==5.0.13
     # via
     #   -r base.in
     #   channels
@@ -196,10 +183,6 @@ filelock==3.16.1
     # via huggingface-hub
 flower==2.0.1
     # via -r base.in
-frozenlist==1.5.0
-    # via
-    #   aiohttp
-    #   aiosignal
 fsspec==2024.12.0
     # via huggingface-hub
 google-api-core==2.24.0
@@ -227,7 +210,7 @@ googleapis-common-protos==1.66.0
     #   opentelemetry-exporter-otlp-proto-http
 greenlet==3.1.1
     # via sqlalchemy
-gunicorn==22.0.0
+gunicorn==23.0.0
     # via -r base.in
 h11==0.14.0
     # via
@@ -261,7 +244,6 @@ idna==3.10
     #   hyperlink
     #   requests
     #   twisted
-    #   yarl
 importlib-metadata==8.4.0
     # via opentelemetry-api
 incremental==24.7.2
@@ -281,9 +263,7 @@ jmespath==1.0.1
     #   boto3
     #   botocore
 jsonpatch==1.33
-    # via
-    #   langchain
-    #   langchain-core
+    # via langchain-core
 jsonpath-python==1.0.6
     # via mistralai
 jsonpointer==3.0.0
@@ -294,28 +274,22 @@ jsonschema==4.17.3
     #   drf-spectacular
 kombu==5.4.2
     # via celery
-langchain==0.1.17
+langchain==0.3.21
     # via -r base.in
-langchain-community==0.0.38
-    # via langchain
-langchain-core==0.1.53
+langchain-core==0.3.48
     # via
     #   langchain
-    #   langchain-community
     #   langchain-text-splitters
-langchain-text-splitters==0.0.2
+langchain-text-splitters==0.3.7
     # via langchain
 langsmith==0.1.147
     # via
     #   langchain
-    #   langchain-community
     #   langchain-core
 loguru==0.7.2
     # via -r base.in
 markdown-it-py==3.0.0
     # via rich
-marshmallow==3.24.1
-    # via dataclasses-json
 mdurl==0.1.2
     # via markdown-it-py
 mistralai==1.1.0
@@ -324,20 +298,12 @@ monotonic==1.6
     # via posthog
 msgpack==1.1.0
     # via channels-redis
-multidict==6.1.0
-    # via
-    #   aiohttp
-    #   yarl
 mypy-extensions==1.0.0
     # via typing-inspect
 ndg-httpsclient==0.5.1
     # via advocate
 netifaces==0.11.0
     # via advocate
-numpy==1.26.4
-    # via
-    #   langchain
-    #   langchain-community
 oauthlib==3.2.2
     # via requests-oauthlib
 ollama==0.1.9
@@ -459,7 +425,6 @@ packaging==23.2
     #   gunicorn
     #   huggingface-hub
     #   langchain-core
-    #   marshmallow
     #   opentelemetry-instrumentation
 pillow==10.3.0
     # via -r base.in
@@ -469,10 +434,6 @@ prometheus-client==0.21.1
     # via flower
 prompt-toolkit==3.0.48
     # via click-repl
-propcache==0.2.1
-    # via
-    #   aiohttp
-    #   yarl
 prosemirror @ https://github.com/fellowapp/prosemirror-py/archive/refs/tags/v0.3.5.zip
     # via -r base.in
 proto-plus==1.25.0
@@ -551,7 +512,6 @@ pyyaml==6.0.2
     #   drf-spectacular
     #   huggingface-hub
     #   langchain
-    #   langchain-community
     #   langchain-core
     #   uvicorn
 redis==5.0.4
@@ -573,7 +533,6 @@ requests==2.31.0
     #   google-cloud-storage
     #   huggingface-hub
     #   langchain
-    #   langchain-community
     #   langsmith
     #   opentelemetry-exporter-otlp-proto-http
     #   posthog
@@ -609,16 +568,12 @@ sniffio==1.3.1
     #   httpx
     #   openai
 sqlalchemy==2.0.36
-    # via
-    #   langchain
-    #   langchain-community
+    # via langchain
 sqlparse==0.5.3
     # via django
 tenacity==8.5.0
     # via
     #   celery-redbeat
-    #   langchain
-    #   langchain-community
     #   langchain-core
 tokenizers==0.21.0
     # via anthropic
@@ -644,6 +599,7 @@ typing-extensions==4.11.0
     #   azure-storage-blob
     #   dj-database-url
     #   huggingface-hub
+    #   langchain-core
     #   openai
     #   opentelemetry-sdk
     #   prosemirror
@@ -653,9 +609,7 @@ typing-extensions==4.11.0
     #   twisted
     #   typing-inspect
 typing-inspect==0.9.0
-    # via
-    #   dataclasses-json
-    #   mistralai
+    # via mistralai
 tzdata==2024.1
     # via
     #   -r base.in
@@ -701,8 +655,6 @@ wrapt==1.17.0
     #   opentelemetry-instrumentation-redis
 xmlschema==2.5.1
     # via pysaml2
-yarl==1.18.3
-    # via aiohttp
 zipp==3.18.1
     # via
     #   -r base.in
