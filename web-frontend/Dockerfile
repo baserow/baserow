@@ -1,4 +1,4 @@
-FROM node:21.7.3-bookworm as base
+FROM node:20.19.0-bookworm as base
 
 ARG UID
 ENV UID=${UID:-9999}
