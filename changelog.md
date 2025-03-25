@@ -1,5 +1,21 @@
 # Changelog
 
+## Released 1.32.4
+
+### New features
+* [Database] Import Airtable gallery view. [#793](https://gitlab.com/baserow/baserow/-/issues/793)
+
+### Bug fixes
+* [Builder] Ensure that workflow action and user source forms disallow choose a data synced table. [#3104](https://gitlab.com/baserow/baserow/-/issues/3104)
+* [Database] Fix issue with 'this_week' and 'next_week' operators in date filters [#3526](https://gitlab.com/baserow/baserow/-/issues/3526)
+* [Database] Fix bug where the Airtable import crashes if the table has sections.
+* [Builder] Fix cache invalidation on field change for data sources
+* [Core] Record frontend sessions in Sentry if there is an error.
+
+### Refactors
+* [Builder] Integration endpoint doesn't return the table fields anymore to improve performance
+
+
 ## Released 1.32.3
 
 ### New features
