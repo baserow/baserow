@@ -5,7 +5,7 @@ djangorestframework-simplejwt==5.3.1
 psycopg2==2.9.10
 Faker==25.0.1
 Twisted==24.3.0
-gunicorn==22.0.0
+gunicorn==23.0.0
 uvicorn[standard]==0.29.0
 websockets==12.0
 requests==2.31.0
