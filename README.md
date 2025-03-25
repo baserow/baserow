@@ -17,7 +17,7 @@ tool gives you the powers of a developer without leaving your browser.
 [![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy/?template=https://github.com/bram2w/baserow/tree/master)
 
 ```bash
-docker run -v baserow_data:/baserow/data -p 80:80 -p 443:443 baserow/baserow:1.32.3
+docker run -v baserow_data:/baserow/data -p 80:80 -p 443:443 baserow/baserow:1.32.4
 ```
 
 ![Baserow screenshot](docs/assets/screenshot.png "Baserow screenshot")
@@ -89,7 +89,7 @@ Created by Baserow B.V. - bram@baserow.io.
 
 Distributes under the MIT license. See `LICENSE` for more information.
 
-Version: 1.32.3
+Version: 1.32.4
 
 The official repository can be found at https://gitlab.com/baserow/baserow.
 
