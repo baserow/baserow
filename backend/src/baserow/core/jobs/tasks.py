@@ -3,7 +3,6 @@ from datetime import timedelta
 from django.conf import settings
 
 from baserow.config.celery import app
-from baserow.core.cache import local_cache
 from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.sentry import setup_user_in_sentry
@@ -15,7 +14,6 @@ from baserow.core.telemetry.utils import setup_user_in_baggage_and_spans
     queue="export",
     soft_time_limit=settings.BASEROW_JOB_SOFT_TIME_LIMIT,
 )
-@local_cache.context()
 def run_async_job(self, job_id: int):
     """Run the job task asynchronously"""
 
