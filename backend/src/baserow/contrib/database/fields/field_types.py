@@ -524,6 +524,7 @@ class URLFieldType(CollationSortMixin, TextFieldMatchingRegexFieldType):
     type = "url"
     model_class = URLField
     _can_group_by = True
+    can_upsert = True
 
     @property
     def regex(self):

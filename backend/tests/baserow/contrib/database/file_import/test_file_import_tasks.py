@@ -1,4 +1,6 @@
+import json
 from datetime import datetime, timedelta, timezone
+from typing import NamedTuple
 
 from django.conf import settings
 from django.test.utils import override_settings
@@ -27,6 +29,7 @@ from baserow.contrib.database.table.exceptions import (
     InitialTableDataLimitExceeded,
     InvalidInitialTableData,
 )
+from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.constants import (
     JOB_FAILED,
@@ -984,3 +987,313 @@ def test_run_file_import_task_with_upsert(data_fixture, patch_filefield_storage)
     last = rows[-2]
     assert getattr(last, f1.db_column) == "aab"
     assert getattr(last, f6.db_column) == "aab-1-3-new"
+
+
+class UpsertData(NamedTuple):
+    model: GeneratedTableModel
+    text_field: TextField
+    description: TextField
+
+
+def prepare_upsert_data(
+    data_fixture,
+    patch_filefield_storage,
+    open_test_file,
+    upsert_field_idx: list[int],
+    upsert_file_name: str | None,
+) -> UpsertData:
+    """
+    Helper function to create test model + data for upsert functionality.
+
+
+    :param data_fixture:
+    :param patch_filefield_storage:
+    :param open_test_file:
+    :param upsert_field_idx: a list of indexes of fields from `upsert_fields` list
+    :param upsert_file_name: file name part with test data for upsert functionality.
+        Full file name is calculated, and should contain almost-full file import
+        payload. Upsert fields configuration is updated in the code from
+        `upsert_field_idx`.
+    :return: UpsertData with context needed by upsert test
+    """
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    with open_test_file(
+        "baserow/database/file_import/upsert_base_data_list.json", "rt"
+    ) as f:
+        init_data = json.load(f)
+
+    upsert_fields = [
+        data_fixture.create_text_field(table=table, name="Text"),
+        data_fixture.create_long_text_field(table=table, name="Long text"),
+        data_fixture.create_number_field(
+            table=table, name="Number", number_decimal_places=3
+        ),
+        data_fixture.create_rating_field(table=table, name="Rating"),
+        data_fixture.create_boolean_field(table=table, name="Boolean"),
+        data_fixture.create_date_field(table=table, name="Date"),
+        data_fixture.create_date_field(
+            table=table, date_include_time=True, name="Datetime"
+        ),
+        data_fixture.create_duration_field(
+            table=table, duration_format="d h", name="Duration"
+        ),
+        data_fixture.create_url_field(table=table, name="URL"),
+        data_fixture.create_phone_number_field(table=table, name="Phone number"),
+        data_fixture.create_email_field(table=table, name="Email"),
+    ]
+    text_field = upsert_fields[0]
+    single_select = data_fixture.create_single_select_field(
+        table=table, name="Single select"
+    )
+    for opt_value in ["aaa", "bbb", "ccc", "ddd"]:
+        data_fixture.create_select_option(field=single_select, value=opt_value)
+    description = data_fixture.create_long_text_field(table=table, name="Description")
+
+    model = table.get_model()
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data={"data": init_data[1:]},
+            table=table,
+            user=user,
+        )
+        run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.finished
+
+    assert len(model.objects.all()) == len(init_data) - 1
+
+    upsert_fields = [upsert_fields[uidx] for uidx in upsert_field_idx]
+
+    # sanity check: field name should match
+    assert [u.name for u in upsert_fields] == [
+        init_data[0][uidx] for uidx in upsert_field_idx
+    ]
+
+    # upsert_file_name contains almost-full file import job structure. The only thing
+    # missing is configuration.upsert_fields, which is calculated in code from args.
+    with open_test_file(
+        f"baserow/database/file_import/upsert_{upsert_file_name}_data.json", "rt"
+    ) as f:
+        update_data = json.load(f)
+        update_data["configuration"]["upsert_fields"] = [u.id for u in upsert_fields]
+        with patch_filefield_storage():
+            job = data_fixture.create_file_import_job(
+                data=update_data,
+                table=table,
+                user=user,
+            )
+            run_async_job(job.id)
+            job.refresh_from_db()
+            assert job.finished
+
+    return UpsertData(model=model, text_field=text_field, description=description)
+
+
+@pytest.mark.parametrize(
+    "upsert_field_idx,upsert_file_name",
+    [
+        ((0,), "text"),
+        ((1,), "long_text"),
+        ((2,), "number"),
+        ((3,), "rating"),
+        ((4,), "bool"),
+        ((5,), "date"),
+        ((6,), "datetime"),
+        ((7,), "duration"),
+        ((8,), "url"),
+        ((9,), "phone"),
+        ((10,), "email"),
+    ],
+)
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_for_single_field_type(
+    data_fixture,
+    patch_filefield_storage,
+    open_test_file,
+    upsert_field_idx: list[int],
+    upsert_file_name: str | None,
+):
+    """
+    test upsert with single field types
+    """
+
+    # upsert_file_name contains a 6-element set:
+    # one value duplicated on import side: 1 update, 1 insert
+    # one value duplicated on both sides + 1 extra in import: 2 updates, 1 insert
+    # one value that doesn't have corresponding table value: 1 insert
+    prepared = prepare_upsert_data(
+        data_fixture,
+        patch_filefield_storage,
+        open_test_file,
+        upsert_field_idx,
+        upsert_file_name,
+    )
+
+    model, text_field, description = prepared
+
+    # aaa: one updated, one inserted
+    # bbb: two updated, one inserted
+    # zzz: one inserted
+    # updated: 3, inserted: 3
+    assert len(model.objects.all()) == 6
+    assert len(model.objects.filter(**{text_field.db_column: "aaa"})) == 2
+    assert len(model.objects.filter(**{text_field.db_column: "bbb"})) == 3
+    assert len(model.objects.filter(**{text_field.db_column: "zzz"})) == 1
+    assert len(model.objects.filter(**{description.db_column: "inserted zzz"})) == 1
+    assert len(model.objects.filter(**{description.db_column: "inserted aaa"})) == 1
+    assert len(model.objects.filter(**{description.db_column: "inserted bbb"})) == 1
+
+    assert len(model.objects.filter(**{description.db_column: "updated aaa"})) == 1
+    assert len(model.objects.filter(**{description.db_column: "updated bbb"})) == 2
+
+
+# test single fields and selected pairs
+@pytest.mark.parametrize(
+    "upsert_field_idx,upsert_file_name",
+    [
+        (
+            (
+                0,
+                2,
+            ),  # text + number
+            "text_number",
+        ),
+        (
+            (
+                0,
+                4,
+            ),  # text + boolean
+            "text_boolean",
+        ),
+        (
+            (
+                0,
+                5,
+            ),  # text + date
+            "text_date",
+        ),
+        (
+            (
+                0,
+                6,
+            ),
+            "text_timestamp",
+        ),  # text + timestamp
+        (
+            (
+                0,
+                7,
+            ),
+            "text_duration",
+        ),  # text + duration
+        (
+            (
+                2,
+                4,
+            ),
+            "number_boolean",
+        ),  # number + boolean
+        (
+            (
+                2,
+                5,
+            ),
+            "number_date",
+        ),  # number + date
+        (
+            (
+                2,
+                6,
+            ),
+            "number_timestamp",
+        ),  # number + timestamp
+        (
+            (
+                2,
+                7,
+            ),
+            "number_duration",
+        ),  # number + duration
+        (
+            (
+                4,
+                5,
+            ),
+            "boolean_date",
+        ),  # boolean + date
+        (
+            (
+                4,
+                6,
+            ),
+            "boolean_timestamp",
+        ),  # boolean + timestamp
+        (
+            (
+                4,
+                7,
+            ),
+            "boolean_duration",
+        ),  # boolean + duration
+        (
+            (
+                5,
+                6,
+            ),
+            "date_timestamp",
+        ),  # date +timestamp
+        (
+            (
+                5,
+                7,
+            ),
+            "date_duration",
+        ),  # date + duration
+        (
+            (6, 7),
+            "timestamp_duration",
+        ),  # timestamp + duration
+    ],
+)
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_for_multiple_field_types(
+    data_fixture,
+    patch_filefield_storage,
+    open_test_file,
+    upsert_field_idx: list[int],
+    upsert_file_name: str | None,
+):
+    # upsert_file_name contains 5-element update:
+    # one with duplicated on import side, that will produce 1 update + 1 insert
+    # one duplicated on table side, that will produce 1 update + 1 insert
+    # one new, that will produce 1 insert
+
+    prepared = prepare_upsert_data(
+        data_fixture,
+        patch_filefield_storage,
+        open_test_file,
+        upsert_field_idx,
+        upsert_file_name,
+    )
+
+    model, text_field, description = prepared
+
+    # aaa: one updated, one inserted
+    # bbb: one updated, one inserted
+    # zzz: one inserted
+    # updated: 2, inserted: 3
+    assert len(model.objects.all()) == 6
+    assert len(model.objects.filter(**{text_field.db_column: "aaa"})) == 2
+    assert len(model.objects.filter(**{text_field.db_column: "bbb"})) == 3
+    assert len(model.objects.filter(**{text_field.db_column: "zzz"})) == 1
+    assert len(model.objects.filter(**{description.db_column: "inserted zzz"})) == 1
+    assert len(model.objects.filter(**{description.db_column: "inserted aaa"})) == 1
+    assert len(model.objects.filter(**{description.db_column: "inserted bbb"})) == 1
+
+    assert len(model.objects.filter(**{description.db_column: "updated aaa"})) == 1
+    assert len(model.objects.filter(**{description.db_column: "updated bbb"})) == 1

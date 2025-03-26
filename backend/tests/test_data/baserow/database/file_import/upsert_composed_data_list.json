@@ -1,0 +1,62 @@
+[
+  [
+    "Text",
+    "Long text",
+    "Number",
+    "Rating",
+    "Boolean",
+    "Date",
+    "Datetime",
+    "Duration",
+    "URL",
+    "Phone number",
+    "Email",
+    "Single select",
+    "Description"
+  ],
+  [
+    "aaa",
+    "one",
+    "1.000",
+    "5",
+    "True",
+    "2021-01-03",
+    "2021-01-02 23:00",
+    "0d 4h 29m 40s",
+    "http://a.com",
+    "+1234",
+    "test1@email.com",
+    "aaa",
+    "first aaa"
+  ],
+  [
+    "bbb",
+    "two",
+    "2.000",
+    "4",
+    "False",
+    "2025-03-03",
+    "2025-03-02 23:00",
+    "1:23:45",
+    "http://b.com/foo/bar",
+    "+123456",
+    "test2@email.com",
+    "aaa",
+    "first bbb"
+  ],
+  [
+    "bbb",
+    "two",
+    "2.000",
+    "4",
+    "False",
+    "2025-03-03",
+    "2025-03-02 23:00",
+    "1:23:45",
+    "http://b.com/foo/bar",
+    "+123456",
+    "test2@email.com",
+    "bbb",
+    "duplicated bbb"
+  ]
+]
