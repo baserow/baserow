@@ -84,6 +84,7 @@ dist
 sw.*
 
 backend/src/baserow/config/settings/local.py
+backend/src/baserow/config/settings/local_test.py
 *.pyc
 __pycache__
 .pytest_cache

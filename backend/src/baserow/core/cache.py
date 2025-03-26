@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.cache import cache
 
 from asgiref.local import Local
+from loguru import logger
 from redis.exceptions import LockNotOwnedError
 
 from baserow.version import VERSION as BASEROW_VERSION
@@ -20,6 +21,18 @@ class LocalCache:
     LocalCacheMiddleware. It ensures that data is isolated between different requests
     and is automatically cleaned up after each request cycle, preventing data leakage
     and maintaining proper cache lifecycle management.
+
+    Example Usage:
+
+        # Storing and retrieving a value
+        value = local_cache.get(
+            "user_123_data",
+            default=lambda: expensive_computation()
+        )
+
+        # Context manager
+        with local_cache.context():
+           # The cache is cleared before and at the end of this block
     """
 
     def __init__(self):
@@ -40,13 +53,16 @@ class LocalCache:
         if not hasattr(self._local, "cache"):
             self._local.cache = {}
 
-        cache = self._local.cache
+        cached = self._local.cache
 
-        if key not in cache:
+        if key not in cached:
+            logger.debug(f"Local cache miss {key}")
             value = default() if callable(default) else default
-            cache[key] = value
+            cached[key] = value
+        else:
+            logger.debug(f"Local cache hit {key}")
 
-        return cache[key]
+        return cached[key]
 
     def delete(self, key: str):
         """
@@ -58,6 +74,8 @@ class LocalCache:
 
         if not hasattr(self._local, "cache"):
             return
+
+        logger.debug(f"Local cache key deletion for: {key}")
 
         if key.endswith("*"):
             for k in list(
@@ -123,6 +141,9 @@ class GlobalCache:
     A global cache wrapper around the Django cache system that provides
     invalidation capabilities and a lock mechanism to prevent multiple
     concurrent updates. It's also versioned with Baserow version.
+
+    Be careful to make sure all values used in the callback should be part of the key
+    otherwise you may experience inconsistency.
 
     Example Usage:
 
@@ -217,11 +238,14 @@ class GlobalCache:
                     else:
                         cached = default
 
+                    logger.debug(f"Global cache miss for: {key}")
                     cache.set(
                         cache_key_to_use,
                         cached,
                         timeout=timeout,
                     )
+                else:
+                    logger.debug(f"Global cache hit for: {key}")
             finally:
                 if use_lock:
                     try:
@@ -230,6 +254,8 @@ class GlobalCache:
                         # If the lock release fails, it might be because of the timeout
                         # and it's been stolen so we don't really care
                         pass
+        else:
+            logger.debug(f"Global cache hit for: {key}")
 
         return cached
 
@@ -244,6 +270,8 @@ class GlobalCache:
         """
 
         version_key = self._get_version_cache_key(key, invalidate_key)
+
+        logger.debug(f"Global cache invalidation for: {key or invalidate_key}")
 
         try:
             cache.incr(version_key, 1)

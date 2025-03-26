@@ -1,0 +1,117 @@
+{
+  "data": [
+    [
+      "aaa",
+      "one",
+      "1.000",
+      "5",
+      "True",
+      "2021-01-03",
+      "2021-01-02 23:00",
+      "0d 4h",
+      "http://a.com",
+      "+1234",
+      "test1@email.com",
+      "bbb",
+      "updated aaa"
+    ],
+    [
+      "aaa",
+      "one",
+      "1.000",
+      "5",
+      "True",
+      "2021-01-03",
+      "2021-01-02 23:00",
+      "0d 4h",
+      "http://a.com",
+      "+1234",
+      "test1@email.com",
+      "ccc",
+      "inserted aaa"
+    ],
+    [
+      "bbb",
+      "one",
+      "1.000",
+      "5",
+      "True",
+      "2021-01-03",
+      "2021-01-02 23:00",
+      "0d 4h",
+      "http://a.com",
+      "+1234",
+      "test1@email.com",
+      "bbb",
+      "updated bbb"
+    ],
+    [
+      "bbb",
+      "one",
+      "1.000",
+      "5",
+      "True",
+      "2021-01-03",
+      "2021-01-02 23:00",
+      "0d 4h",
+      "http://a.com",
+      "+1234",
+      "test1@email.com",
+      "ccc",
+      "updated bbb"
+    ],
+    [
+      "bbb",
+      "one",
+      "1.000",
+      "5",
+      "True",
+      "2021-01-03",
+      "2021-01-02 23:00",
+      "0d 4h",
+      "http://a.com",
+      "+1234",
+      "test1@email.com",
+      "ccc",
+      "inserted bbb"
+    ],
+    [
+      "zzz",
+      "one",
+      "1.000",
+      "5",
+      "True",
+      "2021-01-03",
+      "2021-01-02 23:00",
+      "0d 4h",
+      "http://a.com",
+      "+1234",
+      "test1@email.com",
+      "ccc",
+      "inserted zzz"
+    ]
+  ],
+  "configuration": {
+    "upsert_fields": [],
+    "upsert_values": [
+      [
+        "aaa"
+      ],
+      [
+        "aaa"
+      ],
+      [
+        "bbb"
+      ],
+      [
+        "bbb"
+      ],
+      [
+        "bbb"
+      ],
+      [
+        "zzz"
+      ]
+    ]
+  }
+}

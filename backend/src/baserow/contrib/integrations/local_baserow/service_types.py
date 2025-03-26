@@ -496,14 +496,27 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         properties = global_cache.get(
             f"table_{service.table_id}__service_schema",
-            default=lambda: self._get_table_properties(service, allowed_fields),
+            default=lambda: self._get_table_properties(service),
+            invalidate_key=f"table_{service.table_id}__service_invalidate_key",
             timeout=SCHEMA_CACHE_TTL,
         )
+
+        # When a schema is being generated, we will exclude properties that the
+        # Application creator did not actively configure. A configured property
+        # is one that the Application is using in a formula, configuration
+        # setting, or schema property.
+        if allowed_fields is not None:
+            allowed_fields = set(allowed_fields)
+            properties = {
+                field: value
+                for field, value in properties.items()
+                if field in allowed_fields
+            }
 
         return self.get_schema_for_return_type(service, properties)
 
     def _get_table_properties(
-        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+        self, service: ServiceSubClass
     ) -> Optional[Dict[str, Any]]:
         """
         Extracts the properties from the table model fields.
@@ -529,15 +542,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             }
         }
         for field_object in field_objects:
-            # When a schema is being generated, we will exclude properties that the
-            # Application creator did not actively configure. A configured property
-            # is one that the Application is using in a formula, configuration
-            # setting, or schema property.
-            if (
-                allowed_fields is not None
-                and field_object["name"] not in allowed_fields
-            ):
-                continue
             field_type = field_object["type"]
             # Only `TextField` has a default value at the moment.
             field = field_object["field"]
@@ -625,15 +629,28 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if service.table_id is None:
             return None
 
-        return global_cache.get(
-            f"table_{service.table_id}_{service.table.version}__service_context_data",
-            default=lambda: self._get_context_data(service, allowed_fields),
+        context_data = global_cache.get(
+            f"table_{service.table_id}__service_context_data",
+            default=lambda: self._get_context_data(service),
+            invalidate_key=f"table_{service.table_id}__service_invalidate_key",
             timeout=SCHEMA_CACHE_TTL,
         )
 
-    def _get_context_data(
-        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        # When a context_data is being generated, we will exclude properties that
+        # the Application creator did not actively configure. A configured property
+        # is one that the Application is using in a formula, configuration
+        # setting, or schema property.
+        if allowed_fields is not None:
+            allowed_fields = set(allowed_fields)
+            context_data = {
+                field: value
+                for field, value in context_data.items()
+                if field in allowed_fields
+            }
+
+        return context_data
+
+    def _get_context_data(self, service: ServiceSubClass) -> Dict[str, Any]:
         field_objects = self.get_table_field_objects(service)
 
         if field_objects is None:
@@ -641,16 +658,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         ret = {}
         for field_object in field_objects:
-            # When a context_data is being generated, we will exclude properties that
-            # the Application creator did not actively configure. A configured property
-            # is one that the Application is using in a formula, configuration
-            # setting, or schema property.
-            if (
-                allowed_fields is not None
-                and field_object["name"] not in allowed_fields
-            ):
-                continue
-
             field_type = field_object["type"]
             if field_type.can_have_select_options:
                 field_serializer = field_type.get_serializer(
@@ -666,17 +673,35 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if service.table_id is None:
             return None
 
-        return global_cache.get(
-            f"table_{service.table_id}_{service.table.version}__service_context_data_schema",
-            default=lambda: self._get_context_data_schema(service, allowed_fields),
+        properties = global_cache.get(
+            f"table_{service.table_id}__service_context_data_schema",
+            default=lambda: self._get_context_data_properties(service),
+            invalidate_key=f"table_{service.table_id}__service_invalidate_key",
             timeout=SCHEMA_CACHE_TTL,
         )
 
-    def _get_context_data_schema(
-        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+        if allowed_fields is not None:
+            allowed_fields = set(allowed_fields)
+            properties = {
+                field: value
+                for field, value in properties.items()
+                if field in allowed_fields
+            }
+
+        if len(properties) == 0:
+            return None
+
+        return {
+            "type": "object",
+            "title": self.get_schema_name(service),
+            "properties": properties,
+        }
+
+    def _get_context_data_properties(
+        self, service: ServiceSubClass
     ) -> Optional[Dict[str, Any]]:
         """
-        Returns the context data schema for the table associated with the service.
+        Returns the context data properties for the table associated with the service.
         """
 
         field_objects = self.get_table_field_objects(service)
@@ -686,11 +711,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         properties = {}
         for field_object in field_objects:
-            if allowed_fields is not None and (
-                field_object["name"] not in allowed_fields
-            ):
-                continue
-
             if field_object["type"].can_have_select_options:
                 properties[field_object["name"]] = {
                     "type": "array",
@@ -706,14 +726,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                     },
                 }
 
-        if len(properties) == 0:
-            return None
-
-        return {
-            "type": "object",
-            "title": self.get_schema_name(service),
-            "properties": properties,
-        }
+        return properties
 
     def get_json_type_from_response_serializer_field(
         self, field, field_type
