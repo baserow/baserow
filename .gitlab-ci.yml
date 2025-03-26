@@ -225,8 +225,6 @@ backend-check-startup-python:
     FF_NETWORK_PER_BUILD: 1
   script:
     - docker run --rm --network=host $BACKEND_CI_DEV_IMAGE ci-check-startup
-#  needs:
-#    - job: build-backend-image
 
 # If pipeline not triggered by tag:
 # - Runs the backend tests (the first 1/3) if changes to the backend, otherwise skips.
@@ -490,7 +488,8 @@ build-final-web-frontend-image:
     IMAGE_NAME: $WEBFRONTEND_IMAGE_NAME
     DEV_IMAGE_NAME: $WEBFRONTEND_DEV_IMAGE_NAME
     DOCKERFILE_PATH: $WEBFRONTEND_DOCKERFILE_PATH
-
+  needs:
+    - job: web-frontend-test
 
 # Allow to manually build the image from any branch
 build-final-web-frontend-image-manual:
