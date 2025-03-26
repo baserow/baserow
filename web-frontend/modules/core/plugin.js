@@ -62,6 +62,7 @@ import {
   WorkspaceOnboardingType,
   InviteOnboardingType,
 } from '@baserow/modules/core/onboardingTypes'
+import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
 
 import settingsStore from '@baserow/modules/core/store/settings'
 import applicationStore from '@baserow/modules/core/store/application'
@@ -138,6 +139,7 @@ export default (context, inject) => {
   registry.registerNamespace('roles')
   registry.registerNamespace('generativeAIModel')
   registry.registerNamespace('onboarding')
+  registry.registerNamespace('guidedTour')
 
   registry.register('settings', new AccountSettingsType(context))
   registry.register('settings', new PasswordSettingsType(context))
@@ -250,4 +252,6 @@ export default (context, inject) => {
   registry.register('onboarding', new MoreOnboardingType(context))
   registry.register('onboarding', new WorkspaceOnboardingType(context))
   registry.register('onboarding', new InviteOnboardingType(context))
+
+  registry.register('guidedTour', new SidebarGuidedTourType(context))
 }
