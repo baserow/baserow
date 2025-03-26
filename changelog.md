@@ -1,5 +1,15 @@
 # Changelog
 
+## Released 1.32.5
+
+### Bug fixes
+* [Core] Clear local_cache for celery tasks [#3528](https://gitlab.com/baserow/baserow/-/issues/3528)
+* [Database] Fix broken continue button and validation of the onboarding import step.
+
+### Breaking API changes
+* [Database] Updated Langchain, Gunicorn, and Django backend dependencies.
+
+
 ## Released 1.32.4
 
 ### New features
