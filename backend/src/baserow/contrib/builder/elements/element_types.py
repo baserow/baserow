@@ -9,6 +9,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
     TypedDict,
     Union,
 )
@@ -1317,6 +1318,27 @@ class RatingInputElementType(InputElementType):
                 default="",
             ),
         }
+
+    def is_valid(
+        self,
+        element: Type[RatingInputElement],
+        value: Any,
+        dispatch_context: DispatchContext,
+    ) -> bool:
+        """
+        :param element: The element we're trying to use form data in.
+        :param value: The form data value, which may be invalid.
+        :return: Whether the value is valid or not for this element.
+
+        """
+
+        if (element.required and value is None) or not (
+            value is None or 0 <= value <= element.max_value
+        ):
+            raise FormDataProviderChunkInvalidException(
+                "The value is required for this element."
+            )
+        return value
 
 
 class InputTextElementType(InputElementType):
