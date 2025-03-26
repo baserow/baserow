@@ -513,3 +513,40 @@ def test_import_context_addition_returns_data_source_id(data_fixture):
     context = table_element_type.import_context_addition(table_element)
 
     assert context["data_source_id"] == data_source.id
+
+
+@pytest.mark.django_db
+def test_table_element_duplication_regenerates_collection_field_uids(data_fixture):
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source()
+    source_table_element = data_fixture.create_builder_table_element(
+        data_source=data_source,
+        fields=[
+            {
+                "name": "FieldA",
+                "type": "button",
+                "config": {"value": f"'Click me')"},
+            },
+        ],
+    )
+    source_collection_field = source_table_element.fields.get(name="FieldA")
+    source_workflow_action = data_fixture.create_workflow_action(
+        NotificationWorkflowAction,
+        page=source_table_element.page,
+        element=source_table_element,
+        event=f"{source_collection_field.uid}_click",
+    )
+
+    elements_and_workflow_actions_duplicated = ElementHandler().duplicate_element(
+        source_table_element
+    )
+    duplicated_table_element = elements_and_workflow_actions_duplicated["elements"][0]
+    duplicated_collection_field = duplicated_table_element.fields.get(name="FieldA")
+    duplicated_workflow_action = elements_and_workflow_actions_duplicated[
+        "workflow_actions"
+    ][0]
+
+    assert source_collection_field.uid != duplicated_collection_field.uid
+    assert source_workflow_action.event != duplicated_workflow_action.event
+    assert (
+        duplicated_workflow_action.event == f"{duplicated_collection_field.uid}_click"
+    )

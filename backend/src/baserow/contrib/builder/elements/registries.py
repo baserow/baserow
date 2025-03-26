@@ -1,3 +1,4 @@
+import uuid
 from abc import ABC, abstractmethod
 from typing import (
     Any,
@@ -22,7 +23,6 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.database.db.functions import RandomUUID
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -500,8 +500,23 @@ class CollectionFieldType(
                 **kwargs,
             )
 
+        # Generate a new `uid` for this collection field.
+        deserialized_uid = str(uuid.uuid4())
+
+        if "uid" in serialized_values:
+            # Ensure we have a mapping for the collection field uids.
+            if "builder_collection_fields_uids" not in id_mapping:
+                id_mapping["builder_collection_fields_uids"] = {}
+
+            # Map the old uid to the new uid. This ensures that any workflow
+            # actions with an `event` pointing to the old uid will have the
+            # pointer to the new uid.
+            id_mapping["builder_collection_fields_uids"][
+                serialized_values["uid"]
+            ] = deserialized_uid
+
         deserialized_values = {
-            "uid": serialized_values.get("uid", RandomUUID()),
+            "uid": deserialized_uid,
             "config": deserialized_config,
             "type": serialized_values["type"],
             "styles": serialized_values.get("styles", {}),
