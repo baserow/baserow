@@ -232,6 +232,7 @@ def test_user_account(data_fixture, api_client):
     assert response_json["first_name"] == "NewOriginalName"
     assert response_json["language"] == "fr"
     assert response_json["completed_onboarding"] is False
+    assert response_json["completed_guided_tours"] == []
 
     user.refresh_from_db()
     assert user.first_name == "NewOriginalName"
@@ -249,7 +250,7 @@ def test_user_account(data_fixture, api_client):
     assert response_json["detail"]["non_field_errors"][0]["code"] == "invalid"
     assert response_json["detail"]["non_field_errors"][0]["error"] == (
         "At least one of the fields first_name, language, email_notification_frequency,"
-        " completed_onboarding must be provided."
+        " completed_onboarding, completed_guided_tours must be provided."
     )
 
     response = api_client.patch(
@@ -316,6 +317,70 @@ def test_user_account(data_fixture, api_client):
     assert response_json["language"] == "fr"
     assert response_json["email_notification_frequency"] == "daily"
     assert response_json["completed_onboarding"] is True
+    assert response_json["completed_guided_tours"] == []
+
+    response = api_client.patch(
+        reverse("api:user:account"),
+        {
+            "completed_onboarding": True,
+            "completed_guided_tours": ["core"],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == 200
+    assert response_json["first_name"] == "NewOriginalName"
+    assert response_json["language"] == "fr"
+    assert response_json["email_notification_frequency"] == "daily"
+    assert response_json["completed_onboarding"] is True
+    assert response_json["completed_guided_tours"] == ["core"]
+
+
+@pytest.mark.django_db
+def test_user_account_completed_guided_tours(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token(
+        email="test@localhost.nl", language="en", first_name="Nikolas"
+    )
+
+    response = api_client.patch(
+        reverse("api:user:account"),
+        {
+            "completed_guided_tours": ["core"],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == 200
+    assert set(response_json["completed_guided_tours"]) == set(["core"])
+
+    response = api_client.patch(
+        reverse("api:user:account"),
+        {
+            "completed_guided_tours": ["core", "database"],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == 200
+    assert set(response_json["completed_guided_tours"]) == set(["core", "database"])
+
+    # It should not be possible to remove entries.
+    response = api_client.patch(
+        reverse("api:user:account"),
+        {
+            "completed_guided_tours": ["core", "application"],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == 200
+    assert set(response_json["completed_guided_tours"]) == set(
+        ["core", "database", "application"]
+    )
 
 
 @pytest.mark.django_db

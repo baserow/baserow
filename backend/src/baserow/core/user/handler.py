@@ -318,6 +318,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         language: Optional[str] = None,
         email_notification_frequency: Optional[str] = None,
         completed_onboarding: Optional[bool] = None,
+        completed_guided_tours: Optional[str] = None,
     ) -> AbstractUser:
         """
         Updates the user's account editable properties. Handles the scenario
@@ -329,6 +330,8 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         :param email_notification_frequency: The frequency chosen by the user to
             receive email notifications.
         :param completed_onboarding: Whether the onboarding was completed.
+        :param completed_guided_tours: List containing the guided tour types that
+            have been completed.
         :return: The updated user object.
         """
 
@@ -349,6 +352,15 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         if completed_onboarding is not None:
             user.profile.completed_onboarding = completed_onboarding
             profile_fields_to_update.append("completed_onboarding")
+
+        if completed_guided_tours is not None:
+            existing = set(user.profile.completed_guided_tours or [])
+            new = set(completed_guided_tours)
+            additions = new - existing
+
+            if additions:
+                user.profile.completed_guided_tours = list(existing.union(additions))
+                profile_fields_to_update.append("completed_guided_tours")
 
         if profile_fields_to_update:
             user.profile.save(update_fields=profile_fields_to_update)
