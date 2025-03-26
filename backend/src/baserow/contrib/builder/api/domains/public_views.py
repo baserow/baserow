@@ -127,7 +127,6 @@ class PublicBuilderByDomainNameView(APIView):
         Only requested if the public get-by-domain cache is stale, or if the
         application has been re-published.
 
-        :param request: the HTTP request.
         :param domain_name: the domain name to match.
         :return: a publicly serialized builder.
         """
@@ -241,7 +240,7 @@ class PublicElementsView(APIView):
         Only requested if the public elements cache is stale, or if the page is
         being previewed.
 
-        :param request: the HTTP request.
+        :param user: the user requesting the elements.
         :param page_id: the page id.
         :return: a list of serialized elements.
         """
@@ -317,7 +316,8 @@ class PublicDataSourcesView(APIView):
         Only requested if the public data sources cache is stale, or if the page is
         being previewed.
 
-        :param request: the HTTP request.
+        :param user: the user requesting the data sources.
+        :param user_source_user: the user source user we want the data for.
         :param page_id: the page id.
         :return: a list of serialized data sources.
         """
@@ -407,7 +407,7 @@ class PublicBuilderWorkflowActionsView(APIView):
         Only requested if the public workflow actions cache is stale, or if the page is
         being previewed.
 
-        :param request: the HTTP request.
+        :param user: the user requesting the actions.
         :param page_id: the page id.
         :return: a list of serialized workflow actions.
         """
