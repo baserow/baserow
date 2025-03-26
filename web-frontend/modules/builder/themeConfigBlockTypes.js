@@ -14,6 +14,7 @@ import {
   colorContrast,
 } from '@baserow/modules/core/utils/colors'
 import {
+  BORDER_RADIUS_TYPES,
   WIDTHS_NEW,
   HORIZONTAL_ALIGNMENTS,
   BACKGROUND_MODES,
@@ -580,10 +581,20 @@ export class ImageThemeConfigBlockType extends ThemeConfigBlockType {
       'image_constraint',
       baseTheme?.image_constraint
     )
-    const imageBorderRadius = get(
+    const imageBorderRadiusPixel = get(
       theme,
-      'image_border_radius',
-      baseTheme?.image_border_radius
+      'image_border_radius_pixel',
+      baseTheme?.image_border_radius_pixel
+    )
+    const imageBorderRadiusPercent = get(
+      theme,
+      'image_border_radius_percent',
+      baseTheme?.image_border_radius_percent
+    )
+    const imageBorderRadiusType = get(
+      theme,
+      'image_border_radius_type',
+      baseTheme?.image_border_radius_type
     )
 
     if (Object.prototype.hasOwnProperty.call(theme, 'image_max_width')) {
@@ -621,9 +632,25 @@ export class ImageThemeConfigBlockType extends ThemeConfigBlockType {
       }
     }
 
-    if (Object.prototype.hasOwnProperty.call(theme, 'image_border_radius')) {
-      if (imageBorderRadius) {
-        style.style['--image-border-radius'] = `${imageBorderRadius}px`
+    if (
+      Object.prototype.hasOwnProperty.call(
+        theme,
+        'image_border_radius_percent'
+      ) &&
+      imageBorderRadiusType === BORDER_RADIUS_TYPES.PERCENT
+    ) {
+      if (imageBorderRadiusPercent) {
+        style.style['--image-border-radius'] = `${imageBorderRadiusPercent}%`
+      }
+    } else if (
+      Object.prototype.hasOwnProperty.call(
+        theme,
+        'image_border_radius_pixel'
+      ) &&
+      imageBorderRadiusType === BORDER_RADIUS_TYPES.PIXEL
+    ) {
+      if (imageBorderRadiusPixel) {
+        style.style['--image-border-radius'] = `${imageBorderRadiusPixel}px`
       }
     }
 

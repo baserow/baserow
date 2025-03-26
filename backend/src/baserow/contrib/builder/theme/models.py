@@ -5,6 +5,7 @@ from baserow.contrib.builder.constants import (
     BACKGROUND_IMAGE_MODES,
     COLOR_FIELD_MAX_LENGTH,
     WIDTHS,
+    BorderRadius,
     FontWeights,
     HorizontalAlignments,
 )
@@ -411,8 +412,26 @@ class ImageThemeConfigBlock(ThemeConfigBlock):
         ],
     )
 
-    image_border_radius = models.SmallIntegerField(
-        help_text="The border radius for this image element.",
+    image_border_radius_type = models.CharField(
+        help_text="The border radius type for this image element.",
+        choices=BorderRadius.choices,
+        max_length=7,
+        default=BorderRadius.PIXEL,
+        db_default=BorderRadius.PIXEL,
+    )
+
+    image_border_radius_percent = models.SmallIntegerField(
+        help_text="The border radius percentage for this image element.",
+        validators=[
+            MinValueValidator(0, message="Value cannot be less than 0."),
+            MaxValueValidator(50, message="Value cannot be greater than 50."),
+        ],
+        default=0,
+        db_default=0,
+    )
+
+    image_border_radius_pixel = models.SmallIntegerField(
+        help_text="The border radius pixels for this image element.",
         validators=[
             MinValueValidator(0, message="Value cannot be less than 0."),
             MaxValueValidator(100, message="Value cannot be greater than 100."),
