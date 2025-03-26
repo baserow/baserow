@@ -291,14 +291,14 @@ export default {
         'image_max_height',
         'image_constraint',
         'image_border_radius_pixel',
-        'image_border_radius_percent',        
+        'image_border_radius_percent',
         'image_border_radius_type',
       ],
       defaultValuesWhenEmpty: {
         image_min_width: minMax.image_width.min,
         image_min_height: minMax.image_height.min,
         image_border_radius_pixel: minMax.image_border_radius_pixel.min,
-        image_border_radius_percent: minMax.image_border_radius_percent.min,        
+        image_border_radius_percent: minMax.image_border_radius_percent.min,
       },
     }
   },
@@ -308,23 +308,21 @@ export default {
         {
           label: this.$t('imageThemeConfigBlock.imageBorderRadiusTypePixel'),
           value: BORDER_RADIUS_TYPES.PIXEL,
-        },  
+        },
         {
           label: this.$t('imageThemeConfigBlock.imageBorderRadiusTypePercent'),
           value: BORDER_RADIUS_TYPES.PERCENT,
-        },        
+        },
       ]
     },
     showBorderRadiusPixel() {
-      return (
-        this.values.image_border_radius_type === BORDER_RADIUS_TYPES.PIXEL
-      )
+      return this.values.image_border_radius_type === BORDER_RADIUS_TYPES.PIXEL
     },
     showBorderRadiusPercent() {
       return (
         this.values.image_border_radius_type === BORDER_RADIUS_TYPES.PERCENT
       )
-    },    
+    },
     imageMaxHeight: {
       get() {
         return this.values.image_max_height

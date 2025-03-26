@@ -42,7 +42,7 @@ export const ALLOWED_LINK_PROTOCOLS = [
 
 export const BORDER_RADIUS_TYPES = {
   PIXEL: 'pixel',
-  PERCENT: 'percent',  
+  PERCENT: 'percent',
 }
 
 export const TEXT_FORMAT_TYPES = {
