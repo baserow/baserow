@@ -20,6 +20,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.data_providers.exceptions import (
     DataProviderChunkInvalidException,
+    FormDataProviderChunkInvalidException,
 )
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
 from baserow.contrib.database.api.rows.serializers import (
@@ -2211,6 +2212,8 @@ class LocalBaserowUpsertRowServiceType(
                     formula_runtime_function_registry,
                     dispatch_context,
                 )
+            except FormDataProviderChunkInvalidException as e:
+                raise ServiceImproperlyConfigured(str(e)) from e
             except DataProviderChunkInvalidException as e:
                 message = (
                     "Path error in formula for "
