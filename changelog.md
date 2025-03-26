@@ -5,6 +5,7 @@
 ### Bug fixes
 * [Core] Clear local_cache for celery tasks [#3528](https://gitlab.com/baserow/baserow/-/issues/3528)
 * [Database] Fix broken continue button and validation of the onboarding import step.
+* [Builder] Fix schema caching issue again
 
 ### Breaking API changes
 * [Database] Updated Langchain, Gunicorn, and Django backend dependencies.
