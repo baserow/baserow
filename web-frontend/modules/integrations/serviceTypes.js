@@ -171,6 +171,8 @@ export class LocalBaserowListRowsServiceType extends LocalBaserowTableServiceTyp
         let valueFormula = `get('current_record.${field}')`
         if (originalType === 'boolean') {
           outputType = 'boolean'
+        } else if (originalType === 'rating') {
+          outputType = 'rating'
         } else if (originalType === 'url') {
           return {
             link_name: valueFormula,

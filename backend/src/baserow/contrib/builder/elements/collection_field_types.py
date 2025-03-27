@@ -1,11 +1,14 @@
 from typing import Any, Dict, Generator, TypedDict, Union
 
+from django.core.validators import MinValueValidator
+
 from rest_framework import serializers
 
 from baserow.contrib.builder.elements.element_types import NavigationElementManager
 from baserow.contrib.builder.elements.models import CollectionField, LinkElement
 from baserow.contrib.builder.elements.registries import CollectionFieldType
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.core.constants import RatingStyleChoices
 from baserow.core.formula.serializers import (
     FormulaSerializerField,
     OptionalFormulaSerializerField,
@@ -31,6 +34,48 @@ class BooleanCollectionFieldType(CollectionFieldType):
                 required=False,
                 allow_blank=True,
                 default=False,
+            ),
+        }
+
+
+class RatingCollectionFieldType(CollectionFieldType):
+    type = "rating"
+    allowed_fields = ["value", "color", "rating_style", "max_value"]
+    serializer_field_names = ["value", "color", "rating_style", "max_value"]
+    simple_formula_fields = ["value"]
+
+    class SerializedDict(TypedDict):
+        value: BaserowFormula
+        color: str
+        rating_style: str
+        max_value: int
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "value": FormulaSerializerField(
+                help_text="The rating value.",
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+            "color": serializers.CharField(
+                help_text="The color of the rating.",
+                required=False,
+                allow_blank=True,
+                default="primary",
+            ),
+            "rating_style": serializers.ChoiceField(
+                choices=RatingStyleChoices.choices,
+                help_text="The style of the rating.",
+                required=False,
+                default=RatingStyleChoices.STAR,
+            ),
+            "max_value": serializers.IntegerField(
+                help_text="The maximum value of the rating.",
+                required=False,
+                default=5,
+                validators=[MinValueValidator(1)],
             ),
         }
 

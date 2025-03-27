@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 from io import BytesIO
 from tempfile import tempdir
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
@@ -56,6 +56,7 @@ from baserow.contrib.builder.elements.models import (
     ImageElement,
     InputTextElement,
     LinkElement,
+    RatingInputElement,
     RecordSelectorElement,
     TableElement,
     TextElement,
@@ -409,6 +410,69 @@ def test_button_element_import_export_formula(data_fixture):
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     assert imported_element.value == expected_formula
+
+
+def test_rating_input_element_type_is_valid_with_valid_value():
+    # Setup
+    element_type = element_type_registry.get("rating_input")
+    element = MagicMock(spec=RatingInputElement)
+    element.required = False
+    element.max_value = 5
+    dispatch_context = MagicMock()
+
+    # Test with valid values
+    assert element_type.is_valid(element, 0, dispatch_context) == 0
+    assert element_type.is_valid(element, 3, dispatch_context) == 3
+    assert element_type.is_valid(element, 5, dispatch_context) == 5
+
+
+def test_rating_input_element_type_is_valid_with_required_element():
+    # Setup
+    element_type = element_type_registry.get("rating_input")
+    element = MagicMock(spec=RatingInputElement)
+    element.required = True
+    element.max_value = 5
+    dispatch_context = MagicMock()
+
+    # Test with valid value
+    assert element_type.is_valid(element, 3, dispatch_context) == 3
+
+    # Test with None value (should raise exception)
+    with pytest.raises(FormDataProviderChunkInvalidException) as excinfo:
+        element_type.is_valid(element, None, dispatch_context)
+    assert "The value is required for this element." in str(excinfo.value)
+
+
+def test_rating_input_element_type_is_valid_with_out_of_range_values():
+    # Setup
+    element_type = element_type_registry.get("rating_input")
+    element = MagicMock(spec=RatingInputElement)
+    element.required = False
+    element.max_value = 5
+    dispatch_context = MagicMock()
+
+    # Test with values outside the valid range
+    for invalid_value in [-1, 6, 10]:
+        with pytest.raises(FormDataProviderChunkInvalidException) as excinfo:
+            element_type.is_valid(element, invalid_value, dispatch_context)
+        assert "The value is required for this element." in str(excinfo.value)
+
+
+def test_rating_input_element_type_is_valid_edge_cases():
+    # Setup
+    element_type = element_type_registry.get("rating_input")
+    element = MagicMock(spec=RatingInputElement)
+    element.required = False
+    element.max_value = 5
+    dispatch_context = MagicMock()
+
+    # Test with None value for non-required element
+    # This should pass since the element is not required
+    assert element_type.is_valid(element, None, dispatch_context) is None
+
+    # Test with boundary values
+    assert element_type.is_valid(element, 0, dispatch_context) == 0
+    assert element_type.is_valid(element, 5, dispatch_context) == 5
 
 
 @pytest.mark.django_db

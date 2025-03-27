@@ -11,9 +11,6 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.contrib.builder.data_providers.exceptions import (
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
@@ -948,28 +945,25 @@ def test_dispatch_local_baserow_update_row_workflow_action_using_formula_with_da
 
 
 @pytest.mark.django_db
-@patch(
-    "baserow.contrib.builder.data_providers.data_provider_types.FormDataProviderType.validate_data_chunk",
-    side_effect=FormDataProviderChunkInvalidException,
-)
-def test_dispatch_workflow_action_with_invalid_form_data(
-    mock_validate, api_client, data_fixture
-):
+def test_dispatch_workflow_action_with_invalid_form_data(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     builder = data_fixture.create_builder_application(user=user)
     database = data_fixture.create_database_application(workspace=builder.workspace)
     table = data_fixture.create_database_table(database=database)
     field = data_fixture.create_text_field(table=table)
     page = data_fixture.create_builder_page(user=user, builder=builder)
-    element = data_fixture.create_builder_button_element(page=page)
+    button_element = data_fixture.create_builder_button_element(page=page)
+    input_text_element = data_fixture.create_builder_input_text_element(
+        page=page, required=True
+    )
     workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
-        page=page, element=element, event=EventTypes.CLICK, user=user
+        page=page, element=button_element, event=EventTypes.CLICK, user=user
     )
     service = workflow_action.service.specific
     service.table = table
     service.save()
-    field_mapping = service.field_mappings.create(
-        field=field, value="get('form_data.17')"
+    service.field_mappings.create(
+        field=field, value=f"get('form_data.{input_text_element.id}')"
     )
 
     url = reverse(
@@ -979,11 +973,7 @@ def test_dispatch_workflow_action_with_invalid_form_data(
 
     response = api_client.post(
         url,
-        {
-            "form_data": {
-                "17": {"value": "", "type": "string", "isValid": False},
-            },
-        },
+        {"form_data": {input_text_element.id: ""}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -992,7 +982,8 @@ def test_dispatch_workflow_action_with_invalid_form_data(
     assert response.json() == {
         "error": "ERROR_WORKFLOW_ACTION_IMPROPERLY_CONFIGURED",
         "detail": "The workflow_action configuration is incorrect: "
-        f"Path error in formula for field {field.name}({field.id})",
+        f"Provided value for form element with ID {input_text_element.id} of type "
+        "input_text is invalid. The value is required.",
     }
 
 

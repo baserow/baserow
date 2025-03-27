@@ -77,7 +77,7 @@ export default {
     },
   },
   methods: {
-    resolveFormula(formula, formulaContext = null) {
+    resolveFormula(formula, formulaContext = null, defaultIfError = '') {
       try {
         return resolveFormula(
           formula,
@@ -85,7 +85,7 @@ export default {
           formulaContext || this.runtimeFormulaContext
         )
       } catch (e) {
-        return ''
+        return defaultIfError
       }
     },
     async fireEvent(event) {

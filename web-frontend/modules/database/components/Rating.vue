@@ -1,14 +1,17 @@
 <template functional>
   <div
-    class="rating"
     :class="[
       data.staticClass,
-      `color--${props.color}`,
+      props.customColor ? 'rating' : `rating color--${props.color}`,
+      props.showUnselected ? 'rating--show-unselected' : '',
       props.readOnly ? '' : 'editing',
     ]"
+    :style="{ '--rating-color': props.customColor }"
   >
     <i
-      v-for="index in props.readOnly ? props.value : props.maxValue"
+      v-for="index in props.readOnly && !props.showUnselected
+        ? props.value
+        : props.maxValue"
       :key="index"
       class="rating__star"
       :class="{
@@ -25,12 +28,14 @@
 </template>
 
 <script>
+import { RATING_STYLES } from '@baserow/modules/core/enums'
+
 export default {
   name: 'Rating',
   props: {
     readOnly: {
-      default: false,
       type: Boolean,
+      default: false,
     },
     value: {
       required: true,
@@ -43,9 +48,22 @@ export default {
     ratingStyle: {
       default: 'star',
       type: String,
+      validator(value) {
+        return RATING_STYLES[value] === undefined
+      },
     },
+    showUnselected: {
+      type: Boolean,
+      default: false,
+    },
+    // to use one of predefined colors classes
     color: {
       default: 'dark-orange',
+      type: String,
+    },
+    // to use custom color
+    customColor: {
+      default: '',
       type: String,
     },
   },

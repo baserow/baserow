@@ -9,6 +9,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
     TypedDict,
     Union,
 )
@@ -59,6 +60,8 @@ from baserow.contrib.builder.elements.models import (
     MenuElement,
     MenuItemElement,
     NavigationElementMixin,
+    RatingElement,
+    RatingInputElement,
     RecordSelectorElement,
     RepeatElement,
     SimpleContainerElement,
@@ -1206,6 +1209,136 @@ class ImageElementType(ElementType):
 
 class InputElementType(FormElementTypeMixin, ElementType, abc.ABC):
     pass
+
+
+class RatingElementType(ElementType):
+    type = "rating"
+    model_class = RatingElement
+    allowed_fields = [
+        "max_value",
+        "color",
+        "rating_style",
+        "value",
+    ]
+    serializer_field_names = [
+        "max_value",
+        "color",
+        "rating_style",
+        "value",
+    ]
+    simple_formula_fields = ["value"]
+
+    class SerializedDict(ElementDict):
+        value: BaserowFormula
+        max_value: str
+        color: str
+        rating_style: str
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "max_value": 5,
+            "value": "5",
+            "color": "dark-orange",
+            "rating_style": "star",
+        }
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "value": FormulaSerializerField(
+                help_text=RatingElement._meta.get_field("value").help_text,
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+        }
+
+
+class RatingInputElementType(InputElementType):
+    type = "rating_input"
+    model_class = RatingInputElement
+    allowed_fields = [
+        "max_value",
+        "color",
+        "rating_style",
+        "value",
+        "required",
+        "label",
+    ]
+    serializer_field_names = [
+        "max_value",
+        "color",
+        "rating_style",
+        "value",
+        "required",
+        "label",
+    ]
+    simple_formula_fields = ["value", "label"]
+
+    class SerializedDict(ElementDict):
+        label: BaserowFormula
+        required: bool
+        value: BaserowFormula
+        max_value: str
+        color: str
+        rating_style: str
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "max_value": 5,
+            "value": "5",
+            "color": "dark-orange",
+            "rating_style": "star",
+            "label": "",
+            "required": False,
+        }
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return super().serializer_field_overrides | {
+            "label": FormulaSerializerField(
+                help_text=RatingInputElement._meta.get_field("label").help_text,
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+            "required": serializers.BooleanField(
+                help_text=RatingInputElement._meta.get_field("required").help_text,
+                default=False,
+                required=False,
+            ),
+            "value": FormulaSerializerField(
+                help_text=RatingInputElement._meta.get_field("value").help_text,
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+        }
+
+    def is_valid(
+        self,
+        element: Type[RatingInputElement],
+        value: Any,
+        dispatch_context: DispatchContext,
+    ) -> bool:
+        """
+        :param element: The element we're trying to use form data in.
+        :param value: The form data value, which may be invalid.
+        :return: Whether the value is valid or not for this element.
+
+        """
+
+        if (element.required and value is None) or not (
+            value is None or 0 <= value <= element.max_value
+        ):
+            raise FormDataProviderChunkInvalidException(
+                "The value is required for this element."
+            )
+        return value
 
 
 class InputTextElementType(InputElementType):
