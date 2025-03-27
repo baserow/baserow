@@ -1,7 +1,7 @@
 <template>
   <RadioGroup
     :model-value="value"
-    :options="borderRadiusOptions"
+    :options="options"
     type="button"
     @input="$emit('input', $event)"
   />
@@ -20,17 +20,15 @@ export default {
     },
   },
   computed: {
-    borderRadiusOptions() {
+    options() {
       return [
         {
-          title: this.$t('borderRadiusSelector.pixel'),
+          label: this.$t('borderRadiusSelector.pixel'),
           value: BORDER_RADIUS_TYPES.PIXEL,
-          icon: 'iconoir-cursor-pointer',
         },
         {
-          title: this.$t('borderRadiusSelector.percent'),
+          label: this.$t('borderRadiusSelector.percent'),
           value: BORDER_RADIUS_TYPES.PERCENT,
-          icon: 'iconoir-percentage',
         },
       ]
     },
