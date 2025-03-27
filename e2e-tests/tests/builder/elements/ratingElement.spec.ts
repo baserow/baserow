@@ -21,23 +21,27 @@ test.describe("Builder page heading element test suite", () => {
     const builderElementModal = await builderPagePage.openAddElementModal();
     await builderElementModal.addElementByName("Rating");
     await expect(
-      page.locator('a').filter({ hasText: 'Star' }).first()
+      page.locator("a").filter({ hasText: "Star" }).first()
     ).toBeVisible();
   });
 
-  test("Can create a rating input element", async ({ page, context, builderPagePage }) => {
+  test("Can create a rating input element", async ({
+    page,
+    context,
+    builderPagePage,
+  }) => {
     const builderElementModal = await builderPagePage.openAddElementModal();
     await builderElementModal.addElementByName("Rating input");
     await expect(
       page.locator('[data-test-id="rating-form-value"]')
     ).toBeVisible();
     await page.evaluate(() => {
-        const node = document.querySelector('.toasts__container-top');
-        if (node) node.remove();
+      const node = document.querySelector(".toasts__container-top");
+      if (node) node.remove();
     });
     const [newPage] = await Promise.all([
-        context.waitForEvent('page'), // Waits for a new tab to open
-        page.locator('a').filter({ hasText: 'Preview' }).click()
+      context.waitForEvent("page"), // Waits for a new tab to open
+      page.locator("a").filter({ hasText: "Preview" }).click(),
     ]);
 
     await newPage.waitForLoadState();
@@ -45,9 +49,6 @@ test.describe("Builder page heading element test suite", () => {
     const title = await newPage.title();
     await expect(title).toBe("Default page");
 
-    await expect(
-      newPage.locator('.rating-element')
-    ).toHaveCount(3);
+    await expect(newPage.locator(".rating")).toHaveCount(3);
   });
-
 });
