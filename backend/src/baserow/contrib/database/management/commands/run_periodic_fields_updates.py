@@ -1,5 +1,4 @@
 from django.core.management.base import BaseCommand
-from django.db import transaction
 
 from baserow.contrib.database.fields.tasks import run_periodic_fields_updates
 
@@ -21,7 +20,6 @@ class Command(BaseCommand):
             help="If set to true all the workspaces will be updated with the current time otherwise the previous `now` value will be used.",
         )
 
-    @transaction.atomic
     def handle(self, *args, **options):
         run_periodic_fields_updates(
             options["workspace_id"], not options["dont_update_now"]

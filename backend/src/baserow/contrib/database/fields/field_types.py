@@ -5085,6 +5085,8 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         field_cache: "Optional[FieldCache]" = None,
         via_path_to_starting_table: Optional[List[LinkRowField]] = None,
         already_updated_fields: Optional[List[Field]] = None,
+        skip_search_updates: bool = False,
+        database_id: Optional[int] = None,
     ):
         from baserow.contrib.database.fields.dependencies.update_collector import (
             FieldUpdateCollector,
@@ -5113,15 +5115,18 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
 
         for update_collector in update_collectors.values():
             updated_fields |= set(
-                update_collector.apply_updates_and_get_updated_fields(field_cache)
+                update_collector.apply_updates_and_get_updated_fields(
+                    field_cache, skip_search_updates=skip_search_updates
+                )
             )
 
-        all_dependent_fields_grouped_by_depth = FieldDependencyHandler.group_all_dependent_fields_by_level_from_fields(
-            fields,
-            field_cache,
-            associated_relations_changed=False,
-            # We can't provide the `database_id_prefilter` here because the fields
-            # can belong in different databases.
+        all_dependent_fields_grouped_by_depth = (
+            FieldDependencyHandler.group_all_dependent_fields_by_level_from_fields(
+                fields,
+                field_cache,
+                associated_relations_changed=False,
+                database_id_prefilter=database_id,
+            )
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
             for table_id, dependant_field in dependant_fields_group:
@@ -5136,7 +5141,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
                     via_path_to_starting_table,
                 )
             updated_fields |= set(
-                update_collector.apply_updates_and_get_updated_fields(field_cache)
+                update_collector.apply_updates_and_get_updated_fields(
+                    field_cache, skip_search_updates=skip_search_updates
+                )
             )
 
         update_collector.send_force_refresh_signals_for_all_updated_tables()

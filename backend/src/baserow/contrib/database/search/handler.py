@@ -756,6 +756,38 @@ class SearchHandler(
         )
 
     @classmethod
+    def all_fields_values_changed_or_created(cls, updated_fields: List["Field"]):
+        """
+        Called when field values for a table have been changed or created for an entire
+        field column at once. This is more efficient than calling
+        `entire_field_values_changed_or_created` for each table individually when
+        multiple tables have had field values changed. Please, make sure to
+        select_related the table for the "updated_fields" to avoid N+1 queries.
+
+        :param updated_fields: If only some fields have had values changed then the
+            search vector update can be optimized by providing those here.
+        """
+
+        from baserow.contrib.database.search.tasks import (
+            async_update_multiple_fields_tsvector_columns,
+        )
+        from baserow.contrib.database.tasks import (
+            enqueue_task_on_commit_swallowing_any_exceptions,
+        )
+
+        searchable_updated_fields_ids = [
+            field.id for field in updated_fields if field.table.tsvectors_are_supported
+        ]
+
+        if searchable_updated_fields_ids:
+            enqueue_task_on_commit_swallowing_any_exceptions(
+                lambda: async_update_multiple_fields_tsvector_columns.delay(
+                    field_ids=searchable_updated_fields_ids,
+                    update_tsvs_for_changed_rows_only=False,
+                )
+            )
+
+    @classmethod
     def _trigger_async_tsvector_task_if_needed(
         cls,
         table,

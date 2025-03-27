@@ -18,6 +18,7 @@ from baserow.contrib.database.fields.dependencies.exceptions import (
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.registries import FieldType, field_type_registry
+from baserow.contrib.database.table.models import Table
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
@@ -112,7 +113,8 @@ class FieldDependencyHandler:
         }
         relationship_table = FieldDependency._meta.db_table
         linkrowfield_table = LinkRowField._meta.db_table
-        field_table = Field._meta.db_table
+        fields_db_table_name = Field._meta.db_table
+        tables_db_table_name = Table._meta.db_table
 
         if associated_relations_changed:
             associated_relations_changed_query = f"""
@@ -128,34 +130,33 @@ class FieldDependencyHandler:
             associated_relations_changed_query = ""
 
         if database_id_prefilter:
-            # Override the `relationship_table` with a CTE that only selects the
-            # dependencies within the provided database. This will significantly speed
-            # up performance because it doesn't need to filter through all the
-            # dependencies. This improvement is noticeable on large Baserow instances
-            # with many users.
+            # Filters tbe dependencies to only include fields in the provided database.
+            # This will significantly speed up performance because it doesn't need to
+            # filter through all the dependencies. This improvement is noticeable on
+            # large Baserow instances with many users.
             database_prefilter_query = f"""
-            WITH {relationship_table} AS (
-                SELECT database_fielddependency.id,
-                       database_fielddependency.dependant_id,
-                       database_fielddependency.dependency_id,
-                       database_fielddependency.via_id
-                FROM   database_fielddependency
-                           INNER JOIN database_field
-                                      ON ( database_fielddependency.dependant_id =
-                                           database_field.id )
-                           INNER JOIN database_table
-                                      ON ( database_field.table_id = database_table.id )
-                WHERE  database_table.database_id = %(database_id)s
-            )
-            """  # nosec b608
+                INNER JOIN {fields_db_table_name}
+                    ON ( {relationship_table}.dependant_id = {fields_db_table_name}.id )
+                INNER JOIN {tables_db_table_name}
+                    ON ( {fields_db_table_name}.table_id = {tables_db_table_name}.id )
+                WHERE  {tables_db_table_name}.database_id = %(database_id)s
+            """
         else:
             database_prefilter_query = ""
+
+        relationship_table_cte = f"""
+            SELECT  {relationship_table}.id,
+                    {relationship_table}.dependant_id,
+                    {relationship_table}.dependency_id,
+                    {relationship_table}.via_id
+            FROM {relationship_table} {database_prefilter_query}
+        """  # nosec b608
 
         # Raw query that traverses through the dependencies, and will find the
         # dependants of the provided fields ids recursively.
         raw_query = f"""
             WITH RECURSIVE traverse(id, dependency_ids, via_ids, depth) AS (
-                {database_prefilter_query}
+              WITH relationship_table_cte AS ( {relationship_table_cte} )
                 SELECT
                     first.dependant_id,
                     first.dependency_id::text,
@@ -176,14 +177,14 @@ class FieldDependencyHandler:
                         ELSE ''
                     END as via_id,
                     1
-                FROM {relationship_table} AS first
-                LEFT OUTER JOIN {relationship_table} AS second
+                FROM relationship_table_cte AS first
+                LEFT OUTER JOIN relationship_table_cte AS second
                     ON first.dependant_id = second.dependency_id
                 LEFT OUTER JOIN {linkrowfield_table} as linkrowfield
                     ON first.via_id = linkrowfield.field_ptr_id
-                LEFT OUTER JOIN {field_table} as dependant
+                LEFT OUTER JOIN {fields_db_table_name} as dependant
                     ON first.dependant_id = dependant.id
-                LEFT OUTER JOIN {field_table} as dependency
+                LEFT OUTER JOIN {fields_db_table_name} as dependency
                     ON first.dependency_id = dependency.id
                 WHERE
                     first.dependency_id = ANY(%(pks)s)
@@ -198,8 +199,8 @@ class FieldDependencyHandler:
                     coalesce(concat_ws('|', via_ids::text, via_id::text), ''),
                     traverse.depth + 1
                 FROM traverse
-                INNER JOIN {relationship_table}
-                    ON {relationship_table}.dependency_id = traverse.id
+                INNER JOIN relationship_table_cte
+                    ON relationship_table_cte.dependency_id = traverse.id
                 WHERE 1 = 1
                 -- LIMITING_FK_EDGES_CLAUSE_2
                 -- DISALLOWED_ANCESTORS_NODES_CLAUSE_2
@@ -214,7 +215,7 @@ class FieldDependencyHandler:
                 field.table_id,
                 MAX(depth) as depth
             FROM traverse
-            LEFT OUTER JOIN {field_table} as field
+            LEFT OUTER JOIN {fields_db_table_name} as field
                 ON traverse.id = field.id
             WHERE depth <= %(max_depth)s
             GROUP BY traverse.id, traverse.via_ids, field.content_type_id, field.name, field.table_id
@@ -222,7 +223,6 @@ class FieldDependencyHandler:
         """  # nosec b608
 
         queryset = FieldDependency.objects.raw(raw_query, query_parameters)
-
         link_row_field_content_type = ContentType.objects.get_for_model(LinkRowField)
         fields_to_fetch = set()
         fields_in_cache = {}
