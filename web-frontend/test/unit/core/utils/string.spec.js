@@ -131,7 +131,8 @@ describe('test string utils', () => {
 
   test('test isNumeric', () => {
     expect(isNumeric('a')).toBe(false)
-    expect(isNumeric('1.2')).toBe(false)
+    expect(isNumeric('1.2')).toBe(true)
+    expect(isNumeric('1,2')).toBe(true)
     expect(isNumeric('')).toBe(false)
     expect(isNumeric('null')).toBe(false)
     expect(isNumeric('12px')).toBe(false)

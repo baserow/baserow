@@ -138,7 +138,8 @@ export const escapeRegExp = (string) => {
 }
 
 export const isNumeric = (value) => {
-  return /^-?\d+$/.test(value)
+  // Accept both integers and decimal numbers with dot or comma as separator
+  return /^-?\d+([.,]\d+)?$/.test(value)
 }
 
 /**
