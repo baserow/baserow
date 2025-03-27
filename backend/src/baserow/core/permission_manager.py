@@ -132,7 +132,9 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         return {
             "allowed_operations_on_templates": self.OPERATION_ALLOWED_ON_TEMPLATES,
             "workspace_template_ids": list(
-                Workspace.objects.exclude(template=None).values_list("id", flat=True)
+                Workspace.objects.filter(template__isnull=False).values_list(
+                    "id", flat=True
+                )
             ),
         }
 
