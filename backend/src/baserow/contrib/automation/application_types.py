@@ -36,6 +36,7 @@ class AutomationApplicationType(ApplicationType):
         import_export_config: ImportExportConfig,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
+        progress_builder: ChildProgressBuilder | None = None,
     ) -> AutomationDict:
         """
         Exports the automation application type to a serialized format that can later
