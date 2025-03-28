@@ -38,7 +38,6 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 
-
 # Set to 'off' to runs all migrations and disable the custom setup fixture that installs
 # all pgPSQL functions. Default is 'on' for faster setup by skipping migrations.
 BASEROW_TESTS_SETUP_DB_FIXTURE = str_to_bool(
@@ -46,12 +45,6 @@ BASEROW_TESTS_SETUP_DB_FIXTURE = str_to_bool(
 )
 DATABASES["default"]["TEST"] = {
     "MIGRATE": not BASEROW_TESTS_SETUP_DB_FIXTURE,
-}
-# Psycopg3 only?
-# Disable default optimizations for the tests because they make tests slower.
-DATABASES["default"]["OPTIONS"] = {
-    "server_side_binding": False,
-    "prepare_threshold": None,
 }
 
 # Open a second database connection that can be used to test transactions.

@@ -603,7 +603,6 @@ typing-extensions==4.11.0
     #   openai
     #   opentelemetry-sdk
     #   prosemirror
-    #   psycopg
     #   pydantic
     #   pydantic-core
     #   sqlalchemy
