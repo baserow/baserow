@@ -57,12 +57,12 @@
         "teamsTabTitle": "팀"
     },
     "adminType": {
-        "AuditLog": "감사 로그",
+        "AuditLog": "활동기록",
         "Authentication": "인증"
     },
     "auditLog": {
-        "adminTitle": "감사 로그",
-        "workspaceTitle": "감사 로그 - {workspaceName}",
+        "adminTitle": "활동기록",
+        "workspaceTitle": "활동기록 - {workspaceName}",
         "filterUserTitle": "사용자",
         "filterWorkspaceTitle": "작업공간",
         "filterActionTypeTitle": "이벤트 유형",
@@ -85,10 +85,10 @@
     },
     "auditLogExportModal": {
         "title": "CSV로 내보내기",
-        "exportFilename": "관리자 감사 로그 내보내기 - {date}",
-        "exportWorkspaceFilename": " 작업공간 ({workspaceId}) 감사 로그 내보내기 - {date}",
+        "exportFilename": "관리자 활동기록 내보내기 - {date}",
+        "exportWorkspaceFilename": " 작업공간 ({workspaceId}) 활동기록 내보내기 - {date}",
         "cancelledTitle": "내보내기 실패",
-        "cancelledDescription": "감사 로그를 내보내는 동안 문제가 발생했습니다. 다시 시도해 주세요."
+        "cancelledDescription": "활동기록을 내보내는 동안 문제가 발생했습니다. 다시 시도해 주세요."
     },
     "authProviders": {
         "title": "인증 제공자",
@@ -115,7 +115,7 @@
         "metadataPlaceholder": "Identity Provider 메타데이터를 붙여넣으세요...",
         "invalidMetadata": "Identity Provider의 유효하지 않은 XML 메타데이터입니다",
         "relayStateUrl": "기본 Relay State URL",
-        "acsUrl": "싱글 사인온 URL",
+        "acsUrl": "통합 로그인(SSO) URL",
         "providerIsVerified": "제공자가 확인되었습니다",
         "samlResponseSettings": "SAML 응답 속성",
         "defaultAttrs": "기본값",
@@ -281,17 +281,17 @@
         "continueWith": "계속"
     },
     "enterpriseFeatures": {
-        "sso": "싱글 사인온",
+        "sso": "통합 로그인(SSO)",
         "rbac": "역할 기반 액세스 제어",
-        "auditLogs": "감사 로그",
+        "auditLogs": "활동기록",
         "dataSync": "데이터 동기화",
         "coBranding": "공동 브랜딩 로고 교체",
-        "support": "직접 지원",
+        "support": "직접지원",
         "chartWidget": "차트 위젯",
         "advancedWebhooks": "고급 웹훅"
     },
     "chatwootSupportSidebarWorkspace": {
-        "directSupport": "직접 지원"
+        "directSupport": "직접지원"
     },
     "userTeamsField": {
         "no_records": "팀 없음"
@@ -303,7 +303,7 @@
         "message": "내보내기에는 애플리케이션 및 해당 테이블에 설정된 권한이 포함되지 않는다는 점에 유의하십시오."
     },
     "auditLogSidebarWorkspace": {
-        "title": "감사 로그"
+        "title": "활동기록"
     },
     "localBaserowUserSourceType": {
         "notConfigured": "구성되지 않음"
