@@ -531,7 +531,7 @@ export class FieldType extends Registerable {
   getSortTypes(field) {
     return {
       [DEFAULT_SORT_TYPE_KEY]: {
-        function: this.getSort,
+        function: this.getSort.bind(this),
         indicator: this.getSortIndicator(field),
       },
     }

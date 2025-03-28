@@ -27,3 +27,10 @@ class AirtableImportJob(JobWithUserIpAddress, Job):
         db_default=False,
         help_text="If true, then the files are not downloaded and imported.",
     )
+    session = models.CharField(
+        null=True,
+        help_text="Optionally provide a session object that's used as authentication.",
+    )
+    session_signature = models.CharField(
+        null=True, help_text="The matching session signature if a session is provided."
+    )

@@ -5,7 +5,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
 from baserow.api.user.serializers import SubjectUserSerializer
-from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.integrations.api.local_baserow.serializers import (
@@ -157,9 +156,17 @@ class LocalBaserowIntegrationType(IntegrationType):
 
         tables = TableHandler().list_workspace_tables(user, workspace)
 
-        views = ViewHandler().list_workspace_views(user, workspace)
+        views = ViewHandler().list_workspace_views(user, workspace, specific=False)
 
-        fields = FieldHandler().list_workspace_fields(user, workspace)
+        views = list(
+            views.only(
+                "id",
+                "name",
+                "table_id",
+                "order",
+                "content_type",
+            ),
+        )
 
         views_by_table = defaultdict(list)
         [
@@ -168,17 +175,12 @@ class LocalBaserowIntegrationType(IntegrationType):
             if view.get_type().can_filter or view.get_type().can_sort
         ]
 
-        fields_by_table = defaultdict(list)
-        [fields_by_table[field.table_id].append(field) for field in fields]
-
         database_map = {}
         for table in tables:
             if table.database not in database_map:
                 database_map[table.database] = table.database
                 database_map[table.database].tables = []
                 database_map[table.database].views = []
-
-            table.fields = fields_by_table[table.id]
 
             database_map[table.database].tables.append(table)
             database_map[table.database].views += views_by_table.get(table.id, [])

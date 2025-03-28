@@ -91,6 +91,7 @@ INSTALLED_APPS = [
     "baserow.contrib.integrations",
     "baserow.contrib.builder",
     "baserow.contrib.dashboard",
+    "baserow.contrib.automation",
     *BASEROW_BUILT_IN_PLUGINS,
 ]
 
@@ -423,7 +424,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.32.0",
+    "VERSION": "1.32.5",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},

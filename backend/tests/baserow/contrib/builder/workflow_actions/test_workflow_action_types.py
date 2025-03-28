@@ -65,6 +65,7 @@ def test_import_workflow_action(data_fixture, workflow_action_type: WorkflowActi
         "page_id": 41,
         "element_id": 42,
         "order": 0,
+        "event": EventTypes.CLICK,
     }
     serialized.update(workflow_action_type.get_pytest_params_serialized(pytest_params))
 
@@ -299,6 +300,7 @@ def test_import_notification_workflow_action(data_fixture):
     exported_workflow_action = data_fixture.create_notification_workflow_action(
         page=page,
         element=button_1,
+        event=EventTypes.CLICK,
         title=f"get('data_source.{data_source_1.id}.field_1')",
         description=f"get('data_source.{data_source_1.id}.field_1')",
     )
@@ -330,6 +332,7 @@ def test_import_open_page_workflow_action(data_fixture):
 
     exported_workflow_action = data_fixture.create_open_page_workflow_action(
         page=page,
+        event=EventTypes.CLICK,
         element=button_1,
         navigate_to_url=f"get('data_source.{data_source_1.id}.field_1')",
         page_parameters=[

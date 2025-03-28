@@ -6821,3 +6821,113 @@ def test_all_view_filters_can_accept_strings_as_filter_value(data_fixture):
         handler.get_queryset(view)
     except Exception as e:
         pytest.fail(f"Exception raised: {e}")
+
+
+@pytest.mark.django_db
+def test_week_operator_for_view_multi_date_filters(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    date_field = data_fixture.create_date_field(table=table)
+    view = data_fixture.create_grid_view(table=table)
+    rows = (
+        RowHandler()
+        .force_create_rows(
+            user=user,
+            table=table,
+            rows_values=[
+                {date_field.db_column: date(2025, 3, 16)},
+                {date_field.db_column: date(2025, 3, 17)},  # MO-1
+                {date_field.db_column: date(2025, 3, 23)},
+                {date_field.db_column: date(2025, 3, 24)},  # MO
+                {date_field.db_column: date(2025, 3, 25)},
+                {date_field.db_column: date(2025, 3, 26)},
+                {date_field.db_column: date(2025, 3, 27)},
+                {date_field.db_column: date(2025, 3, 28)},
+                {date_field.db_column: date(2025, 3, 29)},
+                {date_field.db_column: date(2025, 3, 30)},
+                {date_field.db_column: date(2025, 3, 31)},  # MO+1
+                {date_field.db_column: date(2025, 4, 1)},
+                {date_field.db_column: date(2025, 4, 6)},
+                {date_field.db_column: date(2025, 4, 7)},  # MO+2
+            ],
+        )
+        .created_rows
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=view,
+        field=date_field,
+        type="date_is",
+        value="Europe/Rome??this_week",
+    )
+
+    handler = ViewHandler()
+    model = table.get_model()
+    for day in range(24, 30):  # MO-SU
+        with freeze_time(f"2025-03-{day}"):
+            qs = handler.apply_filters(view, model.objects.all())
+            [getattr(r, date_field.db_column) for r in qs.all()] == [
+                date(2025, 3, 24),
+                date(2025, 3, 25),
+                date(2025, 3, 26),
+                date(2025, 3, 27),
+                date(2025, 3, 28),
+                date(2025, 3, 29),
+                date(2025, 3, 30),
+            ]
+
+    view_filter.value = "Europe/Rome??one_week_ago"
+    view_filter.save()
+
+    for day in range(24, 30):  # MO-SU
+        with freeze_time(f"2025-03-{day}"):
+            qs = handler.apply_filters(view, model.objects.all())
+            [getattr(r, date_field.db_column) for r in qs.all()] == [
+                date(2025, 3, 17),
+                date(2025, 3, 18),
+                date(2025, 3, 23),
+            ]
+
+    view_filter.value = "Europe/Rome?2?nr_weeks_ago"
+    view_filter.save()
+
+    for day in range(24, 30):  # MO-SU
+        with freeze_time(f"2025-03-{day}"):
+            qs = handler.apply_filters(view, model.objects.all())
+            [getattr(r, date_field.db_column) for r in qs.all()] == [
+                date(2025, 3, 16),
+            ]
+
+    view_filter.value = "Europe/Rome??next_week"
+    view_filter.save()
+
+    for day in range(24, 30):  # MO-SU
+        with freeze_time(f"2025-03-{day}"):
+            qs = handler.apply_filters(view, model.objects.all())
+            [getattr(r, date_field.db_column) for r in qs.all()] == [
+                date(2025, 3, 31),
+                date(2025, 4, 1),
+                date(2025, 4, 6),
+            ]
+
+    view_filter.value = "Europe/Rome??next_week"
+    view_filter.save()
+
+    for day in range(24, 30):  # MO-SU
+        with freeze_time(f"2025-03-{day}"):
+            qs = handler.apply_filters(view, model.objects.all())
+            [getattr(r, date_field.db_column) for r in qs.all()] == [
+                date(2025, 3, 31),
+                date(2025, 4, 1),
+                date(2025, 4, 6),
+            ]
+
+    view_filter.value = "Europe/Rome?2?nr_weeks_from_now"
+    view_filter.save()
+
+    for day in range(24, 30):  # MO-SU
+        with freeze_time(f"2025-03-{day}"):
+            qs = handler.apply_filters(view, model.objects.all())
+            [getattr(r, date_field.db_column) for r in qs.all()] == [
+                date(2025, 4, 7),
+            ]

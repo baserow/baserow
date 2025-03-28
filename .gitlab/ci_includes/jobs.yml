@@ -163,6 +163,8 @@
 # and a tested tag for it will be pushed at the end.
 # You can also set EXTRA_BUILD_ARGS to pass any extra args to the docker build call.
 .build-final-baserow-image:
+  extends:
+    - .requires-lint
   image: $CI_UTIL_IMAGE
   stage: build-final
   interruptible: true
@@ -364,6 +366,7 @@
         docker tag $CI_IMAGE_PATH $TARGET_DEV_IMAGE_PATH
         docker push $TARGET_DEV_IMAGE_PATH
       fi
+
 
 # A simple docker based test job which does not run for a TAG pipeline and does not
 # check out git.
@@ -594,3 +597,10 @@
       fi
 
       echo -e "$GREEN ================================ $CLEAR"
+
+
+.requires-lint:
+  needs:
+    - job: web-frontend-lint
+    - job: backend-lint
+    - job: docker-file-hadolint

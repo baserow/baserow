@@ -12,7 +12,11 @@ from baserow.contrib.builder.constants import (
     HorizontalAlignments,
     VerticalAlignments,
 )
-from baserow.core.constants import DATE_FORMAT_CHOICES, DATE_TIME_FORMAT_CHOICES
+from baserow.core.constants import (
+    DATE_FORMAT_CHOICES,
+    DATE_TIME_FORMAT_CHOICES,
+    RatingStyleChoices,
+)
 from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
@@ -587,6 +591,50 @@ class FormElement(Element):
 
     class Meta:
         abstract = True
+
+
+class BaseRatingElement(Element):
+    """
+    A Rating element to display a rating.
+    """
+
+    value = FormulaField(default="")
+
+    max_value = models.PositiveSmallIntegerField(
+        default=5,
+        help_text="Maximum value the rating can take.",
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+    )
+    color = models.CharField(
+        max_length=50,
+        blank=False,
+        help_text="Color of the symbols.",
+        default="primary",
+    )
+    rating_style = models.CharField(
+        choices=RatingStyleChoices,
+        default=RatingStyleChoices.STAR,
+        max_length=50,
+        blank=False,
+        help_text=(
+            "Rating style. Allowed values: "
+            f"{', '.join([value for value in RatingStyleChoices.values])}."
+        ),
+    )
+
+    class Meta:
+        abstract = True
+
+
+class RatingElement(BaseRatingElement):
+    pass
+
+
+class RatingInputElement(BaseRatingElement, FormElement):
+    label = FormulaField(
+        default="",
+        help_text="The text label for this field",
+    )
 
 
 class InputTextElement(FormElement):

@@ -28,7 +28,7 @@
           </FormGroup>
         </div>
       </div>
-      <div class="row">
+      <div v-if="!fieldsLoading" class="row">
         <div class="col col-12">
           <Tabs>
             <Tab
@@ -61,6 +61,7 @@
           </Tabs>
         </div>
       </div>
+      <div v-else class="loading-spinner"></div>
     </div>
   </form>
 </template>
@@ -97,7 +98,6 @@ export default {
         filters: [],
         filter_type: 'AND',
       },
-      tableLoading: false,
     }
   },
 }

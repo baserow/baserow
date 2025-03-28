@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Clear local_cache for celery tasks",
+    "domain": "core",
+    "issue_number": 3528,
+    "bullet_points": [],
+    "created_at": "2025-03-26"
+}

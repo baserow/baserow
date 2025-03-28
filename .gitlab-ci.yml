@@ -4,6 +4,7 @@ include: '/.gitlab/ci_includes/jobs.yml'
 
 stages:
   - build
+  - lint
   - test
   - build-final
   - publish
@@ -193,6 +194,7 @@ build-backend-image:
 # If pipeline not triggered by tag:
 # - Runs the backend lint if changes to the backend, otherwise skips.
 backend-lint:
+  stage: lint
   extends:
     - .docker-image-test-stage
     - .skippable-job
@@ -207,6 +209,7 @@ backend-check-startup-python:
   extends:
     - .docker-image-test-stage
     - .skippable-job
+    - .requires-lint
   services:
     - name: $CI_DIND_IMAGE
       alias: docker
@@ -222,8 +225,6 @@ backend-check-startup-python:
     FF_NETWORK_PER_BUILD: 1
   script:
     - docker run --rm --network=host $BACKEND_CI_DEV_IMAGE ci-check-startup
-  needs:
-    - job: build-backend-image
 
 # If pipeline not triggered by tag:
 # - Runs the backend tests (the first 1/3) if changes to the backend, otherwise skips.
@@ -232,6 +233,7 @@ backend-test-group-1:
   extends:
     - .docker-image-test-stage
     - .skippable-job
+    - .requires-lint
   services:
     - name: $CI_DIND_IMAGE
       alias: docker
@@ -261,8 +263,7 @@ backend-test-group-1:
         $BACKEND_CI_DEV_IMAGE $TEST_TYPE $PYTEST_EXTRA_ARGS;
     - docker cp baserow_backend_test_container:/baserow/backend/reports .
     - docker rm baserow_backend_test_container
-  needs:
-    - job: build-backend-image
+
   artifacts:
     name: "$CI_JOB_NAME-reports"
     paths:
@@ -345,6 +346,16 @@ collect-backend-coverage:
       artifacts: true
     - job: backend-test-group-5
       artifacts: true
+    - job: backend-test-group-6
+      artifacts: true
+    - job: backend-test-group-7
+      artifacts: true
+    - job: backend-test-group-8
+      artifacts: true
+    - job: backend-test-group-9
+      artifacts: true
+    - job: backend-test-group-10
+      artifacts: true
   script:
     - . /baserow/venv/bin/activate
     # The reports artifacts will be extracted before the script runs into reports by
@@ -360,6 +371,7 @@ collect-backend-coverage:
         coverage_format: cobertura
         path: coverage.xml
   coverage: '/^TOTAL.+?(\d+\%)$/'
+
 
 # If pipeline not triggered by tag:
 # - Build and store non-dev images in CI repo under the `ci-tested` tag so we know
@@ -414,6 +426,7 @@ build-web-frontend-image:
 # If pipeline not triggered by tag:
 # - Runs eslint and stylelint if the web-frontend code has changed, otherwise skips.
 web-frontend-lint:
+  stage: lint
   extends:
     - .docker-image-test-stage
     - .skippable-job
@@ -431,11 +444,10 @@ web-frontend-test:
   extends:
     - .docker-image-test-stage
     - .skippable-job
+    - .requires-lint
   variables:
     RUN_WHEN_CHANGES_MADE_IN: "web-frontend/ premium/web-frontend/ enterprise/web-frontend/"
     DOWNLOAD_AND_UNPACK_ARTIFACTS_ON_SKIP: 'true'
-  needs:
-    - job: build-web-frontend-image
   script:
     - mkdir reports/ -p
     - TEST_TYPE=$([[ "$ENABLE_COVERAGE" = "true" ]] && echo "ci-test" || echo "test")
@@ -458,6 +470,7 @@ zapier-integration-test:
   extends:
     - .docker-image-test-stage
     - .skippable-job
+    - .requires-lint
   variables:
     RUN_WHEN_CHANGES_MADE_IN: "integrations/zapier"
   script:
@@ -469,15 +482,14 @@ zapier-integration-test:
 # - Build and store non-dev images in CI repo under the `ci-tested` tag so we know
 #   those images have passed the tests.
 build-final-web-frontend-image:
-  extends: .build-final-baserow-image
-  needs:
-    - job: web-frontend-test
-    - job: web-frontend-lint
+  extends:
+    - .build-final-baserow-image
   variables:
     IMAGE_NAME: $WEBFRONTEND_IMAGE_NAME
     DEV_IMAGE_NAME: $WEBFRONTEND_DEV_IMAGE_NAME
     DOCKERFILE_PATH: $WEBFRONTEND_DOCKERFILE_PATH
-
+  needs:
+    - job: web-frontend-test
 
 # Allow to manually build the image from any branch
 build-final-web-frontend-image-manual:
@@ -503,6 +515,7 @@ build-final-web-frontend-image-manual:
 e2e-tests:
   extends:
     - .docker-image-test-stage
+    - .requires-lint
   script:
     - cd e2e-tests
     - E2E_TEST_YARN_RUN_CMD=test-ci docker compose up --no-build --exit-code-from e2e-tests
@@ -790,6 +803,7 @@ publish-cloudron-release-tagged-image:
 # ================================ MISC LINTS ===============================
 
 docker-file-hadolint:
+  stage: lint
   extends:
     - .docker-image-test-stage
     - .skippable-job
@@ -817,11 +831,15 @@ docker-file-hadolint:
         - "reports/*"
     paths:
       - "reports/*"
+  needs:
+    - job: backend-lint
+
 
 mjml-compiled-check:
   extends:
     - .docker-image-test-stage
     - .skippable-job
+    - .requires-lint
   variables:
     RUN_WHEN_CHANGES_MADE_IN: ".eta"
   dependencies: []

@@ -125,6 +125,11 @@
     "notAllowedUnlessFooter": "This element is allowed only inside the page footer",
     "notAllowedInsideContainer": "This element is not allowed inside a container",
     "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
+    "ratingInput": "Rating input",
+    "ratingInputDescription": "A rating input element",
+    "rating": "Rating",
+    "ratingDescription": "A rating element",
+    "invalidElementValue": "Invalid element value: {value}",
     "notAllowedLocation": "This element is not allowed at this location",
     "menu": "Menu",
     "menuDescription": "Menu element",
@@ -244,11 +249,13 @@
   },
   "generalForm": {
     "labelTitle": "Label",
-    "labelPlaceholder": "Enter a label (optional)",
-    "valueTitle": "Default value",
-    "valuePlaceholder": "Enter a default value (optional)",
+    "labelPlaceholder": "Enter label",
+    "valueTitle": "Value",
+    "defaultValueTitle": "Default value",
+    "defaultValuePlaceholder": "Enter default value",
+    "valuePlaceholder": "Enter value",
     "placeholderTitle": "Placeholder",
-    "placeholderPlaceholder": "Enter a placeholder (optional)",
+    "placeholderPlaceholder": "Enter a placeholder",
     "requiredTitle": "Required",
     "validationTitle": "Validation"
   },
@@ -792,7 +799,8 @@
     "text": "Text",
     "link": "Link",
     "tags": "Tags",
-    "image": "Image"
+    "image": "Image",
+    "rating": "Rating"
   },
   "textFieldForm": {
     "fieldValueLabel": "Value",
@@ -988,5 +996,25 @@
     "stroke": "Stroke",
     "italic": "Italic",
     "uppercase": "Uppercase"
+  },
+  "ratingFieldForm": {
+    "maxValue": "Max value",
+    "color": "Color",
+    "style": "Style",
+    "star": "Star",
+    "heart": "Heart",
+    "thumbsUp": "Thumbs up",
+    "flag": "Flag",
+    "value": "Value"
+  },
+  "ratingElementForm": {
+    "maxValue": "Maximum",
+    "color": "Color",
+    "ratingStyle": "Style",
+    "star": "Star",
+    "heart": "Heart",
+    "smile": "Smile",
+    "thumbsUp": "Thumbs Up",
+    "flag": "Flag"
   }
 }

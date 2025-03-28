@@ -1,8 +1,10 @@
 from io import BytesIO
 
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 
 import pytest
+from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -47,6 +49,34 @@ def test_create_last_modified_by_field(data_fixture):
     assert getattr(rows[0], f"field_{field.id}") == user
     assert getattr(rows[1], f"field_{field.id}") == user
     assert getattr(rows[2], f"field_{field.id}") == user
+
+
+@pytest.mark.field_multiple_collaborators
+@pytest.mark.django_db
+def test_last_modified_by_field_type_create_via_api(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="password", first_name="Test1"
+    )
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    table = data_fixture.create_database_table(name="Example", database=database)
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Last modified by 1",
+            "type": "last_modified_by",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["name"] == "Last modified by 1"
+    assert response_json["type"] == "last_modified_by"
+    assert response_json["available_collaborators"] == [
+        {"id": user.id, "name": user.first_name}
+    ]
 
 
 @pytest.mark.field_last_modified_by

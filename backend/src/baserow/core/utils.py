@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import inspect
 import io
 import math
 import os
@@ -1196,3 +1197,22 @@ def are_hostnames_same(hostname1: str, hostname2: str) -> bool:
     ips1 = get_all_ips(hostname1)
     ips2 = get_all_ips(hostname2)
     return not ips1.isdisjoint(ips2)
+
+
+def are_kwargs_default(func, **kwargs):
+    """Check if all provided kwargs have their default values for the given function."""
+
+    signature = inspect.signature(func)
+
+    for param_name, param_value in kwargs.items():
+        param = signature.parameters.get(param_name)
+
+        # Check if parameter exists and has a default
+        if not param or param.default is inspect.Parameter.empty:
+            return False
+
+        # Check if the provided value matches the default
+        if param_value != param.default:
+            return False
+
+    return True

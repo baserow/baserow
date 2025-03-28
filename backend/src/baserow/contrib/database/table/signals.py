@@ -8,6 +8,7 @@ table_created = Signal()
 table_updated = Signal()
 table_deleted = Signal()
 tables_reordered = Signal()
+table_schema_changed = Signal()
 
 
 @receiver(post_delete, sender=Table)

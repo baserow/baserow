@@ -127,9 +127,12 @@ export default function CoreModule(options) {
         Dedupe: {},
         ExtraErrorData: {},
         RewriteFrames: {},
+        Replay: {},
         ReportingObserver: null,
       },
       clientConfig: {
+        replaysSessionSampleRate: 0,
+        replaysOnErrorSampleRate: 1.0,
         attachProps: true,
         logErrors: true,
       },

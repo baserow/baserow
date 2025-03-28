@@ -104,3 +104,4 @@ AIRTABLE_DATE_FILTER_VALUE_MAP = {
     "tomorrow": "{timeZone}??tomorrow",
     "yesterday": "{timeZone}??yesterday",
 }
+AIRTABLE_GALLERY_VIEW_COVER_CROP_TYPE = "crop"

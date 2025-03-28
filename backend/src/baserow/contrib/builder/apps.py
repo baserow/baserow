@@ -184,6 +184,8 @@ class BuilderConfig(AppConfig):
             InputTextElementType,
             LinkElementType,
             MenuElementType,
+            RatingElementType,
+            RatingInputElementType,
             RecordSelectorElementType,
             RepeatElementType,
             SimpleContainerElementType,
@@ -194,6 +196,8 @@ class BuilderConfig(AppConfig):
 
         element_type_registry.register(HeadingElementType())
         element_type_registry.register(TextElementType())
+        element_type_registry.register(RatingElementType())
+        element_type_registry.register(RatingInputElementType())
         element_type_registry.register(LinkElementType())
         element_type_registry.register(ImageElementType())
         element_type_registry.register(InputTextElementType())
@@ -297,12 +301,14 @@ class BuilderConfig(AppConfig):
             ButtonCollectionFieldType,
             ImageCollectionFieldType,
             LinkCollectionFieldType,
+            RatingCollectionFieldType,
             TagsCollectionFieldType,
             TextCollectionFieldType,
         )
         from .elements.registries import collection_field_type_registry
 
         collection_field_type_registry.register(BooleanCollectionFieldType())
+        collection_field_type_registry.register(RatingCollectionFieldType())
         collection_field_type_registry.register(TextCollectionFieldType())
         collection_field_type_registry.register(LinkCollectionFieldType())
         collection_field_type_registry.register(TagsCollectionFieldType())

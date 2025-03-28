@@ -1,5 +1,54 @@
 # Changelog
 
+## Released 1.32.5
+
+### Bug fixes
+* [Core] Clear local_cache for celery tasks [#3528](https://gitlab.com/baserow/baserow/-/issues/3528)
+* [Database] Fix broken continue button and validation of the onboarding import step.
+* [Builder] Fix schema caching issue again
+
+### Breaking API changes
+* [Database] Updated Langchain, Gunicorn, and Django backend dependencies.
+
+
+## Released 1.32.4
+
+### New features
+* [Database] Import Airtable gallery view. [#793](https://gitlab.com/baserow/baserow/-/issues/793)
+
+### Bug fixes
+* [Builder] Ensure that workflow action and user source forms disallow choose a data synced table. [#3104](https://gitlab.com/baserow/baserow/-/issues/3104)
+* [Database] Fix issue with 'this_week' and 'next_week' operators in date filters [#3526](https://gitlab.com/baserow/baserow/-/issues/3526)
+* [Database] Fix bug where the Airtable import crashes if the table has sections.
+* [Builder] Fix cache invalidation on field change for data sources
+* [Core] Record frontend sessions in Sentry if there is an error.
+
+### Refactors
+* [Builder] Integration endpoint doesn't return the table fields anymore to improve performance
+
+
+## Released 1.32.3
+
+### New features
+* [Database] Optionally provide session authentication for Airtable import.
+* [Core] Updated Posthog library and disabled session recording by default.
+
+### Bug fixes
+* [Database] Fix form meta controls validation.
+
+
+## Released 1.32.2
+
+### Bug fixes
+* [Database] Fixed a bug where the filters of a created and updated by fields could not load all collaborators.
+
+
+## Released 1.32.1
+
+### Bug fixes
+* [Database] Fixed a bug in which sorting by a link row field caused the frontend to crash. [#3522](https://gitlab.com/baserow/baserow/-/issues/3522)
+
+
 ## Released 1.32.0
 
 ### New features
@@ -34,6 +83,7 @@
 * Preserve the precision of the currency field in the Airtable import. [#1058](https://gitlab.com/baserow/baserow/-/issues/1058)
 * [Builder] Fixed element position resets on editing of it's properties [#2342](https://gitlab.com/baserow/baserow/-/issues/2342)
 * Fix pasting markdown text into rich edit that resulted in unformatted markdown [#2383](https://gitlab.com/baserow/baserow/-/issues/2383)
+* [Database] Fix select option values in row history after API changes [#2509](https://gitlab.com/baserow/baserow/-/issues/2509)
 * [Database] Fixed a bug that prevented duplicating views filtered by a collaborator correctly. [#3017](https://gitlab.com/baserow/baserow/-/issues/3017)
 * [Database] Fixed unscrollable timezone dropdown issue when creating/editing a field. [#3041](https://gitlab.com/baserow/baserow/-/issues/3041)
 * [Database] Fix protected fields in the data sync forms. [#3191](https://gitlab.com/baserow/baserow/-/issues/3191)
@@ -58,7 +108,6 @@
 * [Builder] Fix crash when creating a builder application after deleting another one
 * Fix error when syncing a table with a trashed field.
 * [Database] Fix the progress bar percentage when importing applications into the workspace.
-* [Database] Fix select option values in row history after API changes.
 
 ### Refactors
 * Upgrade vuelidate [#2805](https://gitlab.com/baserow/baserow/-/issues/2805)
