@@ -191,8 +191,8 @@
         "emptyValue": "빈 대체 텍스트..."
     },
     "generalForm": {
-        "labelTitle": "레이블",
-        "labelPlaceholder": "레이블 입력 (선택 사항)",
+        "labelTitle": "표시",
+        "labelPlaceholder": "표시명 입력 (선택 사항)",
         "valueTitle": "기본값",
         "valuePlaceholder": "기본값 입력 (선택 사항)",
         "placeholderTitle": "플레이스홀더",
@@ -512,7 +512,7 @@
         "decoration": "텍스트 꾸밈"
     },
     "inputThemeConfigBlock": {
-        "label": "레이블",
+        "label": "표시",
         "input": "입력",
         "backgroundColor": "배경색",
         "textColor": "텍스트 색상",
@@ -607,7 +607,7 @@
         "orientation": "방향",
         "orientationHorizontal": "수평",
         "orientationVertical": "수직",
-        "buttonLoadMoreLabel": "더 보기 레이블",
+        "buttonLoadMoreLabel": "더 보기 표시",
         "propertySelectorMissingArrays": "행으로 사용할 다중 값 필드를 찾을 수 없습니다."
     },
     "tableElement": {
@@ -647,7 +647,7 @@
         "orientationLabel": "방향",
         "orientationVertical": "수직",
         "orientationHorizontal": "수평",
-        "buttonLoadMoreLabel": "더 보기 레이블",
+        "buttonLoadMoreLabel": "더 보기 표시",
         "toggleEditorRepetitionsLabel": "반복 일시적으로 비활성화",
         "propertySelectorMissingArrays": "반복할 다중 값 필드를 찾을 수 없습니다.",
         "gapVerticalLabel": "세로",
@@ -838,7 +838,7 @@
     },
     "buttonFieldForm": {
         "infoMessage": "이 버튼의 작업을 구성하려면 현재 요소의 \"이벤트\" 탭을 여세요.",
-        "labelPlaceholder": "레이블 입력..."
+        "labelPlaceholder": "표시명 입력..."
     },
     "resetButton": {
         "reset": "기본 테마 값으로 재설정"
