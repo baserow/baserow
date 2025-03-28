@@ -81,6 +81,7 @@
         "viewFieldLabel": "보기",
         "tableFieldLabel": "테이블",
         "chooseNoView": "선택되지 않음",
-        "databaseFieldLabel": "데이터베이스"
+        "databaseFieldLabel": "데이터베이스",
+        "dataSyncedTableDescription": "데이터 동기화 테이블"
     }
 }
