@@ -8,12 +8,23 @@
       width: `${position.width || 0}px`,
       height: `${position.height || 0}px`,
     }"
-  ></div>
+  >
+    <slot></slot>
+  </div>
 </template>
 
 <script>
+import { getCombinedBoundingClientRect } from '@baserow/modules/core/utils/dom'
+
 export default {
   name: 'Highlight',
+  props: {
+    getParent: {
+      type: Function,
+      required: false,
+      default: null,
+    },
+  },
   data() {
     return {
       selector: null,
@@ -26,7 +37,7 @@ export default {
     }
   },
   mounted() {
-    const parent = this.getParent()
+    const parent = this._getParent()
     this.resizeObserver = new ResizeObserver(() => {
       this.update()
     })
@@ -34,12 +45,12 @@ export default {
     this.update()
   },
   beforeDestroy() {
-    const parent = this.getParent()
+    const parent = this._getParent()
     this.resizeObserver.unobserve(parent)
   },
   methods: {
-    getParent() {
-      return this.$el.parentElement
+    _getParent() {
+      return this.getParent !== null ? this.getParent() : this.$el.parentElement
     },
     show(selector) {
       this.selector = selector
@@ -56,18 +67,21 @@ export default {
         width: 0,
         height: 0,
       }
-      const parent = this.getParent()
+      const parent = this._getParent()
 
-      const element = this.$parent.$el.querySelector(this.selector)
-      if (element) {
-        const parentRect = parent.getBoundingClientRect()
-        const elementRect = element.getBoundingClientRect()
-        const padding = 2
-        position.top = elementRect.top - parentRect.top - padding
-        position.left = elementRect.left - parentRect.left - padding
-        position.width = elementRect.width + padding * 2
-        position.height = elementRect.height + padding * 2
-      }
+      const selectors = Array.isArray(this.selector)
+        ? this.selector
+        : [this.selector]
+      const elements = selectors
+        .map((selector) => parent.querySelector(selector))
+        .filter((element) => !!element)
+      const parentRect = parent.getBoundingClientRect()
+      const elementRect = getCombinedBoundingClientRect(elements)
+      const padding = 2
+      position.top = elementRect.top - parentRect.top - padding
+      position.left = elementRect.left - parentRect.left - padding
+      position.width = elementRect.width + padding * 2
+      position.height = elementRect.height + padding * 2
 
       this.position = position
     },

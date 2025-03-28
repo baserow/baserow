@@ -20,6 +20,7 @@
       <a
         ref="workspaceContextAnchor"
         class="sidebar__workspaces-selector"
+        data-highlight="workspaces"
         @click="
           $refs.workspacesContext.toggle(
             $refs.workspaceContextAnchor,
@@ -92,6 +93,7 @@ import SidebarAdmin from '@baserow/modules/core/components/sidebar/SidebarAdmin'
 import SidebarFoot from '@baserow/modules/core/components/sidebar/SidebarFoot'
 import SidebarMenu from '@baserow/modules/core/components/sidebar/SidebarMenu'
 import SidebarAdminItem from './SidebarAdminItem.vue'
+import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
 
 export default {
   name: 'Sidebar',
@@ -161,6 +163,10 @@ export default {
         )
       }
     )
+  },
+  mounted() {
+    // @TODO docs
+    this.$bus.$emit('add-guided-tour', SidebarGuidedTourType.getType())
   },
   methods: {
     setShowAdmin(value) {

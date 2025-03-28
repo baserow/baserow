@@ -1,0 +1,87 @@
+.guided-tour-step {
+  position: absolute;
+  box-sizing: border-box;
+  width: 326px;
+  background-color: $palette-neutral-1200;
+  pointer-events: all;
+  display: flex;
+  flex-direction: column;
+  z-index: $z-index-guided-tour-step;
+
+  @include absolute(0, 0, auto, auto);
+  @include rounded($rounded-md);
+
+  // Positioned right from the parent, aligned to the top of it.
+  &--right-top {
+    top: 0;
+    right: 0;
+    transform: translateX(calc(100% + 12px));
+  }
+
+  // Positioned right from the parent, aligned at the bottom of it.
+  &--right-bottom {
+    bottom: 0;
+    right: 0;
+    transform: translateX(calc(100% + 12px));
+  }
+
+  // Position at the bottom of the parent, aligned to the left of it.
+  &--bottom-left {
+    left: 0;
+    top: calc(100% + 12px);
+  }
+
+  // Position at the bottom of the parent, aligned to the left of it.
+  &--bottom-right {
+    right: 0;
+    top: calc(100% + 12px);
+  }
+}
+
+.guided-tour-step__body {
+  padding: 20px 20px 0 20px;
+  min-height: 0;
+  overflow: hidden scroll;
+}
+
+.guided-tour-step__page {
+  color: $palette-neutral-500;
+  font-size: 11px;
+  line-height: 16px;
+  margin-bottom: 10px;
+}
+
+.guided-tour-step__title {
+  color: $white;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 20px;
+  margin-bottom: 10px;
+}
+
+.guided-tour-step__description {
+  font-size: 12px;
+  line-height: 20px;
+  color: $palette-neutral-300;
+
+  .markdown p {
+    color: $palette-neutral-300;
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 20px;
+  }
+
+  .markdown ul {
+    padding-left: 1em;
+  }
+
+  .markdown > * {
+    margin-bottom: 0;
+  }
+}
+
+.guided-tour-step__foot {
+  flex-grow: 0;
+  flex-shrink: 0;
+  padding: 20px;
+}

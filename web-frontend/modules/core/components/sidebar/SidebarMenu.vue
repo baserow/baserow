@@ -1,5 +1,5 @@
 <template>
-  <div class="sidebar__section" ph-autocapture="sidebar">
+  <div class="sidebar__section" ph-autocapture="sidebar" data-highlight="menu">
     <ul class="tree">
       <nuxt-link
         v-slot="{ href, navigate, isExactActive }"

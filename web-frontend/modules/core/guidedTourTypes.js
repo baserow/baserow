@@ -1,11 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
-export const POSITION_CENTER = 'center'
-export const POSITION_TOP = 'top'
-export const POSITION_RIGHT = 'right'
-export const POSITION_BOTTOM = 'bottom'
-export const POSITION_LEFT = 'left'
-
 export class GuidedTourType extends Registerable {
   get welcomeTitle() {
     throw new Error('welcomeTitle must be set of the guided tour step.')
@@ -18,6 +12,10 @@ export class GuidedTourType extends Registerable {
   get canSkip() {
     return false
   }
+
+  get order() {
+    return 100
+  }
 }
 
 export class GuidedTourStep {
@@ -25,7 +23,7 @@ export class GuidedTourStep {
     title = null,
     content = null,
     selector = null,
-    position = POSITION_CENTER
+    position = 'right-top'
   ) {
     this._title = title
     this._content = content
@@ -88,7 +86,7 @@ class ControlCenterGuidedTourStep extends GuidedTourStep {
 }
 
 export class SidebarGuidedTourType extends GuidedTourType {
-  getType() {
+  static getType() {
     return 'sidebar'
   }
 

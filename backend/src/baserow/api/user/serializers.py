@@ -86,6 +86,7 @@ class UserSerializer(serializers.ModelSerializer):
         help_text="Indicates whether the onboarding has been completed.",
     )
     completed_guided_tours = serializers.ListSerializer(
+        source="profile.completed_guided_tours",
         child=serializers.CharField(
             required=True,
         ),
