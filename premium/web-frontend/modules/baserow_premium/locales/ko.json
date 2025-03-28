@@ -123,7 +123,7 @@
     "calendarViewHeader": {
         "displayBy": "표시 기준",
         "displayedBy": "“{fieldName}” 필드로 표시됨",
-        "labels": "레이블"
+        "labels": "표시"
     },
     "timelineViewHeader": {
         "dateSettings": "날짜 설정",
