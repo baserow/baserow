@@ -9,10 +9,12 @@
 </template>
 
 <script>
+import _ from 'lodash'
+
 export default {
   props: {
     defaultValue: {
-      type: [String, Number],
+      type: [String, Number, Array],
       required: false,
       default: '',
     },
@@ -45,7 +47,9 @@ export default {
   },
   watch: {
     defaultValue(newValue) {
-      this.inputValue = newValue
+      if (!_.isEqual(this.inputValue, newValue)) {
+        this.inputValue = newValue
+      }
     },
   },
 }

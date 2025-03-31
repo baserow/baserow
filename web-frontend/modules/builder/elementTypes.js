@@ -1497,17 +1497,45 @@ export class ChoiceElementType extends FormElementType {
     return element.multiple ? 'array' : 'string'
   }
 
+  /**
+   * Returns the first option for this element.
+   * @param {Object} element the element we want the option for.
+   * @returns the first option value.
+   */
+  _getFirstOptionValue(element) {
+    switch (element.option_type) {
+      case CHOICE_OPTION_TYPES.MANUAL:
+        return element.options.find(({ value }) => value)
+      case CHOICE_OPTION_TYPES.FORMULAS: {
+        const formulaValues = ensureArray(
+          this.resolveFormula(this.element.formula_value)
+        )
+        if (formulaValues.length === 0) {
+          return null
+        }
+        return ensureStringOrInteger(formulaValues[0])
+      }
+      default:
+        return []
+    }
+  }
+
   getInitialFormDataValue(element, applicationContext) {
     try {
+      const firstValue = this._getFirstOptionValue(element)
+      let converter = ensureStringOrInteger
+      if (firstValue ?? Number.isInteger(firstValue)) {
+        converter = (v) => ensurePositiveInteger(v, { allowNull: true })
+      }
       if (element.multiple) {
         return ensureArray(
           this.resolveFormula(element.default_value, {
             element,
             ...applicationContext,
           })
-        ).map(ensureStringOrInteger)
+        ).map(converter)
       } else {
-        return ensureStringOrInteger(
+        return converter(
           this.resolveFormula(element.default_value, {
             element,
             ...applicationContext,

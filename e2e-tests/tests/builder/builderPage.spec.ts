@@ -1,11 +1,11 @@
-import {expect, test} from "../baserowTest";
+import { expect, test } from "../baserowTest";
 
 test.describe("Builder page test suite", () => {
-  test.beforeEach(async ({builderPagePage}) => {
+  test.beforeEach(async ({ builderPagePage }) => {
     await builderPagePage.goto();
   });
 
-  test("Can create a page", async ({page}) => {
+  test("Can create a page", async ({ page }) => {
     await page.getByText("New page").click();
     await page.getByText("Create page").waitFor();
     await page
@@ -25,12 +25,12 @@ test.describe("Builder page test suite", () => {
     ).toBeVisible();
   });
 
-  test("Can open page settings", async ({page}) => {
+  test("Can open page settings", async ({ page }) => {
     await page.getByText("Page settings").click();
     await expect(page.locator(".box__title").getByText("Page")).toBeVisible();
   });
 
-  test("Can change page settings", async ({page}) => {
+  test("Can change page settings", async ({ page }) => {
     await page.getByText("Page settings").click();
 
     await page
@@ -57,9 +57,9 @@ test.describe("Builder page test suite", () => {
     ).toBeVisible();
   });
 
-  test("Can create an element from empty page", async ({page}) => {
+  test("Can create an element from empty page", async ({ page }) => {
     await page.getByText("Click to create an element").click();
-    await page.getByText("Heading", {exact: true}).click();
+    await page.getByText("Heading", { exact: true }).click();
 
     await expect(
       page.locator(".modal__box").getByText("Add new element")
@@ -69,13 +69,13 @@ test.describe("Builder page test suite", () => {
     ).toBeVisible();
   });
 
-  test("Can create an element from element menu", async ({page}) => {
+  test("Can create an element from element menu", async ({ page }) => {
     await page.locator(".header").getByText("Elements").click();
     await page
       .locator(".elements-context")
-      .getByText("Element", {exact: true})
+      .getByText("Element", { exact: true })
       .click();
-    await page.getByText("Heading", {exact: true}).click();
+    await page.getByText("Heading", { exact: true }).click();
 
     await expect(
       page.locator(".modal__box").getByText("Add new element")
@@ -85,8 +85,7 @@ test.describe("Builder page test suite", () => {
     ).toBeVisible();
   });
 
-
-  test("Can add query parameter to page setting", async ({page}) => {
+  test("Can add query parameter to page setting", async ({ page }) => {
     await page.getByText("Page settings").click();
 
     await page
@@ -94,12 +93,32 @@ test.describe("Builder page test suite", () => {
       .getByPlaceholder("Enter a name...")
       .fill("New page name");
 
-    await page.getByRole('button', {name: 'Add query string parameter'}).click();
+    await page
+      .getByRole("button", { name: "Add query string parameter" })
+      .click();
+    await page
+      .getByRole("button", { name: "Add another query string parameter" })
+      .click();
 
     await page
       .locator(".page-settings-query-params .form-input__wrapper")
-      .getByRole('textbox')
+      .getByRole("textbox")
+      .nth(1)
       .fill("my_param");
+
+    await page
+      .locator(".page-settings-query-params .form-input__wrapper")
+      .getByRole("textbox")
+      .nth(0)
+      .fill("my_param2");
+
+    await page.locator("a").filter({ hasText: "Text" }).first().click();
+    await page
+      .locator("form")
+      .getByRole("list")
+      .locator("a")
+      .filter({ hasText: "Numeric" })
+      .click();
 
     await page.locator(".button").getByText("Save").click();
     await expect(
@@ -108,20 +127,33 @@ test.describe("Builder page test suite", () => {
 
     await page.getByTitle("Close").click();
     await expect(page.locator(".box__title").getByText("Page")).toBeHidden();
-    await page.getByText('Click to create an element').click();
-    await page.locator('.add-element-card__element-type-icon-link').click();
-    await page.getByLabel('my_param=').fill("foo")
-    await page.getByRole('complementary').getByRole('textbox').click();
-    await page.getByRole('complementary').getByRole('textbox').locator('div').first().fill('linkim');
-    await page.locator('a').filter({hasText: 'Make a choice'}).click();
-    await page.locator('a').filter({hasText: '?my_param=*'}).click();
+    await page.getByText("Click to create an element").click();
+    await page.locator(".add-element-card__element-type-icon-link").click();
+    await page.getByLabel("my_param=").fill("foo");
+    await page.getByLabel("my_param2=").fill("15");
+    await page.getByRole("complementary").getByRole("textbox").click();
+    await page
+      .getByRole("complementary")
+      .getByRole("textbox")
+      .locator("div")
+      .first()
+      .fill("linkim");
+    await page.locator("a").filter({ hasText: "Make a choice" }).click();
+    await page
+      .locator("a")
+      .filter({ hasText: "New page name /default/page?" })
+      .click();
     // click empty place to close tooltip from prev. step
-    await page.click('body')
-    await page.getByRole('textbox').nth(2).click();
-    await page.getByText('my_param', { exact: true }).first().click();
-    await page.click('body')
-    await expect(page.getByRole('link', {name: 'linkim'})).toHaveAttribute(
-      'href', /\?my_param=foo/);
-
+    await page.click("body");
+    await page.getByRole("textbox").nth(4).click();
+    await page.getByText("my_param", { exact: true }).first().click();
+    await page.locator('[id="__layout"]').getByRole("textbox").nth(3).click();
+    await page.getByText("my_param2", { exact: true }).first().click();
+    await page.click("body");
+    await expect(page.getByRole("link", { name: "linkim" })).toHaveAttribute(
+      "href",
+      /\?my_param2=15&my_param=foo/
+    );
+    debugger;
   });
 });

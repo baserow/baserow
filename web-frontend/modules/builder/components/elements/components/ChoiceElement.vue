@@ -61,6 +61,7 @@ import {
   ensureString,
   ensureStringOrInteger,
   ensureArray,
+  ensurePositiveInteger,
 } from '@baserow/modules/core/utils/validator'
 import { CHOICE_OPTION_TYPES } from '@baserow/modules/builder/enums'
 
@@ -94,20 +95,36 @@ export default {
       return ensureString(this.resolveFormula(this.element.placeholder))
     },
     defaultValueResolved() {
+      let converter = ensureString
+      if (
+        this.optionsResolved.find(
+          ({ value }) => value !== undefined && value !== null // We skip null values
+        ) &&
+        Number.isInteger(this.optionsResolved[0].value)
+      ) {
+        converter = (v) => ensurePositiveInteger(v, { allowNull: true })
+      }
       if (this.element.multiple) {
-        const existingValues = this.optionsResolved.map(({ value }) => value)
-        return ensureArray(this.resolveFormula(this.element.default_value))
-          .map(ensureStringOrInteger)
-          .filter((value) => existingValues.includes(value))
+        try {
+          const existingValues = this.optionsResolved.map(({ value }) => value)
+          return ensureArray(this.resolveFormula(this.element.default_value))
+            .map(converter)
+            .filter((value) => existingValues.includes(value))
+        } catch {
+          return []
+        }
       } else {
-        // Always return a string if we have a default value, otherwise
-        // set the value to null as single select fields will only skip
-        // field preparation if the value is null.
-        const resolvedSingleValue = ensureStringOrInteger(
-          this.resolveFormula(this.element.default_value)
-        )
-
-        return resolvedSingleValue === '' ? null : resolvedSingleValue
+        try {
+          // Always return a string if we have a default value, otherwise
+          // set the value to null as single select fields will only skip
+          // field preparation if the value is null.
+          const resolvedSingleValue = converter(
+            this.resolveFormula(this.element.default_value)
+          )
+          return resolvedSingleValue === '' ? null : resolvedSingleValue
+        } catch {
+          return null
+        }
       }
     },
     canHaveOptions() {
