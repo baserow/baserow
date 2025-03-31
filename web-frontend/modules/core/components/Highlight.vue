@@ -83,7 +83,11 @@ export default {
           this.scrollableParents.add(scrollableParent)
           scrollableParent.addEventListener('scroll', this.update)
         }
-        element.scrollIntoView({ behavior: 'smooth' })
+        element.scrollIntoView({
+          behavior: 'smooth',
+          inline: 'center',
+          block: 'center',
+        })
       })
     },
     update() {

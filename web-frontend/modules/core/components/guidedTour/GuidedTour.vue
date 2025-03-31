@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div v-if="activeGuidedTours.length > 0" class="guided-tour-step__container">
     <Highlight ref="highlight" :get-parent="getParent">
       <GuidedTourStep
         v-if="currentStep"

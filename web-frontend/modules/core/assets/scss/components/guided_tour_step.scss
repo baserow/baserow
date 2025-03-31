@@ -1,9 +1,16 @@
+.guided-tour-step__container {
+  background: transparent;
+  pointer-events: all;
+  z-index: $z-index-guided-tour-container;
+
+  @include absolute(0, 0, 0, 0);
+}
+
 .guided-tour-step {
   position: absolute;
   box-sizing: border-box;
   width: 326px;
   background-color: $palette-neutral-1200;
-  pointer-events: all;
   display: flex;
   flex-direction: column;
   z-index: $z-index-guided-tour-step;
@@ -28,7 +35,6 @@
 
   // Positioned right from the parent, aligned to the top of it.
   &--right-top {
-    top: 0;
     left: calc(100% + 12px);
 
     &::after {
