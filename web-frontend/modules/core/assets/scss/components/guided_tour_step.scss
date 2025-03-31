@@ -15,10 +15,26 @@
   @include absolute(0, 0, auto, auto);
   @include rounded($rounded-md);
 
+  &::after {
+    content: '';
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 8px 6px 8px 0;
+    border-color: transparent $palette-neutral-1200 transparent transparent;
+    transform: rotate(0deg);
+    position: absolute;
+  }
+
   // Positioned right from the parent, aligned to the top of it.
   &--right-top {
     top: 0;
     left: calc(100% + 12px);
+
+    &::after {
+      top: 12px;
+      left: -6px;
+    }
   }
 
   // Positioned right from the parent, aligned at the bottom of it.
@@ -26,12 +42,24 @@
     top: 100%;
     left: calc(100% + 12px);
     transform: translateY(-100%);
+
+    &::after {
+      left: -6px;
+      bottom: 12px;
+    }
   }
 
   // Position at the bottom of the parent, aligned to the left of it.
   &--bottom-left {
     left: 0;
     top: calc(100% + 12px);
+
+    &::after {
+      left: 12px;
+      top: -6px;
+      border-width: 0 8px 6px 8px;
+      border-color: transparent transparent $palette-neutral-1200 transparent;
+    }
   }
 
   // Position at the bottom of the parent, aligned to the left of it.
@@ -39,6 +67,13 @@
     left: 100%;
     top: calc(100% + 12px);
     transform: translateX(-100%);
+
+    &::after {
+      right: 12px;
+      top: -6px;
+      border-width: 0 8px 6px 8px;
+      border-color: transparent transparent $palette-neutral-1200 transparent;
+    }
   }
 }
 
