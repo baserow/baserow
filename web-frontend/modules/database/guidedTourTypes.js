@@ -2,6 +2,7 @@ import {
   GuidedTourType,
   GuidedTourStep,
 } from '@baserow/modules/core/guidedTourTypes'
+import Vue from 'vue'
 
 class TablesGuidedTourStep extends GuidedTourStep {
   get title() {
@@ -93,6 +94,33 @@ class CreateViewGuidedTourStep extends GuidedTourStep {
   }
 }
 
+class CreateFormViewGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return 'Create a Form'
+  }
+
+  get content() {
+    return `Quickly build forms from your tables to collect responses directly into your database, streamlining data collection.`
+  }
+
+  get selectors() {
+    return ['[data-highlight="create-view-form"]']
+  }
+
+  get position() {
+    return 'bottom-left'
+  }
+
+  async beforeShow() {
+    this.app.$bus.$emit('open-table-views')
+    await Vue.nextTick()
+  }
+
+  afterShow() {
+    this.app.$bus.$emit('close-table-views')
+  }
+}
+
 export class DatabaseGuidedTourType extends GuidedTourType {
   static getType() {
     return 'database'
@@ -108,11 +136,12 @@ export class DatabaseGuidedTourType extends GuidedTourType {
 
   get steps() {
     return [
-      new TablesGuidedTourStep(),
-      new FiltersAndSortGuidedTourStep(),
-      new GroupByGuidedTourStep(),
-      new AddFieldGuidedTourStep(),
-      new CreateViewGuidedTourStep(),
+      new TablesGuidedTourStep(this.app),
+      new FiltersAndSortGuidedTourStep(this.app),
+      new GroupByGuidedTourStep(this.app),
+      new AddFieldGuidedTourStep(this.app),
+      new CreateViewGuidedTourStep(this.app),
+      new CreateFormViewGuidedTourStep(this.app),
     ]
   }
 

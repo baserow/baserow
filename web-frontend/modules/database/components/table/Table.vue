@@ -52,6 +52,7 @@
             :views="views"
             :read-only="readOnly"
             :header-overflow="headerOverflow"
+            :hide-on-click-outside="viewsContextHideOnClickOutside"
             @selected-view="$emit('selected-view', $event)"
           ></ViewsContext>
         </li>
@@ -353,6 +354,8 @@ export default {
       // Indicates if the elements within the header are overflowing. In case of true,
       // we can hide certain values to make sure that it fits within the header.
       headerOverflow: false,
+      // @TODO docs
+      viewsContextHideOnClickOutside: true,
     }
   },
   computed: {
@@ -462,6 +465,8 @@ export default {
   },
   beforeMount() {
     this.$bus.$on('table-refresh', this.refresh)
+    this.$bus.$on('open-table-views', this.openTableViews)
+    this.$bus.$on('close-table-views', this.openTableViews)
   },
   mounted() {
     this.$el.resizeObserver = new ResizeObserver(this.checkHeaderOverflow)
@@ -470,6 +475,8 @@ export default {
   beforeDestroy() {
     this.$bus.$off('table-refresh', this.refresh)
     this.$el.resizeObserver.unobserve(this.$el)
+    this.$bus.$off('open-table-views', this.openTableViews)
+    this.$bus.$off('close-table-views', this.closeTableViews)
   },
   methods: {
     getViewComponent(view) {
@@ -580,6 +587,22 @@ export default {
       return this.views.some((v) =>
         this.$hasPermission(op, v, this.database.workspace.id)
       )
+    },
+    /**
+     * Forcefully
+     */
+    openTableViews() {
+      this.viewsContextHideOnClickOutside = false
+      this.$refs.viewsContext.toggle(
+        this.$refs.viewsSelectToggle,
+        'bottom',
+        'left',
+        4
+      )
+    },
+    closeTableViews() {
+      this.viewsContextHideOnClickOutside = true
+      this.$refs.viewsContext.hide()
     },
   },
 }

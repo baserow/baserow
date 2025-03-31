@@ -27,11 +27,13 @@ export class GuidedTourType extends Registerable {
 
 export class GuidedTourStep {
   constructor(
+    app,
     title = null,
     content = null,
     selector = null,
     position = 'right-top'
   ) {
+    this.app = app
     this._title = title
     this._content = content
     this._selector = selector
@@ -71,6 +73,16 @@ export class GuidedTourStep {
   get position() {
     return this._position
   }
+
+  /**
+   * @TODO logs
+   */
+  beforeShow() {}
+
+  /**
+   * @TODO logs
+   */
+  afterShow() {}
 }
 
 class ControlCenterGuidedTourStep extends GuidedTourStep {
@@ -128,7 +140,10 @@ export class SidebarGuidedTourType extends GuidedTourType {
   }
 
   get steps() {
-    return [new ControlCenterGuidedTourStep(), new CreateNewGuidedTourStep()]
+    return [
+      new ControlCenterGuidedTourStep(this.app),
+      new CreateNewGuidedTourStep(this.app),
+    ]
   }
 
   isActive() {

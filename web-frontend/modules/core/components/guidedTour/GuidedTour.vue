@@ -71,23 +71,34 @@ export default {
   },
   methods: {
     getParent() {
-      return this.$el.parentElement
+      return document.body
+      // return this.$el.parentElement
     },
     async next() {
       if (this.stepIndex >= this.allSteps.length - 1) {
         return await this.finish()
       }
 
-      this.goto(this.stepIndex + 1)
+      await this.goto(this.stepIndex + 1)
     },
-    goto(index) {
+    async goto(index) {
+      const step = this.allSteps[this.stepIndex]
+      await step.afterShow()
+
       this.stepIndex = index
       this.show()
     },
-    show() {
-      this.$refs.highlight.show(this.allSteps[this.stepIndex].selectors)
+    async show() {
+      const step = this.allSteps[this.stepIndex]
+      await this.$nextTick()
+      await step.beforeShow(this.getParent())
+      await this.$nextTick()
+      this.$refs.highlight.show(step.selectors)
     },
     async finish() {
+      const step = this.allSteps[this.stepIndex]
+      await step.afterShow()
+
       this.$refs.highlight.hide()
       this.stepIndex = 0
 

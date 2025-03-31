@@ -7,6 +7,10 @@
   display: flex;
   flex-direction: column;
   z-index: $z-index-guided-tour-step;
+  transform: translateY(0) translateX(0);
+  top: 0;
+  left: 0;
+  transition: top 0.1s ease, left 0.1s ease, transform 0.1s ease;
 
   @include absolute(0, 0, auto, auto);
   @include rounded($rounded-md);
@@ -14,16 +18,14 @@
   // Positioned right from the parent, aligned to the top of it.
   &--right-top {
     top: 0;
-    right: 0;
-    transform: translateX(calc(100% + 12px));
+    left: calc(100% + 12px);
   }
 
   // Positioned right from the parent, aligned at the bottom of it.
   &--right-bottom {
-    top: auto;
-    bottom: 0;
-    right: 0;
-    transform: translateX(calc(100% + 12px));
+    top: 100%;
+    left: calc(100% + 12px);
+    transform: translateY(-100%);
   }
 
   // Position at the bottom of the parent, aligned to the left of it.
@@ -34,8 +36,9 @@
 
   // Position at the bottom of the parent, aligned to the left of it.
   &--bottom-right {
-    right: 0;
+    left: 100%;
     top: calc(100% + 12px);
+    transform: translateX(-100%);
   }
 }
 

@@ -3,6 +3,7 @@
     ref="viewsContext"
     class="select"
     max-height-if-outside-viewport
+    :hide-on-click-outside="hideOnClickOutside"
     @shown="shown"
   >
     <div class="select__search">
@@ -98,6 +99,11 @@ export default {
   },
   mixins: [context, dropdownHelpers],
   props: {
+    hideOnClickOutside: {
+      type: Boolean,
+      default: true,
+      required: false,
+    },
     database: {
       type: Object,
       required: true,
