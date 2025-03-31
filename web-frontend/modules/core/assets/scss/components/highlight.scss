@@ -7,6 +7,7 @@
   z-index: $z-index-highlight-overlay;
   box-sizing: content-box;
   pointer-events: none;
+  transition: top 0.1s ease, left 0.1s ease, width 0.1s ease, height 0.1s ease;
 
   @include rounded($rounded);
   @include absolute(0, 0, 0, 0);

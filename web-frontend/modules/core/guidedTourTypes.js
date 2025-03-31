@@ -16,6 +16,13 @@ export class GuidedTourType extends Registerable {
   get order() {
     return 100
   }
+
+  /**
+   * @TODO docs
+   */
+  isActive() {
+    throw new Error('The GuidedTourType.isActive method must be implemented.')
+  }
 }
 
 export class GuidedTourStep {
@@ -81,7 +88,29 @@ class ControlCenterGuidedTourStep extends GuidedTourStep {
   }
 
   get selectors() {
-    return ['[data-highlight="workspaces"]', '[data-highlight="menu"]]']
+    return ['[data-highlight="workspaces"]', '[data-highlight="menu"]']
+  }
+
+  get position() {
+    return 'right-top'
+  }
+}
+
+class CreateNewGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return ' Create your first Database'
+  }
+
+  get content() {
+    return `Databases help organize your tables. Click “Add new…” to set up a new database for your project, department, or team`
+  }
+
+  get selectors() {
+    return ['[data-highlight="create-new"]']
+  }
+
+  get position() {
+    return 'right-bottom'
   }
 }
 
@@ -99,6 +128,10 @@ export class SidebarGuidedTourType extends GuidedTourType {
   }
 
   get steps() {
-    return [new ControlCenterGuidedTourStep()]
+    return [new ControlCenterGuidedTourStep(), new CreateNewGuidedTourStep()]
+  }
+
+  isActive() {
+    return true
   }
 }

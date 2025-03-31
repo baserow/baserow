@@ -1,0 +1,122 @@
+import {
+  GuidedTourType,
+  GuidedTourStep,
+} from '@baserow/modules/core/guidedTourTypes'
+
+class TablesGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return 'Setup tables'
+  }
+
+  get content() {
+    return `Tables store your information neatly. Create a new table within your database to start structuring your data.`
+  }
+
+  get selectors() {
+    return ['[data-highlight="create-table"]']
+  }
+
+  get position() {
+    return 'right-bottom'
+  }
+}
+
+class FiltersAndSortGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return 'Find Data Fast'
+  }
+
+  get content() {
+    return `Quickly locate information by filtering and sorting your records.`
+  }
+
+  get selectors() {
+    return ['[data-highlight="view-filters"]', '[data-highlight="view-sorts"]']
+  }
+
+  get position() {
+    return 'bottom-left'
+  }
+}
+
+class GroupByGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return 'Organize Your Data'
+  }
+
+  get content() {
+    return `Instantly group your records by category, date, or status to clearly visualize patterns and simplify your workflows.`
+  }
+
+  get selectors() {
+    return ['[data-highlight="view-group-by"]']
+  }
+
+  get position() {
+    return 'bottom-right'
+  }
+}
+
+class AddFieldGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return 'Customize Your Data'
+  }
+
+  get content() {
+    return `Click “+” to add new fields (columns). Choose from various field types to capture exactly what matters most to your project.`
+  }
+
+  get selectors() {
+    return ['[data-highlight="add-field"]']
+  }
+
+  get position() {
+    return 'bottom-right'
+  }
+}
+
+class CreateViewGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return 'Personalize Your Views'
+  }
+
+  get content() {
+    return `Create custom views like grid, calendar, kanban, or gallery to visualize your data exactly how you want it.`
+  }
+
+  get selectors() {
+    return ['[data-highlight="views"]']
+  }
+
+  get position() {
+    return 'bottom-left'
+  }
+}
+
+export class DatabaseGuidedTourType extends GuidedTourType {
+  static getType() {
+    return 'database'
+  }
+
+  get welcomeTitle() {
+    return ''
+  }
+
+  get welcomeContent() {
+    return ''
+  }
+
+  get steps() {
+    return [
+      new TablesGuidedTourStep(),
+      new FiltersAndSortGuidedTourStep(),
+      new GroupByGuidedTourStep(),
+      new AddFieldGuidedTourStep(),
+      new CreateViewGuidedTourStep(),
+    ]
+  }
+
+  isActive(route) {
+    return route.name === 'database-table'
+  }
+}

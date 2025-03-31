@@ -20,6 +20,7 @@
 
   // Positioned right from the parent, aligned at the bottom of it.
   &--right-bottom {
+    top: auto;
     bottom: 0;
     right: 0;
     transform: translateX(calc(100% + 12px));

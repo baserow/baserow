@@ -15,6 +15,7 @@
             ref="viewsSelectToggle"
             class="header__filter-link"
             :class="{ 'header__filter-link--disabled': views === null }"
+            data-highlight="views"
             @click="
               views !== null &&
                 $refs.viewsContext.toggle(
@@ -108,6 +109,7 @@
               ))
           "
           class="header__filter-item"
+          data-highlight="view-filters"
         >
           <ViewFilter
             :view="view"
@@ -130,6 +132,7 @@
               ))
           "
           class="header__filter-item"
+          data-highlight="view-sorts"
         >
           <ViewSort
             :view="view"
@@ -151,6 +154,7 @@
               ))
           "
           class="header__filter-item"
+          data-highlight="view-group-by"
         >
           <ViewGroupBy
             :view="view"

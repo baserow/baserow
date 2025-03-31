@@ -12,7 +12,7 @@
     <div class="guided-tour-step__foot">
       <div>
         <Button type="secondary" @click="$emit('next')">{{
-          last ? 'Next' : 'Got it'
+          last ? 'Got it' : 'Next'
         }}</Button>
       </div>
     </div>

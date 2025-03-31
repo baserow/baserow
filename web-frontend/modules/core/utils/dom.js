@@ -64,7 +64,9 @@ export const getParentMatchingPredicate = (element, predicate) => {
 export const findScrollableParent = (element) => {
   return getParentMatchingPredicate(
     element,
-    (element) => element.scrollHeight > element.clientHeight
+    (element) =>
+      element.scrollHeight > element.clientHeight ||
+      element.scrollWidth > element.clientWidth
   )
 }
 

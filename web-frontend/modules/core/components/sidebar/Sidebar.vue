@@ -164,10 +164,6 @@ export default {
       }
     )
   },
-  mounted() {
-    // @TODO docs
-    this.$bus.$emit('add-guided-tour', SidebarGuidedTourType.getType())
-  },
   methods: {
     setShowAdmin(value) {
       this.showAdmin = value
