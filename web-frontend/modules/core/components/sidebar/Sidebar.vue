@@ -93,7 +93,6 @@ import SidebarAdmin from '@baserow/modules/core/components/sidebar/SidebarAdmin'
 import SidebarFoot from '@baserow/modules/core/components/sidebar/SidebarFoot'
 import SidebarMenu from '@baserow/modules/core/components/sidebar/SidebarMenu'
 import SidebarAdminItem from './SidebarAdminItem.vue'
-import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
 
 export default {
   name: 'Sidebar',

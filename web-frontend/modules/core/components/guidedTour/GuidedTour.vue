@@ -30,18 +30,6 @@ export default {
       stepIndex: 0,
     }
   },
-  watch: {
-    started(value) {
-      if (value) {
-        this.show()
-      }
-    },
-    activeGuidedTours(value) {
-      if (this.stepIndex > value.length) {
-        this.goto(value.length)
-      }
-    },
-  },
   computed: {
     activeGuidedTours() {
       return Object.values(this.$registry.getAll('guidedTour'))
@@ -63,6 +51,18 @@ export default {
     ...mapGetters({
       completed: 'auth/getCompletedGuidedTour',
     }),
+  },
+  watch: {
+    started(value) {
+      if (value) {
+        this.show()
+      }
+    },
+    activeGuidedTours(value) {
+      if (this.stepIndex > value.length) {
+        this.goto(value.length)
+      }
+    },
   },
   mounted() {
     if (this.started) {
