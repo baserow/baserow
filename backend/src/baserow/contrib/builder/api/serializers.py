@@ -1,4 +1,4 @@
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -10,9 +10,10 @@ from baserow.contrib.builder.api.theme.serializers import (
     serialize_builder_theme,
 )
 from baserow.contrib.builder.models import Builder
-from baserow.contrib.builder.operations import ListPagesBuilderOperationType
 from baserow.contrib.builder.pages.handler import PageHandler
-from baserow.core.handler import CoreHandler
+
+if TYPE_CHECKING:
+    from baserow.contrib.builder.application_types import BuilderApplicationType
 
 
 class BuilderSerializer(serializers.ModelSerializer):
@@ -41,27 +42,24 @@ class BuilderSerializer(serializers.ModelSerializer):
     @extend_schema_field(PageSerializer(many=True))
     def get_pages(self, instance: Builder) -> List:
         """
-        Because the instance doesn't know at this point it is a Builder we have to
-        select the related pages this way.
+        Serializes the builder's pages. Uses pre-fetched pages attribute if available;
+        otherwise, retrieves them from the database using the appropriate context and
+        application type to avoid unnecessary queries when serializing nested fields.
 
-        :param instance: The builder application instance.
-        :return: A list of serialized pages that belong to this instance.
+        :param instance: The builder instance.
+        :return: A list of serialized pages.
         """
 
-        pages = instance.page_set.all()
-        user = self.context.get("user")
-        request = self.context.get("request")
+        pages = getattr(instance, "pages", None)
+        if pages is None:
+            ctx = self.context
+            user = ctx.get("user", None)
+            request = ctx.get("request")
+            if user is None and hasattr(request, "user"):
+                user = request.user if request.user.is_authenticated else None
 
-        if user is None and hasattr(request, "user"):
-            user = request.user
-
-        if user:
-            pages = CoreHandler().filter_queryset(
-                user,
-                ListPagesBuilderOperationType.type,
-                pages,
-                workspace=instance.workspace,
-            )
+            builder_type: "BuilderApplicationType" = instance.get_type()
+            pages = builder_type.fetch_pages_to_serialize(instance, user)
 
         return PageSerializer(pages, many=True).data
 

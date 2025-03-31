@@ -517,7 +517,36 @@ class ApplicationType(
 
         return application
 
-    def enhance_queryset(self, queryset):
+    def enhance_queryset(
+        self, queryset: QuerySet["Application"]
+    ) -> QuerySet["Application"]:
+        """
+        Enhances the queryset by adding additional select related and prefetch related
+        statements to improve the performance of the queryset and to reduce the amount
+        of queries that are executed when the queryset is evaluated and the objects are
+        accessed or serialized.
+
+        :param queryset: The queryset to enhance.
+        :return: The enhanced queryset.
+        """
+
+        return queryset
+
+    def enhance_and_filter_queryset(
+        self,
+        queryset: QuerySet["Application"],
+        user: "AbstractUser",
+        workspace: "Workspace",
+    ) -> QuerySet["Application"]:
+        """
+        Same as `enhance_queryset` but also filters the queryset based on the user's
+        permissions.
+
+        :param queryset: The queryset to enhance and filter.
+        :param user: The user that is trying to access the queryset.
+        :param workspace: The workspace that the queryset is related to.
+        """
+
         return queryset
 
     def get_application_urls(self, application: "Application") -> list[str]:

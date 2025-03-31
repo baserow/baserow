@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import IO, Any, Dict, List, NewType, Optional, Tuple, Union, cast
+from typing import IO, Any, Callable, Dict, List, NewType, Optional, Tuple, Union, cast
 from urllib.parse import urljoin, urlparse
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -14,7 +14,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.core.files.storage import Storage
 from django.db import OperationalError, transaction
-from django.db.models import Count, Prefetch, Q, QuerySet
+from django.db.models import Count, Model, Prefetch, Q, QuerySet
 from django.utils import translation
 from django.utils.translation import gettext as _
 
@@ -24,7 +24,7 @@ from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
 
-from baserow.core.db import specific_iterator
+from baserow.core.db import specific_queryset
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 
@@ -1294,39 +1294,10 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             for workspace_user in workspace_users
         }
 
-    def get_user_application(
-        self,
-        user: AbstractUser,
-        application_id: int,
-        base_queryset: Optional[QuerySet] = None,
-    ) -> Application:
-        """
-        Returns the application with the given id if the user has the right permissions.
-        :param user: The user on whose behalf the application is requested.
-        :param application_id: The identifier of the application that must be returned.
-        :param base_queryset: The base queryset from where to select the application
-            object. This can for example be used to do a `select_related`.
-        :raises UserNotInWorkspace: If the user does not belong to the workspace of the
-            application.
-        :return: The requested application instance of the provided id.
-        """
-
-        application = self.get_application(application_id, base_queryset=base_queryset)
-
-        CoreHandler().check_permissions(
-            user,
-            ReadApplicationOperationType.type,
-            workspace=application.workspace,
-            context=application,
-        )
-
-        return application
-
     def get_application(
         self,
         application_id: int,
         base_queryset: Optional[QuerySet] = None,
-        specific: bool = True,
     ) -> Application:
         """
         Selects an application with a given id from the database.
@@ -1334,7 +1305,6 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :param application_id: The identifier of the application that must be returned.
         :param base_queryset: The base queryset from where to select the application
             object. This can for example be used to do a `select_related`.
-        :param specific: Determines whether we want the specific application or not.
         :raises ApplicationDoesNotExist: When the application with the provided id
             does not exist.
         :return: The requested application instance of the provided id.
@@ -1343,29 +1313,16 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         if base_queryset is None:
             base_queryset = Application.objects
 
-        queryset = base_queryset.select_related("workspace").filter(id=application_id)
-
         try:
-            if specific:
-                application = specific_iterator(
-                    queryset.select_related("content_type"),
-                    per_content_type_queryset_hook=(
-                        lambda model, queryset: application_type_registry.get_by_model(
-                            model
-                        ).enhance_queryset(queryset)
-                    ),
-                )[0]
-            else:
-                application = queryset.get()
-        except (IndexError, Application.DoesNotExist) as e:
+            application = (
+                base_queryset.select_related("workspace")
+                .exclude(workspace__trashed=True)
+                .get(id=application_id)
+            )
+        except Application.DoesNotExist as e:
             raise ApplicationDoesNotExist(
                 f"The application with id {application_id} does not exist."
             ) from e
-
-        if TrashHandler.item_has_a_trashed_parent(application):
-            raise ApplicationDoesNotExist(
-                f"The application with id {application_id} does not exist."
-            )
 
         return application
 
@@ -1383,8 +1340,10 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         return None
 
     def list_applications_in_workspace(
-        self, workspace_id: int, base_queryset: Optional[QuerySet] = None
-    ) -> QuerySet:
+        self,
+        workspace: Workspace,
+        base_queryset: Optional[QuerySet] = None,
+    ) -> QuerySet[Application]:
         """
         Return a list of applications in a workspace.
 
@@ -1396,7 +1355,26 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         if base_queryset is None:
             base_queryset = Application.objects
 
-        return base_queryset.filter(workspace_id=workspace_id, workspace__trashed=False)
+        return (
+            base_queryset.filter(workspace=workspace, workspace__trashed=False)
+            .select_related("workspace")
+            .order_by("order", "id")
+        )
+
+    def filter_specific_applications(
+        self,
+        queryset: QuerySet[Application],
+        per_content_type_queryset_hook: Optional[
+            Callable[[Model, QuerySet], QuerySet]
+        ] = None,
+    ) -> QuerySet[Application]:
+        if per_content_type_queryset_hook is None:
+            per_content_type_queryset_hook = (
+                lambda model, qs: application_type_registry.get_by_model(
+                    model
+                ).enhance_queryset(qs)
+            )
+        return specific_queryset(queryset, per_content_type_queryset_hook)
 
     def create_application(
         self,
@@ -1448,8 +1426,8 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :return: A unique name to use.
         """
 
-        existing_applications_names = self.list_applications_in_workspace(
-            workspace_id
+        existing_applications_names = Application.objects.filter(
+            workspace_id=workspace_id, workspace__trashed=False
         ).values_list("name", flat=True)
         return find_unused_name(
             [proposed_name], existing_applications_names, max_length=255

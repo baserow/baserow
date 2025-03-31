@@ -67,7 +67,7 @@ from baserow.core.operations import (
     ListApplicationsWorkspaceOperationType,
     ReadWorkspaceOperationType,
 )
-from baserow.core.registries import application_type_registry
+from baserow.core.service import CoreService
 from baserow.core.utils import Progress
 
 
@@ -106,21 +106,17 @@ class DuplicateApplicationJobType(JobType):
 
     def transaction_atomic_context(self, job: "DuplicateApplicationJob"):
         application = (
-            CoreHandler()
-            .get_user_application(job.user, job.original_application_id)
+            CoreService()
+            .get_application(job.user, job.original_application_id)
             .specific
         )
-        application_type = application_type_registry.get_by_model(
-            application.specific_class
-        )
+        application_type = application.get_type()
         return application_type.export_safe_transaction_context(application)
 
     def prepare_values(
         self, values: Dict[str, Any], user: AbstractUser
     ) -> Dict[str, Any]:
-        application = (
-            CoreHandler().get_user_application(user, values["application_id"]).specific
-        )
+        application = CoreService().get_application(user, values["application_id"])
 
         return {
             "original_application": application,

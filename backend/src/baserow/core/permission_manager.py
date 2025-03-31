@@ -36,6 +36,7 @@ from .operations import (
     ListWorkspacesOperationType,
     ListWorkspaceUsersWorkspaceOperationType,
     ReadInvitationWorkspaceOperationType,
+    ReadWorkspaceOperationType,
     UpdateSettingsOperationType,
     UpdateWorkspaceInvitationType,
     UpdateWorkspaceOperationType,
@@ -107,6 +108,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
     supported_actor_types = [UserSubjectType.type, AnonymousUserSubjectType.type]
 
     OPERATION_ALLOWED_ON_TEMPLATES = [
+        ReadWorkspaceOperationType.type,
         ListApplicationsWorkspaceOperationType.type,
         ListIntegrationsApplicationOperationType.type,
         ListUserSourcesApplicationOperationType.type,
