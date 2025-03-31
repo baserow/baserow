@@ -3,6 +3,7 @@ import {
   GuidedTourStep,
 } from '@baserow/modules/core/guidedTourTypes'
 import Vue from 'vue'
+import { GridViewType } from '@baserow/modules/database/viewTypes'
 
 class TablesGuidedTourStep extends GuidedTourStep {
   get title() {
@@ -142,6 +143,11 @@ export class DatabaseGuidedTourType extends GuidedTourType {
   }
 
   isActive(route) {
-    return route.name === 'database-table'
+    return (
+      route.name === 'database-table' &&
+      // This tour is only compatible with the grid view.
+      this.app.store.getters['view/getSelected']?.type ===
+        GridViewType.getType()
+    )
   }
 }
