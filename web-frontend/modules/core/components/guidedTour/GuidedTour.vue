@@ -7,9 +7,11 @@
         :total-steps="allSteps.length"
         :title="currentStep.title"
         :content="currentStep.content"
+        :first="stepIndex === 0"
         :last="stepIndex >= allSteps.length - 1"
         :position="currentStep.position"
         :button-text="currentStep.buttonText"
+        @previous="goto(stepIndex - 1)"
         @next="next"
       ></GuidedTourStep>
     </Highlight>

@@ -12,7 +12,14 @@
       </div>
     </div>
     <div class="guided-tour-step__foot">
-      <div>
+      <div class="flex justify-content-space-between align-items-center">
+        <a
+          v-if="!first"
+          href="#"
+          class="guided-tour-step__back"
+          @click="$emit('previous')"
+          >Back</a
+        >
         <Button type="secondary" @click="$emit('next')">{{
           buttonText ||
           (last ? $t('guidedTourStep.gotIt') : $t('guidedTourStep.next'))
@@ -54,6 +61,11 @@ export default {
     content: {
       type: String,
       required: true,
+    },
+    first: {
+      Boolean,
+      required: false,
+      default: false,
     },
     last: {
       type: Boolean,

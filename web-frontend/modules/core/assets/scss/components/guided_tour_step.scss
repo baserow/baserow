@@ -137,3 +137,14 @@
   flex-shrink: 0;
   padding: 20px;
 }
+
+.guided-tour-step__back {
+  color: $white;
+  font-weight: 500;
+  font-size: 13px;
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-neutral-300;
+  }
+}
