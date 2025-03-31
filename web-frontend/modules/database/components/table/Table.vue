@@ -16,15 +16,7 @@
             class="header__filter-link"
             :class="{ 'header__filter-link--disabled': views === null }"
             data-highlight="views"
-            @click="
-              views !== null &&
-                $refs.viewsContext.toggle(
-                  $refs.viewsSelectToggle,
-                  'bottom',
-                  'left',
-                  4
-                )
-            "
+            @click="views !== null && openTableViewsContext()"
           >
             <template v-if="hasSelectedView">
               <i
@@ -52,7 +44,6 @@
             :views="views"
             :read-only="readOnly"
             :header-overflow="headerOverflow"
-            :hide-on-click-outside="viewsContextHideOnClickOutside"
             @selected-view="$emit('selected-view', $event)"
           ></ViewsContext>
         </li>
@@ -61,15 +52,10 @@
           class="header__filter-item header__filter-item--no-margin-left"
         >
           <a
+            ref="viewSelectToggle"
             class="header__filter-link"
-            @click="
-              $refs.viewContext.toggle(
-                $event.currentTarget,
-                'bottom',
-                'left',
-                4
-              )
-            "
+            data-highlight="view-options"
+            @click="openTableViewContext"
           >
             <i class="header__filter-icon baserow-icon-more-vertical"></i>
           </a>
@@ -354,8 +340,6 @@ export default {
       // Indicates if the elements within the header are overflowing. In case of true,
       // we can hide certain values to make sure that it fits within the header.
       headerOverflow: false,
-      // @TODO docs
-      viewsContextHideOnClickOutside: true,
     }
   },
   computed: {
@@ -465,8 +449,8 @@ export default {
   },
   beforeMount() {
     this.$bus.$on('table-refresh', this.refresh)
-    this.$bus.$on('open-table-views', this.openTableViews)
-    this.$bus.$on('close-table-views', this.openTableViews)
+    this.$bus.$on('open-table-views-context', this.openTableViewsContext)
+    this.$bus.$on('close-table-views-context', this.closeTableViewsContext)
   },
   mounted() {
     this.$el.resizeObserver = new ResizeObserver(this.checkHeaderOverflow)
@@ -475,8 +459,8 @@ export default {
   beforeDestroy() {
     this.$bus.$off('table-refresh', this.refresh)
     this.$el.resizeObserver.unobserve(this.$el)
-    this.$bus.$off('open-table-views', this.openTableViews)
-    this.$bus.$off('close-table-views', this.closeTableViews)
+    this.$bus.$off('open-table-views-context', this.openTableViewsContext)
+    this.$bus.$off('close-table-views-context', this.closeTableViewsContext)
   },
   methods: {
     getViewComponent(view) {
@@ -588,11 +572,7 @@ export default {
         this.$hasPermission(op, v, this.database.workspace.id)
       )
     },
-    /**
-     * Forcefully
-     */
-    openTableViews() {
-      this.viewsContextHideOnClickOutside = false
+    openTableViewsContext() {
       this.$refs.viewsContext.toggle(
         this.$refs.viewsSelectToggle,
         'bottom',
@@ -600,9 +580,16 @@ export default {
         4
       )
     },
-    closeTableViews() {
-      this.viewsContextHideOnClickOutside = true
+    closeTableViewsContext() {
       this.$refs.viewsContext.hide()
+    },
+    openTableViewContext() {
+      this.$refs.viewContext.toggle(
+        this.$refs.viewSelectToggle,
+        'bottom',
+        'left',
+        4
+      )
     },
   },
 }

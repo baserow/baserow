@@ -18,7 +18,7 @@
           href="#"
           class="guided-tour-step__back"
           @click="$emit('previous')"
-          >Back</a
+          >{{ $t('guidedTourStep.back') }}</a
         >
         <Button type="secondary" @click="$emit('next')">{{
           buttonText ||
@@ -63,7 +63,7 @@ export default {
       required: true,
     },
     first: {
-      Boolean,
+      type: Boolean,
       required: false,
       default: false,
     },

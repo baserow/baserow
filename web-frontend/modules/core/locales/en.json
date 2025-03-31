@@ -927,7 +927,8 @@
   "guidedTourStep": {
     "step": "{step} of {totalSteps}",
     "gotIt": "Got it",
-    "next": "Next"
+    "next": "Next",
+    "back": "Back"
   },
   "welcomeGuidedTourStep": {
     "title": "Welcome to Baserow",
@@ -936,10 +937,10 @@
   },
   "controlCenterGuidedTourStep": {
     "title": "Your Baserow Control Center",
-    "content": "The left sidebar helps you manage your workspace:\n\n- Home – Access your main dashboard.\n- Notifications – Stay updated on changes and mentions.\n- Invite Members – Collaborate by adding team members.\n- Audit Log – Track all activity for security and transparency."
+    "content": "The left sidebar helps you manage your workspace:\n\n- Home – Access your main dashboard.\n- Notifications – Stay updated on changes and mentions.\n- Invite Members – Collaborate by adding team members.\n- Trash – List and recover all your deleted items."
   },
   "createNewGuidedTourStep": {
-    "title": "Create your first Database",
-    "content": "Databases help organize your tables. Click “Add new…” to set up a new database for your project, department, or team"
+    "title": "Create a new database or application",
+    "content": "Click “Add new…” to set up a new database, application or dashboard for your project, department, or team."
   }
 }

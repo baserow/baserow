@@ -1074,13 +1074,9 @@
     "title": "Setup tables",
     "content": "Tables store your information neatly. Create a new table within your database to start structuring your data."
   },
-  "filtersAndSortGuidedTourStep": {
-    "title": "Find Data Fast",
-    "content": "Quickly locate information by filtering and sorting your records."
-  },
-  "groupByGuidedTourStep": {
-    "title": "Organize Your Data",
-    "content": "Instantly group your records by category, date, or status to clearly visualize patterns and simplify your workflows."
+  "filterSortGroupGuidedTourStep": {
+    "title": "Find and Organize Your Data",
+    "content": "Quickly locate information by filtering and sorting on your rows. Instantly group by any of the fields to clearly visualize patterns and simplify your workflows."
   },
   "addFieldGuidedTourStep": {
     "title": "Customize Your Data",
@@ -1088,10 +1084,14 @@
   },
   "createViewGuidedTourStep": {
     "title": "Personalize Your Views",
-    "content": "reate custom views like grid, calendar, kanban, or gallery to visualize your data exactly how you want it."
+    "content": "Create custom views like grid, calendar, kanban, or gallery to visualize your data exactly how you want it."
   },
   "createFormViewGuidedTourStep": {
     "title": "Create a Form",
-    "content": "Quickly build forms from your tables to collect responses directly into your database, streamlining data collection."
+    "content": "Quickly build forms from your tables to collect responses directly into your table, streamlining data collection."
+  },
+  "viewOptionsGuidedTourStep": {
+    "title": "View Options",
+    "content": "Click on the three dots next to the view to export, import, duplicate, and configure a webhook."
   }
 }

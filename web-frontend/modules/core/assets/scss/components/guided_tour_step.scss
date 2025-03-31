@@ -70,7 +70,7 @@
     &::after {
       left: 12px;
       top: -6px;
-      border-width: 0 8px 6px 8px;
+      border-width: 0 8px 6px;
       border-color: transparent transparent $palette-neutral-1200 transparent;
     }
   }
@@ -84,14 +84,14 @@
     &::after {
       right: 12px;
       top: -6px;
-      border-width: 0 8px 6px 8px;
+      border-width: 0 8px 6px;
       border-color: transparent transparent $palette-neutral-1200 transparent;
     }
   }
 }
 
 .guided-tour-step__body {
-  padding: 20px 20px 0 20px;
+  padding: 20px 20px 0;
   min-height: 0;
   overflow: hidden scroll;
 }

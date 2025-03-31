@@ -5,57 +5,25 @@ import {
 import Vue from 'vue'
 import { GridViewType } from '@baserow/modules/database/viewTypes'
 
-class TablesGuidedTourStep extends GuidedTourStep {
+class FiltersSortGroupGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('tablesGuidedTourStep.title')
+    return this.app.i18n.t('filterSortGroupGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('tablesGuidedTourStep.content')
+    return this.app.i18n.t('filterSortGroupGuidedTourStep.content')
   }
 
   get selectors() {
-    return ['[data-highlight="create-table"]']
-  }
-
-  get position() {
-    return 'right-bottom'
-  }
-}
-
-class FiltersAndSortGuidedTourStep extends GuidedTourStep {
-  get title() {
-    return this.app.i18n.t('filtersAndSortGuidedTourStep.title')
-  }
-
-  get content() {
-    return this.app.i18n.t('filtersAndSortGuidedTourStep.content')
-  }
-
-  get selectors() {
-    return ['[data-highlight="view-filters"]', '[data-highlight="view-sorts"]']
+    return [
+      '[data-highlight="view-filters"]',
+      '[data-highlight="view-sorts"]',
+      '[data-highlight="view-group-by"]',
+    ]
   }
 
   get position() {
     return 'bottom-left'
-  }
-}
-
-class GroupByGuidedTourStep extends GuidedTourStep {
-  get title() {
-    return this.app.i18n.t('groupByGuidedTourStep.title')
-  }
-
-  get content() {
-    return this.app.i18n.t('groupByGuidedTourStep.content')
-  }
-
-  get selectors() {
-    return ['[data-highlight="view-group-by"]']
-  }
-
-  get position() {
-    return 'bottom-right'
   }
 }
 
@@ -113,12 +81,57 @@ class CreateFormViewGuidedTourStep extends GuidedTourStep {
   }
 
   async beforeShow() {
-    this.app.$bus.$emit('open-table-views')
+    this.app.$bus.$emit('open-table-views-context')
     await Vue.nextTick()
   }
 
   afterShow() {
-    this.app.$bus.$emit('close-table-views')
+    this.app.$bus.$emit('close-table-views-context')
+  }
+}
+
+class ViewOptionGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return this.app.i18n.t('viewOptionsGuidedTourStep.title')
+  }
+
+  get content() {
+    return this.app.i18n.t('viewOptionsGuidedTourStep.content')
+  }
+
+  get selectors() {
+    return ['[data-highlight="view-options"]']
+  }
+
+  get position() {
+    return 'bottom-left'
+  }
+
+  async beforeShow() {
+    this.app.$bus.$emit('open-table-view-context')
+    await Vue.nextTick()
+  }
+
+  afterShow() {
+    this.app.$bus.$emit('close-table-view-context')
+  }
+}
+
+class TablesGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return this.app.i18n.t('tablesGuidedTourStep.title')
+  }
+
+  get content() {
+    return this.app.i18n.t('tablesGuidedTourStep.content')
+  }
+
+  get selectors() {
+    return ['[data-highlight="create-table"]']
+  }
+
+  get position() {
+    return 'right-bottom'
   }
 }
 
@@ -129,12 +142,12 @@ export class DatabaseGuidedTourType extends GuidedTourType {
 
   get steps() {
     return [
-      new TablesGuidedTourStep(this.app),
-      new FiltersAndSortGuidedTourStep(this.app),
-      new GroupByGuidedTourStep(this.app),
+      new FiltersSortGroupGuidedTourStep(this.app),
       new AddFieldGuidedTourStep(this.app),
       new CreateViewGuidedTourStep(this.app),
       new CreateFormViewGuidedTourStep(this.app),
+      new ViewOptionGuidedTourStep(this.app),
+      new TablesGuidedTourStep(this.app),
     ]
   }
 
