@@ -2,6 +2,8 @@ import {
   ensureString,
   ensureNonEmptyString,
   ensurePositiveInteger,
+  ensureArray,
+  ensureNumeric,
 } from '@baserow/modules/core/utils/validator'
 import {
   DataSourceDataProviderType,
@@ -23,9 +25,20 @@ export const PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS = {
   numeric: ensurePositiveInteger,
   text: ensureNonEmptyString,
 }
-export const QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS = {
-  numeric: (n) => ensurePositiveInteger(n, { allowNull: true }),
-  text: ensureString,
+export const QUERY_PARAM_TYPE_HANDLER_FUNCTIONS = {
+  numeric: (input) => {
+    const value = ensureArray(input, { allowEmpty: true }).map((i) =>
+      ensureNumeric(i, { allowNull: true })
+    )
+
+    return value.length === 0 ? null : value.length === 1 ? value[0] : value
+  },
+  text: (input) => {
+    const value = ensureArray(input, {
+      allowEmpty: true,
+    }).map((i) => ensureString(i, { allowEmpty: true }))
+    return value.length === 0 ? null : value.length === 1 ? value[0] : value
+  },
 }
 
 export const ALLOWED_LINK_PROTOCOLS = [
