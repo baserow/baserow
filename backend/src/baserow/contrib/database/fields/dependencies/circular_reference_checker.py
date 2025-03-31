@@ -24,8 +24,6 @@
 
 from django.conf import settings
 
-from baserow.contrib.database.fields.dependencies.models import FieldDependency
-
 
 def will_cause_circular_dep(from_field, to_field):
     return from_field.id in get_all_field_dependencies(to_field)
@@ -38,30 +36,41 @@ def get_all_field_dependencies(field):
         "pk": field.pk,
         "max_depth": settings.MAX_FIELD_REFERENCE_DEPTH,
     }
-    relationship_table = FieldDependency._meta.db_table
-    pk_name = "id"
 
     # Only pk_name and a table name get formatted in, no user controllable input, safe.
     # fmt: off
     raw_query = (
         f"""
-        WITH RECURSIVE traverse({pk_name}, depth) AS (
+        WITH RECURSIVE dependencies AS MATERIALIZED (
+            SELECT dd.id, dependant_id, dependency_id
+            FROM database_fielddependency dd
+            INNER JOIN database_field df ON dd.dependant_id = df.id
+            INNER JOIN database_table dt ON dt.id = df.table_id
+            WHERE dt.database_id = (
+                SELECT database_id
+                FROM database_field df
+                INNER JOIN database_table dt ON df.table_id = dt.id
+                WHERE df.id = %(pk)s
+                LIMIT 1
+            )
+        ),
+        traverse(id, depth) AS (
             SELECT first.dependency_id, 1
-                FROM {relationship_table} AS first
-                LEFT OUTER JOIN {relationship_table} AS second
+                FROM dependencies AS first
+                LEFT OUTER JOIN dependencies AS second
                 ON first.dependency_id = second.dependant_id
             WHERE first.dependant_id = %(pk)s
         UNION
             SELECT DISTINCT dependency_id, traverse.depth + 1
                 FROM traverse
-                INNER JOIN {relationship_table}
-                ON {relationship_table}.dependant_id = traverse.{pk_name}
+                INNER JOIN dependencies
+                ON dependencies.dependant_id = traverse.id
             WHERE 1 = 1
         )
-        SELECT {pk_name} FROM traverse
+        SELECT id FROM traverse
         WHERE depth <= %(max_depth)s
-        GROUP BY {pk_name}
-        ORDER BY MAX(depth) DESC, {pk_name} ASC
+        GROUP BY id
+        ORDER BY MAX(depth) DESC, id ASC
         """  # nosec b608
     )
     # fmt: on
