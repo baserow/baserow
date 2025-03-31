@@ -20,7 +20,7 @@ def test_list_applications_in_workspace(data_fixture, bypass_check_permissions):
             )
         )
 
-    assert len(captured) == 2  # 1 for the workspace and 1 for the applications
+    assert len(captured) == 1
 
     assert len(applications) == 1
     assert applications[0].id == application.id

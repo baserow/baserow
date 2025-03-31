@@ -547,10 +547,7 @@ class ApplicationType(
         :param workspace: The workspace that the queryset is related to.
         """
 
-        raise NotImplementedError(
-            "Must be implemented by the specific application type to filter by "
-            "permissions."
-        )
+        return queryset
 
     def get_application_urls(self, application: "Application") -> list[str]:
         """
