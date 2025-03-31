@@ -3,10 +3,10 @@
     v-if="selector !== null"
     class="highlight"
     :style="{
-      left: `${position.left || 0}px`,
-      top: `${position.top || 0}px`,
-      width: `${position.width || 0}px`,
-      height: `${position.height || 0}px`,
+      left: `${position.left || '0px'}`,
+      top: `${position.top || '0px'}`,
+      width: `${position.width || '0px'}`,
+      height: `${position.height || '0px'}`,
     }"
   >
     <slot></slot>
@@ -91,25 +91,30 @@ export default {
       })
     },
     update() {
+      const position = {
+        left: '0px',
+        top: '0px',
+        width: '0px',
+        height: '0px',
+      }
+
       if (this.selector === null) {
         return
       }
 
-      const position = {
-        left: 0,
-        top: 0,
-        width: 0,
-        height: 0,
+      if (this.selector.length > 0) {
+        const elements = this.getElements(this.selector)
+        const parentRect = this._getParent().getBoundingClientRect()
+        const elementRect = getCombinedBoundingClientRect(elements)
+        const padding = 2
+        position.top = elementRect.top - parentRect.top - padding + 'px'
+        position.left = elementRect.left - parentRect.left - padding + 'px'
+        position.width = elementRect.width + padding * 2 + 'px'
+        position.height = elementRect.height + padding * 2 + 'px'
+      } else {
+        position.top = '50%'
+        position.left = '50%'
       }
-
-      const elements = this.getElements(this.selector)
-      const parentRect = this._getParent().getBoundingClientRect()
-      const elementRect = getCombinedBoundingClientRect(elements)
-      const padding = 2
-      position.top = elementRect.top - parentRect.top - padding
-      position.left = elementRect.left - parentRect.left - padding
-      position.width = elementRect.width + padding * 2
-      position.height = elementRect.height + padding * 2
 
       this.position = position
     },

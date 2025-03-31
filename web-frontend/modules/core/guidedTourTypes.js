@@ -1,14 +1,6 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
 export class GuidedTourType extends Registerable {
-  get welcomeTitle() {
-    throw new Error('welcomeTitle must be set of the guided tour step.')
-  }
-
-  get welcomeContent() {
-    throw new Error('welcomeContent must be set of the guided tour step.')
-  }
-
   get canSkip() {
     return false
   }
@@ -75,6 +67,20 @@ export class GuidedTourStep {
   }
 
   /**
+   * If null is returned, then the default button text will be used.
+   */
+  get buttonText() {
+    return null
+  }
+
+  /**
+   * @TODO docs
+   */
+  get skipIfNotFirst() {
+    return false
+  }
+
+  /**
    * @TODO logs
    */
   beforeShow() {}
@@ -83,6 +89,32 @@ export class GuidedTourStep {
    * @TODO logs
    */
   afterShow() {}
+}
+
+class WelcomeGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return 'Welcome to Baserow'
+  }
+
+  get content() {
+    return `Let’s take a quick tour to get you familiar with the basics. In just a few clicks, you’ll learn how to organize and visualize your data effortlessly`
+  }
+
+  get selectors() {
+    return []
+  }
+
+  get position() {
+    return 'center'
+  }
+
+  get buttonText() {
+    return 'Start the tour'
+  }
+
+  get skipIfNotFirst() {
+    return true
+  }
 }
 
 class ControlCenterGuidedTourStep extends GuidedTourStep {
@@ -131,19 +163,16 @@ export class SidebarGuidedTourType extends GuidedTourType {
     return 'sidebar'
   }
 
-  get welcomeTitle() {
-    return '👋Welcome to Baserow!'
-  }
-
-  get welcomeContent() {
-    return 'Let’s take a quick tour to get you familiar with the basics. In just a few clicks, you’ll learn how to organize and visualize your data effortlessly'
-  }
-
   get steps() {
     return [
+      new WelcomeGuidedTourStep(this.app),
       new ControlCenterGuidedTourStep(this.app),
       new CreateNewGuidedTourStep(this.app),
     ]
+  }
+
+  get order() {
+    return 100
   }
 
   isActive() {

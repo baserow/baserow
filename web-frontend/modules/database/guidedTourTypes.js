@@ -126,14 +126,6 @@ export class DatabaseGuidedTourType extends GuidedTourType {
     return 'database'
   }
 
-  get welcomeTitle() {
-    return ''
-  }
-
-  get welcomeContent() {
-    return ''
-  }
-
   get steps() {
     return [
       new TablesGuidedTourStep(this.app),
@@ -143,6 +135,10 @@ export class DatabaseGuidedTourType extends GuidedTourType {
       new CreateViewGuidedTourStep(this.app),
       new CreateFormViewGuidedTourStep(this.app),
     ]
+  }
+
+  get order() {
+    return 200
   }
 
   isActive(route) {

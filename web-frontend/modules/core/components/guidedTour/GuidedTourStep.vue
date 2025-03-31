@@ -12,7 +12,7 @@
     <div class="guided-tour-step__foot">
       <div>
         <Button type="secondary" @click="$emit('next')">{{
-          last ? 'Got it' : 'Next'
+          buttonText || (last ? 'Got it' : 'Next')
         }}</Button>
       </div>
     </div>
@@ -32,6 +32,7 @@ export default {
           'right-bottom',
           'bottom-left',
           'bottom-right',
+          'center',
         ].includes(value)
       },
     },
@@ -55,6 +56,11 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    buttonText: {
+      validator: (prop) => typeof prop === 'string' || prop === null,
+      required: false,
+      default: null,
     },
   },
   async mounted() {

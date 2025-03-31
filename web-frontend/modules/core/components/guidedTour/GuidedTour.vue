@@ -9,6 +9,7 @@
         :content="currentStep.content"
         :last="stepIndex >= allSteps.length - 1"
         :position="currentStep.position"
+        :button-text="currentStep.buttonText"
         @next="next"
       ></GuidedTourStep>
     </Highlight>

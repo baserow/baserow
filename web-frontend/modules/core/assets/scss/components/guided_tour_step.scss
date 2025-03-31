@@ -17,7 +17,7 @@
   transform: translateY(0) translateX(0);
   top: 0;
   left: 0;
-  transition: top 0.1s ease, left 0.1s ease, transform 0.1s ease;
+  transition: top 0.1s ease, left 0.1s ease, transform 0.1s ease, position 0.1s ease;
 
   @include absolute(0, 0, auto, auto);
   @include rounded($rounded-md);
@@ -31,6 +31,13 @@
     border-color: transparent $palette-neutral-1200 transparent transparent;
     transform: rotate(0deg);
     position: absolute;
+  }
+
+  // Positioned in the middle of the screen.
+  &--center {
+    left: 0;
+    top: 0;
+    transform: translateY(-50%) translateX(-50%);
   }
 
   // Positioned right from the parent, aligned to the top of it.
