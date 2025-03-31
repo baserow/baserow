@@ -370,7 +370,7 @@ export const getters = {
     return state.user ? state.user.is_staff : false
   },
   getCompletedGuidedTour(state) {
-    return state.user ? state.user.completed_guided_tours : []
+    return state?.user?.completed_guided_tours || []
   },
   getUntrustedClientSessionId(state) {
     return state.untrustedClientSessionId
