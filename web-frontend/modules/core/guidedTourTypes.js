@@ -1,18 +1,19 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
 export class GuidedTourType extends Registerable {
-  get canSkip() {
-    return false
-  }
-
+  /**
+   * Indicates the order in which the steps of multiple guided tours should be shown,
+   * if they're active.
+   */
   get order() {
     return 100
   }
 
   /**
-   * @TODO docs
+   * Should return true if the guided tour should is active and should be shown. This
+   * is a reactive method. If multiple guided tours are `true`, then they will automatically be combined.
    */
-  isActive() {
+  isActive(route) {
     throw new Error('The GuidedTourType.isActive method must be implemented.')
   }
 }
@@ -74,19 +75,23 @@ export class GuidedTourStep {
   }
 
   /**
-   * @TODO docs
+   * If set to true, then step will be skipped if it's not the first one. This can be
+   * used if multiple guided tours are shown combined, and the second has a welcome
+   * message that is redundant if the first one also has a welcome message.
    */
   get skipIfNotFirst() {
     return false
   }
 
   /**
-   * @TODO logs
+   * Hook that is called before the step is shown. This can be used to open a context
+   * menu, for example.
    */
   beforeShow() {}
 
   /**
-   * @TODO logs
+   * Hook that is called after the step is shown. This can be used to close a context
+   * menu, for example.
    */
   afterShow() {}
 }

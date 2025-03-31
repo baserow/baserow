@@ -178,7 +178,8 @@ export const checkIntermediateElements = (ancestor, descendant, predicate) => {
 }
 
 /**
- * @TODO docs.
+ * Calculates the outer most bounding rect of multiple elements provided. This can be
+ * used to show a specific area, highlighting multiple elements.
  */
 export const getCombinedBoundingClientRect = (elements) => {
   if (!elements.length) return null

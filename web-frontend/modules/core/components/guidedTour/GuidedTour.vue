@@ -79,7 +79,6 @@ export default {
   methods: {
     getParent() {
       return document.body
-      // return this.$el.parentElement
     },
     async next() {
       if (this.stepIndex >= this.allSteps.length - 1) {
