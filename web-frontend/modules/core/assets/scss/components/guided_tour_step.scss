@@ -17,7 +17,8 @@
   transform: translateY(0) translateX(0);
   top: 0;
   left: 0;
-  transition: top 0.1s ease, left 0.1s ease, transform 0.1s ease, position 0.1s ease;
+  transition: top 0.1s ease, left 0.1s ease, transform 0.1s ease,
+    position 0.1s ease;
 
   @include absolute(0, 0, auto, auto);
   @include rounded($rounded-md);
