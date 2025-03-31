@@ -1930,6 +1930,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             return
 
         slug = ".".join(template_file_path.name.split(".")[:-1])
+
+        logger.info(f"Importing template {slug}")
+
         installed_template = next(
             (t for t in installed_templates if t.slug == slug), None
         )

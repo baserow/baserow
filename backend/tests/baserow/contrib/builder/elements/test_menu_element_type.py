@@ -437,3 +437,65 @@ def test_import_export(menu_element_fixture, data_fixture):
 
     sublink_a = menu_element.menu_items.get(uid=uid_4)
     assert sublink_a.name == "Sublink A"
+
+
+@pytest.mark.django_db
+def test_delete_duplicated_menu_doesnt_affect_initial_element(
+    menu_element_fixture, data_fixture
+):
+    page = menu_element_fixture["page_a"]
+    menu_element = menu_element_fixture["menu_element"]
+
+    # Create a Menu Element with Menu items.
+    uid_1 = uuid.uuid4()
+    uid_2 = uuid.uuid4()
+    uid_3 = uuid.uuid4()
+    uid_4 = uuid.uuid4()
+    menu_item_1 = {
+        "name": "Greet",
+        "type": MenuItemElement.TYPES.BUTTON,
+        "menu_item_order": 0,
+        "uid": uid_1,
+        "children": [],
+    }
+    menu_item_2 = {
+        "name": "Link A",
+        "type": MenuItemElement.TYPES.BUTTON,
+        "menu_item_order": 1,
+        "uid": uid_2,
+        "children": [],
+    }
+    menu_item_3 = {
+        "name": "Sublinks",
+        "type": MenuItemElement.TYPES.LINK,
+        "menu_item_order": 2,
+        "uid": uid_3,
+        "children": [
+            {
+                "name": "Sublink A",
+                "type": MenuItemElement.TYPES.LINK,
+                "menu_item_order": 3,
+                "uid": uid_4,
+                "navigate_to_page_id": page.id,
+            }
+        ],
+    }
+
+    data = {"menu_items": [menu_item_1, menu_item_2, menu_item_3]}
+    ElementHandler().update_element(menu_element, **data)
+
+    for uid in [uid_1, uid_2]:
+        data_fixture.create_workflow_action(
+            NotificationWorkflowAction,
+            page=menu_element.page,
+            element=menu_element,
+            event=f"{uid}_click",
+        )
+
+    duplicated_element = ElementHandler().duplicate_element(menu_element)["elements"][0]
+
+    assert NotificationWorkflowAction.objects.count() == 4
+
+    ElementHandler().delete_element(duplicated_element)
+
+    assert NotificationWorkflowAction.objects.count() == 2
