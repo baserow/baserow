@@ -16,7 +16,7 @@ def test_list_applications_in_workspace(data_fixture, bypass_check_permissions):
     with CaptureQueriesContext(connection) as captured:
         applications = list(
             CoreService().list_applications_in_workspace(
-                user, workspace.id, specific=False
+                user, workspace, specific=False
             )
         )
 

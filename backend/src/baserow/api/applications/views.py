@@ -147,8 +147,10 @@ class ApplicationsView(APIView):
         returned.
         """
 
+        workspace = CoreService().get_workspace(request.user, workspace_id)
+
         applications = CoreService().list_applications_in_workspace(
-            request.user, workspace_id
+            request.user, workspace
         )
 
         data = [

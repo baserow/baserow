@@ -9,6 +9,7 @@ from baserow.core.models import Application, Workspace
 from baserow.core.operations import (
     ListApplicationsWorkspaceOperationType,
     ReadApplicationOperationType,
+    ReadWorkspaceOperationType,
 )
 from baserow.core.registries import application_type_registry
 
@@ -22,10 +23,31 @@ class CoreService:
             model
         ).enhance_and_filter_queryset(queryset, user, workspace)
 
+    def get_workspace(self, user: AbstractUser, workspace_id: int) -> Workspace:
+        """
+        Get the workspace associated to the given id if the user has the permission
+        to read it.
+
+        :param user: The user trying to access the workspace
+        :param workspace_id: The workspace id we want to return.
+        :return: The workspace associated with the given id.
+        """
+
+        workspace = self.handler.get_workspace(workspace_id)
+
+        self.handler.check_permissions(
+            user,
+            ReadWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+        return workspace
+
     def list_applications_in_workspace(
         self,
         user: AbstractUser,
-        workspace: int | Workspace,
+        workspace: Workspace,
         specific: bool = True,
         base_queryset: Optional[QuerySet] = None,
     ) -> QuerySet[Application]:
@@ -33,27 +55,13 @@ class CoreService:
         Get a list of all the applications in a workspace.
 
         :param user: The user trying to access the applications
-        :param workspace: The workspace instance or the id of the workspace where the
-            applications must be listed. If the workspace is an integer, the workspace
-            will be fetched from the database and the permissions will be checked.
-            If a workspace instance is provided, the permissions will not be checked as
-            it is assumed that the workspace is already checked.
+        :param workspace: The workspace instance where the applications must be listed.
         :param specific: If True the specific applications will be returned instead of
             the base applications. Set this to False if you only need the base
             applications to prevent unnecessary queries.
         :param base_queryset: The base queryset from where to select the applications
         :return: A list of applications
         """
-
-        if not isinstance(workspace, Workspace):
-            workspace = self.handler.get_workspace(workspace)
-
-            self.handler.check_permissions(
-                user,
-                ListApplicationsWorkspaceOperationType.type,
-                workspace=workspace,
-                context=workspace,
-            )
 
         application_qs = self.handler.list_applications_in_workspace(
             workspace, base_queryset
