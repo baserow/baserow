@@ -93,11 +93,11 @@ export class GuidedTourStep {
 
 class WelcomeGuidedTourStep extends GuidedTourStep {
   get title() {
-    return 'Welcome to Baserow'
+    return this.app.i18n.t('welcomeGuidedTourStep.title')
   }
 
   get content() {
-    return `Let’s take a quick tour to get you familiar with the basics. In just a few clicks, you’ll learn how to organize and visualize your data effortlessly`
+    return this.app.i18n.t('welcomeGuidedTourStep.content')
   }
 
   get selectors() {
@@ -109,7 +109,7 @@ class WelcomeGuidedTourStep extends GuidedTourStep {
   }
 
   get buttonText() {
-    return 'Start the tour'
+    return this.app.i18n.t('welcomeGuidedTourStep.buttonText')
   }
 
   get skipIfNotFirst() {
@@ -119,16 +119,11 @@ class WelcomeGuidedTourStep extends GuidedTourStep {
 
 class ControlCenterGuidedTourStep extends GuidedTourStep {
   get title() {
-    return 'Your Baserow Control Center'
+    return this.app.i18n.t('controlCenterGuidedTourStep.title')
   }
 
   get content() {
-    return `The left sidebar helps you manage your workspace:
-
-- Home – Access your main dashboard.
-- Notifications – Stay updated on changes and mentions.
-- Invite Members – Collaborate by adding team members.
-- Audit Log – Track all activity for security and transparency.`
+    return this.app.i18n.t('controlCenterGuidedTourStep.content')
   }
 
   get selectors() {
@@ -142,11 +137,11 @@ class ControlCenterGuidedTourStep extends GuidedTourStep {
 
 class CreateNewGuidedTourStep extends GuidedTourStep {
   get title() {
-    return ' Create your first Database'
+    return this.app.i18n.t('createNewGuidedTourStep.title')
   }
 
   get content() {
-    return `Databases help organize your tables. Click “Add new…” to set up a new database for your project, department, or team`
+    return this.app.i18n.t('createNewGuidedTourStep.content')
   }
 
   get selectors() {

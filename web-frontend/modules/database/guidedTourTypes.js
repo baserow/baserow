@@ -6,11 +6,11 @@ import Vue from 'vue'
 
 class TablesGuidedTourStep extends GuidedTourStep {
   get title() {
-    return 'Setup tables'
+    return this.app.i18n.t('tablesGuidedTourStep.title')
   }
 
   get content() {
-    return `Tables store your information neatly. Create a new table within your database to start structuring your data.`
+    return this.app.i18n.t('tablesGuidedTourStep.content')
   }
 
   get selectors() {
@@ -24,11 +24,11 @@ class TablesGuidedTourStep extends GuidedTourStep {
 
 class FiltersAndSortGuidedTourStep extends GuidedTourStep {
   get title() {
-    return 'Find Data Fast'
+    return this.app.i18n.t('filtersAndSortGuidedTourStep.title')
   }
 
   get content() {
-    return `Quickly locate information by filtering and sorting your records.`
+    return this.app.i18n.t('filtersAndSortGuidedTourStep.content')
   }
 
   get selectors() {
@@ -42,11 +42,11 @@ class FiltersAndSortGuidedTourStep extends GuidedTourStep {
 
 class GroupByGuidedTourStep extends GuidedTourStep {
   get title() {
-    return 'Organize Your Data'
+    return this.app.i18n.t('groupByGuidedTourStep.title')
   }
 
   get content() {
-    return `Instantly group your records by category, date, or status to clearly visualize patterns and simplify your workflows.`
+    return this.app.i18n.t('groupByGuidedTourStep.content')
   }
 
   get selectors() {
@@ -60,11 +60,11 @@ class GroupByGuidedTourStep extends GuidedTourStep {
 
 class AddFieldGuidedTourStep extends GuidedTourStep {
   get title() {
-    return 'Customize Your Data'
+    return this.app.i18n.t('addFieldGuidedTourStep.title')
   }
 
   get content() {
-    return `Click “+” to add new fields (columns). Choose from various field types to capture exactly what matters most to your project.`
+    return this.app.i18n.t('addFieldGuidedTourStep.content')
   }
 
   get selectors() {
@@ -78,11 +78,11 @@ class AddFieldGuidedTourStep extends GuidedTourStep {
 
 class CreateViewGuidedTourStep extends GuidedTourStep {
   get title() {
-    return 'Personalize Your Views'
+    return this.app.i18n.t('createViewGuidedTourStep.title')
   }
 
   get content() {
-    return `Create custom views like grid, calendar, kanban, or gallery to visualize your data exactly how you want it.`
+    return this.app.i18n.t('createViewGuidedTourStep.content')
   }
 
   get selectors() {
@@ -96,11 +96,11 @@ class CreateViewGuidedTourStep extends GuidedTourStep {
 
 class CreateFormViewGuidedTourStep extends GuidedTourStep {
   get title() {
-    return 'Create a Form'
+    return this.app.i18n.t('createFormViewGuidedTourStep.title')
   }
 
   get content() {
-    return `Quickly build forms from your tables to collect responses directly into your database, streamlining data collection.`
+    return this.app.i18n.t('createFormViewGuidedTourStep.content')
   }
 
   get selectors() {

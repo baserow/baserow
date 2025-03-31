@@ -1069,5 +1069,29 @@
   },
   "webhookPayloadTooLargeNotification": {
     "body": "The payload for the {name} webhook with event ID {event_id} was too large. The content has been split into multiple batches, but data above the batch limit of {batch_limit} was discarded."
+  },
+  "tablesGuidedTourStep": {
+    "title": "Setup tables",
+    "content": "Tables store your information neatly. Create a new table within your database to start structuring your data."
+  },
+  "filtersAndSortGuidedTourStep": {
+    "title": "Find Data Fast",
+    "content": "Quickly locate information by filtering and sorting your records."
+  },
+  "groupByGuidedTourStep": {
+    "title": "Organize Your Data",
+    "content": "Instantly group your records by category, date, or status to clearly visualize patterns and simplify your workflows."
+  },
+  "addFieldGuidedTourStep": {
+    "title": "Customize Your Data",
+    "content": "Click “+” to add new fields (columns). Choose from various field types to capture exactly what matters most to your project."
+  },
+  "createViewGuidedTourStep": {
+    "title": "Personalize Your Views",
+    "content": "reate custom views like grid, calendar, kanban, or gallery to visualize your data exactly how you want it."
+  },
+  "createFormViewGuidedTourStep": {
+    "title": "Create a Form",
+    "content": "Quickly build forms from your tables to collect responses directly into your database, streamlining data collection."
   }
 }

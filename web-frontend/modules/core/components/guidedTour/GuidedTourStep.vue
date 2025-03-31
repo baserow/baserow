@@ -1,7 +1,9 @@
 <template>
   <div :class="`guided-tour-step guided-tour-step--${position}`">
     <div v-auto-overflow-scroll class="guided-tour-step__body">
-      <div class="guided-tour-step__page">{{ step }} of {{ totalSteps }}</div>
+      <div class="guided-tour-step__page">
+        {{ $t('guidedTourStep.step', { step, totalSteps }) }}
+      </div>
       <div class="guided-tour-step__title">
         {{ title }}
       </div>
@@ -12,7 +14,8 @@
     <div class="guided-tour-step__foot">
       <div>
         <Button type="secondary" @click="$emit('next')">{{
-          buttonText || (last ? 'Got it' : 'Next')
+          buttonText ||
+          (last ? $t('guidedTourStep.gotIt') : $t('guidedTourStep.next'))
         }}</Button>
       </div>
     </div>
