@@ -343,6 +343,7 @@ exports[`GridView component with decoration Default component with first_cell de
         >
           <a
             class="grid-view__add-column"
+            data-highlight="add-field"
           >
             <i
               class="grid-view__add-column-icon iconoir-plus"
@@ -840,6 +841,7 @@ exports[`GridView component with decoration Default component with row wrapper d
         >
           <a
             class="grid-view__add-column"
+            data-highlight="add-field"
           >
             <i
               class="grid-view__add-column-icon iconoir-plus"
@@ -1340,6 +1342,7 @@ exports[`GridView component with decoration Default component with unavailable d
         >
           <a
             class="grid-view__add-column"
+            data-highlight="add-field"
           >
             <i
               class="grid-view__add-column-icon iconoir-plus"
