@@ -103,12 +103,10 @@ export default {
       this.stepIndex = 0
 
       try {
-        // @TODO persistently save the completed onboardings.
-        // const { data } = await AuthService(this.$client).update({
-        //   completed_guided_tours: this.startedGuidedTours,
-        // })
         const completed = this.activeGuidedTours.map((t) => t.getType())
-        const data = { completed_guided_tours: completed }
+        const { data } = await AuthService(this.$client).update({
+          completed_guided_tours: completed,
+        })
         await this.$store.dispatch('auth/forceUpdateUserData', { user: data })
       } catch (error) {
         notifyIf(error)
