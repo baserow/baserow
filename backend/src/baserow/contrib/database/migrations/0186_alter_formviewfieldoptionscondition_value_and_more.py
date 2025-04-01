@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0184_airtableimportjob_session_and_more"),
+        ("database", "0185_alter_ratingfield_style"),
     ]
 
     operations = [
