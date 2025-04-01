@@ -10,7 +10,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.core.management.color import no_style
 from django.db import connection, models
-from django.db.models import Prefetch
+from django.db.models import Prefetch, QuerySet
 from django.db.transaction import Atomic
 from django.urls import include, path
 from django.utils import translation
@@ -21,6 +21,7 @@ from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database, Field, View
+from baserow.contrib.database.operations import ListTablesDatabaseTableOperationType
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_queryset
@@ -974,3 +975,50 @@ class DatabaseApplicationType(ApplicationType):
             "table_set__data_sync",
             "table_set__data_sync__synced_properties",
         )
+
+    def enhance_and_filter_queryset(
+        self,
+        queryset: QuerySet[Database],
+        user: AbstractUser,
+        workspace: Workspace,
+    ) -> QuerySet[Database]:
+        tables_qs = Table.objects.select_related(
+            "database__workspace", "data_sync"
+        ).prefetch_related("data_sync__synced_properties")
+        return queryset.prefetch_related(
+            Prefetch(
+                "table_set",
+                queryset=CoreHandler().filter_queryset(
+                    user,
+                    ListTablesDatabaseTableOperationType.type,
+                    tables_qs,
+                    workspace=workspace,
+                ),
+                to_attr="tables",
+            ),
+        )
+
+    def fetch_tables_to_serialize(
+        self, database: Database, user: AbstractUser | None
+    ) -> List[Table]:
+        """
+        Serializes the pages of the builder application, making sure that the user has
+        the correct permissions to view them if provided, and fetching the related
+        elements and data sources correctly so additional queries are not needed.
+
+        :param builder: The builder application instance.
+        :param user: The user trying to access the pages.
+        :return: A list of serialized pages that belong to this instance with all
+            related elements and data sources fetched correctly.
+        """
+
+        base_queryset = Database.objects.filter(id=database.id)
+
+        if user:
+            instance = self.enhance_and_filter_queryset(
+                base_queryset, user, database.workspace
+            ).first()
+            return instance and instance.tables or []
+        else:
+            instance = self.enhance_queryset(base_queryset).first()
+            return instance and list(instance.table_set.all()) or []

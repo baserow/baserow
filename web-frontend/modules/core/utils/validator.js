@@ -5,9 +5,34 @@ import { DATE_FORMATS } from '@baserow/modules/builder/enums'
 import moment from '@baserow/modules/core/moment'
 
 /**
+ * Ensures that the value is a Numeral or can be converted to a numeric value.
+ * @param {number|string} value - The value to ensure as a number.
+ * @param allowNull {boolean} - Whether to allow null or empty values.
+ * @returns {number|null} The value as a Number if conversion is successful.
+ * @throws {Error} If the value is not a valid number or convertible to an number.
+ */
+export const ensureNumeric = (value, { allowNull = false } = {}) => {
+  if (allowNull && (value === null || value === '')) {
+    return null
+  }
+  if (Number.isFinite(value)) {
+    return value
+  }
+  if (typeof value === 'string' || value instanceof String) {
+    if (/^([-+])?(\d+(\.\d+)?)$/.test(value)) {
+      return Number(value)
+    }
+  }
+  throw new Error(
+    `Value '${value}' is not a valid number or convertible to a number.`
+  )
+}
+
+/**
  * Ensures that the value is an integer or can be converted to an integer.
  * @param {number|string} value - The value to ensure as an integer.
- * @returns {number} The value as an integer if conversion is successful.
+ * @param allowNull {boolean} - Whether to allow null or empty values.
+ * @returns {number|null} The value as an integer if conversion is successful, null otherwise.
  * @throws {Error} If the value is not a valid integer or convertible to an integer.
  */
 export const ensureInteger = (value) => {
@@ -25,13 +50,16 @@ export const ensureInteger = (value) => {
 }
 
 /**
- * Ensures that the value is a positive integer.
- * @param {*} value - The value to ensure is a positive integer.
- * @returns {number} The value as an integer if conversion is successful.
- * @throws {Error} If the value is not a valid integer or convertible to an integer.
+ * Ensures that the value is a non-negative integer.
+ * @param {*} value - The value to ensure is a non-negative integer.
+ * @param {Object} options - Configuration options
+ * @param {Boolean} [options.allowNull=false] - Whether to return null if value is null
+ * @returns {number|null} The value as an integer if conversion is successful,
+ * or null if allowNull is true or throwError is false
+ * @throws {Error} If the value is not a valid non-negative integer
  */
 export const ensurePositiveInteger = (value, { allowNull = false } = {}) => {
-  if (allowNull && value === null) {
+  if (allowNull && (value === null || value === '')) {
     return null
   }
   const validInteger = ensureInteger(value)
@@ -40,7 +68,6 @@ export const ensurePositiveInteger = (value, { allowNull = false } = {}) => {
   }
   return validInteger
 }
-
 /**
  * Ensures that the value is a string or try to convert it.
  * @param {*} value - The value to ensure as a string.

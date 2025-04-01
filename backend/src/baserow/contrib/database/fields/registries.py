@@ -1311,6 +1311,8 @@ class FieldType(
         field_cache: "Optional[FieldCache]" = None,
         via_path_to_starting_table: Optional[List[LinkRowField]] = None,
         already_updated_fields: Optional[List[Field]] = None,
+        skip_search_updates: bool = False,
+        database_id: Optional[int] = None,
     ):
         """
         This method is called periodically for all the fields of the same type
@@ -1327,6 +1329,10 @@ class FieldType(
         :param already_updated_fields: A list of fields that have already been updated
             before. That can happen because it was a dependency of another field for
             example.
+        :param skip_search_updates: If True, search index updates should be skipped.
+        :param database_id: The id of the database that the fields belong to. If not
+            provided, it means fields might belong to different databases and so we
+            should not assume they belong to the same database.
         """
 
         return already_updated_fields

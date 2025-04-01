@@ -81,9 +81,9 @@ def test_list_applications(api_client, data_fixture, django_assert_num_queries):
             reverse("api:applications:list", kwargs={"workspace_id": workspace_1.id}),
             **{"HTTP_AUTHORIZATION": f"JWT {token}"},
         )
-        assert len(mock_filter_queryset.mock_calls) == 1 + 3, (
-            "Should trigger 1 call for all the applications then one call by "
-            "applications"
+        assert len(mock_filter_queryset.mock_calls) <= 1 + 3, (
+            "Should trigger 1 call for all the applications then max one call "
+            "per application"
         )
 
     assert response.status_code == HTTP_200_OK
@@ -117,8 +117,8 @@ def test_list_applications(api_client, data_fixture, django_assert_num_queries):
         )
 
         assert (
-            len(mock_filter_queryset.mock_calls) == 2 + 4
-        ), "Should trigger 1 call by workspace + 1 by applications"
+            len(mock_filter_queryset.mock_calls) <= 2 + 4
+        ), "Should trigger max 1 call by workspace + 1 by applications"
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()

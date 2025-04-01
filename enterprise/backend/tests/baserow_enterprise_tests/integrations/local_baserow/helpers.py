@@ -14,7 +14,7 @@ def populate_local_baserow_test_data(data_fixture, role_name="", extra_fields=No
     domain = data_fixture.create_builder_custom_domain(
         builder=builder,
     )
-    database = data_fixture.create_database_application(workspace=workspace)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
     data_fixture.create_database_table(database=database)
     integration = data_fixture.create_local_baserow_integration(
         application=builder, user=user

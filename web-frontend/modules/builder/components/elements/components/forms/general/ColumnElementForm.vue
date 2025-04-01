@@ -106,7 +106,7 @@ export default {
           integer: helpers.withMessage(this.$t('error.integerField'), integer),
           minValue: helpers.withMessage(
             this.$t('error.minValueField', { min: 0 }),
-            minValue(1)
+            minValue(0)
           ),
           maxValue: helpers.withMessage(
             this.$t('error.maxValueField', { max: 2000 }),

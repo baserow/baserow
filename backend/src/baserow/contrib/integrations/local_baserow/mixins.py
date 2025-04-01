@@ -172,7 +172,7 @@ class LocalBaserowTableServiceFilterableMixin:
 
             if service_filter.value_is_formula:
                 try:
-                    resolved_value = str(
+                    resolved_value = ensure_string(
                         resolve_formula(
                             service_filter.value,
                             formula_runtime_function_registry,

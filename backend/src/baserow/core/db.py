@@ -14,7 +14,6 @@ from typing import (
     Set,
     Tuple,
     TypeVar,
-    Union,
 )
 
 from django.conf import settings
@@ -73,11 +72,12 @@ T = TypeVar("T", bound=Model)
 
 
 def specific_iterator(
-    queryset_or_list: Union[QuerySet[T], List],
-    per_content_type_queryset_hook: Optional[Callable] = None,
-    base_model: Optional[Model] = None,
-    select_related: Optional[List] = None,
-) -> Iterable[T]:
+    queryset_or_list: QuerySet[T] | Iterable[T],
+    per_content_type_queryset_hook: Callable[[T, QuerySet[T]], QuerySet[T]]
+    | None = None,
+    base_model: T | None = None,
+    select_related: List[str] = None,
+) -> List[T]:
     """
     Iterates over the given queryset or list of model instances, and finds the specific
     objects with the least amount of queries. If a queryset is provided respects the
@@ -101,6 +101,7 @@ def specific_iterator(
     :param select_related: A `select_related` list can optionally be provided if a list
         is provided in the `queryset_or_list` argument. This should be used if the
         instances provided in the list have select related objects.
+    :return: A list of specific objects in the right order.
     """
 
     if isinstance(queryset_or_list, QuerySet):
@@ -211,8 +212,9 @@ def specific_iterator(
 
 def specific_queryset(
     queryset: QuerySet[T],
-    per_content_type_queryset_hook: Optional[Callable] = None,
-):
+    per_content_type_queryset_hook: Callable[[T, QuerySet[T]], QuerySet[T]]
+    | None = None,
+) -> QuerySet[T]:
     """
     Applies an iterable to the queryset that calls the `specific_iterator` when the
     queryset resolves. This allows for modifying the queryset, even after marking the
@@ -229,6 +231,7 @@ def specific_queryset(
     :param queryset: The queryset which we want to select the specific types from.
     :param per_content_type_queryset_hook: If provided, it will be called for every
         specific queryset to allow extending it.
+    :return: A queryset that will resolve to specific objects.
     """
 
     clone = queryset._clone()

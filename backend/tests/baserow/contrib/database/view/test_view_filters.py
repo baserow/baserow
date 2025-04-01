@@ -4070,7 +4070,7 @@ def test_link_row_has_filter_type(data_fixture):
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
     assert len(ids) == 5
 
-    view_filter.value = "-1"
+    view_filter.value = "999999999"
     view_filter.save()
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
     assert len(ids) == 0
@@ -4079,6 +4079,14 @@ def test_link_row_has_filter_type(data_fixture):
     view_filter.save()
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
     assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_with_all_relations.id in ids
+
+    # Testing with multiple IDs
+    view_filter.value = f"{related_row_1.id},{related_row_2.id}"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
     assert row_1.id in ids
     assert row_with_all_relations.id in ids
 
@@ -4202,7 +4210,7 @@ def test_link_row_reference_same_table_has_filter_type(data_fixture):
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
     assert len(ids) == 5
 
-    view_filter.value = "-1"
+    view_filter.value = "9999999"
     view_filter.save()
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
     assert len(ids) == 0

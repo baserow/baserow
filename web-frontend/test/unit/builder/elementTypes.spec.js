@@ -4,6 +4,8 @@ import {
   ElementType,
   InputTextElementType,
   RecordSelectorElementType,
+  RatingInputElementType,
+  RatingElementType,
 } from '@baserow/modules/builder/elementTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
@@ -313,6 +315,51 @@ describe('elementTypes tests', () => {
   })
 
   describe('elementType form validation tests', () => {
+    test('RatingInputElementType | required | no value', () => {
+      const elementType = new RatingInputElementType()
+      expect(elementType.isValid({ required: true, max_value: 5 }, null)).toBe(
+        false
+      )
+      expect(
+        elementType.isValid({ required: true, max_value: 5 }, undefined)
+      ).toBe(false)
+    })
+
+    test('RatingInputElementType | required | valid value', () => {
+      const elementType = new RatingInputElementType()
+      expect(elementType.isValid({ required: true, max_value: 5 }, 3)).toBe(
+        true
+      )
+    })
+
+    test('RatingInputElementType | not required | no value', () => {
+      const elementType = new RatingInputElementType()
+      expect(elementType.isValid({ required: false, max_value: 5 }, null)).toBe(
+        true
+      )
+      expect(
+        elementType.isValid({ required: false, max_value: 5 }, undefined)
+      ).toBe(false)
+    })
+
+    test('RatingInputElementType | invalid range', () => {
+      const elementType = new RatingInputElementType()
+      expect(elementType.isValid({ max_value: 5 }, -1)).toBe(false)
+      expect(elementType.isValid({ max_value: 5 }, 6)).toBe(false)
+    })
+
+    test('RatingElementType | valid range', () => {
+      const elementType = new RatingElementType()
+      expect(elementType.isValid({ max_value: 5 }, 0)).toBe(true)
+      expect(elementType.isValid({ max_value: 5 }, 3)).toBe(true)
+      expect(elementType.isValid({ max_value: 5 }, 5)).toBe(true)
+    })
+
+    test('RatingElementType | invalid range', () => {
+      const elementType = new RatingElementType()
+      expect(elementType.isValid({ max_value: 5 }, -1)).toBe(false)
+      expect(elementType.isValid({ max_value: 5 }, 6)).toBe(false)
+    })
     test('InputTextElementType | required | no value.', () => {
       const elementType = new InputTextElementType()
       expect(elementType.isValid({ required: true }, '')).toBe(false)

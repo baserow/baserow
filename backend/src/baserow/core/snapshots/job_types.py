@@ -8,9 +8,9 @@ from baserow.contrib.database.exceptions import (
 )
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.handler import CoreHandler
 from baserow.core.jobs.registries import JobType
 from baserow.core.registries import application_type_registry
+from baserow.core.service import CoreService
 from baserow.core.snapshots.exceptions import SnapshotDoesNotExist
 
 from .models import CreateSnapshotJob, RestoreSnapshotJob
@@ -42,10 +42,8 @@ class CreateSnapshotJobType(JobType):
         }
 
     def transaction_atomic_context(self, job: CreateSnapshotJob):
-        application = (
-            CoreHandler()
-            .get_user_application(job.user, job.snapshot.snapshot_from_application.id)
-            .specific
+        application = CoreService().get_application(
+            job.user, job.snapshot.snapshot_from_application.id
         )
         application_type = application_type_registry.get_by_model(application)
         return application_type.export_safe_transaction_context(application)

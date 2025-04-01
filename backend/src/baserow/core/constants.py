@@ -1,4 +1,5 @@
 """Miscellaneous constant values used across the codebase."""
+from django.db import models
 
 # Date formats supported in Baserow
 DATE_FORMAT = {
@@ -50,3 +51,11 @@ BASEROW_COLORS = [
     "dark-pink",
     "dark-gray",
 ]
+
+
+class RatingStyleChoices(models.TextChoices):
+    STAR = "star"
+    HEART = "heart"
+    THUMBS_UP = "thumbs-up"
+    FLAG = "flag"
+    SMILE = "smile"
