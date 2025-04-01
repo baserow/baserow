@@ -8,7 +8,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
 )
-from baserow.core.models import Workspace, WorkspaceUser, Template
+from baserow.core.models import Template, Workspace, WorkspaceUser
 from baserow.core.notifications.operations import (
     ClearNotificationsOperationType,
     ListNotificationsOperationType,
