@@ -1025,5 +1025,24 @@
     },
     "colorPickerContext": {
         "pickColorPlaceholder": "Of kies een vooraf gedefinieerde kleur"
+    },
+    "guidedTourStep": {
+        "step": "{step} van {totalSteps}",
+        "gotIt": "Ik snap het",
+        "next": "Volgende",
+        "back": "Terug"
+    },
+    "welcomeGuidedTourStep": {
+        "title": "Welkom bij Baserow",
+        "content": "We geven je een korte rondleiding om je vertrouwd te maken met de basisprincipes. In slechts een paar klikken leer je hoe je je gegevens moeiteloos kunt organiseren en visualiseren",
+        "buttonText": "Start de rondleiding"
+    },
+    "createNewGuidedTourStep": {
+        "content": "Klik op \"Nieuw toevoegen...\" om een nieuwe database, applicatie of dashboard in te stellen voor je project, afdeling of team.",
+        "title": "Een nieuwe database of applicatie maken"
+    },
+    "controlCenterGuidedTourStep": {
+        "content": "In de linkerzijbalk kun je je werkruimte beheren:\n\n- Home - Toegang tot je hoofddashboard.\n- Meldingen - Blijf op de hoogte van wijzigingen en vermeldingen.\n- Nodig anderen uit - Werk samen door teamleden toe te voegen.\n- Prullenbak - Al je verwijderde items weergeven en herstellen.",
+        "title": "Jouw Baserow Controle Centrum"
     }
 }
