@@ -390,5 +390,8 @@ def test_even_with_circular_dependencies_queries_finish_in_time(data_fixture):
     # Forcefully create a circular dependency
     f1.dependencies.create(dependency=f2)
 
-    assert get_all_field_dependencies(f1) == {f2.id}  # f1 -> f2
-    assert get_all_field_dependencies(f2) == {f1.id}  # f2 -> f1
+    with pytest.raises(CircularFieldDependencyError):
+        assert get_all_field_dependencies(f1) == {f2.id}  # f1 -> f2
+
+    with pytest.raises(CircularFieldDependencyError):
+        assert get_all_field_dependencies(f2) == {f1.id}  # f2 -> f1

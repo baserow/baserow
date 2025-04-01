@@ -26,8 +26,10 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db import connection
-from django.db.models.expressions import RawSQL
 
+from baserow.contrib.database.fields.dependencies.exceptions import (
+    CircularFieldDependencyError,
+)
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 
 if TYPE_CHECKING:
@@ -39,6 +41,21 @@ def will_cause_circular_dep(from_field, to_field):
 
 
 def get_all_field_dependencies(field: "Field") -> set[int]:
+    """
+    Get all field dependencies for a field. This includes all fields that the given
+    field depends on, directly or indirectly. For example, if the given field is a
+    formula that references another formula which in turn references a text field,
+    both the intermediate formula and the text field will be returned as dependencies.
+
+    This function uses a recursive CTE to traverse the field dependency graph and
+    return all field ids that are reachable from the given field id. If a circular
+    dependency is detected, a CircularFieldDependencyError is raised.
+
+    :param field: The field to get dependencies for.
+    :return: A set of field ids that the given field depends on.
+    :raises CircularFieldDependencyError: If a circular dependency is detected.
+    """
+
     from baserow.contrib.database.fields.models import Field
 
     filtered_field_dependencies = FieldDependency.objects.filter(
@@ -55,31 +72,50 @@ def get_all_field_dependencies(field: "Field") -> set[int]:
     raw_query = (
         f"""
         WITH RECURSIVE dependencies AS ({sql}),
-        traverse(id, depth, path) AS (
-            SELECT first.dependency_id, 1, ARRAY[first.dependant_id, first.dependency_id]
-                FROM dependencies AS first
-                LEFT OUTER JOIN dependencies AS second
-                ON first.dependency_id = second.dependant_id
-            WHERE first.dependant_id = %s
-        UNION
-            SELECT DISTINCT dependency_id, traverse.depth + 1, path || d.dependency_id
-                FROM traverse
-                INNER JOIN dependencies d
-                ON d.dependant_id = traverse.id
-            WHERE NOT d.dependency_id = ANY(path)  -- Avoid cycles
+        traverse(id, depth, path, is_circular) AS (
+            SELECT
+                dependency_id,
+                1,
+                ARRAY[dependant_id, dependency_id],
+                FALSE
+            FROM dependencies
+            WHERE dependant_id = %s
+
+            UNION ALL
+
+            SELECT
+                d.dependency_id,
+                traverse.depth + 1,
+                path || d.dependency_id,
+                d.dependency_id = ANY(path) OR traverse.is_circular -- detect circularity
+            FROM traverse
+            INNER JOIN dependencies d ON d.dependant_id = traverse.id
+            WHERE NOT traverse.is_circular -- stop recursion when a cycle is found
         )
-        SELECT id FROM traverse
-        WHERE depth <= %s
-        GROUP BY id
-        ORDER BY MAX(depth) DESC, id ASC
+        SELECT id, is_circular
+        FROM (
+            SELECT
+                id,
+                is_circular,
+                MAX(depth) AS max_depth
+            FROM traverse
+            WHERE depth <= %s
+            GROUP BY id, is_circular
+        ) sub
+        ORDER BY max_depth DESC, id ASC;
         """  # nosec b608
     )
     # fmt: on
 
-    dependencies_field_ids = RawSQL(
-        raw_query, (*params, field.pk, settings.MAX_FIELD_REFERENCE_DEPTH)
-    )  # nosec B611
-    pks = Field.objects.filter(id__in=dependencies_field_ids).values_list(
-        "pk", flat=True
-    )
-    return set(pks)
+    dep_ids = []
+    with connection.cursor() as cursor:
+        cursor.execute(
+            raw_query, (*params, field.pk, settings.MAX_FIELD_REFERENCE_DEPTH)
+        )
+        results = cursor.fetchall()
+        for dep_id, is_circular in results:
+            if is_circular:
+                raise CircularFieldDependencyError()
+            dep_ids.append(dep_id)
+
+    return set(Field.objects.filter(id__in=dep_ids).values_list("pk", flat=True))
