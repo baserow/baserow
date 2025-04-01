@@ -8,6 +8,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import Application, Workspace
 from baserow.core.operations import (
     ListApplicationsWorkspaceOperationType,
+    ListWorkspacesOperationType,
     ReadApplicationOperationType,
     ReadWorkspaceOperationType,
 )
@@ -18,10 +19,25 @@ class CoreService:
     def __init__(self):
         self.handler = CoreHandler()
 
-    def _filter_specific_queryset(self, user: AbstractUser, workspace: Workspace):
+    def _enhance_and_filter_application_queryset(
+        self, user: AbstractUser, workspace: Workspace
+    ):
         return lambda model, queryset: application_type_registry.get_by_model(
             model
         ).enhance_and_filter_queryset(queryset, user, workspace)
+
+    def list_workspaces(self, user: AbstractUser) -> QuerySet[Workspace]:
+        """
+        Get a list of all the workspaces the user has access to.
+
+        :param user: The user trying to access the workspaces
+        :return: A list of workspaces.
+        """
+
+        workspace_qs = self.handler.list_user_workspaces(user)
+        return self.handler.filter_queryset(
+            user, ListWorkspacesOperationType.type, workspace_qs
+        )
 
     def get_workspace(self, user: AbstractUser, workspace_id: int) -> Workspace:
         """
@@ -77,7 +93,7 @@ class CoreService:
         if specific:
             application_qs = self.handler.filter_specific_applications(
                 application_qs,
-                per_content_type_queryset_hook=self._filter_specific_queryset(
+                per_content_type_queryset_hook=self._enhance_and_filter_application_queryset(
                     user, workspace
                 ),
             )
@@ -120,7 +136,7 @@ class CoreService:
         if specific:
             application = specific_iterator(
                 [application],
-                per_content_type_queryset_hook=self._filter_specific_queryset(
+                per_content_type_queryset_hook=self._enhance_and_filter_application_queryset(
                     user, application.workspace
                 ),
                 base_model=Application,
