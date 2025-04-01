@@ -70,6 +70,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_WITH_FORMULA,
 )
 from baserow.contrib.database.api.fields.serializers import (
+    AvailableCollaboratorsSerializer,
     BaserowBooleanField,
     CollaboratorSerializer,
     DurationFieldSerializer,
@@ -1506,14 +1507,15 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
 
     source_field_name = "last_modified_by"
     model_field_kwargs = {"sync_with": "last_modified_by"}
+    request_serializer_field_names = []
+    request_serializer_field_overrides = {}
     serializer_field_names = ["available_collaborators"]
     serializer_field_overrides = {
-        "available_collaborators": serializers.ListField(
-            child=CollaboratorSerializer(),
-            read_only=True,
-            source="table.database.workspace.users.all",
-        ),
+        "available_collaborators": AvailableCollaboratorsSerializer(),
     }
+
+    def can_represent_collaborators(self, field):
+        return True
 
     def get_model_field(self, instance, **kwargs):
         kwargs["null"] = True
@@ -1731,14 +1733,15 @@ class CreatedByFieldType(ReadOnlyFieldType):
 
     source_field_name = "created_by"
     model_field_kwargs = {"sync_with_add": "created_by"}
+    request_serializer_field_names = []
+    request_serializer_field_overrides = {}
     serializer_field_names = ["available_collaborators"]
     serializer_field_overrides = {
-        "available_collaborators": serializers.ListField(
-            child=CollaboratorSerializer(),
-            read_only=True,
-            source="table.database.workspace.users.all",
-        ),
+        "available_collaborators": AvailableCollaboratorsSerializer(),
     }
+
+    def can_represent_collaborators(self, field):
+        return True
 
     def get_model_field(self, instance, **kwargs):
         kwargs["null"] = True
@@ -6108,17 +6111,23 @@ class MultipleCollaboratorsFieldType(
     model_class = MultipleCollaboratorsField
     can_get_unique_values = False
     allowed_fields = ["notify_user_when_added"]
-    serializer_field_names = ["available_collaborators", "notify_user_when_added"]
-    serializer_field_overrides = {
-        "available_collaborators": serializers.ListField(
-            child=CollaboratorSerializer(),
-            read_only=True,
-            source="table.database.workspace.users.all",
-        ),
+    request_serializer_field_names = ["notify_user_when_added"]
+    request_serializer_field_overrides = {
         "notify_user_when_added": serializers.BooleanField(required=False),
+    }
+    serializer_field_names = [
+        "available_collaborators",
+        *request_serializer_field_names,
+    ]
+    serializer_field_overrides = {
+        "available_collaborators": AvailableCollaboratorsSerializer(),
+        **request_serializer_field_overrides,
     }
     is_many_to_many_field = True
     _can_group_by = True
+
+    def can_represent_collaborators(self, field):
+        return True
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.pop("required", False)

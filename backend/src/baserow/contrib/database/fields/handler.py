@@ -208,6 +208,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 queryset=User.objects.filter(profile__to_be_deleted=False).order_by(
                     "first_name"
                 ),
+                to_attr="available_collaborators",
             ),
             "select_options",
         )

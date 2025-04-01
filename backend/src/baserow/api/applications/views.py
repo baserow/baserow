@@ -43,7 +43,7 @@ from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
-from baserow.core.models import Application, Workspace
+from baserow.core.models import Application
 from baserow.core.operations import CreateApplicationsWorkspaceOperationType
 from baserow.core.service import CoreService
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
@@ -81,13 +81,15 @@ class AllApplicationsView(APIView):
         returned.
         """
 
-        workspaces = Workspace.objects.filter(users=request.user).prefetch_related(
-            "workspaceuser_set", "template_set"
-        )
+        workspaces = CoreService().list_workspaces(request.user)
+
         applications_qs = Application.objects.none()
         for workspace in workspaces:
+            workspace_applications_qs = CoreService().list_applications_in_workspace(
+                request.user, workspace
+            )
             applications_qs = applications_qs.union(
-                CoreService().list_applications_in_workspace(request.user, workspace)
+                workspace_applications_qs.order_by(), all=True
             )
 
         data = [
@@ -148,7 +150,6 @@ class ApplicationsView(APIView):
         """
 
         workspace = CoreService().get_workspace(request.user, workspace_id)
-
         applications = CoreService().list_applications_in_workspace(
             request.user, workspace
         )

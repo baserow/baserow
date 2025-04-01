@@ -521,6 +521,41 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             ),
         )
 
+    def list_user_workspaces(
+        self, user: AbstractUser, base_queryset: QuerySet[Workspace] = None
+    ) -> QuerySet[Workspace]:
+        """
+        Returns a queryset of all workspaces the user is in.
+
+        :param user: The user for which to get the workspaces.
+        :param base_queryset: The base queryset from where to select the workspaces
+            object. This can for example be used to do a `prefetch_related`.
+        :return: A queryset of all workspaces the user is in.
+        """
+
+        workspace_qs = self.get_enhanced_workspace_queryset(base_queryset)
+        return workspace_qs.filter(workspaceuser__user=user)
+
+    def get_enhanced_workspace_queryset(
+        self, queryset: QuerySet[Workspace] | None = None
+    ) -> QuerySet[Workspace]:
+        """
+        Enhances the workspace queryset with additional prefetches and filters based on
+        the plugins registered in the plugin registry.
+
+        :param queryset: The Workspace queryset to enhance.
+        :return: The enhanced queryset.
+        """
+
+        if queryset is None:
+            queryset = Workspace.objects.all()
+
+        queryset = queryset.prefetch_related("workspaceuser_set", "template_set")
+
+        for plugin in plugin_registry.registry.values():
+            queryset = plugin.enhance_workspace_queryset(queryset)
+        return queryset
+
     def get_workspace(
         self, workspace_id: int, base_queryset: QuerySet = None
     ) -> Workspace:
@@ -535,11 +570,10 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :return: The requested workspace instance of the provided id.
         """
 
-        if base_queryset is None:
-            base_queryset = Workspace.objects
+        workspace_qs = self.get_enhanced_workspace_queryset(base_queryset)
 
         try:
-            workspace = base_queryset.get(id=workspace_id)
+            workspace = workspace_qs.get(id=workspace_id)
         except Workspace.DoesNotExist:
             raise WorkspaceDoesNotExist(
                 f"The workspace with id {workspace_id} does not exist."

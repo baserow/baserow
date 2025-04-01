@@ -215,8 +215,22 @@ class Plugin(APIUrlsInstanceMixin, Instance):
         :type user: User
         """
 
+    def enhance_workspace_queryset(
+        self, queryset: QuerySet["Workspace"]
+    ) -> QuerySet["Workspace"]:
+        """
+        Optimizes the queryset by adding select and prefetch related statements.
+        This reduces queries and improves performance when accessing workspace-related
+        models in plugin views or methods.
 
-class PluginRegistry(APIUrlsRegistryMixin, Registry):
+        :param queryset: The queryset to optimize.
+        :return: The optimized queryset.
+        """
+
+        return queryset
+
+
+class PluginRegistry(APIUrlsRegistryMixin, Registry[Plugin]):
     """
     With the plugin registry it is possible to register new plugins. A plugin is an
     abstraction made specifically for Baserow. It allows a plugin developer to
