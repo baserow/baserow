@@ -83,6 +83,12 @@ from baserow.core.user_sources.service import UserSourceService
 class UserSourcesView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+
+        return super().get_permissions()
+
     @extend_schema(
         parameters=[
             OpenApiParameter(
