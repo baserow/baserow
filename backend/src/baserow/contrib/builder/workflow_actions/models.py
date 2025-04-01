@@ -1,13 +1,7 @@
-from typing import Union
-
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
-from baserow.contrib.builder.elements.models import (
-    CollectionField,
-    Element,
-    NavigationElementMixin,
-)
+from baserow.contrib.builder.elements.models import Element, NavigationElementMixin
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import OrderableMixin
@@ -43,32 +37,13 @@ class BuilderWorkflowAction(
     )
 
     @classmethod
-    def is_collection_field_action(cls, event: str) -> bool:
+    def is_dynamic_event(cls, event: str) -> bool:
         """
-        Returns whether this workflow action is associated with a collection field.
-
-        :return: Whether this workflow action is associated with a collection field.
+        :return: Whether the given event is dynamically generated.
         """
 
         default_event_types = [e.value for e in EventTypes]
         return event and event not in default_event_types
-
-    @property
-    def target(self) -> Union[Element, CollectionField]:
-        """
-        If this workflow action's `event` is in the format `{uid}_{event_type}`, then
-        it's associated with a collection element with fields. If that's the case, the
-        target is the field with the matching `uid`. Otherwise, the target is the
-        element itself.
-
-        :return: The target of the workflow action.
-        """
-
-        if BuilderWorkflowAction.is_collection_field_action(self.event):
-            uid, event = self.event.split("_", 1)
-            return self.element.fields.get(uid=uid)
-
-        return self.element
 
     @staticmethod
     def get_type_registry() -> ModelRegistryMixin:
