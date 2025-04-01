@@ -22,57 +22,64 @@
 # this query so it works with our own database models and structure.
 #
 
+from typing import TYPE_CHECKING
+
 from django.conf import settings
+from django.db import connection
+from django.db.models.expressions import RawSQL
+
+from baserow.contrib.database.fields.dependencies.models import FieldDependency
+
+if TYPE_CHECKING:
+    from baserow.contrib.database.fields.models import Field
 
 
 def will_cause_circular_dep(from_field, to_field):
     return from_field.id in get_all_field_dependencies(to_field)
 
 
-def get_all_field_dependencies(field):
+def get_all_field_dependencies(field: "Field") -> set[int]:
     from baserow.contrib.database.fields.models import Field
 
-    query_parameters = {
-        "pk": field.pk,
-        "max_depth": settings.MAX_FIELD_REFERENCE_DEPTH,
-    }
+    filtered_field_dependencies = FieldDependency.objects.filter(
+        dependant_id__table__database_id=Field.objects_and_trash.filter(pk=field.pk)
+        .order_by()
+        .values("table__database_id")[:1]
+    )
+    sql, params = filtered_field_dependencies.query.get_compiler(
+        connection=connection
+    ).as_sql()
 
     # Only pk_name and a table name get formatted in, no user controllable input, safe.
     # fmt: off
     raw_query = (
         f"""
-        WITH RECURSIVE dependencies AS MATERIALIZED (
-            SELECT dd.id, dependant_id, dependency_id
-            FROM database_fielddependency dd
-            INNER JOIN database_field df ON dd.dependant_id = df.id
-            INNER JOIN database_table dt ON dt.id = df.table_id
-            WHERE dt.database_id = (
-                SELECT database_id
-                FROM database_field df
-                INNER JOIN database_table dt ON df.table_id = dt.id
-                WHERE df.id = %(pk)s
-                LIMIT 1
-            )
-        ),
-        traverse(id, depth) AS (
-            SELECT first.dependency_id, 1
+        WITH RECURSIVE dependencies AS ({sql}),
+        traverse(id, depth, path) AS (
+            SELECT first.dependency_id, 1, ARRAY[first.dependant_id, first.dependency_id]
                 FROM dependencies AS first
                 LEFT OUTER JOIN dependencies AS second
                 ON first.dependency_id = second.dependant_id
-            WHERE first.dependant_id = %(pk)s
+            WHERE first.dependant_id = %s
         UNION
-            SELECT DISTINCT dependency_id, traverse.depth + 1
+            SELECT DISTINCT dependency_id, traverse.depth + 1, path || d.dependency_id
                 FROM traverse
-                INNER JOIN dependencies
-                ON dependencies.dependant_id = traverse.id
-            WHERE 1 = 1
+                INNER JOIN dependencies d
+                ON d.dependant_id = traverse.id
+            WHERE NOT d.dependency_id = ANY(path)  -- Avoid cycles
         )
         SELECT id FROM traverse
-        WHERE depth <= %(max_depth)s
+        WHERE depth <= %s
         GROUP BY id
         ORDER BY MAX(depth) DESC, id ASC
         """  # nosec b608
     )
     # fmt: on
-    pks = Field.objects.raw(raw_query, query_parameters)
-    return {item.pk for item in pks}
+
+    dependencies_field_ids = RawSQL(
+        raw_query, (*params, field.pk, settings.MAX_FIELD_REFERENCE_DEPTH)
+    )  # nosec B611
+    pks = Field.objects.filter(id__in=dependencies_field_ids).values_list(
+        "pk", flat=True
+    )
+    return set(pks)
