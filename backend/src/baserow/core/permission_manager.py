@@ -8,7 +8,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
 )
-from baserow.core.models import Workspace, WorkspaceUser
+from baserow.core.models import Template, Workspace, WorkspaceUser
 from baserow.core.notifications.operations import (
     ClearNotificationsOperationType,
     ListNotificationsOperationType,
@@ -134,7 +134,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         return {
             "allowed_operations_on_templates": self.OPERATION_ALLOWED_ON_TEMPLATES,
             "workspace_template_ids": list(
-                Workspace.objects.exclude(template=None).values_list("id", flat=True)
+                Template.objects.values_list("workspace_id", flat=True)
             ),
         }
 
