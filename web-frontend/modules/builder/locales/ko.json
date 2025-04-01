@@ -622,7 +622,7 @@
         "showMore": "더 보기",
         "missingDataSourceTooltip": "요소를 추가하려면 데이터 소스를 선택하세요.",
         "missingSchemaPropertyTooltip": "요소를 추가하려면 속성을 선택하세요.",
-        "emptyState": "레코드를 찾을 수 없습니다."
+        "emptyState": "내용을 찾을 수 없습니다."
     },
     "collectionElementForm": {
         "noDataSourceMessage": "모든 결과를 나열하려면 여러 행이 있는 데이터 소스를 선택하거나, 이 행 내의 속성을 선택하려면 단일 행 데이터 소스를 선택하세요.",
@@ -655,8 +655,8 @@
         "gapHorizontalLabel": "가로"
     },
     "recordSelectorElement": {
-        "emptyAdhocState": "'{query}'와 일치하는 레코드를 찾을 수 없습니다.",
-        "emptyState": "레코드를 찾을 수 없습니다."
+        "emptyAdhocState": "'{query}'와 일치하는 내용을 찾을 수 없습니다.",
+        "emptyState": "내용을 찾을 수 없습니다."
     },
     "recordSelectorElementForm": {
         "selectRecordsFrom": "레코드 선택",
