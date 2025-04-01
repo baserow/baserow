@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix bug when deleting a duplicated menu element was deleting the initial actions",
+    "domain": "builder",
+    "issue_number": null,
+    "bullet_points": [],
+    "created_at": "2025-03-31"
+}

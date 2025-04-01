@@ -196,6 +196,11 @@ class ElementType(
     ) -> ElementSubClass:
         from baserow.contrib.builder.elements.handler import ElementHandler
 
+        # Add mapping for builder element event uids (for collection field or other
+        # elements that are using dynamic events.
+        if "builder_element_event_uids" not in id_mapping:
+            id_mapping["builder_element_event_uids"] = {}
+
         if cache is None:
             cache = {}
 
@@ -504,14 +509,10 @@ class CollectionFieldType(
         deserialized_uid = str(uuid.uuid4())
 
         if "uid" in serialized_values:
-            # Ensure we have a mapping for the collection field uids.
-            if "builder_collection_fields_uids" not in id_mapping:
-                id_mapping["builder_collection_fields_uids"] = {}
-
             # Map the old uid to the new uid. This ensures that any workflow
             # actions with an `event` pointing to the old uid will have the
             # pointer to the new uid.
-            id_mapping["builder_collection_fields_uids"][
+            id_mapping["builder_element_event_uids"][
                 serialized_values["uid"]
             ] = deserialized_uid
 

@@ -61,9 +61,9 @@ class BuilderWorkflowActionType(
         :return: The new workflow action instance.
         """
 
-        if BuilderWorkflowAction.is_collection_field_action(serialized_values["event"]):
+        if BuilderWorkflowAction.is_dynamic_event(serialized_values["event"]):
             exported_uid, exported_event = serialized_values["event"].split("_", 1)
-            imported_uid = id_mapping["builder_collection_fields_uids"][exported_uid]
+            imported_uid = id_mapping["builder_element_event_uids"][exported_uid]
             serialized_values["event"] = f"{imported_uid}_{exported_event}"
 
         return super().create_instance_from_serialized(
