@@ -35,7 +35,7 @@ export class OnboardingType extends Registerable {
    * so it should just be for demo purposes. It can accept the data property
    * containing the data of all the steps.
    */
-  getPreviewComponent() {
+  getPreviewComponent(data) {
     return null
   }
 

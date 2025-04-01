@@ -1,0 +1,51 @@
+.template-import-items {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.template-import-item {
+  &:hover {
+    text-decoration: none;
+  }
+}
+
+.template-import-item__head {
+  border: 1px solid $palette-neutral-200;
+  background: $palette-neutral-25;
+  height: 76px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 14px;
+
+  @include rounded($rounded-md);
+
+  .template-import-item--active & {
+    border: 2px solid $palette-blue-500;
+  }
+}
+
+.template-import-item__icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 0 0 40px;
+  height: 40px;
+  font-size: 16px;
+  border: solid 1px $palette-neutral-200;
+  border-radius: 100%;
+  color: $palette-neutral-700;
+  background-color: $white;
+
+  @include rounded($rounded-md);
+  @include elevation($elevation-low);
+}
+
+.template-import-item__name {
+  @extend %ellipsis;
+
+  font-weight: 500;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+}

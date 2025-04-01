@@ -1001,11 +1001,12 @@
   },
   "databaseStep": {
     "title": "Create your first database",
-    "description": "Let us know what you're working on.",
+    "description": "Select what where you'd like to start from:",
     "databaseNameLabel": "Database name",
-    "scratch": "From scratch",
-    "import": "From file",
-    "airtable": "From Airtable"
+    "scratch": "Scratch",
+    "import": "File",
+    "airtable": "Airtable",
+    "template": "Template"
   },
   "ViewFilterTypeDateUpgradeToMultiStep": {
     "migrateButtonText": "Migrate to multi-step date filter",

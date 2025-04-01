@@ -5,6 +5,7 @@
   overflow: hidden;
   pointer-events: none;
   transition: left 0.5s ease;
+  z-index: $z-index-layout-col-1;
 
   @include absolute(10%, 0, 0, 10%);
 }
@@ -15,6 +16,10 @@
 
 .onboarding-tool-preview__inner {
   @include absolute(0, 0, 0, 0);
+
+  &--reserve-space-right {
+    right: -370px;
+  }
 }
 
 .onboarding-tool-preview__highlight {

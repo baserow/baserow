@@ -15,6 +15,7 @@
       :class="{
         'segment-control__button--active': index === activeIndex,
       }"
+      :title="segment.label"
       class="segment-control__button"
       @click="setActiveIndex(index)"
     >

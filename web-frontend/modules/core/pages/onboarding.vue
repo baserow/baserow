@@ -83,7 +83,7 @@
       </div>
       <div class="onboarding__preview">
         <component
-          :is="step.getPreviewComponent()"
+          :is="step.getPreviewComponent(data)"
           v-bind="step.getAdditionalPreviewProps()"
           :data="data"
         ></component>
