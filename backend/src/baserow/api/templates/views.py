@@ -19,7 +19,10 @@ from baserow.api.schemas import (
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
     get_error_schema,
 )
-from baserow.api.templates.serializers import TemplateCategoriesSerializer
+from baserow.api.templates.serializers import (
+    TemplateCategoriesSerializer,
+    TemplateSerializer,
+)
 from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import InstallTemplateActionType
 from baserow.core.exceptions import (
@@ -33,7 +36,7 @@ from baserow.core.job_types import InstallTemplateJobType
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
-from baserow.core.models import TemplateCategory
+from baserow.core.models import Template, TemplateCategory
 
 from .errors import ERROR_TEMPLATE_DOES_NOT_EXIST, ERROR_TEMPLATE_FILE_DOES_NOT_EXIST
 
@@ -59,6 +62,31 @@ class TemplatesView(APIView):
         categories = TemplateCategory.objects.all().prefetch_related("templates")
         serializer = TemplateCategoriesSerializer(categories, many=True)
         return Response(serializer.data)
+
+
+class TemplateView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(exclude=True)
+    @map_exceptions(
+        {
+            TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST,
+        }
+    )
+    def get(self, request, slug):
+        """
+        Responds with a more detailed serialized version of the template related to
+        the provided template slug.
+        """
+
+        try:
+            template = Template.objects.prefetch_related("categories").get(slug=slug)
+        except Template.DoesNotExist as exc:
+            raise TemplateDoesNotExist(
+                f"The template with slug {slug} does not exist."
+            ) from exc
+
+        return Response(TemplateSerializer(template).data)
 
 
 class InstallTemplateView(APIView):
