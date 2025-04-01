@@ -1,6 +1,8 @@
 <template>
   <div>
-    <div v-if="loading" class="loading"></div>
+    <div v-if="loading" class="flex justify-content-center">
+      <div class="loading"></div>
+    </div>
     <div v-else>
       <FormInput
         v-model="search"
@@ -55,15 +57,23 @@ export default {
         })
       })
 
-      // A couple selected templates have the keyword onboarding, and those are the
-      // ones we want to show if there no search query is provided.
+      // A few selected templates have the keyword `onboarding`. These are shown when
+      // no search query is provided.
       const search = this.search || 'onboarding'
-      allTemplates = allTemplates.filter((template) => {
-        const keywords = template.keywords.split(',')
-        keywords.push(template.name)
-        const regex = new RegExp('(' + escapeRegExp(search) + ')', 'i')
-        return keywords.some((value) => value.match(regex))
-      })
+      allTemplates = allTemplates
+        .filter((template) => {
+          // If `open_application == null`, then it falls back on the normal behavior,
+          // which is opening the first database. An `open_application` is typically
+          // set, if an application must be opened first. The onboarding experience
+          // works best by starting with a database, so we're filtering those out.
+          return template.open_application === null
+        })
+        .filter((template) => {
+          const keywords = template.keywords.split(',')
+          keywords.push(template.name)
+          const regex = new RegExp('(' + escapeRegExp(search) + ')', 'i')
+          return keywords.some((value) => value.match(regex))
+        })
 
       return allTemplates.slice(0, 6)
     },

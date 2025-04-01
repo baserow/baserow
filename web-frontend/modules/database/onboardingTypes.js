@@ -69,14 +69,15 @@ export class DatabaseOnboardingType extends OnboardingType {
   }
 
   async complete(data, responses) {
-    const type = data[this.getType()].type
-    if (type === 'airtable') {
-      const workspace = responses[WorkspaceOnboardingType.getType()]
-      const airtableUrl = data[this.getType()].airtableUrl
-      const skipFiles = data[this.getType()].skipFiles
-      const useSession = data[this.getType()].useSession
-      const session = data[this.getType()].session
-      const sessionSignature = data[this.getType()].sessionSignature
+    const workspace = responses[WorkspaceOnboardingType.getType()]
+    const stepData = data[this.getType()]
+    const fromType = stepData.type
+    if (fromType === 'airtable') {
+      const airtableUrl = stepData.airtableUrl
+      const skipFiles = stepData.skipFiles
+      const useSession = stepData.useSession
+      const session = stepData.session
+      const sessionSignature = stepData.sessionSignature
       const { data: job } = await AirtableService(this.app.$client).create(
         workspace.id,
         airtableUrl,
@@ -88,9 +89,8 @@ export class DatabaseOnboardingType extends OnboardingType {
       // Responds with the newly created job, so that the `getJobForPolling` can use
       // the response to mark the onboarding as an async job.
       return job
-    } else if (type === 'template') {
-      const workspace = responses[WorkspaceOnboardingType.getType()]
-      const template = data[this.getType()].template
+    } else if (fromType === 'template') {
+      const template = stepData.template
       const { data: job } = await TemplateService(
         this.app.$client
       ).asyncInstall(workspace.id, template.id)
@@ -120,7 +120,7 @@ export class DatabaseOnboardingType extends OnboardingType {
     }
 
     // Deliberately open the database first because that's where the user must start
-    // their journey. If no database is not, return nothing, so that the dashboard
+    // their journey. If no database exist, return nothing, so that the dashboard
     // is opened.
     if (database) {
       const firstTableId = database.tables[0]?.id || 0

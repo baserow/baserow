@@ -21,11 +21,6 @@ export default {
       type: Object,
       required: true,
     },
-    highlightDataName: {
-      type: String,
-      required: false,
-      default: '',
-    },
   },
   computed: {
     template() {
