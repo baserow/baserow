@@ -86,7 +86,8 @@ class AllApplicationsView(APIView):
         applications_qs = Application.objects.none()
         for workspace in workspaces:
             applications_qs = applications_qs.union(
-                CoreService().list_applications_in_workspace(request.user, workspace)
+                CoreService().list_applications_in_workspace(request.user, workspace),
+                all=True,
             )
 
         data = [
