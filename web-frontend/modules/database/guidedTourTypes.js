@@ -155,9 +155,12 @@ export class DatabaseGuidedTourType extends GuidedTourType {
     return 200
   }
 
-  isActive(route) {
+  isActive() {
     return (
-      route.name === 'database-table' &&
+      // Use the `routeMounted` because that gives us the route that's actually
+      // mounted, making sure that the selector elements have been rendered.
+      this.app.store.getters['routeMounted/routeMounted']?.name ===
+        'database-table' &&
       // This tour is only compatible with the grid view.
       this.app.store.getters['view/getSelected']?.type ===
         GridViewType.getType()
