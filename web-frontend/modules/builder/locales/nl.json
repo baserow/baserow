@@ -109,7 +109,12 @@
         "simpleContainer": "Container",
         "menu": "Menu",
         "menuDescription": "Menu element",
-        "simpleContainerDescription": "Een container voor andere elementen"
+        "simpleContainerDescription": "Een container voor andere elementen",
+        "invalidElementValue": "Ongeldige element waarde: {value}",
+        "ratingDescription": "Een beoordelings element",
+        "ratingInput": "Beoordeling invoer",
+        "rating": "Beoordeling",
+        "ratingInputDescription": "Een beoordeling selement"
     },
     "addElementButton": {
         "label": "Element"
@@ -506,7 +511,8 @@
         "boolean": "Boolean",
         "tags": "Tags",
         "button": "Knop",
-        "image": "Afbeelding"
+        "image": "Afbeelding",
+        "rating": "Beoordeling"
     },
     "createUserSourceForm": {
         "userSourceName": "Naam",
@@ -580,7 +586,9 @@
         "placeholderTitle": "Placeholder",
         "placeholderPlaceholder": "Voer een placeholder in (optioneel)",
         "requiredTitle": "Verplicht",
-        "validationTitle": "Validatie"
+        "validationTitle": "Validatie",
+        "defaultValueTitle": "Standaardwaarde",
+        "defaultValuePlaceholder": "Standaardwaarde invoeren"
     },
     "linkNavigationSelection": {
         "urlPlaceholder": "Voer een URL in...",
@@ -762,7 +770,8 @@
         "fontFamily": "Lettertype",
         "size": "Lettergrootte",
         "weight": "Lettertype gewicht",
-        "activeState": "Actieve status"
+        "activeState": "Actieve status",
+        "decoration": "Tekst decoratie"
     },
     "imageThemeConfigBlock": {
         "alignment": "Uitlijning",
@@ -845,7 +854,8 @@
         "color": "Kleur",
         "fontFamily": "Lettertype",
         "bodyLabel": "Body",
-        "weight": "Gewicht"
+        "weight": "Gewicht",
+        "decoration": "Tekst decoratie"
     },
     "resetButton": {
         "reset": "Terugzetten naar standaard themawaarde"
@@ -1078,5 +1088,40 @@
         "vertical": "Vertical",
         "horizontal": "Horizontaal",
         "label": "Oriëntatie"
+    },
+    "ratingElementForm": {
+        "thumbsUp": "Duimen omhoog",
+        "maxValue": "Maximum",
+        "color": "Kleur",
+        "star": "Ster",
+        "flag": "Vlag",
+        "smile": "Lachen",
+        "heart": "Hart",
+        "ratingStyle": "Stijl"
+    },
+    "ratingFieldForm": {
+        "color": "Kleur",
+        "value": "Waarde",
+        "maxValue": "Maximale waarde",
+        "thumbsUp": "Duimen omhoog",
+        "flag": "Vlag",
+        "style": "Stijl",
+        "heart": "Hart",
+        "star": "Ster"
+    },
+    "linkDecorations": {
+        "plain": "Gewoon",
+        "normal": "Normaal"
+    },
+    "textDecorationSelector": {
+        "stroke": "Doorstreept",
+        "italic": "Cursief",
+        "underline": "Onderstrepen",
+        "uppercase": "Hoofdletters"
+    },
+    "userSourceDropdown": {
+        "label": "Gebruiker bron",
+        "addUserSource": "Voeg nieuwe gebruikersbron toe",
+        "noUserSources": "Geen gebruikersbronnen beschikbaar"
     }
 }
