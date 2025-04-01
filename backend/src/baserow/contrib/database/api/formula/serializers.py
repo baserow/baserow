@@ -34,7 +34,8 @@ class BaserowFormulaSelectOptionsSerializer(serializers.ListField):
         # but let's avoid the potentially slow query if not required.
         if field_type.can_represent_select_options(field):
             select_options = SelectOption.objects.filter(
-                field_id__in=get_all_field_dependencies(field)
+                field_id__in=get_all_field_dependencies(field),
+                field__trashed=False,
             )
             return [self.child.to_representation(item) for item in select_options]
         else:
