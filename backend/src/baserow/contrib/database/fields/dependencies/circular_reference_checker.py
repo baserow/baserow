@@ -43,13 +43,14 @@ def will_cause_circular_dep(from_field, to_field):
 def get_all_field_dependencies(field: "Field") -> set[int]:
     """
     Get all field dependencies for a field. This includes all fields that the given
-    field depends on, directly or indirectly. For example, if the given field is a
-    formula that references another formula which in turn references a text field,
-    both the intermediate formula and the text field will be returned as dependencies.
+    field depends on, directly or indirectly, even if the field have been trashed. For
+    example, if the given field is a formula that references another formula which in
+    turn references a text field, both the intermediate formula and the text field will
+    be returned as dependencies.
 
-    This function uses a recursive CTE to traverse the field dependency graph and
-    return all field ids that are reachable from the given field id. If a circular
-    dependency is detected, a CircularFieldDependencyError is raised.
+    This function uses a recursive CTE to traverse the field dependency graph and return
+    all field ids that are reachable from the given field id. If a circular dependency
+    is detected, a CircularFieldDependencyError is raised.
 
     :param field: The field to get dependencies for.
     :return: A set of field ids that the given field depends on.
@@ -107,7 +108,7 @@ def get_all_field_dependencies(field: "Field") -> set[int]:
     )
     # fmt: on
 
-    dep_ids = []
+    dep_ids = set()
     with connection.cursor() as cursor:
         cursor.execute(
             raw_query, (*params, field.pk, settings.MAX_FIELD_REFERENCE_DEPTH)
@@ -116,6 +117,7 @@ def get_all_field_dependencies(field: "Field") -> set[int]:
         for dep_id, is_circular in results:
             if is_circular:
                 raise CircularFieldDependencyError()
-            dep_ids.append(dep_id)
+            else:
+                dep_ids.add(dep_id)
 
-    return set(Field.objects.filter(id__in=dep_ids).values_list("pk", flat=True))
+    return dep_ids
