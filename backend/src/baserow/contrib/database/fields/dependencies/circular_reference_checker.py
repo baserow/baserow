@@ -117,7 +117,7 @@ def get_all_field_dependencies(field: "Field") -> set[int]:
         for dep_id, is_circular in results:
             if is_circular:
                 raise CircularFieldDependencyError()
-            else:
+            elif dep_id is not None:  # Avoid broken references
                 dep_ids.add(dep_id)
 
     return dep_ids
