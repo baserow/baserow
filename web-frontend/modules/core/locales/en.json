@@ -923,5 +923,24 @@
   },
   "userSourceType": {
     "userCountSummary": "{count} users ({lastUpdated})"
+  },
+  "guidedTourStep": {
+    "step": "{step} of {totalSteps}",
+    "gotIt": "Got it",
+    "next": "Next",
+    "back": "Back"
+  },
+  "welcomeGuidedTourStep": {
+    "title": "Welcome to Baserow",
+    "content": "Let’s take a quick tour to get you familiar with the basics. In just a few clicks, you’ll learn how to organize and visualize your data effortlessly",
+    "buttonText": "Start the tour"
+  },
+  "controlCenterGuidedTourStep": {
+    "title": "Your Baserow Control Center",
+    "content": "The left sidebar helps you manage your workspace:\n\n- Home – Access your main dashboard.\n- Notifications – Stay updated on changes and mentions.\n- Invite Members – Collaborate by adding team members.\n- Trash – List and recover all your deleted items."
+  },
+  "createNewGuidedTourStep": {
+    "title": "Create a new database or application",
+    "content": "Click “Add new…” to set up a new database, application or dashboard for your project, department, or team."
   }
 }

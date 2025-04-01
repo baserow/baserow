@@ -9,6 +9,7 @@
       class="tree__action tree__action--has-options"
       :class="{ 'tree__action--highlighted': highlighted }"
       data-sortable-handle
+      :data-highlight="`sidebar-application-${application.id}`"
     >
       <a
         class="tree__link"

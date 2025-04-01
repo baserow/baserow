@@ -27,7 +27,9 @@ $z-index-tooltip: 8 !default;
 $z-index-toasts: 9 !default;
 
 // This is an overlay over all element, so it must be the highest.
+$z-index-guided-tour-container: 99 !default;
 $z-index-highlight-overlay: 100 !default;
+$z-index-guided-tour-step: 101 !default;
 
 // normalize overrides
 $base-font-family: $text-font-stack !default;

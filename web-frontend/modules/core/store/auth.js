@@ -369,6 +369,9 @@ export const getters = {
   isStaff(state) {
     return state.user ? state.user.is_staff : false
   },
+  getCompletedGuidedTour(state) {
+    return state?.user?.completed_guided_tours || []
+  },
   getUntrustedClientSessionId(state) {
     return state.untrustedClientSessionId
   },

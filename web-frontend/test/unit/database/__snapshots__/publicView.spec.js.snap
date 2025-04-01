@@ -76,6 +76,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
           >
             <a
               class="header__filter-link header__filter-link--disabled"
+              data-highlight="views"
             >
               <i
                 class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"
@@ -103,6 +104,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
             
           <li
             class="header__filter-item"
+            data-highlight="view-filters"
           >
             <div>
               <a
@@ -124,6 +126,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
            
           <li
             class="header__filter-item"
+            data-highlight="view-sorts"
           >
             <div>
               <a
@@ -145,6 +148,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
            
           <li
             class="header__filter-item"
+            data-highlight="view-group-by"
           >
             <div>
               <a

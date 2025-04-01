@@ -64,6 +64,7 @@
       <a
         ref="createFieldContextLink"
         class="grid-view__add-column"
+        data-highlight="add-field"
         @click="$refs.createFieldContext.toggle($refs.createFieldContextLink)"
       >
         <i class="grid-view__add-column-icon iconoir-plus"></i>

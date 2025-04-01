@@ -1,0 +1,151 @@
+.guided-tour-step__container {
+  background: transparent;
+  pointer-events: all;
+  z-index: $z-index-guided-tour-container;
+
+  @include absolute(0, 0, 0, 0);
+}
+
+.guided-tour-step {
+  position: absolute;
+  box-sizing: border-box;
+  width: 326px;
+  background-color: $palette-neutral-1200;
+  display: flex;
+  flex-direction: column;
+  z-index: $z-index-guided-tour-step;
+  transform: translateY(0) translateX(0);
+  top: 0;
+  left: 0;
+  transition: top 0.1s ease, left 0.1s ease, transform 0.1s ease,
+    position 0.1s ease;
+
+  @include absolute(0, 0, auto, auto);
+  @include rounded($rounded-md);
+
+  &::after {
+    content: '';
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 8px 6px 8px 0;
+    border-color: transparent $palette-neutral-1200 transparent transparent;
+    transform: rotate(0deg);
+    position: absolute;
+  }
+
+  // Positioned in the middle of the screen.
+  &--center {
+    left: 0;
+    top: 0;
+    transform: translateY(-50%) translateX(-50%);
+  }
+
+  // Positioned right from the parent, aligned to the top of it.
+  &--right-top {
+    left: calc(100% + 12px);
+
+    &::after {
+      top: 12px;
+      left: -6px;
+    }
+  }
+
+  // Positioned right from the parent, aligned at the bottom of it.
+  &--right-bottom {
+    top: 100%;
+    left: calc(100% + 12px);
+    transform: translateY(-100%);
+
+    &::after {
+      left: -6px;
+      bottom: 12px;
+    }
+  }
+
+  // Position at the bottom of the parent, aligned to the left of it.
+  &--bottom-left {
+    left: 0;
+    top: calc(100% + 12px);
+
+    &::after {
+      left: 12px;
+      top: -6px;
+      border-width: 0 8px 6px;
+      border-color: transparent transparent $palette-neutral-1200 transparent;
+    }
+  }
+
+  // Position at the bottom of the parent, aligned to the left of it.
+  &--bottom-right {
+    left: 100%;
+    top: calc(100% + 12px);
+    transform: translateX(-100%);
+
+    &::after {
+      right: 12px;
+      top: -6px;
+      border-width: 0 8px 6px;
+      border-color: transparent transparent $palette-neutral-1200 transparent;
+    }
+  }
+}
+
+.guided-tour-step__body {
+  padding: 20px 20px 0;
+  min-height: 0;
+  overflow: hidden scroll;
+}
+
+.guided-tour-step__page {
+  color: $palette-neutral-500;
+  font-size: 11px;
+  line-height: 16px;
+  margin-bottom: 10px;
+}
+
+.guided-tour-step__title {
+  color: $white;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 20px;
+  margin-bottom: 10px;
+}
+
+.guided-tour-step__description {
+  font-size: 12px;
+  line-height: 20px;
+  color: $palette-neutral-300;
+
+  .markdown p {
+    color: $palette-neutral-300;
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 20px;
+  }
+
+  .markdown ul {
+    padding-left: 1em;
+  }
+
+  .markdown > * {
+    margin-bottom: 0;
+  }
+}
+
+.guided-tour-step__foot {
+  flex-grow: 0;
+  flex-shrink: 0;
+  padding: 20px;
+}
+
+.guided-tour-step__back {
+  color: $white;
+  font-weight: 500;
+  font-size: 13px;
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-neutral-300;
+  }
+}

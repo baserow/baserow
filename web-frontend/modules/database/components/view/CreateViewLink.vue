@@ -7,6 +7,7 @@
       'select__footer-create-link--disabled':
         !viewType.isCompatibleWithDataSync(table.data_sync),
     }"
+    :data-highlight="`create-view-${viewType.getType()}`"
     @click="select"
   >
     <i class="select__footer-create-icon" :class="viewType.iconClass"></i>

@@ -217,6 +217,12 @@ class UserProfile(models.Model):
     email_verified = models.BooleanField(null=True, default=False)
     # TODO Remove null=True in a future release.
     completed_onboarding = models.BooleanField(null=True, default=False)
+    completed_guided_tours = ArrayField(
+        base_field=models.TextField(),
+        default=list,
+        blank=True,
+        null=True,
+    )
 
     def iat_before_last_password_change(self, iat: int) -> bool:
         """
