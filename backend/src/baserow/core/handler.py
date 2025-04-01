@@ -548,9 +548,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         if queryset is None:
-            queryset = Workspace.objects.prefetch_related(
-                "workspaceuser_set", "template_set"
-            )
+            queryset = Workspace.objects.all()
+
+        queryset = queryset.prefetch_related("workspaceuser_set", "template_set")
 
         for plugin in plugin_registry.registry.values():
             queryset = plugin.enhance_workspace_queryset(queryset)
