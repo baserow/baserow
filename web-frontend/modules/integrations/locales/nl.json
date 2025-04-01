@@ -34,7 +34,8 @@
         "databaseFieldLabel": "Database",
         "viewFieldLabel": "Weergave",
         "tableFieldLabel": "Tabel",
-        "chooseNoView": "Niet geselecteerd"
+        "chooseNoView": "Niet geselecteerd",
+        "dataSyncedTableDescription": "Gesynchroniseerde tabel"
     },
     "integrationType": {
         "localBaserow": "Lokaal Baserow",
