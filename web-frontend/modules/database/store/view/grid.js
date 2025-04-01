@@ -1826,10 +1826,11 @@ export const actions = {
       view,
       table,
       fields,
-      rows = {},
+      rows = [],
       before = null,
       selectPrimaryCell = false,
       isRowOpenedInModal = undefined,
+      postponeUpdates = false,
     }
   ) {
     // Create an object of default field values that can be used to fill the row with
@@ -1909,6 +1910,7 @@ export const actions = {
             values: rowPopulated,
             metadata: {},
             populate: false,
+            postponeUpdates,
           })
         }
       }
@@ -2053,15 +2055,20 @@ export const actions = {
       scrollTop: getters.getScrollTop,
       fields,
     })
+    return rowsPopulated
   },
   /**
    * Called after a new row has been created, which could be by the user or via
    * another channel. It will only add the row if it belongs inside the views and it
    * also makes sure that row will be inserted at the correct position.
+   *
+   * postponeUpdates indicates that rows re-sorting should not be performed now. This
+   * is useful, when there's more than one rows being created and re-sorting will
+   * happen at the end of the whole operation.
    */
   async createdNewRow(
     { commit, getters, dispatch },
-    { view, fields, values, metadata, populate = true }
+    { view, fields, values, metadata, populate = true, postponeUpdates = false }
   ) {
     const row = clone(values)
 
@@ -2093,13 +2100,18 @@ export const actions = {
     // in this view, we need to estimate what position it has in the table.
     const allRowsCopy = clone(getters.getAllRows)
     allRowsCopy.push(row)
-    const sortFunction = getRowSortFunction(
-      this.$registry,
-      view.sortings,
-      fields,
-      view.group_bys
-    )
-    allRowsCopy.sort(sortFunction)
+    if (!postponeUpdates) {
+      // Now that we know that the row applies to the filters, which means it belongs
+      // in this view, we need to estimate what position it has in the table.
+
+      const sortFunction = getRowSortFunction(
+        this.$registry,
+        view.sortings,
+        fields,
+        view.group_bys
+      )
+      allRowsCopy.sort(sortFunction)
+    }
     const index = allRowsCopy.findIndex((r) => r.id === row.id)
 
     const isFirst = index === 0
@@ -2503,6 +2515,7 @@ export const actions = {
           return {}
         }),
         selectPrimaryCell: false,
+        postponeUpdates: true,
       })
       rowTailIndex = rowTailIndex + newRowsCount
     }
