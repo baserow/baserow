@@ -1345,11 +1345,10 @@ class BaserowFormulaArrayType(
     @classmethod
     def get_serializer_field_overrides(cls):
         from baserow.contrib.database.api.fields.serializers import (
-            CollaboratorSerializer,
+            AvailableCollaboratorsSerializer,
             SelectOptionSerializer,
         )
         from baserow.contrib.database.api.formula.serializers import (
-            BaserowFormulaCollaboratorsSerializer,
             BaserowFormulaSelectOptionsSerializer,
         )
 
@@ -1360,11 +1359,8 @@ class BaserowFormulaArrayType(
                 allow_null=True,
                 read_only=True,
             ),
-            "available_collaborators": BaserowFormulaCollaboratorsSerializer(
-                child=CollaboratorSerializer(),
-                required=False,
-                allow_null=True,
-                read_only=True,
+            "available_collaborators": AvailableCollaboratorsSerializer(
+                required=False, allow_null=True
             ),
         }
 
@@ -1779,18 +1775,12 @@ class BaserowFormulaMultipleCollaboratorsType(BaserowJSONBObjectBaseType):
     @classmethod
     def get_serializer_field_overrides(cls):
         from baserow.contrib.database.api.fields.serializers import (
-            CollaboratorSerializer,
-        )
-        from baserow.contrib.database.api.formula.serializers import (
-            BaserowFormulaCollaboratorsSerializer,
+            AvailableCollaboratorsSerializer,
         )
 
         return {
-            "available_collaborators": BaserowFormulaCollaboratorsSerializer(
-                child=CollaboratorSerializer(),
-                allow_null=True,
-                required=False,
-                read_only=True,
+            "available_collaborators": AvailableCollaboratorsSerializer(
+                allow_null=True, required=False
             )
         }
 

@@ -39,21 +39,3 @@ class BaserowFormulaSelectOptionsSerializer(serializers.ListField):
             return [self.child.to_representation(item) for item in select_options]
         else:
             return []
-
-
-class BaserowFormulaCollaboratorsSerializer(serializers.ListField):
-    def get_attribute(self, instance):
-        return instance
-
-    def to_representation(self, field):
-        field_type = field_type_registry.get_by_model(field)
-
-        # Available collaborators are needed for view filters in the frontend,
-        # but let's avoid the potentially slow query if not required.
-        if field_type.can_represent_collaborators(field):
-            available_collaborators = field.table.database.workspace.users.all()
-            return [
-                self.child.to_representation(item) for item in available_collaborators
-            ]
-        else:
-            return []

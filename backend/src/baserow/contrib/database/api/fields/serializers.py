@@ -339,6 +339,37 @@ class CollaboratorSerializer(serializers.Serializer):
     name = serializers.CharField(source="first_name", read_only=True)
 
 
+class AvailableCollaboratorsSerializer(serializers.ListField):
+    def __init__(self, **kwargs):
+        kwargs["child"] = CollaboratorSerializer()
+        kwargs["read_only"] = True
+        kwargs["source"] = "*"
+        kwargs["help_text"] = "A list of all the available collaborators."
+
+        super().__init__(**kwargs)
+
+    def get_attribute(self, instance):
+        return super().get_attribute(instance)
+
+    def to_representation(self, instance):
+        field_type = instance.get_type()
+        if not field_type.can_represent_collaborators(instance):
+            return []
+
+        workspace = instance.table.database.workspace
+        if not hasattr(workspace, "available_collaborators"):
+            setattr(
+                workspace,
+                "available_collaborators",
+                workspace.users.order_by("first_name"),
+            )
+
+        return [
+            CollaboratorSerializer(user).data
+            for user in workspace.available_collaborators
+        ]
+
+
 class DuplicateFieldParamsSerializer(serializers.Serializer):
     duplicate_data = serializers.BooleanField(
         default=False, help_text="Indicates whether the data should be duplicated."
