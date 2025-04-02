@@ -26,7 +26,6 @@ class CreateAutomationWorkflowSerializer(serializers.ModelSerializer):
 
 
 class UpdateAutomationWorkflowSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = AutomationWorkflow
         fields = ("name",)

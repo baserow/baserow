@@ -1,7 +1,3 @@
-class AutomationWorkflowDoesNotExist(Exception):
-    """When the AutomationWorkflow doesn't exist."""
-
-
 class AutomationWorkflowNotInAutomation(Exception):
     """When the specified workflow does not belong to a specific automation."""
 

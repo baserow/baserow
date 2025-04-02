@@ -12,20 +12,20 @@ from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.contrib.automation.api.workflows.errors import (
-    ERROR_WORKFLOW_NAME_NOT_UNIQUE,
     ERROR_WORKFLOW_DOES_NOT_EXIST,
+    ERROR_WORKFLOW_NAME_NOT_UNIQUE,
     ERROR_WORKFLOW_NOT_IN_AUTOMATION,
 )
 from baserow.contrib.automation.api.workflows.serializers import (
     AutomationWorkflowSerializer,
     CreateAutomationWorkflowSerializer,
-    UpdateAutomationWorkflowSerializer,
     OrderAutomationWorkflowsSerializer,
+    UpdateAutomationWorkflowSerializer,
 )
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.workflows.exceptions import (
-    AutomationWorkflowNameNotUnique,
     AutomationWorkflowDoesNotExist,
+    AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInBuilder,
 )
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
@@ -141,9 +141,7 @@ class WorkflowView(APIView):
         description="Deletes an existing workflow of an automation.",
         responses={
             204: None,
-            400: get_error_schema(
-                ["ERROR_REQUEST_BODY_VALIDATION"]
-            ),
+            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
             404: get_error_schema(["ERROR_PAGE_DOES_NOT_EXIST"]),
         },
     )
@@ -202,6 +200,8 @@ class OrderWorkflowsView(APIView):
     def post(self, request, data: Dict, automation_id: int):
         automation = AutomationHandler().get_automation(automation_id)
 
-        AutomationWorkflowService().order_workflows(request.user, automation, data["workflow_ids"])
+        AutomationWorkflowService().order_workflows(
+            request.user, automation, data["workflow_ids"]
+        )
 
         return Response(status=204)

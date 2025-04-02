@@ -22,7 +22,6 @@ paths_without_automation_id = [
             namespace="workflows",
         ),
     ),
-
 ]
 
 urlpatterns = [

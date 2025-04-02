@@ -2,13 +2,13 @@ from typing import Optional
 
 from django.db.models import Q, QuerySet
 
+from baserow.contrib.automation.models import AutomationWorkflow
+from baserow.contrib.automation.object_scopes import AutomationObjectScopeType
 from baserow.core.object_scopes import (
     ApplicationObjectScopeType,
     WorkspaceObjectScopeType,
 )
 from baserow.core.registries import ObjectScopeType, object_scope_type_registry
-from baserow.contrib.automation.object_scopes import AutomationObjectScopeType
-from baserow.contrib.automation.models import AutomationWorkflow
 
 
 class AutomationWorkflowObjectScopeType(ObjectScopeType):
