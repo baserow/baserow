@@ -13,12 +13,23 @@ from baserow.core.registries import ApplicationType, ImportExportConfig
 from baserow.core.utils import ChildProgressBuilder
 
 
+def lazy_get_instance_serializer_class():
+    from baserow.contrib.automation.api.serializers import AutomationSerializer
+
+    return AutomationSerializer
+
+
 class AutomationApplicationType(ApplicationType):
     type = "automation"
     model_class = Automation
     serializer_field_names = [
         "name",
+        "workflows",
     ]
+    serializer_mixins = [lazy_get_instance_serializer_class]
+
+    # Builder applications are imported third.
+    import_application_priority = 0
 
     def get_api_urls(self):
         from .api import urls as api_urls
