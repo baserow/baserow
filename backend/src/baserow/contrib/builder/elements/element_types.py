@@ -813,17 +813,24 @@ class NavigationElementManager:
         overrides = {
             "navigation_type": serializers.ChoiceField(
                 choices=NavigationElementMixin.NAVIGATION_TYPES.choices,
-                help_text=LinkElement._meta.get_field("navigation_type").help_text,
+                default=NavigationElementMixin.NAVIGATION_TYPES.PAGE,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "navigation_type"
+                ).help_text,
                 required=False,
             ),
             "navigate_to_page_id": serializers.IntegerField(
                 allow_null=True,
                 default=None,
-                help_text=LinkElement._meta.get_field("navigate_to_page").help_text,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "navigate_to_page"
+                ).help_text,
                 required=False,
             ),
             "navigate_to_url": FormulaSerializerField(
-                help_text=LinkElement._meta.get_field("navigate_to_url").help_text,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "navigate_to_url"
+                ).help_text,
                 default="",
                 allow_blank=True,
                 required=False,
@@ -831,18 +838,23 @@ class NavigationElementManager:
             "page_parameters": PageParameterValueSerializer(
                 many=True,
                 default=[],
-                help_text=LinkElement._meta.get_field("page_parameters").help_text,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "page_parameters"
+                ).help_text,
                 required=False,
             ),
             "query_parameters": PageParameterValueSerializer(
                 many=True,
                 default=[],
-                help_text=LinkElement._meta.get_field("query_parameters").help_text,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "query_parameters"
+                ).help_text,
                 required=False,
             ),
             "target": serializers.ChoiceField(
                 choices=NavigationElementMixin.TARGETS.choices,
-                help_text=LinkElement._meta.get_field("target").help_text,
+                default=NavigationElementMixin.TARGETS.SELF,
+                help_text=NavigationElementMixin._meta.get_field("target").help_text,
                 required=False,
             ),
         }
