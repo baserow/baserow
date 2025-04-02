@@ -9,10 +9,11 @@ from baserow.test_utils.helpers import AnyInt
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_create_chart_widget(api_client, enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-    user, token = enterprise_data_fixture.create_user_and_token()
-    dashboard = enterprise_data_fixture.create_dashboard_application(user=user)
+def test_create_chart_widget(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    dashboard = premium_data_fixture.create_dashboard_application(user=user)
 
     url = reverse("api:dashboard:widgets:list", kwargs={"dashboard_id": dashboard.id})
     response = api_client.post(
@@ -40,13 +41,13 @@ def test_create_chart_widget(api_client, enterprise_data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_widgets_with_chart_widget(api_client, enterprise_data_fixture):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    dashboard = enterprise_data_fixture.create_dashboard_application(user=user)
-    data_source = enterprise_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
+def test_get_widgets_with_chart_widget(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token()
+    dashboard = premium_data_fixture.create_dashboard_application(user=user)
+    data_source = premium_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
         dashboard=dashboard, name="Name 1"
     )
-    widget = enterprise_data_fixture.create_chart_widget(
+    widget = premium_data_fixture.create_chart_widget(
         dashboard=dashboard,
         data_source=data_source,
         title="Widget 1",

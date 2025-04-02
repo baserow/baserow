@@ -168,3 +168,85 @@ class BaserowPremiumConfig(AppConfig):
         settings_data_registry.register(InstanceWideSettingsDataType())
 
         import baserow_premium.fields.tasks  # noqa: F401
+        from baserow_premium.integrations.registries import grouped_aggregation_registry
+
+        from baserow.contrib.database.fields.field_aggregations import (
+            AverageFieldAggregationType,
+            CheckedFieldAggregationType,
+            CheckedPercentageFieldAggregationType,
+            CountFieldAggregationType,
+            EmptyCountFieldAggregationType,
+            EmptyPercentageFieldAggregationType,
+            MaxFieldAggregationType,
+            MedianFieldAggregationType,
+            MinFieldAggregationType,
+            NotCheckedFieldAggregationType,
+            NotCheckedPercentageFieldAggregationType,
+            NotEmptyCountFieldAggregationType,
+            NotEmptyPercentageFieldAggregationType,
+            StdDevFieldAggregationType,
+            SumFieldAggregationType,
+            UniqueCountFieldAggregationType,
+            VarianceFieldAggregationType,
+        )
+
+        grouped_aggregation_registry.register(CountFieldAggregationType())
+        grouped_aggregation_registry.register(EmptyCountFieldAggregationType())
+        grouped_aggregation_registry.register(NotEmptyCountFieldAggregationType())
+        grouped_aggregation_registry.register(CheckedFieldAggregationType())
+        grouped_aggregation_registry.register(NotCheckedFieldAggregationType())
+        grouped_aggregation_registry.register(EmptyPercentageFieldAggregationType())
+        grouped_aggregation_registry.register(NotEmptyPercentageFieldAggregationType())
+        grouped_aggregation_registry.register(CheckedPercentageFieldAggregationType())
+        grouped_aggregation_registry.register(
+            NotCheckedPercentageFieldAggregationType()
+        )
+        grouped_aggregation_registry.register(UniqueCountFieldAggregationType())
+        grouped_aggregation_registry.register(MinFieldAggregationType())
+        grouped_aggregation_registry.register(MaxFieldAggregationType())
+        grouped_aggregation_registry.register(SumFieldAggregationType())
+        grouped_aggregation_registry.register(AverageFieldAggregationType())
+        grouped_aggregation_registry.register(StdDevFieldAggregationType())
+        grouped_aggregation_registry.register(VarianceFieldAggregationType())
+        grouped_aggregation_registry.register(MedianFieldAggregationType())
+
+        from baserow_premium.integrations.registries import (
+            grouped_aggregation_group_by_registry,
+        )
+
+        from baserow.contrib.database.fields.field_types import (
+            AutonumberFieldType,
+            BooleanFieldType,
+            EmailFieldType,
+            LongTextFieldType,
+            NumberFieldType,
+            PhoneNumberFieldType,
+            RatingFieldType,
+            SingleSelectFieldType,
+            TextFieldType,
+            URLFieldType,
+        )
+
+        grouped_aggregation_group_by_registry.register(TextFieldType())
+        grouped_aggregation_group_by_registry.register(LongTextFieldType())
+        grouped_aggregation_group_by_registry.register(URLFieldType())
+        grouped_aggregation_group_by_registry.register(EmailFieldType())
+        grouped_aggregation_group_by_registry.register(NumberFieldType())
+        grouped_aggregation_group_by_registry.register(RatingFieldType())
+        grouped_aggregation_group_by_registry.register(BooleanFieldType())
+        grouped_aggregation_group_by_registry.register(PhoneNumberFieldType())
+        grouped_aggregation_group_by_registry.register(AutonumberFieldType())
+        grouped_aggregation_group_by_registry.register(SingleSelectFieldType())
+
+        from baserow_premium.dashboard.widgets.widget_types import ChartWidgetType
+        from baserow_premium.integrations.local_baserow.service_types import (
+            LocalBaserowGroupedAggregateRowsUserServiceType,
+        )
+
+        from baserow.contrib.dashboard.widgets.registries import widget_type_registry
+        from baserow.core.services.registries import service_type_registry
+
+        service_type_registry.register(
+            LocalBaserowGroupedAggregateRowsUserServiceType()
+        )
+        widget_type_registry.register(ChartWidgetType())

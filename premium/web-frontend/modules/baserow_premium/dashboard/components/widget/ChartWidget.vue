@@ -48,7 +48,7 @@
 
 <script>
 import WidgetContextMenu from '@baserow/modules/dashboard/components/widget/WidgetContextMenu'
-import Chart from '@baserow_enterprise/dashboard/components/widget/Chart'
+import Chart from '@baserow_premium/dashboard/components/widget/Chart'
 
 export default {
   name: 'ChartWidget',

@@ -4,6 +4,15 @@ from unittest.mock import Mock
 from django.contrib.contenttypes.models import ContentType
 
 import pytest
+from baserow_premium.integrations.local_baserow.models import (
+    LocalBaserowGroupedAggregateRows,
+    LocalBaserowTableServiceAggregationGroupBy,
+    LocalBaserowTableServiceAggregationSeries,
+    LocalBaserowTableServiceAggregationSortBy,
+)
+from baserow_premium.integrations.local_baserow.service_types import (
+    LocalBaserowGroupedAggregateRowsUserServiceType,
+)
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.database.rows.handler import RowHandler
@@ -11,15 +20,6 @@ from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
-from baserow_enterprise.integrations.local_baserow.models import (
-    LocalBaserowGroupedAggregateRows,
-    LocalBaserowTableServiceAggregationGroupBy,
-    LocalBaserowTableServiceAggregationSeries,
-    LocalBaserowTableServiceAggregationSortBy,
-)
-from baserow_enterprise.integrations.local_baserow.service_types import (
-    LocalBaserowGroupedAggregateRowsUserServiceType,
-)
 
 
 def test_grouped_aggregate_rows_service_get_schema_name():

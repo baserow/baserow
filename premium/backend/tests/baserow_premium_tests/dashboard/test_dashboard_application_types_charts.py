@@ -6,6 +6,13 @@ from django.contrib.contenttypes.models import ContentType
 from django.test.utils import override_settings
 
 import pytest
+from baserow_premium.dashboard.widgets.models import ChartWidget
+from baserow_premium.integrations.local_baserow.models import (
+    LocalBaserowGroupedAggregateRows,
+    LocalBaserowTableServiceAggregationGroupBy,
+    LocalBaserowTableServiceAggregationSeries,
+    LocalBaserowTableServiceAggregationSortBy,
+)
 
 from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
@@ -17,26 +24,18 @@ from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.registries import ImportExportConfig
 from baserow.core.utils import ChildProgressBuilder, Progress
-from baserow_enterprise.dashboard.widgets.models import ChartWidget
-from baserow_enterprise.integrations.local_baserow.models import (
-    LocalBaserowGroupedAggregateRows,
-    LocalBaserowTableServiceAggregationGroupBy,
-    LocalBaserowTableServiceAggregationSeries,
-    LocalBaserowTableServiceAggregationSortBy,
-)
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_dashboard_export_serialized_with_chart_widget(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-    user = enterprise_data_fixture.create_user()
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-    database = enterprise_data_fixture.create_database_application(
+def test_dashboard_export_serialized_with_chart_widget(premium_data_fixture):
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    workspace = premium_data_fixture.create_workspace(user=user)
+    database = premium_data_fixture.create_database_application(
         user=user, workspace=workspace
     )
-    table = enterprise_data_fixture.create_database_table(database=database)
-    field = enterprise_data_fixture.create_number_field(table=table)
+    table = premium_data_fixture.create_database_table(database=database)
+    field = premium_data_fixture.create_number_field(table=table)
     dashboard = cast(
         Dashboard,
         CoreHandler().create_application(
@@ -127,22 +126,20 @@ def test_dashboard_export_serialized_with_chart_widget(enterprise_data_fixture):
                 "type": "chart",
             },
         ],
-        "role_assignments": [],
     }
 
 
 @pytest.mark.django_db()
 @override_settings(DEBUG=True)
-def test_dashboard_import_serialized_with_widgets(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-    user = enterprise_data_fixture.create_user()
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-    database = enterprise_data_fixture.create_database_application(
+def test_dashboard_import_serialized_with_widgets(premium_data_fixture):
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    workspace = premium_data_fixture.create_workspace(user=user)
+    database = premium_data_fixture.create_database_application(
         user=user, workspace=workspace
     )
-    table = enterprise_data_fixture.create_database_table(database=database)
-    field = enterprise_data_fixture.create_number_field(table=table)
-    field_2 = enterprise_data_fixture.create_number_field(table=table, primary=True)
+    table = premium_data_fixture.create_database_table(database=database)
+    field = premium_data_fixture.create_number_field(table=table)
+    field_2 = premium_data_fixture.create_number_field(table=table, primary=True)
 
     id_mapping = {
         "database_tables": {1: table.id},

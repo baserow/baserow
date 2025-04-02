@@ -182,7 +182,8 @@
     "surveyForm": "Survey form",
     "publicLogoRemoval": "Public logo removal",
     "personalViews": "Personal views",
-    "aiFeatures": "AI field"
+    "aiFeatures": "AI field",
+    "chartWidget": "Chart widget"
   },
   "licenses": {
     "titleNoLicenses": "No licenses found",

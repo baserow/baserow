@@ -1,9 +1,9 @@
 import { WidgetType } from '@baserow/modules/dashboard/widgetTypes'
-import ChartWidget from '@baserow_enterprise/dashboard/components/widget/ChartWidget'
-import ChartWidgetSettings from '@baserow_enterprise/dashboard/components/widget/ChartWidgetSettings'
-import ChartWidgetSvg from '@baserow_enterprise/assets/images/dashboard/widgets/chart_widget.svg'
-import EnterpriseFeatures from '@baserow_enterprise/features'
-import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
+import ChartWidget from '@baserow_premium/dashboard/components/widget/ChartWidget'
+import ChartWidgetSettings from '@baserow_premium/dashboard/components/widget/ChartWidgetSettings'
+import ChartWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget.svg'
+import PremiumFeatures from '@baserow_premium/features'
+import PremiumModal from '@baserow_premium/components/PremiumModal'
 
 export class ChartWidgetType extends WidgetType {
   static getType() {
@@ -35,10 +35,10 @@ export class ChartWidgetType extends WidgetType {
   }
 
   isAvailable(workspaceId) {
-    return this.app.$hasFeature(EnterpriseFeatures.CHART_WIDGET, workspaceId)
+    return this.app.$hasFeature(PremiumFeatures.PREMIUM, workspaceId)
   }
 
   getDeactivatedModal() {
-    return EnterpriseModal
+    return PremiumModal
   }
 }
