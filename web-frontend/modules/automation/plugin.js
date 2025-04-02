@@ -10,6 +10,7 @@ import ko from '@baserow/modules/automation/locales/ko.json'
 import { registerRealtimeEvents } from '@baserow/modules/automation/realtime'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import automationApplicationStore from '@baserow/modules/automation/store/automationApplication'
+import automationWorkflowStore from '@baserow/modules/automation/store/automationWorkflow'
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
@@ -31,6 +32,7 @@ export default (context) => {
   registerRealtimeEvents(app.$realtime)
 
   store.registerModule('automationApplication', automationApplicationStore)
+  store.registerModule('automationWorkflow', automationWorkflowStore)
   store.registerModule(
     'template/automationApplication',
     automationApplicationStore
