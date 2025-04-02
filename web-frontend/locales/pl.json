@@ -105,7 +105,8 @@
         "email": "Pole musi być adresem e-mail.",
         "invalidURL": "Wprowadź prawidłowy adres URL.",
         "alreadyInUse": "Ta nazwa pola jest już używana.",
-        "invalidCharacters": "To pole zawiera nieprawidłowe znaki."
+        "invalidCharacters": "To pole zawiera nieprawidłowe znaki.",
+        "decimalField": "To pole musi być dziesiętne."
     },
     "permission": {
         "admin": "Administrator",
@@ -147,7 +148,9 @@
         "singleSelectRadios": "Pole typu radio",
         "singleSelectDropdown": "Lista rozwijana",
         "createdBy": "Stworzony przez",
-        "lastModifiedBy": "Ostatnio zmodyfikowany przez"
+        "lastModifiedBy": "Ostatnio zmodyfikowany przez",
+        "multipleCollaboratorsDropdown": "Lista rozwijana",
+        "multipleCollaboratorsCheckboxes": "Pola wyboru"
     },
     "fieldErrors": {
         "invalidNumber": "Nieprawidłowy numer",
@@ -272,7 +275,21 @@
         "nrYearsAgo": "lat temu",
         "nrDaysFromNow": "dni od teraz",
         "nrWeeksFromNow": "tygodnie od teraz",
-        "nrYearsFromNow": "lat od teraz"
+        "nrYearsFromNow": "lat od teraz",
+        "hasAnySelectOptionEqual": "zawiera jakąkolwiek opcję równą",
+        "hasNotDateOnOrBefore": "nie zawiera daty równej lub przed",
+        "hasNotDateWithin": "nie zawiera daty pomiędzy",
+        "hasDateWithin": "zawiera datę pomiędzy",
+        "hasNotDateOnOrAfter": "nie zawiera daty równej lub po",
+        "hasNoneSelectOptionEqual": "nie zawiera jakiejkolwiek opcji równej",
+        "hasNotDateBefore": "nie zawiera daty przed",
+        "hasDateEqual": "zawiera datę równą",
+        "hasNotDateEqual": "nie zawiera daty równej",
+        "hasDateBefore": "zawiera datę przed",
+        "hasNotDateAfter": "nie zawiera daty po",
+        "hasDateOnOrAfter": "zawiera datę równą lub po",
+        "hasDateOnOrBefore": "zawiera datę równą lub przed",
+        "hasDateAfter": "zawiera datę po"
     },
     "viewType": {
         "grid": "Siatka",
@@ -439,7 +456,8 @@
         "uploadFileDescription": "\"Plik\" wieloczęściowy zawierający zawartość pliku.",
         "uploadFileViaUrl": "Prześlij plik za pomocą adresu URL",
         "uploadFileViaUrlDescription": "Przesyła plik do Baserow, pobierając go z podanego adresu URL.",
-        "fileUploads": "Przesyłanie plików"
+        "fileUploads": "Przesyłanie plików",
+        "sendWebhookEventsDescription": "Flaga parametru zapytania, która wywoła webhook po tej operacji, jeśli ustawiona na `y`, `yes`, `true`, `t`, `on`, `1` albo pozostawiona pusta. Domyślnie `true`"
     },
     "exporterType": {
         "csv": "Eksport do CSV"
@@ -495,7 +513,7 @@
         "leftDescription": "Wyodrębnia skrajne lewe znaki z pierwszego wejścia, zatrzymuje się po wyodrębnieniu liczby znaków określonej przez drugie wejście.",
         "rightDescription": "Wyodrębnia skrajne prawe znaki z pierwszego wejścia, zatrzymuje się po wyodrębnieniu liczby znaków określonej przez drugie wejście.",
         "trimDescription": "Usuwa wszystkie białe znaki z lewej i prawej strony wejścia.",
-        "regexReplaceDescription": "Zastępuje dowolny tekst w pierwszym wejściu, który pasuje do wyrażenia regularnego określonego przez drugie wejście, tekstem z trzeciego wejścia.",
+        "regexReplaceDescription": "Zastępuje dowolny tekst w pierwszym wejściu, który pasuje do wyrażenia regularnego określonego przez drugie wejście, tekstem z trzeciego wejścia. Zwraca '#ERROR!' jeśli wyrażenie regularne jest nieprawidłowe.",
         "greatestDescription": "Zwraca największą wartość z dwóch danych wejściowych.",
         "leastDescription": "Zwraca najmniejszy z dwóch danych wejściowych.",
         "monthDescription": "Zwraca liczbę miesięcy w podanej dacie.",
