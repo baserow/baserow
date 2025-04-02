@@ -10,7 +10,9 @@
         },
         "exporterType": {
             "json": "Esporta in JSON",
-            "xml": "Esporta in XML"
+            "xml": "Esporta in XML",
+            "file": "Esporta file",
+            "excel": "Esporta to Excel"
         },
         "deactivated": "Disponibile nella versione premium"
     },
@@ -191,7 +193,8 @@
         "publicLogoRemoval": "Rimozione logo",
         "calendarView": "Vista calendario",
         "personalViews": "Vista personale",
-        "aiFeatures": "Campo IA"
+        "aiFeatures": "Campo IA",
+        "timelineView": "Timeline"
     },
     "premiumModal": {
         "title": "Fai l'upgrade per usare {name}",
@@ -328,5 +331,16 @@
     },
     "timelineGridRow": {
         "days": "0 | 1 giorno | {count} giorni"
+    },
+    "tableFileExporter": {
+        "organizeFiles": "Raggruppa per riga"
+    },
+    "timelineTimescaleContext": {
+        "week": "Settimana",
+        "month": "Mese",
+        "day": "Giorno",
+        "hour": "Ora",
+        "year": "Anno",
+        "quarter": "Trimestre"
     }
 }
