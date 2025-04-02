@@ -11,3 +11,9 @@ ERROR_WORKFLOW_DOES_NOT_EXIST = (
     HTTP_404_NOT_FOUND,
     "The requested workflow does not exist.",
 )
+
+ERROR_WORKFLOW_NOT_IN_AUTOMATION = (
+    "ERROR_WORKFLOW_NOT_IN_AUTOMATION",
+    HTTP_400_BAD_REQUEST,
+    "The workflow id {e.workflow_id} does not belong to the automation.",
+)

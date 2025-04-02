@@ -33,3 +33,12 @@ class UpdateAutomationWorkflowSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "name": {"required": False},
         }
+
+
+class OrderAutomationWorkflowsSerializer(serializers.Serializer):
+    workflow_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text=(
+            "The ids of the workflows in the order they are supposed to be set in."
+        ),
+    )

@@ -22,3 +22,15 @@ class AutomationWorkflowNameNotUnique(Exception):
 
 class AutomationWorkflowDoesNotExist(Exception):
     """When the workflow doesn't exist."""
+
+
+class AutomationWorkflowNotInBuilder(Exception):
+    """When the workflow does not belong to the correct automation."""
+
+    def __init__(self, workflow_id=None, *args, **kwargs):
+        self.workflow_id = workflow_id
+        super().__init__(
+            f"The workflow {workflow_id} does not belong to the automation.",
+            *args,
+            **kwargs,
+        )

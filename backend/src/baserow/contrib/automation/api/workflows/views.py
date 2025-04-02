@@ -14,16 +14,19 @@ from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_sc
 from baserow.contrib.automation.api.workflows.errors import (
     ERROR_WORKFLOW_NAME_NOT_UNIQUE,
     ERROR_WORKFLOW_DOES_NOT_EXIST,
+    ERROR_WORKFLOW_NOT_IN_AUTOMATION,
 )
 from baserow.contrib.automation.api.workflows.serializers import (
     AutomationWorkflowSerializer,
     CreateAutomationWorkflowSerializer,
     UpdateAutomationWorkflowSerializer,
+    OrderAutomationWorkflowsSerializer,
 )
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowNameNotUnique,
     AutomationWorkflowDoesNotExist,
+    AutomationWorkflowNotInBuilder,
 )
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.exceptions import ApplicationDoesNotExist
@@ -155,5 +158,50 @@ class WorkflowView(APIView):
         service = AutomationWorkflowService()
         workflow = service.get_workflow(request.user, workflow_id)
         service.delete_workflow(request.user, workflow)
+
+        return Response(status=204)
+
+
+class OrderWorkflowsView(APIView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="automation_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The automation the workflow belongs to.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Automation workflows"],
+        operation_id="order_automation_workflows",
+        description="Apply a new order to the workflows of an automation.",
+        request=OrderAutomationWorkflowsSerializer,
+        responses={
+            204: None,
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_WORKFLOW_NOT_IN_AUTOMATION",
+                ]
+            ),
+            404: get_error_schema(
+                ["ERROR_APPLICATION_DOES_NOT_EXIST", "ERROR_PAGE_DOES_NOT_EXIST"]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            AutomationWorkflowDoesNotExist: ERROR_WORKFLOW_DOES_NOT_EXIST,
+            AutomationWorkflowNotInBuilder: ERROR_WORKFLOW_NOT_IN_AUTOMATION,
+        }
+    )
+    @validate_body(OrderAutomationWorkflowsSerializer)
+    def post(self, request, data: Dict, automation_id: int):
+        automation = AutomationHandler().get_automation(automation_id)
+
+        AutomationWorkflowService().order_workflows(request.user, automation, data["workflow_ids"])
 
         return Response(status=204)
