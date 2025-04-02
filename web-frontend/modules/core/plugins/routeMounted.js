@@ -10,7 +10,6 @@ import Vue from 'vue'
 Vue.mixin({
   mounted() {
     if (
-      this.$options.__file &&
       this.$route &&
       // Skip components that don't have a layout because those are not Nuxt pages.
       this.$options.layout !== undefined
@@ -22,11 +21,7 @@ Vue.mixin({
     }
   },
   beforeDestroy() {
-    if (
-      this.$options.__file &&
-      this.$route &&
-      this.$options.layout !== undefined
-    ) {
+    if (this.$route && this.$options.layout !== undefined) {
       this.$store.commit('routeMounted/SET_ROUTE_MOUNTED', {
         mounted: false,
         route: null,
