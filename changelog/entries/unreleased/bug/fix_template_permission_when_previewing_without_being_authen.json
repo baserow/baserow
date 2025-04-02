@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fix template permission when previewing without being authenticated",
+    "message": "Resolved an issue which prevented logged-out users from previewing certain application templates",
     "domain": "builder",
     "issue_number": null,
     "bullet_points": [],
