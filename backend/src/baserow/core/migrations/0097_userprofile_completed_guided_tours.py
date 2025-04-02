@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             field=django.contrib.postgres.fields.ArrayField(
                 base_field=models.TextField(),
                 blank=True,
-                default=["sidebar", "database", "builder"],
+                default=["sidebar", "database"],
                 null=True,
                 size=None,
             ),
