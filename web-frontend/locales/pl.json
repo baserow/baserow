@@ -8,7 +8,12 @@
         "all": "Wszystkie",
         "billable": "Płatny",
         "comingSoon": "Już wkrótce...",
-        "beta": "Beta"
+        "beta": "Beta",
+        "summarize": "Podsumuj",
+        "enabled": "Włączone",
+        "disabled": "Wyłączone",
+        "or": "albo",
+        "and": "i"
     },
     "action": {
         "upload": "Prześlij",
@@ -40,7 +45,10 @@
         "reset": "Resetowanie",
         "set": "Zestaw",
         "logout": "Wylogowanie",
-        "backToHome": "Powrót do domu"
+        "backToHome": "Powrót do domu",
+        "hide": "Schowaj",
+        "close": "Zamknij",
+        "getStarted": "Rozpocznij"
     },
     "adminType": {
         "settings": "Ustawienia",
@@ -58,7 +66,15 @@
         "builderDesc": "Łatwe tworzenie stron internetowych, aplikacji internetowych i portali bez kodu.",
         "databases": "Bazy danych",
         "databaseDesc": "Stwórz zorganizowaną kolekcję uporządkowanych danych.",
-        "builders": "Aplikacje"
+        "builders": "Aplikacje",
+        "automation": "Automatyzacja",
+        "automationDesc": "Zautomatyzuj powtarzalne zadania i przepływy pracy.",
+        "automations": "Automatyzacje",
+        "automationDefaultName": "Nienazwana automatyzacja",
+        "dashboards": "Pulpity",
+        "dashboardDesc": "Wizualizuj swoje dane i metryki za pomocą wykresów, tabel lub grafów.",
+        "dashboardDefaultName": "Nienazwany pulpit",
+        "dashboard": "Pulpit"
     },
     "settingType": {
         "account": "Konto",
@@ -88,7 +104,8 @@
         "minMaxValueField": "Wartość pola musi zawierać się w przedziale od {min} do {max}.",
         "email": "Pole musi być adresem e-mail.",
         "invalidURL": "Wprowadź prawidłowy adres URL.",
-        "alreadyInUse": "Ta nazwa pola jest już używana."
+        "alreadyInUse": "Ta nazwa pola jest już używana.",
+        "invalidCharacters": "To pole zawiera nieprawidłowe znaki."
     },
     "permission": {
         "admin": "Administrator",
