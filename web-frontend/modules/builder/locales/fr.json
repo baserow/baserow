@@ -102,7 +102,12 @@
         "menu": "Menu",
         "simpleContainerDescription": "Un conteneur pour grouper des éléments",
         "simpleContainer": "Conteneur",
-        "menuDescription": "Un élément de menu"
+        "menuDescription": "Un élément de menu",
+        "ratingDescription": "Affichage d'une notation",
+        "invalidElementValue": "Valeur non valide : {value}",
+        "ratingInput": "Champ de notation",
+        "rating": "Notation",
+        "ratingInputDescription": "Un champ de notation"
     },
     "elementMenu": {
         "moveDown": "Descendre",
