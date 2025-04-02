@@ -38,7 +38,7 @@ class AutomationWorkflowHandler:
             base_queryset = AutomationWorkflow.objects
 
         try:
-            return base_queryset.select_related("automation__automationworkflow").get(
+            return base_queryset.select_related("automation__workspace").get(
                 id=workflow_id
             )
         except AutomationWorkflow.DoesNotExist:

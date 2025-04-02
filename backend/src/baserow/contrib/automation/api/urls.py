@@ -14,7 +14,16 @@ paths_with_automation_id = [
     ),
 ]
 
-paths_without_automation_id = []
+paths_without_automation_id = [
+    path(
+        "workflows/",
+        include(
+            (workflow_urls.urlpatterns_without_automation_id, workflow_urls.app_name),
+            namespace="workflows",
+        ),
+    ),
+
+]
 
 urlpatterns = [
     re_path(

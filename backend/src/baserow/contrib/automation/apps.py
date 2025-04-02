@@ -11,6 +11,7 @@ class AutomationConfig(AppConfig):
             AutomationApplicationType,
         )
         from baserow.contrib.automation.object_scopes import AutomationObjectScopeType
+        from baserow.contrib.automation.workflows.object_scopes import AutomationWorkflowObjectScopeType
         from baserow.contrib.automation.workflows.operations import (
             CreateWorkflowOperationType,
             DeleteWorkflowOperationType,
@@ -28,6 +29,7 @@ class AutomationConfig(AppConfig):
             application_type_registry.register(AutomationApplicationType())
 
             object_scope_type_registry.register(AutomationObjectScopeType())
+            object_scope_type_registry.register(AutomationWorkflowObjectScopeType())
 
             operation_type_registry.register(CreateWorkflowOperationType())
             operation_type_registry.register(DeleteWorkflowOperationType())

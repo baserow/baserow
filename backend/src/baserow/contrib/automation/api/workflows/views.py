@@ -13,14 +13,17 @@ from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.contrib.automation.api.workflows.errors import (
     ERROR_WORKFLOW_NAME_NOT_UNIQUE,
+    ERROR_WORKFLOW_DOES_NOT_EXIST,
 )
 from baserow.contrib.automation.api.workflows.serializers import (
     AutomationWorkflowSerializer,
     CreateAutomationWorkflowSerializer,
+    UpdateAutomationWorkflowSerializer,
 )
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowNameNotUnique,
+    AutomationWorkflowDoesNotExist,
 )
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.exceptions import ApplicationDoesNotExist
@@ -73,3 +76,84 @@ class WorkflowsView(APIView):
 
         serializer = AutomationWorkflowSerializer(workflow)
         return Response(serializer.data)
+
+
+class WorkflowView(APIView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workflow_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The id of the workflow.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Automation workflows"],
+        operation_id="update_automation_workflow",
+        description="Updates an existing workflow of an automation.",
+        request=UpdateAutomationWorkflowSerializer,
+        responses={
+            200: AutomationWorkflowSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_WORKFLOW_NAME_NOT_UNIQUE",
+                ]
+            ),
+            404: get_error_schema(
+                ["ERROR_PAGE_DOES_NOT_EXIST", "ERROR_APPLICATION_DOES_NOT_EXIST"]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            AutomationWorkflowNameNotUnique: ERROR_WORKFLOW_NAME_NOT_UNIQUE,
+            AutomationWorkflowDoesNotExist: ERROR_WORKFLOW_DOES_NOT_EXIST,
+        }
+    )
+    @validate_body(UpdateAutomationWorkflowSerializer, return_validated=True)
+    def patch(self, request, data: Dict, workflow_id: int):
+        service = AutomationWorkflowService()
+        workflow = service.get_workflow(request.user, workflow_id)
+        workflow_updated = service.update_workflow(request.user, workflow, **data)
+
+        serializer = AutomationWorkflowSerializer(workflow_updated)
+        return Response(serializer.data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workflow_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The id of the workflow.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Automation workflows"],
+        operation_id="delete_automation_workflow",
+        description="Deletes an existing workflow of an automation.",
+        responses={
+            204: None,
+            400: get_error_schema(
+                ["ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            404: get_error_schema(["ERROR_PAGE_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationWorkflowDoesNotExist: ERROR_WORKFLOW_DOES_NOT_EXIST,
+        }
+    )
+    @transaction.atomic
+    def delete(self, request, workflow_id: int):
+        service = AutomationWorkflowService()
+        workflow = service.get_workflow(request.user, workflow_id)
+        service.delete_workflow(request.user, workflow)
+
+        return Response(status=204)

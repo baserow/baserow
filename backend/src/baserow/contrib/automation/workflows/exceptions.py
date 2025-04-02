@@ -18,3 +18,7 @@ class AutomationWorkflowNameNotUnique(Exception):
             *args,
             **kwargs,
         )
+
+
+class AutomationWorkflowDoesNotExist(Exception):
+    """When the workflow doesn't exist."""

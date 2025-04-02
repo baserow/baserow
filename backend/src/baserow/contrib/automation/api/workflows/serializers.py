@@ -23,3 +23,13 @@ class CreateAutomationWorkflowSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutomationWorkflow
         fields = ("name",)
+
+
+class UpdateAutomationWorkflowSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = AutomationWorkflow
+        fields = ("name",)
+        extra_kwargs = {
+            "name": {"required": False},
+        }
