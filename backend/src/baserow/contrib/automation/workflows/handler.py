@@ -5,21 +5,25 @@ from zipfile import ZipFile
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
-from baserow.core.exceptions import IdDoesNotExist
-from baserow.core.utils import ChildProgressBuilder, MirrorDict, find_unused_name
-from baserow.core.exceptions import IdDoesNotExist
+from baserow.contrib.automation.constants import (
+    IMPORT_SERIALIZED_IMPORTING,
+    WORKFLOW_NAME_MAX_LEN,
+)
 from baserow.contrib.automation.models import Automation
-from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.contrib.automation.constants import IMPORT_SERIALIZED_IMPORTING, WORKFLOW_NAME_MAX_LEN
+from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNotInAutomation,
 )
-from baserow.contrib.automation.types import AutomationWorkflowDict
+from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.utils import ChildProgressBuilder, MirrorDict, find_unused_name
 
 
 class AutomationWorkflowHandler:
-    def get_workflow(self, workflow_id: int, base_queryset: Optional[QuerySet] = None) -> AutomationWorkflow:
+    def get_workflow(
+        self, workflow_id: int, base_queryset: Optional[QuerySet] = None
+    ) -> AutomationWorkflow:
         """
         Gets a AutomationWorkflow by its ID.
 
@@ -34,11 +38,15 @@ class AutomationWorkflowHandler:
             base_queryset = AutomationWorkflow.objects
 
         try:
-            return base_queryset.select_related("automation__automationworkflow").get(id=workflow_id)
+            return base_queryset.select_related("automation__automationworkflow").get(
+                id=workflow_id
+            )
         except AutomationWorkflow.DoesNotExist:
             raise AutomationWorkflowDoesNotExist()
 
-    def get_workflows(self, automation: Automation, base_queryset: Optional[QuerySet] = None) -> QuerySet:
+    def get_workflows(
+        self, automation: Automation, base_queryset: Optional[QuerySet] = None
+    ) -> QuerySet:
         """
         Returns all the AutomationWorkflows in the provided automation.
         """
@@ -75,12 +83,15 @@ class AutomationWorkflowHandler:
 
         workflow.delete()
 
-    def update_workflow(self, workflow: AutomationWorkflow, **kwargs) -> AutomationWorkflow:
+    def update_workflow(
+        self, workflow: AutomationWorkflow, **kwargs
+    ) -> AutomationWorkflow:
         """
         Updates fields of the provided AutomationWorkflow.
 
         :param workflow: The AutomationWorkflow that should be updated.
-        :param kwargs: The fields that should be updated with their corresponding values.
+        :param kwargs: The fields that should be updated with their
+            corresponding values.
         :return: The updated AutomationWorkflow.
         """
 
@@ -96,13 +107,14 @@ class AutomationWorkflowHandler:
     ) -> List[int]:
         """
         Assigns a new order to the workflows in an Automation application.
-        
+
         A base_qs can be provided to pre-filter the workflows affected by this change.
 
         :param automation: The Automation that the workflows belong to.
         :param order: The new order of the workflows.
         :param base_qs: A QS that can have filters already applied.
-        :raises AutomationWorkflowNotInAutomation: If the workflow is not part of the provided automation.
+        :raises AutomationWorkflowNotInAutomation: If the workflow is not part of the
+            provided automation.
         :return: The new order of the workflows.
         """
 
@@ -115,14 +127,18 @@ class AutomationWorkflowHandler:
             raise AutomationWorkflowNotInAutomation(error.not_existing_id)
 
     def duplicate_workflow(
-        self, workflow: AutomationWorkflow, progress_automation: Optional[ChildProgressBuilder] = None
+        self,
+        workflow: AutomationWorkflow,
+        progress_automation: Optional[ChildProgressBuilder] = None,
     ):
         """
         Duplicates an existing AutomationWorkflow instance.
 
         :param workflow: The AutomationWorkflow that is being duplicated.
-        :param progress_automation: A progress object that can be used to report progress.
-        :raises ValueError: When the provided workflow is not an instance of AutomationWorkflow.
+        :param progress_automation: A progress object that can be used to
+            report progress.
+        :raises ValueError: When the provided workflow is not an instance of
+            AutomationWorkflow.
         :return: The duplicated workflow
         """
 
@@ -135,7 +151,9 @@ class AutomationWorkflowHandler:
         exported_workflow = self.export_workflow(workflow)
 
         # Set a unique name for the workflow to import back as a new one.
-        exported_workflow["name"] = self.find_unused_workflow_name(automation, workflow.name)
+        exported_workflow["name"] = self.find_unused_workflow_name(
+            automation, workflow.name
+        )
         exported_workflow["order"] = AutomationWorkflow.get_last_order(automation)
 
         progress.increment(by=export_progress)
@@ -152,7 +170,9 @@ class AutomationWorkflowHandler:
 
         return new_workflow_clone
 
-    def find_unused_workflow_name(self, automation: Automation, proposed_name: str) -> str:
+    def find_unused_workflow_name(
+        self, automation: Automation, proposed_name: str
+    ) -> str:
         """
         Finds an unused name for a workflow in an automation.
 
@@ -161,8 +181,12 @@ class AutomationWorkflowHandler:
         :return: A unique name to use.
         """
 
-        existing_workflow_names = list(automation.workflows.values_list("name", flat=True))
-        return find_unused_name([proposed_name], existing_workflow_names, max_length=WORKFLOW_NAME_MAX_LEN)
+        existing_workflow_names = list(
+            automation.workflows.values_list("name", flat=True)
+        )
+        return find_unused_name(
+            [proposed_name], existing_workflow_names, max_length=WORKFLOW_NAME_MAX_LEN
+        )
 
     def export_workflow(
         self,
@@ -209,7 +233,8 @@ class AutomationWorkflowHandler:
         """
         Import multiple workflows at once.
 
-        :param automation: The Automation instance the new workflow should belong to.
+        :param automation: The Automation instance the new workflow should
+            belong to.
         :param serialized_workflows: The serialized version of the workflows.
         :param id_mapping: A map of old->new id per data type
             when we have foreign keys that need to be migrated.
@@ -221,7 +246,9 @@ class AutomationWorkflowHandler:
         if cache is None:
             cache = {}
 
-        child_total = sum(self._ops_count_for_import_workflow(w) for w in serialized_workflows)
+        child_total = sum(
+            self._ops_count_for_import_workflow(w) for w in serialized_workflows
+        )
         progress = ChildProgressBuilder.build(progress, child_total=child_total)
 
         imported_workflows = []
@@ -253,8 +280,10 @@ class AutomationWorkflowHandler:
         Creates an instance of AutomationWorkflow using the serialized version
         previously exported with `.export_workflow'.
 
-        :param automation: The Automation instance the new workflow should belong to.
-        :param serialized_workflow: The serialized version of the AutomationWorkflow.
+        :param automation: The Automation instance the new workflow should
+            belong to.
+        :param serialized_workflow: The serialized version of the
+            AutomationWorkflow.
         :param id_mapping: A map of old->new id per data type
             when we have foreign keys that need to be migrated.
         :param files_zip: Contains files to import if any.
@@ -290,7 +319,9 @@ class AutomationWorkflowHandler:
             order=serialized_workflow["order"],
         )
 
-        id_mapping["automation_workflows"][serialized_workflow["id"]] = workflow_instance.id
+        id_mapping["automation_workflows"][
+            serialized_workflow["id"]
+        ] = workflow_instance.id
 
         progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 

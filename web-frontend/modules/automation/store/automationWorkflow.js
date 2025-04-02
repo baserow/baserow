@@ -90,14 +90,10 @@ const actions = {
 
     commit('DELETE_ITEM', { automation, id: workflow.id })
   },
-  async create(
-    { commit, dispatch },
-    { automation, name }
-  ) {
-    const { data: workflow } = await AutomationWorkflowService(this.$client).create(
-      automation.id,
-      name,
-    )
+  async create({ commit, dispatch }, { automation, name }) {
+    const { data: workflow } = await AutomationWorkflowService(
+      this.$client
+    ).create(automation.id, name)
 
     commit('ADD_ITEM', { automation, workflow })
 
@@ -106,7 +102,10 @@ const actions = {
     return workflow
   },
   async update({ dispatch }, { automation, workflow, values }) {
-    const { data } = await AutomationWorkflowService(this.$client).update(workflow.id, values)
+    const { data } = await AutomationWorkflowService(this.$client).update(
+      workflow.id,
+      values
+    )
 
     const update = Object.keys(values).reduce((result, key) => {
       result[key] = data[key]
@@ -134,7 +133,9 @@ const actions = {
     }
   },
   async duplicate({ commit, dispatch }, { workflow }) {
-    const { data: job } = await AutomationWorkflowService(this.$client).duplicate(workflow.id)
+    const { data: job } = await AutomationWorkflowService(
+      this.$client
+    ).duplicate(workflow.id)
 
     await dispatch('job/create', job, { root: true })
 
@@ -147,9 +148,7 @@ const getters = {
     return [...automation.workflows]
   },
   getOrderedWorkflows: (state, getters) => (automation) => {
-    return getters
-      .getWorkflows(automation)
-      .sort((a, b) => a.order - b.order)
+    return getters.getWorkflows(automation).sort((a, b) => a.order - b.order)
   },
   getById: (state, getters) => (automation, workflowId) => {
     const index = getters

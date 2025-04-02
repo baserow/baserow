@@ -83,7 +83,7 @@ export default {
     }),
     orderedWorkflows() {
       return this.getOrderedWorkflows(this.application)
-    }
+    },
   },
   methods: {
     async selected(application) {

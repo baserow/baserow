@@ -4,7 +4,6 @@ from baserow.contrib.automation.models import AutomationWorkflow
 
 
 class AutomationWorkflowSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = AutomationWorkflow
         fields = (
@@ -21,7 +20,6 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
 
 
 class CreateAutomationWorkflowSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = AutomationWorkflow
         fields = ("name",)

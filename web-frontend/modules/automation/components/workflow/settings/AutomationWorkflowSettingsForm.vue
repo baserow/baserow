@@ -29,9 +29,7 @@
 import { useVuelidate } from '@vuelidate/core'
 import { maxLength, required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
-import {
-  getNextAvailableNameInSequence,
-} from '@baserow/modules/core/utils/string'
+import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'AutomationWorkflowSettingsForm',
@@ -80,7 +78,9 @@ export default {
       return getNextAvailableNameInSequence(baseName, this.workflowNames)
     },
     workflows() {
-      return this.$store.getters['automationWorkflow/getWorkflows'](this.automation)
+      return this.$store.getters['automationWorkflow/getWorkflows'](
+        this.automation
+      )
     },
     workflowNames() {
       return this.workflows.map((workflow) => workflow.name)

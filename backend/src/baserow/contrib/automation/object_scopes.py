@@ -1,12 +1,11 @@
 from django.db.models import Q, QuerySet
 
+from baserow.contrib.automation.models import Automation
 from baserow.core.object_scopes import (
     ApplicationObjectScopeType,
     WorkspaceObjectScopeType,
 )
 from baserow.core.registries import ObjectScopeType, object_scope_type_registry
-
-from baserow.contrib.automation.models import Automation
 
 
 class AutomationObjectScopeType(ObjectScopeType):

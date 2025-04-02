@@ -2,7 +2,7 @@ export default (client) => {
   return {
     create(automationId, name) {
       return client.post(`automation/${automationId}/workflows/`, {
-        name
+        name,
       })
     },
     update(workflowId, values) {

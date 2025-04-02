@@ -62,7 +62,8 @@ export class AutomationApplicationType extends ApplicationType {
   async select(application) {
     const { router, store, i18n } = this.app
 
-    const workflows = store.getters['automationWorkflow/getWorkflows'](application)
+    const workflows =
+      store.getters['automationWorkflow/getWorkflows'](application)
 
     if (workflows.length > 0) {
       await router.push({
@@ -81,7 +82,6 @@ export class AutomationApplicationType extends ApplicationType {
       return false
     }
   }
-
 
   isBeta() {
     return true

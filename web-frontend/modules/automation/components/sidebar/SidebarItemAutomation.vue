@@ -26,11 +26,17 @@
     </a>
 
     <Context ref="context" overflow-scroll max-height-if-outside-viewport>
-      <div class="context__menu-title">{{ workflow.name }} ({{ workflow.id }})</div>
+      <div class="context__menu-title">
+        {{ workflow.name }} ({{ workflow.id }})
+      </div>
       <ul class="context__menu">
         <li
           v-if="
-            $hasPermission('automation.workflow.update', workflow, automation.workspace.id)
+            $hasPermission(
+              'automation.workflow.update',
+              workflow,
+              automation.workspace.id
+            )
           "
           class="context__menu-item"
         >
@@ -41,7 +47,11 @@
         </li>
         <li
           v-if="
-            $hasPermission('automation.workflow.duplicate', workflow, automation.workspace.id)
+            $hasPermission(
+              'automation.workflow.duplicate',
+              workflow,
+              automation.workspace.id
+            )
           "
           class="context__menu-item"
         >
@@ -59,7 +69,11 @@
         </li>
         <li
           v-if="
-            $hasPermission('automation.workflow.delete', workflow, automation.workspace.id)
+            $hasPermission(
+              'automation.workflow.delete',
+              workflow,
+              automation.workspace.id
+            )
           "
           class="context__menu-item context__menu-item--with-separator"
         >
@@ -79,7 +93,6 @@
 
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { onMounted } from 'vue'
 import { mapGetters } from 'vuex'
 
 export default {
@@ -208,7 +221,9 @@ export default {
       this.duplicateLoading = true
 
       try {
-        await this.$store.dispatch('automationWorkflow/duplicate', { workflow: this.workflow })
+        await this.$store.dispatch('automationWorkflow/duplicate', {
+          workflow: this.workflow,
+        })
       } catch (error) {
         notifyIf(error, 'automationWorkflow')
       }

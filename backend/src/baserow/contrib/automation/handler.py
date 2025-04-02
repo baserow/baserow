@@ -1,5 +1,5 @@
-from baserow.core.handler import CoreHandler
 from baserow.contrib.automation.models import Automation
+from baserow.core.handler import CoreHandler
 
 
 class AutomationHandler:

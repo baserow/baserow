@@ -50,13 +50,16 @@ export default {
     }
   },
   methods: {
-    async addWorkflow({name}) {
+    async addWorkflow({ name }) {
       this.loading = true
       try {
-        const workflow = await this.$store.dispatch('automationWorkflow/create', {
-          automation: this.automation,
-          name,
-        })
+        const workflow = await this.$store.dispatch(
+          'automationWorkflow/create',
+          {
+            automation: this.automation,
+            name,
+          }
+        )
         console.log('created workflow: ', workflow)
         this.$refs.automationWorkflowForm.v$.$reset()
         this.hide()

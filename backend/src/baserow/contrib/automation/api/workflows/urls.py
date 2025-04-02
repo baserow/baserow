@@ -1,8 +1,6 @@
 from django.urls import re_path
 
-from baserow.contrib.automation.api.workflows.views import (
-    WorkflowsView,
-)
+from baserow.contrib.automation.api.workflows.views import WorkflowsView
 
 app_name = "baserow.contrib.automation.api.workflows"
 

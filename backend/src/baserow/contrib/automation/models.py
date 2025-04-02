@@ -1,5 +1,5 @@
-from baserow.core.models import Application
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.core.models import Application
 
 __all__ = [
     "Automation",

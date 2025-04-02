@@ -38,7 +38,10 @@ export default {
         automation.workspace.id
       )
 
-      const workflow = store.getters['automationWorkflow/getById'](automation, workflowId)
+      const workflow = store.getters['automationWorkflow/getById'](
+        automation,
+        workflowId
+      )
 
       await store.dispatch('automationWorkflow/selectById', {
         automation,
@@ -48,7 +51,6 @@ export default {
       data.workspace = workspace
       data.automation = automation
       data.currentWorkflow = workflow
-
     } catch (e) {
       // TODO: replace with translation
       return error({ statusCode: 404, message: 'Automation not found.' })

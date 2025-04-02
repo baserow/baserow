@@ -2,12 +2,9 @@ from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
-from baserow.core.handler import CoreHandler
-from baserow.core.utils import ChildProgressBuilder, extract_allowed
-
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.operations import OrderAutomationWorkflowsOperationType
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.operations import (
     CreateWorkflowOperationType,
     DeleteWorkflowOperationType,
@@ -21,6 +18,8 @@ from baserow.contrib.automation.workflows.signals import (
     workflow_updated,
     workflows_reordered,
 )
+from baserow.core.handler import CoreHandler
+from baserow.core.utils import ChildProgressBuilder, extract_allowed
 
 
 class AutomationWorkflowService:
@@ -94,9 +93,13 @@ class AutomationWorkflowService:
 
         self.handler.delete_workflow(workflow)
 
-        workflow_deleted.send(self, automation=workflow.automation, workflow_id=workflow_id, user=user)
+        workflow_deleted.send(
+            self, automation=workflow.automation, workflow_id=workflow_id, user=user
+        )
 
-    def update_workflow(self, user: AbstractUser, workflow: AutomationWorkflow, **kwargs) -> AutomationWorkflow:
+    def update_workflow(
+        self, user: AbstractUser, workflow: AutomationWorkflow, **kwargs
+    ) -> AutomationWorkflow:
         """
         Updates fields of a workflow.
 
@@ -156,7 +159,9 @@ class AutomationWorkflowService:
 
         full_order = self.handler.order_workflows(automation, order, user_workflows)
 
-        workflows_reordered.send(self, automation=automation, order=full_order, user=user)
+        workflows_reordered.send(
+            self, automation=automation, order=full_order, user=user
+        )
 
         return full_order
 
@@ -171,13 +176,18 @@ class AutomationWorkflowService:
 
         :param user: The user initiating the workflow duplication.
         :param workflow: The workflow that is being duplicated.
-        :param progress: A ChildProgressBuilder instance that can be used to report progress.
-        :raises ValueError: When the provided workflow is not an instance of AutomationWorkflow.
+        :param progress: A ChildProgressBuilder instance that can be used to
+            report progress.
+        :raises ValueError: When the provided workflow is not an instance of
+            AutomationWorkflow.
         :return: The duplicated workflow.
         """
 
         CoreHandler().check_permissions(
-            user, DuplicateWorkflowOperationType.type, workflow.automation.workspace, context=workflow
+            user,
+            DuplicateWorkflowOperationType.type,
+            workflow.automation.workspace,
+            context=workflow,
         )
 
         workflow_clone = self.handler.duplicate_workflow(workflow, progress)
