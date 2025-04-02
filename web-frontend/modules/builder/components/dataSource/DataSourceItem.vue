@@ -10,7 +10,13 @@
       :subtitle="subtitle"
       :rounded-icon="false"
       :avatar-color="isInError ? 'red' : 'neutral'"
-      @click="$emit('edit', dataSource)"
+      @click="
+        $hasPermission(
+          'builder.page.data_source.update',
+          dataSource,
+          workspace.id
+        ) && $emit('edit', dataSource)
+      "
     />
     <div
       v-if="
