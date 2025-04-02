@@ -16,7 +16,9 @@ def sync_single_default_template_only_for_e2e(sender, **kwargs):
 
     from baserow.core.handler import CoreHandler
 
-    CoreHandler().sync_templates(pattern=f"^{settings.DEFAULT_APPLICATION_TEMPLATE}$")
+    pattern = f"^({'|'.join(settings.DEFAULT_APPLICATION_TEMPLATES)})$"
+
+    CoreHandler().sync_templates(pattern=pattern)
 
 
 # Disable normal template syncing in CI as we will sync a single template ourselves

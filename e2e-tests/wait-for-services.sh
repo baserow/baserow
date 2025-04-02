@@ -5,7 +5,7 @@ set -Eeo pipefail
 # to become healthy.
 
 # Keep in sync with src/baserow/config/settings/base.py:594
-DEFAULT_APPLICATION_TEMPLATE="project-tracker"
+DEFAULT_APPLICATION_TEMPLATES=("project-tracker" "ab_ivory_theme")
 
 baserow_ready() {
     curlf() {
@@ -19,11 +19,13 @@ baserow_ready() {
 
     templates_ready(){
       TEMPLATES_JSON=$(curl --silent --max-time 10 "${PUBLIC_BACKEND_URL:-http://backend:8000}/api/templates/")
-      if [[ ${TEMPLATES_JSON} == *"$DEFAULT_APPLICATION_TEMPLATE"* ]] ; then
-        return 0
-      fi
-      echo "Template $DEFAULT_APPLICATION_TEMPLATE is missing..."
-      return 22
+      for template in "${DEFAULT_APPLICATION_TEMPLATES[@]}"; do
+        if [[ ${TEMPLATES_JSON} != *"$template"* ]] ; then
+          echo "Template $template is missing..."
+          return 22
+        fi
+      done
+      return 0
     }
 
     if curlf "${PUBLIC_WEB_FRONTEND_URL:-http://web-frontend:3000}/_health/" && curlf "${PUBLIC_BACKEND_URL:-http://backend:8000}/api/_health/" && templates_ready; then

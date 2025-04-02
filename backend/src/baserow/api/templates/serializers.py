@@ -33,7 +33,7 @@ class TemplateSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_is_default(self, instance):
-        return instance.slug == settings.DEFAULT_APPLICATION_TEMPLATE
+        return instance.slug == settings.DEFAULT_APPLICATION_TEMPLATES[0]
 
 
 class TemplateCategoriesSerializer(serializers.ModelSerializer):
