@@ -4,7 +4,7 @@ from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import quote
 
-from django.db import connection
+from django.db import InternalError, connection
 from django.shortcuts import reverse
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
@@ -287,7 +287,7 @@ def test_list_rows(api_client, data_fixture):
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     get_params = [f"filter__field_9999999__contains=last"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -298,7 +298,7 @@ def test_list_rows(api_client, data_fixture):
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     get_params = [f"filter__field_{field_4.id}__contains=100"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -309,7 +309,7 @@ def test_list_rows(api_client, data_fixture):
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     get_params = [f"filter__field_{field_2.id}__INVALID=100"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -324,7 +324,7 @@ def test_list_rows(api_client, data_fixture):
         f"filter__field_{field_2.id}__equal=200",
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -341,7 +341,7 @@ def test_list_rows(api_client, data_fixture):
         "filter_type=or",
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -359,7 +359,7 @@ def test_list_rows(api_client, data_fixture):
         "filter_type=or",
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -501,7 +501,7 @@ def test_list_rows_adhoc_filtering_query_param_null_character(api_client, data_f
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     get_params = [f"filter__field_{text_field.id}__contains={str_with_null_character}"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -541,7 +541,7 @@ def test_list_rows_user_field_names(api_client, data_fixture):
         "filter_type=or",
     ]
     response = api_client.get(
-        f'{url}?user_field_names=true&{"&".join(get_params)}',
+        f"{url}?user_field_names=true&{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -560,7 +560,7 @@ def test_list_rows_user_field_names(api_client, data_fixture):
         "filter_type=or",
     ]
     response = api_client.get(
-        f'{url}?user_field_names=true&{"&".join(get_params)}',
+        f"{url}?user_field_names=true&{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -578,7 +578,7 @@ def test_list_rows_user_field_names(api_client, data_fixture):
         "filter_type=or",
     ]
     response = api_client.get(
-        f'{url}?user_field_names=true&{"&".join(get_params)}',
+        f"{url}?user_field_names=true&{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -595,7 +595,7 @@ def test_list_rows_user_field_names(api_client, data_fixture):
         "filter_type=or",
     ]
     response = api_client.get(
-        f'{url}?user_field_names=true&{"&".join(get_params)}',
+        f"{url}?user_field_names=true&{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -709,7 +709,7 @@ def test_list_rows_filter_filters_query_param(data_fixture, api_client):
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
 
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -762,7 +762,7 @@ def test_list_rows_filter_filters_query_param_with_user_field_names(
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
 
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -2029,6 +2029,30 @@ def test_create_row_with_blank_decimal_field(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_row_deadlock(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="", read_only=False
+    )
+
+    with patch(
+        "baserow.contrib.database.rows.handler.RowHandler.force_create_row"
+    ) as mock_force_create_row:
+        mock_force_create_row.side_effect = InternalError("Test")
+        response = api_client.post(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+            {f"field_{text_field.id}": "Green"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION"
+
+
+@pytest.mark.django_db
 def test_get_row(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -2407,6 +2431,37 @@ def test_update_row(api_client, data_fixture):
     assert getattr(row_2, f"field_{boolean_field.id}") is False
 
 
+@pytest.mark.django_db
+def test_update_row_deadlock(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="", read_only=False
+    )
+
+    model = table.get_model()
+    row_1 = model.objects.create()
+
+    url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+    with patch(
+        "baserow.contrib.database.rows.handler.RowHandler.force_update_rows"
+    ) as mock_force_update_rows:
+        mock_force_update_rows.side_effect = InternalError("Test")
+        response = api_client.patch(
+            url,
+            {
+                f"field_{text_field.id}": "Green",
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION"
+
+
 @pytest.mark.django_db(transaction=True)
 def test_update_row_with_disabled_webhook_events(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
@@ -2623,6 +2678,31 @@ def test_move_row(api_client, data_fixture):
     )
 
 
+@pytest.mark.django_db
+def test_move_row_deadlock(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    handler = RowHandler()
+    row_1 = handler.create_row(user=user, table=table)
+    row_2 = handler.create_row(user=user, table=table)
+
+    url = reverse(
+        "api:database:rows:move", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+    with patch(
+        "baserow.contrib.database.rows.handler.RowHandler.move_row"
+    ) as mock_move_row:
+        mock_move_row.side_effect = InternalError("Test")
+        response = api_client.patch(
+            f"{url}?before_id={row_2.id}",
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION"
+
+
 @pytest.mark.django_db(transaction=True)
 def test_move_row_with_disabled_webhook_events(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
@@ -2782,6 +2862,31 @@ def test_delete_row_by_id_with_disabled_webhook_events(api_client, data_fixture)
         )
         assert response.status_code == HTTP_204_NO_CONTENT
         m.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_delete_row_deadlock(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="", read_only=False
+    )
+
+    model = table.get_model()
+    row_1 = model.objects.create()
+
+    url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+    with patch(
+        "baserow.contrib.database.rows.handler.RowHandler.delete_row"
+    ) as mock_delete_row:
+        mock_delete_row.side_effect = InternalError("Test")
+        response = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {jwt_token}")
+
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION"
 
 
 @pytest.mark.django_db

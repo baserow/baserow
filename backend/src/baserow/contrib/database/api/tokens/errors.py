@@ -20,3 +20,9 @@ ERROR_CANNOT_INCLUDE_ROW_METADATA = (
     HTTP_400_BAD_REQUEST,
     "The token cannot include row metadata.",
 )
+
+ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION = (
+    "ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION",
+    HTTP_400_BAD_REQUEST,
+    "The database failed to commit the transaction.",
+)

@@ -542,7 +542,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             WITH ordered AS ({sql})
             SELECT id FROM ordered
             WHERE row_nr = (SELECT row_nr FROM ordered WHERE id = %s)
-            {'-' if previous else '+'} 1
+            {"-" if previous else "+"} 1
         """  # nosec B608
 
         return table_model.objects.filter(
@@ -1047,6 +1047,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 database_id_prefilter=table.database_id,
             )
         )
+
         deleted_m2m_rels_per_link_field = None
         if m2m_change_tracker is not None:
             deleted_m2m_rels_per_link_field = (

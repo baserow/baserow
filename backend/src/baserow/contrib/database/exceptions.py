@@ -1,3 +1,5 @@
+from django.db.utils import InternalError
+
 from baserow.core.exceptions import MaxLocksPerTransactionExceededException
 
 
@@ -19,3 +21,11 @@ class DatabaseSnapshotMaxLocksExceededException(
         "number of PostgreSQL locks per transaction. Please read "
         "https://baserow.io/docs/technical/postgresql-locks"
     )
+
+
+class FailedToCommitTransactionException(InternalError):
+    """
+    Raised when a database operation fails due to an internal error.
+    """
+
+    message = "The database failed to commit the transaction."
