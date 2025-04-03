@@ -1030,6 +1030,10 @@
     "nameSubtitle": "Unique name of the workflow",
     "namePlaceholder": "Enter a name..."
   },
+  "duplicateAutomationWorkflowJobType": {
+    "duplicating": "Duplicating",
+    "duplicatedTitle": "Workflow duplicated"
+  },
   "automationWorkflowErrors": {
     "errorNameNotUnique": "A workflow with this name already exists"
   }

@@ -11,6 +11,7 @@ import { registerRealtimeEvents } from '@baserow/modules/automation/realtime'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import automationApplicationStore from '@baserow/modules/automation/store/automationApplication'
 import automationWorkflowStore from '@baserow/modules/automation/store/automationWorkflow'
+import { DuplicateAutomationWorkflowJobType } from '@baserow/modules/automation/jobTypes'
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
@@ -43,5 +44,6 @@ export default (context) => {
       'application',
       new AutomationApplicationType(context)
     )
+    app.$registry.register('job', new DuplicateAutomationWorkflowJobType(context))
   }
 }

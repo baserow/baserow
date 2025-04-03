@@ -1,6 +1,7 @@
 from django.urls import re_path
 
 from baserow.contrib.automation.api.workflows.views import (
+    AsyncDuplicateWorkflowView,
     OrderWorkflowsView,
     WorkflowsView,
     WorkflowView,
@@ -20,5 +21,10 @@ urlpatterns_with_automation_id = [
 urlpatterns_without_automation_id = [
     re_path(
         r"(?P<workflow_id>[0-9]+)/$", WorkflowView.as_view(), name="automation_workflow"
+    ),
+    re_path(
+        r"(?P<workflow_id>[0-9]+)/duplicate/async/$",
+        AsyncDuplicateWorkflowView.as_view(),
+        name="async_duplicate",
     ),
 ]

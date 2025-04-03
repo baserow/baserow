@@ -7,6 +7,7 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.status import HTTP_202_ACCEPTED
 
 from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.decorators import map_exceptions, validate_body
@@ -28,8 +29,17 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInBuilder,
 )
+from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
+from baserow.core.jobs.exceptions import MaxJobCountExceeded
+from baserow.contrib.automation.workflows.job_types import DuplicateAutomationWorkflowJobType
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.exceptions import ApplicationDoesNotExist
+from baserow.core.jobs.handler import JobHandler
+from baserow.core.jobs.registries import job_type_registry
+from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
+from baserow.api.jobs.serializers import JobSerializer
+
+AUTOMATION_WORKFLOWS_TAG = "Automation workflows"
 
 
 class WorkflowsView(APIView):
@@ -45,7 +55,7 @@ class WorkflowsView(APIView):
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
-        tags=["Automation workflows"],
+        tags=[AUTOMATION_WORKFLOWS_TAG],
         operation_id="create_automation_workflow",
         description="Creates a new Automation Workflow.",
         request=CreateAutomationWorkflowSerializer,
@@ -92,7 +102,7 @@ class WorkflowView(APIView):
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
-        tags=["Automation workflows"],
+        tags=[AUTOMATION_WORKFLOWS_TAG],
         operation_id="update_automation_workflow",
         description="Updates an existing workflow of an automation.",
         request=UpdateAutomationWorkflowSerializer,
@@ -105,7 +115,7 @@ class WorkflowView(APIView):
                 ]
             ),
             404: get_error_schema(
-                ["ERROR_PAGE_DOES_NOT_EXIST", "ERROR_APPLICATION_DOES_NOT_EXIST"]
+                ["ERROR_WORKFLOW_DOES_NOT_EXIST", "ERROR_APPLICATION_DOES_NOT_EXIST"]
             ),
         },
     )
@@ -136,13 +146,13 @@ class WorkflowView(APIView):
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
-        tags=["Automation workflows"],
+        tags=[AUTOMATION_WORKFLOWS_TAG],
         operation_id="delete_automation_workflow",
         description="Deletes an existing workflow of an automation.",
         responses={
             204: None,
             400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
-            404: get_error_schema(["ERROR_PAGE_DOES_NOT_EXIST"]),
+            404: get_error_schema(["ERROR_WORKFLOW_DOES_NOT_EXIST"]),
         },
     )
     @transaction.atomic
@@ -171,7 +181,7 @@ class OrderWorkflowsView(APIView):
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
-        tags=["Automation workflows"],
+        tags=[AUTOMATION_WORKFLOWS_TAG],
         operation_id="order_automation_workflows",
         description="Apply a new order to the workflows of an automation.",
         request=OrderAutomationWorkflowsSerializer,
@@ -184,7 +194,7 @@ class OrderWorkflowsView(APIView):
                 ]
             ),
             404: get_error_schema(
-                ["ERROR_APPLICATION_DOES_NOT_EXIST", "ERROR_PAGE_DOES_NOT_EXIST"]
+                ["ERROR_APPLICATION_DOES_NOT_EXIST", "ERROR_WORKFLOW_DOES_NOT_EXIST"]
             ),
         },
     )
@@ -205,3 +215,53 @@ class OrderWorkflowsView(APIView):
         )
 
         return Response(status=204)
+
+
+class AsyncDuplicateWorkflowView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workflow_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The workflow to duplicate.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=[AUTOMATION_WORKFLOWS_TAG],
+        operation_id="duplicate_automation_workflow_async",
+        description=(
+            "Start a job to duplicate the workflow with the provided "
+            "`workflow_id` parameter if the authorized user has access to the "
+            "automation's workspace."
+        ),
+        request=None,
+        responses={
+            202: DuplicateAutomationWorkflowJobType().response_serializer_class,
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_MAX_JOB_COUNT_EXCEEDED",
+                ]
+            ),
+            404: get_error_schema(["ERROR_WORKFLOW_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationWorkflowDoesNotExist: ERROR_WORKFLOW_DOES_NOT_EXIST,
+            MaxJobCountExceeded: ERROR_MAX_JOB_COUNT_EXCEEDED,
+        }
+    )
+    def post(self, request, workflow_id):
+        """Creates a job to duplicate a workflow in an automation."""
+
+        job = JobHandler().create_and_start_job(
+            request.user, DuplicateAutomationWorkflowJobType.type, workflow_id=workflow_id
+        )
+
+        serializer = job_type_registry.get_serializer(job, JobSerializer)
+        return Response(serializer.data, status=HTTP_202_ACCEPTED)

@@ -60,17 +60,16 @@ export default {
             name,
           }
         )
-        console.log('created workflow: ', workflow)
         this.$refs.automationWorkflowForm.v$.$reset()
         this.hide()
-        // this.$router.push(
-        //   {
-        //     name: 'builder-page',
-        //     params: { builderId: this.builder.id, pageId: page.id },
-        //   },
-        //   null,
-        //   () => {}
-        // )
+        this.$router.push(
+          {
+            name: 'automation-workflow',
+            params: { automationId: this.automation.id, workflowId: workflow.id },
+          },
+          null,
+          () => {}
+        )
       } catch (error) {
         notifyIf(error, 'application')
       }

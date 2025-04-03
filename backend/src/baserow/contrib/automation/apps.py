@@ -7,6 +7,13 @@ class AutomationConfig(AppConfig):
     name = "baserow.contrib.automation"
 
     def ready(self):
+        from baserow.core.registries import (
+            application_type_registry,
+            object_scope_type_registry,
+            operation_type_registry,
+        )
+        from baserow.core.jobs.registries import job_type_registry
+
         from baserow.contrib.automation.application_types import (
             AutomationApplicationType,
         )
@@ -24,11 +31,7 @@ class AutomationConfig(AppConfig):
             ReadWorkflowOperationType,
             UpdateWorkflowOperationType,
         )
-        from baserow.core.registries import (
-            application_type_registry,
-            object_scope_type_registry,
-            operation_type_registry,
-        )
+        from baserow.contrib.automation.workflows.job_types import DuplicateAutomationWorkflowJobType
 
         if feature_flag_is_enabled(FF_AUTOMATION):
             application_type_registry.register(AutomationApplicationType())
@@ -42,3 +45,5 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(ReadWorkflowOperationType())
             operation_type_registry.register(UpdateWorkflowOperationType())
             operation_type_registry.register(OrderAutomationWorkflowsOperationType())
+
+            job_type_registry.register(DuplicateAutomationWorkflowJobType())

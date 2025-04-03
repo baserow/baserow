@@ -169,15 +169,15 @@ class AutomationWorkflowService:
         self,
         user: AbstractUser,
         workflow: AutomationWorkflow,
-        progress: Optional[ChildProgressBuilder] = None,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> AutomationWorkflow:
         """
         Duplicates an existing AutomationWorkflow instance.
 
         :param user: The user initiating the workflow duplication.
         :param workflow: The workflow that is being duplicated.
-        :param progress: A ChildProgressBuilder instance that can be used to
-            report progress.
+        :param progress_builder: A ChildProgressBuilder instance that can be
+            used to report progress.
         :raises ValueError: When the provided workflow is not an instance of
             AutomationWorkflow.
         :return: The duplicated workflow.
@@ -190,7 +190,7 @@ class AutomationWorkflowService:
             context=workflow,
         )
 
-        workflow_clone = self.handler.duplicate_workflow(workflow, progress)
+        workflow_clone = self.handler.duplicate_workflow(workflow, progress_builder)
 
         workflow_created.send(self, workflow=workflow_clone, user=user)
 

@@ -1,9 +1,10 @@
-from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.automation.workflows.models import AutomationWorkflow, DuplicateWorkflowAutomationJob
 from baserow.core.models import Application
 
 __all__ = [
     "Automation",
     "AutomationWorkflow",
+    "DuplicateWorkflowAutomationJob",
 ]
 
 
