@@ -1,4 +1,4 @@
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -9,6 +9,9 @@ from baserow.contrib.automation.workflows.serializers import (
     AutomationWorkflowSerializer,
 )
 from baserow.core.handler import CoreHandler
+
+if TYPE_CHECKING:
+    from baserow.contrib.automation.application_types import AutomationApplicationType
 
 
 class AutomationSerializer(serializers.ModelSerializer):
@@ -36,19 +39,15 @@ class AutomationSerializer(serializers.ModelSerializer):
         :return: A list of serialized workflows that belong to this instance.
         """
 
-        workflows = instance.workflows.all()
-        user = self.context.get("user")
-        request = self.context.get("request")
+        workflows = getattr(instance, "workflows", None)
+        if workflows is None:
+            ctx = self.context
+            user = ctx.get("user", None)
+            request = ctx.get("request")
+            if user is None and hasattr(request, "user"):
+                user = request.user if request.user.is_authenticated else None
 
-        if user is None and hasattr(request, "user"):
-            user = request.user
-
-        if user:
-            workflows = CoreHandler().filter_queryset(
-                user,
-                ListAutomationWorkflowsOperationType.type,
-                workflows,
-                workspace=instance.workspace,
-            )
-
+            automation_type: "AutomationApplicationType" = instance.get_type()
+            workflows = automation_type.fetch_workflows_to_serialize(instance, user)
+        
         return AutomationWorkflowSerializer(workflows, many=True).data

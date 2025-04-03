@@ -41,7 +41,9 @@ export class DuplicateAutomationWorkflowJobType extends JobType {
     const { i18n, store } = this.app
 
     const duplicatedWorkflow = job.duplicated_automation_workflow
-    const automation = store.getters['application/get'](duplicatedWorkflow.automation_id)
+    const automation = store.getters['application/get'](
+      duplicatedWorkflow.automation_id
+    )
 
     await store.dispatch('automationWorkflow/forceCreate', {
       automation,

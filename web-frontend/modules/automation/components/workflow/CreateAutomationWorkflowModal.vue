@@ -65,7 +65,10 @@ export default {
         this.$router.push(
           {
             name: 'automation-workflow',
-            params: { automationId: this.automation.id, workflowId: workflow.id },
+            params: {
+              automationId: this.automation.id,
+              workflowId: workflow.id,
+            },
           },
           null,
           () => {}

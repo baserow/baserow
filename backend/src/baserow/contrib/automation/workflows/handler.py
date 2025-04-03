@@ -54,8 +54,8 @@ class AutomationWorkflowHandler:
         if base_queryset is None:
             base_queryset = AutomationWorkflow.objects.all()
 
-        return base_queryset.filter(automation=automation).select_related(
-            "automation__automationworkflow"
+        return base_queryset.filter(automation=automation).prefetch_related(
+            "automation__workspace"
         )
 
     def create_workflow(self, automation: Automation, name: str) -> AutomationWorkflow:
@@ -182,7 +182,7 @@ class AutomationWorkflowHandler:
         """
 
         existing_workflow_names = list(
-            automation.workflows.values_list("name", flat=True)
+            automation.automationworkflow_set.values_list("name", flat=True)
         )
         return find_unused_name(
             [proposed_name], existing_workflow_names, max_length=WORKFLOW_NAME_MAX_LEN

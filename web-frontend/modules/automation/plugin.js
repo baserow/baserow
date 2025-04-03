@@ -44,6 +44,9 @@ export default (context) => {
       'application',
       new AutomationApplicationType(context)
     )
-    app.$registry.register('job', new DuplicateAutomationWorkflowJobType(context))
+    app.$registry.register(
+      'job',
+      new DuplicateAutomationWorkflowJobType(context)
+    )
   }
 }

@@ -1,4 +1,10 @@
-from typing import TypedDict
+from typing import TypedDict, List
+
+
+class AutomationWorkflowDict(TypedDict):
+    id: int
+    name: str
+    order: int
 
 
 class AutomationDict(TypedDict):
@@ -6,9 +12,4 @@ class AutomationDict(TypedDict):
     name: str
     order: int
     type: str
-
-
-class AutomationWorkflowDict(TypedDict):
-    id: int
-    name: str
-    order: int
+    workflows: List[AutomationWorkflowDict]

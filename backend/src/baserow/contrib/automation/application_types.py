@@ -1,16 +1,23 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from zipfile import ZipFile
 
+from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import transaction
 from django.db.transaction import Atomic
 from django.urls import include, path
+from django.db.models import Prefetch, QuerySet
 
+from baserow.core.handler import CoreHandler
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.types import AutomationDict
 from baserow.core.models import Application, Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
 from baserow.core.utils import ChildProgressBuilder
+from baserow.contrib.automation.models import AutomationWorkflow
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.automation.constants import IMPORT_SERIALIZED_IMPORTING
+from baserow.contrib.automation.operations import ListAutomationWorkflowsOperationType
 
 
 def lazy_get_instance_serializer_class():
@@ -26,6 +33,8 @@ class AutomationApplicationType(ApplicationType):
         "name",
         "workflows",
     ]
+    allowed_fields = []
+    request_serializer_field_names = []
     serializer_mixins = [lazy_get_instance_serializer_class]
 
     # Builder applications are imported third.
@@ -55,6 +64,20 @@ class AutomationApplicationType(ApplicationType):
         """
 
         self.cache = {}
+
+        handler = AutomationWorkflowHandler()
+        workflows = handler.get_workflows(automation)
+
+        serialized_workflows = [
+            handler.export_workflow(
+                w,
+                files_zip=files_zip,
+                storage=storage,
+                cache=self.cache,
+            )
+            for w in workflows
+        ]
+
         serialized_automation = super().export_serialized(
             automation,
             import_export_config,
@@ -62,6 +85,7 @@ class AutomationApplicationType(ApplicationType):
             storage=storage,
         )
         return AutomationDict(
+            workflows=serialized_workflows,
             **serialized_automation,
         )
 
@@ -79,7 +103,15 @@ class AutomationApplicationType(ApplicationType):
         Imports an automation application exported by the `export_serialized` method.
         """
 
-        progress = ChildProgressBuilder.build(progress_builder, child_total=100)
+        serialized_workflows = serialized_values.pop("workflows")
+
+        (
+            automation_progress,
+            workflow_progress,
+        ) = (20, 80)
+        progress = ChildProgressBuilder.build(
+            progress_builder, child_total=automation_progress + workflow_progress
+        )
 
         application = super().import_serialized(
             workspace,
@@ -91,4 +123,60 @@ class AutomationApplicationType(ApplicationType):
             progress.create_child_builder(represents_progress=100),
         )
 
+        if not serialized_workflows:
+            progress.increment(state=IMPORT_SERIALIZED_IMPORTING, by=workflow_progress)
+        else:
+            AutomationWorkflowHandler().import_workflows(
+                application,
+                serialized_workflows,
+                id_mapping,
+                files_zip,
+                storage,
+                progress.create_child_builder(represents_progress=workflow_progress),
+            )
+
         return application
+
+    def fetch_workflows_to_serialize(
+        self, automation: Application, user: AbstractUser | None
+    ) -> List[AutomationWorkflow]:
+        """
+        Serializes the workflows of the automation application, making sure
+        that the user has the correct permissions to view them if provided.
+
+        :param application: The automation application instance.
+        :param user: The user trying to access the workflows.
+        :return: A list of serialized workflows that belong to this instance.
+        """
+
+        base_queryset = Automation.objects.filter(id=automation.id)
+        if user:
+            instance = self.enhance_and_filter_queryset(
+                base_queryset, user, automation.workspace
+            ).first()
+            return instance and instance.workflows or []
+        else:
+            instance = self.enhance_queryset(base_queryset).first()
+            return instance and list(instance.automationworkflow_set.all()) or []
+    
+    def enhance_queryset(self, queryset):
+        return queryset.prefetch_related("automationworkflow_set")
+
+    def enhance_and_filter_queryset(
+        self,
+        queryset: QuerySet[Automation],
+        user: AbstractUser,
+        workspace: Workspace,
+    ) -> QuerySet[Automation]:
+        return queryset.prefetch_related(
+            Prefetch(
+                "automationworkflow_set",
+                queryset=CoreHandler().filter_queryset(
+                    user,
+                    ListAutomationWorkflowsOperationType.type,
+                    AutomationWorkflow.objects.select_related("automation__workspace").all(),
+                    workspace=workspace,
+                ),
+                to_attr="workflows",
+            ),
+        )

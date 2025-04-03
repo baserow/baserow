@@ -27,12 +27,16 @@ class AutomationWorkflow(
     OrderableMixin,
 ):
     automation = models.ForeignKey(
-        "automation.Automation", on_delete=models.CASCADE, related_name="workflows"
+        "automation.Automation", on_delete=models.CASCADE
     )
 
     name = models.CharField(max_length=WORKFLOW_NAME_MAX_LEN)
 
     order = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ("order",)
+        unique_together = [["automation", "name"]]
 
     def get_parent(self):
         return self.automation
