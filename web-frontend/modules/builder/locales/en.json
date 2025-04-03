@@ -1016,25 +1016,5 @@
     "smile": "Smile",
     "thumbsUp": "Thumbs Up",
     "flag": "Flag"
-  },
-  "sidebarComponentAutomation": {
-    "createAutomationWorkflow": "New workflow"
-  },
-  "createAutomationWorkflowModal": {
-    "header": "Create workflow",
-    "submit": "Add workflow"
-  },
-  "automationWorkflowForm": {
-    "defaultName": "Workflow",
-    "nameTitle": "Name",
-    "nameSubtitle": "Unique name of the workflow",
-    "namePlaceholder": "Enter a name..."
-  },
-  "duplicateAutomationWorkflowJobType": {
-    "duplicating": "Duplicating",
-    "duplicatedTitle": "Workflow duplicated"
-  },
-  "automationWorkflowErrors": {
-    "errorNameNotUnique": "A workflow with this name already exists"
   }
 }
