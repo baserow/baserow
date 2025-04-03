@@ -5,7 +5,7 @@
         <Avatar
           rounded
           :initials="name | nameAbbreviation"
-          size="large"
+          size="medium"
         ></Avatar>
         <div class="modal-sidebar__head-name">
           {{ $t('settingsModal.title') }}

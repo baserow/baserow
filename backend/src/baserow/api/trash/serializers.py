@@ -6,6 +6,7 @@ from rest_framework import fields, serializers
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
 from baserow.core.models import Application, TrashEntry
+from baserow.core.registries import application_type_registry
 from baserow.core.trash.registries import trash_item_type_registry
 
 
@@ -22,9 +23,15 @@ class TrashEntryRequestSerializer(
 
 
 class TrashStructureApplicationSerializer(serializers.ModelSerializer):
+    type = serializers.SerializerMethodField()
+
     class Meta:
         model = Application
-        fields = ("id", "name", "trashed")
+        fields = ("id", "name", "trashed", "type")
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_type(self, instance):
+        return application_type_registry.get_by_model(instance.specific_class).type
 
 
 class TrashStructureWorkspaceSerializer(serializers.Serializer):
