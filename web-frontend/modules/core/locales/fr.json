@@ -1024,5 +1024,24 @@
     },
     "colorPickerContext": {
         "pickColorPlaceholder": "Ou choisir une couleur prédéfinie"
+    },
+    "guidedTourStep": {
+        "step": "{step} sur {totalSteps}",
+        "gotIt": "Compris",
+        "next": "Suivant",
+        "back": "Retour"
+    },
+    "welcomeGuidedTourStep": {
+        "title": "Bienvenue sur Baserow",
+        "buttonText": "Démarrer la visite",
+        "content": "Faisons une visite rapide pour vous familiariser avec les principes de base. En quelques clics, vous apprendrez à organiser et à visualiser vos données sans effort"
+    },
+    "controlCenterGuidedTourStep": {
+        "title": "Votre centre de contrôle Baserow",
+        "content": "La barre latérale gauche vous aide à gérer votre Projet :\n\n- Accueil - Accédez à votre tableau de bord principal.\n- Notifications - Restez informé des modifications et des mentions.\n- Inviter des membres - Collaborez en ajoutant des membres à votre équipe.\n- Corbeille - Listez et récupérez tous vos éléments supprimés."
+    },
+    "createNewGuidedTourStep": {
+        "title": "Créer une nouvelle base de données ou une nouvelle application",
+        "content": "Cliquez sur \"Ajouter...\" pour créer une nouvelle base de données, une nouvelle application ou un nouveau tableau de bord pour votre projet, votre service ou votre équipe."
     }
 }

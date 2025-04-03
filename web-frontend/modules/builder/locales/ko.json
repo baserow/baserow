@@ -60,7 +60,9 @@
         "publishFailedDescription": "사이트 게시에 실패했습니다. 나중에 다시 시도하세요.",
         "openInNewTab": "새 탭에서 열기",
         "importingState": "가져오는 중",
-        "noDomain": "애플리케이션을 게시하려면 최소 하나의 도메인이 필요합니다."
+        "noDomain": "애플리케이션을 게시하려면 최소 하나의 도메인이 필요합니다.",
+        "publishSucceedLink": "사이트 보기",
+        "addDomain": "도메인 추가"
     },
     "lastPublishedDomainDate": {
         "neverPublished": "게시되지 않음",
@@ -80,8 +82,8 @@
         "linkDescription": "페이지/URL로의 링크",
         "image": "이미지",
         "imageDescription": "이미지 표시",
-        "inputText": "텍스트 입력",
-        "inputTextDescription": "텍스트 입력 필드",
+        "inputText": "데이터 입력",
+        "inputTextDescription": "데이터 입력 필드",
         "column": "열",
         "columnDescription": "열 컨테이너",
         "button": "버튼",
@@ -114,7 +116,11 @@
         "headerDescription": "여러 페이지에서 공유되는 컨테이너",
         "notAllowedUnlessFooter": "이 요소는 페이지 바닥글 내부에만 허용됩니다",
         "notAllowedInsideSameType": "이 요소는 동일한 유형의 컨테이너에서 허용되지 않습니다",
-        "notAllowedLocation": "이 위치에서는 이 요소가 허용되지 않습니다"
+        "notAllowedLocation": "이 위치에서는 이 요소가 허용되지 않습니다",
+        "menu": "메뉴",
+        "menuDescription": "메뉴 요소",
+        "simpleContainer": "컨테이너",
+        "simpleContainerDescription": "다른 요소를 위한 컨테이너"
     },
     "addElementButton": {
         "label": "요소"
@@ -185,8 +191,8 @@
         "emptyValue": "빈 대체 텍스트..."
     },
     "generalForm": {
-        "labelTitle": "레이블",
-        "labelPlaceholder": "레이블 입력 (선택 사항)",
+        "labelTitle": "표시",
+        "labelPlaceholder": "표시명 입력 (선택 사항)",
         "valueTitle": "기본값",
         "valuePlaceholder": "기본값 입력 (선택 사항)",
         "placeholderTitle": "플레이스홀더",
@@ -282,7 +288,8 @@
     },
     "domainCard": {
         "refresh": "설정 새로 고침",
-        "detailLabel": "세부 정보 표시"
+        "detailLabel": "세부 정보 표시",
+        "unpublishedDomainWarning": "이 도메인에서 사용할 수 있도록 애플리케이션을 게시하세요."
     },
     "domainTypes": {
         "customName": "사용자 정의 도메인",
@@ -471,13 +478,14 @@
         "textAlignment": "정렬",
         "bodyLabel": "본문",
         "fontFamily": "폰트",
-        "weight": "굵기"
+        "weight": "굵기",
+        "decoration": "텍스트 꾸밈"
     },
     "buttonThemeConfigBlock": {
         "backgroundColor": "배경색",
         "button": "버튼",
         "defaultState": "기본 상태",
-        "hoverState": "호버 상태",
+        "hoverState": "눌린 상태",
         "textAlignment": "텍스트 정렬",
         "alignment": "정렬",
         "width": "너비",
@@ -488,20 +496,23 @@
         "padding": "안쪽 여백",
         "fontFamily": "폰트",
         "size": "폰트 크기",
-        "weight": "폰트 굵기"
+        "weight": "폰트 굵기",
+        "activeState": "활성 상태"
     },
     "linkThemeConfigBlock": {
         "color": "색상",
         "link": "링크",
         "defaultState": "기본 상태",
-        "hoverState": "호버 상태",
+        "hoverState": "눌린 상태",
         "alignment": "정렬",
         "fontFamily": "폰트",
         "size": "폰트 크기",
-        "weight": "폰트 굵기"
+        "weight": "폰트 굵기",
+        "activeState": "활성 상태",
+        "decoration": "텍스트 꾸밈"
     },
     "inputThemeConfigBlock": {
-        "label": "레이블",
+        "label": "표시",
         "input": "입력",
         "backgroundColor": "배경색",
         "textColor": "텍스트 색상",
@@ -544,10 +555,10 @@
         "alignment": "정렬",
         "cells": "셀",
         "separators": "구분선",
-        "verticalSeparatorColor": "수직 색상",
-        "verticalSeparatorSize": "수직 크기",
-        "horizontalSeparatorColor": "수평 색상",
-        "horizontalSeparatorSize": "수평 크기",
+        "verticalSeparatorColor": "세로 색상",
+        "verticalSeparatorSize": "세로 크기",
+        "horizontalSeparatorColor": "가로 색상",
+        "horizontalSeparatorSize": "가로 크기",
         "fontWeight": "폰트 굵기"
     },
     "buttonElementForm": {
@@ -596,7 +607,7 @@
         "orientation": "방향",
         "orientationHorizontal": "수평",
         "orientationVertical": "수직",
-        "buttonLoadMoreLabel": "더 보기 레이블",
+        "buttonLoadMoreLabel": "더 보기 표시",
         "propertySelectorMissingArrays": "행으로 사용할 다중 값 필드를 찾을 수 없습니다."
     },
     "tableElement": {
@@ -611,7 +622,7 @@
         "showMore": "더 보기",
         "missingDataSourceTooltip": "요소를 추가하려면 데이터 소스를 선택하세요.",
         "missingSchemaPropertyTooltip": "요소를 추가하려면 속성을 선택하세요.",
-        "emptyState": "레코드를 찾을 수 없습니다."
+        "emptyState": "내용을 찾을 수 없습니다."
     },
     "collectionElementForm": {
         "noDataSourceMessage": "모든 결과를 나열하려면 여러 행이 있는 데이터 소스를 선택하거나, 이 행 내의 속성을 선택하려면 단일 행 데이터 소스를 선택하세요.",
@@ -625,7 +636,7 @@
         "searchHeading": "검색",
         "optionUnavailable": "사용할 수 없음",
         "noPropertiesAvailable": "사용 가능한 필드가 없습니다.",
-        "formDescription": "외부 사용자가 필터링, 정렬 및 검색할 수 있는 이 요소의 데이터 소스 내 속성을 선택하세요."
+        "formDescription": "이 요소의 데이터 소스에서 페이지 방문자가 필터링, 정렬 및 검색할 수 있는 속성을 선택하세요."
     },
     "repeatElementForm": {
         "dataSource": "데이터 소스",
@@ -636,7 +647,7 @@
         "orientationLabel": "방향",
         "orientationVertical": "수직",
         "orientationHorizontal": "수평",
-        "buttonLoadMoreLabel": "더 보기 레이블",
+        "buttonLoadMoreLabel": "더 보기 표시",
         "toggleEditorRepetitionsLabel": "반복 일시적으로 비활성화",
         "propertySelectorMissingArrays": "반복할 다중 값 필드를 찾을 수 없습니다.",
         "gapVerticalLabel": "세로",
@@ -644,8 +655,8 @@
         "gapHorizontalLabel": "가로"
     },
     "recordSelectorElement": {
-        "emptyAdhocState": "'{query}'와 일치하는 레코드를 찾을 수 없습니다.",
-        "emptyState": "레코드를 찾을 수 없습니다."
+        "emptyAdhocState": "'{query}'와 일치하는 내용을 찾을 수 없습니다.",
+        "emptyState": "내용을 찾을 수 없습니다."
     },
     "recordSelectorElementForm": {
         "selectRecordsFrom": "레코드 선택",
@@ -827,7 +838,7 @@
     },
     "buttonFieldForm": {
         "infoMessage": "이 버튼의 작업을 구성하려면 현재 요소의 \"이벤트\" 탭을 여세요.",
-        "labelPlaceholder": "레이블 입력..."
+        "labelPlaceholder": "표시명 입력..."
     },
     "resetButton": {
         "reset": "기본 테마 값으로 재설정"
@@ -925,5 +936,65 @@
     "authProviderWithModal": {
         "authProviderInError": "오류를 수정하려면 이 공급자를 편집하세요.",
         "title": "제공자 편집: {name}"
+    },
+    "addElementCategory": {
+        "layoutElement": "레이아웃 요소",
+        "suggestedElement": "제안된 요소",
+        "baseElement": "기본 요소",
+        "formElement": "양식 요소"
+    },
+    "userSourceDropdown": {
+        "label": "사용자 소스",
+        "addUserSource": "새로운 사용자 소스 추가",
+        "noUserSources": "사용 가능한 사용자 소스 없음"
+    },
+    "menuElement": {
+        "emptyLinkValue": "링크 이름이 비어있습니다...",
+        "missingLinkValue": "링크 이름이 없습니다...",
+        "missingValue": "메뉴 항목이 없음",
+        "separator": "구분자",
+        "spacer": "공간 조정자",
+        "missingButtonValue": "버튼 이름이 없습니다...",
+        "emptyButtonValue": "버튼 이름이 비어있습니다..."
+    },
+    "orientations": {
+        "label": "방향",
+        "vertical": "수직",
+        "horizontal": "가로"
+    },
+    "menuElementForm": {
+        "menuItemsLabel": "메뉴 항목",
+        "menuItemTypeSeparator": "구분자",
+        "menuItemAddSeparator": "구분자",
+        "addMenuItemLink": "추가...",
+        "alignment": "조정",
+        "menuItemDefaultName": "페이지",
+        "menuItemLabelLabel": "라벨",
+        "menuItemTypeLabel": "종류",
+        "menuItemTypeItem": "아이템",
+        "menuItemVariantLabel": "변형",
+        "menuItemVariantLink": "링크",
+        "menuItemVariantButton": "버튼",
+        "namePlaceholder": "페이지",
+        "addSubLink": "하위 링크 추가",
+        "menuItemSubLinkDefaultName": "하위 링크",
+        "menuItemAddLink": "링크",
+        "menuItemAddButton": "버튼",
+        "menuItemAddSpacer": "공간 조정자",
+        "eventDescription": "이 버튼의 동작을 구성하려면 해당 요소의 이벤트 탭을 열어주세요.",
+        "noMenuItemsMessage": "'추가' 버튼을 클릭하여 첫 번째 메뉴 항목을 추가하세요."
+    },
+    "simpleContainerElementForm": {
+        "noConfigurationOptions": "컨테이너 요소에는 구성 옵션이 없습니다."
+    },
+    "linkDecorations": {
+        "normal": "기본",
+        "plain": "꾸밈없음"
+    },
+    "textDecorationSelector": {
+        "underline": "밑줄",
+        "stroke": "윤곽선",
+        "italic": "이탤릭",
+        "uppercase": "대문자"
     }
 }

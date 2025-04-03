@@ -72,7 +72,11 @@
         "dashboardDesc": "Visualisez vos données et vos indicateurs à l'aide de diagrammes, de tableaux ou de graphiques.",
         "dashboard": "Tableau de bord",
         "dashboards": "Tableaux de bord",
-        "dashboardDefaultName": "Tableau de bord sans titre"
+        "dashboardDefaultName": "Tableau de bord sans titre",
+        "automations": "Automatisations",
+        "automationDefaultName": "Automatisation sans nom",
+        "automation": "Automatisation",
+        "automationDesc": "Automatiser les tâches répétitives et les processus."
     },
     "settingType": {
         "account": "Informations personnelles",

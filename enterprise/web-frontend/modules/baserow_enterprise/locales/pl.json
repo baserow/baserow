@@ -97,11 +97,14 @@
         "noProviders": "Nie skonfigurowano jeszcze dostawców uwierzytelniania."
     },
     "authProviderTypes": {
-        "password": "Uwierzytelnianie e-mailem i hasłem"
+        "password": "Uwierzytelnianie e-mailem i hasłem",
+        "ssoSamlProviderNameUnconfigured": "Nieskonfigurowane SSO SAML",
+        "ssoOIDCProviderNameUnconfigured": "Nieskonfigurowane połączenie OpenId",
+        "saml": "Dostawca SSO SAML"
     },
     "samlSettingsForm": {
         "invalidDomain": "Nieprawidłowa nazwa domeny",
-        "domain": "Domena",
+        "domain": "Domena SAML",
         "domainPlaceholder": "Wpisz nazwę domeny firmowej...",
         "domainAlreadyExists": "Dostawca SAML dla tej domeny już istnieje",
         "metadata": "Metadane",
@@ -109,7 +112,16 @@
         "invalidMetadata": "Nieprawidłowe metadane XML dla dostawcy tożsamości",
         "relayStateUrl": "Domyślny adres URL stanu przekaźnika",
         "acsUrl": "Adres URL pojedynczego logowania",
-        "providerIsVerified": "Dostawca został zweryfikowany"
+        "providerIsVerified": "Dostawca został zweryfikowany",
+        "emailAttrKeyHelper": "Adres e-mail, który zostanie użyty jako nazwa użytkownika.",
+        "lastNameAttrKeyHelper": "Nazwisko użytkownika (opcjonalnie). Usuń wartość, jeśli 'Imię' zawiera już pełne imie i nazwisko.",
+        "customAttrs": "Dostosowane",
+        "emailAttrKey": "E-mail",
+        "samlResponseSettings": "Atrybuty odpowiedzi SAML",
+        "defaultAttrs": "Domyślnie",
+        "firstNameAttrKeyHelper": "Imię użytkownika albo pełne imię i nazwisko, jeśli 'Nazwisko' nie jest podane.",
+        "firstNameAttrKey": "Imię",
+        "lastNameAttrKey": "Nazwisko"
     },
     "createSettingsAuthProviderModal": {
         "title": "Dodaj nowe {type}"
@@ -246,7 +258,8 @@
         "baseUrl": "URL",
         "baseUrlPlaceholder": "Podstawowy adres URL dostawcy",
         "invalidBaseUrl": "Wprowadzony adres URL nie jest prawidłowym adresem URL dostawcy",
-        "callbackUrl": "Adres URL wywołania zwrotnego"
+        "callbackUrl": "Adres URL wywołania zwrotnego",
+        "duplicateBaseUrl": "Podany URL istnieje już u innego dostawcy"
     },
     "loginButton": {
         "continueWith": "Kontynuuj z"
@@ -274,7 +287,9 @@
         "auditLogs": "Dzienniki inspekcji",
         "coBranding": "Wymiana logo w ramach co-brandingu",
         "support": "Wsparcie bezpośrednie",
-        "dataSync": "Synchronizacja danych"
+        "dataSync": "Synchronizacja danych",
+        "chartWidget": "Widżet wykresu",
+        "advancedWebhooks": "Zaawansowane webhooki"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Bezpośrednie wsparcie"
@@ -300,7 +315,8 @@
         "roleFieldPlaceholder": "Wybierz pole..."
     },
     "appAuthProviderType": {
-        "localBaserowPassword": "E-mail/hasło"
+        "localBaserowPassword": "E-mail/hasło",
+        "openIdConnect": "Połączenie OpenID"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "Wybierz pole hasła",
@@ -312,7 +328,7 @@
         "coBrandingLogo": "Logo",
         "branding": "Branding",
         "deactivated": "Dostępne w wersji dla przedsiębiorstw",
-        "coBrandingLogoDescription": "Zastępuje logo Baserow niestandardową alternatywą pod wspólną marką (176x29).",
+        "coBrandingLogoDescription": "Zastępuje logo Baserow niestandardową alternatywą pod wspólną marką (176x29). Jeśli podane, opis Baserow w stopce e-maili też zostanie usunięty.",
         "uploadFileButton": "Prześlij obraz"
     },
     "localBaserowUserSourceType": {
@@ -338,13 +354,49 @@
         "enterprise": "Wersja Enterprise"
     },
     "enterpriseDataSyncType": {
-        "localBaserowTable": "Synchronizacja tabeli Baserow"
+        "localBaserowTable": "Synchronizacja tabeli Baserow",
+        "jiraIssues": "Zsynchronizuj zagadnienia Jira",
+        "githubIssues": "Synchronizuj zagadnienia GitHub",
+        "hubspotContacts": "Synchronizuj kontakty HubSpot",
+        "gitlabIssues": "Synchronizuj zagadnienia GitLab"
     },
     "localBaserowTableDataSync": {
         "workspace": "Obszar roboczy",
         "name": "Identyfikator tabeli źródłowej",
         "database": "Baza danych",
         "authorizing": "Autoryzujesz swoje konto do wybierania danych z tabeli źródłowej.",
-        "table": "Tabela"
+        "table": "Tabela",
+        "view": "Widok",
+        "viewHelper": "Tylko widoczne pola i wiersze pasujące do filtrów są synchronizowane."
+    },
+    "jiraIssuesDataSync": {
+        "usernameHelper": "Nazwa użytkownika konta Jira, które zostanie użyte do uwierzytelnienia. To jest adres e-mail, którego używasz do logowania.",
+        "urlHelper": "Bazowy URL Twojej in stancji Jira (np. https://your-domain.atlassian.net).",
+        "apiToken": "Żeton API Jira",
+        "apiTokenHelper": "Żeton API konta Jira używany do uwierzytelnienia. Może zostać utworzony w https://id.atlassian.com/manage-profile/security/api-tokens.",
+        "projectKey": "Klucz projektu w Jira (opcjonalnie)",
+        "projectKeyHelper": "Klucz projektu w Jira (np. PROJ). Można go znaleźć klikając w `Ustawienia projektu` w Jira. Jeśli nie podano, wszystkie zagadnienia zostaną zwrócone.",
+        "jiraUrl": "URL instancji Jira",
+        "jiraUsername": "Nazwa użytkownika Jira"
+    },
+    "commonOidcSettingForm": {
+        "callbackTitle": "URL odwołania zwrotnego (kliknij aby skopiować)",
+        "callbackHelperText": "Dodaj te URLe do ustawień URI przekierowań u swojego dostawcy OpenID.",
+        "preview": "Podgląd"
+    },
+    "githubIssuesDataSync": {
+        "repoHelper": "Nazwa repozytorium. Zazwyczaj w lewym górnym rogu `własciciel/repo`",
+        "owner": "Właściciel",
+        "ownerHelper": "Użytkownik lub właściciel repozytorium. Zazwyczaj w lewym górnym rogu `własciciel/repo`",
+        "repo": "Repozytorium",
+        "apiToken": "Żeton API"
+    },
+    "exportWorkspaceModalWarning": {
+        "message": "Pamiętaj, że eksport nie będzie zawierać żadnych uprawnień ustawionych na aplikacjach i ich tabelach."
+    },
+    "commonSamlSettingForm": {
+        "acsTitle": "URL pojedynczego logowania (kliknij aby skopiować)",
+        "relayStateTitle": "Domyślny URL stanu przekaźnika (kliknij aby skopiować)",
+        "addDomainNotice": "Dostępne, jeśli została dostępna jedna domena lub więcej"
     }
 }

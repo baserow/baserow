@@ -13,7 +13,9 @@
         "beta": "Beta",
         "summarize": "Aggrega",
         "enabled": "Abilitato",
-        "disabled": "Disabilitato"
+        "disabled": "Disabilitato",
+        "or": "o",
+        "and": "e"
     },
     "action": {
         "upload": "Carica",
@@ -45,7 +47,10 @@
         "reset": "Reset",
         "set": "Imposta",
         "logout": "Esci",
-        "backToHome": "Pagina principale"
+        "backToHome": "Pagina principale",
+        "hide": "Nascondi",
+        "close": "Chiudi",
+        "getStarted": "Comincia da qui"
     },
     "adminType": {
         "settings": "Impostazioni",
@@ -67,7 +72,11 @@
         "dashboards": "Dashboards",
         "dashboardDefaultName": "Dashboard senza titolo",
         "dashboardDesc": "Visualizza i tuoi dati e le tue metriche con grafici e tabelle.",
-        "dashboard": "Dashboard"
+        "dashboard": "Dashboard",
+        "automationDesc": "Automatizza task ripetitivi e flussi di lavoro.",
+        "automation": "Automazione",
+        "automations": "Automazioni",
+        "automationDefaultName": "Automazione senza titolo"
     },
     "settingType": {
         "account": "Account",
@@ -141,7 +150,9 @@
         "password": "Password",
         "autonumber": "Numerazione automatica",
         "lastModifiedBy": "Ultima modifica di",
-        "ai": "Prompt IA"
+        "ai": "Prompt IA",
+        "multipleCollaboratorsDropdown": "Menu",
+        "multipleCollaboratorsCheckboxes": "Checkbox"
     },
     "fieldErrors": {
         "invalidNumber": "Numero non valido",
@@ -266,7 +277,21 @@
         "hasNotValueContains": "Non contiene un valore",
         "hasValueContainsWord": "Contiene una parola",
         "hasNotValueContainsWord": "Non contiene una parola",
-        "hasValueLengthIsLowerThan": "Ha un valore più corto di"
+        "hasValueLengthIsLowerThan": "Ha un valore più corto di",
+        "hasDateEqual": "ha una data uguale",
+        "hasNotDateEqual": "non ha una data uguale",
+        "hasDateBefore": "ha una data precedente",
+        "hasDateOnOrBefore": "ha una data uguale o precedente",
+        "hasNotDateOnOrBefore": "non ha una data uguale o precedente",
+        "hasDateAfter": "ha una data successiva",
+        "hasNotDateAfter": "non ha una data successiva",
+        "hasDateOnOrAfter": "ha una data uguale o successiva",
+        "hasAnySelectOptionEqual": "ha opzioni uguali",
+        "hasNoneSelectOptionEqual": "non ha opzioni uguali",
+        "hasNotDateBefore": "non ha una data precedente",
+        "hasNotDateOnOrAfter": "non ha una data uguale o successiva",
+        "hasDateWithin": "ha una data entro",
+        "hasNotDateWithin": "non ha una data entro"
     },
     "viewType": {
         "grid": "Griglia",

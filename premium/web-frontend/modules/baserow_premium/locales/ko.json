@@ -11,7 +11,8 @@
         "exporterType": {
             "json": "JSON으로 내보내기",
             "xml": "XML로 내보내기",
-            "excel": "Excel로 내보내기"
+            "excel": "Excel로 내보내기",
+            "file": "파일 내보내기"
         },
         "deactivated": "프리미엄 버전에서 사용 가능"
     },
@@ -122,7 +123,7 @@
     "calendarViewHeader": {
         "displayBy": "표시 기준",
         "displayedBy": "“{fieldName}” 필드로 표시됨",
-        "labels": "레이블"
+        "labels": "표시"
     },
     "timelineViewHeader": {
         "dateSettings": "날짜 설정",
@@ -189,7 +190,8 @@
         "premium": "프리미엄",
         "expired": "만료됨",
         "validity": "{start}부터 {end}까지 유효",
-        "seats": "좌석"
+        "seats": "좌석",
+        "applicationUsers": "애플리케이션 사용자"
     },
     "license": {
         "title": "{name} 플랜",
@@ -222,7 +224,9 @@
         "automaticSeatsProgressBarStatus": "{seats_taken} / {seats}개의 유료 좌석과 {free_users_count}명의 무료 사용자가 사용 중",
         "premiumFeatureName": "프리미엄",
         "enterpriseFeatureName": "엔터프라이즈",
-        "supportFeatureName": "지원"
+        "supportFeatureName": "지원",
+        "applicationUsersDescription": "게시된 애플리케이션 빌더 사용자 소스에 있는 총 애플리케이션 사용자 수입니다.",
+        "applicationUsers": "어플리케이션 사용자"
     },
     "viewDecoratorType": {
         "leftBorderColor": "왼쪽 테두리",
@@ -342,5 +346,8 @@
     },
     "publicViewExport": {
         "export": "내보내기"
+    },
+    "tableFileExporter": {
+        "organizeFiles": "행 ID로 파일 그룹화"
     }
 }

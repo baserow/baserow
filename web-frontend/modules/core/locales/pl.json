@@ -149,7 +149,9 @@
         "leaveWorkspace": "Opuść grupę",
         "deleteWorkspace": "Usuń grupę",
         "auditLog": "Dziennik inspekcji",
-        "settings": "Ustawienia"
+        "settings": "Ustawienia",
+        "exportWorkspace": "Eksport danych",
+        "importWorkspace": "Import danych"
     },
     "createWorkspaceModal": {
         "createNew": "Utwórz nową grupę",
@@ -215,7 +217,9 @@
         "fromTemplate": "Z szablonu",
         "fromTemplateDesc": "Szybki start z jednym z naszych polecanych szablonów",
         "tableDesc": "Utwórz nowe miejsce do zarządzania danymi w bazie danych.",
-        "table": "Tabela"
+        "table": "Tabela",
+        "importWorkspace": "Import danych",
+        "importWorkspaceDesc": "Dodaj istniejące dane z instancji Baserow."
     },
     "applicationForm": {
         "nameLabel": "Nazwa",
@@ -313,11 +317,11 @@
         "logoff": "Wyloguj"
     },
     "login": {
-        "title": "Zaloguj sie",
-        "forgotPassword": "Zapomniałeś hasła?",
+        "title": "Witaj ponownie",
+        "forgotPassword": "Zapomniałeś?",
         "emailPlaceholder": "Wpisz swój adres e-mail..",
         "passwordPlaceholder": "Wprowadź swoje hasło.",
-        "signUpText": "Nie masz konta?",
+        "signUpText": "Nowy w Baserow?",
         "signUp": "Zarejestruj się",
         "displayPasswordLogin": "Zaloguj się za pomocą adresu e-mail i hasła",
         "redirecting": "Przekierowanie do dostawcy uwierzytelniania..."
@@ -333,10 +337,11 @@
         "errorLinkExpiredTitle": "Link wygasł",
         "errorLinkExpiredMessage": "Link resetowania hasła wygasł. Poproś o kolejny.",
         "disabled": "Resetowanie hasła jest wyłączone",
-        "disabledMessage": "Zresetowanie hasła nie jest możliwe, ponieważ zostało ono wyłączone."
+        "disabledMessage": "Zresetowanie hasła nie jest możliwe, ponieważ zostało ono wyłączone.",
+        "message": "Możesz teraz zalogować się do Baserow używając swojego nowego hasła."
     },
     "signup": {
-        "headTitle": "Stwórz nowe konto",
+        "headTitle": "Stwórz konto",
         "title": "Zarejestruj się",
         "disabled": "Rejestracja jest wyłączona",
         "disabledMessage": "Nie ma możliwości założenia konta, ponieważ zostało ono wyłączone.",
@@ -351,12 +356,14 @@
     },
     "forgotPassword": {
         "title": "Nie pamiętam hasła",
-        "message": "Proszę wpisać w formularzu swój adres e-mail. Jeśli znajdziemy konto, wyślemy e-mail z linkiem do zresetowania hasła.",
+        "message": "Podaj swój adres e-mail, abyśmy mogli wysłać linkiem do zresetowania hasła.",
         "submit": "Wyślij link",
-        "confirmation": "Jeśli Twój adres e-mail istnieje w naszej bazie danych, w ciągu kilku minut otrzymasz na swój adres e-mail link do zresetowania hasła.",
+        "confirmation": "Wysłaliśmy wiadomość na adres {email}, w której znajduje się link do zresetowania hasła w Baserow.",
         "disabled": "Zapomniane hasło jest wyłączone",
         "disabledMessage": "Nie ma możliwości zresetowania hasła, ponieważ zostało ono wyłączone.",
-        "loginText": "Masz już konto i hasło?"
+        "loginText": "Masz już konto i hasło?",
+        "confirmationTitle": "Sprawdź swój e-mail",
+        "goBack": "Cofnij"
     },
     "settings": {
         "settingsTitle": "Ustawienia administratora",
@@ -388,7 +395,9 @@
         "emailVerificationEnforced": "Wymuszony",
         "baserowVersion": "Wersja podstawowa",
         "baserowVersionDescription": "Numer wersji tej instancji.",
-        "userSettings": "Użytkownik"
+        "userSettings": "Użytkownik",
+        "settingsVerifyImportSignatureDescription": "Jeśli włączone, podpis importowanych danych zostanie zweryfikowany, aby upewnić się, że danie nie zostały podmienione.",
+        "settingsVerifyImportSignature": "Zweryfikuj podpis importu"
     },
     "formSidebar": {
         "actions": {
@@ -474,7 +483,9 @@
         "yearsAgo": "0 lat temu | 1 rok temu | {n} lat temu",
         "secondsAgo": "Przed chwilą | 1 sekunda temu | {n} sekund temu",
         "minutesAgo": "0 minut temu | 1 minuta temu | {n} minut temu",
-        "hoursAgo": "0 godzin temu | 1 godzina temu | {n} godzin temu"
+        "hoursAgo": "0 godzin temu | 1 godzina temu | {n} godzin temu",
+        "justNow": "przed chwilą",
+        "lessThanMinuteAgo": "mniej niż minutę temu"
     },
     "duplicateApplicationJobType": {
         "duplicating": "Powielanie",
@@ -705,14 +716,31 @@
         "openaiModelsDescription": "Podaj listę rozdzielonych przecinkami [modeli OpenAI](https://platform.openai.com/docs/models/continuous-model-upgrades), które mogą być używane w Baserow. (np. `gpt-3.5-turbo,gpt-4`)",
         "ollamaHostDescription": "Podaj nazwę hosta serwera [Ollama](https://ollama.com/). Zazwyczaj działa on lokalnie na urządzeniu użytkownika.",
         "ollamaModelsLabel": "Włączone modele",
-        "ollamaModelsDescription": "Podaj listę oddzielonych przecinkami [zainstalowanych modeli Ollama](https://ollama.com/library). Należy pamiętać, że model musi zostać pobrany i zainstalowany, zanim będzie można go użyć. (np. `llama2,mistral`)"
+        "ollamaModelsDescription": "Podaj listę oddzielonych przecinkami [zainstalowanych modeli Ollama](https://ollama.com/library). Należy pamiętać, że model musi zostać pobrany i zainstalowany, zanim będzie można go użyć. (np. `llama2,mistral`)",
+        "anthropicApiKeyDescription": "Podaj klucz API dla Anthropic, jeśli chcesz włączyć tę integrację. [Instrukcje jak zdobyć klucz API](https://docs.anthropic.com/en/api/getting-started).",
+        "mistralApiKeyLabel": "Klucz API",
+        "anthropicModelsDescription": "Podaj listę [modeli Anthropic](https://docs.anthropic.com/en/docs/about-claude/models) rozdzieloną przecinkiem, która może być użyta w Baserow. (np. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "anthropicApiKeyLabel": "Klucz API",
+        "anthropic": "Anthropic",
+        "anthropicModelsLabel": "Włącz Modele",
+        "mistral": "Mistral",
+        "mistralModelsLabel": "Włącz Modele",
+        "mistralModelsDescription": "Podaj listę [modeli Mistral](https://docs.mistral.ai/getting-started/models/models_overview/) rozdzieloną przecinkiem, która może być użyta w Baserow. (np. `mistral-large-latest,mistral-small-latest`)",
+        "mistralApiKeyDescription": "Podaj klucz API dla Mistral, jeśli chcesz włączyć tę integrację. [Instrukcje jak zdobyć klucz API](https://docs.mistral.ai/getting-started/quickstart/).",
+        "openRouterApiKeyLabel": "Klucz API",
+        "openRouterApiKeyDescription": "Podaj klucz API dla OpenRouter, jeśli chcesz włączyć tę integrację. [jak zdobyć klucz API](https://openrouter.ai/settings/keys).",
+        "openRouterOrganization": "Organizacja (opcjonalnie)",
+        "openRouterModelsLabel": "Włączone Modele",
+        "openRouterModelsDescription": "Podaj listę [modeli OpenRouter](https://openrouter.ai/models) rozdzieloną przecinkiem, która może być użyta w Baserow. (np. `openai/gpt-4o,anthropic/claude-3-haiku`)"
     },
     "generativeAIWorkspaceSettings": {
         "changedTitle": "Ustawienia zostały poprawnie zaktualizowane",
         "submitButton": "Ustawienia aktualizacji",
         "title": "Ustawienia generatywnej sztucznej inteligencji",
         "description": "Ustawienia te mogą być używane do opcjonalnego ustawiania konfiguracji generatywnej sztucznej inteligencji na poziomie obszaru roboczego. Funkcje takie jak pole AI mogą być wyłączone, ponieważ nie mają klucza API dla jednego z obsługiwanych modeli. Podając ustawienia tutaj, można włączyć te funkcje. Pozostawienie wartości pustej powoduje powrót do globalnych ustawień instancji. Należy pamiętać, że wszyscy w obszarze roboczym będą współdzielić te ustawienia.",
-        "changedDescription": "Ustawienia zostały zaktualizowane i będą teraz używane w tym obszarze roboczym."
+        "changedDescription": "Ustawienia zostały zaktualizowane i będą teraz używane w tym obszarze roboczym.",
+        "openSettings": "Otwórz ustawienia",
+        "hideSettings": "Schowaj ustawienia"
     },
     "userPasswordChangedToast": {
         "title": "Hasło zostało zmienione",
@@ -768,7 +796,9 @@
     "selectAIModelForm": {
         "AIType": "Typ AI",
         "AIModel": "Model AI",
-        "fileField": "Pole pliku"
+        "fileField": "Pole pliku",
+        "temperatureLabel": "Temperatura",
+        "temperatureDescription": "Temperatura LLM, parametr pomiędzy 0 i {max}, kontrolujący losowość odpowiedzi - niższa wartość zwróci odpowiedzi bardziej konkretne, wyższa zwiększa kreatywność."
     },
     "onboarding": {
         "title": "Onboarding",
@@ -932,5 +962,80 @@
         "activeUsers7days": "Aktywni użytkownicy w ciągu ostatnich 7 dni",
         "activeUsers30days": "Aktywni użytkownicy w ciągu ostatnich 30 dni",
         "viewAll": "Zobacz wszystkie"
+    },
+    "guidedTourStep": {
+        "step": "{step} z {totalSteps}",
+        "gotIt": "Rozumiem",
+        "back": "Powrót",
+        "next": "Następne"
+    },
+    "welcomeGuidedTourStep": {
+        "title": "Witaj w Baserow",
+        "buttonText": "Rozpocznij wycieczkę",
+        "content": "Zabierzemy Ciebie na krótką wycieczkę, aby zaznajomić Ciebie z podstawami. Po kilku kliknięciach nauczysz się jak organizować i wizualizować swoje dane bez wysiłku"
+    },
+    "controlCenterGuidedTourStep": {
+        "title": "Twoje Centrum Sterowania Baserow",
+        "content": "Pasek boczny po lewej stronie pozwala na zarządzanie Twoją przestrzenią pracy:\n\n- Strona główna – Dostęp do głównego pulpitu.\n- Powiadomienia – Bądź na bieżąco ze zmianami i wzmiankami.\n- Zaproś członków – Współpracuj dodając członków zespołu.\n- Kosz – Przeglądaj i odzyskuj wszystkie usunięte elementy."
+    },
+    "createNewGuidedTourStep": {
+        "title": "Utwórz nową bazę lub aplikację",
+        "content": "Kliknij \"Dodaj nowy...\" aby utworzyć nową bazę, aplikację lub pulpit dla swojego projektu, działu lub zespołu."
+    },
+    "importWorkspaceModal": {
+        "retry": "Ponów",
+        "selectApplications": "Wybierz dane do importu",
+        "applications": "Aplikacje",
+        "close": "Zamknij",
+        "chooseFile": "Wybierz plik",
+        "untrustedPublicKeyMessage": "Przekazany plik został podpisany niezaufanym kluczem publicznym. Poproś swojego administratora aby dodał klucz publiczny do listy zaufanych kluczy albo wyłączył weryfikację podpisu, aby móc zaimportować ten plik.",
+        "description": "Możesz zaimportować dane Baserow poprzez przesłanie pliku .zip z innej instancji Baserow.",
+        "upload": "Prześlij",
+        "cancel": "Anuluj",
+        "done": "Zakończone",
+        "uploading": "przesyłanie...",
+        "deselectAll": "Odznacz wszystko",
+        "selectAll": "Zaznacz wszystko",
+        "databases": "Bazy danych",
+        "successTitle": "Dane Baserow zostały pomyślne zaimportowane",
+        "successMessage": "Zaimportowano {count} aplikacji",
+        "signatureVerificationNote": "Nie można zaimportować pliku zip z niezaufanego źródła.",
+        "invalidResourceTitle": "Nieprawidłowy zasób",
+        "invalidResourceMessage": "Przekazany plik nie jest prawidłowym eksportem Baserow.",
+        "untrustedPublicKeyTitle": "Niezaufany podpis",
+        "title": "Importuj dane Baserow",
+        "import": "Importuj dane",
+        "importingState": "Importuję...",
+        "importingTableStructure": "Tworzę: {table}",
+        "importingTableData": "Importuję dane: {table}"
+    },
+    "formGroup": {
+        "protectedField": "To pole jest chronione. Kliknij, aby zmienić.",
+        "cancelProtectedField": "Anuluj zmianę"
+    },
+    "exportWorkspaceModal": {
+        "title": "Eksport",
+        "description": "Twoje dane zostaną wyeksportowane do pliku ZIP, który może zostać zaimportowany do innej instancji Baserow.",
+        "exportSettings": "Ustawienia eksportu",
+        "export": "Eksport danych",
+        "reset": "Zacznij od nowa",
+        "cancel": "Anuluj",
+        "download": "Pobierz",
+        "noExports": "Dla tej przestrzeni roboczej nie ma jeszcze żadnych eksportów.",
+        "created": "utworzone",
+        "exportingState": "Eksportuję...",
+        "exportingTableState": "Eksportuję: {table}",
+        "exportingCreateArchiveState": "Tworzę archiwum"
+    },
+    "exportWorkspaceForm": {
+        "exportSettingsLabel": "Ustawienia eksportu",
+        "onlyStructureLabel": "Wyeksportuj tylko strukturę",
+        "onlyStructureDescription": "Jeśli włączone, zostanie wyeksportowana tylko struktura aplikacji. Dane nie zostaną dołączone."
+    },
+    "colorPickerContext": {
+        "pickColorPlaceholder": "albo wybierz predefiniowany kolor"
+    },
+    "userSourceType": {
+        "userCountSummary": "{count} użytkowników ({lastUpdated})"
     }
 }

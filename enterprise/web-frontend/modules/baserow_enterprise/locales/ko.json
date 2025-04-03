@@ -9,7 +9,8 @@
         "rbac": "RBAC",
         "sso": "SSO",
         "licenseDescription": "Baserow 엔터프라이즈에서는 뷰어가 무료입니다. 사용자가 어떤 작업공간에서든 다른 역할을 가지고 있다면 자동으로 유료 좌석을 사용하게 됩니다.",
-        "overflowWarning": "뷰어가 아닌 사용자가 너무 많으며 모든 유료 좌석을 사용했습니다. 각 작업공간 멤버 페이지에서 사용자를 뷰어로 변경하십시오."
+        "overflowWarning": "뷰어가 아닌 사용자가 너무 많으며 모든 유료 좌석을 사용했습니다. 각 작업공간 멤버 페이지에서 사용자를 뷰어로 변경하십시오.",
+        "deactivated": "고급/엔터프라이즈 버전에서 사용 가능"
     },
     "trashType": {
         "team": "팀"
@@ -56,12 +57,12 @@
         "teamsTabTitle": "팀"
     },
     "adminType": {
-        "AuditLog": "감사 로그",
+        "AuditLog": "활동기록",
         "Authentication": "인증"
     },
     "auditLog": {
-        "adminTitle": "감사 로그",
-        "workspaceTitle": "감사 로그 - {workspaceName}",
+        "adminTitle": "활동기록",
+        "workspaceTitle": "활동기록 - {workspaceName}",
         "filterUserTitle": "사용자",
         "filterWorkspaceTitle": "작업공간",
         "filterActionTypeTitle": "이벤트 유형",
@@ -84,10 +85,10 @@
     },
     "auditLogExportModal": {
         "title": "CSV로 내보내기",
-        "exportFilename": "관리자 감사 로그 내보내기 - {date}",
-        "exportWorkspaceFilename": " 작업공간 ({workspaceId}) 감사 로그 내보내기 - {date}",
+        "exportFilename": "관리자 활동기록 내보내기 - {date}",
+        "exportWorkspaceFilename": " 작업공간 ({workspaceId}) 활동기록 내보내기 - {date}",
         "cancelledTitle": "내보내기 실패",
-        "cancelledDescription": "감사 로그를 내보내는 동안 문제가 발생했습니다. 다시 시도해 주세요."
+        "cancelledDescription": "활동기록을 내보내는 동안 문제가 발생했습니다. 다시 시도해 주세요."
     },
     "authProviders": {
         "title": "인증 제공자",
@@ -114,7 +115,7 @@
         "metadataPlaceholder": "Identity Provider 메타데이터를 붙여넣으세요...",
         "invalidMetadata": "Identity Provider의 유효하지 않은 XML 메타데이터입니다",
         "relayStateUrl": "기본 Relay State URL",
-        "acsUrl": "싱글 사인온 URL",
+        "acsUrl": "통합 로그인(SSO) URL",
         "providerIsVerified": "제공자가 확인되었습니다",
         "samlResponseSettings": "SAML 응답 속성",
         "defaultAttrs": "기본값",
@@ -280,15 +281,17 @@
         "continueWith": "계속"
     },
     "enterpriseFeatures": {
-        "sso": "싱글 사인온",
+        "sso": "통합 로그인(SSO)",
         "rbac": "역할 기반 액세스 제어",
-        "auditLogs": "감사 로그",
+        "auditLogs": "활동기록",
         "dataSync": "데이터 동기화",
         "coBranding": "공동 브랜딩 로고 교체",
-        "support": "직접 지원"
+        "support": "직접지원",
+        "chartWidget": "차트 위젯",
+        "advancedWebhooks": "고급 웹훅"
     },
     "chatwootSupportSidebarWorkspace": {
-        "directSupport": "직접 지원"
+        "directSupport": "직접지원"
     },
     "userTeamsField": {
         "no_records": "팀 없음"
@@ -300,7 +303,7 @@
         "message": "내보내기에는 애플리케이션 및 해당 테이블에 설정된 권한이 포함되지 않는다는 점에 유의하십시오."
     },
     "auditLogSidebarWorkspace": {
-        "title": "감사 로그"
+        "title": "활동기록"
     },
     "localBaserowUserSourceType": {
         "notConfigured": "구성되지 않음"
@@ -330,7 +333,7 @@
         "showBaserowHelpMessageDescription": "대시보드에 도움말 요청 메시지를 표시할지 여부를 나타냅니다.",
         "deactivated": "엔터프라이즈에서 사용 가능",
         "coBrandingLogo": "로고",
-        "coBrandingLogoDescription": "Baserow 로고를 사용자 지정 공동 브랜딩 대체 로고로 교체합니다 (176x29).",
+        "coBrandingLogoDescription": "Baserow 로고를 사용자 지정 공동 브랜드 로고(176x29)로 변경합니다. 설정하면 모든 이메일 하단의 Baserow 설명도 제거됩니다.",
         "uploadFileButton": "이미지 업로드"
     },
     "enterpriseModal": {
@@ -439,12 +442,50 @@
         "minute": "분",
         "second": "초",
         "intervalHelper": "데이터 동기화를 자동으로 얼마나 자주 실행할지 설정하세요.",
-        "hour": "시"
+        "hour": "시",
+        "whenHourlyHelper": "데이터 동기화가 실행되어야 하는 정확한 분과 초를 입력해주세요."
     },
     "oidcAuthLink": {
         "placeholderWithOIDC": "{login} {provider}로 로그인"
     },
     "configureDataSyncModal": {
         "periodicInterval": "주기적 설정"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "sourceFieldLabel": "소스",
+        "series": "시리즈",
+        "addSeries": "시리즈 추가",
+        "data": "데이터",
+        "viewFieldLabel": "뷰",
+        "notSelected": "선택되지 않음"
+    },
+    "periodicDataSyncDeactivatedNotification": {
+        "body": "{name}의 주기적 데이터 동기화가 연속적으로 너무 많이 실패하여 비활성화되었습니다."
+    },
+    "webhookForm": {
+        "helpTriggerWhenRowsEnterView": "행이 뷰에 진입할 때 옵션이 선택된 경우에만 작동되며, 필터 조건을 만족하는 행이 새롭게 뷰에 포함될 때 실행됩니다.",
+        "triggerWhenRowsEnterView": "행이 뷰에 진입할 때 작동합니다."
+    },
+    "chartWidget": {
+        "name": "차트"
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "필드",
+        "aggregationTypeLabel": "요약",
+        "deleteSeries": "시리즈 삭제"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "그룹별로",
+        "groupByNone": "없음",
+        "groupByRowId": "행 ID"
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "정렬 기준",
+        "none": "없음",
+        "ascending": "오름차순",
+        "descending": "내림차순"
+    },
+    "webhook": {
+        "rowsEnterVieweventType": "행이 뷰에 입력됨"
     }
 }
