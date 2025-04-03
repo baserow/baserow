@@ -10,7 +10,6 @@ class AutomationWorkflowNotInAutomation(Exception):
         )
 
 
-
 class AutomationWorkflowNameNotUnique(Exception):
     """When a new workflow's name conflicts an existing name."""
 

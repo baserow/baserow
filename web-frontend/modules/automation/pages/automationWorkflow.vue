@@ -52,7 +52,10 @@ export default {
       data.automation = automation
       data.currentWorkflow = workflow
     } catch (e) {
-      return error({ statusCode: 404, message: this.$t('automationWorkflowErrors.errorAutomationWorkflowNotFound') })
+      return error({
+        statusCode: 404,
+        message: 'Automation workflow not found.',
+      })
     }
     return data
   },

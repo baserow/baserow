@@ -6,11 +6,13 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.status import HTTP_202_ACCEPTED
+from rest_framework.views import APIView
 
 from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.decorators import map_exceptions, validate_body
+from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
+from baserow.api.jobs.serializers import JobSerializer
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.contrib.automation.api.workflows.errors import (
     ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
@@ -29,15 +31,14 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInAutomation,
 )
-from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
-from baserow.core.jobs.exceptions import MaxJobCountExceeded
-from baserow.contrib.automation.workflows.job_types import DuplicateAutomationWorkflowJobType
+from baserow.contrib.automation.workflows.job_types import (
+    DuplicateAutomationWorkflowJobType,
+)
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.exceptions import ApplicationDoesNotExist
+from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
-from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
-from baserow.api.jobs.serializers import JobSerializer
 
 AUTOMATION_WORKFLOWS_TAG = "Automation workflows"
 
@@ -115,7 +116,10 @@ class AutomationWorkflowView(APIView):
                 ]
             ),
             404: get_error_schema(
-                ["ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST", "ERROR_APPLICATION_DOES_NOT_EXIST"]
+                [
+                    "ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST",
+                    "ERROR_APPLICATION_DOES_NOT_EXIST",
+                ]
             ),
         },
     )
@@ -194,7 +198,10 @@ class OrderAutomationWorkflowsView(APIView):
                 ]
             ),
             404: get_error_schema(
-                ["ERROR_APPLICATION_DOES_NOT_EXIST", "ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST"]
+                [
+                    "ERROR_APPLICATION_DOES_NOT_EXIST",
+                    "ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST",
+                ]
             ),
         },
     )
@@ -260,7 +267,9 @@ class AsyncAutomationDuplicateWorkflowView(APIView):
         """Creates a job to duplicate a workflow in an automation."""
 
         job = JobHandler().create_and_start_job(
-            request.user, DuplicateAutomationWorkflowJobType.type, workflow_id=workflow_id
+            request.user,
+            DuplicateAutomationWorkflowJobType.type,
+            workflow_id=workflow_id,
         )
 
         serializer = job_type_registry.get_serializer(job, JobSerializer)

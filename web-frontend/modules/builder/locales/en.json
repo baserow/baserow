@@ -1035,8 +1035,6 @@
     "duplicatedTitle": "Workflow duplicated"
   },
   "automationWorkflowErrors": {
-    "errorNameNotUnique": "A workflow with this name already exists",
-    "errorAutomationNotFound": "Automation not found.",
-    "errorAutomationWorkflowNotFound": "Automation workflow not found."
+    "errorNameNotUnique": "A workflow with this name already exists"
   }
 }

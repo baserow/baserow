@@ -3,18 +3,18 @@ import typing
 from django.db import models
 
 from baserow.contrib.automation.constants import WORKFLOW_NAME_MAX_LEN
-from baserow.core.mixins import (
-    CreatedAndUpdatedOnMixin,
-    HierarchicalModelMixin,
-    OrderableMixin,
-    TrashableModelMixin,
-)
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
     JobWithWebsocketId,
 )
 from baserow.core.jobs.models import Job
+from baserow.core.mixins import (
+    CreatedAndUpdatedOnMixin,
+    HierarchicalModelMixin,
+    OrderableMixin,
+    TrashableModelMixin,
+)
 
 if typing.TYPE_CHECKING:
     from baserow.contrib.automation.models import Automation
@@ -26,9 +26,7 @@ class AutomationWorkflow(
     CreatedAndUpdatedOnMixin,
     OrderableMixin,
 ):
-    automation = models.ForeignKey(
-        "automation.Automation", on_delete=models.CASCADE
-    )
+    automation = models.ForeignKey("automation.Automation", on_delete=models.CASCADE)
 
     name = models.CharField(max_length=WORKFLOW_NAME_MAX_LEN)
 

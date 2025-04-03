@@ -4,11 +4,9 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.contrib.automation.models import Automation
-from baserow.contrib.automation.operations import ListAutomationWorkflowsOperationType
 from baserow.contrib.automation.workflows.serializers import (
     AutomationWorkflowSerializer,
 )
-from baserow.core.handler import CoreHandler
 
 if TYPE_CHECKING:
     from baserow.contrib.automation.application_types import AutomationApplicationType
@@ -49,5 +47,5 @@ class AutomationSerializer(serializers.ModelSerializer):
 
             automation_type: "AutomationApplicationType" = instance.get_type()
             workflows = automation_type.fetch_workflows_to_serialize(instance, user)
-        
+
         return AutomationWorkflowSerializer(workflows, many=True).data

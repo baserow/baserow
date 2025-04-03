@@ -1,4 +1,7 @@
-from baserow.contrib.automation.workflows.models import AutomationWorkflow, DuplicateAutomationWorkflowJob
+from baserow.contrib.automation.workflows.models import (
+    AutomationWorkflow,
+    DuplicateAutomationWorkflowJob,
+)
 from baserow.core.models import Application
 
 __all__ = [

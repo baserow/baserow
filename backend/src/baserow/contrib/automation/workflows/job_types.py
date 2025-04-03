@@ -5,14 +5,17 @@ from django.db import transaction
 
 from rest_framework import serializers
 
+from baserow.contrib.automation.models import DuplicateAutomationWorkflowJob
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.automation.workflows.operations import (
+    DuplicateAutomationWorkflowOperationType,
+)
+from baserow.contrib.automation.workflows.serializers import (
+    AutomationWorkflowSerializer,
+)
+from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.registries import JobType
-
-from baserow.contrib.automation.models import DuplicateAutomationWorkflowJob
-from baserow.contrib.automation.workflows.serializers import AutomationWorkflowSerializer
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-from baserow.contrib.automation.workflows.operations import DuplicateAutomationWorkflowOperationType
-from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 
 
 class DuplicateAutomationWorkflowJobType(JobType):
@@ -28,7 +31,10 @@ class DuplicateAutomationWorkflowJobType(JobType):
         ),
     }
 
-    serializer_field_names = ["original_automation_workflow", "duplicated_automation_workflow"]
+    serializer_field_names = [
+        "original_automation_workflow",
+        "duplicated_automation_workflow",
+    ]
     serializer_field_overrides = {
         "original_automation_workflow": AutomationWorkflowSerializer(read_only=True),
         "duplicated_automation_workflow": AutomationWorkflowSerializer(read_only=True),

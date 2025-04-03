@@ -4,20 +4,19 @@ from zipfile import ZipFile
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import transaction
+from django.db.models import Prefetch, QuerySet
 from django.db.transaction import Atomic
 from django.urls import include, path
-from django.db.models import Prefetch, QuerySet
 
-from baserow.core.handler import CoreHandler
-from baserow.contrib.automation.models import Automation
+from baserow.contrib.automation.constants import IMPORT_SERIALIZED_IMPORTING
+from baserow.contrib.automation.models import Automation, AutomationWorkflow
+from baserow.contrib.automation.operations import ListAutomationWorkflowsOperationType
 from baserow.contrib.automation.types import AutomationDict
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Application, Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
 from baserow.core.utils import ChildProgressBuilder
-from baserow.contrib.automation.models import AutomationWorkflow
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-from baserow.contrib.automation.constants import IMPORT_SERIALIZED_IMPORTING
-from baserow.contrib.automation.operations import ListAutomationWorkflowsOperationType
 
 
 def lazy_get_instance_serializer_class():
@@ -158,7 +157,7 @@ class AutomationApplicationType(ApplicationType):
         else:
             instance = self.enhance_queryset(base_queryset).first()
             return instance and list(instance.automationworkflow_set.all()) or []
-    
+
     def enhance_queryset(self, queryset):
         return queryset.prefetch_related("automationworkflow_set")
 
@@ -174,7 +173,9 @@ class AutomationApplicationType(ApplicationType):
                 queryset=CoreHandler().filter_queryset(
                     user,
                     ListAutomationWorkflowsOperationType.type,
-                    AutomationWorkflow.objects.select_related("automation__workspace").all(),
+                    AutomationWorkflow.objects.select_related(
+                        "automation__workspace"
+                    ).all(),
                     workspace=workspace,
                 ),
                 to_attr="workflows",
