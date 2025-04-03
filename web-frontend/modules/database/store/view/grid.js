@@ -34,6 +34,31 @@ const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
 const REFRESH_ROW_DELAY = 1000
 
+/**
+ * sorts rows in-place based on view's sorting configuration
+ *
+ * @param getters
+ * @param registry
+ * @param view
+ * @param fields
+ * @param rows
+ * @returns {*}
+ */
+export function sortRows(getters, registry, view, fields, rows) {
+  if (getters.getRowsSortingPostponed) {
+    return rows
+  }
+
+  const sortFunction = getRowSortFunction(
+    registry,
+    view.sortings,
+    fields,
+    view.group_bys
+  )
+  rows.sort(sortFunction)
+  return rows
+}
+
 export function populateRow(row, metadata = {}) {
   row._ = {
     metadata: getRowMetadata(row, metadata),
@@ -146,6 +171,11 @@ export const state = () => ({
   // in the array, then that cell is a loading state. This is for example used for
   // fields that use a background worker to compute the value like the AI field.
   pendingFieldOps: {},
+  // This caller-controlled value tells if rows should be sorted during longer actions.
+  // In some cases, an action may want to dispatch other, smaller actions, that may
+  // trigger sorting, while it's not wanted yet, becuse rows will be sorted at the end
+  // of the action.
+  sortingPostponed: false,
 })
 
 export const mutations = {
@@ -163,6 +193,7 @@ export const mutations = {
     state.activeSearchTerm = ''
     state.hideRowsNotMatchingSearch = true
     state.pendingFieldOps = {}
+    state.sortingPostponed = false
   },
   SET_ACTIVE_GROUP_BYS(state, groupBys) {
     state.activeGroupBys = groupBys
@@ -315,6 +346,9 @@ export const mutations = {
   },
   SET_ROW_MATCH_SORTINGS(state, { row, value }) {
     row._.matchSortings = value
+  },
+  SET_ROWS_SORTING_POSTPONED(state, value) {
+    state.sortingPostponed = value
   },
   ADD_ROW_SELECTED_BY(state, { row, fieldId }) {
     if (!row._.selectedBy.includes(fieldId)) {
@@ -1494,6 +1528,9 @@ export const actions = {
   setMultiSelectActive({ commit }, value) {
     commit('SET_MULTISELECT_ACTIVE', value)
   },
+  setRowsSortingPostponed({ commit }, value) {
+    commit('SET_ROWS_SORTING_POSTPONED', value)
+  },
   clearAndDisableMultiSelect({ commit }) {
     commit('CLEAR_MULTISELECT')
     commit('SET_MULTISELECT_ACTIVE', false)
@@ -1830,7 +1867,6 @@ export const actions = {
       before = null,
       selectPrimaryCell = false,
       isRowOpenedInModal = undefined,
-      postponeUpdates = false,
     }
   ) {
     // Create an object of default field values that can be used to fill the row with
@@ -1910,7 +1946,6 @@ export const actions = {
             values: rowPopulated,
             metadata: {},
             populate: false,
-            postponeUpdates,
           })
         }
       }
@@ -1998,7 +2033,7 @@ export const actions = {
             decrease: false,
           })
         }
-        dispatch('onRowChange', { view, row, fields })
+        await dispatch('onRowChange', { view, row, fields })
         const rowId = row.id
         setTimeout(() => {
           // Get the latest row so that any changes that might have been made in the
@@ -2062,13 +2097,10 @@ export const actions = {
    * another channel. It will only add the row if it belongs inside the views and it
    * also makes sure that row will be inserted at the correct position.
    *
-   * postponeUpdates indicates that rows re-sorting should not be performed now. This
-   * is useful, when there's more than one rows being created and re-sorting will
-   * happen at the end of the whole operation.
    */
   async createdNewRow(
     { commit, getters, dispatch },
-    { view, fields, values, metadata, populate = true, postponeUpdates = false }
+    { view, fields, values, metadata, populate = true }
   ) {
     const row = clone(values)
 
@@ -2100,18 +2132,8 @@ export const actions = {
     // in this view, we need to estimate what position it has in the table.
     const allRowsCopy = clone(getters.getAllRows)
     allRowsCopy.push(row)
-    if (!postponeUpdates) {
-      // Now that we know that the row applies to the filters, which means it belongs
-      // in this view, we need to estimate what position it has in the table.
+    sortRows(getters, this.$registry, view, fields, allRowsCopy)
 
-      const sortFunction = getRowSortFunction(
-        this.$registry,
-        view.sortings,
-        fields,
-        view.group_bys
-      )
-      allRowsCopy.sort(sortFunction)
-    }
     const index = allRowsCopy.findIndex((r) => r.id === row.id)
 
     const isFirst = index === 0
@@ -2462,6 +2484,7 @@ export const actions = {
     const isSingleCellCopied =
       copiedRowsCount === 1 && copiedCellsInRowsCount === 1
 
+    await dispatch('setRowsSortingPostponed', true)
     if (isSingleCellCopied) {
       // the textData and jsonData are recreated
       // to fill the entire multi selection
@@ -2515,7 +2538,6 @@ export const actions = {
           return {}
         }),
         selectPrimaryCell: false,
-        postponeUpdates: true,
       })
       rowTailIndex = rowTailIndex + newRowsCount
     }
@@ -2552,6 +2574,7 @@ export const actions = {
       (field) => !field._.type.isReadOnly
     )
     if (writeFields.length === 0) {
+      await dispatch('setRowsSortingPostponed', false)
       return
     }
 
@@ -2628,15 +2651,25 @@ export const actions = {
         row,
         values,
       })
+      // mark row as moved (if doesn't match sorting/filtering)
+      await dispatch('setRowsSortingPostponed', false)
+      const rowInStore = getters.getRow(row.id)
+      await dispatch('onRowChange', {
+        view,
+        row: rowInStore,
+        fields: allFieldsInTable,
+      })
+      await dispatch('setRowsSortingPostponed', true)
     }
 
     // Must be called because rows could have been removed or moved to a different
     // position and we might need to fetch missing rows.
-    await dispatch('fetchByScrollTopDelayed', {
-      scrollTop: getScrollTop(),
-      fields: allFieldsInTable,
-    })
+    // await dispatch('fetchByScrollTopDelayed', {
+    //   scrollTop: getScrollTop(),
+    //   fields: allFieldsInTable,
+    // })
     dispatch('fetchAllFieldAggregationData', { view })
+    await dispatch('setRowsSortingPostponed', false)
   },
   /**
    * Called after an existing row has been updated, which could be by the user or
@@ -2700,12 +2733,6 @@ export const actions = {
       }
 
       // Figure out if the row is currently in the buffer.
-      const sortFunction = getRowSortFunction(
-        this.$registry,
-        view.sortings,
-        fields,
-        view.group_bys
-      )
       const allRows = getters.getAllRows
       const index = allRows.findIndex((r) => r.id === row.id)
       const oldIsFirst = index === 0
@@ -2736,7 +2763,7 @@ export const actions = {
           allRowsCopy.splice(oldRowIndex, 1)
         }
         allRowsCopy.push(oldRow)
-        allRowsCopy.sort(sortFunction)
+        sortRows(getters, this.$registry, view, fields, allRowsCopy)
         const oldIndex = allRowsCopy.findIndex((r) => r.id === newRow.id)
         if (oldIndex === 0) {
           // If the old row is before the buffer.
@@ -2751,7 +2778,8 @@ export const actions = {
         allRowsCopy.splice(oldRowIndex, 1)
       }
       allRowsCopy.push(newRow)
-      allRowsCopy.sort(sortFunction)
+      sortRows(getters, this.$registry, view, fields, allRowsCopy)
+
       const newIndex = allRowsCopy.findIndex((r) => r.id === newRow.id)
       const newIsFirst = newIndex === 0
       const newIsLast = newIndex === allRowsCopy.length - 1
@@ -2927,13 +2955,7 @@ export const actions = {
 
     // Otherwise we have to calculate was before or after the current buffer.
     allRowsCopy.push(row)
-    const sortFunction = getRowSortFunction(
-      this.$registry,
-      view.sortings,
-      fields,
-      view.group_bys
-    )
-    allRowsCopy.sort(sortFunction)
+    sortRows(getters, this.$registry, view, fields, allRowsCopy)
     const index = allRowsCopy.findIndex((r) => r.id === row.id)
 
     // If the row is at position 0, it means that the row existed before the buffer,
@@ -2950,10 +2972,10 @@ export const actions = {
    * Triggered when a row has been changed, or has a pending change in the provided
    * overrides.
    */
-  onRowChange({ dispatch }, { view, row, fields, overrides = {} }) {
-    dispatch('updateMatchFilters', { view, row, fields, overrides })
-    dispatch('updateMatchSortings', { view, row, fields, overrides })
-    dispatch('updateSearchMatchesForRow', { row, fields, overrides })
+  async onRowChange({ dispatch }, { view, row, fields, overrides = {} }) {
+    await dispatch('updateMatchFilters', { view, row, fields, overrides })
+    await dispatch('updateMatchSortings', { view, row, fields, overrides })
+    await dispatch('updateSearchMatchesForRow', { row, fields, overrides })
   },
   /**
    * Checks if the given row still matches the given view filters. The row's
@@ -3042,9 +3064,7 @@ export const actions = {
     const currentIndex = getters.getAllRows.findIndex((r) => r.id === row.id)
     const sortedRows = clone(allRows)
     sortedRows[currentIndex] = values
-    sortedRows.sort(
-      getRowSortFunction(this.$registry, view.sortings, fields, view.group_bys)
-    )
+    sortRows(getters, this.$registry, view, fields, sortedRows)
     const newIndex = sortedRows.findIndex((r) => r.id === row.id)
 
     commit('SET_ROW_MATCH_SORTINGS', { row, value: currentIndex === newIndex })
@@ -3224,6 +3244,9 @@ export const getters = {
   },
   getRowsStartIndex(state) {
     return state.rowsStartIndex
+  },
+  getRowsSortingPostponed(state) {
+    return state.sortingPostponed
   },
   getRowsEndIndex(state) {
     return state.rowsEndIndex
