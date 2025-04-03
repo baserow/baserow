@@ -998,11 +998,12 @@
     },
     "databaseStep": {
         "title": "첫 번째 데이터베이스 생성",
-        "description": "무엇을 작업하고 있는지 알려주세요.",
+        "description": "시작할 항목을 선택하세요:",
         "databaseNameLabel": "데이터베이스 이름",
         "scratch": "처음부터",
-        "import": "파일에서",
-        "airtable": "Airtable에서"
+        "import": "파일",
+        "airtable": "에어테이블",
+        "template": "템플릿"
     },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "다중 단계 날짜 필터로 마이그레이션",
@@ -1068,5 +1069,29 @@
     },
     "webhookPayloadTooLargeNotification": {
         "body": "이벤트 ID {event_id}를 가진 {name} 웹훅의 페이로드가 너무 커서 여러 개의 배치로 분할되었습니다. 그러나 배치 제한 {batch_limit}을 초과하는 데이터는 삭제되었습니다."
+    },
+    "filterSortGroupGuidedTourStep": {
+        "title": "데이터 찾기 및 정리",
+        "content": "행을 필터링하고 정렬하여 원하는 정보를 빠르게 찾을 수 있습니다. 어떤 필드로든 즉시 그룹화하여 패턴을 명확하게 시각화하고 워크플로우를 간소화하세요."
+    },
+    "createFormViewGuidedTourStep": {
+        "content": "테이블에서 빠르게 양식을 만들어 응답을 직접 테이블로 수집함으로써 데이터 수집 과정을 간소화하세요.",
+        "title": "양식 만들기"
+    },
+    "addFieldGuidedTourStep": {
+        "content": "“+”를 클릭하여 새 필드(열)를 추가하세요. 다양한 필드 유형 중에서 선택하여 프로젝트에 가장 중요한 정보를 정확하게 담을 수 있습니다.",
+        "title": "데이터 사용자 지정"
+    },
+    "viewOptionsGuidedTourStep": {
+        "title": "뷰 옵션",
+        "content": "보기 옆의 점 세 개 아이콘을 클릭하면 내보내기, 가져오기, 복제, 웹훅 설정 등을 할 수 있습니다."
+    },
+    "tablesGuidedTourStep": {
+        "title": "깃발",
+        "content": "테이블은 정보를 깔끔하게 저장하는 공간입니다. 데이터베이스 안에 새로운 테이블을 만들어 데이터를 체계적으로 구성해보세요."
+    },
+    "createViewGuidedTourStep": {
+        "title": "나만의 보기 설정",
+        "content": "그리드, 캘린더, 칸반, 갤러리 등 다양한 사용자 지정 보기를 만들어 원하는 방식으로 데이터를 시각화하세요."
     }
 }
