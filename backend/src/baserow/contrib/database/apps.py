@@ -1030,6 +1030,7 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.table.receivers  # noqa: F401
         import baserow.contrib.database.views.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
+        import baserow.contrib.database.mcp.tools  # noqa: F401
 
         # Make sure that from now on, no model can make the User cache to expire,
         # because that can be a problem if some other thread tries to access the related

@@ -62,7 +62,7 @@ services:
         UID: $UID
         GID: $GID
     ports:
-      - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:3001:3000"
     volumes:
       - ./web-frontend:/baserow/web-frontend
       # Override the above mounts for node_modules so we use the node_modules built

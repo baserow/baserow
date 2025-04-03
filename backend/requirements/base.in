@@ -81,3 +81,4 @@ icalendar==5.0.12
 jira2markdown==0.3.7
 openpyxl==3.1.5
 zipstream-ng==1.8.0
+mcp==1.6.0
