@@ -63,7 +63,8 @@
         "viewFieldLabel": "Vue",
         "tableFieldLabel": "Table",
         "chooseNoView": "Non sélectionnée",
-        "databaseFieldLabel": "Base de données"
+        "databaseFieldLabel": "Base de données",
+        "dataSyncedTableDescription": "Table synchronisée"
     },
     "userSourceType": {
         "localBaserow": "Authentification par table Baserow"

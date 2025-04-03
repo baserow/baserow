@@ -1,0 +1,8 @@
+{
+  "type": "feature",
+  "message": "Add support for list filtering on link_row_has filter type.",
+  "domain": "database",
+  "issue_number": 3478,
+  "bullet_points": [],
+  "created_at": "2025-03-26"
+}

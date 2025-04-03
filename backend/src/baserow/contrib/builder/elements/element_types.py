@@ -1,4 +1,5 @@
 import abc
+import uuid
 from datetime import datetime
 from typing import (
     Any,
@@ -2380,17 +2381,31 @@ class MenuElementType(ElementType):
         menu_items_to_create = []
         child_uids_parent_uids = {}
 
+        # Generate new uids to prevent conflicts
+        updated_uids = {i["uid"]: str(uuid.uuid4()) for i in menu_items}
+
         ids_uids = {i["id"]: i["uid"] for i in menu_items}
         keys_to_remove = ["id", "menu_item_order", "children"]
+
         for index, item in enumerate(menu_items):
             for key in keys_to_remove:
                 item.pop(key, None)
 
+            old_uid = item.pop("uid")
+            new_uid = updated_uids[old_uid]
+
             # Keep track of child-parent relationship via the uid
             if parent_id := item.pop("parent_menu_item", None):
-                child_uids_parent_uids[item["uid"]] = ids_uids[parent_id]
+                child_uids_parent_uids[new_uid] = updated_uids[ids_uids[parent_id]]
 
-            menu_items_to_create.append(MenuItemElement(**item, menu_item_order=index))
+            # Map the old uid to the new uid. This ensures that any workflow
+            # actions with an `event` pointing to the old uid will have the
+            # pointer to the new uid.
+            id_mapping["builder_element_event_uids"][old_uid] = new_uid
+
+            menu_items_to_create.append(
+                MenuItemElement(**item, uid=new_uid, menu_item_order=index)
+            )
 
         created_menu_items = MenuItemElement.objects.bulk_create(menu_items_to_create)
         instance.menu_items.add(*created_menu_items)

@@ -1,5 +1,8 @@
 import pytest
 
+from baserow.contrib.database.fields.dependencies.circular_reference_checker import (
+    get_all_field_dependencies,
+)
 from baserow.contrib.database.fields.dependencies.exceptions import (
     CircularFieldDependencyError,
 )
@@ -368,3 +371,27 @@ def test_trashing_and_restoring_a_field_recreate_dependencies_correctly(data_fix
     row_2.refresh_from_db()
     assert getattr(row_2, f1.db_column) == "b"
     assert getattr(row_2, f2.db_column) == "b"
+
+
+@pytest.mark.django_db
+def test_even_with_circular_dependencies_queries_finish_in_time(data_fixture):
+    # This should never happen, but if somehow circular dependencies are created
+    # we should still be able to get the dependencies of a field without running
+    # into an infinite loop in the recursive query.
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    f1 = data_fixture.create_formula_field(
+        name="f1", table=table, formula_type="text", formula="1"
+    )
+    f2 = data_fixture.create_formula_field(
+        name="f2", table=table, formula_type="text", formula="field('f1')"
+    )
+    # Forcefully create a circular dependency
+    f1.dependencies.create(dependency=f2)
+
+    with pytest.raises(CircularFieldDependencyError):
+        assert get_all_field_dependencies(f1) == {f2.id}  # f1 -> f2
+
+    with pytest.raises(CircularFieldDependencyError):
+        assert get_all_field_dependencies(f2) == {f1.id}  # f2 -> f1

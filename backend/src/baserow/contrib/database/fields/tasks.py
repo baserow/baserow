@@ -1,11 +1,11 @@
+import itertools
 import traceback
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Type
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q, QuerySet
+from django.db.models import OuterRef, Q, QuerySet, Subquery
 
 from loguru import logger
 from opentelemetry import trace
@@ -14,9 +14,11 @@ from baserow.config.celery import app
 from baserow.contrib.database.fields.periodic_field_update_handler import (
     PeriodicFieldUpdateHandler,
 )
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.registries import FieldType, field_type_registry
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
+from baserow.contrib.database.views.handler import ViewSubscriptionHandler
+from baserow.contrib.database.views.models import View, ViewSubscription
 from baserow.core.models import Workspace
 from baserow.core.telemetry.utils import add_baserow_trace_attrs, baserow_trace
 
@@ -83,7 +85,7 @@ def run_periodic_fields_updates(
 
 @baserow_trace(tracer)
 def _run_periodic_field_type_update_per_workspace(
-    field_type_instance, workspace: Workspace, update_now=True
+    field_type_instance: Type[FieldType], workspace: Workspace, update_now: bool = True
 ):
     qs = field_type_instance.get_fields_needing_periodic_update()
     if qs is None:
@@ -93,45 +95,77 @@ def _run_periodic_field_type_update_per_workspace(
         workspace.refresh_now()
     add_baserow_trace_attrs(update_now=update_now, workspace_id=workspace.id)
 
-    all_updated_fields = []
-
     fields = (
         qs.filter(
             table__database__workspace_id=workspace.id,
-            table__trashed=False,
             table__database__trashed=False,
+            table__trashed=False,
         )
         .select_related("table")
-        .prefetch_related("table__view_set")
+        .order_by("table__database_id")
     )
-    # noinspection PyBroadException
-    try:
-        all_updated_fields = _run_periodic_field_update(
-            fields, field_type_instance, all_updated_fields
+
+    # Grouping by database will allow us to pass the `database_id` to the update
+    # function so recreating the dependency tree will be faster.
+    for database_id, field_group in itertools.groupby(
+        fields, key=lambda f: f.table.database_id
+    ):
+        fields_in_db = list(field_group)
+        database_updated_fields = []
+        try:
+            with transaction.atomic():
+                database_updated_fields = field_type_instance.run_periodic_update(
+                    fields_in_db,
+                    already_updated_fields=database_updated_fields,
+                    skip_search_updates=True,
+                    database_id=database_id,
+                )
+        except Exception:
+            tb = traceback.format_exc()
+            field_ids = ", ".join(str(field.id) for field in fields_in_db)
+            logger.error(
+                "Failed to periodically update {field_ids} because of: \n{tb}",
+                field_ids=field_ids,
+                tb=tb,
+            )
+        else:
+            # Update tsv columns and notify views of the changes.
+            SearchHandler().all_fields_values_changed_or_created(
+                database_updated_fields
+            )
+
+            updated_table_ids = list(
+                {field.table_id for field in database_updated_fields}
+            )
+            notify_table_views_updates.delay(updated_table_ids)
+
+
+@app.task(bind=True)
+def notify_table_views_updates(self, table_ids):
+    """
+    Notifies the views of the provided tables that their data has been updated. For
+    performance reasons, we fetch all the views with subscriptions in one go and group
+    them by table id so we can notify only the views that need to be notified.
+
+    :param table_ids: The ids of the tables that have been updated.
+    """
+
+    subquery = ViewSubscription.objects.filter(view_id=OuterRef("id")).values("view_id")
+    views_need_notify = (
+        View.objects.filter(
+            table_id__in=table_ids,
+            id=Subquery(subquery),
         )
-    except Exception:
-        tb = traceback.format_exc()
-        field_ids = ", ".join(str(field.id) for field in fields)
-        logger.error(
-            "Failed to periodically update {field_ids} because of: \n{tb}",
-            field_ids=field_ids,
-            tb=tb,
-        )
+        .select_related("table")
+        .order_by("table_id")
+    )
 
-    from baserow.contrib.database.views.handler import ViewSubscriptionHandler
-
-    # After a successful periodic update of all fields, we would need to update the
-    # search index for all of them in one function per table to avoid ending up in a
-    # deadlock because rows are updated simultaneously.
-    fields_per_table = defaultdict(list)
-    for field in all_updated_fields:
-        fields_per_table[field.table_id].append(field)
-    for _, fields in fields_per_table.items():
-        SearchHandler().entire_field_values_changed_or_created(fields[0].table, fields)
-
+    for _, views_group in itertools.groupby(
+        views_need_notify, key=lambda v: v.table_id
+    ):
         with transaction.atomic():
-            ViewSubscriptionHandler().notify_table_views_updates(
-                fields[0].table.view_set.all()
+            ViewSubscriptionHandler.notify_table_views(
+                [view.id for view in views_group]
             )
 
 
@@ -143,14 +177,6 @@ def delete_mentions_marked_for_deletion(self):
     RichTextFieldMention.objects.filter(
         marked_for_deletion_at__lte=cutoff_time
     ).delete()
-
-
-@baserow_trace(tracer)
-def _run_periodic_field_update(fields, field_type_instance, all_updated_fields):
-    with transaction.atomic():
-        return field_type_instance.run_periodic_update(
-            fields, already_updated_fields=all_updated_fields
-        )
 
 
 @app.on_after_finalize.connect

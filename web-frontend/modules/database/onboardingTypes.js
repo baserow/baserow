@@ -14,6 +14,8 @@ import FieldService from '@baserow/modules/database/services/field'
 import RowService from '@baserow/modules/database/services/row'
 import AirtableService from '@baserow/modules/database/services/airtable'
 import DatabaseScratchTrackFieldsStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackFieldsStep.vue'
+import DatabaseTemplatePreview from '@baserow/modules/database/components/onboarding/DatabaseTemplatePreview'
+import TemplateService from '@baserow/modules/core/services/template'
 
 const databaseTypeCondition = (data, type) => {
   const dependingType = DatabaseOnboardingType.getType()
@@ -52,8 +54,14 @@ export class DatabaseOnboardingType extends OnboardingType {
     return DatabaseStep
   }
 
-  getPreviewComponent() {
-    return DatabaseAppLayoutPreview
+  getPreviewComponent(data) {
+    const type = data[this.getType()]?.type
+    const template = data[this.getType()]?.template
+    if (type === 'template' && template) {
+      return DatabaseTemplatePreview
+    } else {
+      return DatabaseAppLayoutPreview
+    }
   }
 
   getAdditionalPreviewProps() {
@@ -61,14 +69,15 @@ export class DatabaseOnboardingType extends OnboardingType {
   }
 
   async complete(data, responses) {
-    const type = data[this.getType()].type
-    if (type === 'airtable') {
-      const workspace = responses[WorkspaceOnboardingType.getType()]
-      const airtableUrl = data[this.getType()].airtableUrl
-      const skipFiles = data[this.getType()].skipFiles
-      const useSession = data[this.getType()].useSession
-      const session = data[this.getType()].session
-      const sessionSignature = data[this.getType()].sessionSignature
+    const workspace = responses[WorkspaceOnboardingType.getType()]
+    const stepData = data[this.getType()]
+    const fromType = stepData.type
+    if (fromType === 'airtable') {
+      const airtableUrl = stepData.airtableUrl
+      const skipFiles = stepData.skipFiles
+      const useSession = stepData.useSession
+      const session = stepData.session
+      const sessionSignature = stepData.sessionSignature
       const { data: job } = await AirtableService(this.app.$client).create(
         workspace.id,
         airtableUrl,
@@ -80,20 +89,40 @@ export class DatabaseOnboardingType extends OnboardingType {
       // Responds with the newly created job, so that the `getJobForPolling` can use
       // the response to mark the onboarding as an async job.
       return job
+    } else if (fromType === 'template') {
+      const template = stepData.template
+      const { data: job } = await TemplateService(
+        this.app.$client
+      ).asyncInstall(workspace.id, template.id)
+
+      // Responds with the newly created job, so that the `getJobForPolling` can use
+      // the response to mark the onboarding as an async job.
+      return job
     }
   }
 
   getJobForPolling(data, responses) {
     const type = data[this.getType()].type
-    if (type === 'airtable') {
+    if (type === 'airtable' || type === 'template') {
       return responses[this.getType()]
     }
   }
 
   getCompletedRoute(data, responses) {
     const type = data[this.getType()].type
+    let database = null
     if (type === 'airtable') {
-      const database = responses[this.getType()].database
+      database = responses[this.getType()].database
+    } else if (type === 'template') {
+      database = responses[this.getType()].installed_applications.find(
+        (application) => application.type === DatabaseApplicationType.getType()
+      )
+    }
+
+    // Deliberately open the database first because that's where the user must start
+    // their journey. If no database exist, return nothing, so that the dashboard
+    // is opened.
+    if (database) {
       const firstTableId = database.tables[0]?.id || 0
       return {
         name: 'database-table',

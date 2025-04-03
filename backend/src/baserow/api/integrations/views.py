@@ -4,7 +4,7 @@ from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -52,6 +52,12 @@ from baserow.core.integrations.service import IntegrationService
 class IntegrationsView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+
+        return super().get_permissions()
+
     @extend_schema(
         parameters=[
             OpenApiParameter(
@@ -88,7 +94,7 @@ class IntegrationsView(APIView):
         if the user has access to that application.
         """
 
-        application = CoreHandler().get_application(application_id, specific=False)
+        application = CoreHandler().get_application(application_id)
 
         integrations = IntegrationService().get_integrations(request.user, application)
 

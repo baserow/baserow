@@ -84,6 +84,11 @@ export const routes = [
     component: path.resolve(__dirname, 'pages/styleGuide.vue'),
   },
   {
+    name: 'template',
+    path: '/template/:slug',
+    component: path.resolve(__dirname, 'pages/template.vue'),
+  },
+  {
     name: 'health-check',
     path: '/_health',
     component: path.resolve(__dirname, 'pages/_health.vue'),

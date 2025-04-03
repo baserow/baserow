@@ -397,8 +397,7 @@ class ViewFilter(HierarchicalModelMixin, models.Model):
         "value. The filter is always in this order `field` `type` `value` "
         "(example: `field_1` `contains` `Test`).",
     )
-    value = models.CharField(
-        max_length=255,
+    value = models.TextField(
         blank=True,
         help_text="The filter value that must be compared to the field's value.",
     )
@@ -937,8 +936,7 @@ class FormViewFieldOptionsCondition(HierarchicalModelMixin, models.Model):
         "value. The filter is always in this order `field` `type` `value` "
         "(example: `field_1` `contains` `Test`).",
     )
-    value = models.CharField(
-        max_length=255,
+    value = models.TextField(
         blank=True,
         help_text="The filter value that must be compared to the field's value.",
     )

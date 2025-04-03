@@ -931,5 +931,8 @@
         "activeUsers7days": "Utenti attivi nelle ultimi 7 giorni",
         "activeUsers30days": "Utenti attivi nelle ultimi 30 giorni",
         "viewAll": "Vedi tutti"
+    },
+    "exportWorkspaceModal": {
+        "title": "Esporta"
     }
 }

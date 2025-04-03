@@ -5,11 +5,14 @@
         },
         "viewType": {
             "kanban": "Tablica Kanban",
-            "calendar": "Kalendarz"
+            "calendar": "Kalendarz",
+            "timeline": "Linia czasu"
         },
         "exporterType": {
             "json": "Eksport do JSON",
-            "xml": "Eksport do XML"
+            "xml": "Eksport do XML",
+            "excel": "Eksportuj do Excela",
+            "file": "Eksportuj pliki"
         },
         "deactivated": "Dostępne w wersji premium"
     },
@@ -105,7 +108,8 @@
         "publicLogoRemoval": "Usunięcie logo publicznego",
         "personalViews": "Osobiste widoki",
         "calendarView": "Widok kalendarza",
-        "aiFeatures": "Pole AI"
+        "aiFeatures": "Pole AI",
+        "timelineView": "Widok osi czasu"
     },
     "licenses": {
         "titleNoLicenses": "Nie znaleziono licencji",
@@ -119,7 +123,8 @@
         "expired": "Wygasła",
         "validity": "Obowiązuje od {start} do {end}",
         "seats": "miejsca",
-        "premiumFeatures": "Funkcje premium"
+        "premiumFeatures": "Funkcje premium",
+        "applicationUsers": "Użytkownicy aplikacji"
     },
     "license": {
         "title": "Abonament {name}",
@@ -153,7 +158,9 @@
         "moreSeatsNeededTitle": "Potrzeba więcej miejsc",
         "enterpriseFeatureName": "Wersja Enterprise",
         "contactSalesMoreSeats": "Skontaktuj się z działem sprzedaży, aby uzyskać więcej miejsc",
-        "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} płatnych miejsc i {free_users_count} wolnych miejsc w użyciu"
+        "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} płatnych miejsc i {free_users_count} wolnych miejsc w użyciu",
+        "applicationUsersDescription": "Całkowita liczba użytkowników aplikacji w opublikowanych źródłach użytkowników budowniczego aplikacji.",
+        "applicationUsers": "Użytkownicy aplikacji"
     },
     "viewDecoratorType": {
         "leftBorderColor": "Lewa granica",
@@ -205,7 +212,8 @@
         "baserowLogo": {
             "label": "Ukryj logo Baserow w widoku udostępnionym",
             "premiumModalName": "usuwanie logo publicznego"
-        }
+        },
+        "allowPublicExportLabel": "Pozwól na eksport danych z udostępnionego widoku"
     },
     "viewsContext": {
         "personal": "Osobisty"
@@ -263,7 +271,10 @@
         "prompt": "Prompt",
         "fileFieldHelp": "Pierwszy zgodny plik w polu zostanie użyty jako baza wiedzy dla monitu. Plik musi być plikiem tekstowym z obsługiwanym rozszerzeniem, takim jak .txt, .md, .pdf, .docx.",
         "promptPlaceholder": "Czym jest Baserow?",
-        "emptyFileField": "Brak"
+        "emptyFileField": "Brak",
+        "outputTypeTooltip": "Wybierz oczekiwany format danych wyjściowych aby pokierować LLM w generowaniu odpowiedzi, które pasują do oczekiwanych opcji.",
+        "outputType": "Typ wyjścia",
+        "outputTypeChangedWarning": "Czyści wygenerowane wartości w komórkach."
     },
     "rowEditFieldAI": {
         "generate": "Generuj",
@@ -295,5 +306,54 @@
     "formulaFieldAI": {
         "generateWithAI": "Generowanie przy użyciu sztucznej inteligencji",
         "featureName": "Wzór generacyjny przy użyciu AI"
+    },
+    "viewDateSelector": {
+        "today": "Dziś"
+    },
+    "timelineDateSettingsForm": {
+        "incompatibleFieldsErrorMessage": "Pola nie są kompatybilne. Proszę wybrać dwa prawidłowe pola daty z tabeli, które używają tego samego ustawienia dla \"uwzględnić czas\" i używają tej samej strefy czasowej dla współpracowników.",
+        "startDateField": "Data początkowa",
+        "endDateField": "Data końcowa",
+        "noCompatibleDateFields": "Brakuje pól dat w tabeli. Proszę najpierw dodać datę początkową i końcową do tabeli.",
+        "incompatibleFieldsErrorTitle": "Niekompatybilne pola",
+        "dateOnly": "tylko data",
+        "includeTime": "data i czas"
+    },
+    "timelineTimescaleContext": {
+        "disabledTooltip": "Ta opcja jest dostępna tylko dla pól daty, które mają włączone \"uwzględnij czas\".",
+        "hour": "Godzina",
+        "day": "Dzień",
+        "week": "Tydzień",
+        "month": "Miesiąc",
+        "quarter": "Kwartał",
+        "year": "Rok"
+    },
+    "publicViewExport": {
+        "export": "Eksport"
+    },
+    "tableFileExporter": {
+        "organizeFiles": "Grupuj pliki po id wiersza"
+    },
+    "aiOutputType": {
+        "textDescription": "Wygeneruj dowolny tekst na podstawie podpowiedzi.",
+        "choice": "Wybór",
+        "text": "Tekst",
+        "choiceDescription": "Wybierz tylko jedną opcję dla pola."
+    },
+    "timelineViewHeader": {
+        "dateSettings": "Ustawienia daty",
+        "labels": "Etykiety"
+    },
+    "tableExcelExporter": {
+        "includeHeader": "Dołącz nazwy pól jako nagłówek"
+    },
+    "selectDateFieldContext": {
+        "save": "Zapisz"
+    },
+    "initTimelineViewSettings": {
+        "settings": "Ustawienia daty"
+    },
+    "timelineGridRow": {
+        "days": "0|1 dzień| {count} dni"
     }
 }
