@@ -6,17 +6,17 @@ from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.operations import OrderAutomationWorkflowsOperationType
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.operations import (
-    CreateWorkflowOperationType,
-    DeleteWorkflowOperationType,
-    DuplicateWorkflowOperationType,
-    ReadWorkflowOperationType,
-    UpdateWorkflowOperationType,
+    CreateAutomationWorkflowOperationType,
+    DeleteAutomationWorkflowOperationType,
+    DuplicateAutomationWorkflowOperationType,
+    ReadAutomationWorkflowOperationType,
+    UpdateAutomationWorkflowOperationType,
 )
 from baserow.contrib.automation.workflows.signals import (
-    workflow_created,
-    workflow_deleted,
-    workflow_updated,
-    workflows_reordered,
+    automation_workflow_created,
+    automation_workflow_deleted,
+    automation_workflow_updated,
+    automation_workflows_reordered,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.utils import ChildProgressBuilder, extract_allowed
@@ -39,7 +39,7 @@ class AutomationWorkflowService:
 
         CoreHandler().check_permissions(
             user,
-            ReadWorkflowOperationType.type,
+            ReadAutomationWorkflowOperationType.type,
             workspace=workflow.automation.workspace,
             context=workflow,
         )
@@ -63,14 +63,14 @@ class AutomationWorkflowService:
 
         CoreHandler().check_permissions(
             user,
-            CreateWorkflowOperationType.type,
+            CreateAutomationWorkflowOperationType.type,
             workspace=automation.workspace,
             context=automation,
         )
 
         workflow = self.handler.create_workflow(automation, name)
 
-        workflow_created.send(self, workflow=workflow, user=user)
+        automation_workflow_created.send(self, workflow=workflow, user=user)
 
         return workflow
 
@@ -84,7 +84,7 @@ class AutomationWorkflowService:
 
         CoreHandler().check_permissions(
             user,
-            DeleteWorkflowOperationType.type,
+            DeleteAutomationWorkflowOperationType.type,
             workspace=workflow.automation.workspace,
             context=workflow,
         )
@@ -93,7 +93,7 @@ class AutomationWorkflowService:
 
         self.handler.delete_workflow(workflow)
 
-        workflow_deleted.send(
+        automation_workflow_deleted.send(
             self, automation=workflow.automation, workflow_id=workflow_id, user=user
         )
 
@@ -111,7 +111,7 @@ class AutomationWorkflowService:
 
         CoreHandler().check_permissions(
             user,
-            UpdateWorkflowOperationType.type,
+            UpdateAutomationWorkflowOperationType.type,
             workspace=workflow.automation.workspace,
             context=workflow,
         )
@@ -123,7 +123,7 @@ class AutomationWorkflowService:
 
         self.handler.update_workflow(workflow, **allowed_updates)
 
-        workflow_updated.send(self, workflow=workflow, user=user)
+        automation_workflow_updated.send(self, workflow=workflow, user=user)
 
         return workflow
 
@@ -159,7 +159,7 @@ class AutomationWorkflowService:
 
         full_order = self.handler.order_workflows(automation, order, user_workflows)
 
-        workflows_reordered.send(
+        automation_workflows_reordered.send(
             self, automation=automation, order=full_order, user=user
         )
 
@@ -185,13 +185,13 @@ class AutomationWorkflowService:
 
         CoreHandler().check_permissions(
             user,
-            DuplicateWorkflowOperationType.type,
+            DuplicateAutomationWorkflowOperationType.type,
             workflow.automation.workspace,
             context=workflow,
         )
 
         workflow_clone = self.handler.duplicate_workflow(workflow, progress_builder)
 
-        workflow_created.send(self, workflow=workflow_clone, user=user)
+        automation_workflow_created.send(self, workflow=workflow_clone, user=user)
 
         return workflow_clone

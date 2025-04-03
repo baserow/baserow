@@ -47,7 +47,7 @@ class AutomationWorkflow(
         return cls.get_highest_order_of_queryset(queryset) + 1
 
 
-class DuplicateWorkflowAutomationJob(
+class DuplicateAutomationWorkflowJob(
     JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
 ):
     original_automation_workflow = models.ForeignKey(

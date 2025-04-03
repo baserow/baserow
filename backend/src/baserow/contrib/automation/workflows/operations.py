@@ -7,21 +7,21 @@ class AutomationWorkflowOperationType(AutomationOperationType, ABC):
     context_scope_name = "automation_workflow"
 
 
-class CreateWorkflowOperationType(AutomationOperationType):
+class CreateAutomationWorkflowOperationType(AutomationOperationType):
     type = "automation.workflow.create"
 
 
-class DeleteWorkflowOperationType(AutomationWorkflowOperationType):
+class DeleteAutomationWorkflowOperationType(AutomationWorkflowOperationType):
     type = "automation.workflow.delete"
 
 
-class UpdateWorkflowOperationType(AutomationWorkflowOperationType):
+class UpdateAutomationWorkflowOperationType(AutomationWorkflowOperationType):
     type = "automation.workflow.update"
 
 
-class ReadWorkflowOperationType(AutomationWorkflowOperationType):
+class ReadAutomationWorkflowOperationType(AutomationWorkflowOperationType):
     type = "automation.workflow.read"
 
 
-class DuplicateWorkflowOperationType(AutomationWorkflowOperationType):
+class DuplicateAutomationWorkflowOperationType(AutomationWorkflowOperationType):
     type = "automation.workflow.duplicate"

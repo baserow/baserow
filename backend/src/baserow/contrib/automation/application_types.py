@@ -37,7 +37,7 @@ class AutomationApplicationType(ApplicationType):
     request_serializer_field_names = []
     serializer_mixins = [lazy_get_instance_serializer_class]
 
-    # Builder applications are imported third.
+    # Automation applications are imported third (after database, builder)
     import_application_priority = 0
 
     def get_api_urls(self):
@@ -144,7 +144,7 @@ class AutomationApplicationType(ApplicationType):
         Serializes the workflows of the automation application, making sure
         that the user has the correct permissions to view them if provided.
 
-        :param application: The automation application instance.
+        :param automation: The automation application instance.
         :param user: The user trying to access the workflows.
         :return: A list of serialized workflows that belong to this instance.
         """

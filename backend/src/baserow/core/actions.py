@@ -411,8 +411,6 @@ class CreateApplicationActionType(UndoableActionType):
             user, workspace, application_type, **kwargs
         )
 
-        
-
         application_type = application_type_registry.get_by_model(
             application.specific_class
         )

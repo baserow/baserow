@@ -8,16 +8,16 @@ from rest_framework import serializers
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.registries import JobType
 
-from baserow.contrib.automation.models import DuplicateWorkflowAutomationJob
+from baserow.contrib.automation.models import DuplicateAutomationWorkflowJob
 from baserow.contrib.automation.workflows.serializers import AutomationWorkflowSerializer
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-from baserow.contrib.automation.workflows.operations import DuplicateWorkflowOperationType
+from baserow.contrib.automation.workflows.operations import DuplicateAutomationWorkflowOperationType
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 
 
 class DuplicateAutomationWorkflowJobType(JobType):
     type = "duplicate_automation_workflow"
-    model_class = DuplicateWorkflowAutomationJob
+    model_class = DuplicateAutomationWorkflowJob
     max_count = 1
 
     request_serializer_field_names = ["workflow_id"]
@@ -44,7 +44,7 @@ class DuplicateAutomationWorkflowJobType(JobType):
 
         CoreHandler().check_permissions(
             user,
-            DuplicateWorkflowOperationType.type,
+            DuplicateAutomationWorkflowOperationType.type,
             workspace=workflow.automation.workspace,
             context=workflow,
         )

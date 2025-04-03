@@ -25,11 +25,11 @@ class AutomationConfig(AppConfig):
             AutomationWorkflowObjectScopeType,
         )
         from baserow.contrib.automation.workflows.operations import (
-            CreateWorkflowOperationType,
-            DeleteWorkflowOperationType,
-            DuplicateWorkflowOperationType,
-            ReadWorkflowOperationType,
-            UpdateWorkflowOperationType,
+            CreateAutomationWorkflowOperationType,
+            DeleteAutomationWorkflowOperationType,
+            DuplicateAutomationWorkflowOperationType,
+            ReadAutomationWorkflowOperationType,
+            UpdateAutomationWorkflowOperationType,
         )
         from baserow.contrib.automation.workflows.job_types import DuplicateAutomationWorkflowJobType
 
@@ -39,11 +39,11 @@ class AutomationConfig(AppConfig):
             object_scope_type_registry.register(AutomationObjectScopeType())
             object_scope_type_registry.register(AutomationWorkflowObjectScopeType())
 
-            operation_type_registry.register(CreateWorkflowOperationType())
-            operation_type_registry.register(DeleteWorkflowOperationType())
-            operation_type_registry.register(DuplicateWorkflowOperationType())
-            operation_type_registry.register(ReadWorkflowOperationType())
-            operation_type_registry.register(UpdateWorkflowOperationType())
+            operation_type_registry.register(CreateAutomationWorkflowOperationType())
+            operation_type_registry.register(DeleteAutomationWorkflowOperationType())
+            operation_type_registry.register(DuplicateAutomationWorkflowOperationType())
+            operation_type_registry.register(ReadAutomationWorkflowOperationType())
+            operation_type_registry.register(UpdateAutomationWorkflowOperationType())
             operation_type_registry.register(OrderAutomationWorkflowsOperationType())
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())

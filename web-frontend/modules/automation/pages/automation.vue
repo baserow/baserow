@@ -31,7 +31,7 @@ export default {
       data.workspace = workspace
       data.automation = automation
     } catch (e) {
-      return error({ statusCode: 404, message: 'Automation not found.' })
+      return error({ statusCode: 404, message: this.$t('automationWorkflowErrors.errorAutomationNotFound') })
     }
     return data
   },

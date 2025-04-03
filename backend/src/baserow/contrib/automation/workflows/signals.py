@@ -1,6 +1,6 @@
 from django.dispatch import Signal
 
-workflow_created = Signal()
-workflow_deleted = Signal()
-workflow_updated = Signal()
-workflows_reordered = Signal()
+automation_workflow_created = Signal()
+automation_workflow_deleted = Signal()
+automation_workflow_updated = Signal()
+automation_workflows_reordered = Signal()

@@ -13,9 +13,9 @@ from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.contrib.automation.api.workflows.errors import (
-    ERROR_WORKFLOW_DOES_NOT_EXIST,
-    ERROR_WORKFLOW_NAME_NOT_UNIQUE,
-    ERROR_WORKFLOW_NOT_IN_AUTOMATION,
+    ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
+    ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE,
+    ERROR_AUTOMATION_WORKFLOW_NOT_IN_AUTOMATION,
 )
 from baserow.contrib.automation.api.workflows.serializers import (
     AutomationWorkflowSerializer,
@@ -27,7 +27,7 @@ from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
-    AutomationWorkflowNotInBuilder,
+    AutomationWorkflowNotInAutomation,
 )
 from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
@@ -42,7 +42,7 @@ from baserow.api.jobs.serializers import JobSerializer
 AUTOMATION_WORKFLOWS_TAG = "Automation workflows"
 
 
-class WorkflowsView(APIView):
+class AutomationWorkflowsView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
@@ -64,7 +64,7 @@ class WorkflowsView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
-                    "ERROR_WORKFLOW_NAME_NOT_UNIQUE",
+                    "ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE",
                 ]
             ),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
@@ -74,7 +74,7 @@ class WorkflowsView(APIView):
     @map_exceptions(
         {
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
-            AutomationWorkflowNameNotUnique: ERROR_WORKFLOW_NAME_NOT_UNIQUE,
+            AutomationWorkflowNameNotUnique: ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE,
         }
     )
     @validate_body(CreateAutomationWorkflowSerializer, return_validated=True)
@@ -91,7 +91,7 @@ class WorkflowsView(APIView):
         return Response(serializer.data)
 
 
-class WorkflowView(APIView):
+class AutomationWorkflowView(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(
@@ -111,11 +111,11 @@ class WorkflowView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
-                    "ERROR_WORKFLOW_NAME_NOT_UNIQUE",
+                    "ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE",
                 ]
             ),
             404: get_error_schema(
-                ["ERROR_WORKFLOW_DOES_NOT_EXIST", "ERROR_APPLICATION_DOES_NOT_EXIST"]
+                ["ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST", "ERROR_APPLICATION_DOES_NOT_EXIST"]
             ),
         },
     )
@@ -123,17 +123,17 @@ class WorkflowView(APIView):
     @map_exceptions(
         {
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
-            AutomationWorkflowNameNotUnique: ERROR_WORKFLOW_NAME_NOT_UNIQUE,
-            AutomationWorkflowDoesNotExist: ERROR_WORKFLOW_DOES_NOT_EXIST,
+            AutomationWorkflowNameNotUnique: ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE,
+            AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
         }
     )
     @validate_body(UpdateAutomationWorkflowSerializer, return_validated=True)
     def patch(self, request, data: Dict, workflow_id: int):
         service = AutomationWorkflowService()
         workflow = service.get_workflow(request.user, workflow_id)
-        workflow_updated = service.update_workflow(request.user, workflow, **data)
+        updated_workflow = service.update_workflow(request.user, workflow, **data)
 
-        serializer = AutomationWorkflowSerializer(workflow_updated)
+        serializer = AutomationWorkflowSerializer(updated_workflow)
         return Response(serializer.data)
 
     @extend_schema(
@@ -152,13 +152,13 @@ class WorkflowView(APIView):
         responses={
             204: None,
             400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
-            404: get_error_schema(["ERROR_WORKFLOW_DOES_NOT_EXIST"]),
+            404: get_error_schema(["ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST"]),
         },
     )
     @transaction.atomic
     @map_exceptions(
         {
-            AutomationWorkflowDoesNotExist: ERROR_WORKFLOW_DOES_NOT_EXIST,
+            AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
         }
     )
     @transaction.atomic
@@ -170,7 +170,7 @@ class WorkflowView(APIView):
         return Response(status=204)
 
 
-class OrderWorkflowsView(APIView):
+class OrderAutomationWorkflowsView(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(
@@ -190,11 +190,11 @@ class OrderWorkflowsView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
-                    "ERROR_WORKFLOW_NOT_IN_AUTOMATION",
+                    "ERROR_AUTOMATION_WORKFLOW_NOT_IN_AUTOMATION",
                 ]
             ),
             404: get_error_schema(
-                ["ERROR_APPLICATION_DOES_NOT_EXIST", "ERROR_WORKFLOW_DOES_NOT_EXIST"]
+                ["ERROR_APPLICATION_DOES_NOT_EXIST", "ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST"]
             ),
         },
     )
@@ -202,8 +202,8 @@ class OrderWorkflowsView(APIView):
     @map_exceptions(
         {
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
-            AutomationWorkflowDoesNotExist: ERROR_WORKFLOW_DOES_NOT_EXIST,
-            AutomationWorkflowNotInBuilder: ERROR_WORKFLOW_NOT_IN_AUTOMATION,
+            AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
+            AutomationWorkflowNotInAutomation: ERROR_AUTOMATION_WORKFLOW_NOT_IN_AUTOMATION,
         }
     )
     @validate_body(OrderAutomationWorkflowsSerializer)
@@ -217,7 +217,7 @@ class OrderWorkflowsView(APIView):
         return Response(status=204)
 
 
-class AsyncDuplicateWorkflowView(APIView):
+class AsyncAutomationDuplicateWorkflowView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
@@ -246,13 +246,13 @@ class AsyncDuplicateWorkflowView(APIView):
                     "ERROR_MAX_JOB_COUNT_EXCEEDED",
                 ]
             ),
-            404: get_error_schema(["ERROR_WORKFLOW_DOES_NOT_EXIST"]),
+            404: get_error_schema(["ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST"]),
         },
     )
     @transaction.atomic
     @map_exceptions(
         {
-            AutomationWorkflowDoesNotExist: ERROR_WORKFLOW_DOES_NOT_EXIST,
+            AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
             MaxJobCountExceeded: ERROR_MAX_JOB_COUNT_EXCEEDED,
         }
     )
