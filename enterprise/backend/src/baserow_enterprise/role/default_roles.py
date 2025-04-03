@@ -9,6 +9,17 @@ from baserow_premium.row_comments.operations import (
     UpdateRowCommentsOperationType,
 )
 
+from baserow.contrib.automation.operations import (
+    ListAutomationWorkflowsOperationType,
+    OrderAutomationWorkflowsOperationType,
+)
+from baserow.contrib.automation.workflows.operations import (
+    CreateAutomationWorkflowOperationType,
+    DeleteAutomationWorkflowOperationType,
+    DuplicateAutomationWorkflowOperationType,
+    ReadAutomationWorkflowOperationType,
+    UpdateAutomationWorkflowOperationType,
+)
 from baserow.contrib.builder.data_sources.operations import (
     CreateDataSourceOperationType,
     DeleteDataSourceOperationType,
@@ -176,17 +187,6 @@ from baserow.contrib.database.webhooks.operations import (
     ReadWebhookOperationType,
     TestTriggerWebhookOperationType,
     UpdateWebhookOperationType,
-)
-from baserow.contrib.automation.operations import (
-    ListAutomationWorkflowsOperationType,
-    OrderAutomationWorkflowsOperationType,
-)
-from baserow.contrib.automation.workflows.operations import (
-    CreateAutomationWorkflowOperationType,
-    DeleteAutomationWorkflowOperationType,
-    UpdateAutomationWorkflowOperationType,
-    ReadAutomationWorkflowOperationType,
-    DuplicateAutomationWorkflowOperationType,
 )
 from baserow.core.integrations.operations import (
     CreateIntegrationOperationType,
