@@ -22,6 +22,7 @@ def test_automation_export_serialized(data_fixture):
         "name": automation.name,
         "order": automation.order,
         "type": "automation",
+        "workflows": [],
     }
 
 
@@ -35,6 +36,7 @@ def test_automation_import_serialized(data_fixture):
         "name": "Automation 1",
         "order": 99,
         "type": "automation",
+        "workflows": [],
     }
 
     automation = AutomationApplicationType().import_serialized(

@@ -12,6 +12,7 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.object_scopes import AutomationObjectScopeType
         from baserow.contrib.automation.operations import (
+            ListAutomationWorkflowsOperationType,
             OrderAutomationWorkflowsOperationType,
         )
         from baserow.contrib.automation.workflows.job_types import (
@@ -45,6 +46,7 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(DuplicateAutomationWorkflowOperationType())
             operation_type_registry.register(ReadAutomationWorkflowOperationType())
             operation_type_registry.register(UpdateAutomationWorkflowOperationType())
+            operation_type_registry.register(ListAutomationWorkflowsOperationType())
             operation_type_registry.register(OrderAutomationWorkflowsOperationType())
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())

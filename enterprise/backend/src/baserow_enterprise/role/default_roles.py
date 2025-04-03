@@ -177,6 +177,17 @@ from baserow.contrib.database.webhooks.operations import (
     TestTriggerWebhookOperationType,
     UpdateWebhookOperationType,
 )
+from baserow.contrib.automation.operations import (
+    ListAutomationWorkflowsOperationType,
+    OrderAutomationWorkflowsOperationType,
+)
+from baserow.contrib.automation.workflows.operations import (
+    CreateAutomationWorkflowOperationType,
+    DeleteAutomationWorkflowOperationType,
+    UpdateAutomationWorkflowOperationType,
+    ReadAutomationWorkflowOperationType,
+    DuplicateAutomationWorkflowOperationType,
+)
 from baserow.core.integrations.operations import (
     CreateIntegrationOperationType,
     DeleteIntegrationOperationType,
@@ -469,6 +480,13 @@ default_roles[BUILDER_ROLE_UID].extend(
         CreateDashboardDataSourceOperationType,
         DeleteDashboardDataSourceOperationType,
         UpdateDashboardDataSourceOperationType,
+        ListAutomationWorkflowsOperationType,
+        OrderAutomationWorkflowsOperationType,
+        CreateAutomationWorkflowOperationType,
+        DeleteAutomationWorkflowOperationType,
+        UpdateAutomationWorkflowOperationType,
+        ReadAutomationWorkflowOperationType,
+        DuplicateAutomationWorkflowOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(
