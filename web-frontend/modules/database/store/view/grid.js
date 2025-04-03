@@ -216,7 +216,9 @@ export const mutations = {
     state,
     { rows, prependToRows, appendToRows, count, bufferStartIndex, bufferLimit }
   ) {
-    state.count = count
+    if (count !== undefined) {
+      state.count = count
+    }
     state.bufferStartIndex = bufferStartIndex
     state.bufferLimit = bufferLimit
 
@@ -779,6 +781,7 @@ export const actions = {
           groupBy: getGroupBy(rootGetters, getters.getLastGridId),
           orderBy: getOrderBy(view, getters.getAdhocSorting),
           filters: getFilters(view, getters.getAdhocFiltering),
+          excludeCount: getters.getCount > 0,
         })
         .then(({ data }) => {
           // Don't do anything if the gridId does not match the current view gridId
@@ -1021,9 +1024,9 @@ export const actions = {
           count >= bufferEndIndex
             ? getters.getBufferStartIndex
             : Math.max(0, count - limit)
-        return { limit, offset }
+        return { limit, offset, count }
       })
-      .then(({ limit, offset }) =>
+      .then(({ limit, offset, count }) =>
         GridService(this.$client)
           .fetchRows({
             gridId,
@@ -1038,9 +1041,10 @@ export const actions = {
             groupBy: getGroupBy(rootGetters, getters.getLastGridId),
             orderBy: getOrderBy(view, adhocSorting),
             filters: getFilters(view, adhocFiltering),
+            excludeCount: true,
           })
           .then(({ data }) => ({
-            data,
+            data: { ...data, count },
             offset,
           }))
       )
@@ -1744,6 +1748,7 @@ export const actions = {
       filters: getFilters(view, getters.getAdhocFiltering),
       includeFields: fields,
       excludeFields,
+      excludeCount: getters.getCount > 0,
     })
     return data.results
   },

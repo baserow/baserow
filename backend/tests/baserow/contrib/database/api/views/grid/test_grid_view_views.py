@@ -1,6 +1,7 @@
 import json
 from decimal import Decimal
 from typing import Any, Dict, List
+from unittest.mock import patch
 
 from django.core.cache import cache
 from django.shortcuts import reverse
@@ -25,6 +26,7 @@ from baserow.contrib.database.rows.registries import (
 )
 from baserow.contrib.database.search.handler import ALL_SEARCH_MODES, SearchHandler
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.table.models import TableModelQuerySet
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import GridView
 from baserow.contrib.database.views.registries import view_aggregation_type_registry
@@ -129,8 +131,8 @@ def test_list_rows(api_client, data_fixture):
     response = api_client.get(
         url, {"size": 2, "page": 999}, **{"HTTP_AUTHORIZATION": f"JWT {token}"}
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_INVALID_PAGE"
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["results"] == []
 
     url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
     response = api_client.get(
@@ -4973,3 +4975,348 @@ def test_list_grid_rows_adhoc_filtering_advanced_filters(api_client, data_fixtur
         response_json = response.json()
         assert response.status_code == HTTP_400_BAD_REQUEST
         assert response_json["error"] == "ERROR_FILTERS_PARAM_VALIDATION_ERROR"
+
+
+@pytest.mark.django_db
+def test_list_rows_with_limit_without_count(api_client, data_fixture):
+    """
+    Test that count is not called when exclude_count=true is passed in the
+    query params together with limit.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    grid_view = data_fixture.create_grid_view(table=table)
+
+    rows = RowHandler().force_create_rows(
+        user, table, rows_values=[{} for i in range(5)]
+    )
+
+    count_calls = 0
+
+    def reset_count():
+        nonlocal count_calls
+        count_calls = 0
+
+    class MockTableModelQuerySet(TableModelQuerySet):
+        def count(self):
+            nonlocal count_calls
+
+            count_calls += 1
+            return super().count()
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(
+            f"{url}?limit=10&offset=0", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        assert len(response_json["results"]) == 5
+        assert response_json["count"] == 5
+        assert count_calls == 1
+
+    reset_count()
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(
+            f"{url}?limit=10&offset=0&exclude_count=true",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        assert len(response_json["results"]) == 5
+        assert "count" not in response_json
+        assert count_calls == 0  # count is not called
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(
+            f"{url}?exclude_count=true&limit=10&offset=100",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        assert len(response_json["results"]) == 0
+        assert "count" not in response_json
+        assert count_calls == 0  # count is not called
+
+
+@pytest.mark.django_db
+def test_list_rows_with_limit_and_invalid_numbers(api_client, data_fixture):
+    """
+    If invalid values are provided, the first page and the first 100 results should be
+    returned.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    grid_view = data_fixture.create_grid_view(table=table)
+
+    rows = RowHandler().force_create_rows(
+        user,
+        table,
+        rows_values=[
+            {
+                text_field.db_column: f"{i}",
+            }
+            for i in range(101)
+        ],
+    )
+
+    count_calls = 0
+
+    def reset_count():
+        nonlocal count_calls
+        count_calls = 0
+
+    class MockTableModelQuerySet(TableModelQuerySet):
+        def count(self):
+            nonlocal count_calls
+
+            count_calls += 1
+            return super().count()
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(
+            f"{url}?limit=-1&offset=-2", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        assert len(response_json["results"]) == 100  # 100 is the default limit
+        assert response_json["count"] == 101
+        # return the first 100 rows
+        assert response_json["results"][0][f"field_{text_field.id}"] == "0"
+        assert response_json["results"][99][f"field_{text_field.id}"] == "99"
+        assert count_calls == 1
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(
+            f"{url}?limit=a&offset=b", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        assert len(response_json["results"]) == 100  # 100 is the default limit
+        assert response_json["count"] == 101
+        # return the first 100 rows
+        assert response_json["results"][0][f"field_{text_field.id}"] == "0"
+        assert response_json["results"][99][f"field_{text_field.id}"] == "99"
+        assert count_calls == 2
+
+    reset_count()
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(
+            f"{url}?limit=-1&offset=-2&exclude_count=true",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        assert len(response_json["results"]) == 100  # 100 is the default limit
+        assert response_json["count"] == 101
+        # return the first 100 rows
+        assert response_json["results"][0][f"field_{text_field.id}"] == "0"
+        assert response_json["results"][99][f"field_{text_field.id}"] == "99"
+        assert count_calls == 0
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(
+            f"{url}?limit=a&offset=b&exclude_count=true",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        assert len(response_json["results"]) == 100  # 100 is the default limit
+        assert response_json["count"] == 101
+        # return the first 100 rows
+        assert response_json["results"][0][f"field_{text_field.id}"] == "0"
+        assert response_json["results"][99][f"field_{text_field.id}"] == "99"
+        assert count_calls == 0
+
+
+@pytest.mark.django_db
+def test_list_rows_with_page_without_count(api_client, data_fixture):
+    """
+    Test that count is not called when exclude_count=true is passed in the
+    query params together with limit.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    grid_view = data_fixture.create_grid_view(table=table)
+
+    rows = RowHandler().force_create_rows(
+        user, table, rows_values=[{} for i in range(5)]
+    )
+
+    count_calls = 0
+
+    def reset_count():
+        nonlocal count_calls
+        count_calls = 0
+
+    class MockTableModelQuerySet(TableModelQuerySet):
+        def count(self):
+            nonlocal count_calls
+
+            count_calls += 1
+            return super().count()
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(f"{url}?page=1", HTTP_AUTHORIZATION=f"JWT {token}")
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        assert len(response_json["results"]) == 5
+        assert response_json["count"] == 5
+        assert count_calls == 1
+
+    reset_count()
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(
+            f"{url}?page=1&exclude_count=true", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        assert len(response_json["results"]) == 5
+        assert "count" not in response_json
+        assert count_calls == 0  # count is not called again
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(
+            f"{url}?page=10&exclude_count=true", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        assert len(response_json["results"]) == 0
+        assert "count" not in response_json
+        assert count_calls == 0  # count is not called again
+
+
+@pytest.mark.django_db
+def test_list_rows_with_page_and_invalid_numbers(api_client, data_fixture):
+    """
+    If invalid values are provided, the first page and the first 100 results should be
+    returned.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    grid_view = data_fixture.create_grid_view(table=table)
+
+    rows = RowHandler().force_create_rows(
+        user,
+        table,
+        rows_values=[
+            {
+                text_field.db_column: f"{i}",
+            }
+            for i in range(101)
+        ],
+    )
+
+    count_calls = 0
+
+    def reset_count():
+        nonlocal count_calls
+        count_calls = 0
+
+    class MockTableModelQuerySet(TableModelQuerySet):
+        def count(self):
+            nonlocal count_calls
+
+            count_calls += 1
+            return super().count()
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(
+            f"{url}?page=-1&size=-1", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        assert len(response_json["results"]) == 100  # 100 is the default size
+        assert response_json["count"] == 101
+        # return the first 100 rows
+        assert response_json["results"][0][f"field_{text_field.id}"] == "0"
+        assert response_json["results"][99][f"field_{text_field.id}"] == "99"
+        assert count_calls == 1
+
+    reset_count()
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(
+            f"{url}?page=-1&size=-1&exclude_count=true",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        assert "count" not in response_json
+        assert len(response_json["results"]) == 100
+        # return the first 100 rows
+        assert response_json["results"][0][f"field_{text_field.id}"] == "0"
+        assert response_json["results"][99][f"field_{text_field.id}"] == "99"
+        assert count_calls == 0  # count is not called again
+
+    with patch(
+        "baserow.contrib.database.table.models.TableModelQuerySet",
+        MockTableModelQuerySet,
+    ):
+        url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+        response = api_client.get(
+            f"{url}?page=a&size=b&exclude_count=true", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        assert len(response_json["results"]) == 100
+        assert "count" not in response_json
+        assert response_json["results"][0][f"field_{text_field.id}"] == "0"
+        assert response_json["results"][99][f"field_{text_field.id}"] == "99"
+        assert count_calls == 0  # count is not called again
