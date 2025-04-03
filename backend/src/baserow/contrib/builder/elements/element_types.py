@@ -1,7 +1,7 @@
 import abc
 import uuid
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import InvalidOperation
 from typing import (
     Any,
     Callable,
@@ -102,6 +102,7 @@ from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
     ensure_integer,
+    ensure_numeric,
     ensure_string_or_integer,
 )
 from baserow.core.registry import Instance, T
@@ -1466,11 +1467,7 @@ class InputTextElementType(InputElementType):
 
         elif element.validation_type == "integer":
             try:
-                # First try to convert any decimal separators to dots
-                if isinstance(value, str):
-                    value = value.replace(",", ".")
-                    return Decimal(value) if "." in value else ensure_integer(value)
-                return ensure_integer(value)
+                return ensure_numeric(value)
             except (ValueError, TypeError, InvalidOperation, ValidationError) as exc:
                 raise FormDataProviderChunkInvalidException(
                     f"{value} must be a valid number."

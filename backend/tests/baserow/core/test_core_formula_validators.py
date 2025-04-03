@@ -1,10 +1,15 @@
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 
 import pytest
 
-from baserow.core.formula.validator import ensure_string, ensure_string_or_integer
+from baserow.core.formula.validator import (
+    ensure_numeric,
+    ensure_string,
+    ensure_string_or_integer,
+)
 
 
 @pytest.mark.parametrize("value", [0, 1, 10, 100])
@@ -191,3 +196,104 @@ def test_ensure_string_returns_str_by_default(value, expected):
 
     result = ensure_string(value)
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (0, 0),
+        (1, 1),
+        (10, 10),
+        (-5, -5),
+        (3.14, 3.14),
+        (-2.5, -2.5),
+        (Decimal("10.5"), Decimal("10.5")),
+        ("0", 0),
+        ("1", 1),
+        ("10", 10),
+        ("-5", -5),
+        ("3.14", 3.14),
+        ("-2.5", -2.5),
+        ("10.5", 10.5),
+    ],
+)
+def test_ensure_numeric_returns_correct_numeric_value(value, expected):
+    """
+    Test the ensure_numeric() function.
+
+    Ensure that valid numeric values or
+    convertible values return the correct numeric type.
+    """
+
+    result = ensure_numeric(value)
+    assert result == expected
+    assert type(result) is type(expected)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "abc",
+        "1a",
+        "a1",
+        "1.2.3",
+        "1,000",
+        True,
+        False,
+        [],
+        {},
+        object(),
+    ],
+)
+def test_ensure_numeric_raises_error_for_invalid_values(value):
+    """
+    Test the ensure_numeric() function.
+
+    Ensure a ValidationError is raised
+    if the value cannot be converted to a numeric type.
+    """
+
+    with pytest.raises(ValidationError) as e:
+        ensure_numeric(value)
+
+    assert f"Value '{value}' is not a valid number or convertible to a number." in str(
+        e.value
+    )
+
+
+@pytest.mark.parametrize(
+    "value,allow_null,expected",
+    [
+        (None, True, None),
+        ("", True, None),
+        (None, False, None),  # This will raise an error
+        ("", False, None),  # This will raise an error
+    ],
+)
+def test_ensure_numeric_handles_null_values(value, allow_null, expected):
+    """
+    Test the ensure_numeric() function.
+
+    Ensure that None or empty string values are handled correctly
+     based on allow_null parameter.
+    """
+
+    if not allow_null:
+        with pytest.raises(ValidationError):
+            ensure_numeric(value, allow_null=allow_null)
+    else:
+        result = ensure_numeric(value, allow_null=allow_null)
+        assert result is expected
+
+
+def test_ensure_numeric_with_very_large_numbers():
+    """
+    Test the ensure_numeric() function with very large numbers.
+
+    Ensure that very large numbers are handled correctly.
+    """
+
+    large_number = "9" * 100
+    result = ensure_numeric(large_number)
+    assert isinstance(result, (int, float, Decimal))
+    assert str(result) == large_number

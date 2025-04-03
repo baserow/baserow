@@ -137,9 +137,12 @@ export const escapeRegExp = (string) => {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+export const isInteger = (value) => {
+  return /^-?\d+$/.test(value)
+}
+
 export const isNumeric = (value) => {
-  // Accept both integers and decimal numbers with dot or comma as separator
-  return /^-?\d+([.,]\d+)?$/.test(value)
+  return /^-?\d+([.]\d+)?$/.test(value)
 }
 
 /**

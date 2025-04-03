@@ -1,5 +1,7 @@
 import json
+import re
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, List, Optional, Union
 
 from django.core.exceptions import ValidationError
@@ -27,6 +29,50 @@ def ensure_boolean(value: Any) -> bool:
         return False
 
     raise ValidationError("Value is not a valid boolean or convertible to a boolean.")
+
+
+def ensure_numeric(
+    value: Any, allow_null: bool = False
+) -> Optional[Union[int, float, Decimal]]:
+    """
+    Ensures that the value is a number or can be converted to a numeric value.
+
+    :param value: The value to ensure as a number.
+    :param allow_null: Whether to allow null or empty values.
+    :return: The value as a number (int, float, or Decimal) if conversion is successful.
+    :raises ValidationError: If the value is not a valid number or convertible
+    to a number.
+    """
+
+    if allow_null and (value is None or value == ""):
+        return None
+
+    # Handle numeric types directly
+    if isinstance(value, (int, float, Decimal)) and not isinstance(value, bool):
+        return value
+
+    # Handle string conversion
+    if isinstance(value, str):
+        # Check if the string matches a valid number pattern
+        if re.match(r"^([-+])?(\d+(\.\d+)?)$", value):
+            # Convert to int if it's a whole number, otherwise float
+            try:
+                num_value = float(value)
+                if num_value.is_integer():
+                    return int(value)
+                return num_value
+            except ValueError:
+                # If float conversion fails, try Decimal as a fallback
+                try:
+                    return Decimal(value)
+                except Exception as exc:
+                    raise ValidationError(
+                        f"Value '{value}' is not a valid number or convertible to a number."
+                    ) from exc
+
+    raise ValidationError(
+        f"Value '{value}' is not a valid number or convertible to a number."
+    )
 
 
 def ensure_integer(value: Any, allow_empty: bool = False) -> Optional[int]:
