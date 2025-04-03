@@ -7,15 +7,14 @@
     :style="getStyleOverride('input')"
   >
     <ABInput
-      v-model="inputValue"
+      :value="internalValue"
       :placeholder="resolvedPlaceholder"
       :multiline="element.is_multiline"
       :rows="element.rows"
       :type="element.input_type"
-      :to-value="toStoreValue"
-      :from-value="toDisplayValue"
       @blur="handleBlur"
       @focus="handleFocus"
+      @input="handleInput"
     />
   </ABFormGroup>
 </template>
@@ -31,6 +30,14 @@ export default {
   name: 'InputTextElement',
   mixins: [formElement],
   props: {
+    /**
+     * @type {Object}
+     * @property {string} default_value - The text input's default value.
+     * @property {boolean} required - Whether the text input is required.
+     * @property {Object} placeholder - The text input's placeholder value.
+     * @property {boolean} multiline - Whether the text input is multiline.
+     * @property {number} rows - The number of rows (height) of the input.
+     */
     element: {
       type: Object,
       required: true,
@@ -38,7 +45,7 @@ export default {
   },
   data() {
     return {
-      isFocused: false,
+      internalValue: '',
     }
   },
   computed: {
@@ -68,29 +75,25 @@ export default {
   },
   watch: {
     resolvedDefaultValue: {
-      // when we have inputValue watcher, this isn't actually needed
-      // we use it to avoid delay in showing default value
       handler(value) {
         if (!this.inputValue) {
           this.inputValue = this.handleInputValue(value)
-        }
-      },
-      immediate: true,
-    },
-    inputValue: {
-      // when we have resolvedDefaultValue watcher, this shouldn't be needed
-      // but, getInitialFormDataValue is called after our resolvedDefaultValue
-      // which overwrites the numeric inputValue with a string value
-      handler(value) {
-        const processedInputValue = this.handleInputValue(value)
-        if (!this.inputValue || this.inputValue !== processedInputValue) {
-          this.inputValue = processedInputValue
+          this.updateInternalValue()
         }
       },
       immediate: true,
     },
   },
   methods: {
+    updateInternalValue() {
+      // Format the model value for display in the input
+      if (this.isNumericField && this.inputValue !== null) {
+        this.internalValue = this.formatNumericValueForDisplay(this.inputValue)
+      } else {
+        this.internalValue = this.inputValue || ''
+      }
+    },
+
     handleInputValue(value) {
       try {
         return this.isNumericField
@@ -100,15 +103,23 @@ export default {
         return ensureString(value)
       }
     },
-    // Convert display value (what user types) to store value
-    toStoreValue(value) {
-      return this.isNumericField ? this.toStoreNumericValue(value) : value
+
+    handleInput(value) {
+      // Update internal value as user types
+      this.internalValue = value
+
+      // For non-numeric fields, we can update the model immediately
+      if (!this.isNumericField) {
+        this.inputValue = value
+      }
     },
+
     toStoreNumericValue(value) {
       const decimalSeparator =
         this.decimalSeparator === '.' ? '\\.' : this.decimalSeparator
       const thousandSeparator =
         this.thousandSeparator === '.' ? '\\.' : this.thousandSeparator
+
       if (typeof value === 'number') {
         return value
       }
@@ -125,26 +136,14 @@ export default {
       }
     },
 
-    // Convert store value to display value
-    toDisplayValue(value) {
-      if (!this.isNumericField || !value) {
-        return value
-      }
-      return this.toDisplayNumericValue(value)
-    },
-    toDisplayNumericValue(value) {
+    formatNumericValueForDisplay(value) {
       if (isNaN(Number(value))) {
         return value
       }
-      if (this.isFocused) {
-        // Convert to string with local decimal separator
-        return String(value).replace('.', this.decimalSeparator)
-      }
-      // When not focused, format the number (optionally with local thousand separator)
       try {
         return new Intl.NumberFormat(this.localeLanguage, {
           maximumFractionDigits: 20,
-          // TODO: Make thousand grouping configurable
+          // TODO: Make thousand grouping configurable?
           useGrouping: true,
         }).format(Number(value))
       } catch (e) {
@@ -164,14 +163,28 @@ export default {
     },
 
     handleBlur() {
-      this.isFocused = false
-      // this.inputValue = this.toStoreValue(this.inputValue)
+      // For numeric fields, convert the display value to a numeric value for the model
+      if (this.isNumericField) {
+        try {
+          const numericValue = this.toStoreNumericValue(this.internalValue)
+          this.inputValue = numericValue
+          // Update the internal value to show properly formatted number
+          this.updateInternalValue()
+        } catch (e) {
+          console.warn('Failed to convert input to numeric value', e)
+        }
+      }
       this.onFormElementTouch()
     },
 
     handleFocus() {
-      this.isFocused = true
-      // this.inputValue = this.toStoreValue(this.inputValue)
+      // For numeric fields, we want to show the raw value without formatting
+      if (this.isNumericField && this.inputValue !== null) {
+        this.internalValue = String(this.inputValue).replace(
+          '.',
+          this.decimalSeparator
+        )
+      }
     },
   },
 }

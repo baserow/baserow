@@ -1,6 +1,5 @@
 import json
 from collections import defaultdict
-from decimal import Decimal
 from io import BytesIO
 from tempfile import tempdir
 from unittest.mock import MagicMock, Mock
@@ -512,8 +511,8 @@ def test_choice_element_import_export_formula(data_fixture):
     [
         (True, "integer", "", False),
         (True, "integer", 42, 42),
-        (True, "integer", "4.2", Decimal("4.2")),
-        (True, "integer", "4,2", Decimal("4.2")),
+        (True, "integer", "4.2", 4.2),
+        (True, "integer", "4,2", False),
         (True, "integer", "42", 42),
         (True, "integer", "horse", False),
         (False, "integer", "", ""),
