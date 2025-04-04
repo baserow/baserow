@@ -75,7 +75,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
             class="header__filter-item header__filter-item--grids"
           >
             <a
-              class="header__filter-link header__filter-link--disabled"
+              class="header__filter-link active header__filter-link--disabled"
               data-highlight="views"
             >
               <i
