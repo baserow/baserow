@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="submit">
     <div class="row margin-bottom-2">
-      <div class="col col-6">
+      <div class="col col-12">
         <FormGroup
           required
           small-label
