@@ -2,7 +2,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.conf import settings
-from django.db import InternalError, connection
+from django.db import connection
 from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
 
@@ -14,12 +14,14 @@ from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
+    HTTP_503_SERVICE_UNAVAILABLE,
 )
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.test_utils.helpers import AnyStr, is_dict_subset
+from tests.baserow.contrib.database.utils import get_deadlock_error
 
 # Create
 
@@ -292,6 +294,8 @@ def test_batch_create_rows(api_client, data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.api_rows
+@patch("baserow.core.db.BASEROW_DEADLOCK_INITIAL_BACKOFF", 0.01)
+@patch("baserow.core.db.BASEROW_DEADLOCK_MAX_RETRIES", 1)
 def test_batch_create_rows_deadlock(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -313,7 +317,9 @@ def test_batch_create_rows_deadlock(api_client, data_fixture):
     with patch(
         "baserow.contrib.database.rows.handler.RowHandler.force_create_rows"
     ) as mock_force_create_rows:
-        mock_force_create_rows.side_effect = InternalError("Test")
+        # Create a proper OperationalError with a pgcode that indicates a deadlock
+
+        mock_force_create_rows.side_effect = get_deadlock_error()
         response = api_client.post(
             url,
             request_body,
@@ -321,8 +327,8 @@ def test_batch_create_rows_deadlock(api_client, data_fixture):
             HTTP_AUTHORIZATION=f"JWT {jwt_token}",
         )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION"
+    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -696,11 +702,11 @@ def test_batch_create_rows_dependent_fields(api_client, data_fixture):
         "items": [
             {
                 f"id": 1,
-                f"field_{formula_field.id}": f"{str(120 * 2)}",
+                f"field_{formula_field.id}": f"{str(120*2)}",
             },
             {
                 f"id": 2,
-                f"field_{formula_field.id}": f"{str(240 * 2)}",
+                f"field_{formula_field.id}": f"{str(240*2)}",
             },
         ]
     }
@@ -1273,6 +1279,8 @@ def test_batch_update_rows(api_client, data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.api_rows
+@patch("baserow.core.db.BASEROW_DEADLOCK_INITIAL_BACKOFF", 0.01)
+@patch("baserow.core.db.BASEROW_DEADLOCK_MAX_RETRIES", 1)
 def test_batch_update_rows_deadlock(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -1296,20 +1304,19 @@ def test_batch_update_rows_deadlock(api_client, data_fixture):
             },
         ]
     }
-
     with patch(
         "baserow.contrib.database.rows.handler.RowHandler.force_update_rows"
     ) as mock_force_update_rows:
-        mock_force_update_rows.side_effect = InternalError("Test")
+        mock_force_update_rows.side_effect = get_deadlock_error()
+
         response = api_client.patch(
             url,
             request_body,
             format="json",
             HTTP_AUTHORIZATION=f"JWT {jwt_token}",
         )
-
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION"
+    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1792,11 +1799,11 @@ def test_batch_update_rows_dependent_fields(api_client, data_fixture):
         "items": [
             {
                 f"id": row_1.id,
-                f"field_{formula_field.id}": f"{str(120 * 2)}",
+                f"field_{formula_field.id}": f"{str(120*2)}",
             },
             {
                 f"id": row_2.id,
-                f"field_{formula_field.id}": f"{str(240 * 2)}",
+                f"field_{formula_field.id}": f"{str(240*2)}",
             },
         ]
     }
@@ -2241,6 +2248,8 @@ def test_batch_delete_rows_trash_them(api_client, data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.api_rows
+@patch("baserow.core.db.BASEROW_DEADLOCK_INITIAL_BACKOFF", 0.01)
+@patch("baserow.core.db.BASEROW_DEADLOCK_MAX_RETRIES", 1)
 def test_batch_delete_rows_deadlock(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -2253,16 +2262,15 @@ def test_batch_delete_rows_deadlock(api_client, data_fixture):
     with patch(
         "baserow.contrib.database.rows.handler.RowHandler.delete_rows"
     ) as mock_delete_rows:
-        mock_delete_rows.side_effect = InternalError("Test")
+        mock_delete_rows.side_effect = get_deadlock_error()
         response = api_client.post(
             url,
             request_body,
             format="json",
             HTTP_AUTHORIZATION=f"JWT {jwt_token}",
         )
-
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION"
+    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
 @pytest.mark.django_db

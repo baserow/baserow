@@ -1,7 +1,8 @@
 import contextlib
+import time
 from collections import defaultdict
 from decimal import Decimal
-from functools import cache
+from functools import cache, wraps
 from math import ceil
 from typing import (
     Any,
@@ -24,10 +25,16 @@ from django.db.models.functions import Collate
 from django.db.models.query import ModelIterable
 from django.db.models.sql.query import LOOKUP_SEP
 from django.db.transaction import Atomic, get_connection
+from django.db.utils import OperationalError
 
 from loguru import logger
 
-from baserow.core.psycopg import sql
+from baserow.contrib.database.exceptions import DeadlockException
+from baserow.core.constants import (
+    BASEROW_DEADLOCK_INITIAL_BACKOFF,
+    BASEROW_DEADLOCK_MAX_RETRIES,
+)
+from baserow.core.psycopg import errorcodes, sql
 
 from .utils import find_intermediate_order
 
@@ -802,3 +809,56 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                 row_id_to_field_name_to_target_ids[result[0]][result[1]] = result[2]
 
         return row_id_to_field_name_to_target_ids
+
+
+def retry_on_deadlock(
+    max_retries: Optional[int] = None,
+    initial_backoff: Optional[float] = None,
+):
+    """
+    Decorator that wraps a function in a transaction.atomic block and retries
+    when deadlock occurswith exponential backoff.
+
+    Args:
+        max_retries: Maximum number of retry attempts
+        initial_backoff: Initial backoff time in seconds
+
+    Note:
+        Using this decorator requires to ensure that request.data is not modified
+        by the function that is decorated.
+    """
+
+    if max_retries is None:
+        max_retries = BASEROW_DEADLOCK_MAX_RETRIES
+    if initial_backoff is None:
+        initial_backoff = BASEROW_DEADLOCK_INITIAL_BACKOFF
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            retries = 0
+            backoff = initial_backoff
+
+            while retries <= max_retries:
+                try:
+                    with transaction.atomic():
+                        return func(*args, **kwargs)
+                except OperationalError as exc:
+                    is_deadlock = (
+                        getattr(exc.__cause__, "pgcode") == errorcodes.DEADLOCK_DETECTED
+                    )
+                    if not is_deadlock:
+                        raise exc
+
+                    if retries == max_retries:
+                        logger.exception(
+                            "Deadlock detected while committing transaction",
+                        )
+                        raise DeadlockException() from exc
+                    time.sleep(backoff)
+                    backoff *= 2
+                retries += 1
+
+        return wrapper
+
+    return decorator

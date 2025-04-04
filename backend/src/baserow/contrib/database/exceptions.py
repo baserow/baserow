@@ -1,4 +1,4 @@
-from django.db.utils import InternalError
+from django.db.utils import OperationalError
 
 from baserow.core.exceptions import MaxLocksPerTransactionExceededException
 
@@ -23,9 +23,9 @@ class DatabaseSnapshotMaxLocksExceededException(
     )
 
 
-class FailedToCommitTransactionException(InternalError):
+class DeadlockException(OperationalError):
     """
-    Raised when a database operation fails due to an internal error.
+    Raised when a database operation fails due to a deadlock.
     """
 
-    message = "The database failed to commit the transaction."
+    message = "The database failed to commit the transaction due to a deadlock."

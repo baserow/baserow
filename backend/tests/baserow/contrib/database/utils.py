@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Callable, Iterable
 
 from django.contrib.auth.models import AbstractUser
+from django.db import OperationalError
 
 from channels.testing import WebsocketCommunicator
 
@@ -17,6 +18,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import GridView
+from baserow.core.psycopg import errorcodes
 from baserow.test_utils.fixtures import Fixtures
 
 
@@ -275,3 +277,12 @@ def setup_formula_field(
         formula_type=formula_type,
         extra_fields=extra_fields_map,
     )
+
+
+def get_deadlock_error(message: str = "Deadlock detected"):
+    class DeadlockCause(Exception):
+        pgcode = errorcodes.DEADLOCK_DETECTED
+
+    error = OperationalError(message)
+    error.__cause__ = DeadlockCause()
+    return error

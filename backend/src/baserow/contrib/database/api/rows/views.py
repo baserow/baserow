@@ -54,7 +54,7 @@ from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIS
 from baserow.contrib.database.api.tokens.authentications import TokenAuthentication
 from baserow.contrib.database.api.tokens.errors import (
     ERROR_CANNOT_INCLUDE_ROW_METADATA,
-    ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION,
+    ERROR_DATABASE_DEADLOCK,
     ERROR_NO_PERMISSION_TO_TABLE,
 )
 from baserow.contrib.database.api.utils import (
@@ -69,7 +69,7 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
 from baserow.contrib.database.api.views.utils import serialize_single_row_metadata
-from baserow.contrib.database.exceptions import FailedToCommitTransactionException
+from baserow.contrib.database.exceptions import DeadlockException
 from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     FilterFieldNotFound,
@@ -112,7 +112,6 @@ from baserow.contrib.database.tokens.exceptions import (
     TokenCannotIncludeRowMetadata,
 )
 from baserow.contrib.database.tokens.handler import TokenHandler
-from baserow.contrib.database.utils import retry_on_transaction_failure
 from baserow.contrib.database.views.exceptions import (
     ViewDoesNotExist,
     ViewFilterTypeDoesNotExist,
@@ -122,6 +121,7 @@ from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.core.action.registries import action_type_registry
+from baserow.core.db import retry_on_deadlock
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
@@ -513,10 +513,10 @@ class RowsView(APIView):
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             CannotCreateRowsInTable: ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
-            FailedToCommitTransactionException: ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_transaction_failure()
+    @retry_on_deadlock()
     @validate_query_parameters(CreateRowQueryParamsSerializer)
     def post(self, request: Request, table_id: int, query_params) -> Response:
         """
@@ -872,10 +872,10 @@ class RowView(APIView):
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
-            FailedToCommitTransactionException: ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_transaction_failure()
+    @retry_on_deadlock()
     @require_request_data_type(dict)
     def patch(self, request: Request, table_id: int, row_id: int) -> Response:
         """
@@ -979,10 +979,10 @@ class RowView(APIView):
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             CannotDeleteAlreadyDeletedItem: ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM,
             CannotDeleteRowsInTable: ERROR_CANNOT_DELETE_ROWS_IN_TABLE,
-            FailedToCommitTransactionException: ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_transaction_failure()
+    @retry_on_deadlock()
     def delete(self, request, table_id, row_id):
         """
         Deletes an existing row with the given row_id for table with the given
@@ -1077,10 +1077,10 @@ class RowMoveView(APIView):
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
-            FailedToCommitTransactionException: ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_transaction_failure()
+    @retry_on_deadlock()
     @validate_query_parameters(MoveRowQueryParamsSerializer)
     def patch(self, request, table_id, row_id, query_params):
         """Moves the row to another position."""
@@ -1210,10 +1210,10 @@ class BatchRowsView(APIView):
             RowIdsNotUnique: ERROR_ROW_IDS_NOT_UNIQUE,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             CannotCreateRowsInTable: ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
-            FailedToCommitTransactionException: ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_transaction_failure()
+    @retry_on_deadlock()
     @validate_query_parameters(BatchCreateRowsQueryParamsSerializer)
     def post(self, request: Request, table_id: int, query_params) -> Response:
         """
@@ -1346,10 +1346,10 @@ class BatchRowsView(APIView):
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             RowIdsNotUnique: ERROR_ROW_IDS_NOT_UNIQUE,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
-            FailedToCommitTransactionException: ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_transaction_failure()
+    @retry_on_deadlock()
     def patch(self, request, table_id):
         """
         Updates all provided rows at once for the table with
@@ -1455,10 +1455,10 @@ class BatchDeleteRowsView(APIView):
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             CannotDeleteAlreadyDeletedItem: ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM,
             CannotDeleteRowsInTable: ERROR_CANNOT_DELETE_ROWS_IN_TABLE,
-            FailedToCommitTransactionException: ERROR_DATABASE_FAILED_TO_COMMIT_TRANSACTION,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_transaction_failure()
+    @retry_on_deadlock()
     def post(self, request: Request, table_id: int, data: Dict[str, Any]) -> Response:
         """
         Batch deletes existing rows based on provided row ids for the table with
