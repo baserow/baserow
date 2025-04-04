@@ -8,8 +8,8 @@ class AutomationOperationType(OperationType, metaclass=ABCMeta):
 
 
 class ListAutomationWorkflowsOperationType(AutomationOperationType):
-    type = "automation.list_workflows"
+    type = "automation.workflow.list"
 
 
 class OrderAutomationWorkflowsOperationType(AutomationOperationType):
-    type = "automation.order_workflows"
+    type = "automation.workflow.order"

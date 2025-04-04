@@ -17,7 +17,7 @@
               update: orderWorkflows,
               marginTop: -1.5,
               enabled: $hasPermission(
-                'workflow.order_workflows',
+                'automation.workflow.order',
                 application,
                 application.workspace.id
               ),
@@ -30,7 +30,7 @@
         <a
           v-if="
             $hasPermission(
-              'automation.create_workflow',
+              'automation.workflow.create',
               application,
               application.workspace.id
             )
