@@ -1,8 +1,7 @@
 import pytest
 
-from baserow.core.exceptions import ApplicationDoesNotExist
-
 from baserow.contrib.automation.handler import AutomationHandler
+from baserow.core.exceptions import ApplicationDoesNotExist
 
 
 @pytest.mark.django_db

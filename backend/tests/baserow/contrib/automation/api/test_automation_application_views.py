@@ -14,7 +14,9 @@ def test_get_automation_application(api_client, data_fixture):
         workspace=workspace,
         order=1,
     )
-    workflow = data_fixture.create_automation_workflow(automation=automation, name="test")
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="test"
+    )
 
     url = reverse("api:applications:item", kwargs={"application_id": automation.id})
 
@@ -39,7 +41,12 @@ def test_get_automation_application(api_client, data_fixture):
             "generative_ai_models_enabled": {},
         },
         "workflows": [
-            {'automation_id': automation.id, 'id': workflow.id, 'name': 'test', 'order': 1}
+            {
+                "automation_id": automation.id,
+                "id": workflow.id,
+                "name": "test",
+                "order": 1,
+            }
         ],
     }
 
@@ -54,7 +61,9 @@ def test_list_automation_applications(api_client, data_fixture):
         workspace=workspace,
         order=1,
     )
-    workflow = data_fixture.create_automation_workflow(automation=automation, name="test")
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="test"
+    )
 
     url = reverse("api:applications:list", kwargs={"workspace_id": workspace.id})
 
@@ -80,7 +89,12 @@ def test_list_automation_applications(api_client, data_fixture):
                 "generative_ai_models_enabled": {},
             },
             "workflows": [
-                {'automation_id': automation.id, 'id': workflow.id, 'name': 'test', 'order': 1}
+                {
+                    "automation_id": automation.id,
+                    "id": workflow.id,
+                    "name": "test",
+                    "order": 1,
+                }
             ],
         }
     ]

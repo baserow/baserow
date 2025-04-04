@@ -24,9 +24,7 @@ def test_create_workflow(api_client, data_fixture):
     automation = data_fixture.create_automation_application(user=user)
 
     name = "Foo automation"
-    url = reverse(
-        API_URL_CREATE, kwargs={"automation_id": automation.id}
-    )
+    url = reverse(API_URL_CREATE, kwargs={"automation_id": automation.id})
     response = api_client.post(
         url,
         {"name": name},
@@ -36,10 +34,10 @@ def test_create_workflow(api_client, data_fixture):
 
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
-        'automation_id': AnyInt(),
-        'id': AnyInt(),
-        'name': name,
-        'order': AnyInt(),
+        "automation_id": AnyInt(),
+        "id": AnyInt(),
+        "name": name,
+        "order": AnyInt(),
     }
 
 
@@ -48,9 +46,7 @@ def test_create_workflow_user_not_in_workspace(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application()
 
-    url = reverse(
-        API_URL_CREATE, kwargs={"automation_id": automation.id}
-    )
+    url = reverse(API_URL_CREATE, kwargs={"automation_id": automation.id})
     response = api_client.post(
         url,
         {"name": "test"},
@@ -60,10 +56,10 @@ def test_create_workflow_user_not_in_workspace(api_client, data_fixture):
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
     assert response.json() == {
-        'detail': "You don't have the required permission to execute this operation.",
-        'error': 'PERMISSION_DENIED',
+        "detail": "You don't have the required permission to execute this operation.",
+        "error": "PERMISSION_DENIED",
     }
-    
+
 
 @pytest.mark.django_db
 def test_create_workflow_automation_does_not_exist(api_client, data_fixture):
@@ -85,11 +81,11 @@ def test_create_workflow_automation_does_not_exist(api_client, data_fixture):
 def test_create_workflow_duplicate_name(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user=user)
-    workflow = data_fixture.create_automation_workflow(automation=automation, name="test")
-
-    url = reverse(
-        API_URL_CREATE, kwargs={"automation_id": automation.id}
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="test"
     )
+
+    url = reverse(API_URL_CREATE, kwargs={"automation_id": automation.id})
     response = api_client.post(
         url,
         {"name": workflow.name},
@@ -105,7 +101,9 @@ def test_create_workflow_duplicate_name(api_client, data_fixture):
 def test_update_workflow(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user=user)
-    workflow = data_fixture.create_automation_workflow(automation=automation, name="test")
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="test"
+    )
 
     url = reverse(API_URL_ITEM, kwargs={"workflow_id": workflow.id})
     response = api_client.patch(
@@ -133,8 +131,12 @@ def test_update_workflow_does_not_exist(api_client, data_fixture):
 def test_update_workflow_duplicate_name(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user=user)
-    workflow = data_fixture.create_automation_workflow(automation=automation, name="test")
-    workflow_2 = data_fixture.create_automation_workflow(automation=automation, name="test2")
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="test"
+    )
+    workflow_2 = data_fixture.create_automation_workflow(
+        automation=automation, name="test2"
+    )
 
     url = reverse(API_URL_ITEM, kwargs={"workflow_id": workflow_2.id})
     response = api_client.patch(
@@ -152,12 +154,14 @@ def test_update_workflow_duplicate_name(api_client, data_fixture):
 def test_order_workflows(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user=user)
-    workflow_1 = data_fixture.create_automation_workflow(automation=automation, name="test1", order=1)
-    workflow_2 = data_fixture.create_automation_workflow(automation=automation, name="test2", order=2)
-
-    url = reverse(
-        API_URL_ORDER, kwargs={"automation_id": automation.id}
+    workflow_1 = data_fixture.create_automation_workflow(
+        automation=automation, name="test1", order=1
     )
+    workflow_2 = data_fixture.create_automation_workflow(
+        automation=automation, name="test2", order=2
+    )
+
+    url = reverse(API_URL_ORDER, kwargs={"automation_id": automation.id})
     response = api_client.post(
         url,
         {"workflow_ids": [workflow_2.id, workflow_1.id]},
@@ -172,12 +176,14 @@ def test_order_workflows(api_client, data_fixture):
 def test_order_workflows_user_not_in_workspace(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application()
-    workflow_1 = data_fixture.create_automation_workflow(automation=automation, name="test1", order=1)
-    workflow_2 = data_fixture.create_automation_workflow(automation=automation, name="test2", order=2)
-
-    url = reverse(
-        API_URL_ORDER, kwargs={"automation_id": automation.id}
+    workflow_1 = data_fixture.create_automation_workflow(
+        automation=automation, name="test1", order=1
     )
+    workflow_2 = data_fixture.create_automation_workflow(
+        automation=automation, name="test2", order=2
+    )
+
+    url = reverse(API_URL_ORDER, kwargs={"automation_id": automation.id})
     response = api_client.post(
         url,
         {"workflow_ids": [workflow_2.id, workflow_1.id]},
@@ -193,12 +199,12 @@ def test_order_workflows_user_not_in_workspace(api_client, data_fixture):
 def test_order_workflows_workflow_not_in_automation(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user)
-    workflow_1 = data_fixture.create_automation_workflow(automation=automation, name="test1", order=1)
+    workflow_1 = data_fixture.create_automation_workflow(
+        automation=automation, name="test1", order=1
+    )
     workflow_2 = data_fixture.create_automation_workflow(name="test2", order=2)
 
-    url = reverse(
-        API_URL_ORDER, kwargs={"automation_id": automation.id}
-    )
+    url = reverse(API_URL_ORDER, kwargs={"automation_id": automation.id})
     response = api_client.post(
         url,
         {"workflow_ids": [workflow_2.id, workflow_1.id]},
@@ -214,8 +220,12 @@ def test_order_workflows_workflow_not_in_automation(api_client, data_fixture):
 def test_order_workflows_automation_does_not_exist(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user)
-    workflow_1 = data_fixture.create_automation_workflow(automation=automation, name="test1", order=1)
-    workflow_2 = data_fixture.create_automation_workflow(automation=automation, name="test2", order=2)
+    workflow_1 = data_fixture.create_automation_workflow(
+        automation=automation, name="test1", order=1
+    )
+    workflow_2 = data_fixture.create_automation_workflow(
+        automation=automation, name="test2", order=2
+    )
 
     url = reverse(API_URL_ORDER, kwargs={"automation_id": 1234})
     response = api_client.post(
@@ -233,7 +243,9 @@ def test_order_workflows_automation_does_not_exist(api_client, data_fixture):
 def test_delete_workflow(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user)
-    workflow = data_fixture.create_automation_workflow(automation=automation, name="test")
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="test"
+    )
 
     url = reverse(API_URL_ITEM, kwargs={"workflow_id": workflow.id})
     response = api_client.delete(
@@ -249,7 +261,9 @@ def test_delete_workflow(api_client, data_fixture):
 def test_delete_workflow_user_not_in_workspace(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application()
-    workflow = data_fixture.create_automation_workflow(automation=automation, name="test")
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="test"
+    )
 
     url = reverse(API_URL_ITEM, kwargs={"workflow_id": workflow.id})
     response = api_client.delete(

@@ -1,4 +1,4 @@
-from baserow.contrib.automation.models import Automation, AutomationWorkflow
+from baserow.contrib.automation.models import AutomationWorkflow
 
 
 class AutomationWorkflowFixtures:

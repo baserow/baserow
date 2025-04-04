@@ -1,12 +1,13 @@
 import pytest
 
 from baserow.contrib.automation.models import AutomationWorkflow
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInAutomation,
 )
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+
 
 @pytest.mark.django_db
 def test_get_workflow(data_fixture):
@@ -28,7 +29,9 @@ def test_get_workflow_base_queryset(data_fixture):
     base_queryset = AutomationWorkflow.objects.exclude(id=workflow.id)
 
     with pytest.raises(AutomationWorkflowDoesNotExist):
-        AutomationWorkflowHandler().get_workflow(workflow.id, base_queryset=base_queryset)
+        AutomationWorkflowHandler().get_workflow(
+            workflow.id, base_queryset=base_queryset
+        )
 
 
 @pytest.mark.django_db
@@ -76,7 +79,9 @@ def test_update_workflow(data_fixture):
 @pytest.mark.django_db
 def test_update_workflow_name_not_unique(data_fixture):
     workflow_1 = data_fixture.create_automation_workflow(name="test1")
-    workflow_2 = data_fixture.create_automation_workflow(automation=workflow_1.automation, name="test2")
+    workflow_2 = data_fixture.create_automation_workflow(
+        automation=workflow_1.automation, name="test2"
+    )
 
     with pytest.raises(AutomationWorkflowNameNotUnique):
         AutomationWorkflowHandler().update_workflow(workflow_2, name=workflow_1.name)
@@ -85,12 +90,15 @@ def test_update_workflow_name_not_unique(data_fixture):
 @pytest.mark.django_db
 def test_order_workflows(data_fixture):
     automation = data_fixture.create_automation_application()
-    workflow_1 = data_fixture.create_automation_workflow(automation=automation, name="test1", order=10)
-    workflow_2 = data_fixture.create_automation_workflow(automation=automation, name="test2", order=20)
+    workflow_1 = data_fixture.create_automation_workflow(
+        automation=automation, name="test1", order=10
+    )
+    workflow_2 = data_fixture.create_automation_workflow(
+        automation=automation, name="test2", order=20
+    )
 
     assert AutomationWorkflowHandler().order_workflows(
-        automation,
-        [workflow_2.id, workflow_1.id]
+        automation, [workflow_2.id, workflow_1.id]
     ) == [
         workflow_2.id,
         workflow_1.id,
@@ -105,16 +113,18 @@ def test_order_workflows(data_fixture):
 @pytest.mark.django_db
 def test_order_workflows_not_in_automation(data_fixture):
     automation = data_fixture.create_automation_application()
-    workflow_1 = data_fixture.create_automation_workflow(automation=automation, name="test1", order=10)
-    workflow_2 = data_fixture.create_automation_workflow(automation=automation, name="test2", order=20)
+    workflow_1 = data_fixture.create_automation_workflow(
+        automation=automation, name="test1", order=10
+    )
+    workflow_2 = data_fixture.create_automation_workflow(
+        automation=automation, name="test2", order=20
+    )
 
     base_qs = AutomationWorkflow.objects.filter(id=workflow_2.id)
 
     with pytest.raises(AutomationWorkflowNotInAutomation):
         AutomationWorkflowHandler().order_workflows(
-            automation,
-            [workflow_2.id, workflow_1.id],
-            base_qs=base_qs
+            automation, [workflow_2.id, workflow_1.id], base_qs=base_qs
         )
 
 

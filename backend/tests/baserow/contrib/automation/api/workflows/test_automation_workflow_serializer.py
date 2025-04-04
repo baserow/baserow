@@ -13,7 +13,9 @@ def workflow_fixture(data_fixture):
 
     user, _ = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user=user)
-    workflow = data_fixture.create_automation_workflow(automation=automation, name="test")
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="test"
+    )
 
     return {
         "automation": automation,
@@ -25,13 +27,13 @@ def workflow_fixture(data_fixture):
 @pytest.mark.django_db
 def test_automation_workflow_serializer_fields(workflow_fixture):
     workflow = workflow_fixture["workflow"]
-    
+
     serializer = AutomationWorkflowSerializer(instance=workflow)
-    
+
     assert sorted(serializer.data.keys()) == [
         "automation_id",
         "id",
-        "name",        
+        "name",
         "order",
     ]
 
@@ -39,9 +41,9 @@ def test_automation_workflow_serializer_fields(workflow_fixture):
 @pytest.mark.django_db
 def test_create_automation_workflow_serializer_fields(workflow_fixture):
     workflow = workflow_fixture["workflow"]
-    
+
     serializer = CreateAutomationWorkflowSerializer(instance=workflow)
-    
+
     assert sorted(serializer.data.keys()) == [
         "name",
     ]
@@ -50,9 +52,9 @@ def test_create_automation_workflow_serializer_fields(workflow_fixture):
 @pytest.mark.django_db
 def test_update_automation_workflow_serializer_fields(workflow_fixture):
     workflow = workflow_fixture["workflow"]
-    
+
     serializer = UpdateAutomationWorkflowSerializer(instance=workflow)
-    
+
     assert sorted(serializer.data.keys()) == [
         "name",
     ]

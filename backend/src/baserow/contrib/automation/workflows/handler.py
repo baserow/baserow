@@ -3,12 +3,9 @@ from typing import Any, Dict, List, Optional
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
-from django.db.models import QuerySet
 from django.db import IntegrityError
+from django.db.models import QuerySet
 
-from baserow.contrib.automation.workflows.exceptions import (
-    AutomationWorkflowNameNotUnique,
-)
 from baserow.contrib.automation.constants import (
     IMPORT_SERIALIZED_IMPORTING,
     WORKFLOW_NAME_MAX_LEN,
@@ -17,6 +14,7 @@ from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
+    AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInAutomation,
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
@@ -80,7 +78,9 @@ class AutomationWorkflowHandler:
             )
         except IntegrityError as e:
             if "unique constraint" in e.args[0] and "name" in e.args[0]:
-                raise AutomationWorkflowNameNotUnique(name=name, automation_id=automation.id)
+                raise AutomationWorkflowNameNotUnique(
+                    name=name, automation_id=automation.id
+                )
             raise e
 
         return workflow
@@ -113,7 +113,9 @@ class AutomationWorkflowHandler:
             workflow.save()
         except IntegrityError as e:
             if "unique constraint" in e.args[0] and "name" in e.args[0]:
-                raise AutomationWorkflowNameNotUnique(name=workflow.name, automation_id=workflow.automation_id)
+                raise AutomationWorkflowNameNotUnique(
+                    name=workflow.name, automation_id=workflow.automation_id
+                )
             raise e
 
         return workflow
