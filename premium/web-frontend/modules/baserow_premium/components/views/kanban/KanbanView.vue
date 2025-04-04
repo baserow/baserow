@@ -56,8 +56,6 @@
         <div class="kanban-view__stack">
           <div class="kanban-view__stack-head">
             <Button
-              tag="a"
-              ref="addOptionContextLink"
               v-if="
                 !readOnly &&
                 !singleSelectField.immutable_properties &&
@@ -67,12 +65,21 @@
                   database.workspace.id
                 )
               "
+              ref="addOptionContextLink"
+              tag="a"
               type="secondary"
               size="regular"
               icon="iconoir-plus"
               :full-width="true"
-              @click="$refs.addOptionContext.toggle($refs.addOptionContextLink.$el, 'bottom', 'right')"
-            >{{ $t('kanbanView.addStack') }}</Button>
+              @click="
+                $refs.addOptionContext.toggle(
+                  $refs.addOptionContextLink.$el,
+                  'bottom',
+                  'right'
+                )
+              "
+              >{{ $t('kanbanView.addStack') }}</Button
+            >
             <KanbanViewCreateStackContext
               ref="addOptionContext"
               :fields="fields"
