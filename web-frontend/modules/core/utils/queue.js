@@ -56,8 +56,10 @@ export class TaskQueue {
 
   async run() {
     while (this.queue.length > 0 && this.running && !this.locked) {
-      const task = this.queue.shift()
+      // need to keep queue filled when task is running
+      const task = this.queue[0]
       await task.run()
+      this.queue.shift()
     }
     this.running = false
     this.done()

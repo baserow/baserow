@@ -35,28 +35,55 @@ const ORDER_STEP_BEFORE = '0.00000000000000000001'
 const REFRESH_ROW_DELAY = 1000
 
 /**
- * sorts rows in-place based on view's sorting configuration
+ * Populates fresh rows from text (or JSON) data. The number of returned rows will match
+ * the number of rows from tsvData list.
  *
- * @param getters
+ * @param tsvData a list of values in text format
+ * @param jsonData (optional) a list of values from json. Should match in number with
+ *  tsvData
+ * @param fieldsInOrder a list of fields used
  * @param registry
- * @param view
- * @param fields
- * @param rows
- * @returns {*}
+ * @param fromRows (optional) a list of existing rows which will be used to pre-populate
+ *  rows
+ * @returns {*[]}
  */
-export function sortRows(getters, registry, view, fields, rows) {
-  if (getters.getRowsSortingPostponed) {
-    return rows
-  }
+function populateRows({
+  tsvData,
+  jsonData,
+  fieldsInOrder,
+  registry,
+  fromRows,
+}) {
+  const newRows = []
 
-  const sortFunction = getRowSortFunction(
-    registry,
-    view.sortings,
-    fields,
-    view.group_bys
-  )
-  rows.sort(sortFunction)
-  return rows
+  // Prepare the values for update and update the row objects.
+  tsvData.forEach((tsvRow, rowIndex) => {
+    const oldRow = fromRows ? fromRows[rowIndex] : {}
+    const row = {}
+    if (oldRow) {
+      row.id = oldRow.id
+    }
+
+    fieldsInOrder.forEach((field, fieldIndex) => {
+      // We can't pre-filter because we need the correct filter index.
+      if (field._.type.isReadOnly) {
+        return
+      }
+      const fieldId = `field_${field.id}`
+      const textValue = tsvRow[fieldIndex]
+      const jsonValue = jsonData != null ? jsonData[rowIndex][fieldIndex] : null
+      const fieldType = registry.get('field', field.type)
+      const preparedValue = fieldType.prepareValueForPaste(
+        field,
+        textValue,
+        jsonValue
+      )
+      row[fieldId] = fieldType.prepareValueForUpdate(field, preparedValue)
+    })
+    newRows.push(row)
+  })
+
+  return newRows
 }
 
 export function populateRow(row, metadata = {}) {
@@ -171,11 +198,6 @@ export const state = () => ({
   // in the array, then that cell is a loading state. This is for example used for
   // fields that use a background worker to compute the value like the AI field.
   pendingFieldOps: {},
-  // This caller-controlled value tells if rows should be sorted during longer actions.
-  // In some cases, an action may want to dispatch other, smaller actions, that may
-  // trigger sorting, while it's not wanted yet, becuse rows will be sorted at the end
-  // of the action.
-  sortingPostponed: false,
 })
 
 export const mutations = {
@@ -193,7 +215,6 @@ export const mutations = {
     state.activeSearchTerm = ''
     state.hideRowsNotMatchingSearch = true
     state.pendingFieldOps = {}
-    state.sortingPostponed = false
   },
   SET_ACTIVE_GROUP_BYS(state, groupBys) {
     state.activeGroupBys = groupBys
@@ -346,9 +367,6 @@ export const mutations = {
   },
   SET_ROW_MATCH_SORTINGS(state, { row, value }) {
     row._.matchSortings = value
-  },
-  SET_ROWS_SORTING_POSTPONED(state, value) {
-    state.sortingPostponed = value
   },
   ADD_ROW_SELECTED_BY(state, { row, fieldId }) {
     if (!row._.selectedBy.includes(fieldId)) {
@@ -1528,9 +1546,6 @@ export const actions = {
   setMultiSelectActive({ commit }, value) {
     commit('SET_MULTISELECT_ACTIVE', value)
   },
-  setRowsSortingPostponed({ commit }, value) {
-    commit('SET_ROWS_SORTING_POSTPONED', value)
-  },
   clearAndDisableMultiSelect({ commit }) {
     commit('CLEAR_MULTISELECT')
     commit('SET_MULTISELECT_ACTIVE', false)
@@ -1863,7 +1878,7 @@ export const actions = {
       view,
       table,
       fields,
-      rows = [],
+      rows = {},
       before = null,
       selectPrimaryCell = false,
       isRowOpenedInModal = undefined,
@@ -2000,11 +2015,19 @@ export const actions = {
     })
 
     try {
-      const { data } = await RowService(this.$client).batchCreate(
-        table.id,
-        rowsPrepared,
-        before !== null ? before.id : null
-      )
+      let data = {}
+      const q = createAndUpdateRowQueue.getOrCreateQueue(`table_${table.id}`)
+      const tid = q.add(async () => {
+        const resp = await RowService(this.$client).batchCreate(
+          table.id,
+          rowsPrepared,
+          before !== null ? before.id : null
+        )
+        data = resp.data
+      })
+      // need to resolve this promise
+      // as other actions (i.e. update rows from pasted data) may wait for this too.
+      await q.waitFor(tid)
 
       const fieldsToFinalize = fields
         .filter(
@@ -2033,7 +2056,7 @@ export const actions = {
             decrease: false,
           })
         }
-        await dispatch('onRowChange', { view, row, fields })
+        dispatch('onRowChange', { view, row, fields })
         const rowId = row.id
         setTimeout(() => {
           // Get the latest row so that any changes that might have been made in the
@@ -2090,13 +2113,11 @@ export const actions = {
       scrollTop: getters.getScrollTop,
       fields,
     })
-    return rowsPopulated
   },
   /**
    * Called after a new row has been created, which could be by the user or via
    * another channel. It will only add the row if it belongs inside the views and it
    * also makes sure that row will be inserted at the correct position.
-   *
    */
   async createdNewRow(
     { commit, getters, dispatch },
@@ -2132,8 +2153,13 @@ export const actions = {
     // in this view, we need to estimate what position it has in the table.
     const allRowsCopy = clone(getters.getAllRows)
     allRowsCopy.push(row)
-    sortRows(getters, this.$registry, view, fields, allRowsCopy)
-
+    const sortFunction = getRowSortFunction(
+      this.$registry,
+      view.sortings,
+      fields,
+      view.group_bys
+    )
+    allRowsCopy.sort(sortFunction)
     const index = allRowsCopy.findIndex((r) => r.id === row.id)
 
     const isFirst = index === 0
@@ -2484,7 +2510,6 @@ export const actions = {
     const isSingleCellCopied =
       copiedRowsCount === 1 && copiedCellsInRowsCount === 1
 
-    await dispatch('setRowsSortingPostponed', true)
     if (isSingleCellCopied) {
       // the textData and jsonData are recreated
       // to fill the entire multi selection
@@ -2527,34 +2552,10 @@ export const actions = {
     }
 
     const newRowsCount = copiedRowsCount - (rowTailIndex - rowHeadIndex + 1)
-
-    // Create extra missing rows
-    if (newRowsCount > 0) {
-      await dispatch('createNewRows', {
-        view,
-        table,
-        fields: allFieldsInTable,
-        rows: Array.from(Array(newRowsCount), (element, index) => {
-          return {}
-        }),
-        selectPrimaryCell: false,
-      })
-      rowTailIndex = rowTailIndex + newRowsCount
-    }
-
-    if (!isSingleCellCopied && selectUpdatedCells) {
-      // Expand the selection of the multiple select to the cells that we're going to
-      // paste in, so the user can see which values have been updated. This is because
-      // it could be that there are more or less values in the clipboard compared to
-      // what was originally selected.
-
-      await dispatch('setMultipleSelect', {
-        rowHeadIndex,
-        fieldHeadIndex,
-        rowTailIndex,
-        fieldTailIndex,
-      })
-    }
+    const textDataToCreate = textData.slice(copiedRowsCount - newRowsCount)
+    const jsonDataToCreate = jsonData
+      ? jsonData.slice(copiedRowsCount - newRowsCount)
+      : undefined
 
     // Figure out which rows are already in the buffered and temporarily store them
     // in an array.
@@ -2574,7 +2575,6 @@ export const actions = {
       (field) => !field._.type.isReadOnly
     )
     if (writeFields.length === 0) {
-      await dispatch('setRowsSortingPostponed', false)
       return
     }
 
@@ -2597,13 +2597,25 @@ export const actions = {
           : [...rowsInOrder, ...rowsNotInBuffer]
     }
 
+    // before populating existing rows with new values and calling RowService,
+    // ensure no createRows is running. There can be a parallel createRows action
+    // performing another request to create those rows in the backend.
+    // If we call RowService too soon here, we'll send placeholder .id values (uuid)
+    // to a PATCH operation.
+    const q = createAndUpdateRowQueue.getOrCreateQueue(`table_${table.id}`)
+    const waitlist = Array.from(q.queue, (item) => {
+      return item.wait
+    })
+    // wait for any table-level updates
+    await Promise.all(waitlist)
+
     // Create a copy of the existing (old) rows, which are needed to create the
     // comparison when checking if the rows still matches the filters and position.
     const oldRowsInOrder = clone(rowsInOrder)
     // Prepare the values that must be send to the server.
     const valuesForUpdate = []
-    // Prepare the values for update and update the row objects.
 
+    // Prepare the values for update and update the row objects.
     rowsInOrder.forEach((row, rowIndex) => {
       valuesForUpdate[rowIndex] = { id: row.id }
 
@@ -2651,25 +2663,31 @@ export const actions = {
         row,
         values,
       })
-      // mark row as moved (if doesn't match sorting/filtering)
-      await dispatch('setRowsSortingPostponed', false)
-      const rowInStore = getters.getRow(row.id)
-      await dispatch('onRowChange', {
+    }
+    // Create extra missing rows
+    if (newRowsCount > 0) {
+      await dispatch('createNewRows', {
         view,
-        row: rowInStore,
+        table,
         fields: allFieldsInTable,
+        rows: populateRows({
+          tsvData: textDataToCreate,
+          jsonData: jsonDataToCreate,
+          fieldsInOrder,
+          registry: this.$registry,
+        }),
+        selectPrimaryCell: false,
       })
-      await dispatch('setRowsSortingPostponed', true)
+      rowTailIndex = rowTailIndex + newRowsCount
     }
 
     // Must be called because rows could have been removed or moved to a different
     // position and we might need to fetch missing rows.
-    // await dispatch('fetchByScrollTopDelayed', {
-    //   scrollTop: getScrollTop(),
-    //   fields: allFieldsInTable,
-    // })
+    await dispatch('fetchByScrollTopDelayed', {
+      scrollTop: getScrollTop(),
+      fields: allFieldsInTable,
+    })
     dispatch('fetchAllFieldAggregationData', { view })
-    await dispatch('setRowsSortingPostponed', false)
   },
   /**
    * Called after an existing row has been updated, which could be by the user or
@@ -2733,6 +2751,12 @@ export const actions = {
       }
 
       // Figure out if the row is currently in the buffer.
+      const sortFunction = getRowSortFunction(
+        this.$registry,
+        view.sortings,
+        fields,
+        view.group_bys
+      )
       const allRows = getters.getAllRows
       const index = allRows.findIndex((r) => r.id === row.id)
       const oldIsFirst = index === 0
@@ -2763,7 +2787,7 @@ export const actions = {
           allRowsCopy.splice(oldRowIndex, 1)
         }
         allRowsCopy.push(oldRow)
-        sortRows(getters, this.$registry, view, fields, allRowsCopy)
+        allRowsCopy.sort(sortFunction)
         const oldIndex = allRowsCopy.findIndex((r) => r.id === newRow.id)
         if (oldIndex === 0) {
           // If the old row is before the buffer.
@@ -2778,8 +2802,7 @@ export const actions = {
         allRowsCopy.splice(oldRowIndex, 1)
       }
       allRowsCopy.push(newRow)
-      sortRows(getters, this.$registry, view, fields, allRowsCopy)
-
+      allRowsCopy.sort(sortFunction)
       const newIndex = allRowsCopy.findIndex((r) => r.id === newRow.id)
       const newIsFirst = newIndex === 0
       const newIsLast = newIndex === allRowsCopy.length - 1
@@ -2955,7 +2978,13 @@ export const actions = {
 
     // Otherwise we have to calculate was before or after the current buffer.
     allRowsCopy.push(row)
-    sortRows(getters, this.$registry, view, fields, allRowsCopy)
+    const sortFunction = getRowSortFunction(
+      this.$registry,
+      view.sortings,
+      fields,
+      view.group_bys
+    )
+    allRowsCopy.sort(sortFunction)
     const index = allRowsCopy.findIndex((r) => r.id === row.id)
 
     // If the row is at position 0, it means that the row existed before the buffer,
@@ -2972,10 +3001,10 @@ export const actions = {
    * Triggered when a row has been changed, or has a pending change in the provided
    * overrides.
    */
-  async onRowChange({ dispatch }, { view, row, fields, overrides = {} }) {
-    await dispatch('updateMatchFilters', { view, row, fields, overrides })
-    await dispatch('updateMatchSortings', { view, row, fields, overrides })
-    await dispatch('updateSearchMatchesForRow', { row, fields, overrides })
+  onRowChange({ dispatch }, { view, row, fields, overrides = {} }) {
+    dispatch('updateMatchFilters', { view, row, fields, overrides })
+    dispatch('updateMatchSortings', { view, row, fields, overrides })
+    dispatch('updateSearchMatchesForRow', { row, fields, overrides })
   },
   /**
    * Checks if the given row still matches the given view filters. The row's
@@ -3064,7 +3093,9 @@ export const actions = {
     const currentIndex = getters.getAllRows.findIndex((r) => r.id === row.id)
     const sortedRows = clone(allRows)
     sortedRows[currentIndex] = values
-    sortRows(getters, this.$registry, view, fields, sortedRows)
+    sortedRows.sort(
+      getRowSortFunction(this.$registry, view.sortings, fields, view.group_bys)
+    )
     const newIndex = sortedRows.findIndex((r) => r.id === row.id)
 
     commit('SET_ROW_MATCH_SORTINGS', { row, value: currentIndex === newIndex })
@@ -3244,9 +3275,6 @@ export const getters = {
   },
   getRowsStartIndex(state) {
     return state.rowsStartIndex
-  },
-  getRowsSortingPostponed(state) {
-    return state.sortingPostponed
   },
   getRowsEndIndex(state) {
     return state.rowsEndIndex
