@@ -13,6 +13,7 @@
     "namePlaceholder": "Enter a name..."
   },
   "duplicateAutomationWorkflowJobType": {
+    "name": "Duplicate automation workflow",
     "duplicating": "Duplicating",
     "duplicatedTitle": "Workflow duplicated"
   },

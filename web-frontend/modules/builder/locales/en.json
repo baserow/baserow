@@ -158,6 +158,7 @@
     "selectParent": "Select parent"
   },
   "duplicatePageJobType": {
+    "name": "Duplicate page",
     "duplicating": "Duplicating",
     "duplicatedTitle": "Page duplicated"
   },
