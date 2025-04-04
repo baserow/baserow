@@ -130,8 +130,8 @@ def ensure_date(value: Any) -> Optional[date]:
     """
 
     try:
-        return FormattedDate(value).date if value else None
-    except ValueError as exc:
+        return FormattedDate(value).date if value is not None else None
+    except (ValueError, TypeError) as exc:
         raise ValidationError("Value cannot be converted to a date.") from exc
 
 
@@ -145,6 +145,6 @@ def ensure_datetime(value: Any) -> Optional[datetime]:
     """
 
     try:
-        return FormattedDateTime(value).datetime if value else None
-    except ValueError as exc:
+        return FormattedDateTime(value).datetime if value is not None else None
+    except (ValueError, TypeError) as exc:
         raise ValidationError("Value cannot be converted to a datetime.") from exc
