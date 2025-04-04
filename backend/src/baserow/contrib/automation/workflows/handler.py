@@ -109,7 +109,12 @@ class AutomationWorkflowHandler:
         for key, value in kwargs.items():
             setattr(workflow, key, value)
 
-        workflow.save()
+        try:
+            workflow.save()
+        except IntegrityError as e:
+            if "unique constraint" in e.args[0] and "name" in e.args[0]:
+                raise AutomationWorkflowNameNotUnique(name=workflow.name, automation_id=workflow.automation_id)
+            raise e
 
         return workflow
 
