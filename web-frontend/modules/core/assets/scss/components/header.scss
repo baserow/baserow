@@ -109,7 +109,7 @@
   color: $palette-neutral-900;
 
   @include fixed-height(32px, 13px);
-  @include rounded($rounded);
+  @include rounded($rounded-md);
 
   &:hover {
     text-decoration: none;
