@@ -156,10 +156,10 @@ class AutomationApplicationType(ApplicationType):
             return instance and instance.workflows or []
         else:
             instance = self.enhance_queryset(base_queryset).first()
-            return instance and list(instance.automationworkflow_set.all()) or []
+            return instance and list(instance.workflows.all()) or []
 
     def enhance_queryset(self, queryset):
-        return queryset.prefetch_related("automationworkflow_set")
+        return queryset.prefetch_related("workflows")
 
     def enhance_and_filter_queryset(
         self,
@@ -169,7 +169,7 @@ class AutomationApplicationType(ApplicationType):
     ) -> QuerySet[Automation]:
         return queryset.prefetch_related(
             Prefetch(
-                "automationworkflow_set",
+                "workflows",
                 queryset=CoreHandler().filter_queryset(
                     user,
                     ListAutomationWorkflowsOperationType.type,
@@ -178,6 +178,5 @@ class AutomationApplicationType(ApplicationType):
                     ).all(),
                     workspace=workspace,
                 ),
-                to_attr="workflows",
             ),
         )

@@ -182,7 +182,7 @@ class AutomationWorkflowHandler:
         """
 
         existing_workflow_names = list(
-            automation.automationworkflow_set.values_list("name", flat=True)
+            automation.workflows.values_list("name", flat=True)
         )
         return find_unused_name(
             [proposed_name], existing_workflow_names, max_length=WORKFLOW_NAME_MAX_LEN

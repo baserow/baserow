@@ -26,7 +26,7 @@ class AutomationWorkflow(
     CreatedAndUpdatedOnMixin,
     OrderableMixin,
 ):
-    automation = models.ForeignKey("automation.Automation", on_delete=models.CASCADE)
+    automation = models.ForeignKey("automation.Automation", on_delete=models.CASCADE, related_name="workflows")
 
     name = models.CharField(max_length=WORKFLOW_NAME_MAX_LEN)
 
