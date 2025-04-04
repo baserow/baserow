@@ -76,7 +76,12 @@
           ></a>
         </p>
         <div v-if="fields.length === 0" class="form-view__no-fields">
-          {{ $t('formViewModePreviewForm.noFields') }}
+          <div class="form-view__no-fields-title">
+            {{ $t('formViewModePreviewForm.noFieldsTitle') }}
+          </div>
+          <div class="form-view__no-fields-content">
+            {{ $t('formViewModePreviewForm.noFieldsContent') }}
+          </div>
         </div>
       </div>
       <div class="form-view__fields">

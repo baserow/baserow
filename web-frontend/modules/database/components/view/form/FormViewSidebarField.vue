@@ -22,10 +22,6 @@
       <div class="form-view__sidebar-fields-name">
         {{ field.name }}
       </div>
-      <i
-        v-if="!compatible"
-        class="form-view__sidebar-fields-incompatible-icon iconoir-warning-triangle"
-      ></i>
       <i class="form-view__sidebar-fields-hover-arrow iconoir-arrow-right"></i>
     </a>
   </div>
