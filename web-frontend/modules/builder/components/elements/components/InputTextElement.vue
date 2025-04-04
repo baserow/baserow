@@ -58,7 +58,7 @@ export default {
       },
     },
     localeLanguage() {
-      return 'nl' // process.client ? navigator.language : this.$i18n.locale
+      return this.$i18n.locale
     },
     resolvedDefaultValue() {
       try {
@@ -95,7 +95,7 @@ export default {
       if (this.isNumericField) {
         if (value) {
           return new Intl.NumberFormat(this.localeLanguage, {
-            useGrouping: true,
+            useGrouping: false,
           }).format(value)
         } else {
           return ''

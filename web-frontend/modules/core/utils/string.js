@@ -144,20 +144,22 @@ export const isInteger = (value) => {
 export const isNumeric = (value) => {
   return /^-?\d+([.]\d+)?$/.test(value)
 }
+
 export const parseLocalizedNumber = (str, locale) => {
   const parts = new Intl.NumberFormat(locale).formatToParts(12345.6)
-  const group = parts.find((p) => p.type === 'group')?.value || ''
-  const decimal = parts.find((p) => p.type === 'decimal')?.value || '.'
+  let group = parts.find((p) => p.type === 'group')?.value || ''
+  let decimal = parts.find((p) => p.type === 'decimal')?.value || '.'
 
   // Escape special characters for regex
-  const escapedGroup = group.replace(/[\u202F\u00A0\s]/g, '\\s') // match all common spaces
-  const groupRegex = new RegExp(escapedGroup, 'g')
+  group = group.replace(/[\u202F\u00A0\s]/g, '\\s') // match all common spaces
+  decimal = decimal === '.' ? '\\.' : decimal
+  group = group === '.' ? '\\.' : group
 
+  const groupRegex = new RegExp(group, 'g')
   // Remove group separator and replace decimal with "."
-  const normalized = str.replace(groupRegex, '').replace(decimal, '.')
-
-  return normalized
+  return str.replace(groupRegex, '').replace(decimal, '.')
 }
+
 /**
  * Allow to find the next unused name excluding a list of names.
  * This is the frontend equivalent of backend ".find_unused_name()" method.
