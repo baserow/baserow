@@ -10,7 +10,7 @@ from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandl
 from baserow.contrib.automation.workflows.operations import (
     DuplicateAutomationWorkflowOperationType,
 )
-from baserow.contrib.automation.workflows.serializers import (
+from baserow.contrib.automation.api.workflows.serializers import (
     AutomationWorkflowSerializer,
 )
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService

@@ -4,7 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.contrib.automation.models import Automation
-from baserow.contrib.automation.workflows.serializers import (
+from baserow.contrib.automation.api.workflows.serializers import (
     AutomationWorkflowSerializer,
 )
 
