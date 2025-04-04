@@ -4,7 +4,11 @@ from zipfile import ZipFile
 
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
+from django.db import IntegrityError
 
+from baserow.contrib.automation.workflows.exceptions import (
+    AutomationWorkflowNameNotUnique,
+)
 from baserow.contrib.automation.constants import (
     IMPORT_SERIALIZED_IMPORTING,
     WORKFLOW_NAME_MAX_LEN,
@@ -68,11 +72,18 @@ class AutomationWorkflowHandler:
 
         last_order = AutomationWorkflow.get_last_order(automation)
 
-        return AutomationWorkflow.objects.create(
-            automation=automation,
-            name=name,
-            order=last_order,
-        )
+        try:
+            workflow = AutomationWorkflow.objects.create(
+                automation=automation,
+                name=name,
+                order=last_order,
+            )
+        except IntegrityError as e:
+            if "unique constraint" in e.args[0] and "name" in e.args[0]:
+                raise AutomationWorkflowNameNotUnique(name=name, automation_id=automation.id)
+            raise e
+
+        return workflow
 
     def delete_workflow(self, workflow: AutomationWorkflow) -> None:
         """
