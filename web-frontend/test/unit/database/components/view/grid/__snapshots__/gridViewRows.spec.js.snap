@@ -144,7 +144,7 @@ exports[`GridViewRows component With row details 1`] = `
           class="grid-view__row-more"
         >
           <i
-            class="iconoir-expand"
+            class="baserow-icon-enlarge-row"
           />
         </a>
          
@@ -209,7 +209,7 @@ exports[`GridViewRows component With row details 1`] = `
           class="grid-view__row-more"
         >
           <i
-            class="iconoir-expand"
+            class="baserow-icon-enlarge-row"
           />
         </a>
          
@@ -274,7 +274,7 @@ exports[`GridViewRows component With row details 1`] = `
           class="grid-view__row-more"
         >
           <i
-            class="iconoir-expand"
+            class="baserow-icon-enlarge-row"
           />
         </a>
          
