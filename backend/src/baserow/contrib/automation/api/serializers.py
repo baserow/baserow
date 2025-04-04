@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, List
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.api.workflows.serializers import (
     AutomationWorkflowSerializer,
 )
+from baserow.contrib.automation.models import Automation
 
 if TYPE_CHECKING:
     from baserow.contrib.automation.application_types import AutomationApplicationType

@@ -5,13 +5,13 @@ from django.db import transaction
 
 from rest_framework import serializers
 
+from baserow.contrib.automation.api.workflows.serializers import (
+    AutomationWorkflowSerializer,
+)
 from baserow.contrib.automation.models import DuplicateAutomationWorkflowJob
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.operations import (
     DuplicateAutomationWorkflowOperationType,
-)
-from baserow.contrib.automation.api.workflows.serializers import (
-    AutomationWorkflowSerializer,
 )
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.handler import CoreHandler
