@@ -7,14 +7,12 @@
     :style="getStyleOverride('input')"
   >
     <ABInput
-      :value="internalValue"
+      v-model="computedValue"
       :placeholder="resolvedPlaceholder"
       :multiline="element.is_multiline"
       :rows="element.rows"
       :type="element.input_type"
-      @blur="handleBlur"
-      @focus="handleFocus"
-      @input="handleInput"
+      @blur="onFormElementTouch"
     />
   </ABFormGroup>
 </template>
@@ -25,6 +23,7 @@ import {
   ensureNumeric,
   ensureString,
 } from '@baserow/modules/core/utils/validator'
+import { parseLocalizedNumber } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'InputTextElement',
@@ -49,19 +48,28 @@ export default {
     }
   },
   computed: {
+    computedValue: {
+      get() {
+        return this.internalValue
+      },
+      set(newValue) {
+        this.inputValue = this.fromInternalValue(newValue)
+        this.internalValue = newValue
+      },
+    },
     localeLanguage() {
-      return process.client ? navigator.language : this.$i18n.locale
-    },
-    decimalSeparator() {
-      return new Intl.NumberFormat(this.localeLanguage).format(1.1).charAt(1)
-    },
-    thousandSeparator() {
-      return this.decimalSeparator === '.' ? ',' : '.'
+      return 'nl' // process.client ? navigator.language : this.$i18n.locale
     },
     resolvedDefaultValue() {
-      return this.handleInputValue(
-        ensureString(this.resolveFormula(this.element.default_value))
-      )
+      try {
+        const value = this.resolveFormula(this.element.default_value)
+
+        return this.isNumericField
+          ? ensureNumeric(value, { allowNull: true })
+          : ensureString(value)
+      } catch {
+        return null
+      }
     },
     isNumericField() {
       return this.element.validation_type === 'integer'
@@ -76,79 +84,45 @@ export default {
   watch: {
     resolvedDefaultValue: {
       handler(value) {
-        if (!this.inputValue) {
-          this.inputValue = this.handleInputValue(value)
-          this.updateInternalValue()
-        }
+        this.inputValue = value
+        this.internalValue = this.toInternalValue(value)
       },
       immediate: true,
     },
   },
   methods: {
-    updateInternalValue() {
-      // Format the model value for display in the input
-      if (this.isNumericField && this.inputValue !== null) {
-        this.internalValue = this.formatNumericValueForDisplay(this.inputValue)
-      } else {
-        this.internalValue = this.inputValue || ''
+    toInternalValue(value) {
+      if (this.isNumericField) {
+        if (value) {
+          return new Intl.NumberFormat(this.localeLanguage, {
+            useGrouping: true,
+          }).format(value)
+        } else {
+          return ''
+        }
       }
+
+      return ensureString(value)
     },
 
-    handleInputValue(value) {
-      try {
-        return this.isNumericField
-          ? ensureNumeric(value, { allowNull: true })
-          : ensureString(value)
-      } catch (e) {
-        return ensureString(value)
+    fromInternalValue(value) {
+      if (this.isNumericField) {
+        if (value) {
+          try {
+            return ensureNumeric(
+              parseLocalizedNumber(value, this.localeLanguage),
+              {
+                allowNull: true,
+              }
+            )
+          } catch {
+            return value
+          }
+        } else {
+          return null
+        }
       }
-    },
-
-    handleInput(value) {
-      // Update internal value as user types
-      this.internalValue = value
-
-      // For non-numeric fields, we can update the model immediately
-      if (!this.isNumericField) {
-        this.inputValue = value
-      }
-    },
-
-    toStoreNumericValue(value) {
-      const decimalSeparator =
-        this.decimalSeparator === '.' ? '\\.' : this.decimalSeparator
-      const thousandSeparator =
-        this.thousandSeparator === '.' ? '\\.' : this.thousandSeparator
-
-      if (typeof value === 'number') {
-        return value
-      }
-      if (!value) {
-        return null
-      }
-      try {
-        const cleanedValue = value
-          .replace(new RegExp(`[${thousandSeparator} ]`, 'g'), '')
-          .replace(new RegExp(decimalSeparator, 'g'), '.')
-        return ensureNumeric(cleanedValue, { allowNull: true })
-      } catch (e) {
-        return value
-      }
-    },
-
-    formatNumericValueForDisplay(value) {
-      if (isNaN(Number(value))) {
-        return value
-      }
-      try {
-        return new Intl.NumberFormat(this.localeLanguage, {
-          maximumFractionDigits: 20,
-          // TODO: Make thousand grouping configurable?
-          useGrouping: true,
-        }).format(Number(value))
-      } catch (e) {
-        return value
-      }
+      return value
     },
 
     getErrorMessage() {
@@ -159,31 +133,6 @@ export default {
           return this.$t('error.invalidEmail')
         default:
           return this.$t('error.requiredField')
-      }
-    },
-
-    handleBlur() {
-      // For numeric fields, convert the display value to a numeric value for the model
-      if (this.isNumericField) {
-        try {
-          const numericValue = this.toStoreNumericValue(this.internalValue)
-          this.inputValue = numericValue
-          // Update the internal value to show properly formatted number
-          this.updateInternalValue()
-        } catch (e) {
-          console.warn('Failed to convert input to numeric value', e)
-        }
-      }
-      this.onFormElementTouch()
-    },
-
-    handleFocus() {
-      // For numeric fields, we want to show the raw value without formatting
-      if (this.isNumericField && this.inputValue !== null) {
-        this.internalValue = String(this.inputValue).replace(
-          '.',
-          this.decimalSeparator
-        )
       }
     },
   },
