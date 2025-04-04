@@ -8,7 +8,7 @@ class AutomationWorkflowOperationType(AutomationOperationType, ABC):
 
 
 class CreateAutomationWorkflowOperationType(AutomationOperationType):
-    type = "automation.workflow.create"
+    type = "automation.create_workflow"
 
 
 class DeleteAutomationWorkflowOperationType(AutomationWorkflowOperationType):

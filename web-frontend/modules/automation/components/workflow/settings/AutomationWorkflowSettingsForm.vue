@@ -61,7 +61,7 @@ export default {
     hasPermission() {
       if (this.isCreation) {
         return this.$hasPermission(
-          'automation.workflow.create',
+          'automation.create_workflow',
           this.automation,
           this.workspace.id
         )

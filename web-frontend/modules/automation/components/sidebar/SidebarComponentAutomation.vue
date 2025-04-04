@@ -30,7 +30,7 @@
         <a
           v-if="
             $hasPermission(
-              'automation.workflow.create',
+              'automation.create_workflow',
               application,
               application.workspace.id
             )
