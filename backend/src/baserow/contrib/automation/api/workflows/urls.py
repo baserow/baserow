@@ -22,7 +22,7 @@ urlpatterns_without_automation_id = [
     re_path(
         r"(?P<workflow_id>[0-9]+)/$",
         AutomationWorkflowView.as_view(),
-        name="automation_workflow",
+        name="item",
     ),
     re_path(
         r"(?P<workflow_id>[0-9]+)/duplicate/async/$",
