@@ -14,6 +14,7 @@ import TableElementForm from '@baserow/modules/builder/components/elements/compo
 import {
   ensureArray,
   ensureBoolean,
+  ensureNumeric,
   ensureInteger,
   ensurePositiveInteger,
   ensureString,
@@ -1140,7 +1141,7 @@ export class InputTextElementType extends FormElementType {
   }
 
   formDataType(element) {
-    return 'string'
+    return element.validation_type === 'integer' ? 'number' : 'string'
   }
 
   getDisplayName(element, applicationContext) {
@@ -1158,12 +1159,16 @@ export class InputTextElementType extends FormElementType {
 
   getInitialFormDataValue(element, applicationContext) {
     try {
-      return this.resolveFormula(element.default_value, {
+      const value = this.resolveFormula(element.default_value, {
         element,
         ...applicationContext,
       })
+
+      return element.validation_type === 'integer'
+        ? ensureNumeric(value, { allowNull: true })
+        : ensureString(value)
     } catch {
-      return ''
+      return null
     }
   }
 }

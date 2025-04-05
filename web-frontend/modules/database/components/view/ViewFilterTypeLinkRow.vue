@@ -40,7 +40,7 @@
 </template>
 
 <script>
-import { isNumeric } from '@baserow/modules/core/utils/string'
+import { isInteger } from '@baserow/modules/core/utils/string'
 import { getPersistentFieldOptionsKey } from '@baserow/modules/database/utils/field'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import SelectRowModal from '@baserow/modules/database/components/row/SelectRowModal'
@@ -61,7 +61,7 @@ export default {
   },
   computed: {
     valid() {
-      return isNumeric(this.filter.value)
+      return isInteger(this.filter.value)
     },
     isDropdown() {
       return this.readOnly && this.view && this.isPublicView

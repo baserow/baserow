@@ -506,48 +506,43 @@ def test_choice_element_import_export_formula(data_fixture):
 
 
 @pytest.mark.django_db
-def test_input_text_element_is_valid(data_fixture):
-    validity_tests = [
-        {"required": True, "type": "integer", "value": "", "result": False},
-        {"required": True, "type": "integer", "value": 42, "result": 42},
-        {"required": True, "type": "integer", "value": "42", "result": 42},
-        {"required": True, "type": "integer", "value": "horse", "result": False},
-        {"required": False, "type": "integer", "value": "", "result": ""},
-        {
-            "required": True,
-            "type": "email",
-            "value": "foo@bar.com",
-            "result": "foo@bar.com",
-        },
-        {"required": True, "type": "email", "value": "foobar.com", "result": False},
-        {"required": False, "type": "email", "value": "", "result": ""},
-        {"required": True, "type": "any", "value": "", "result": False},
-        {"required": True, "type": "any", "value": 42, "result": 42},
-        {"required": True, "type": "any", "value": "42", "result": "42"},
-        {"required": True, "type": "any", "value": "horse", "result": "horse"},
-        {"required": False, "type": "any", "value": "", "result": ""},
-    ]
-    for test in validity_tests:
-        if test["result"] is not False:
-            assert (
-                InputTextElementType().is_valid(
-                    InputTextElement(
-                        validation_type=test["type"], required=test["required"]
-                    ),
-                    test["value"],
-                    {},
-                )
-                == test["result"]
-            ), repr(test["value"])
-        else:
-            with pytest.raises(FormDataProviderChunkInvalidException):
-                InputTextElementType().is_valid(
-                    InputTextElement(
-                        validation_type=test["type"], required=test["required"]
-                    ),
-                    test["value"],
-                    {},
-                )
+@pytest.mark.parametrize(
+    "required,type,value,result",
+    [
+        (True, "integer", "", False),
+        (True, "integer", 42, 42),
+        (True, "integer", "4.2", 4.2),
+        (True, "integer", "4,2", False),
+        (True, "integer", "42", 42),
+        (True, "integer", "horse", False),
+        (False, "integer", "", ""),
+        (True, "email", "foo@bar.com", "foo@bar.com"),
+        (True, "email", "foobar.com", False),
+        (False, "email", "", ""),
+        (True, "any", "", False),
+        (True, "any", 42, 42),
+        (True, "any", "42", "42"),
+        (True, "any", "horse", "horse"),
+        (False, "any", "", ""),
+    ],
+)
+def test_input_text_element_is_valid(data_fixture, required, type, value, result):
+    if result is not False:
+        assert (
+            InputTextElementType().is_valid(
+                InputTextElement(validation_type=type, required=required),
+                value,
+                {},
+            )
+            == result
+        ), repr(f"{value} != {result}")
+    else:
+        with pytest.raises(FormDataProviderChunkInvalidException):
+            InputTextElementType().is_valid(
+                InputTextElement(validation_type=type, required=required),
+                value,
+                {},
+            )
 
 
 @pytest.mark.django_db

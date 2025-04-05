@@ -1,6 +1,7 @@
 import abc
 import uuid
 from datetime import datetime
+from decimal import InvalidOperation
 from typing import (
     Any,
     Callable,
@@ -101,6 +102,7 @@ from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
     ensure_integer,
+    ensure_numeric,
     ensure_string_or_integer,
 )
 from baserow.core.registry import Instance, T
@@ -1464,7 +1466,7 @@ class InputTextElementType(InputElementType):
 
     def is_valid(
         self, element: InputTextElement, value: Any, dispatch_context: DispatchContext
-    ) -> bool:
+    ) -> Any:
         """
         :param element: The element we're trying to use form data in.
         :param value: The form data value, which may be invalid.
@@ -1477,10 +1479,10 @@ class InputTextElementType(InputElementType):
 
         elif element.validation_type == "integer":
             try:
-                value = ensure_integer(value)
-            except ValidationError as exc:
+                return ensure_numeric(value)
+            except (ValueError, TypeError, InvalidOperation, ValidationError) as exc:
                 raise FormDataProviderChunkInvalidException(
-                    f"{value} must be a valid integer."
+                    f"{value} must be a valid number."
                 ) from exc
 
         elif element.validation_type == "email":

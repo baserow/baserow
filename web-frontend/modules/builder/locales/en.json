@@ -266,7 +266,7 @@
     "validationTypeAnyLabel": "Any",
     "validationTypeAnyDescription": "Allow any value to be set in this input.",
     "validationTypeIntegerLabel": "Number",
-    "validationTypeIntegerDescription": "Enforce a number value in this input.",
+    "validationTypeIntegerDescription": "Enforce a numeric value in this input (accepts integers and decimals).",
     "validationTypeEmailLabel": "Email",
     "validationTypeEmailDescription": "Enforce an email address value in this input.",
     "inputType": "Input type",

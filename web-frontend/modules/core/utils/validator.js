@@ -12,7 +12,7 @@ import moment from '@baserow/modules/core/moment'
  * @throws {Error} If the value is not a valid number or convertible to an number.
  */
 export const ensureNumeric = (value, { allowNull = false } = {}) => {
-  if (allowNull && (value === null || value === '')) {
+  if (allowNull && (value === null || value === '' || value === undefined)) {
     return null
   }
   if (Number.isFinite(value)) {
