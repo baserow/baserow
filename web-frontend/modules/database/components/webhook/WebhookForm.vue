@@ -202,11 +202,11 @@
             />
           </div>
           <component
-            :is="webhookEvent.getDeactivatedClickModal()"
+            :is="webhookEvent.getDeactivatedClickModal()[0]"
             v-if="webhookEvent.isDeactivated(database.workspace.id)"
             :ref="`${webhookEvent.getName()}DeactivatedClickModal`"
             :workspace="database.workspace"
-            :name="webhookEvent.getFeatureName()"
+            v-bind="webhookEvent.getDeactivatedClickModal()[1]"
           ></component>
         </div>
       </div>

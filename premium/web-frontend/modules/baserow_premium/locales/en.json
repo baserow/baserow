@@ -177,12 +177,13 @@
     "kanbanView": "Kanban view",
     "calendarView": "Calendar view",
     "timelineView": "Timeline view",
-    "exports": "JSON and XML export",
+    "exports": "Table export",
     "rowColoring": "Row coloring",
+    "rowNotifications": "Row notifications",
     "surveyForm": "Survey form",
     "publicLogoRemoval": "Public logo removal",
     "personalViews": "Personal views",
-    "aiFeatures": "AI field",
+    "aiFeatures": "AI features",
     "chartWidget": "Chart widget"
   },
   "licenses": {

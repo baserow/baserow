@@ -9,8 +9,9 @@ import RowEditFieldAI from '@baserow_premium/components/row/RowEditFieldAI'
 import FieldAISubForm from '@baserow_premium/components/field/FieldAISubForm'
 import FormulaFieldAI from '@baserow_premium/components/field/FormulaFieldAI'
 import GridViewFieldAIGenerateValuesContextItem from '@baserow_premium/components/views/grid/fields/GridViewFieldAIGenerateValuesContextItem'
-import PremiumModal from '@baserow_premium/components/PremiumModal'
 import PremiumFeatures from '@baserow_premium/features'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { AIPaidFeature } from '@baserow_premium/paidFeatures'
 
 export class AIFieldType extends FieldType {
   static getType() {
@@ -250,7 +251,10 @@ export class AIFieldType extends FieldType {
   }
 
   getDeactivatedClickModal(workspaceId) {
-    return PremiumModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': AIPaidFeature.getType() },
+    ]
   }
 }
 

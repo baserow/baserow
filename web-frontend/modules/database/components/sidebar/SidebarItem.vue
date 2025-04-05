@@ -96,9 +96,10 @@
             </div>
           </a>
           <component
-            :is="dataSyncDeactivatedClickModal"
+            :is="dataSyncDeactivatedClickModal[0]"
             v-if="dataSyncDeactivatedClickModal !== null"
             ref="deactivatedDataSyncClickModal"
+            v-bind="dataSyncDeactivatedClickModal[1]"
             :workspace="database.workspace"
             :name="dataSyncType.getName()"
           ></component>
