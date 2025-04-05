@@ -128,7 +128,7 @@ exports[`GridViewRows component With row details 1`] = `
         class="grid-view__row-info"
       >
         <div
-          class="grid-view__row-count"
+          class="grid-view__row-count grid-view__row-count--hide-on-hover"
           title="2"
         >
           
@@ -193,7 +193,7 @@ exports[`GridViewRows component With row details 1`] = `
         class="grid-view__row-info"
       >
         <div
-          class="grid-view__row-count"
+          class="grid-view__row-count grid-view__row-count--hide-on-hover"
           title="4"
         >
           
@@ -258,7 +258,7 @@ exports[`GridViewRows component With row details 1`] = `
         class="grid-view__row-info"
       >
         <div
-          class="grid-view__row-count"
+          class="grid-view__row-count grid-view__row-count--hide-on-hover"
           title="3"
         >
           
