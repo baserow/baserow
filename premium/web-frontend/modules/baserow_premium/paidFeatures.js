@@ -2,15 +2,15 @@ import { Registerable } from '@baserow/modules/core/registry'
 
 export class PaidFeature extends Registerable {
   getPlan() {
-    throw new Error('@TODO')
+    throw new Error('The `getPlan` method must be added to the paid feature.')
   }
 
   getName() {
-    throw new Error('@TODO')
+    throw new Error('The `getName` method must be added to the paid feature.')
   }
 
   getIconClass() {
-    throw new Error('@TODO')
+    throw new Error('The `getIconClass` method must be added to the paid feature.')
   }
 
   getImage() {
@@ -18,11 +18,7 @@ export class PaidFeature extends Registerable {
   }
 
   getContent() {
-    throw new Error('@TODO')
-  }
-
-  getOrder() {
-    return 100
+    return ''
   }
 }
 

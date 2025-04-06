@@ -282,7 +282,7 @@
   },
   "enterpriseFeatures": {
     "sso": "Single Sign On",
-    "ssoContent": "Enable secure and seamless logins with SAML, Google, Facebook, GitHub, GitLab, or OpenID Connect. Supports multiple providers at once.",
+    "ssoContent": "Enable secure and seamless logins with SAML, Google, Facebook, GitHub, GitLab, or OpenID Connect. Supports multiple providers at once. Note that both Baserow as a tool, and the application builder authentication system support SSO.",
     "rbac": "Role-based access control",
     "rbacContent": "Manage permissions with precision. Assign roles like admin, builder,  editor, commenter, or viewer at the workspace, database, or table level. You can also manage access by team.",
     "auditLogs": "Audit logs",
