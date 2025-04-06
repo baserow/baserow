@@ -1,0 +1,44 @@
+.paid-features__image {
+  background-color:  $palette-neutral-200;
+  padding: 16px 0 0 16px;
+
+  @include rounded($rounded-md);
+}
+
+.paid-features__image-header {
+  background-color: $white;
+  height: 26px;
+  border-top-left-radius: $rounded-md;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-bottom: solid 1px $palette-neutral-200;
+  padding-left: 12px;
+}
+
+.paid-features__image-circle {
+  width: 8px;
+  height: 8px;
+  border-radius: 100%;
+  border: solid 1px;
+
+  &--red {
+    background-color: #EE6A5F;
+    border-color: #D15E53;
+  }
+
+  &--orange {
+    background-color: #F5BE4F;
+    border-color: #D6A243;
+  }
+
+  &--green {
+    background-color: #61C454;
+    border-color: #58A942;
+  }
+}
+
+.paid-features__image-img {
+  display: block;
+  width: 100%;
+}

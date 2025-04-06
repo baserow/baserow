@@ -1,5 +1,7 @@
 import path from 'path'
 
+import serveStatic from 'serve-static'
+
 import { routes } from './routes'
 
 import en from './locales/en.json'
@@ -38,4 +40,10 @@ export default function () {
     this.options.publicRuntimeConfig.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES =
       process.env.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES || 3
   }
+
+  const staticMiddleware = serveStatic(
+    path.resolve(__dirname, 'static'),
+    this.options.render.static
+  )
+  this.addServerMiddleware(staticMiddleware)
 }

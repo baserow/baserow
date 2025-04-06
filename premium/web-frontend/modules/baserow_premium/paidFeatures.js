@@ -26,84 +26,6 @@ export class PaidFeature extends Registerable {
   }
 }
 
-export class FormSurveyModePaidFeature extends PaidFeature {
-  static getType() {
-    return 'form_survey_mode'
-  }
-
-  getPlan() {
-    return 'Premium'
-  }
-
-  getIconClass() {
-    return 'iconoir-reports'
-  }
-
-  getName() {
-    return this.app.i18n.t('premiumFeatures.surveyForm')
-  }
-
-  getImage() {
-    return null
-  }
-
-  getContent() {
-    return '@TODO'
-  }
-}
-
-export class RowCommentsPaidFeature extends PaidFeature {
-  static getType() {
-    return 'row_comments'
-  }
-
-  getPlan() {
-    return 'Premium'
-  }
-
-  getIconClass() {
-    return 'iconoir-multi-bubble'
-  }
-
-  getName() {
-    return this.app.i18n.t('premiumFeatures.rowComments')
-  }
-
-  getImage() {
-    return null
-  }
-
-  getContent() {
-    return '@TODO'
-  }
-}
-
-export class RowNotificationsPaidFeature extends PaidFeature {
-  static getType() {
-    return 'row_notifications'
-  }
-
-  getPlan() {
-    return 'Premium'
-  }
-
-  getIconClass() {
-    return 'iconoir-bell'
-  }
-
-  getName() {
-    return this.app.i18n.t('premiumFeatures.rowNotifications')
-  }
-
-  getImage() {
-    return null
-  }
-
-  getContent() {
-    return '@TODO'
-  }
-}
-
 export class KanbanViewPaidFeature extends PaidFeature {
   static getType() {
     return 'kanban_view'
@@ -122,11 +44,11 @@ export class KanbanViewPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/kanban_view.png'
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('premiumFeatures.kanbanViewContent')
   }
 }
 
@@ -148,11 +70,11 @@ export class CalendarViewPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/calendar_view.png'
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('premiumFeatures.calendarViewContent')
   }
 }
 
@@ -174,63 +96,11 @@ export class TimelineViewPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/timeline_view.png'
   }
 
   getContent() {
-    return '@TODO'
-  }
-}
-
-export class PersonalViewsPaidFeature extends PaidFeature {
-  static getType() {
-    return 'personal_views'
-  }
-
-  getPlan() {
-    return 'Premium'
-  }
-
-  getIconClass() {
-    return 'iconoir-lock'
-  }
-
-  getName() {
-    return this.app.i18n.t('premiumFeatures.personalViews')
-  }
-
-  getImage() {
-    return null
-  }
-
-  getContent() {
-    return '@TODO'
-  }
-}
-
-export class ExportsPaidFeature extends PaidFeature {
-  static getType() {
-    return 'exports'
-  }
-
-  getPlan() {
-    return 'Premium'
-  }
-
-  getIconClass() {
-    return 'iconoir-database-export'
-  }
-
-  getName() {
-    return this.app.i18n.t('premiumFeatures.exports')
-  }
-
-  getImage() {
-    return null
-  }
-
-  getContent() {
-    return '@TODO'
+    return this.app.i18n.t('premiumFeatures.timelineViewContent')
   }
 }
 
@@ -252,17 +122,17 @@ export class RowColoringPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/row_coloring.png'
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('premiumFeatures.rowColoringContent')
   }
 }
 
-export class PublicLogoRemovalPaidFeature extends PaidFeature {
+export class RowCommentsPaidFeature extends PaidFeature {
   static getType() {
-    return 'public_logo_removal'
+    return 'row_comments'
   }
 
   getPlan() {
@@ -270,19 +140,45 @@ export class PublicLogoRemovalPaidFeature extends PaidFeature {
   }
 
   getIconClass() {
-    return 'iconoir-eye-close'
+    return 'iconoir-multi-bubble'
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.publicLogoRemoval')
+    return this.app.i18n.t('premiumFeatures.rowComments')
   }
 
   getImage() {
-    return null
+    return '/img/features/row_comments.png'
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('premiumFeatures.rowCommentsContent')
+  }
+}
+
+export class RowNotificationsPaidFeature extends PaidFeature {
+  static getType() {
+    return 'row_notifications'
+  }
+
+  getPlan() {
+    return 'Premium'
+  }
+
+  getIconClass() {
+    return 'iconoir-bell'
+  }
+
+  getName() {
+    return this.app.i18n.t('premiumFeatures.rowNotifications')
+  }
+
+  getImage() {
+    return '/img/features/row_notifications.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('premiumFeatures.rowNotificationsContent')
   }
 }
 
@@ -304,11 +200,115 @@ export class AIPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/ai_features.png'
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('premiumFeatures.aiFeaturesContent')
+  }
+}
+
+export class PersonalViewsPaidFeature extends PaidFeature {
+  static getType() {
+    return 'personal_views'
+  }
+
+  getPlan() {
+    return 'Premium'
+  }
+
+  getIconClass() {
+    return 'iconoir-lock'
+  }
+
+  getName() {
+    return this.app.i18n.t('premiumFeatures.personalViews')
+  }
+
+  getImage() {
+    return '/img/features/personal_views.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('premiumFeatures.personalViewsContent')
+  }
+}
+
+export class ExportsPaidFeature extends PaidFeature {
+  static getType() {
+    return 'exports'
+  }
+
+  getPlan() {
+    return 'Premium'
+  }
+
+  getIconClass() {
+    return 'iconoir-database-export'
+  }
+
+  getName() {
+    return this.app.i18n.t('premiumFeatures.exports')
+  }
+
+  getImage() {
+    return '/img/features/table_exports.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('premiumFeatures.exportsContent')
+  }
+}
+
+export class PublicLogoRemovalPaidFeature extends PaidFeature {
+  static getType() {
+    return 'public_logo_removal'
+  }
+
+  getPlan() {
+    return 'Premium'
+  }
+
+  getIconClass() {
+    return 'iconoir-eye-close'
+  }
+
+  getName() {
+    return this.app.i18n.t('premiumFeatures.publicLogoRemoval')
+  }
+
+  getImage() {
+    return '/img/features/public_view_logo_removal.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('premiumFeatures.publicLogoRemovalContent')
+  }
+}
+
+export class FormSurveyModePaidFeature extends PaidFeature {
+  static getType() {
+    return 'form_survey_mode'
+  }
+
+  getPlan() {
+    return 'Premium'
+  }
+
+  getIconClass() {
+    return 'iconoir-reports'
+  }
+
+  getName() {
+    return this.app.i18n.t('premiumFeatures.surveyForm')
+  }
+
+  getImage() {
+    return '/img/features/survey_form.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('premiumFeatures.surveyFormContent')
   }
 }
 
@@ -330,10 +330,10 @@ export class ChartPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/chart_widget.png'
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('premiumFeatures.chartWidgetContent')
   }
 }

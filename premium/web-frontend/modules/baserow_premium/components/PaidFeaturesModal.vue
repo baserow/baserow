@@ -26,6 +26,20 @@
       <h2 class="box__title">
         {{ name }}
       </h2>
+      <div v-if="image" class="paid-features__image margin-bottom-3">
+        <div class="paid-features__image-header">
+          <div
+            class="paid-features__image-circle paid-features__image-circle--red"
+          ></div>
+          <div
+            class="paid-features__image-circle paid-features__image-circle--orange"
+          ></div>
+          <div
+            class="paid-features__image-circle paid-features__image-circle--green"
+          ></div>
+        </div>
+        <img :src="image" :alt="name" class="paid-features__image-img" />
+      </div>
       <MarkdownIt :content="content" />
       <div>
         <Button
@@ -90,6 +104,9 @@ export default {
     },
     name() {
       return this.selectedPaidFeature.getName()
+    },
+    image() {
+      return this.selectedPaidFeature.getImage()
     },
     content() {
       return this.selectedPaidFeature.getContent()

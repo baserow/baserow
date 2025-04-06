@@ -18,11 +18,11 @@ export class SSOPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/sso.png'
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('enterpriseFeatures.ssoContent')
   }
 }
 
@@ -44,11 +44,11 @@ export class AuditLogPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/audit_logs.png'
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('enterpriseFeatures.auditLogsContent')
   }
 }
 
@@ -70,11 +70,11 @@ export class RBACPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/role_based_access_control.png'
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('enterpriseFeatures.rbacContent')
   }
 }
 
@@ -96,11 +96,11 @@ export class DataSyncPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/data_sync.png'
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('enterpriseFeatures.dataSyncContent')
   }
 }
 
@@ -122,11 +122,11 @@ export class CoBrandingPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/co_branding.png'
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('enterpriseFeatures.coBrandingContent')
   }
 }
 
@@ -148,11 +148,11 @@ export class AdvancedWebhooksPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/advanced_webhooks.png'
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('enterpriseFeatures.advancedWebhooksContent')
   }
 }
 
@@ -178,6 +178,6 @@ export class SupportWebhooksPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return '@TODO'
+    return this.app.i18n.t('enterpriseFeatures.supportContent')
   }
 }

@@ -336,19 +336,19 @@ export default (context) => {
     new SingleSelectFormattingType(context)
   )
 
-  app.$registry.register('paidFeature', new AIPaidFeature(context))
-  app.$registry.register('paidFeature', new FormSurveyModePaidFeature(context))
+  app.$registry.register('paidFeature', new KanbanViewPaidFeature(context))
+  app.$registry.register('paidFeature', new CalendarViewPaidFeature(context))
+  app.$registry.register('paidFeature', new TimelineViewPaidFeature(context))
+  app.$registry.register('paidFeature', new RowColoringPaidFeature(context))
   app.$registry.register('paidFeature', new RowCommentsPaidFeature(context))
   app.$registry.register(
     'paidFeature',
     new RowNotificationsPaidFeature(context)
   )
-  app.$registry.register('paidFeature', new KanbanViewPaidFeature(context))
-  app.$registry.register('paidFeature', new CalendarViewPaidFeature(context))
-  app.$registry.register('paidFeature', new TimelineViewPaidFeature(context))
+  app.$registry.register('paidFeature', new AIPaidFeature(context))
   app.$registry.register('paidFeature', new PersonalViewsPaidFeature(context))
   app.$registry.register('paidFeature', new ExportsPaidFeature(context))
-  app.$registry.register('paidFeature', new RowColoringPaidFeature(context))
+  app.$registry.register('paidFeature', new FormSurveyModePaidFeature(context))
   app.$registry.register(
     'paidFeature',
     new PublicLogoRemovalPaidFeature(context)

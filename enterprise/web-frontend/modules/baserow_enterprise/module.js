@@ -1,5 +1,7 @@
 import path from 'path'
 
+import serveStatic from 'serve-static'
+
 import { routes } from './routes'
 
 import en from './locales/en.json'
@@ -45,4 +47,10 @@ export default function () {
   // imports the original. We do this so that we can use the existing variables,
   // mixins, placeholders etc.
   this.options.css[0] = path.resolve(__dirname, 'assets/scss/default.scss')
+
+  const staticMiddleware = serveStatic(
+    path.resolve(__dirname, 'static'),
+    this.options.render.static
+  )
+  this.addServerMiddleware(staticMiddleware)
 }
