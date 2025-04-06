@@ -40,7 +40,7 @@
         </div>
         <img :src="image" :alt="name" class="paid-features__image-img" />
       </div>
-      <MarkdownIt :content="content" />
+      <MarkdownIt :content="content" class="margin-bottom-3" />
       <div>
         <Button
           type="primary"
