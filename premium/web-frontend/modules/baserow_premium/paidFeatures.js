@@ -10,7 +10,9 @@ export class PaidFeature extends Registerable {
   }
 
   getIconClass() {
-    throw new Error('The `getIconClass` method must be added to the paid feature.')
+    throw new Error(
+      'The `getIconClass` method must be added to the paid feature.'
+    )
   }
 
   getImage() {
