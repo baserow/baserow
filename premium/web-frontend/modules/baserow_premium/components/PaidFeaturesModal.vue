@@ -41,6 +41,9 @@
         <img :src="image" :alt="name" class="paid-features__image-img" />
       </div>
       <MarkdownIt :content="content" class="margin-bottom-3" />
+      <p>
+        {{ $t('paidFeaturesModal.description', { plan }) }}
+      </p>
       <div>
         <Button
           type="primary"
@@ -48,7 +51,7 @@
           href="https://baserow.io/pricing"
           target="_blank"
           tag="a"
-          >{{ $t('premiumModal.viewPricing') }}</Button
+          >{{ $t('paidFeaturesModal.viewPricing') }}</Button
         >
         <component
           :is="buttonsComponent"
@@ -101,6 +104,9 @@ export default {
     },
     selectedPaidFeature() {
       return this.$registry.get('paidFeature', this.selectedType)
+    },
+    plan() {
+      return this.selectedPaidFeature.getPlan()
     },
     name() {
       return this.selectedPaidFeature.getName()

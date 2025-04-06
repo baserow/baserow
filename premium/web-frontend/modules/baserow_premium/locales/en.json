@@ -16,9 +16,8 @@
     },
     "deactivated": "Available in premium version"
   },
-  "premiumModal": {
-    "title": "Upgrade to use the {name}",
-    "description": "Your account doesn’t have access to the premium features. Upgrade to the premium version to begin using {name}. You can upgrade your account by getting a license. Click on the button below to view the pricing.",
+  "paidFeaturesModal": {
+    "description": "This feature is available with a {plan} plan. To access it, please upgrade your account by subscribing. Click the button below to view our pricing options.",
     "viewPricing": "View pricing"
   },
   "rowCommentSidebar": {

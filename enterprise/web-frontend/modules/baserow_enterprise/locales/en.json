@@ -352,13 +352,6 @@
     "coBrandingLogoDescription": "Replaces the Baserow logo for a custom co-branded alternative (176x29). If set, it also removes the Baserow description in the footer of all emails.",
     "uploadFileButton": "Upload image"
   },
-  "enterpriseModal": {
-    "title": "Upgrade to use the {name}",
-    "description": "Your account doesn’t have access to the advanced/enterprise features. Upgrade to the advanced/enterprise version to begin using {name}. You can upgrade your account by getting a license. Click on the button below to view the pricing.",
-    "viewPricing": "View pricing",
-    "premium": "Premium",
-    "enterprise": "Enterprise"
-  },
   "authFormElementForm": {
     "userSource": "User source",
     "loginButtonLabel": "Login button label",
