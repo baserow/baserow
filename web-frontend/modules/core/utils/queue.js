@@ -46,6 +46,18 @@ export class TaskQueue {
     await task.wait
   }
 
+  /**
+   * waits for all queued tasks
+   *
+   * @returns {Promise<void>}
+   */
+  async waitAll() {
+    const waitlist = Array.from(this.queue, (item) => {
+      return item.wait
+    })
+    await Promise.all(waitlist)
+  }
+
   start() {
     if (this.running) {
       return

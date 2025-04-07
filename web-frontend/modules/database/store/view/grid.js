@@ -2025,8 +2025,6 @@ export const actions = {
         )
         data = resp.data
       })
-      // need to resolve this promise
-      // as other actions (i.e. update rows from pasted data) may wait for this too.
       await q.waitFor(tid)
 
       const fieldsToFinalize = fields
@@ -2551,6 +2549,27 @@ export const actions = {
       fieldTailIndex = getters.getMultiSelectTailFieldIndex
     }
 
+    if (
+      !isSingleCellCopied &&
+      selectUpdatedCells &&
+      !(view.sortings || view.group_bys || view.filters)
+    ) {
+      // Expand the selection of the multiple select to the cells that we're going to
+      // paste in, so the user can see which values have been updated. This is because
+      // it could be that there are more or less values in the clipboard compared to
+      // what was originally selected.
+      // However, we should not mark multiple rows as selected if the view has
+      // any filtering/sorting/grouping by, as rows pasted may be scattered/hidden
+      // in the view. Multiselect will not show correct contents then, and we can't
+      // select disjoined rows.
+      await dispatch('setMultipleSelect', {
+        rowHeadIndex,
+        fieldHeadIndex,
+        rowTailIndex,
+        fieldTailIndex,
+      })
+    }
+
     const newRowsCount = copiedRowsCount - (rowTailIndex - rowHeadIndex + 1)
     const textDataToCreate = textData.slice(copiedRowsCount - newRowsCount)
     const jsonDataToCreate = jsonData
@@ -2603,11 +2622,7 @@ export const actions = {
     // If we call RowService too soon here, we'll send placeholder .id values (uuid)
     // to a PATCH operation.
     const q = createAndUpdateRowQueue.getOrCreateQueue(`table_${table.id}`)
-    const waitlist = Array.from(q.queue, (item) => {
-      return item.wait
-    })
-    // wait for any table-level updates
-    await Promise.all(waitlist)
+    await q.waitAll()
 
     // Create a copy of the existing (old) rows, which are needed to create the
     // comparison when checking if the rows still matches the filters and position.
@@ -2648,22 +2663,6 @@ export const actions = {
       valuesForUpdate
     )
     const updatedRows = responseData.items
-
-    // Loop over the old rows, find the matching updated row and update them in the
-    // buffer accordingly.
-    for (const row of oldRowsInOrder) {
-      // The values are the updated row returned by the response.
-      const values = updatedRows.find((updatedRow) => updatedRow.id === row.id)
-      // Calling the updatedExistingRow will automatically remove the row from the
-      // view if it doesn't matter the filters anymore and it will also be moved to
-      // the right position if changed.
-      await dispatch('updatedExistingRow', {
-        view,
-        fields: allFieldsInTable,
-        row,
-        values,
-      })
-    }
     // Create extra missing rows
     if (newRowsCount > 0) {
       await dispatch('createNewRows', {
@@ -2679,6 +2678,21 @@ export const actions = {
         selectPrimaryCell: false,
       })
       rowTailIndex = rowTailIndex + newRowsCount
+    }
+    // Loop over the old rows, find the matching updated row and update them in the
+    // buffer accordingly.
+    for (const row of oldRowsInOrder) {
+      // The values are the updated row returned by the response.
+      const values = updatedRows.find((updatedRow) => updatedRow.id === row.id)
+      // Calling the updatedExistingRow will automatically remove the row from the
+      // view if it doesn't matter the filters anymore and it will also be moved to
+      // the right position if changed.
+      await dispatch('updatedExistingRow', {
+        view,
+        fields: allFieldsInTable,
+        row,
+        values,
+      })
     }
 
     // Must be called because rows could have been removed or moved to a different
