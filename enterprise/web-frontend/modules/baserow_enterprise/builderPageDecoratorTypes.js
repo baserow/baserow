@@ -52,13 +52,12 @@ export class MadeWithBaserowBuilderPageDecoratorType extends BuilderPageDecorato
 
   isDecorationAllowed() {
     // Only show the decorator if the workspace doesn't have an Enterprise license
-    const workspaceId = this.app.store.getters['workspace/getSelectedId']
-    if (!workspaceId) {
+    const premium_or_advanced = this.app.$hasFeature('PREMIUM') ||
+                           this.app.$hasFeature('ADVANCED')
+    if (!premium_or_advanced) {
       return true
     }
 
-    // Check if the workspace has an enterprise or premium license
-    return !this.app.$hasFeature('enterprise', workspaceId) &&
-           !this.app.$hasFeature('premium', workspaceId)
+
   }
 }
