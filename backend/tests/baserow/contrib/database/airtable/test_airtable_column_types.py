@@ -825,7 +825,10 @@ def test_airtable_import_multiple_attachment_column(data_fixture, api_client):
     assert airtable_column_type.to_baserow_export_serialized_value(
         {},
         {"name": "Test"},
-        {"id": "row1"},
+        {
+            "id": "row1",
+            "airtable_record_id": "row1",
+        },
         airtable_field,
         baserow_field,
         [
@@ -867,10 +870,25 @@ def test_airtable_import_multiple_attachment_column(data_fixture, api_client):
             "original_name": "file-sample_500kB.doc",
         },
     ]
-    assert files_to_download == {
-        "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample.txt": "https://dl.airtable.com/.attachments/70e50b90fb83997d25e64937979b6b5b/f3f62d23/file-sample.txt",
-        "e93dc201ce27080d9ad9df5775527d09_93e85b28_file-sample_500kB.doc": "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
-    }
+    assert len(files_to_download) == 2
+    file1 = files_to_download[
+        "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample.txt"
+    ]
+    assert file1.url == (
+        "https://dl.airtable.com/.attachments/70e50b90fb83997d25e64937979b6b5b/f3f62d23/file-sample.txt"
+    )
+    assert file1.row_id == "row1"
+    assert file1.column_id == "fldwdy4qWUvC5PmW5yd"
+    assert file1.attachment_id == "attecVDNr3x7oE8Bj"
+    assert file1.type == "fetch"
+
+    file2 = files_to_download[
+        "e93dc201ce27080d9ad9df5775527d09_93e85b28_file-sample_500kB.doc"
+    ]
+    assert (
+        file2.url
+        == "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc"
+    )
 
 
 @pytest.mark.django_db
