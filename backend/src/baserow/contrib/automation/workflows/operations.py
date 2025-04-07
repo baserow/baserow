@@ -25,3 +25,7 @@ class ReadAutomationWorkflowOperationType(AutomationWorkflowOperationType):
 
 class DuplicateAutomationWorkflowOperationType(AutomationWorkflowOperationType):
     type = "automation.workflow.duplicate"
+
+
+class RestoreAutomationWorkflowOperationType(AutomationWorkflowOperationType):
+    type = "automation.workflow.restore"

@@ -3,6 +3,7 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import (
     HTTP_200_OK,
+    HTTP_202_ACCEPTED,
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
@@ -12,10 +13,11 @@ from rest_framework.status import (
 from baserow.test_utils.helpers import AnyInt
 
 API_URL_BASE_AUTOMATION = "api:automation:automation_id"
-API_URL_BASE_WORKFLOW = "api:automation:workflows"
 API_URL_CREATE = f"{API_URL_BASE_AUTOMATION}:workflows:create"
-API_URL_ITEM = f"{API_URL_BASE_WORKFLOW}:item"
 API_URL_ORDER = f"{API_URL_BASE_AUTOMATION}:workflows:order"
+API_URL_BASE_WORKFLOW = "api:automation:workflows"
+API_URL_WORKFLOW_ITEM = f"{API_URL_BASE_WORKFLOW}:item"
+API_URL_WORKFLOW_DUPLICATE = f"{API_URL_BASE_WORKFLOW}:async_duplicate"
 
 
 @pytest.mark.django_db
@@ -93,8 +95,8 @@ def test_create_workflow_duplicate_name(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE"
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["name"] != "test"
 
 
 @pytest.mark.django_db
@@ -105,7 +107,7 @@ def test_update_workflow(api_client, data_fixture):
         automation=automation, name="test"
     )
 
-    url = reverse(API_URL_ITEM, kwargs={"workflow_id": workflow.id})
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
     response = api_client.patch(
         url, {"name": "test-updated"}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
     )
@@ -118,7 +120,7 @@ def test_update_workflow(api_client, data_fixture):
 def test_update_workflow_does_not_exist(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token()
 
-    url = reverse(API_URL_ITEM, kwargs={"workflow_id": 9999})
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": 9999})
     response = api_client.patch(
         url, {"name": "test"}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
     )
@@ -138,7 +140,7 @@ def test_update_workflow_duplicate_name(api_client, data_fixture):
         automation=automation, name="test2"
     )
 
-    url = reverse(API_URL_ITEM, kwargs={"workflow_id": workflow_2.id})
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow_2.id})
     response = api_client.patch(
         url,
         {"name": workflow.name},
@@ -247,7 +249,7 @@ def test_delete_workflow(api_client, data_fixture):
         automation=automation, name="test"
     )
 
-    url = reverse(API_URL_ITEM, kwargs={"workflow_id": workflow.id})
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
     response = api_client.delete(
         url,
         format="json",
@@ -265,7 +267,7 @@ def test_delete_workflow_user_not_in_workspace(api_client, data_fixture):
         automation=automation, name="test"
     )
 
-    url = reverse(API_URL_ITEM, kwargs={"workflow_id": workflow.id})
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
     response = api_client.delete(
         url,
         format="json",
@@ -280,7 +282,7 @@ def test_delete_workflow_user_not_in_workspace(api_client, data_fixture):
 def test_delete_workflow_does_not_exist(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token()
 
-    url = reverse(API_URL_ITEM, kwargs={"workflow_id": 1234})
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": 1234})
     response = api_client.delete(
         url,
         format="json",
@@ -289,3 +291,32 @@ def test_delete_workflow_does_not_exist(api_client, data_fixture):
 
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_duplicate_workflow(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="test"
+    )
+
+    url = reverse(API_URL_WORKFLOW_DUPLICATE, kwargs={"workflow_id": workflow.id})
+    response = api_client.post(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_202_ACCEPTED
+    assert response.json() == {
+        "duplicated_automation_workflow": None,
+        "human_readable_error": "",
+        "id": AnyInt(),
+        "original_automation_workflow": {
+            "automation_id": automation.id,
+            "id": workflow.id,
+            "name": "test",
+            "order": AnyInt(),
+        },
+        "progress_percentage": 0,
+        "state": "pending",
+        "type": "duplicate_automation_workflow",
+    }

@@ -8,6 +8,9 @@ from django.db.models import Prefetch, QuerySet
 from django.db.transaction import Atomic
 from django.urls import include, path
 
+from baserow.contrib.automation.automation_init_application import (
+    AutomationApplicationTypeInitApplication,
+)
 from baserow.contrib.automation.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.operations import ListAutomationWorkflowsOperationType
@@ -48,6 +51,19 @@ class AutomationApplicationType(ApplicationType):
 
     def export_safe_transaction_context(self, application: Application) -> Atomic:
         return transaction.atomic()
+
+    def init_application(self, user: AbstractUser, application: Application) -> None:
+        """
+        Responsible for creating default workflows in the newly created
+        Automation application.
+
+        :param user: The user that is creating a new automation application.
+        :param application: The newly created automation application.
+        :return: None
+        """
+
+        automation_init = AutomationApplicationTypeInitApplication(user, application)
+        automation_init.create_workflow(automation_init.workflow_name)
 
     def export_serialized(
         self,
@@ -153,7 +169,7 @@ class AutomationApplicationType(ApplicationType):
             instance = self.enhance_and_filter_queryset(
                 base_queryset, user, automation.workspace
             ).first()
-            return instance and instance.workflows or []
+            return instance and list(instance.workflows.all()) or []
         else:
             instance = self.enhance_queryset(base_queryset).first()
             return instance and list(instance.workflows.all()) or []

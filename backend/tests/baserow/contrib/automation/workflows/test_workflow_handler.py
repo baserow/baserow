@@ -1,3 +1,7 @@
+from unittest.mock import MagicMock, patch
+
+from django.db.utils import IntegrityError
+
 import pytest
 
 from baserow.contrib.automation.models import AutomationWorkflow
@@ -7,6 +11,9 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowNotInAutomation,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+
+HANDLER_MODULE = "baserow.contrib.automation.workflows.handler"
+HANDLER_PATH = f"{HANDLER_MODULE}.AutomationWorkflowHandler"
 
 
 @pytest.mark.django_db
@@ -50,8 +57,33 @@ def test_create_workflow(data_fixture):
 def test_create_workflow_name_not_unique(data_fixture):
     workflow = data_fixture.create_automation_workflow(name="test")
 
+    handler = AutomationWorkflowHandler()
+    # Simulate it returning the same name
+    handler.find_unused_workflow_name = MagicMock(return_value="test")
+
     with pytest.raises(AutomationWorkflowNameNotUnique):
-        AutomationWorkflowHandler().create_workflow(workflow.automation, name="test")
+        handler.create_workflow(workflow.automation, name="test")
+
+    handler.find_unused_workflow_name.assert_called_once_with(
+        workflow.automation, "test"
+    )
+
+
+@pytest.mark.django_db
+def test_create_workflow_integrity_error(data_fixture):
+    unexpected_error = IntegrityError("unexpected integrity error")
+    workflow = data_fixture.create_automation_workflow(name="test")
+
+    with patch(
+        f"{HANDLER_MODULE}.AutomationWorkflow.objects.create",
+        side_effect=unexpected_error,
+    ):
+        with pytest.raises(IntegrityError) as exc_info:
+            AutomationWorkflowHandler().create_workflow(
+                workflow.automation, name="test"
+            )
+
+        assert str(exc_info.value) == "unexpected integrity error"
 
 
 @pytest.mark.django_db
@@ -85,6 +117,21 @@ def test_update_workflow_name_not_unique(data_fixture):
 
     with pytest.raises(AutomationWorkflowNameNotUnique):
         AutomationWorkflowHandler().update_workflow(workflow_2, name=workflow_1.name)
+
+
+@pytest.mark.django_db
+def test_update_workflow_integrity_error(data_fixture):
+    workflow_1 = data_fixture.create_automation_workflow(name="test1")
+    workflow_2 = data_fixture.create_automation_workflow(
+        automation=workflow_1.automation, name="test2"
+    )
+    unexpected_error = IntegrityError("unexpected integrity error")
+    workflow_2.save = MagicMock(side_effect=unexpected_error)
+
+    with pytest.raises(IntegrityError) as exc_info:
+        AutomationWorkflowHandler().update_workflow(workflow_2, name="foo")
+
+    assert str(exc_info.value) == "unexpected integrity error"
 
 
 @pytest.mark.django_db
@@ -140,3 +187,26 @@ def test_duplicate_workflow(data_fixture):
     assert workflow_clone.id != workflow.id
     assert workflow_clone.name != workflow.name
     assert workflow_clone.order != workflow.order
+
+
+@pytest.mark.django_db
+def test_import_workflow_only(data_fixture):
+    automation = data_fixture.create_automation_application()
+
+    serialized_workflow = {
+        "name": "new workflow",
+        "id": 1,
+        "order": 88,
+    }
+
+    id_mapping = {}
+
+    workflow = AutomationWorkflowHandler().import_workflow_only(
+        automation,
+        serialized_workflow,
+        id_mapping,
+    )
+
+    assert id_mapping["automation_workflows"] == {
+        serialized_workflow["id"]: workflow.id
+    }

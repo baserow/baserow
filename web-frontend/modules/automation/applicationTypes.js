@@ -60,15 +60,40 @@ export class AutomationApplicationType extends ApplicationType {
   }
 
   async select(application) {
-    const { router } = this.app
+    const { router, store, i18n } = this.app
 
-    await router.push({
-      name: 'automation-application',
-      params: {
-        automationId: application.id,
-      },
-    })
+    const workflows =
+      store.getters['automationWorkflow/getWorkflows'](application)
+
+    if (workflows.length > 0) {
+      await router.push({
+        name: 'automation-workflow',
+        params: {
+          automationId: application.id,
+          workflowId: workflows[0].id,
+        },
+      })
+      return true
+    } else {
+      store.dispatch('toast/error', {
+        title: i18n.t('applicationType.cantSelectAutomationWorkflowTitle'),
+        message: i18n.t(
+          'applicationType.cantSelectAutomationWorkflowDescription'
+        ),
+      })
+    }
+
     return true
+  }
+
+  isVisible(application) {
+    // Don't show an automation application when the user doesn't
+    // have permissions to list workflows.
+    return this.app.$hasPermission(
+      'automation.list_workflows',
+      application,
+      application.workspace.id
+    )
   }
 
   isBeta() {

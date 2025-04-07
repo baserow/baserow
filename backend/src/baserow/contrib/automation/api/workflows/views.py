@@ -25,7 +25,12 @@ from baserow.contrib.automation.api.workflows.serializers import (
     OrderAutomationWorkflowsSerializer,
     UpdateAutomationWorkflowSerializer,
 )
-from baserow.contrib.automation.handler import AutomationHandler
+from baserow.contrib.automation.workflows.actions import (
+    CreateAutomationWorkflowActionType,
+    DeleteAutomationWorkflowActionType,
+    OrderAutomationWorkflowActionType,
+    UpdateAutomationWorkflowActionType,
+)
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
@@ -34,7 +39,6 @@ from baserow.contrib.automation.workflows.exceptions import (
 from baserow.contrib.automation.workflows.job_types import (
     DuplicateAutomationWorkflowJobType,
 )
-from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
@@ -80,12 +84,8 @@ class AutomationWorkflowsView(APIView):
     )
     @validate_body(CreateAutomationWorkflowSerializer, return_validated=True)
     def post(self, request, data: Dict, automation_id: int):
-        automation = AutomationHandler().get_automation(automation_id)
-
-        workflow = AutomationWorkflowService().create_workflow(
-            request.user,
-            automation,
-            data["name"],
+        workflow = CreateAutomationWorkflowActionType.do(
+            request.user, automation_id, data
         )
 
         serializer = AutomationWorkflowSerializer(workflow)
@@ -133,11 +133,11 @@ class AutomationWorkflowView(APIView):
     )
     @validate_body(UpdateAutomationWorkflowSerializer, return_validated=True)
     def patch(self, request, data: Dict, workflow_id: int):
-        service = AutomationWorkflowService()
-        workflow = service.get_workflow(request.user, workflow_id)
-        updated_workflow = service.update_workflow(request.user, workflow, **data)
+        workflow = UpdateAutomationWorkflowActionType.do(
+            request.user, workflow_id, data
+        )
 
-        serializer = AutomationWorkflowSerializer(updated_workflow)
+        serializer = AutomationWorkflowSerializer(workflow)
         return Response(serializer.data)
 
     @extend_schema(
@@ -167,9 +167,7 @@ class AutomationWorkflowView(APIView):
     )
     @transaction.atomic
     def delete(self, request, workflow_id: int):
-        service = AutomationWorkflowService()
-        workflow = service.get_workflow(request.user, workflow_id)
-        service.delete_workflow(request.user, workflow)
+        DeleteAutomationWorkflowActionType.do(request.user, workflow_id)
 
         return Response(status=204)
 
@@ -215,10 +213,8 @@ class OrderAutomationWorkflowsView(APIView):
     )
     @validate_body(OrderAutomationWorkflowsSerializer)
     def post(self, request, data: Dict, automation_id: int):
-        automation = AutomationHandler().get_automation(automation_id)
-
-        AutomationWorkflowService().order_workflows(
-            request.user, automation, data["workflow_ids"]
+        OrderAutomationWorkflowActionType.do(
+            request.user, automation_id, data["workflow_ids"]
         )
 
         return Response(status=204)

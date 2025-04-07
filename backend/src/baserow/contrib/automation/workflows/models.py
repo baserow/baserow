@@ -14,6 +14,7 @@ from baserow.core.mixins import (
     HierarchicalModelMixin,
     OrderableMixin,
     TrashableModelMixin,
+    WithRegistry,
 )
 
 if typing.TYPE_CHECKING:
@@ -25,6 +26,7 @@ class AutomationWorkflow(
     TrashableModelMixin,
     CreatedAndUpdatedOnMixin,
     OrderableMixin,
+    WithRegistry,
 ):
     automation = models.ForeignKey(
         "automation.Automation", on_delete=models.CASCADE, related_name="workflows"
@@ -37,6 +39,14 @@ class AutomationWorkflow(
     class Meta:
         ordering = ("order",)
         unique_together = [["automation", "name"]]
+
+    @staticmethod
+    def get_type_registry():
+        from baserow.contrib.automation.workflows.registries import (
+            automation_workflow_type_registry,
+        )
+
+        return automation_workflow_type_registry
 
     def get_parent(self):
         return self.automation

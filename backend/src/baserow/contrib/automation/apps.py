@@ -15,6 +15,12 @@ class AutomationConfig(AppConfig):
             ListAutomationWorkflowsOperationType,
             OrderAutomationWorkflowsOperationType,
         )
+        from baserow.contrib.automation.workflows.actions import (
+            CreateAutomationWorkflowActionType,
+            DeleteAutomationWorkflowActionType,
+            OrderAutomationWorkflowActionType,
+            UpdateAutomationWorkflowActionType,
+        )
         from baserow.contrib.automation.workflows.job_types import (
             DuplicateAutomationWorkflowJobType,
         )
@@ -26,14 +32,26 @@ class AutomationConfig(AppConfig):
             DeleteAutomationWorkflowOperationType,
             DuplicateAutomationWorkflowOperationType,
             ReadAutomationWorkflowOperationType,
+            RestoreAutomationWorkflowOperationType,
             UpdateAutomationWorkflowOperationType,
         )
+        from baserow.contrib.automation.workflows.registries import (
+            automation_workflow_type_registry,
+        )
+        from baserow.contrib.automation.workflows.trash_types import (
+            AutomationWorkflowTrashableItemType,
+        )
+        from baserow.contrib.automation.workflows.workflow_types import (
+            AutomationWorkflowType,
+        )
+        from baserow.core.action.registries import action_type_registry
         from baserow.core.jobs.registries import job_type_registry
         from baserow.core.registries import (
             application_type_registry,
             object_scope_type_registry,
             operation_type_registry,
         )
+        from baserow.core.trash.registries import trash_item_type_registry
 
         if feature_flag_is_enabled(FF_AUTOMATION):
             application_type_registry.register(AutomationApplicationType())
@@ -48,5 +66,20 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(UpdateAutomationWorkflowOperationType())
             operation_type_registry.register(ListAutomationWorkflowsOperationType())
             operation_type_registry.register(OrderAutomationWorkflowsOperationType())
+            operation_type_registry.register(RestoreAutomationWorkflowOperationType())
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())
+
+            automation_workflow_type_registry.register(AutomationWorkflowType())
+
+            trash_item_type_registry.register(AutomationWorkflowTrashableItemType())
+
+            action_type_registry.register(CreateAutomationWorkflowActionType())
+            action_type_registry.register(UpdateAutomationWorkflowActionType())
+            action_type_registry.register(DeleteAutomationWorkflowActionType())
+            action_type_registry.register(OrderAutomationWorkflowActionType())
+
+            # The signals must always be imported last because they use
+            # the registries which need to be filled first.
+            import baserow.contrib.automation.workflows.signals  # noqa: F403, F401
+            import baserow.contrib.automation.workflows.ws.signals  # noqa: F403, F401

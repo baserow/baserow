@@ -1,5 +1,5 @@
 <template>
-  <li class="tree__sub" :class="{ active: workflow._.selected }">
+  <li class="tree__sub" :class="{ active: workflow?._?.selected }">
     <a
       class="tree__sub-link"
       :title="workflow.name"

@@ -4,7 +4,6 @@
       ref="sidebarApplication"
       :workspace="workspace"
       :application="application"
-      :highlighted="isAppSelected(application)"
       @selected="selected"
     >
       <template v-if="isAppSelected(application)" #body>
@@ -17,7 +16,7 @@
               update: orderWorkflows,
               marginTop: -1.5,
               enabled: $hasPermission(
-                'automation.workflow.order',
+                'automation.order_workflows',
                 application,
                 application.workspace.id
               ),

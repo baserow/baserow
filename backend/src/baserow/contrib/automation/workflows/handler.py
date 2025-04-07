@@ -18,8 +18,15 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowNotInAutomation,
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
+from baserow.contrib.automation.workflows.workflow_types import AutomationWorkflowType
 from baserow.core.exceptions import IdDoesNotExist
-from baserow.core.utils import ChildProgressBuilder, MirrorDict, find_unused_name
+from baserow.core.utils import (
+    ChildProgressBuilder,
+    MirrorDict,
+    extract_allowed,
+    find_unused_name,
+)
 
 
 class AutomationWorkflowHandler:
@@ -70,10 +77,13 @@ class AutomationWorkflowHandler:
 
         last_order = AutomationWorkflow.get_last_order(automation)
 
+        # Find a name unused in a trashed or existing workflow
+        unused_name = self.find_unused_workflow_name(automation, name)
+
         try:
             workflow = AutomationWorkflow.objects.create(
                 automation=automation,
-                name=name,
+                name=unused_name,
                 order=last_order,
             )
         except IntegrityError as e:
@@ -81,7 +91,7 @@ class AutomationWorkflowHandler:
                 raise AutomationWorkflowNameNotUnique(
                     name=name, automation_id=automation.id
                 )
-            raise e
+            raise
 
         return workflow
 
@@ -93,10 +103,11 @@ class AutomationWorkflowHandler:
         """
 
         workflow.delete()
+        AutomationWorkflowType().after_delete(workflow)
 
     def update_workflow(
         self, workflow: AutomationWorkflow, **kwargs
-    ) -> AutomationWorkflow:
+    ) -> UpdatedAutomationWorkflow:
         """
         Updates fields of the provided AutomationWorkflow.
 
@@ -106,7 +117,14 @@ class AutomationWorkflowHandler:
         :return: The updated AutomationWorkflow.
         """
 
-        for key, value in kwargs.items():
+        workflow_type = AutomationWorkflowType()
+        allowed_values = extract_allowed(kwargs, workflow_type.allowed_fields)
+
+        original_workflow_values = workflow_type.export_prepared_values(
+            instance=workflow
+        )
+
+        for key, value in allowed_values.items():
             setattr(workflow, key, value)
 
         try:
@@ -116,12 +134,16 @@ class AutomationWorkflowHandler:
                 raise AutomationWorkflowNameNotUnique(
                     name=workflow.name, automation_id=workflow.automation_id
                 )
-            raise e
+            raise
 
-        return workflow
+        new_workflow_values = workflow_type.export_prepared_values(instance=workflow)
+
+        return UpdatedAutomationWorkflow(
+            workflow, original_workflow_values, new_workflow_values
+        )
 
     def order_workflows(
-        self, automation: AutomationWorkflow, order: List[int], base_qs=None
+        self, automation: Automation, order: List[int], base_qs=None
     ) -> List[int]:
         """
         Assigns a new order to the workflows in an Automation application.
@@ -143,6 +165,16 @@ class AutomationWorkflowHandler:
             return AutomationWorkflow.order_objects(base_qs, order)
         except IdDoesNotExist as error:
             raise AutomationWorkflowNotInAutomation(error.not_existing_id)
+
+    def get_workflows_order(self, automation: Automation) -> List[int]:
+        """
+        Returns the workflows in the automation ordered by the order field.
+
+        :param automation: The automation that the workflows belong to.
+        :return: A list containing the order of the workflows in the automation.
+        """
+
+        return [workflow.id for workflow in automation.workflows.order_by("order")]
 
     def duplicate_workflow(
         self,
@@ -199,8 +231,13 @@ class AutomationWorkflowHandler:
         :return: A unique name to use.
         """
 
+        # Since workflows can be trashed and potentially restored later,
+        # when finding an unused name, we must consider the set of all
+        # workflows including trashed ones.
         existing_workflow_names = list(
-            automation.workflows.values_list("name", flat=True)
+            AutomationWorkflow.objects_and_trash.filter(
+                automation=automation
+            ).values_list("name", flat=True)
         )
         return find_unused_name(
             [proposed_name], existing_workflow_names, max_length=WORKFLOW_NAME_MAX_LEN
@@ -341,6 +378,7 @@ class AutomationWorkflowHandler:
             serialized_workflow["id"]
         ] = workflow_instance.id
 
-        progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+        if progress is not None:
+            progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
         return workflow_instance

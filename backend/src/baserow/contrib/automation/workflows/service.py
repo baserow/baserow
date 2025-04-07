@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.operations import OrderAutomationWorkflowsOperationType
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
@@ -18,13 +19,16 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflow_updated,
     automation_workflows_reordered,
 )
+from baserow.contrib.automation.workflows.workflow_types import AutomationWorkflowType
 from baserow.core.handler import CoreHandler
-from baserow.core.utils import ChildProgressBuilder, extract_allowed
+from baserow.core.trash.handler import TrashHandler
+from baserow.core.utils import ChildProgressBuilder
 
 
 class AutomationWorkflowService:
     def __init__(self):
         self.handler = AutomationWorkflowHandler()
+        self.automation_handler = AutomationHandler()
 
     def get_workflow(self, user: AbstractUser, workflow_id: int) -> AutomationWorkflow:
         """
@@ -49,7 +53,7 @@ class AutomationWorkflowService:
     def create_workflow(
         self,
         user: AbstractUser,
-        automation: Automation,
+        automation_id: int,
         name: str,
     ) -> AutomationWorkflow:
         """
@@ -61,6 +65,8 @@ class AutomationWorkflowService:
         :return: The newly created AutomationWorkflow instance.
         """
 
+        automation = self.automation_handler.get_automation(automation_id)
+
         CoreHandler().check_permissions(
             user,
             CreateAutomationWorkflowOperationType.type,
@@ -68,19 +74,23 @@ class AutomationWorkflowService:
             context=automation,
         )
 
+        AutomationWorkflowType().before_create(automation)
         workflow = self.handler.create_workflow(automation, name)
-
         automation_workflow_created.send(self, workflow=workflow, user=user)
 
         return workflow
 
-    def delete_workflow(self, user: AbstractUser, workflow: AutomationWorkflow) -> None:
+    def delete_workflow(
+        self, user: AbstractUser, workflow_id: int
+    ) -> AutomationWorkflow:
         """
         Deletes the specified workflow.
 
         :param user: The user trying to delete the workflow.
         :param workflow: The AutomationWorkflow instance that must be deleted.
         """
+
+        workflow = self.handler.get_workflow(workflow_id)
 
         CoreHandler().check_permissions(
             user,
@@ -89,16 +99,18 @@ class AutomationWorkflowService:
             context=workflow,
         )
 
-        workflow_id = workflow.id
-
-        self.handler.delete_workflow(workflow)
+        TrashHandler.trash(
+            user, workflow.automation.workspace, workflow.automation, workflow
+        )
 
         automation_workflow_deleted.send(
             self, automation=workflow.automation, workflow_id=workflow_id, user=user
         )
 
+        return workflow
+
     def update_workflow(
-        self, user: AbstractUser, workflow: AutomationWorkflow, **kwargs
+        self, user: AbstractUser, workflow_id: int, **kwargs
     ) -> AutomationWorkflow:
         """
         Updates fields of a workflow.
@@ -109,6 +121,8 @@ class AutomationWorkflowService:
         :return: The updated workflow.
         """
 
+        workflow = self.handler.get_workflow(workflow_id)
+
         CoreHandler().check_permissions(
             user,
             UpdateAutomationWorkflowOperationType.type,
@@ -116,16 +130,12 @@ class AutomationWorkflowService:
             context=workflow,
         )
 
-        allowed_updates = extract_allowed(
-            kwargs,
-            ["name"],
+        updated_workflow = self.handler.update_workflow(workflow, **kwargs)
+        automation_workflow_updated.send(
+            self, user=user, workflow=updated_workflow.workflow
         )
 
-        self.handler.update_workflow(workflow, **allowed_updates)
-
-        automation_workflow_updated.send(self, workflow=workflow, user=user)
-
-        return workflow
+        return updated_workflow
 
     def order_workflows(
         self, user: AbstractUser, automation: Automation, order: List[int]
