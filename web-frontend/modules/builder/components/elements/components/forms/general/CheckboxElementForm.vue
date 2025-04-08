@@ -26,7 +26,7 @@
       required
     >
       <InjectedFormulaInput
-        v-model="values.default_value"
+        v-model="values.boolean_default"
         :placeholder="$t('generalForm.valuePlaceholder')"
       />
     </FormGroup>
@@ -51,10 +51,10 @@ export default {
   mixins: [formElementForm],
   data() {
     return {
-      allowedValues: ['label', 'default_value', 'required', 'styles'],
+      allowedValues: ['label', 'boolean_default', 'required', 'styles'],
       values: {
         label: '',
-        default_value: '',
+        boolean_default: '',
         required: false,
         styles: {},
       },
