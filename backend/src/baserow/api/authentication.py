@@ -1,4 +1,3 @@
-from django.apps.registry import apps
 from django.utils.translation import gettext_lazy as _
 
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
@@ -27,10 +26,9 @@ class JSONWebTokenAuthentication(JWTAuthentication):
             raise InvalidToken(_("Token contained no recognizable user identification"))
 
         try:
-            with apps._lock:
-                user = self.user_model.objects.select_related("profile").get(
-                    **{jwt_settings.USER_ID_FIELD: user_id}
-                )
+            user = self.user_model.objects.select_related("profile").get(
+                **{jwt_settings.USER_ID_FIELD: user_id}
+            )
         except self.user_model.DoesNotExist:
             raise exceptions.AuthenticationFailed(
                 _("User not found"), code="user_not_found"
@@ -48,14 +46,13 @@ class JSONWebTokenAuthentication(JWTAuthentication):
         """
 
         try:
-            with apps._lock:
-                auth_response = super().authenticate(request)
+            auth_response = super().authenticate(request)
             if auth_response is None:
                 return None
             user, token = auth_response
-            with apps._lock:
-                if not user.profile.is_jwt_token_valid(token):
-                    raise InvalidToken
+
+            if not user.profile.is_jwt_token_valid(token):
+                raise InvalidToken
 
             if not user.is_active:
                 raise DeactivatedUserException()
@@ -66,10 +63,10 @@ class JSONWebTokenAuthentication(JWTAuthentication):
                 detail={"detail": error_message, "error": error_code},
                 code=error_code,
             )
-        with apps._lock:
-            set_user_session_data_from_request(user, request)
-            setup_user_in_baggage_and_spans(user, request)
-            setup_user_in_sentry(user)
+
+        set_user_session_data_from_request(user, request)
+        setup_user_in_baggage_and_spans(user, request)
+        setup_user_in_sentry(user)
 
         return user, token
 

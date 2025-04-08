@@ -1191,23 +1191,23 @@ class Table(
             self._add_last_modified_by(field_attrs, indexes)
 
         attrs.update(**field_attrs)
-        with apps._lock:
-            # Create the model class.
-            model = type(
-                str(model_name),
-                (
-                    GeneratedTableModel,
-                    TrashableModelMixin,
-                    CreatedAndUpdatedOnMixin,
-                    models.Model,
-                ),
-                attrs,
-            )
 
-            patch_meta_get_field(model._meta)
+        # Create the model class.
+        model = type(
+            str(model_name),
+            (
+                GeneratedTableModel,
+                TrashableModelMixin,
+                CreatedAndUpdatedOnMixin,
+                models.Model,
+            ),
+            attrs,
+        )
 
-            if not manytomany_models:
-                self._after_model_generation(attrs, model)
+        patch_meta_get_field(model._meta)
+
+        if not manytomany_models:
+            self._after_model_generation(attrs, model)
 
         return model
 
