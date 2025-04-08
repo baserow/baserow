@@ -3,6 +3,7 @@ from enum import Enum
 from typing import NewType
 
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.functional import cached_property
@@ -362,6 +363,14 @@ class NumberField(Field):
         help_text="The thousand and decimal separator to use for the field.",
     )
 
+    number_default = models.DecimalField(
+        max_digits=50,
+        decimal_places=20,
+        null=True,
+        blank=True,
+        help_text="The default value of the number field.",
+    )
+
     def save(self, *args, **kwargs):
         """Check if the number_decimal_places has a valid choice."""
 
@@ -415,11 +424,20 @@ class RatingField(Field):
 
 
 class BooleanField(Field):
-    pass
+    boolean_default = models.BooleanField(
+        default=False,
+        help_text="If set, this value is going to be added every time a new row "
+        "created.",
+    )
 
 
 class DateField(Field, BaseDateMixin):
-    pass
+    date_default = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Default value of the date field. Can be a date/datetime or 'now'",
+    )
 
 
 class LastModifiedField(Field, BaseDateMixin):
@@ -530,11 +548,22 @@ class FileField(Field):
 
 
 class SingleSelectField(Field):
-    pass
+    single_select_default = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text="The default value of single select field.",
+    )
 
 
 class MultipleSelectField(Field):
     THROUGH_DATABASE_TABLE_PREFIX = MULTIPLE_SELECT_THROUGH_TABLE_PREFIX
+
+    multiple_select_default = ArrayField(
+        models.PositiveBigIntegerField(),
+        null=True,
+        blank=True,
+        help_text="The default value of multiple select field.",
+    )
 
     @property
     def through_table_name(self):
@@ -849,6 +878,12 @@ class MultipleCollaboratorsField(Field):
             "Indicates if the user should be notified when they are added as a "
             "collaborator."
         ),
+    )
+    multiple_collaborators_default = ArrayField(
+        models.PositiveBigIntegerField(),
+        null=True,
+        blank=True,
+        help_text="The default value of multiple collaborators field.",
     )
 
     @property

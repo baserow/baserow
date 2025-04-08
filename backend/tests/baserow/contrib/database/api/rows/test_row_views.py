@@ -1664,8 +1664,11 @@ def test_create_row(api_client, data_fixture):
     boolean_field = data_fixture.create_boolean_field(
         table=table, order=2, name="For sale"
     )
+    boolean_field_2 = data_fixture.create_boolean_field(
+        table=table, order=3, name="Available", boolean_default=True
+    )
     text_field_2 = data_fixture.create_text_field(
-        table=table, order=3, name="Description"
+        table=table, order=4, name="Description"
     )
 
     token = TokenHandler().create_token(user, table.database.workspace, "Good")
@@ -1724,6 +1727,7 @@ def test_create_row(api_client, data_fixture):
             f"field_{text_field.id}": "Green",
             f"field_{number_field.id}": -10,
             f"field_{boolean_field.id}": None,
+            f"field_{boolean_field_2.id}": False,
             f"field_{text_field_2.id}": None,
         },
         format="json",
@@ -1767,6 +1771,7 @@ def test_create_row(api_client, data_fixture):
     assert response_json_row_1[f"field_{text_field.id}"] == "white"
     assert not response_json_row_1[f"field_{number_field.id}"]
     assert response_json_row_1[f"field_{boolean_field.id}"] is False
+    assert response_json_row_1[f"field_{boolean_field_2.id}"] is True
     assert response_json_row_1[f"field_{text_field_2.id}"] is None
     assert response_json_row_1["order"] == "1.00000000000000000000"
 
@@ -1775,6 +1780,7 @@ def test_create_row(api_client, data_fixture):
         {
             f"field_{number_field.id}": None,
             f"field_{boolean_field.id}": False,
+            f"field_{boolean_field_2.id}": False,
             f"field_{text_field_2.id}": "",
         },
         format="json",
@@ -1785,6 +1791,7 @@ def test_create_row(api_client, data_fixture):
     assert response_json_row_2[f"field_{text_field.id}"] == "white"
     assert not response_json_row_2[f"field_{number_field.id}"]
     assert response_json_row_2[f"field_{boolean_field.id}"] is False
+    assert response_json_row_2[f"field_{boolean_field_2.id}"] is False
     assert response_json_row_2[f"field_{text_field_2.id}"] == ""
     assert response_json_row_2["order"] == "2.00000000000000000000"
 
@@ -1794,6 +1801,7 @@ def test_create_row(api_client, data_fixture):
             f"field_{text_field.id}": "Green",
             f"field_{number_field.id}": 120,
             f"field_{boolean_field.id}": True,
+            f"field_{boolean_field_2.id}": True,
             f"field_{text_field_2.id}": "Not important",
         },
         format="json",
@@ -1804,6 +1812,7 @@ def test_create_row(api_client, data_fixture):
     assert response_json_row_3[f"field_{text_field.id}"] == "Green"
     assert response_json_row_3[f"field_{number_field.id}"] == "120"
     assert response_json_row_3[f"field_{boolean_field.id}"]
+    assert response_json_row_3[f"field_{boolean_field_2.id}"]
     assert response_json_row_3[f"field_{text_field_2.id}"] == "Not important"
     assert response_json_row_3["order"] == "3.00000000000000000000"
 
@@ -1813,6 +1822,7 @@ def test_create_row(api_client, data_fixture):
             f"field_{text_field.id}": "Purple",
             f"field_{number_field.id}": 240,
             f"field_{boolean_field.id}": True,
+            f"field_{boolean_field_2.id}": False,
             f"field_{text_field_2.id}": "",
         },
         format="json",
@@ -1823,6 +1833,7 @@ def test_create_row(api_client, data_fixture):
     assert response_json_row_4[f"field_{text_field.id}"] == "Purple"
     assert response_json_row_4[f"field_{number_field.id}"] == "240"
     assert response_json_row_4[f"field_{boolean_field.id}"]
+    assert response_json_row_4[f"field_{boolean_field_2.id}"] is False
     assert response_json_row_4[f"field_{text_field_2.id}"] == ""
     assert response_json_row_4["order"] == "4.00000000000000000000"
 
@@ -1833,6 +1844,7 @@ def test_create_row(api_client, data_fixture):
             f"field_{text_field.id}": "Red",
             f"field_{number_field.id}": 480,
             f"field_{boolean_field.id}": False,
+            f"field_{boolean_field_2.id}": False,
             f"field_{text_field_2.id}": "",
         },
         format="json",
@@ -1843,6 +1855,7 @@ def test_create_row(api_client, data_fixture):
     assert response_json_row_5[f"field_{text_field.id}"] == "Red"
     assert response_json_row_5[f"field_{number_field.id}"] == "480"
     assert not response_json_row_5[f"field_{boolean_field.id}"]
+    assert not response_json_row_5[f"field_{boolean_field_2.id}"]
     assert response_json_row_5[f"field_{text_field_2.id}"] == ""
     assert response_json_row_5["order"] == "2.50000000000000000000"
 
@@ -1856,30 +1869,35 @@ def test_create_row(api_client, data_fixture):
     assert getattr(row_1, f"field_{text_field.id}") == "white"
     assert getattr(row_1, f"field_{number_field.id}") is None
     assert getattr(row_1, f"field_{boolean_field.id}") is False
+    assert getattr(row_1, f"field_{boolean_field_2.id}") is True
     assert getattr(row_1, f"field_{text_field_2.id}") is None
 
     assert row_2.id == response_json_row_2["id"]
     assert getattr(row_2, f"field_{text_field.id}") == "white"
     assert getattr(row_2, f"field_{number_field.id}") is None
     assert getattr(row_2, f"field_{boolean_field.id}") is False
+    assert getattr(row_2, f"field_{boolean_field_2.id}") is False
     assert getattr(row_2, f"field_{text_field_2.id}") == ""
 
     assert row_3.id == response_json_row_3["id"]
     assert getattr(row_3, f"field_{text_field.id}") == "Green"
     assert getattr(row_3, f"field_{number_field.id}") == 120
     assert getattr(row_3, f"field_{boolean_field.id}") is True
+    assert getattr(row_3, f"field_{boolean_field_2.id}") is True
     assert getattr(row_3, f"field_{text_field_2.id}") == "Not important"
 
     assert row_4.id == response_json_row_4["id"]
     assert getattr(row_4, f"field_{text_field.id}") == "Purple"
     assert getattr(row_4, f"field_{number_field.id}") == 240
     assert getattr(row_4, f"field_{boolean_field.id}") is True
+    assert getattr(row_4, f"field_{boolean_field_2.id}") is False
     assert getattr(row_4, f"field_{text_field_2.id}") == ""
 
     assert row_5.id == response_json_row_5["id"]
     assert getattr(row_5, f"field_{text_field.id}") == "Red"
     assert getattr(row_5, f"field_{number_field.id}") == 480
     assert getattr(row_5, f"field_{boolean_field.id}") is False
+    assert getattr(row_5, f"field_{boolean_field_2.id}") is False
     assert getattr(row_5, f"field_{text_field_2.id}") == ""
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
@@ -1898,6 +1916,7 @@ def test_create_row(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json == {
+        "Available": True,  # Has gone to the default value when not specified.
         "Color": "Red",
         "Description": "",
         "For sale": False,
@@ -1921,6 +1940,7 @@ def test_create_row(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json == {
+        "Available": True,  # Has gone to the default value when not specified.
         "Color": "white",  # Has gone to the default value when not specified.
         "Description": "",
         "For sale": False,

@@ -36,6 +36,7 @@ import FieldLinkRowSubForm from '@baserow/modules/database/components/field/Fiel
 import FieldSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSelectOptionsSubForm'
 import FieldCollaboratorSubForm from '@baserow/modules/database/components/field/FieldCollaboratorSubForm'
 import FieldPasswordSubForm from '@baserow/modules/database/components/field/FieldPasswordSubForm'
+import FieldBooleanSubForm from '@baserow/modules/database/components/field/FieldBooleanSubForm'
 
 import GridViewFieldText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldText'
 import GridViewFieldLongText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldLongText'
@@ -330,6 +331,13 @@ export class FieldType extends Registerable {
    * empty value to show right away.
    */
   getEmptyValue(field) {
+    return null
+  }
+
+  /**
+   * Returns the default value for the field if fields supports it.
+   */
+  getDefaultValue(field) {
     return null
   }
 
@@ -986,8 +994,12 @@ export class TextFieldType extends FieldType {
     return RowHistoryFieldText
   }
 
+  getDefaultValue(field) {
+    return field.text_default || ''
+  }
+
   getEmptyValue(field) {
-    return field.text_default
+    return this.getDefaultValue(field)
   }
 
   canUpsert() {
@@ -1886,6 +1898,10 @@ export class BooleanFieldType extends FieldType {
     return 'checkbox'
   }
 
+  getFormComponent() {
+    return FieldBooleanSubForm
+  }
+
   getGridViewFieldComponent() {
     return GridViewFieldBoolean
   }
@@ -1906,8 +1922,12 @@ export class BooleanFieldType extends FieldType {
     return RowHistoryFieldBoolean
   }
 
+  getDefaultValue(field) {
+    return field.boolean_default || false
+  }
+
   getEmptyValue(field) {
-    return false
+    return this.getDefaultValue(field)
   }
 
   getSortIndicator() {

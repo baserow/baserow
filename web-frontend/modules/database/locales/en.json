@@ -264,6 +264,9 @@
     "limitToView": "Limit selection to view",
     "limitToViewDescription": "Note that this is only visual. It's still possible to make relationships outside of the view via the related table or API."
   },
+  "fieldBooleanSubForm": {
+    "defaultValue": "Default"
+  },
   "fieldSelectOptions": {
     "add": "Add an option"
   },
@@ -731,7 +734,6 @@
   },
   "viewAggregationType": {
     "count": "Count",
-    "emptyCount": "Empty",
     "notEmptyCount": "Filled",
     "emptyPercentage": "Percent empty",
     "notEmptyPercentage": "Percent filled",

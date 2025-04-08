@@ -203,10 +203,23 @@ def test_airtable_import_checkbox_column_with_default_value(data_fixture, api_cl
         AirtableImportConfig(),
         import_report,
     )
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "Checkbox"
-    assert import_report.items[0].scope == SCOPE_FIELD
-    assert import_report.items[0].table == ""
+    assert baserow_field.boolean_default is True
+    assert len(import_report.items) == 0
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            "2022-01-03T14:51:00.000Z",
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == "true"
+    )
 
 
 @pytest.mark.django_db
