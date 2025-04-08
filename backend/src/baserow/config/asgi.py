@@ -24,6 +24,10 @@ application = ProtocolTypeRouter(
         "http": ConcurrencyLimiterASGI(
             URLRouter(
                 [
+                    # Run
+                    # `SERVER_PORT=3001 npx @modelcontextprotocol/inspector`
+                    # URL: http://127.0.0.1:8000/mcp/sse
+                    # re_path(r"^mcp", baserow_mcp.sse_app()),
                     re_path(r"^mcp", baserow_mcp.sse_app()),
                     # re_path(r"", django_asgi_app),
                 ]
