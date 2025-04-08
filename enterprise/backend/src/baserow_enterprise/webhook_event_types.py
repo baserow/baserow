@@ -36,8 +36,21 @@ class RowsEnterViewEventType(EnterpriseWebhookEventType):
     def get_table_object(self, model, **kwargs):
         return model.baserow_table
 
-    def get_additional_filters_for_webhooks_to_call(self, view, **kwargs):
-        return Q(events__views=view)
+    def get_filters_for_webhooks_to_call(self, view, **kwargs: dict) -> Q:
+        """
+        Filters to pass to WebhookHandler.find_webhooks_to_call to find the webhooks
+        that need to be called for the table. By default it will filter on the event
+        type and the table id. This method can be overwritten to add additional filters
+        to the query.
+
+        :param kwargs: The arguments of the signal.
+        :return: A Q object containing the filters to pass to the query.
+        """
+
+        q = Q(events__event_type__in=[self.type]) & Q(events__views=view)
+
+        table = self.get_table_object(**kwargs)
+        return q & Q(table_id=table.id, active=True)
 
     def serialize_rows(self, model, rows, use_user_field_names):
         rows_serializer = get_row_serializer_class(
