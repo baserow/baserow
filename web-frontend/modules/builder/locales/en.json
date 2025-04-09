@@ -134,7 +134,9 @@
     "menu": "Menu",
     "menuDescription": "Menu element",
     "simpleContainer": "Container",
-    "simpleContainerDescription": "A container for other elements"
+    "simpleContainerDescription": "A container for other elements",
+    "fileInput": "File input",
+    "fileInputDescription": "An input to upload files"
   },
   "addElementButton": {
     "label": "Element"
@@ -603,10 +605,6 @@
     "size": "Font size",
     "weight": "Font weight"
   },
-  "linkDecorations": {
-    "normal": "Normal",
-    "plain": "Plain"
-  },
   "linkThemeConfigBlock": {
     "color": "Color",
     "link": "Link",
@@ -1015,10 +1013,13 @@
     "star": "Star",
     "heart": "Heart",
     "smile": "Smile",
-    "thumbsUp": "Thumbs Up",
+    "thumbsUp": "Thumbs up",
     "flag": "Flag"
   },
   "automationSettingsModal": {
     "title": "Workflow"
+  },
+  "abFileInput": {
+    "delete": "Delete"
   }
 }

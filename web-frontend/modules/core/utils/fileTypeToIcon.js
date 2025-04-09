@@ -41,7 +41,7 @@ const mapping = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     ],
   ],
-  ['iconoir-empty-page'],
+  ['iconoir-attachment'],
 ]
 
 function match(mimetype, cond) {

@@ -478,5 +478,27 @@
   "webhookForm": {
     "triggerWhenRowsEnterView": "Triggered when rows enter the view.",
     "helpTriggerWhenRowsEnterView": "Triggers only when `Rows enter view` is selected and rows that now match the filters enter the view."
+  },
+  "fileInputElementForm": {
+    "defaultNameTitle": "Initial file name",
+    "defaultNamePlaceholder": "Enter a file name...",
+    "defaultNameHelp": "If you allow multiple files you can have multiple values here.",
+    "defaultUrlTitle": "Initial file URL",
+    "defaultUrlPlaceholder": "Enter a default URL...",
+    "defaultUrlHelp": "If you allow multiple files you can have multiple values here. You must have one url per name.",
+    "helpTextTitle": "Help text",
+    "helpTextPlaceholder": "Keep empty for default...",
+    "multiple": "Multiple files?",
+    "required": "Required",
+    "fileTypes": "File types",
+    "fileTypesHelper": "Choose which file extensions are allowed by the file input (e.g. jpg, png, svg, pdf). you can specify image/*, video/* or audio/* to allow all files of this type. Leave empty to permit all file types.",
+    "preview": "Preview images?",
+    "maxFileSize": "Maximum file size",
+    "maxFileSizePlaceholder": "Enter a number...",
+    "addFileType": "Add file type"
+  },
+  "fileInputElement": {
+    "defaultHelpText": "Drag and drop files here or click to select",
+    "fileSizeExceeded": "File too large. Max {max}MB."
   }
 }

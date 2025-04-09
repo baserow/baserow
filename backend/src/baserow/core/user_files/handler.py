@@ -38,11 +38,29 @@ from .exceptions import (
     InvalidFileURLError,
     MaximumUniqueTriesError,
 )
+from .models import deconstruct_user_file_regex
 
 MIME_TYPE_UNKNOWN = "application/octet-stream"
 
 
 class UserFileHandler:
+    def is_user_file_name(self, user_file_name: str) -> bool:
+        """
+        Checks if the given name is a user file name.
+        """
+
+        matches = deconstruct_user_file_regex.match(user_file_name)
+        return bool(matches)
+
+    def get_user_file_url(self, user_file):
+        """Returns user file url"""
+
+        storage = get_default_storage()
+        name = getattr(user_file, "name")
+        path = UserFileHandler().user_file_path(name)
+        url = storage.url(path)
+        return url
+
     def get_user_file_by_name(
         self, user_file_name: str, base_queryset: Optional[QuerySet] = None
     ) -> UserFile:
@@ -292,7 +310,7 @@ class UserFileHandler:
 
         return user_file
 
-    def upload_user_file_by_url(self, user, url, storage=None):
+    def upload_user_file_by_url(self, user, url, file_name=None, storage=None):
         """
         Uploads a user file by downloading it from the provided URL.
 
@@ -316,13 +334,18 @@ class UserFileHandler:
 
         # Pluck out the parsed URL path (in the event we've been given
         # a URL with a querystring) and then extract the filename.
-        file_name = parsed_url.path.rstrip("/").split("/")[-1]
+        file_name = (
+            parsed_url.path.rstrip("/").split("/")[-1]
+            if file_name is None
+            else file_name
+        )
+
         try:
             response = advocate.get(url, stream=True, timeout=10)
 
             if not response.ok:
                 raise FileURLCouldNotBeReached(
-                    "The response did not respond with an " "OK status code."
+                    "The response did not respond with an OK status code."
                 )
 
             try:

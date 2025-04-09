@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock, Mock, patch
 
 from django.http import HttpRequest
@@ -17,7 +18,7 @@ from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
 def test_dispatch_context_page_range():
-    request = MagicMock()
+    request = HttpRequest()
     request.GET = {"offset": 42, "count": 42}
 
     dispatch_context = BuilderDispatchContext(request, None)
@@ -87,9 +88,15 @@ def test_dispatch_context_element_type(data_fixture):
     dispatch_context = BuilderDispatchContext(HttpRequest(), Mock())
     assert dispatch_context.element_type is None
 
-    dispatch_context = BuilderDispatchContext(
-        HttpRequest(), element.page, element=element
-    )
+    fake_request = HttpRequest()
+    fake_request.data = {
+        "metadata": json.dumps(
+            {
+                "data_source": {"element": element.id},
+            }
+        )
+    }
+    dispatch_context = BuilderDispatchContext(fake_request, element.page)
     assert dispatch_context.element_type == element_type
 
 
@@ -107,7 +114,15 @@ def test_dispatch_context_is_publicly_searchable(collection_element_type, data_f
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(user=user, builder=builder)
     element = collection_element_type.model_class.objects.create(page=page)
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page, element=element)
+    fake_request = HttpRequest()
+    fake_request.data = {
+        "metadata": json.dumps(
+            {
+                "data_source": {"element": element.id},
+            }
+        )
+    }
+    dispatch_context = BuilderDispatchContext(fake_request, page)
     assert (
         dispatch_context.is_publicly_searchable
         == collection_element_type.is_publicly_searchable
@@ -125,7 +140,17 @@ def test_dispatch_context_searchable_fields(data_fixture):
     element.property_options.create(schema_property="name", searchable=True)
     element.property_options.create(schema_property="location", searchable=True)
     element.property_options.create(schema_property="top_secret", searchable=False)
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page, element=element)
+
+    fake_request = HttpRequest()
+    fake_request.data = {
+        "metadata": json.dumps(
+            {
+                "data_source": {"element": element.id},
+            }
+        )
+    }
+
+    dispatch_context = BuilderDispatchContext(fake_request, page)
     assert dispatch_context.searchable_fields() == ["name", "location"]
 
 
@@ -136,7 +161,17 @@ def test_dispatch_context_is_publicly_filterable(collection_element_type, data_f
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(user=user, builder=builder)
     element = collection_element_type.model_class.objects.create(page=page)
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page, element=element)
+
+    fake_request = HttpRequest()
+    fake_request.data = {
+        "metadata": json.dumps(
+            {
+                "data_source": {"element": element.id},
+            }
+        )
+    }
+
+    dispatch_context = BuilderDispatchContext(fake_request, page)
     assert (
         dispatch_context.is_publicly_filterable
         == collection_element_type.is_publicly_filterable
@@ -168,7 +203,17 @@ def test_dispatch_context_is_publicly_sortable(collection_element_type, data_fix
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(user=user, builder=builder)
     element = collection_element_type.model_class.objects.create(page=page)
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page, element=element)
+
+    fake_request = HttpRequest()
+    fake_request.data = {
+        "metadata": json.dumps(
+            {
+                "data_source": {"element": element.id},
+            }
+        )
+    }
+
+    dispatch_context = BuilderDispatchContext(fake_request, page)
     assert (
         dispatch_context.is_publicly_sortable
         == collection_element_type.is_publicly_sortable
@@ -206,7 +251,8 @@ def test_builder_dispatch_context_field_names_computed_on_param(
     mock_field_names = ["field_123"]
     mock_get_builder_used_property_names.return_value = mock_field_names
 
-    mock_request = MagicMock()
+    mock_request = HttpRequest()
+    mock_request.user_source_user = MagicMock()
     mock_request.user_source_user.is_anonymous = True
     mock_page = MagicMock()
     mock_page.builder = MagicMock()
@@ -256,7 +302,17 @@ def test_validate_filter_search_sort_fields(data_fixture, property_option_params
     page = data_fixture.create_builder_page(user=user)
     element = data_fixture.create_builder_table_element(page=page)
     element.property_options.create(**property_option_params)
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page, element=element)
+
+    fake_request = HttpRequest()
+    fake_request.data = {
+        "metadata": json.dumps(
+            {
+                "data_source": {"element": element.id},
+            }
+        )
+    }
+
+    dispatch_context = BuilderDispatchContext(fake_request, page)
     schema_property = property_option_params["schema_property"]
     for refinement in list(ServiceAdhocRefinements):
         model_field_name = ServiceAdhocRefinements.to_model_field(refinement)
@@ -283,7 +339,16 @@ def test_get_element_property_options(data_fixture, django_assert_num_queries):
     element.property_options.create(
         schema_property="name", filterable=True, sortable=False, searchable=False
     )
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page, element=element)
+    fake_request = HttpRequest()
+    fake_request.data = {
+        "metadata": json.dumps(
+            {
+                "data_source": {"element": element.id},
+            }
+        )
+    }
+
+    dispatch_context = BuilderDispatchContext(fake_request, page)
     assert dispatch_context.cache == {}
     with django_assert_num_queries(1):
         dispatch_context.get_element_property_options()
@@ -311,7 +376,16 @@ def test_validate_filter_search_sort_fields_without_collection_element(data_fixt
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     element = data_fixture.create_builder_heading_element(page=page)
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page, element=element)
+    fake_request = HttpRequest()
+    fake_request.data = {
+        "metadata": json.dumps(
+            {
+                "data_source": {"element": element.id},
+            }
+        )
+    }
+
+    dispatch_context = BuilderDispatchContext(fake_request, page)
     with pytest.raises(DataSourceRefinementForbidden) as exc:
         dispatch_context.validate_filter_search_sort_fields(
             ["name"], ServiceAdhocRefinements.FILTER

@@ -93,6 +93,10 @@ export const ensureString = (value, { allowEmpty = true } = {}) => {
     const results = value.map((item) => ensureString(item))
     return results.join(',')
   } else if (typeof value === 'object') {
+    // If it's a file we just extract the name
+    if (value.__file__) {
+      return value.name
+    }
     return JSON.stringify(value)
   }
   return `${value}`
@@ -137,13 +141,15 @@ export const ensureArray = (value, { allowEmpty = true } = {}) => {
     }
     return []
   }
+  let result
   if (Array.isArray(value)) {
-    return value
+    result = value
+  } else if (typeof value === 'string') {
+    result = value.split(',').map((item) => item.trim())
+  } else {
+    result = [value]
   }
-  if (typeof value === 'string') {
-    return value.split(',').map((item) => item.trim())
-  }
-  return [value]
+  return result
 }
 
 /**

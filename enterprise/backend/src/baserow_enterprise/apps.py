@@ -187,9 +187,11 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
             AuthFormElementType,
+            FileInputElementType,
         )
 
         element_type_registry.register(AuthFormElementType())
+        element_type_registry.register(FileInputElementType())
 
         from baserow.contrib.database.data_sync.registries import (
             data_sync_type_registry,
