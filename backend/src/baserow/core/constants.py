@@ -59,7 +59,3 @@ class RatingStyleChoices(models.TextChoices):
     THUMBS_UP = "thumbs-up"
     FLAG = "flag"
     SMILE = "smile"
-
-
-BASEROW_DEADLOCK_MAX_RETRIES = 3
-BASEROW_DEADLOCK_INITIAL_BACKOFF = 2

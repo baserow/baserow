@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.conf import settings
 from django.db import connection
 from django.shortcuts import reverse
+from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 
 import pytest
@@ -294,8 +295,8 @@ def test_batch_create_rows(api_client, data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.api_rows
-@patch("baserow.core.db.BASEROW_DEADLOCK_INITIAL_BACKOFF", 0.01)
-@patch("baserow.core.db.BASEROW_DEADLOCK_MAX_RETRIES", 1)
+@override_settings(BASEROW_DEADLOCK_INITIAL_BACKOFF=0.01)
+@override_settings(BASEROW_DEADLOCK_MAX_RETRIES=1)
 def test_batch_create_rows_deadlock(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -1279,8 +1280,8 @@ def test_batch_update_rows(api_client, data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.api_rows
-@patch("baserow.core.db.BASEROW_DEADLOCK_INITIAL_BACKOFF", 0.01)
-@patch("baserow.core.db.BASEROW_DEADLOCK_MAX_RETRIES", 1)
+@override_settings(BASEROW_DEADLOCK_INITIAL_BACKOFF=0.01)
+@override_settings(BASEROW_DEADLOCK_MAX_RETRIES=1)
 def test_batch_update_rows_deadlock(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -2248,8 +2249,8 @@ def test_batch_delete_rows_trash_them(api_client, data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.api_rows
-@patch("baserow.core.db.BASEROW_DEADLOCK_INITIAL_BACKOFF", 0.01)
-@patch("baserow.core.db.BASEROW_DEADLOCK_MAX_RETRIES", 1)
+@override_settings(BASEROW_DEADLOCK_INITIAL_BACKOFF=0.01)
+@override_settings(BASEROW_DEADLOCK_MAX_RETRIES=1)
 def test_batch_delete_rows_deadlock(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)

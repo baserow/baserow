@@ -121,7 +121,7 @@ from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.core.action.registries import action_type_registry
-from baserow.core.db import retry_on_deadlock
+from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
@@ -516,7 +516,7 @@ class RowsView(APIView):
             DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_deadlock()
+    @atomic_with_retry_on_deadlock()
     @validate_query_parameters(CreateRowQueryParamsSerializer)
     def post(self, request: Request, table_id: int, query_params) -> Response:
         """
@@ -875,7 +875,7 @@ class RowView(APIView):
             DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_deadlock()
+    @atomic_with_retry_on_deadlock()
     @require_request_data_type(dict)
     def patch(self, request: Request, table_id: int, row_id: int) -> Response:
         """
@@ -982,7 +982,7 @@ class RowView(APIView):
             DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_deadlock()
+    @atomic_with_retry_on_deadlock()
     def delete(self, request, table_id, row_id):
         """
         Deletes an existing row with the given row_id for table with the given
@@ -1080,7 +1080,7 @@ class RowMoveView(APIView):
             DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_deadlock()
+    @atomic_with_retry_on_deadlock()
     @validate_query_parameters(MoveRowQueryParamsSerializer)
     def patch(self, request, table_id, row_id, query_params):
         """Moves the row to another position."""
@@ -1213,7 +1213,7 @@ class BatchRowsView(APIView):
             DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_deadlock()
+    @atomic_with_retry_on_deadlock()
     @validate_query_parameters(BatchCreateRowsQueryParamsSerializer)
     def post(self, request: Request, table_id: int, query_params) -> Response:
         """
@@ -1349,7 +1349,7 @@ class BatchRowsView(APIView):
             DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_deadlock()
+    @atomic_with_retry_on_deadlock()
     def patch(self, request, table_id):
         """
         Updates all provided rows at once for the table with
@@ -1458,7 +1458,7 @@ class BatchDeleteRowsView(APIView):
             DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
-    @retry_on_deadlock()
+    @atomic_with_retry_on_deadlock()
     def post(self, request: Request, table_id: int, data: Dict[str, Any]) -> Response:
         """
         Batch deletes existing rows based on provided row ids for the table with

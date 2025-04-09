@@ -1,4 +1,5 @@
 import contextlib
+import random
 import time
 from collections import defaultdict
 from decimal import Decimal
@@ -30,10 +31,6 @@ from django.db.utils import OperationalError
 from loguru import logger
 
 from baserow.contrib.database.exceptions import DeadlockException
-from baserow.core.constants import (
-    BASEROW_DEADLOCK_INITIAL_BACKOFF,
-    BASEROW_DEADLOCK_MAX_RETRIES,
-)
 from baserow.core.psycopg import errorcodes, sql
 
 from .utils import find_intermediate_order
@@ -811,33 +808,34 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
         return row_id_to_field_name_to_target_ids
 
 
-def retry_on_deadlock(
+def atomic_with_retry_on_deadlock(
     max_retries: Optional[int] = None,
     initial_backoff: Optional[float] = None,
+    jitter: Optional[float] = 1.0,
 ):
     """
     Decorator that wraps a function in a transaction.atomic block and retries
     when deadlock occurswith exponential backoff.
 
-    Args:
-        max_retries: Maximum number of retry attempts
-        initial_backoff: Initial backoff time in seconds
+    The decorated function must be idempotent - it should be safe to retry multiple
+    times without changing behavior. Avoid modifying request.data or other mutable
+    state that could cause retries to behave differently from the original attempt.
 
-    Note:
-        Using this decorator requires to ensure that request.data is not modified
-        by the function that is decorated.
+    :param max_retries: Maximum number of retry attempts
+    :param initial_backoff: Initial backoff time in seconds
+    :param jitter: Jitter factor to randomize the backoff time
     """
 
     if max_retries is None:
-        max_retries = BASEROW_DEADLOCK_MAX_RETRIES
+        max_retries = settings.BASEROW_DEADLOCK_MAX_RETRIES
     if initial_backoff is None:
-        initial_backoff = BASEROW_DEADLOCK_INITIAL_BACKOFF
+        initial_backoff = settings.BASEROW_DEADLOCK_INITIAL_BACKOFF
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs) -> Any:
             retries = 0
-            backoff = initial_backoff
+            backoff = initial_backoff + random.uniform(0, jitter)  # nosec: B311
 
             while retries <= max_retries:
                 try:
@@ -856,7 +854,7 @@ def retry_on_deadlock(
                         )
                         raise DeadlockException() from exc
                     time.sleep(backoff)
-                    backoff *= 2
+                    backoff *= 1.5 + random.uniform(0, jitter)  # nosec: B311
                 retries += 1
 
         return wrapper
