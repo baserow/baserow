@@ -574,7 +574,11 @@ export const mutations = {
         .map((groupBy) => {
           return fields.find((f) => f.id === groupBy.field)
         })
-      const entries = existingMetadata[`field_${groupBy.field}`] || []
+      const fieldName = `field_${groupBy.field}`
+      if (!Object.prototype.hasOwnProperty.call(existingMetadata, fieldName)) {
+        existingMetadata[`field_${groupBy.field}`] = []
+      }
+      const entries = existingMetadata[`field_${groupBy.field}`]
       entries.forEach((entry, index) => {
         const equal = fieldValuesAreEqualInObjects(
           groupByFields,

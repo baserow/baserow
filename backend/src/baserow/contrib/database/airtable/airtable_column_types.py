@@ -33,6 +33,7 @@ from baserow.core.utils import get_value_at_path
 
 from .config import AirtableImportConfig
 from .constants import (
+    AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH,
     AIRTABLE_DURATION_FIELD_DURATION_FORMAT_MAPPING,
     AIRTABLE_MAX_DURATION_VALUE,
     AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING,
@@ -48,6 +49,7 @@ from .import_report import (
     SCOPE_FIELD,
     AirtableImportReport,
 )
+from .models import DownloadFile
 from .registry import AirtableColumnType
 from .utils import get_airtable_row_primary_value, quill_to_markdown
 
@@ -688,6 +690,13 @@ class MultipleAttachmentAirtableColumnType(AirtableColumnType):
         for file in value:
             file_name = "_".join(file["url"].split("/")[-3:])
             files_to_download[file_name] = file["url"]
+            files_to_download[file_name] = DownloadFile(
+                url=file["url"],
+                row_id=raw_airtable_row["airtable_record_id"],
+                column_id=raw_airtable_column["id"],
+                attachment_id=file["id"],
+                type=AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH,
+            )
             new_value.append(
                 DatabaseExportSerializedStructure.file_field_value(
                     name=file_name,
@@ -710,7 +719,7 @@ class SelectAirtableColumnType(AirtableColumnType):
         raw_airtable_column: dict,
         baserow_field: Field,
         value: Any,
-        files_to_download: Dict[str, str],
+        files_to_download: Dict[str, DownloadFile],
         config: AirtableImportConfig,
         import_report: AirtableImportReport,
     ):
@@ -749,7 +758,7 @@ class MultiSelectAirtableColumnType(AirtableColumnType):
         raw_airtable_column: dict,
         baserow_field: Field,
         value: Any,
-        files_to_download: Dict[str, str],
+        files_to_download: Dict[str, DownloadFile],
         config: AirtableImportConfig,
         import_report: AirtableImportReport,
     ):

@@ -10,7 +10,7 @@ import {
 import {
   collatedStringCompare,
   getFilenameFromUrl,
-  isNumeric,
+  isInteger,
   isSimplePhoneNumber,
   isValidEmail,
   isValidURL,
@@ -2842,7 +2842,7 @@ export class DurationFieldType extends FieldType {
   }
 
   prepareValueForPaste(field, clipboardData, richClipboardData) {
-    if (richClipboardData && isNumeric(richClipboardData)) {
+    if (richClipboardData && isInteger(richClipboardData)) {
       return richClipboardData
     }
     return this.parseInputValue(field, clipboardData)
@@ -3383,7 +3383,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   _findOptionWithMatchingId(field, rawTextValue) {
-    if (isNumeric(rawTextValue)) {
+    if (isInteger(rawTextValue)) {
       const pastedOptionId = parseInt(rawTextValue, 10)
       return field.select_options.find((option) => option.id === pastedOptionId)
     }

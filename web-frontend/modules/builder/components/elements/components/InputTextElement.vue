@@ -7,7 +7,7 @@
     :style="getStyleOverride('input')"
   >
     <ABInput
-      v-model="inputValue"
+      v-model="computedValue"
       :placeholder="resolvedPlaceholder"
       :multiline="element.is_multiline"
       :rows="element.rows"
@@ -19,7 +19,11 @@
 
 <script>
 import formElement from '@baserow/modules/builder/mixins/formElement'
-import { ensureString } from '@baserow/modules/core/utils/validator'
+import {
+  ensureNumeric,
+  ensureString,
+} from '@baserow/modules/core/utils/validator'
+import { parseLocalizedNumber } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'InputTextElement',
@@ -38,9 +42,37 @@ export default {
       required: true,
     },
   },
+  data() {
+    return {
+      internalValue: '',
+    }
+  },
   computed: {
+    computedValue: {
+      get() {
+        return this.internalValue
+      },
+      set(newValue) {
+        this.inputValue = this.fromInternalValue(newValue)
+        this.internalValue = newValue
+      },
+    },
+    localeLanguage() {
+      return this.$i18n.locale
+    },
     resolvedDefaultValue() {
-      return ensureString(this.resolveFormula(this.element.default_value))
+      try {
+        const value = this.resolveFormula(this.element.default_value)
+
+        return this.isNumericField
+          ? ensureNumeric(value, { allowNull: true })
+          : ensureString(value)
+      } catch {
+        return null
+      }
+    },
+    isNumericField() {
+      return this.element.validation_type === 'integer'
     },
     resolvedLabel() {
       return ensureString(this.resolveFormula(this.element.label))
@@ -53,11 +85,46 @@ export default {
     resolvedDefaultValue: {
       handler(value) {
         this.inputValue = value
+        this.internalValue = this.toInternalValue(value)
       },
       immediate: true,
     },
   },
   methods: {
+    toInternalValue(value) {
+      if (this.isNumericField) {
+        if (value) {
+          return new Intl.NumberFormat(this.localeLanguage, {
+            useGrouping: false,
+          }).format(value)
+        } else {
+          return ''
+        }
+      }
+
+      return ensureString(value)
+    },
+
+    fromInternalValue(value) {
+      if (this.isNumericField) {
+        if (value) {
+          try {
+            return ensureNumeric(
+              parseLocalizedNumber(value, this.localeLanguage),
+              {
+                allowNull: true,
+              }
+            )
+          } catch {
+            return value
+          }
+        } else {
+          return null
+        }
+      }
+      return value
+    },
+
     getErrorMessage() {
       switch (this.element.validation_type) {
         case 'integer':

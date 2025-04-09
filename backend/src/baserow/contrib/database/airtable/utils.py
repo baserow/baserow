@@ -117,12 +117,12 @@ def quill_parse_inline(insert, attributes):
     if "italic" in attributes:
         insert = f"_{insert}_"
     if "strike" in attributes:
-        insert = f"~{insert}~"
+        insert = f"~~{insert}~~"
     if "code" in attributes:
         insert = f"`{insert}`"
     if "link" in attributes:
         insert = f"[{insert}]({attributes['link']})"
-    if isinstance(insert, object) and "mention" in insert:
+    if isinstance(insert, dict) and "mention" in insert:
         insert = f"@{insert['mention'].get('userId', '')}"
 
     return insert
