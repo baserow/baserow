@@ -26,22 +26,27 @@ def migrate_app_labels(apps, schema_editor):
     )
 
     # change foreign keys to point to premium content types
-    enterprise_widget_content_type = ContentType.objects.get(
-        model="chartwidget", app_label="baserow_enterprise"
-    )
-    enterprise_service_content_type = ContentType.objects.get(
-        model="localbaserowgroupedaggregaterows", app_label="baserow_enterprise"
-    )
-    Widget = apps.get_model("dashboard", "Widget")
-    Service = apps.get_model("core", "Service")
+    try:
+        enterprise_widget_content_type = ContentType.objects.get(
+            model="chartwidget", app_label="baserow_enterprise"
+        )
+        enterprise_service_content_type = ContentType.objects.get(
+            model="localbaserowgroupedaggregaterows", app_label="baserow_enterprise"
+        )
+        Widget = apps.get_model("dashboard", "Widget")
+        Service = apps.get_model("core", "Service")
 
-    Widget.objects.filter(content_type_id=enterprise_widget_content_type.id).update(
-        content_type_id=premium_widget_content_type.id
-    )
+        Widget.objects.filter(content_type_id=enterprise_widget_content_type.id).update(
+            content_type_id=premium_widget_content_type.id
+        )
 
-    Service.objects.filter(content_type_id=enterprise_service_content_type.id).update(
-        content_type_id=premium_service_content_type.id
-    )
+        Service.objects.filter(
+            content_type_id=enterprise_service_content_type.id
+        ).update(content_type_id=premium_service_content_type.id)
+    except ContentType.DoesNotExist:
+        # If migrations are applied from scratch there might not be
+        # any existing entries to migrate
+        pass
 
     # delete enterprise content types
     ContentType.objects.filter(app_label="baserow_enterprise").filter(
