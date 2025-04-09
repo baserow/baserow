@@ -17,5 +17,6 @@ if is_psycopg3:
 
 else:
     import psycopg2 as psycopg  # noqa: F401
+    from psycopg2 import DataError  # noqa: F401
+    from psycopg2 import errorcodes  # noqa: F401
     from psycopg2 import sql  # noqa: F401
-    from psycopg2 import DataError # noqa: F401

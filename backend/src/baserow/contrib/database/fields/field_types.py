@@ -1328,6 +1328,7 @@ class DateFieldType(FieldType):
     ):
         if not value:
             return value
+
         if isinstance(row._meta.get_field(field_name), models.DateTimeField):
             value = datetime.fromisoformat(value)
         else:

@@ -6,7 +6,6 @@ from django.db.models.signals import post_migrate, pre_migrate
 
 from baserow.contrib.database.table.cache import clear_generated_model_cache
 from baserow.contrib.database.table.operations import RestoreDatabaseTableOperationType
-from baserow.core.psycopg import is_psycopg3
 from baserow.core.registries import (
     application_type_registry,
     object_scope_type_registry,

@@ -47,8 +47,6 @@ if is_psycopg3:
     def pg_init():
         """
         Registers loaders for psycopg3 to handle date overflow.
-
-        :return:
         """
 
         psycopg.adapters.register_loader("date", BaserowDateLoader)
@@ -70,9 +68,6 @@ if is_psycopg3:
     def register_on_connection(connection):
         """
         Registers timestamptz pg type loaders for a connection.
-
-        :param connection:
-        :return:
         """
 
         ctx = connection.connection.adapters
@@ -89,36 +84,57 @@ if is_psycopg3:
         ctx.adapters.register_loader("timestamptz", SpecificTzBinaryLoader)
 
 else:
-    from psycopg2._psycopg import DATE, DATETIME, DATETIMETZ, DATEARRAY, DATETIMEARRAY, DATETIMETZARRAY, DataError
-
     from django.db.utils import DataError as DjangoDataError
 
-    def _make_adapter(type_adapter) -> typing.Callable[[typing.Any, typing.Any], typing.Any]:
+    from psycopg2._psycopg import (
+        DATE,
+        DATEARRAY,
+        DATETIME,
+        DATETIMEARRAY,
+        DATETIMETZ,
+        DATETIMETZARRAY,
+        DataError,
+    )
+
+    def _make_adapter(
+        type_adapter,
+    ) -> typing.Callable[[typing.Any, typing.Any], typing.Any]:
         def adapter(value, cur):
             try:
                 return type_adapter(value, cur)
             except (DataError, DjangoDataError, ValueError) as err:
-                print('invalid value', (type_adapter, value, err, type(err),))
+                print(
+                    "invalid value",
+                    (
+                        type_adapter,
+                        value,
+                        err,
+                        type(err),
+                    ),
+                )
                 return
+
         return adapter
 
-
     def pg_init():
+        """
+        Registers loaders for psycopg2 to handle date overflow.
+        """
 
-        # available date types:
-        #
-        #      oid  | typarray |   typname
-        # ------+----------+--------------
-        #  1082 |     1182 | date
-        #  1114 |     1115 | timestamp
-        #  1115 |        0 | _timestamp
-        #  1182 |        0 | _date
-        #  1184 |     1185 | timestamptz
-        #  1185 |        0 | _timestamptz
-        #
-
-
-        for type_adapter, typea_adapter in ((DATE, DATEARRAY,), (DATETIME, DATETIMEARRAY,), (DATETIMETZ, DATETIMETZARRAY,)):
+        for type_adapter, typea_adapter in (
+            (
+                DATE,
+                DATEARRAY,
+            ),
+            (
+                DATETIME,
+                DATETIMEARRAY,
+            ),
+            (
+                DATETIMETZ,
+                DATETIMETZARRAY,
+            ),
+        ):
             oid = type_adapter.values
             array_oid = typea_adapter.values
             typename = type_adapter.name
@@ -126,7 +142,8 @@ else:
             array_handler = _make_adapter(typea_adapter)
 
             ptype = psycopg.extensions.new_type(oid, typename, handler)
-            array_ptype = psycopg.extensions.new_type(array_oid, typename, array_handler)
+            array_ptype = psycopg.extensions.new_type(
+                array_oid, typename, array_handler
+            )
             psycopg.extensions.register_type(ptype)
             psycopg.extensions.register_type(array_ptype)
-

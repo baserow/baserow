@@ -741,8 +741,6 @@ def test_get_group_by_metadata_in_rows_with_date_field(data_fixture):
     }
 
 
-
-
 @pytest.mark.django_db
 def test_date_field_overflow(settings, data_fixture):
     user = data_fixture.create_user()
@@ -786,12 +784,14 @@ def test_date_field_overflow(settings, data_fixture):
     assert len(out) == 1
     assert getattr(out[0], date_field.db_column, None) == invalid_date_value
 
+
 @pytest.mark.django_db
 def test_datetime_field_overflow(on_db_connection, data_fixture):
     if is_psycopg3:
         from baserow.contrib.database.fields.utils.pg_datetime import (
             register_on_connection,
         )
+
         # manually register adapters, as signal-based registration will be called
         # too late
         on_db_connection(register_on_connection)
