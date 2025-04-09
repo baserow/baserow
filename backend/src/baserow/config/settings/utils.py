@@ -125,6 +125,13 @@ def try_int(s: str | int | None, default: Any = None) -> int | None:
         return default
 
 
+def try_float(s: str | float | None, default: Any = None) -> float | None:
+    try:
+        return float(s)
+    except (TypeError, ValueError):
+        return default
+
+
 def get_crontab_from_env(env_var_name: str, default_crontab: str) -> crontab:
     """
     Parses a crontab from an environment variable if present or instead uses the
@@ -153,30 +160,3 @@ def enum_member_by_value(enum: Type[Enum], value: Any) -> Enum:
         if e.value == value:
             return e
     raise ValueError(f"No enum member with value {value}")
-
-
-def get_positive_number_from_env(
-    env_var_name: str, default: int, converter: Callable[[str], Any] = int
-) -> int:
-    """
-    Parses a positive number from an environment variable if present or instead uses the
-    default.
-
-    :param env_var_name: The name of the environment variable to parse.
-    :param default: The default value to use if the environment variable is not present.
-    :param converter: The converter to use to convert the environment variable to a
-        number. Defaults to int.
-    :return: The parsed positive number.
-    """
-
-    value = os.getenv(env_var_name, default)
-
-    if not value:
-        return default
-    try:
-        value = converter(value)
-    except (TypeError, ValueError):
-        raise ValueError(f"Invalid value for {env_var_name}: {value}")
-    if value <= 0:
-        return default
-    return value
