@@ -1,7 +1,5 @@
 import moment from '@baserow/modules/core/moment'
 
-export const INVALID_DATE = 'infinity'
-
 const dateMapping = {
   EU: {
     momentFormat: 'DD/MM/YYYY',

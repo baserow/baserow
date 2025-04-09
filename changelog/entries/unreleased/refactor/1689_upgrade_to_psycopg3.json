@@ -1,7 +1,0 @@
-{
-    "type": "refactor",
-    "message": "Upgrade to psycopg3",
-    "issue_number": 1689,
-    "bullet_points": [],
-    "created_at": "2025-01-08"
-}

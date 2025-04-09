@@ -1031,13 +1031,12 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.views.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
 
-        # date/datetime min/max year handling - we need that for psycopg 3.x only
-        if is_psycopg3:
-            from baserow.contrib.database.fields.utils.pg_datetime import (  # noqa: F401
-                pg_init,
-            )
+        # date/datetime min/max year handling - replace overflowed date with None
+        from baserow.contrib.database.fields.utils.pg_datetime import (  # noqa: F401
+            pg_init,
+        )
 
-            pg_init()
+        pg_init()
 
 
 # noinspection PyPep8Naming

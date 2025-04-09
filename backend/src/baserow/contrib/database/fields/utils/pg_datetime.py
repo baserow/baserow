@@ -1,3 +1,5 @@
+import typing
+
 from baserow.core.psycopg import is_psycopg3, psycopg
 
 if is_psycopg3:
@@ -13,30 +15,12 @@ if is_psycopg3:
         TimestamptzLoader,
     )
 
-    # sentinel
-    class DateOverflowPlaceholder:
-        INVALID_DATE = "infinity"
-
-        def isoformat(self):
-            return self.INVALID_DATE
-
-        def for_json(self):
-            return self.INVALID_DATE
-
-        def __str__(self):
-            return self.INVALID_DATE
-
-        def __cmp__(self, other):
-            return isinstance(other, self.__class__) or self.INVALID_DATE == other
-
-    DATE_OVERFLOW = DateOverflowPlaceholder()
-
     class _DateOverflowLoaderMixin:
         def load(self, data):
             try:
                 return super().load(data)
             except DataError:
-                return DATE_OVERFLOW
+                return None
 
     class _TimestamptzOverflowLoaderMixin:
         timezone = None
@@ -46,7 +30,7 @@ if is_psycopg3:
                 res = super().load(data)
                 return res.replace(tzinfo=self.timezone)
             except DataError:
-                return DATE_OVERFLOW
+                return None
 
     class BaserowDateLoader(_DateOverflowLoaderMixin, DateLoader):
         pass
@@ -103,3 +87,46 @@ if is_psycopg3:
 
         ctx.adapters.register_loader("timestamptz", SpecificTzLoader)
         ctx.adapters.register_loader("timestamptz", SpecificTzBinaryLoader)
+
+else:
+    from psycopg2._psycopg import DATE, DATETIME, DATETIMETZ, DATEARRAY, DATETIMEARRAY, DATETIMETZARRAY, DataError
+
+    from django.db.utils import DataError as DjangoDataError
+
+    def _make_adapter(type_adapter) -> typing.Callable[[typing.Any, typing.Any], typing.Any]:
+        def adapter(value, cur):
+            try:
+                return type_adapter(value, cur)
+            except (DataError, DjangoDataError, ValueError) as err:
+                print('invalid value', (type_adapter, value, err, type(err),))
+                return
+        return adapter
+
+
+    def pg_init():
+
+        # available date types:
+        #
+        #      oid  | typarray |   typname
+        # ------+----------+--------------
+        #  1082 |     1182 | date
+        #  1114 |     1115 | timestamp
+        #  1115 |        0 | _timestamp
+        #  1182 |        0 | _date
+        #  1184 |     1185 | timestamptz
+        #  1185 |        0 | _timestamptz
+        #
+
+
+        for type_adapter, typea_adapter in ((DATE, DATEARRAY,), (DATETIME, DATETIMEARRAY,), (DATETIMETZ, DATETIMETZARRAY,)):
+            oid = type_adapter.values
+            array_oid = typea_adapter.values
+            typename = type_adapter.name
+            handler = _make_adapter(type_adapter)
+            array_handler = _make_adapter(typea_adapter)
+
+            ptype = psycopg.extensions.new_type(oid, typename, handler)
+            array_ptype = psycopg.extensions.new_type(array_oid, typename, array_handler)
+            psycopg.extensions.register_type(ptype)
+            psycopg.extensions.register_type(array_ptype)
+

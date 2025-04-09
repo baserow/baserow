@@ -1328,13 +1328,10 @@ class DateFieldType(FieldType):
     ):
         if not value:
             return value
-        if value != "invalid_date":
-            if isinstance(row._meta.get_field(field_name), models.DateTimeField):
-                value = datetime.fromisoformat(value)
-            else:
-                value = date.fromisoformat(value)
+        if isinstance(row._meta.get_field(field_name), models.DateTimeField):
+            value = datetime.fromisoformat(value)
         else:
-            value = Value("infinity")
+            value = date.fromisoformat(value)
 
         setattr(row, field_name, value)
 

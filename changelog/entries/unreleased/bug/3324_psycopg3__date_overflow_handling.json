@@ -1,7 +1,0 @@
-{
-    "type": "bug",
-    "message": "psycopg3 - database date overflow handling",
-    "issue_number": 3324,
-    "bullet_points": [],
-    "created_at": "2025-01-14"
-}

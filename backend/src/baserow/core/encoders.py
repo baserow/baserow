@@ -43,7 +43,4 @@ class JSONEncoderSupportingDataClasses(json.JSONEncoder):
             return str(o)
         elif isinstance(o, timedelta):
             return o.total_seconds()
-        # simplejson's way to handle custom json-friendly objects
-        elif callable(getattr(o, "for_json")):
-            return o.for_json()
         return super().default(o)
