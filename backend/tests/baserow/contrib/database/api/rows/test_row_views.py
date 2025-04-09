@@ -18,6 +18,7 @@ from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
+    HTTP_503_SERVICE_UNAVAILABLE,
 )
 
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -38,6 +39,7 @@ from baserow.test_utils.helpers import (
 )
 from tests.baserow.contrib.database.utils import (
     autonumber_field_factory,
+    get_deadlock_error,
     uuid_field_factory,
 )
 
@@ -2029,6 +2031,32 @@ def test_create_row_with_blank_decimal_field(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+@override_settings(BASEROW_DEADLOCK_INITIAL_BACKOFF=0.01)
+@override_settings(BASEROW_DEADLOCK_MAX_RETRIES=1)
+def test_create_row_deadlock(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="", read_only=False
+    )
+
+    with patch(
+        "baserow.contrib.database.rows.handler.RowHandler.force_create_row"
+    ) as mock_force_create_row:
+        mock_force_create_row.side_effect = get_deadlock_error()
+        response = api_client.post(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+            {f"field_{text_field.id}": "Green"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
+
+
+@pytest.mark.django_db
 def test_get_row(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -2407,6 +2435,38 @@ def test_update_row(api_client, data_fixture):
     assert getattr(row_2, f"field_{boolean_field.id}") is False
 
 
+@pytest.mark.django_db
+@override_settings(BASEROW_DEADLOCK_INITIAL_BACKOFF=0.01)
+@override_settings(BASEROW_DEADLOCK_MAX_RETRIES=1)
+def test_update_row_deadlock(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="", read_only=False
+    )
+
+    model = table.get_model()
+    row_1 = model.objects.create()
+
+    url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+    with patch(
+        "baserow.contrib.database.rows.handler.RowHandler.force_update_rows"
+    ) as mock_force_update_rows:
+        mock_force_update_rows.side_effect = get_deadlock_error()
+        response = api_client.patch(
+            url,
+            {
+                f"field_{text_field.id}": "Green",
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
+
+
 @pytest.mark.django_db(transaction=True)
 def test_update_row_with_disabled_webhook_events(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
@@ -2623,6 +2683,33 @@ def test_move_row(api_client, data_fixture):
     )
 
 
+@pytest.mark.django_db
+@override_settings(BASEROW_DEADLOCK_INITIAL_BACKOFF=0.01)
+@override_settings(BASEROW_DEADLOCK_MAX_RETRIES=1)
+def test_move_row_deadlock(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    handler = RowHandler()
+    row_1 = handler.create_row(user=user, table=table)
+    row_2 = handler.create_row(user=user, table=table)
+
+    url = reverse(
+        "api:database:rows:move", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+    with patch(
+        "baserow.contrib.database.rows.handler.RowHandler.move_row"
+    ) as mock_move_row:
+        mock_move_row.side_effect = get_deadlock_error()
+        response = api_client.patch(
+            f"{url}?before_id={row_2.id}",
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
+
+
 @pytest.mark.django_db(transaction=True)
 def test_move_row_with_disabled_webhook_events(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
@@ -2782,6 +2869,32 @@ def test_delete_row_by_id_with_disabled_webhook_events(api_client, data_fixture)
         )
         assert response.status_code == HTTP_204_NO_CONTENT
         m.assert_not_called()
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_DEADLOCK_INITIAL_BACKOFF=0.01)
+@override_settings(BASEROW_DEADLOCK_MAX_RETRIES=1)
+def test_delete_row_deadlock(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="", read_only=False
+    )
+
+    model = table.get_model()
+    row_1 = model.objects.create()
+
+    url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+    with patch(
+        "baserow.contrib.database.rows.handler.RowHandler.delete_row"
+    ) as mock_delete_row:
+        mock_delete_row.side_effect = get_deadlock_error()
+        response = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {jwt_token}")
+
+    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
 @pytest.mark.django_db

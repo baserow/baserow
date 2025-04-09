@@ -125,6 +125,13 @@ def try_int(s: str | int | None, default: Any = None) -> int | None:
         return default
 
 
+def try_float(s: str | float | None, default: Any = None) -> float | None:
+    try:
+        return float(s)
+    except (TypeError, ValueError):
+        return default
+
+
 def get_crontab_from_env(env_var_name: str, default_crontab: str) -> crontab:
     """
     Parses a crontab from an environment variable if present or instead uses the

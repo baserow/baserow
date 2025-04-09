@@ -421,7 +421,9 @@
     "incompatiblePrimaryFieldTypeTitle": "Field is not compatible",
     "incompatiblePrimaryFieldTypeDescription": "The chosen field can't be the primary field because it's incompatible.",
     "cannotCreateRowsInTableTitle": "Can't create rows",
-    "cannotCreateRowsInTableDescription": "It's not possible to create rows in this table."
+    "cannotCreateRowsInTableDescription": "It's not possible to create rows in this table.",
+    "databaseDeadlockTitle": "Action failed",
+    "databaseDeadlockDescription": "The action couldn't be completed due to multiple conflicting operations on the data at the same time. Please try again."
   },
   "importerType": {
     "csv": "Import a CSV file",

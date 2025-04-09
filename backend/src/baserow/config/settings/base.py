@@ -23,6 +23,7 @@ from baserow.config.settings.utils import (
     read_file,
     set_settings_from_env_if_present,
     str_to_bool,
+    try_float,
     try_int,
 )
 from baserow.core.telemetry.utils import otel_is_enabled
@@ -1356,3 +1357,13 @@ if CACHALOT_ENABLED:
         "VERSION": VERSION,
     }
 # -- END CACHALOT SETTINGS --
+
+
+BASEROW_DEADLOCK_MAX_RETRIES = max(
+    try_int(os.getenv("BASEROW_DEADLOCK_MAX_RETRIES"), 1),
+    1,
+)
+BASEROW_DEADLOCK_INITIAL_BACKOFF = max(
+    try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 1),
+    0.1,
+)
