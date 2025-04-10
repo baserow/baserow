@@ -12,7 +12,7 @@
 </template>
 
 <script>
-import GroupedAggregateRowsDataSourceForm from '@baserow_enterprise/dashboard/components/data_source/GroupedAggregateRowsDataSourceForm'
+import GroupedAggregateRowsDataSourceForm from '@baserow_premium/dashboard/components/data_source/GroupedAggregateRowsDataSourceForm'
 import error from '@baserow/modules/core/mixins/error'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 

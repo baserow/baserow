@@ -1,3 +1,6 @@
+import os
+
+
 def setup(settings):
     """
     This function is called after Baserow as setup its own Django settings file but
@@ -11,3 +14,11 @@ def setup(settings):
 
     # How many row comments can be requested at once.
     settings.ROW_COMMENT_PAGE_SIZE_LIMIT = 200
+
+    settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES = int(
+        os.getenv("BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES", "") or 3
+    )
+
+    settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = int(
+        os.getenv("BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS", "") or 10
+    )

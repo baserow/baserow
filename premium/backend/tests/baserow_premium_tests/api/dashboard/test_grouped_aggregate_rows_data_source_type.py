@@ -1,29 +1,29 @@
 import pytest
+from baserow_premium.integrations.local_baserow.models import (
+    LocalBaserowGroupedAggregateRows,
+    LocalBaserowTableServiceAggregationGroupBy,
+    LocalBaserowTableServiceAggregationSeries,
+    LocalBaserowTableServiceAggregationSortBy,
+)
 from rest_framework.reverse import reverse
 from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.test_utils.helpers import AnyDict, AnyInt
-from baserow_enterprise.integrations.local_baserow.models import (
-    LocalBaserowGroupedAggregateRows,
-    LocalBaserowTableServiceAggregationGroupBy,
-    LocalBaserowTableServiceAggregationSeries,
-    LocalBaserowTableServiceAggregationSortBy,
-)
 
 
 @pytest.mark.django_db
 def test_grouped_aggregate_rows_get_dashboard_data_sources(
-    api_client, enterprise_data_fixture
+    api_client, premium_data_fixture
 ):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    dashboard = enterprise_data_fixture.create_dashboard_application(user=user)
-    table = enterprise_data_fixture.create_database_table(user=user)
-    field = enterprise_data_fixture.create_number_field(table=table)
-    field_2 = enterprise_data_fixture.create_number_field(table=table)
-    field_3 = enterprise_data_fixture.create_number_field(table=table)
-    data_source1 = enterprise_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
+    user, token = premium_data_fixture.create_user_and_token()
+    dashboard = premium_data_fixture.create_dashboard_application(user=user)
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_number_field(table=table)
+    field_2 = premium_data_fixture.create_number_field(table=table)
+    field_3 = premium_data_fixture.create_number_field(table=table)
+    data_source1 = premium_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
         dashboard=dashboard, name="Name 1"
     )
     data_source1.service.table = table
@@ -44,14 +44,14 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
         direction="ASC",
         order=1,
     )
-    enterprise_data_fixture.create_local_baserow_table_service_sort(
+    premium_data_fixture.create_local_baserow_table_service_sort(
         service=data_source1.service,
         field=field_3,
         order_by=SORT_ORDER_ASC,
         order=2,
     )
     data_source2 = (
-        enterprise_data_fixture.create_dashboard_local_baserow_list_rows_data_source(
+        premium_data_fixture.create_dashboard_local_baserow_list_rows_data_source(
             dashboard=dashboard, name="Name 2"
         )
     )
@@ -136,15 +136,15 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
 
 
 @pytest.mark.django_db
-def test_grouped_aggregate_rows_update_data_source(api_client, enterprise_data_fixture):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    dashboard = enterprise_data_fixture.create_dashboard_application(user=user)
-    table = enterprise_data_fixture.create_database_table(user=user)
-    view = enterprise_data_fixture.create_grid_view(user, table=table)
-    field = enterprise_data_fixture.create_number_field(table=table)
-    field_2 = enterprise_data_fixture.create_number_field(table=table)
-    field_3 = enterprise_data_fixture.create_number_field(table=table)
-    data_source1 = enterprise_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
+def test_grouped_aggregate_rows_update_data_source(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token()
+    dashboard = premium_data_fixture.create_dashboard_application(user=user)
+    table = premium_data_fixture.create_database_table(user=user)
+    view = premium_data_fixture.create_grid_view(user, table=table)
+    field = premium_data_fixture.create_number_field(table=table)
+    field_2 = premium_data_fixture.create_number_field(table=table)
+    field_3 = premium_data_fixture.create_number_field(table=table)
+    data_source1 = premium_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
         dashboard=dashboard
     )
     url = reverse(
@@ -206,27 +206,27 @@ def test_grouped_aggregate_rows_update_data_source(api_client, enterprise_data_f
 
 @pytest.mark.django_db
 def test_grouped_aggregate_rows_dispatch_dashboard_data_source(
-    api_client, enterprise_data_fixture
+    api_client, premium_data_fixture
 ):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
-    table = enterprise_data_fixture.create_database_table(user=user, database=database)
-    dashboard = enterprise_data_fixture.create_dashboard_application(
+    user, token = premium_data_fixture.create_user_and_token()
+    workspace = premium_data_fixture.create_workspace(user=user)
+    database = premium_data_fixture.create_database_application(workspace=workspace)
+    table = premium_data_fixture.create_database_table(user=user, database=database)
+    dashboard = premium_data_fixture.create_dashboard_application(
         user=user, workspace=workspace
     )
-    field = enterprise_data_fixture.create_number_field(table=table)
-    field_2 = enterprise_data_fixture.create_number_field(table=table)
-    field_3 = enterprise_data_fixture.create_number_field(table=table)
-    integration = enterprise_data_fixture.create_local_baserow_integration(
+    field = premium_data_fixture.create_number_field(table=table)
+    field_2 = premium_data_fixture.create_number_field(table=table)
+    field_3 = premium_data_fixture.create_number_field(table=table)
+    integration = premium_data_fixture.create_local_baserow_integration(
         application=dashboard, user=user
     )
-    service = enterprise_data_fixture.create_service(
+    service = premium_data_fixture.create_service(
         LocalBaserowGroupedAggregateRows,
         integration=integration,
         table=table,
     )
-    data_source1 = enterprise_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
+    data_source1 = premium_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
         dashboard=dashboard, service=service, integration_args={"user": user}
     )
     LocalBaserowTableServiceAggregationSeries.objects.create(

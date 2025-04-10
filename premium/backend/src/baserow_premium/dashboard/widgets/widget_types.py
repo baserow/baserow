@@ -1,3 +1,8 @@
+from baserow_premium.dashboard.widgets.models import ChartWidget
+from baserow_premium.integrations.local_baserow.service_types import (
+    LocalBaserowGroupedAggregateRowsUserServiceType,
+)
+from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 from rest_framework import serializers
 
@@ -7,12 +12,6 @@ from baserow.contrib.dashboard.types import WidgetDict
 from baserow.contrib.dashboard.widgets.models import Widget
 from baserow.contrib.dashboard.widgets.registries import WidgetType
 from baserow.core.services.registries import service_type_registry
-from baserow_enterprise.features import CHART_WIDGET
-from baserow_enterprise.integrations.local_baserow.service_types import (
-    LocalBaserowGroupedAggregateRowsUserServiceType,
-)
-
-from .models import ChartWidget
 
 
 class ChartWidgetType(WidgetType):
@@ -33,9 +32,9 @@ class ChartWidgetType(WidgetType):
     class SerializedDict(WidgetDict):
         data_source_id: int
 
-    def before_create(self, dashboard):
-        LicenseHandler.raise_if_workspace_doesnt_have_feature(
-            CHART_WIDGET, dashboard.workspace
+    def before_create(self, user, dashboard):
+        LicenseHandler.raise_if_user_doesnt_have_feature(
+            PREMIUM, user, dashboard.workspace
         )
 
     def prepare_value_for_db(self, values: dict, instance: Widget | None = None):

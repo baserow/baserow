@@ -3,23 +3,22 @@ from django.db.models.deletion import ProtectedError
 from django.test.utils import override_settings
 
 import pytest
+from baserow_premium.integrations.local_baserow.models import (
+    LocalBaserowGroupedAggregateRows,
+)
 
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.data_sources.service import DashboardDataSourceService
 from baserow.contrib.dashboard.widgets.service import WidgetService
 from baserow.contrib.dashboard.widgets.trash_types import WidgetTrashableItemType
 from baserow.core.trash.handler import TrashHandler
-from baserow_enterprise.integrations.local_baserow.models import (
-    LocalBaserowGroupedAggregateRows,
-)
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_create_chart_widget_creates_data_source(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-    user = enterprise_data_fixture.create_user()
-    dashboard = enterprise_data_fixture.create_dashboard_application(user=user)
+def test_create_chart_widget_creates_data_source(premium_data_fixture):
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    dashboard = premium_data_fixture.create_dashboard_application(user=user)
     widget_type = "chart"
 
     created_widget = WidgetService().create_widget(
@@ -34,10 +33,10 @@ def test_create_chart_widget_creates_data_source(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
-def test_chart_widget_trash_restore(enterprise_data_fixture):
-    user = enterprise_data_fixture.create_user()
-    dashboard = enterprise_data_fixture.create_dashboard_application(user=user)
-    widget = enterprise_data_fixture.create_chart_widget(dashboard=dashboard)
+def test_chart_widget_trash_restore(premium_data_fixture):
+    user = premium_data_fixture.create_user()
+    dashboard = premium_data_fixture.create_dashboard_application(user=user)
+    widget = premium_data_fixture.create_chart_widget(dashboard=dashboard)
     data_source_id = widget.data_source.id
 
     TrashHandler.trash(user, dashboard.workspace, dashboard, widget)
@@ -52,10 +51,10 @@ def test_chart_widget_trash_restore(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
-def test_chart_widget_datasource_cannot_be_deleted(enterprise_data_fixture):
-    user = enterprise_data_fixture.create_user()
-    dashboard = enterprise_data_fixture.create_dashboard_application(user=user)
-    chart_widget = enterprise_data_fixture.create_chart_widget(dashboard=dashboard)
+def test_chart_widget_datasource_cannot_be_deleted(premium_data_fixture):
+    user = premium_data_fixture.create_user()
+    dashboard = premium_data_fixture.create_dashboard_application(user=user)
+    chart_widget = premium_data_fixture.create_chart_widget(dashboard=dashboard)
 
     with pytest.raises(ProtectedError):
         DashboardDataSourceService().delete_data_source(
