@@ -2782,7 +2782,14 @@ export class EmptyViewFilterType extends ViewFilterType {
         'multiple_select',
         'multiple_collaborators',
         FormulaFieldType.arrayOf('single_file'),
-        FormulaFieldType.arrayOf('boolean')
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('boolean'),
+        FormulaFieldType.arrayOf('date'),
+        FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('single_select'),
+        FormulaFieldType.arrayOf('multiple_select')
       ),
     ]
   }
@@ -2850,7 +2857,14 @@ export class NotEmptyViewFilterType extends ViewFilterType {
         'multiple_select',
         'multiple_collaborators',
         FormulaFieldType.arrayOf('single_file'),
-        FormulaFieldType.arrayOf('boolean')
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('boolean'),
+        FormulaFieldType.arrayOf('date'),
+        FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('single_select'),
+        FormulaFieldType.arrayOf('multiple_select')
       ),
     ]
   }

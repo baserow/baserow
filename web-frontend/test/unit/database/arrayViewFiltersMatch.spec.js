@@ -2045,3 +2045,127 @@ describe('Date array view filters', () => {
     expect(result).toBe(values.expected)
   })
 })
+
+describe('Empty / not Empty array view filters', () => {
+  let testApp = null
+  let fieldType = null
+
+  const testCases = [
+    {
+      fieldDefinition: {
+        type: 'lookup',
+        formula_type: 'array',
+        array_formula_type: 'text',
+      },
+      values: [
+        {
+          cellValue: [],
+          expected: true,
+        },
+        {
+          cellValue: [{ value: '' }],
+          expected: false,
+        },
+      ],
+    },
+    {
+      fieldDefinition: {
+        type: 'lookup',
+        formula_type: 'array',
+        array_formula_type: 'number',
+      },
+      values: [
+        {
+          cellValue: [],
+          expected: true,
+        },
+        {
+          cellValue: [{ value: 3 }],
+          expected: false,
+        },
+      ],
+    },
+    {
+      fieldDefinition: {
+        type: 'lookup',
+        formula_type: 'array',
+        array_formula_type: 'date',
+      },
+      values: [
+        {
+          cellValue: [],
+          expected: true,
+        },
+        {
+          cellValue: [{ value: '10/01/21' }],
+          expected: false,
+        },
+      ],
+    },
+    {
+      fieldDefinition: {
+        type: 'lookup',
+        formula_type: 'array',
+        array_formula_type: 'single_select',
+      },
+      values: [
+        {
+          cellValue: [],
+          expected: true,
+        },
+        {
+          cellValue: [{ value: { id: 1, value: 'a' } }],
+          expected: false,
+        },
+      ],
+    },
+    {
+      fieldDefinition: {
+        type: 'lookup',
+        formula_type: 'array',
+        array_formula_type: 'multiple_select',
+      },
+      values: [
+        {
+          cellValue: [],
+          expected: true,
+        },
+        {
+          cellValue: [{ value: [{ id: 1, value: 'a' }] }],
+          expected: false,
+        },
+      ],
+    },
+  ]
+
+  beforeAll(() => {
+    testApp = new TestApp()
+    fieldType = new FormulaFieldType({
+      app: testApp._app,
+    })
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test.each(testCases)('isEmptyCases %j', (testCase) => {
+    const fieldDefinition = testCase.fieldDefinition
+    testCase.values.forEach((testValues) => {
+      const result = new EmptyViewFilterType({
+        app: testApp._app,
+      }).matches(testValues.cellValue, null, fieldDefinition, fieldType)
+      expect(result).toBe(testValues.expected)
+    })
+  })
+
+  test.each(testCases)('isNotEmptyCases %j', (testCase) => {
+    const fieldDefinition = testCase.fieldDefinition
+    testCase.values.forEach((testValues) => {
+      const result = new NotEmptyViewFilterType({
+        app: testApp._app,
+      }).matches(testValues.cellValue, null, fieldDefinition, fieldType)
+      expect(result).toBe(!testValues.expected)
+    })
+  })
+})

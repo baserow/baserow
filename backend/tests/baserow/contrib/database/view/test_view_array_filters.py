@@ -143,6 +143,72 @@ def boolean_lookup_filter_proc(
 
 
 @pytest.mark.parametrize(
+    "field_factory",
+    [
+        text_field_factory,
+        long_text_field_factory,
+        email_field_factory,
+        phone_number_field_factory,
+        url_field_factory,
+        single_select_field_factory,
+        multiple_select_field_factory,
+        boolean_field_factory,
+        date_field_factory,
+        datetime_field_factory,
+        uuid_field_factory,
+    ],
+)
+@pytest.mark.django_db
+def test_empty_not_empty_array_filter(field_factory, data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+    target_field = field_factory(data_fixture, table_b, user)
+    lookup_field = data_fixture.create_lookup_field(
+        name="lookup",
+        table=table_a,
+        through_field=link_a_to_b,
+        target_field=target_field,
+        through_field_name=link_a_to_b.name,
+        target_field_name=target_field.name,
+    )
+    view = data_fixture.create_grid_view(user=user, table=table_a)
+    view_filter = data_fixture.create_view_filter(
+        view=view, field=lookup_field, type="empty"
+    )
+
+    row_b1, row_b2 = (
+        RowHandler().force_create_rows(user, table_b, [{}, {}]).created_rows
+    )
+
+    model_a = table_a.get_model()
+    row_a1, row_a2, row_a3, row_a4 = (
+        RowHandler()
+        .force_create_rows(
+            user,
+            table_a,
+            [
+                {},
+                {link_a_to_b.db_column: [row_b1.id]},
+                {link_a_to_b.db_column: [row_b2.id]},
+                {link_a_to_b.db_column: [row_b1.id, row_b2.id]},
+            ],
+            model=model_a,
+        )
+        .created_rows
+    )
+
+    handler = ViewHandler()
+    ids = [r.id for r in handler.apply_filters(view, model_a.objects.all()).all()]
+    assert ids == [row_a1.id]
+
+    view_filter.type = "not_empty"
+    view_filter.save()
+
+    ids = [r.id for r in handler.apply_filters(view, model_a.objects.all()).all()]
+    assert ids == [row_a2.id, row_a3.id, row_a4.id]
+
+
+@pytest.mark.parametrize(
     "target_field_factory,target_field_value_factory",
     [
         (text_field_factory, text_field_value_factory),
