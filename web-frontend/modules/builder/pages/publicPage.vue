@@ -261,8 +261,8 @@ export default {
       builder,
       pageId: pageFound.id,
     })
-
     return {
+      workspace: builder.workspace,
       builder,
       currentPage: page,
       path,
@@ -286,16 +286,12 @@ export default {
     },
     builderPageDecorators() {
       // Get available page decorators from registry
-      const decorators = Object.values(
-        this.$registry.getAll('builderPageDecorator') || {}
-      )
-        .filter((decorator) => decorator.isDecorationAllowed())
+      return Object.values(this.$registry.getAll('builderPageDecorator') || {})
+        .filter((decorator) => decorator.isDecorationAllowed(this.workspace))
         .map((decorator) => ({
           component: decorator.component,
           props: decorator.getProps(),
         }))
-
-      return decorators
     },
     applicationContext() {
       return {

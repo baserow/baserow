@@ -2,6 +2,7 @@ from typing import List
 
 from django.utils.functional import lazy
 
+from baserow_premium.plugins import PremiumPlugin
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -10,6 +11,7 @@ from baserow.api.app_auth_providers.serializers import AppAuthProviderSerializer
 from baserow.api.polymorphic import PolymorphicSerializer
 from baserow.api.services.serializers import PublicServiceSerializer
 from baserow.api.user_files.serializers import UserFileField, UserFileSerializer
+from baserow.api.workspaces.serializers import WorkspaceSerializer
 from baserow.contrib.builder.api.pages.serializers import (
     PathParamSerializer,
     QueryParamSerializer,
@@ -20,6 +22,7 @@ from baserow.contrib.builder.api.theme.serializers import (
 )
 from baserow.contrib.builder.api.validators import image_file_validation
 from baserow.contrib.builder.data_sources.models import DataSource
+from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.domains.models import Domain
 from baserow.contrib.builder.domains.registries import domain_type_registry
 from baserow.contrib.builder.elements.models import Element
@@ -28,6 +31,8 @@ from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
+from baserow.core.models import Workspace
+from baserow.core.registries import plugin_registry
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.registries import user_source_type_registry
@@ -269,6 +274,8 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
         help_text=Builder._meta.get_field("login_page").help_text
     )
 
+    workspace = serializers.SerializerMethodField(help_text="The workspace.")
+
     class Meta:
         model = Builder
         fields = (
@@ -280,6 +287,7 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
             "user_sources",
             "favicon_file",
             "login_page_id",
+            "workspace",
         )
 
     @extend_schema_field(PublicPageSerializer(many=True))
@@ -320,6 +328,33 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
         if favicon_file := obj.favicon_file:
             return UserFileSerializer(favicon_file).data
         return None
+
+    @staticmethod
+    def show_made_with_baserow_label(workspace: Workspace) -> bool:
+        license_plugin = plugin_registry.get_by_type(PremiumPlugin).get_license_plugin(
+            cache_queries=True
+        )
+        license_types = list(
+            license_plugin.get_active_instance_wide_license_types(None)
+        ) + list(license_plugin.get_active_workspace_licenses(workspace))
+        # With Enterprise license or Advanced SaaS plan, don't show the label
+        for license_type in license_types:
+            if "enterprise" in license_type.type or "advanced" in license_type.type:
+                return False
+        return True
+
+    def get_workspace(self, obj):
+        if not obj.workspace_id:
+            domain = DomainHandler().get_domain_for_builder(obj)
+            workspace = domain.builder.workspace
+        else:
+            workspace = obj.workspace
+
+        data = WorkspaceSerializer(workspace).data
+        data["show_made_with_baserow_label"] = self.show_made_with_baserow_label(
+            workspace
+        )
+        return data
 
 
 class PublicDataSourceSerializer(PublicServiceSerializer):

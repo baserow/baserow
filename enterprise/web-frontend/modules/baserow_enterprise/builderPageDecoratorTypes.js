@@ -24,7 +24,7 @@ export class BuilderPageDecoratorType extends Registerable {
    * Returns whether the decorator should be applied for the current context.
    * This is called to determine if the decorator should be applied to the page.
    */
-  isDecorationAllowed() {
+  isDecorationAllowed(workspace = {}) {
     return true
   }
 
@@ -47,17 +47,12 @@ export class MadeWithBaserowBuilderPageDecoratorType extends BuilderPageDecorato
   }
 
   get component() {
-    return require('@baserow_enterprise/components/builder/MadeWithBaserowBuilderDecorator').default
+    return require('@baserow_enterprise/components/builder/MadeWithBaserowBuilderDecorator')
+      .default
   }
 
-  isDecorationAllowed() {
+  isDecorationAllowed(workspace = { show_made_with_baserow_label: false }) {
     // Only show the decorator if the workspace doesn't have an Enterprise license
-    const premium_or_advanced = this.app.$hasFeature('PREMIUM') ||
-                           this.app.$hasFeature('ADVANCED')
-    if (!premium_or_advanced) {
-      return true
-    }
-
-
+    return workspace.show_made_with_baserow_label
   }
 }
