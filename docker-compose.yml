@@ -205,6 +205,7 @@ x-backend-variables: &backend-variables
   BASEROW_DEADLOCK_INITIAL_BACKOFF:
   BASEROW_DEADLOCK_MAX_RETRIES:
   BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES:
+  BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS:
 
 services:
   # A caddy reverse proxy sitting in-front of all the services. Responsible for routing
@@ -276,6 +277,7 @@ services:
       BASEROW_FRONTEND_SAME_SITE_COOKIE:
       SENTRY_DSN:
       BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES:
+      BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS:
     depends_on:
       - backend
     networks:

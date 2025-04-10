@@ -658,7 +658,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             queryset = queryset.annotate(**combined_agg_dict)
             queryset = queryset.order_by(*sorts)
             queryset = queryset[
-                : settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
+                : settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
             ]
 
             results = [process_individual_result(result) for result in queryset]
