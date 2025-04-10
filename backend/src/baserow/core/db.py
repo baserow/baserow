@@ -20,18 +20,17 @@ from typing import (
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.db import DEFAULT_DB_ALIAS, connection, transaction
+from django.db import DEFAULT_DB_ALIAS, OperationalError, connection, transaction
 from django.db.models import ForeignKey, ManyToManyField, Max, Model, Prefetch, QuerySet
 from django.db.models.functions import Collate
 from django.db.models.query import ModelIterable
 from django.db.models.sql.query import LOOKUP_SEP
 from django.db.transaction import Atomic, get_connection
-from django.db.utils import OperationalError
 
 from loguru import logger
 
 from baserow.contrib.database.exceptions import DeadlockException
-from baserow.core.psycopg import errorcodes, sql
+from baserow.core.psycopg import is_deadlock_error, sql
 
 from .utils import find_intermediate_order
 
@@ -842,10 +841,7 @@ def atomic_with_retry_on_deadlock(
                     with transaction.atomic():
                         return func(*args, **kwargs)
                 except OperationalError as exc:
-                    is_deadlock = (
-                        getattr(exc.__cause__, "pgcode") == errorcodes.DEADLOCK_DETECTED
-                    )
-                    if not is_deadlock:
+                    if not is_deadlock_error(exc):
                         raise exc
 
                     if retries == max_retries:

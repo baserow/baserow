@@ -18,7 +18,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import GridView
-from baserow.core.psycopg import errorcodes
+from baserow.core.psycopg import errors
 from baserow.test_utils.fixtures import Fixtures
 
 
@@ -280,9 +280,6 @@ def setup_formula_field(
 
 
 def get_deadlock_error(message: str = "Deadlock detected"):
-    class DeadlockCause(Exception):
-        pgcode = errorcodes.DEADLOCK_DETECTED
-
     error = OperationalError(message)
-    error.__cause__ = DeadlockCause()
+    error.__cause__ = errors.DeadlockDetected()
     return error
