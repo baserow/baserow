@@ -376,9 +376,9 @@ import GridViewRowDragging from '@baserow/modules/database/components/view/grid/
 import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import {
-  sortFieldsByOrderAndIdFunction,
-  filterVisibleFieldsFunction,
   filterHiddenFieldsFunction,
+  filterVisibleFieldsFunction,
+  sortFieldsByOrderAndIdFunction,
 } from '@baserow/modules/database/utils/view'
 import viewHelpers from '@baserow/modules/database/mixins/viewHelpers'
 import { isElement } from '@baserow/modules/core/utils/dom'

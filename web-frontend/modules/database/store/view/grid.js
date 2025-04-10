@@ -2,6 +2,7 @@ import Vue from 'vue'
 import axios from 'axios'
 import _ from 'lodash'
 import BigNumber from 'bignumber.js'
+import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/action'
 
 import { uuid } from '@baserow/modules/core/utils/string'
 import { clone } from '@baserow/modules/core/utils/object'
@@ -66,7 +67,10 @@ function populateRows({
 
     fieldsInOrder.forEach((field, fieldIndex) => {
       // We can't pre-filter because we need the correct filter index.
-      if (field._.type.isReadOnly) {
+      if (
+        field._.type.isReadOnly ||
+        (field._.type.getIsReadOnly && field._.type.getIsReadOnly())
+      ) {
         return
       }
       const fieldId = `field_${field.id}`
@@ -1882,6 +1886,7 @@ export const actions = {
       before = null,
       selectPrimaryCell = false,
       isRowOpenedInModal = undefined,
+      undoRedoActionGroupId = null,
     }
   ) {
     // Create an object of default field values that can be used to fill the row with
@@ -2021,7 +2026,8 @@ export const actions = {
         const resp = await RowService(this.$client).batchCreate(
           table.id,
           rowsPrepared,
-          before !== null ? before.id : null
+          before !== null ? before.id : null,
+          undoRedoActionGroupId
         )
         data = resp.data
       })
@@ -2627,40 +2633,25 @@ export const actions = {
     // Create a copy of the existing (old) rows, which are needed to create the
     // comparison when checking if the rows still matches the filters and position.
     const oldRowsInOrder = clone(rowsInOrder)
-    // Prepare the values that must be send to the server.
-    const valuesForUpdate = []
 
-    // Prepare the values for update and update the row objects.
-    rowsInOrder.forEach((row, rowIndex) => {
-      valuesForUpdate[rowIndex] = { id: row.id }
-
-      fieldsInOrder.forEach((field, fieldIndex) => {
-        // We can't pre-filter because we need the correct filter index.
-        if (field._.type.isReadOnly) {
-          return
-        }
-
-        const fieldId = `field_${field.id}`
-        const textValue = textData[rowIndex][fieldIndex]
-        const jsonValue =
-          jsonData != null ? jsonData[rowIndex][fieldIndex] : undefined
-        const fieldType = this.$registry.get('field', field.type)
-        const preparedValue = fieldType.prepareValueForPaste(
-          field,
-          textValue,
-          jsonValue
-        )
-        const newValue = fieldType.prepareValueForUpdate(field, preparedValue)
-        valuesForUpdate[rowIndex][fieldId] = newValue
-      })
+    // Prepare the values for update and update the row objects. The resulting list
+    // of objects will be send to the backend.
+    const valuesForUpdate = populateRows({
+      tsvData: textData.slice(0, rowsInOrder.length),
+      jsonData: jsonData ? jsonData.slice(0, rowsInOrder.length) : null,
+      fieldsInOrder,
+      registry: this.$registry,
+      fromRows: rowsInOrder,
     })
 
     // We don't have to update the rows in the buffer before the request is being made
     // because we're showing a loading animation to the user indicating that the
     // rows are being updated.
+    const undoRedoActionGroupId = createNewUndoRedoActionGroupId()
     const { data: responseData } = await RowService(this.$client).batchUpdate(
       table.id,
-      valuesForUpdate
+      valuesForUpdate,
+      undoRedoActionGroupId
     )
     const updatedRows = responseData.items
     // Create extra missing rows
@@ -2676,6 +2667,7 @@ export const actions = {
           registry: this.$registry,
         }),
         selectPrimaryCell: false,
+        undoRedoActionGroupId,
       })
       rowTailIndex = rowTailIndex + newRowsCount
     }
@@ -2692,6 +2684,7 @@ export const actions = {
         fields: allFieldsInTable,
         row,
         values,
+        undoRedoActionGroupId,
       })
     }
 
@@ -2727,7 +2720,11 @@ export const actions = {
     const newRowExists = newRow._.matchFilters && newRow._.matchSearch
 
     if (oldRowExists && !newRowExists) {
-      await dispatch('deletedExistingRow', { view, fields, row })
+      await dispatch('deletedExistingRow', {
+        view,
+        fields,
+        row,
+      })
     } else if (!oldRowExists && newRowExists) {
       await dispatch('createdNewRow', {
         view,
