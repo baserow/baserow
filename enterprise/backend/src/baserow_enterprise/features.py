@@ -8,6 +8,7 @@ SECURE_FILE_SERVE = "secure_file_serve"
 ENTERPRISE_SETTINGS = "ENTERPRISE_SETTINGS"
 DATA_SYNC = "data_sync"
 ADVANCED_WEBHOOKS = "advanced_webhooks"
+FIELD_LEVEL_PERMISSIONS = "field_level_permissions"
 
 BUILDER_SSO = "application_user_sso"
 BUILDER_NO_BRANDING = "application_no_branding"

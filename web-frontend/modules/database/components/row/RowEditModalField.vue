@@ -127,7 +127,7 @@ export default {
   },
   methods: {
     isReadOnlyField(field) {
-      return this.$registry.get('field', field.type).isReadOnlyField(field)
+      return !this.$registry.get('field', field.type).canWriteFieldValues(field)
     },
     getFieldComponent(type) {
       return this.$registry

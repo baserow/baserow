@@ -1070,10 +1070,12 @@ PERMISSION_MANAGERS = [
     "element_visibility",
     "member",
     "token",
+    "write_field_values",
     "role",
     "basic",
 ]
 if "baserow_enterprise" not in INSTALLED_APPS:
+    PERMISSION_MANAGERS.remove("write_field_values")
     PERMISSION_MANAGERS.remove("role")
 if "baserow_premium" not in INSTALLED_APPS:
     PERMISSION_MANAGERS.remove("view_ownership")

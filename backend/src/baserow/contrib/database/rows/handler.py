@@ -39,6 +39,7 @@ from baserow.contrib.database.fields.exceptions import (
     IncompatibleField,
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
+from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
 from baserow.contrib.database.fields.registries import FieldType, field_type_registry
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.search.handler import SearchHandler
@@ -59,12 +60,13 @@ from baserow.core.db import (
     get_unique_orders_before_item,
     recalculate_full_orders,
 )
-from baserow.core.exceptions import CannotCalculateIntermediateOrder
+from baserow.core.exceptions import CannotCalculateIntermediateOrder, PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.psycopg import sql
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
+from baserow.core.types import PermissionCheck
 from baserow.core.utils import Progress, get_non_unique_values, grouper
 
 from .constants import ROW_IMPORT_CREATION, ROW_IMPORT_VALIDATION
@@ -701,6 +703,14 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             context=table,
         )
 
+        if model is None:
+            model = table.get_model()
+
+        if not values:
+            values = {}
+
+        self._check_write_fields_values_permissions(user, model, [values])
+
         return self.force_create_row(
             user,
             table,
@@ -936,6 +946,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 updated_field_ids.add(field_id)
                 updated_fields_by_name[field["name"]] = field["field"]
                 updated_fields.append(field["field"])
+
+        self._check_write_fields_values_permissions(user, model, [values])
 
         rows = [row]
         before_return = before_rows_update.send(
@@ -1274,6 +1286,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             context=table,
         )
 
+        if model is None:
+            model = table.get_model()
+
+        self._check_write_fields_values_permissions(user, model, rows_values)
+
         return self.force_create_rows(
             user,
             table,
@@ -1596,6 +1613,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             workspace=workspace,
             context=table,
         )
+        model = table.get_model()
 
         error_report = RowErrorReport(data)
         configuration = configuration or {}
@@ -1607,8 +1625,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         # Pre-run upsert configuration validation.
         # Can raise InvalidRowLength
         update_handler.validate()
-
-        model = table.get_model()
 
         fields = [
             field_object["field"]
@@ -1670,6 +1686,17 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             if progress
             else None
         )
+
+        # Make sure to exclude fields that cannot be written by the user.
+        # NOTE: all rows contain the same fields, so we can just check the first one
+        unwritable_fields = self._check_write_fields_values_permissions(
+            user, model, valid_rows[:1], raise_if_not_permitted=False
+        )
+        unwritable_field_names = set(f.db_column for f in unwritable_fields)
+        valid_rows = [
+            {k: v for k, v in row.items() if k not in unwritable_field_names}
+            for row in valid_rows
+        ]
 
         # split rows to insert and update lists. If there's no upsert field selected,
         # this will not populate rows_values_to_update.
@@ -1776,6 +1803,48 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             fields_metadata_by_row_id[row_id] = fields_metadata
 
         return fields_metadata_by_row_id
+
+    def _check_write_fields_values_permissions(
+        self,
+        user: AbstractUser,
+        model: GeneratedTableModel,
+        rows_values: List[Dict[str, Any]],
+        raise_if_not_permitted: bool = True,
+    ) -> List["Field"]:
+        """
+        Verifies if the user has permission to write the values of the fields
+        provided in the rows_values. If the user does not have permission,
+        a PermissionDenied exception is raised.
+
+        :param user: The user to check permissions for.
+        :param model: The model containing the fields.
+        :param rows_values: The rows values to check permissions for.
+        :return: If raise_if_not_permitted is False, returns the list of fields
+            that the user does not have permission to write.
+        :raises PermissionDenied: If the user does not have permission to write
+            the values of the specified fields.
+        """
+
+        field_ids = self._extract_updated_field_ids(rows_values, model)
+
+        fields = [
+            model.get_field_object_by_id(field_id, include_trash=True)["field"]
+            for field_id in field_ids
+        ]
+        table = model.baserow_table
+        perm_checks = [
+            PermissionCheck(user, WriteFieldValuesOperationType.type, field)
+            for field in fields
+        ]
+        results = CoreHandler().check_multiple_permissions(
+            perm_checks, table.database.workspace
+        )
+        unwritable_fields = [c.context for (c, res) in results.items() if not res]
+        if unwritable_fields and raise_if_not_permitted:
+            raise PermissionDenied(
+                f"You don't have permission to update the following fields: {', '.join([f.name for f in unwritable_fields])}"
+            )
+        return unwritable_fields
 
     def force_update_rows(
         self,
@@ -2094,6 +2163,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             context=table,
         )
 
+        if model is None:
+            model = table.get_model()
+
+        self._check_write_fields_values_permissions(user, model, rows_values)
+
         return self.force_update_rows(
             user,
             table,
@@ -2105,6 +2179,26 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             skip_search_update,
             generate_error_report=generate_error_report,
         )
+
+    def _extract_updated_field_ids(
+        self, rows_values: List[Dict[str, Any]], model: GeneratedTableModel
+    ) -> Set[int]:
+        """
+        Extracts the field ids that are updated based on the provided rows
+        values. This is used to determine which fields need to be updated
+        and verified for permissions.
+
+        :param rows_values: The list of rows values to check.
+        :param model: The model that should be used to get the field ids.
+        :return: A set of field ids that are updated.
+        """
+
+        updated_field_ids = set()
+        for row_values in rows_values:
+            for field_id, field_obj in model._field_objects.items():
+                if field_id in row_values or field_obj["name"] in row_values:
+                    updated_field_ids.add(field_id)
+        return updated_field_ids
 
     def get_rows(
         self, model: GeneratedTableModel, row_ids: List[int]

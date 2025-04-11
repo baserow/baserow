@@ -1,5 +1,8 @@
 import { registerRealtimeEvents } from '@baserow_enterprise/realtime'
-import { RolePermissionManagerType } from '@baserow_enterprise/permissionManagerTypes'
+import {
+  RolePermissionManagerType,
+  WriteFieldValuesPermissionManagerType,
+} from '@baserow_enterprise/permissionManagerTypes'
 import { AuthProvidersType, AuditLogType } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
@@ -66,6 +69,8 @@ import {
   SSOPaidFeature,
   SupportWebhooksPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
+import { FieldPermissionMenuItemType } from '@baserow_enterprise/components/field-permissions/updateFieldMenuItemTypes'
+import { FF_FIELD_PERMISSIONS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -87,6 +92,10 @@ export default (context) => {
   app.$registry.register(
     'permissionManager',
     new RolePermissionManagerType(context)
+  )
+  app.$registry.register(
+    'permissionManager',
+    new WriteFieldValuesPermissionManagerType(context)
   )
 
   store.registerModule('authProviderAdmin', authProviderAdminStore)
@@ -194,4 +203,11 @@ export default (context) => {
     'builderPageDecorator',
     new MadeWithBaserowBuilderPageDecoratorType(context)
   )
+
+  if (app.$featureFlagIsEnabled(FF_FIELD_PERMISSIONS)) {
+    app.$registry.register(
+      'updateFieldMenuItemType',
+      new FieldPermissionMenuItemType(context)
+    )
+  }
 }

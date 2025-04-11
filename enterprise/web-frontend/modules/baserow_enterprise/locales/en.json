@@ -499,5 +499,23 @@
   "fileInputElement": {
     "defaultHelpText": "Drag and drop files here or click to select",
     "fileSizeExceeded": "File too large. Max {max}MB."
+  },
+  "fieldPermissionModal": {
+    "title": "Edit field permissions",
+    "description": "Choose who can edit values in {fieldName}.",
+    "question": "Who can edit this field?",
+    "editorTitle": "Editors and higher (default)",
+    "editorDescription": "Users with Editor, Builder, and Admin roles",
+    "builderTitle": "Builders and higher",
+    "builderDescription": "Users with Builder and Admin roles",
+    "adminTitle": "Admins only",
+    "adminDescription": "Users with Admin roles",
+    "nobodyTitle": "Nobody",
+    "nobodyDescription": "No users",
+    "allowInForms": "Allow this field to be set in rows created through forms",
+    "linkRowWarning": "This is a 'Link to table' field. To ensure values cannot be changed from the linked table, please make ensure to set the right permissions on the linked table as well."
+  },
+  "fieldPermissionMenuItem": {
+    "label": "Edit field permissions"
   }
 }

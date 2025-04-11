@@ -518,6 +518,14 @@
   }
 }
 
+.form-view__field-read-only {
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
 .form-view__field-options {
   display: none;
   margin-top: 20px;
