@@ -14,7 +14,7 @@ class UserFile(models.Model):
     original_name = models.CharField(max_length=255)
     original_extension = models.CharField(max_length=64)
     unique = models.CharField(max_length=32)
-    size = models.PositiveIntegerField()
+    size = models.PositiveBigIntegerField()
     mime_type = models.CharField(max_length=127, blank=True)
     is_image = models.BooleanField(default=False)
     image_width = models.PositiveIntegerField(null=True)
