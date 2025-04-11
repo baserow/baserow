@@ -6,7 +6,7 @@
   "author": "Bram Wiepjes (Baserow)",
   "license": "MIT",
   "engines": {
-    "node": ">=21.7.3 <22.0"
+    "node": ">=22.14.0 <23.0"
   },
   "scripts": {
     "build": "NODE_ENV=production nuxt build",
@@ -31,7 +31,7 @@
   "dependencies": {
     "@nuxtjs/i18n": "7.3.1",
     "@nuxtjs/sentry": "7.5.0",
-    "@storybook/core-client": "6.5.9",
+    "@storybook/core-client": "6.5.16",
     "@tiptap/core": "^2.0.3",
     "@tiptap/extension-blockquote": "^2.2.2",
     "@tiptap/extension-bold": "^2.2.2",
@@ -88,7 +88,7 @@
     "moment-timezone": "0.5.43",
     "node-sass": "8.0.0",
     "normalize-scss": "^7.0.1",
-    "nuxt": "2.17.2",
+    "nuxt": "2.18.1",
     "papaparse": "5.4.1",
     "path-to-regexp": "^1.8.0",
     "posthog-js": "^1.232.4",
@@ -100,7 +100,8 @@
     "uuid": "9.0.0",
     "vue-chartjs": "^5.3.2",
     "vue2-smooth-scroll": "^1.6.0",
-    "vuejs-datepicker": "1.6.2"
+    "vuejs-datepicker": "1.6.2",
+    "elliptic": "6.6.1"
   },
   "devDependencies": {
     "@babel/core": "7.23.6",
