@@ -3,6 +3,26 @@ import re
 from django.conf import settings
 from django.db.models import F
 
+from baserow_premium.api.integrations.local_baserow.serializers import (
+    LocalBaserowTableServiceAggregationGroupBySerializer,
+    LocalBaserowTableServiceAggregationSeriesSerializer,
+    LocalBaserowTableServiceAggregationSortBySerializer,
+)
+from baserow_premium.integrations.local_baserow.models import (
+    LocalBaserowGroupedAggregateRows,
+    LocalBaserowTableServiceAggregationGroupBy,
+    LocalBaserowTableServiceAggregationSeries,
+    LocalBaserowTableServiceAggregationSortBy,
+)
+from baserow_premium.integrations.registries import (
+    grouped_aggregation_group_by_registry,
+    grouped_aggregation_registry,
+)
+from baserow_premium.services.types import (
+    ServiceAggregationGroupByDict,
+    ServiceAggregationSeriesDict,
+    ServiceAggregationSortByDict,
+)
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
@@ -26,29 +46,6 @@ from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.core.services.registries import DispatchTypes
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import atomic_if_not_already
-from baserow_enterprise.api.integrations.local_baserow.serializers import (
-    LocalBaserowTableServiceAggregationGroupBySerializer,
-    LocalBaserowTableServiceAggregationSeriesSerializer,
-    LocalBaserowTableServiceAggregationSortBySerializer,
-)
-from baserow_enterprise.integrations.local_baserow.models import (
-    LocalBaserowGroupedAggregateRows,
-)
-from baserow_enterprise.integrations.registries import (
-    grouped_aggregation_group_by_registry,
-    grouped_aggregation_registry,
-)
-from baserow_enterprise.services.types import (
-    ServiceAggregationGroupByDict,
-    ServiceAggregationSeriesDict,
-    ServiceAggregationSortByDict,
-)
-
-from .models import (
-    LocalBaserowTableServiceAggregationGroupBy,
-    LocalBaserowTableServiceAggregationSeries,
-    LocalBaserowTableServiceAggregationSortBy,
-)
 
 
 class LocalBaserowGroupedAggregateRowsUserServiceType(
@@ -188,10 +185,10 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             if aggregation_series is not None:
                 if (
                     len(aggregation_series)
-                    > settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES
+                    > settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES
                 ):
                     raise DRFValidationError(
-                        detail=f"The number of series exceeds the maximum allowed length of {settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES}.",
+                        detail=f"The number of series exceeds the maximum allowed length of {settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES}.",
                         code="max_length_exceeded",
                     )
                 LocalBaserowTableServiceAggregationSeries.objects.bulk_create(
@@ -661,7 +658,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             queryset = queryset.annotate(**combined_agg_dict)
             queryset = queryset.order_by(*sorts)
             queryset = queryset[
-                : settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
+                : settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
             ]
 
             results = [process_individual_result(result) for result in queryset]

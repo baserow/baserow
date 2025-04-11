@@ -121,9 +121,9 @@
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
-import AggregationSeriesForm from '@baserow_enterprise/dashboard/components/data_source/AggregationSeriesForm'
-import AggregationGroupByForm from '@baserow_enterprise/dashboard/components/data_source/AggregationGroupByForm'
-import AggregationSortByForm from '@baserow_enterprise/dashboard/components/data_source/AggregationSortByForm'
+import AggregationSeriesForm from '@baserow_premium/dashboard/components/data_source/AggregationSeriesForm'
+import AggregationGroupByForm from '@baserow_premium/dashboard/components/data_source/AggregationGroupByForm'
+import AggregationSortByForm from '@baserow_premium/dashboard/components/data_source/AggregationSortByForm'
 import tableFields from '@baserow/modules/database/mixins/tableFields'
 
 const includesIfSet = (array) => (value) => {
@@ -267,7 +267,7 @@ export default {
     canAddSeries() {
       return (
         this.values.aggregation_series.length <
-        this.$config.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES
+        this.$config.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES
       )
     },
   },

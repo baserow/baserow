@@ -49,13 +49,6 @@
       <i class="iconoir-check premium-features__feature-icon"></i>
       {{ $t('enterpriseFeatures.support') }}
     </li>
-    <li
-      v-if="!hiddenFeatures.includes(enterpriseFeatures.CHART_WIDGET)"
-      class="premium-features__feature"
-    >
-      <i class="iconoir-check premium-features__feature-icon"></i>
-      {{ $t('enterpriseFeatures.chartWidget') }}
-    </li>
   </ul>
 </template>
 

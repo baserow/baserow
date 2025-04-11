@@ -40,5 +40,9 @@
       <i class="iconoir-check premium-features__feature-icon"></i>
       {{ $t('premiumFeatures.aiFeatures') }}
     </li>
+    <li class="premium-features__feature">
+      <i class="iconoir-check premium-features__feature-icon"></i>
+      {{ $t('premiumFeatures.chartWidget') }}
+    </li>
   </ul>
 </template>

@@ -1,5 +1,5 @@
-from baserow_enterprise.dashboard.widgets.models import ChartWidget
-from baserow_enterprise.integrations.local_baserow.models import (
+from baserow_premium.dashboard.widgets.models import ChartWidget
+from baserow_premium.integrations.local_baserow.models import (
     LocalBaserowGroupedAggregateRows,
 )
 
