@@ -103,7 +103,7 @@ export default {
 
       const prefill = prefillField(field, prefills)
 
-      values[`field_${field.field.id}`] = fieldType.getEmptyValue(field.field) // Default value
+      values[`field_${field.field.id}`] = fieldType.getDefaultValue(field.field) // Default value
       if (
         prefill !== undefined &&
         prefill !== null &&
@@ -233,7 +233,7 @@ export default {
           .forEach((f) => {
             visibleValues['field_' + f.field.id] = this.$registry
               .get('field', f.field.type)
-              .getEmptyValue(f.field)
+              .getDefaultValue(f.field)
           })
 
         if (

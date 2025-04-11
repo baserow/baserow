@@ -61,7 +61,7 @@ export class AIFieldType extends FieldType {
     return {}
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return null
   }
 

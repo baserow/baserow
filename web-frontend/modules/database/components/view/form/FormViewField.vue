@@ -307,7 +307,7 @@ export default {
       return this.$registry.get('field', this.field.type)
     },
     resetValue() {
-      this.value = this.getFieldType().getEmptyValue(this.field)
+      this.value = this.getFieldType().getDefaultValue(this.field)
     },
     createConditionGroup(parentGroupId) {
       return {

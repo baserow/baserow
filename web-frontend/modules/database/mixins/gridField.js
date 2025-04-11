@@ -142,7 +142,7 @@ export default {
           event.preventDefault()
           const value = this.$registry
             .get('field', this.field.type)
-            .getEmptyValue(this.field)
+            .getDefaultValue(this.field)
           const oldValue = this.value
           if (
             value !== oldValue &&

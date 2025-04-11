@@ -159,11 +159,11 @@ def test_boolean_field_default_value(data_fixture):
     row_handler = RowHandler()
 
     model = table.get_model()
-    row_1 = row_handler.create_row(
+    row_1 = row_handler.force_create_row(
         user=user,
         table=table,
     )
-    row_2 = row_handler.create_row(
+    row_2 = row_handler.force_create_row(
         user=user,
         table=table,
         values={f"field_{boolean_field.id}": True},
@@ -176,11 +176,11 @@ def test_boolean_field_default_value(data_fixture):
         user=user, field=boolean_field, boolean_default=True
     )
 
-    row_3 = row_handler.create_row(
+    row_3 = row_handler.force_create_row(
         user=user,
         table=table,
     )
-    row_4 = row_handler.create_row(
+    row_4 = row_handler.force_create_row(
         user=user,
         table=table,
         values={f"field_{boolean_field.id}": False},
@@ -192,7 +192,7 @@ def test_boolean_field_default_value(data_fixture):
         user=user, field=boolean_field, boolean_default=False
     )
 
-    row_5 = row_handler.create_row(
+    row_5 = row_handler.force_create_row(
         user=user,
         table=table,
     )

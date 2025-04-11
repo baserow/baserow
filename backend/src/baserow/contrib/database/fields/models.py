@@ -368,7 +368,7 @@ class NumberField(Field):
         decimal_places=20,
         null=True,
         blank=True,
-        help_text="The default value of the number field.",
+        help_text="The default value for field if none is provided.",
     )
 
     def save(self, *args, **kwargs):
@@ -426,17 +426,19 @@ class RatingField(Field):
 class BooleanField(Field):
     boolean_default = models.BooleanField(
         default=False,
-        help_text="If set, this value is going to be added every time a new row "
-        "created.",
+        db_default=False,
+        help_text="The default value for field if none is provided.",
     )
 
 
 class DateField(Field, BaseDateMixin):
-    date_default = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        help_text="Default value of the date field. Can be a date/datetime or 'now'",
+    date_default_now = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text=(
+            "If enabled, the default value for new rows will be set to the current date "
+            "and time when the row is created. If disabled, no default value will be set."
+        ),
     )
 
 
@@ -551,7 +553,10 @@ class SingleSelectField(Field):
     single_select_default = models.PositiveBigIntegerField(
         null=True,
         blank=True,
-        help_text="The default value of single select field.",
+        help_text=(
+            "The default value for the field if none is provided. Can be None if no default "
+            "is set, or the ID of an available select option."
+        ),
     )
 
 
@@ -562,7 +567,10 @@ class MultipleSelectField(Field):
         models.PositiveBigIntegerField(),
         null=True,
         blank=True,
-        help_text="The default value of multiple select field.",
+        help_text=(
+            "The default value for the field if none is provided. Can be None if no default "
+            "is set, or the IDs of an available select options."
+        ),
     )
 
     @property
@@ -883,7 +891,11 @@ class MultipleCollaboratorsField(Field):
         models.PositiveBigIntegerField(),
         null=True,
         blank=True,
-        help_text="The default value of multiple collaborators field.",
+        help_text=(
+            "The default value for the field if none is provided. Can be None if no "
+            "default is set, or the IDs of available collaborators or value 0 to "
+            "automatically set the current user when row is created."
+        ),
     )
 
     @property

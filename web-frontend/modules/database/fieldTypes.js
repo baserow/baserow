@@ -328,14 +328,7 @@ export class FieldType extends Registerable {
 
   /**
    * Because we want to show a new row immediately after creating we need to have an
-   * empty value to show right away.
-   */
-  getEmptyValue(field) {
-    return null
-  }
-
-  /**
-   * Returns the default value for the field if fields supports it.
+   * default value to show right away.
    */
   getDefaultValue(field) {
     return null
@@ -792,7 +785,7 @@ export class FieldType extends Registerable {
    * call submitted to the backend, so the user will immediately see it.
    */
   getNewRowValue(field) {
-    return this.getEmptyValue(field)
+    return this.getDefaultValue(field)
   }
 
   /**
@@ -998,10 +991,6 @@ export class TextFieldType extends FieldType {
     return field.text_default || ''
   }
 
-  getEmptyValue(field) {
-    return this.getDefaultValue(field)
-  }
-
   canUpsert() {
     return true
   }
@@ -1113,7 +1102,7 @@ export class LongTextFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return ''
   }
 
@@ -1225,7 +1214,7 @@ export class LinkRowFieldType extends FieldType {
     return RowHistoryFieldLinkRow
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return []
   }
 
@@ -1500,7 +1489,7 @@ export class LinkRowFieldType extends FieldType {
       }
     }
 
-    return items.length > 0 ? items : this.getEmptyValue()
+    return items.length > 0 ? items : this.getDefaultValue()
   }
 
   getCanImport() {
@@ -1784,7 +1773,7 @@ export class RatingFieldType extends FieldType {
     return ['text', '1', '9']
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return 0
   }
 
@@ -1861,7 +1850,7 @@ export class RatingFieldType extends FieldType {
     const valueParsed = parseInt(value, 10)
 
     if (isNaN(valueParsed) || valueParsed < 0) {
-      return this.getEmptyValue()
+      return this.getDefaultValue()
     }
 
     if (valueParsed > field.max_value) {
@@ -1924,10 +1913,6 @@ export class BooleanFieldType extends FieldType {
 
   getDefaultValue(field) {
     return field.boolean_default || false
-  }
-
-  getEmptyValue(field) {
-    return this.getDefaultValue(field)
   }
 
   getSortIndicator() {
@@ -2925,7 +2910,7 @@ export class URLFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return ''
   }
 
@@ -3028,7 +3013,7 @@ export class EmailFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return ''
   }
 
@@ -3208,7 +3193,7 @@ export class FileFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return []
   }
 
@@ -3514,7 +3499,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       (option) => option.value === value
     )
 
-    return selectedOption ?? this.getEmptyValue()
+    return selectedOption ?? this.getDefaultValue()
   }
 
   getCanImport() {
@@ -3767,7 +3752,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
     return genericContainsWordFilter
   }
 
-  getEmptyValue() {
+  getDefaultValue() {
     return []
   }
 
@@ -3793,7 +3778,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
       values.includes(option.value)
     )
 
-    return selectOptions.length > 0 ? selectOptions : this.getEmptyValue()
+    return selectOptions.length > 0 ? selectOptions : this.getDefaultValue()
   }
 
   getCanImport() {
@@ -3878,7 +3863,7 @@ export class PhoneNumberFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return ''
   }
 
@@ -4031,7 +4016,7 @@ export class FormulaFieldType extends mix(
     return this.getFormulaType(field)?.getSortTypes(field)
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return null
   }
 
@@ -4295,7 +4280,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     return components
   }
 
-  getEmptyValue() {
+  getDefaultValue() {
     return []
   }
 
