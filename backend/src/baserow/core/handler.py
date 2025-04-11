@@ -3,7 +3,7 @@ import json
 import os
 import re
 from dataclasses import dataclass
-from io import BytesIO
+from io import BufferedReader, BytesIO
 from pathlib import Path
 from typing import IO, Any, Callable, Dict, List, NewType, Optional, Tuple, Union, cast
 from urllib.parse import urljoin, urlparse
@@ -1774,7 +1774,16 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             exported_applications, key=application_priority_sort, reverse=True
         )
 
-        with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+        # If files_buffer is a bytes object, decompress it. Otherwise, use it directly
+        # as a file-like object. This can be used when files are not saved in a zip
+        # file, but the object provides a way to download and used them on the fly.
+        if isinstance(
+            files_buffer, (bytes, bytearray, memoryview, BytesIO, BufferedReader)
+        ):
+            files_zip = ZipFile(files_buffer, "a", ZIP_DEFLATED, False)
+        else:
+            files_zip = files_buffer
+        try:
             id_mapping: Dict[str, Any] = {}
             imported_applications = []
             next_application_order_value = Application.get_last_order(workspace)
@@ -1795,6 +1804,8 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
                 next_application_order_value += 1
                 imported_applications.append(imported_application)
             Application.objects.bulk_update(imported_applications, ["order"])
+        finally:
+            files_zip.close()
 
         return imported_applications, id_mapping
 
