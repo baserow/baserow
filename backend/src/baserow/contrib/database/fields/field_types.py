@@ -1297,14 +1297,37 @@ class DateFieldType(FieldType):
                     ELSEIF p_in IS NULL THEN
                         p_in = null;
                     ELSE
-                        p_in = GREATEST(
-                            {sql_function}(p_in::text, 'FM{sql_format}'),
-                            '0001-01-01'::{sql_type}
-                        );
+                        p_in = case when
+                            {sql_function}(p_in::text, 'FM{sql_format}')
+                            between '0001-01-01'::{sql_type}
+                                and '9999-12-31'::{sql_type}
+                            then
+                                {sql_function}(p_in::text, 'FM{sql_format}')
+                            else NULL
+                            end;
+
+                        /** LEAST(
+                             '9999-12-31'::{sql_type},
+                                 GREATEST(
+                                 {sql_function}(p_in::text, 'FM{sql_format}'),
+                                 '0001-01-01'::{sql_type}
+                                 )
+                             );
+                             **/
                     END IF;
                 exception when others then
                     begin
-                        p_in = GREATEST(p_in::{sql_type}, '0001-01-01'::{sql_type});
+                        p_in =case when
+                            p_in::{sql_type}
+                            between '0001-01-01'::{sql_type}
+                                and '9999-12-31'::{sql_type}
+                            then
+                                p_in::{sql_type}
+                            else NULL
+                            end;
+
+                        /** LEAST('9999-12-31'::date, GREATEST(p_in::{sql_type},
+                         '0001-01-01'::{sql_type})); **/
                     exception when others then
                         p_in = p_default;
                     end;

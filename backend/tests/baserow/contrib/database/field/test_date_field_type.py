@@ -520,10 +520,8 @@ def test_negative_date_field_value(data_fixture):
     assert getattr(results[3], f"field_{datetime_field.id}") is None
     assert getattr(results[4], f"field_{date_field.id}") is None
     assert getattr(results[4], f"field_{datetime_field.id}") is None
-    assert getattr(results[5], f"field_{date_field.id}") == date(1, 1, 1)
-    assert getattr(results[5], f"field_{datetime_field.id}") == (
-        datetime(1, 1, 1, tzinfo=timezone.utc)
-    )
+    assert getattr(results[5], f"field_{date_field.id}") is None
+    assert getattr(results[5], f"field_{datetime_field.id}") is None
     assert getattr(results[6], f"field_{date_field.id}") is None
     assert getattr(results[6], f"field_{datetime_field.id}") is None
     assert getattr(results[7], f"field_{date_field.id}") == date(2010, 2, 3)
@@ -782,7 +780,7 @@ def test_date_field_overflow(settings, data_fixture):
     )
     out = row_handler.get_rows(table.get_model(), [row.id])
     assert len(out) == 1
-    assert getattr(out[0], date_field.db_column, None) == invalid_date_value
+    assert getattr(out[0], date_field.db_column, None) is None
 
 
 @pytest.mark.django_db
@@ -841,4 +839,4 @@ def test_datetime_field_overflow(on_db_connection, data_fixture):
     out = row_handler.get_rows(table.get_model(), [row.id])
     assert len(out) == 1
 
-    assert getattr(out[0], date_field.db_column, None) == invalid_date_value
+    assert getattr(out[0], date_field.db_column, None) is None

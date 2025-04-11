@@ -22,6 +22,5 @@ else:
     from psycopg2 import errors, sql  # noqa: F401
 
 
-
 def is_deadlock_error(exc: DatabaseError) -> bool:
     return isinstance(exc.__cause__, errors.DeadlockDetected)
