@@ -53,3 +53,41 @@ export class RolePermissionManagerType extends PermissionManagerType {
     )
   }
 }
+
+
+export class FieldPermissionManagerType extends PermissionManagerType {
+  static getType() {
+    return 'field'
+  }
+
+  getRolesTranslations() {
+    const { i18n } = this.app
+
+    return {
+      ADMIN: {
+        name: i18n.t('roles.admin.name'),
+        description: i18n.t('roles.admin.description'),
+      },
+      BUILDER: {
+        name: i18n.t('roles.builder.name'),
+        description: i18n.t('roles.builder.description'),
+      },
+      EDITOR: {
+        name: i18n.t('roles.editor.name'),
+        description: i18n.t('roles.editor.description'),
+      },
+      CUSTOM: {
+        name: i18n.t('fieldPermissionManager.customRole.name'),
+        description: i18n.t('fieldPermissionManager.customRole.description'),
+      },
+      NOBODY: {
+        name: i18n.t('fieldPermissionManager.nobody.name'),
+        description: i18n.t('fieldPermissionManager.nobody.description'),
+      },
+    }
+  }
+
+  hasPermission(permissions, operation, context, workspaceId) {
+    return true
+  }
+}

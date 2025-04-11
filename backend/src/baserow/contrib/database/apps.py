@@ -784,6 +784,7 @@ class DatabaseConfig(AppConfig):
             ReadFieldOperationType,
             RestoreFieldOperationType,
             UpdateFieldOperationType,
+            WriteFieldDataOperationType,
         )
         from .formula import TypeFormulaOperationType
         from .operations import (
@@ -894,6 +895,7 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(DeleteRelatedLinkRowFieldOperationType())
         operation_type_registry.register(DuplicateFieldOperationType())
         operation_type_registry.register(UpdateViewFieldOptionsOperationType())
+        operation_type_registry.register(WriteFieldDataOperationType())
         operation_type_registry.register(DeleteViewSortOperationType())
         operation_type_registry.register(DeleteViewGroupByOperationType())
         operation_type_registry.register(UpdateViewSlugOperationType())

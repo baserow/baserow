@@ -1,5 +1,5 @@
 import { registerRealtimeEvents } from '@baserow_enterprise/realtime'
-import { RolePermissionManagerType } from '@baserow_enterprise/permissionManagerTypes'
+import { RolePermissionManagerType, FieldPermissionManagerType } from '@baserow_enterprise/permissionManagerTypes'
 import { AuthProvidersType, AuditLogType } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
@@ -74,6 +74,10 @@ export default (context) => {
   app.$registry.register(
     'permissionManager',
     new RolePermissionManagerType(context)
+  )
+  app.$registry.register(
+    'permissionManager',
+    new FieldPermissionManagerType(context)
   )
 
   store.registerModule('authProviderAdmin', authProviderAdminStore)

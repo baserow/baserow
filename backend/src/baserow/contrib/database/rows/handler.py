@@ -39,6 +39,7 @@ from baserow.contrib.database.fields.exceptions import (
     IncompatibleField,
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
+from baserow.contrib.database.fields.operations import WriteFieldDataOperationType
 from baserow.contrib.database.fields.registries import FieldType, field_type_registry
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.search.handler import SearchHandler
@@ -59,12 +60,13 @@ from baserow.core.db import (
     get_unique_orders_before_item,
     recalculate_full_orders,
 )
-from baserow.core.exceptions import CannotCalculateIntermediateOrder
+from baserow.core.exceptions import CannotCalculateIntermediateOrder, PermissionDenied, PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.psycopg import sql
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
+from baserow.core.types import PermissionCheck
 from baserow.core.utils import Progress, get_non_unique_values, grouper
 
 from .constants import ROW_IMPORT_CREATION, ROW_IMPORT_VALIDATION
@@ -1776,6 +1778,23 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             fields_metadata_by_row_id[row_id] = fields_metadata
 
         return fields_metadata_by_row_id
+    
+    def _check_user_can_write_fields_data(self, user, model, field_ids):
+        updated_fields = [
+            model.get_field_object_by_id(field_id, include_trash=True)["field"]
+            for field_id in field_ids
+        ]
+        table = model.baserow_table
+        perm_checks = [
+            PermissionCheck(user, WriteFieldDataOperationType.type, field)
+            for field in updated_fields
+        ]
+        results = CoreHandler().check_multiple_permissions(perm_checks, table.database.workspace)
+        unwritable_fields = [c.context for (c, res) in results.items() if not res]
+        if unwritable_fields:
+            raise PermissionDenied(
+                f"You don't have permission to update the following fields: ..."
+            )
 
     def force_update_rows(
         self,
@@ -1846,6 +1865,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             raise RowDoesNotExist(sorted(list(set(row_ids) - set(db_rows_ids))))
 
         updated_fields = [o["field"] for o in model._field_objects.values()]
+
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
             rows_to_update, updated_fields, None
         )
@@ -1858,6 +1878,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 field_name_to_field[field_obj["name"]] = field_obj["field"]
                 if field_id in row_values or field_obj["name"] in row_values:
                     updated_field_ids.add(field_id)
+
+        self._check_user_can_write_fields_data(user, model, updated_field_ids)
 
         original_row_values_by_id = {}
         for row in rows_to_update:

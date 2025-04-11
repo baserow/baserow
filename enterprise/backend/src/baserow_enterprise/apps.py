@@ -58,6 +58,9 @@ class BaserowEnterpriseConfig(AppConfig):
         )
         from baserow_enterprise.trash_types import TeamTrashableItemType
 
+        from .fields.operations import (
+            AssignFieldPermissionOperationType,
+        )
         from .emails_context_types import EnterpriseEmailContextType
         from .plugins import EnterprisePlugin
         from .role.member_data_types import EnterpriseRolesDataType
@@ -109,6 +112,7 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(ReadRoleTableOperationType())
         operation_type_registry.register(UpdateRoleTableOperationType())
         operation_type_registry.register(ListWorkspaceAuditLogEntriesOperationType())
+        operation_type_registry.register(AssignFieldPermissionOperationType())
 
         from baserow.core.registries import subject_type_registry
 
@@ -116,8 +120,10 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.registries import permission_manager_type_registry
 
+        from .fields.permission_manager import FieldPermissionManagerType
         from .role.permission_manager import RolePermissionManagerType
 
+        permission_manager_type_registry.register(FieldPermissionManagerType())
         permission_manager_type_registry.register(RolePermissionManagerType())
 
         from baserow_premium.license.registries import license_type_registry

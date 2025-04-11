@@ -39,3 +39,7 @@ class RestoreFieldOperationType(FieldOperationType):
 
 class DuplicateFieldOperationType(FieldOperationType):
     type = "database.table.field.duplicate"
+
+
+class WriteFieldDataOperationType(FieldOperationType):
+    type = "database.table.field.write_data"

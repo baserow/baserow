@@ -241,6 +241,9 @@ from baserow_enterprise.role.constants import (
     NO_ROLE_LOW_PRIORITY_ROLE_UID,
     VIEWER_ROLE_UID,
 )
+from baserow_enterprise.fields.operations import (
+    AssignFieldPermissionOperationType,
+)
 from baserow_enterprise.role.operations import (
     AssignRoleWorkspaceOperationType,
     ReadRoleApplicationOperationType,
@@ -469,6 +472,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         CreateDashboardDataSourceOperationType,
         DeleteDashboardDataSourceOperationType,
         UpdateDashboardDataSourceOperationType,
+        AssignFieldPermissionOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(
