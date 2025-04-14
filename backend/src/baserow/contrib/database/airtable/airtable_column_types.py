@@ -389,6 +389,27 @@ class CheckboxAirtableColumnType(AirtableColumnType):
     ):
         return "true" if value else "false"
 
+    def to_baserow_export_empty_value(
+        self,
+        row_id_mapping,
+        raw_airtable_table,
+        raw_airtable_row,
+        raw_airtable_column,
+        baserow_field,
+        files_to_download,
+        config,
+        import_report,
+    ):
+        # If the field has a default value of True, we need to explicitly return "false"
+        # to ensure that empty values in Airtable are properly imported as False in
+        # Baserow. Otherwise, the value would be omitted in the export, resulting in
+        # the default value automatically being set, while it's actually empty in
+        # Airtable.
+        if baserow_field.boolean_default:
+            return "false"
+        else:
+            raise AirtableSkipCellValue
+
 
 class DateAirtableColumnType(AirtableColumnType):
     type = "date"
