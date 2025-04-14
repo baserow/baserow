@@ -39,6 +39,10 @@ export default function () {
   if (this.options.publicRuntimeConfig) {
     this.options.publicRuntimeConfig.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES =
       process.env.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES || 3
+    this.options.publicRuntimeConfig.BASEROW_PRICING_URL =
+      process.env.BASEROW_PRICING_URL ||
+      'https://baserow.io/pricing?version=self-hosted'
+    console.log(this.options.publicRuntimeConfig.BASEROW_PRICING_URL)
   }
 
   const staticMiddleware = serveStatic(

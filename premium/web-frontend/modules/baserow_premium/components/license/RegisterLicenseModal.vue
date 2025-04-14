@@ -6,7 +6,7 @@
     <div>
       <i18n path="registerLicenseModal.licenseDescription" tag="p">
         <template #pricingLink>
-          <a target="_blank" href="https://baserow.io/pricing">{{
+          <a target="_blank" :href="$config.BASEROW_PRICING_URL">{{
             $t('registerLicenseModal.viewPricing')
           }}</a>
         </template>

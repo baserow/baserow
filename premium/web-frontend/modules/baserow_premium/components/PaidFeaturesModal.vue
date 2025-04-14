@@ -48,7 +48,7 @@
         <Button
           type="primary"
           size="large"
-          href="https://baserow.io/pricing"
+          :href="$config.BASEROW_PRICING_URL"
           target="_blank"
           tag="a"
           >{{ $t('paidFeaturesModal.viewPricing') }}</Button
