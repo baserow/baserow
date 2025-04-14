@@ -76,14 +76,14 @@
 
   &.modal__box-sidebar--left {
     flex-basis: 200px;
-    border-right: 1px solid $color-neutral-200;
+    border-right: 1px solid $palette-neutral-200;
     border-top-left-radius: 6px;
     border-bottom-left-radius: 6px;
   }
 
   &.modal__box-sidebar--right {
     flex-basis: 300px;
-    border-left: 1px solid $color-neutral-200;
+    border-left: 1px solid $palette-neutral-200;
     border-top-right-radius: 6px;
     border-bottom-right-radius: 6px;
   }

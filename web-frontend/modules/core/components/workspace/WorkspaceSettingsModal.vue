@@ -5,10 +5,8 @@
     :content-scrollable="true"
   >
     <template #sidebar>
-      <div class="modal-sidebar__head">
-        <div class="modal-sidebar__head-name">
-          {{ $t('workspaceSettingsModal.title') }}
-        </div>
+      <div class="modal-sidebar__title">
+        {{ $t('workspaceSettingsModal.title') }}
       </div>
       <ul class="modal-sidebar__nav">
         <li v-for="setting in registeredSettings" :key="setting.type">

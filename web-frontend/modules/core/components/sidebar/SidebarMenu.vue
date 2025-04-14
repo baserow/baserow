@@ -132,7 +132,10 @@
               <span class="sidebar__item-name">{{ $t('sidebar.trash') }}</span>
             </span>
           </a>
-          <TrashModal ref="trashModal"></TrashModal>
+          <TrashModal
+            ref="trashModal"
+            :initial-workspace="selectedWorkspace"
+          ></TrashModal>
         </div>
       </li>
     </ul>
