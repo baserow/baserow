@@ -510,8 +510,15 @@
   color: $palette-neutral-700;
   visibility: hidden;
   font-size: 14px;
-  line-height: 18px;
+  height: 20px;
+  width: 20px;
+  text-align: center;
   margin-right: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  @include rounded($rounded-md);
 
   .grid-view__row--hover &,
   .grid-view__row--selected & {
@@ -519,6 +526,7 @@
   }
 
   &:hover {
+    background-color: rgba($palette-neutral-1300, 0.06);
     color: $palette-neutral-1200;
   }
 }
