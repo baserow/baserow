@@ -23,11 +23,11 @@
       @created="$emit('created', $event)"
     ></CreateViewModal>
     <component
-      :is="deactivatedClickModal"
+      :is="deactivatedClickModal[0]"
       v-if="deactivatedClickModal !== null"
       ref="deactivatedClickModal"
+      v-bind="deactivatedClickModal[1] || {}"
       :workspace="database.workspace"
-      :name="viewType.getName()"
     ></component>
     <i class="select__footer-create-link-icon iconoir-plus"></i>
   </a>

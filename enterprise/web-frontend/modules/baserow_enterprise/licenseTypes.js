@@ -1,7 +1,6 @@
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 import PremiumFeaturesObject from '@baserow_premium/features'
 import { LicenseType } from '@baserow_premium/licenseTypes'
-import EnterpriseFeatures from '@baserow_enterprise/components/EnterpriseFeatures'
 
 export class EnterpriseWithoutSupportLicenseType extends LicenseType {
   static getType() {
@@ -76,10 +75,6 @@ export class EnterpriseWithoutSupportLicenseType extends LicenseType {
     const { i18n } = this.app
     return i18n.t('enterprise.overflowWarning')
   }
-
-  getFeaturesComponent() {
-    return EnterpriseFeatures
-  }
 }
 
 export class EnterpriseLicenseType extends EnterpriseWithoutSupportLicenseType {
@@ -95,9 +90,5 @@ export class EnterpriseLicenseType extends EnterpriseWithoutSupportLicenseType {
     const description = super.getFeaturesDescription()
     description[2].enabled = true
     return description
-  }
-
-  getFeaturesComponent() {
-    return null
   }
 }

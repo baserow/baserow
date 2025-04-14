@@ -2,8 +2,9 @@ import {
   WebhookEventType,
   viewExample,
 } from '@baserow/modules/database/webhookEventTypes'
-import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
 import EnterpriseFeatures from '@baserow_enterprise/features'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { AdvancedWebhooksPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 class EnterpriseWebhookEventType extends WebhookEventType {
   getDeactivatedText() {
@@ -11,7 +12,10 @@ class EnterpriseWebhookEventType extends WebhookEventType {
   }
 
   getDeactivatedClickModal() {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': AdvancedWebhooksPaidFeature.getType() },
+    ]
   }
 
   isDeactivated(workspaceId) {

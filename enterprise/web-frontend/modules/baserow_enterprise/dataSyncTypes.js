@@ -2,11 +2,12 @@ import { DataSyncType } from '@baserow/modules/database/dataSyncTypes'
 
 import LocalBaserowTableDataSync from '@baserow_enterprise/components/dataSync/LocalBaserowTableDataSync'
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
 import JiraIssuesDataSyncForm from '@baserow_enterprise/components/dataSync/JiraIssuesDataSyncForm'
 import GitHubIssuesDataSyncForm from '@baserow_enterprise/components/dataSync/GitHubIssuesDataSyncForm'
 import GitLabIssuesDataSyncForm from '@baserow_enterprise/components/dataSync/GitLabIssuesDataSyncForm'
 import HubspotContactsDataSyncForm from '@baserow_enterprise/components/dataSync/HubspotContactsDataSyncForm'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { DataSyncPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 export class LocalBaserowTableDataSyncType extends DataSyncType {
   static getType() {
@@ -31,7 +32,10 @@ export class LocalBaserowTableDataSyncType extends DataSyncType {
   }
 
   getDeactivatedClickModal() {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': DataSyncPaidFeature.getType() },
+    ]
   }
 }
 
@@ -58,7 +62,10 @@ export class JiraIssuesDataSyncType extends DataSyncType {
   }
 
   getDeactivatedClickModal() {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': DataSyncPaidFeature.getType() },
+    ]
   }
 }
 
@@ -85,7 +92,10 @@ export class GitHubIssuesDataSyncType extends DataSyncType {
   }
 
   getDeactivatedClickModal() {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': DataSyncPaidFeature.getType() },
+    ]
   }
 }
 
@@ -112,7 +122,10 @@ export class GitLabIssuesDataSyncType extends DataSyncType {
   }
 
   getDeactivatedClickModal() {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': DataSyncPaidFeature.getType() },
+    ]
   }
 }
 
@@ -139,6 +152,9 @@ export class HubspotContactsDataSyncType extends DataSyncType {
   }
 
   getDeactivatedClickModal() {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': DataSyncPaidFeature.getType() },
+    ]
   }
 }

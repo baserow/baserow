@@ -2,10 +2,11 @@ import { TableExporterType } from '@baserow/modules/database/exporterTypes'
 import { GridViewType } from '@baserow/modules/database/viewTypes'
 import TableJSONExporter from '@baserow_premium/components/exporter/TableJSONExporter'
 import TableXMLExporter from '@baserow_premium/components/exporter/TableXMLExporter'
-import PremiumModal from '@baserow_premium/components/PremiumModal'
 import PremiumFeatures from '@baserow_premium/features'
 import TableExcelExporter from '@baserow_premium/components/exporter/TableExcelExporter'
 import TableFileExporter from '@baserow_premium/components/exporter/TableFileExporter'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { ExportsPaidFeature } from '@baserow_premium/paidFeatures'
 
 class PremiumTableExporterType extends TableExporterType {
   getDeactivatedText() {
@@ -13,7 +14,10 @@ class PremiumTableExporterType extends TableExporterType {
   }
 
   getDeactivatedClickModal() {
-    return PremiumModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': ExportsPaidFeature.getType() },
+    ]
   }
 
   isDeactivated(workspaceId) {

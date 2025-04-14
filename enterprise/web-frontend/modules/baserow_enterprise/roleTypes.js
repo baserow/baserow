@@ -2,8 +2,9 @@ import {
   AdminRoleType,
   MemberRoleType,
 } from '@baserow/modules/database/roleTypes'
-import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
 import EnterpriseFeatures from '@baserow_enterprise/features'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { RBACPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 export class EnterpriseAdminRoleType extends AdminRoleType {
   showIsBillable(workspaceId) {
@@ -58,7 +59,10 @@ export class EnterpriseBuilderRoleType extends MemberRoleType {
   }
 
   getDeactivatedClickModal() {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': RBACPaidFeature.getType() },
+    ]
   }
 }
 
@@ -94,7 +98,10 @@ export class EnterpriseEditorRoleType extends MemberRoleType {
   }
 
   getDeactivatedClickModal(workspaceId) {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': RBACPaidFeature.getType() },
+    ]
   }
 }
 
@@ -130,7 +137,10 @@ export class EnterpriseCommenterRoleType extends MemberRoleType {
   }
 
   getDeactivatedClickModal(workspaceId) {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': RBACPaidFeature.getType() },
+    ]
   }
 }
 
@@ -166,7 +176,10 @@ export class EnterpriseViewerRoleType extends MemberRoleType {
   }
 
   getDeactivatedClickModal(workspaceId) {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': RBACPaidFeature.getType() },
+    ]
   }
 }
 
@@ -202,7 +215,10 @@ export class NoAccessRoleType extends MemberRoleType {
   }
 
   getDeactivatedClickModal(workspaceId) {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': RBACPaidFeature.getType() },
+    ]
   }
 }
 
@@ -238,6 +254,9 @@ export class NoRoleLowPriorityRoleType extends MemberRoleType {
   }
 
   getDeactivatedClickModal(workspaceId) {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': RBACPaidFeature.getType() },
+    ]
   }
 }
