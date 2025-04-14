@@ -1,7 +1,5 @@
 import path from 'path'
 
-import serveStatic from 'serve-static'
-
 import { routes } from './routes'
 
 import en from './locales/en.json'
@@ -42,12 +40,5 @@ export default function () {
     this.options.publicRuntimeConfig.BASEROW_PRICING_URL =
       process.env.BASEROW_PRICING_URL ||
       'https://baserow.io/pricing?version=self-hosted'
-    console.log(this.options.publicRuntimeConfig.BASEROW_PRICING_URL)
   }
-
-  const staticMiddleware = serveStatic(
-    path.resolve(__dirname, 'static'),
-    this.options.render.static
-  )
-  this.addServerMiddleware(staticMiddleware)
 }
