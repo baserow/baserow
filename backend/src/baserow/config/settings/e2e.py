@@ -6,7 +6,7 @@ from .utils import setup_dev_e2e
 DEBUG = True
 
 
-def sync_single_default_template_only_for_e2e(sender, **kwargs):
+def sync_templates_only_for_e2e(sender, **kwargs):
     """
     Some tests work with templates, to keep things fast in the e2e CI job we only
     want to sync one template instead of all of them.
@@ -24,7 +24,7 @@ def sync_single_default_template_only_for_e2e(sender, **kwargs):
 # Disable normal template syncing in CI as we will sync a single template ourselves
 # instead.
 BASEROW_TRIGGER_SYNC_TEMPLATES_AFTER_MIGRATION = False
-post_migrate.connect(sync_single_default_template_only_for_e2e)
+post_migrate.connect(sync_templates_only_for_e2e)
 
 # Don't bother waiting for the non-existent license authority
 LICENSE_AUTHORITY_CHECK_TIMEOUT_SECONDS = 0.001

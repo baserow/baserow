@@ -28,7 +28,7 @@ service-identity==24.1.0
 regex==2024.4.28
 antlr4-python3-runtime==4.9.3
 tqdm==4.66.4
-boto3==1.34.98
+boto3<=1.35
 django-storages==1.14.3
 django-storages[azure]==1.14.3
 django-storages[google]==1.14.3
