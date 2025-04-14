@@ -43,7 +43,6 @@ export class EnterpriseWithoutSupportLicenseType extends LicenseType {
       EnterpriseFeaturesObject.AUDIT_LOG,
       EnterpriseFeaturesObject.ENTERPRISE_SETTINGS,
       EnterpriseFeaturesObject.DATA_SYNC,
-      EnterpriseFeaturesObject.CHART_WIDGET,
       EnterpriseFeaturesObject.BUILDER_SSO,
       EnterpriseFeaturesObject.ADVANCED_WEBHOOKS,
     ]
