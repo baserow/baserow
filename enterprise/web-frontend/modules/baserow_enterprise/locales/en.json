@@ -292,9 +292,9 @@
     "coBranding": "Co-branding logo replacement",
     "coBrandingContent": "Customize the Baserow interface with your own logo. Note that \"powered by Baserow\" is added.",
     "support": "Direct support",
-    "supportContent": "Trigger webhooks when a row enters a specific view—great for automating workflows based on filter conditions.",
+    "supportContent": "Get help when you need it. Reach out to the Baserow team directly from within the platform.",
     "advancedWebhooks": "Advanced webhooks",
-    "advancedWebhooksContent": "Get help when you need it. Reach out to the Baserow team directly from within the platform.'"
+    "advancedWebhooksContent": "Trigger webhooks when a row enters a specific view — great for automating workflows based on filter conditions."
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
