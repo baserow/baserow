@@ -485,7 +485,9 @@ const queryParametersForParsing = [
       value: 'a string',
       field: { field: { number_decimal_places: 1 } },
     },
-    output: new NumberFieldType().getDefaultValue(),
+    output: new NumberFieldType().getDefaultValue({
+      number_decimal_places: 1,
+    }),
   },
   {
     fieldType: new NumberFieldType(),

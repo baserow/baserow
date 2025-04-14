@@ -3133,7 +3133,7 @@ export const actions = {
 
     // Get the empty value for each selected field
     const emptyValues = selectedFields.map((field) =>
-      this.$registry.get('field', field.type).getDefaultValue(field)
+      this.$registry.get('field', field.type).getEmptyValue(field)
     )
 
     // Copy the empty value array once for each row selected

@@ -1997,7 +1997,11 @@ def test_airtable_import_number_column_default_value(data_fixture, api_client):
         "name": "Number",
         "type": "number",
         "default": 1,
-        "typeOptions": {},
+        "typeOptions": {
+            "format": "integer",
+            "negative": False,
+            "validatorName": "positive",
+        },
     }
     import_report = AirtableImportReport()
     (
@@ -2009,10 +2013,60 @@ def test_airtable_import_number_column_default_value(data_fixture, api_client):
         AirtableImportConfig(),
         import_report,
     )
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "Number"
-    assert import_report.items[0].scope == SCOPE_FIELD
-    assert import_report.items[0].table == ""
+    assert isinstance(baserow_field, NumberField)
+    assert baserow_field.number_default == 1
+    assert len(import_report.items) == 0
+
+    # Test percentage default value
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Number",
+        "type": "number",
+        "default": 0.5,
+        "typeOptions": {
+            "format": "percentage",
+            "negative": False,
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert isinstance(baserow_field, NumberField)
+    assert baserow_field.number_default == 50.0
+    assert len(import_report.items) == 0
+
+    # Test decimal default value
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Number",
+        "type": "number",
+        "default": 1.23,
+        "typeOptions": {
+            "format": "decimal",
+            "precision": 2,
+            "negative": True,
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert isinstance(baserow_field, NumberField)
+    assert baserow_field.number_default == 1.23
+    assert len(import_report.items) == 0
 
 
 @pytest.mark.django_db

@@ -285,7 +285,9 @@
     "spacePeriod": "Space, period (1 000 000.00)",
     "commaPeriod": "Comma, period (1,000,000.00)",
     "periodComma": "Period, comma (1.000.000,00)",
-    "noFormatting": "No formatting"
+    "noFormatting": "No formatting",
+    "defaultValueLabel": "Default value",
+    "defaultValuePlaceholder": "Enter a default value"
   },
   "fieldDurationSubForm": {
     "durationFormatLabel": "Duration format"

@@ -283,3 +283,65 @@ def test_number_field_adjacent_row(data_fixture):
 
     assert previous_row.id == row_c.id
     assert next_row.id == row_a.id
+
+
+@pytest.mark.django_db
+def test_number_field_default_value(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    number_field = data_fixture.create_number_field(table=table, name="Number")
+
+    row_handler = RowHandler()
+
+    model = table.get_model()
+    row_1 = row_handler.force_create_row(
+        user=user,
+        table=table,
+    )
+    row_2 = row_handler.force_create_row(
+        user=user,
+        table=table,
+        values={f"field_{number_field.id}": 42},
+    )
+    assert getattr(row_1, f"field_{number_field.id}") is None
+    assert getattr(row_2, f"field_{number_field.id}") == 42
+
+    field_handler = FieldHandler()
+    number_field = field_handler.update_field(
+        user=user, field=number_field, number_default=100
+    )
+
+    row_3 = row_handler.force_create_row(
+        user=user,
+        table=table,
+    )
+    row_4 = row_handler.force_create_row(
+        user=user,
+        table=table,
+        values={f"field_{number_field.id}": 50},
+    )
+    assert getattr(row_3, f"field_{number_field.id}") == 100
+    assert getattr(row_4, f"field_{number_field.id}") == 50
+
+    number_field = field_handler.update_field(
+        user=user, field=number_field, number_default=0
+    )
+
+    row_5 = row_handler.force_create_row(
+        user=user,
+        table=table,
+    )
+    assert getattr(row_5, f"field_{number_field.id}") == 0
+
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+    row_3.refresh_from_db()
+    row_4.refresh_from_db()
+    row_5.refresh_from_db()
+
+    assert getattr(row_1, f"field_{number_field.id}") is None
+    assert getattr(row_2, f"field_{number_field.id}") == 42
+    assert getattr(row_3, f"field_{number_field.id}") == 100
+    assert getattr(row_4, f"field_{number_field.id}") == 50
+    assert getattr(row_5, f"field_{number_field.id}") == 0

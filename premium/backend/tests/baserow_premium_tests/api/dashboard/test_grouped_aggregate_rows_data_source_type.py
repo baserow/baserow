@@ -83,6 +83,7 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
                     "immutable_type": False,
                     "name": field_3.name,
                     "number_decimal_places": 0,
+                    "number_default": None,
                     "number_negative": False,
                     "number_prefix": "",
                     "number_separator": "",
