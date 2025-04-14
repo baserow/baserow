@@ -106,9 +106,11 @@
   padding: 0 8px;
   margin-right: 16px;
   font-weight: 500;
+  border-radius: 28px;
+  flex-basis: 28px;
+  text-align: center;
 
   @include fixed-height(28px, 11px);
-  @include rounded($rounded);
 }
 
 .kanban-view__options {
