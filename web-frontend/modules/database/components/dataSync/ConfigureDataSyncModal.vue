@@ -5,11 +5,7 @@
     @hidden="$emit('hidden')"
   >
     <template #sidebar>
-      <div class="modal-sidebar__head">
-        <div class="modal-sidebar__head-name">
-          {{ table.name }}
-        </div>
-      </div>
+      <div class="modal-sidebar__title">{{ table.name }}</div>
       <ul class="modal-sidebar__nav">
         <li v-for="page in pages" :key="page.getType()">
           <a

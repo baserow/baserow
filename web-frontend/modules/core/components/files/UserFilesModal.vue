@@ -1,10 +1,8 @@
 <template>
   <Modal :left-sidebar="true" @hidden="$emit('hidden')">
     <template #sidebar>
-      <div class="modal-sidebar__head">
-        <div class="modal-sidebar__head-name">
-          {{ $t('userFilesModal.title') }}
-        </div>
+      <div class="modal-sidebar__title">
+        {{ $t('userFilesModal.title') }}
       </div>
       <ul class="modal-sidebar__nav">
         <li v-for="upload in registeredUserFileUploads" :key="upload.type">

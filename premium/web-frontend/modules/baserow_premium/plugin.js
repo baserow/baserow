@@ -86,6 +86,20 @@ import {
   ChoiceAIFieldOutputType,
   TextAIFieldOutputType,
 } from '@baserow_premium/aiFieldOutputTypes'
+import {
+  AIPaidFeature,
+  CalendarViewPaidFeature,
+  ExportsPaidFeature,
+  FormSurveyModePaidFeature,
+  KanbanViewPaidFeature,
+  PersonalViewsPaidFeature,
+  PublicLogoRemovalPaidFeature,
+  RowColoringPaidFeature,
+  RowCommentsPaidFeature,
+  RowNotificationsPaidFeature,
+  TimelineViewPaidFeature,
+  ChartPaidFeature,
+} from '@baserow_premium/paidFeatures'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -130,6 +144,7 @@ export default (context) => {
   store.registerModule('impersonating', impersonatingStore)
 
   app.$registry.registerNamespace('aiFieldOutputType')
+  app.$registry.registerNamespace('paidFeature')
 
   app.$registry.register('plugin', new PremiumPlugin(context))
   app.$registry.register('admin', new LicensesAdminType(context))
@@ -205,7 +220,6 @@ export default (context) => {
     'aiFieldOutputType',
     new ChoiceAIFieldOutputType(context)
   )
-
   app.$registry.register(
     'groupedAggregation',
     new MinViewAggregationType(context)
@@ -321,4 +335,23 @@ export default (context) => {
     'chartFieldFormatting',
     new SingleSelectFormattingType(context)
   )
+
+  app.$registry.register('paidFeature', new KanbanViewPaidFeature(context))
+  app.$registry.register('paidFeature', new CalendarViewPaidFeature(context))
+  app.$registry.register('paidFeature', new TimelineViewPaidFeature(context))
+  app.$registry.register('paidFeature', new RowColoringPaidFeature(context))
+  app.$registry.register('paidFeature', new RowCommentsPaidFeature(context))
+  app.$registry.register(
+    'paidFeature',
+    new RowNotificationsPaidFeature(context)
+  )
+  app.$registry.register('paidFeature', new AIPaidFeature(context))
+  app.$registry.register('paidFeature', new PersonalViewsPaidFeature(context))
+  app.$registry.register('paidFeature', new ExportsPaidFeature(context))
+  app.$registry.register('paidFeature', new FormSurveyModePaidFeature(context))
+  app.$registry.register(
+    'paidFeature',
+    new PublicLogoRemovalPaidFeature(context)
+  )
+  app.$registry.register('paidFeature', new ChartPaidFeature(context))
 }

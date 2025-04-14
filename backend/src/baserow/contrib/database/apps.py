@@ -1,9 +1,11 @@
 from django.apps import AppConfig
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist
 from django.db import ProgrammingError
 from django.db.models.signals import post_migrate, pre_migrate
 
+from baserow.contrib.database.fields.utils.pg_datetime import pg_init
 from baserow.contrib.database.table.cache import clear_generated_model_cache
 from baserow.contrib.database.table.operations import RestoreDatabaseTableOperationType
 from baserow.core.registries import (
@@ -16,8 +18,6 @@ from baserow.core.trash.registries import trash_item_type_registry
 from baserow.core.usage.registries import workspace_storage_usage_item_registry
 from baserow.ws.registries import page_registry
 
-
-from baserow.contrib.database.fields.utils.pg_datetime import pg_init
 
 class DatabaseConfig(AppConfig):
     name = "baserow.contrib.database"
@@ -1031,6 +1031,13 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.table.receivers  # noqa: F401
         import baserow.contrib.database.views.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
+
+        # Make sure that from now on, no model can make the User cache to expire,
+        # because that can be a problem if some other thread tries to access the related
+        # profile while the cache is being cleared.
+        # NOTE: Make sure all FK or M2M fields to User are created with
+        # `related_name="+"` because the relation won't be created on the user side.
+        get_user_model()._meta._expire_cache = lambda *a, **kw: None
 
         # date/datetime min/max year handling - replace overflowed date with None
         pg_init()

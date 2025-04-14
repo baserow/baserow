@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "fixed asgi race condition when accessing auth.User.profile - do not expire model's Meta cache",
+    "issue_number": 3346,
+    "bullet_points": [],
+    "created_at": "2025-02-19"
+}

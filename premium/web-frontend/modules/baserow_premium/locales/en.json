@@ -16,9 +16,8 @@
     },
     "deactivated": "Available in premium version"
   },
-  "premiumModal": {
-    "title": "Upgrade to use the {name}",
-    "description": "Your account doesn’t have access to the premium features. Upgrade to the premium version to begin using {name}. You can upgrade your account by getting a license. Click on the button below to view the pricing.",
+  "paidFeaturesModal": {
+    "description": "This feature is available with a {plan} plan. To access it, please upgrade your account by subscribing. Click the button below to view our pricing options.",
     "viewPricing": "View pricing"
   },
   "rowCommentSidebar": {
@@ -174,16 +173,29 @@
   },
   "premiumFeatures": {
     "rowComments": "Row comments",
+    "rowCommentsContent": "Collaborate directly in your table. Add comments to individual rows, mention team members, and keep the conversation in context.",
     "kanbanView": "Kanban view",
+    "kanbanViewContent": "Organize your data visually on a Kanban board. Cards are grouped into stacks based on a single select field, and you can easily drag and drop them between stacks.",
     "calendarView": "Calendar view",
+    "calendarViewContent": "Easily see your rows on a calendar, using a date field of your choice. Perfect for keeping track of deadlines, events, and schedules at a glance.",
     "timelineView": "Timeline view",
-    "exports": "JSON and XML export",
+    "timelineViewContent": "Display rows along a horizontal timeline using start and end dates. Ideal for project planning and roadmaps.",
+    "exports": "Table export",
+    "exportsContent": "Easily export your data in additional formats like Excel, JSON, and XML, or bulk-download all files from a table - perfect for backups, reports, and sharing with others.",
     "rowColoring": "Row coloring",
+    "rowColoringContent": "Highlight rows with colors based on a single select field or custom conditions. This makes it easier to spot patterns and priorities.",
+    "rowNotifications": "Row notifications",
+    "rowNotificationsContent": "Stay in the loop with customizable row comment notifications. Choose between receiving alerts for all comments or only when you're mentioned.",
     "surveyForm": "Survey form",
+    "surveyFormContent": "Collect responses one question at a time with survey mode. A simplified version of the form view, optimized for focus and ease of use.",
     "publicLogoRemoval": "Public logo removal",
+    "publicLogoRemovalContent": "Remove the Baserow logo from public views to give your shared content a cleaner, more branded look.",
     "personalViews": "Personal views",
-    "aiFeatures": "AI field",
-    "chartWidget": "Chart widget"
+    "personalViewsContent": "Create views that only the author can see. This gives you space to experiment, filter, and sort data without affecting the workspace for others.",
+    "aiFeatures": "AI features",
+    "aiFeaturesContent": "Use AI to automate and enhance your workflows. With the AI prompt field type you can generate text, summaries, or insights directly in cells based on a dynamic prompts that can reference other fields. Separately, you can also ask AI to create formulas for you.",
+    "chartWidget": "Chart widget",
+    "chartWidgetContent": "Visualize your data with charts on dashboards. Use any table as a data source, add multiple series, and group or sort by fields with rich summary options."
   },
   "licenses": {
     "titleNoLicenses": "No licenses found",

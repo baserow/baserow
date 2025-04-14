@@ -9,7 +9,6 @@ from baserow_enterprise.features import (
     ADVANCED_WEBHOOKS,
     AUDIT_LOG,
     BUILDER_SSO,
-    CHART_WIDGET,
     DATA_SYNC,
     ENTERPRISE_SETTINGS,
     RBAC,
@@ -35,7 +34,6 @@ class EnterpriseWithoutSupportLicenseType(LicenseType):
         SECURE_FILE_SERVE,
         ENTERPRISE_SETTINGS,
         DATA_SYNC,
-        CHART_WIDGET,
         BUILDER_SSO,
         ADVANCED_WEBHOOKS,
     ]

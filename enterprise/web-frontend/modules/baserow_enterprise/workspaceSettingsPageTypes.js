@@ -1,6 +1,7 @@
 import { WorkspaceSettingsPageType } from '@baserow/modules/core/workspaceSettingsPageTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { RBACPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 export class TeamsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
   static getType() {
@@ -33,7 +34,10 @@ export class TeamsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
   }
 
   getFeatureDeactivatedModal(workspace) {
-    return EnterpriseModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': RBACPaidFeature.getType() },
+    ]
   }
 
   getRoute(workspace) {

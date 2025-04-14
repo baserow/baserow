@@ -3,7 +3,8 @@ import ChartWidget from '@baserow_premium/dashboard/components/widget/ChartWidge
 import ChartWidgetSettings from '@baserow_premium/dashboard/components/widget/ChartWidgetSettings'
 import ChartWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget.svg'
 import PremiumFeatures from '@baserow_premium/features'
-import PremiumModal from '@baserow_premium/components/PremiumModal'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { ChartPaidFeature } from '@baserow_premium/paidFeatures'
 
 export class ChartWidgetType extends WidgetType {
   static getType() {
@@ -39,6 +40,9 @@ export class ChartWidgetType extends WidgetType {
   }
 
   getDeactivatedModal() {
-    return PremiumModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': ChartPaidFeature.getType() },
+    ]
   }
 }

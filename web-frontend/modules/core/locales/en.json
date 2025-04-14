@@ -279,8 +279,8 @@
     "use": "Use this template"
   },
   "trashSidebar": {
-    "title": "Trash",
-    "unnamedWorkspace": "Unnamed workspace {id}"
+    "unnamedWorkspace": "Unnamed workspace {id}",
+    "workspaces": "Workspaces"
   },
   "trashContents": {
     "message": "Restore deleted items from the past {duration}",

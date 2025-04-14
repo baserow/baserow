@@ -62,19 +62,19 @@
         </ul>
       </div>
     </Context>
-    <PremiumModal
-      ref="premiumModal"
-      :name="$t('premiumFeatures.personalViews')"
+    <PaidFeaturesModal
+      ref="paidFeaturesModal"
+      initial-selected-type="row_notifications"
       :workspace="database.workspace"
-    ></PremiumModal>
+    ></PaidFeaturesModal>
   </div>
 </template>
 
 <script>
 import context from '@baserow/modules/core/mixins/context'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import PremiumModal from '@baserow_premium/components/PremiumModal'
 import PremiumFeatures from '@baserow_premium/features'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 const MODE_ALL = 'all'
 const MODE_MENTIONS = 'mentions'
@@ -82,7 +82,7 @@ const MODE_MENTIONS = 'mentions'
 export default {
   name: 'RowEditModalCommentNotificationMode',
   components: {
-    PremiumModal,
+    PaidFeaturesModal,
   },
   mixins: [context],
   props: {
@@ -128,7 +128,7 @@ export default {
     async updateNotificationMode(mode) {
       if (!this.hasPremiumFeaturesEnabled) {
         this.$refs.context.hide()
-        this.$refs.premiumModal.show()
+        this.$refs.paidFeaturesModal.show()
         return
       }
 

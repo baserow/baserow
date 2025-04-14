@@ -53,6 +53,15 @@ import {
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 import { PeriodicDataSyncDeactivatedNotificationType } from '@baserow_enterprise/notificationTypes'
 import { RowsEnterViewWebhookEventType } from '@baserow_enterprise/webhookEventTypes'
+import {
+  AdvancedWebhooksPaidFeature,
+  AuditLogPaidFeature,
+  CoBrandingPaidFeature,
+  DataSyncPaidFeature,
+  RBACPaidFeature,
+  SSOPaidFeature,
+  SupportWebhooksPaidFeature,
+} from '@baserow_enterprise/paidFeatures'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -163,4 +172,15 @@ export default (context) => {
     'webhookEvent',
     new RowsEnterViewWebhookEventType(context)
   )
+
+  app.$registry.register('paidFeature', new SSOPaidFeature(context))
+  app.$registry.register('paidFeature', new AuditLogPaidFeature(context))
+  app.$registry.register('paidFeature', new RBACPaidFeature(context))
+  app.$registry.register('paidFeature', new DataSyncPaidFeature(context))
+  app.$registry.register('paidFeature', new CoBrandingPaidFeature(context))
+  app.$registry.register(
+    'paidFeature',
+    new AdvancedWebhooksPaidFeature(context)
+  )
+  app.$registry.register('paidFeature', new SupportWebhooksPaidFeature(context))
 }

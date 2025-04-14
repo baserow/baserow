@@ -69,9 +69,10 @@
             ></i>
           </a>
           <component
-            :is="deactivatedClickModal(role)"
+            :is="deactivatedClickModal(role)[0]"
             :ref="'deactivatedClickModal-' + role.uid"
             :v-if="deactivatedClickModal(role)"
+            v-bind="deactivatedClickModal(role)[1]"
             :name="$t('editRoleContext.additionalRoles')"
             :workspace="workspace"
           ></component>
