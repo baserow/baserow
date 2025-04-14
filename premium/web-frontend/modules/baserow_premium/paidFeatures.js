@@ -316,7 +316,7 @@ export class ChartPaidFeature extends PaidFeature {
   }
 
   getPlan() {
-    return 'Enterprise'
+    return 'Premium'
   }
 
   getIconClass() {
