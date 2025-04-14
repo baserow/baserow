@@ -1013,6 +1013,11 @@ class DatabaseConfig(AppConfig):
         notification_type_registry.register(WebhookDeactivatedNotificationType())
         notification_type_registry.register(WebhookPayloadTooLargeNotificationType())
 
+        from baserow.core.mcp.registries import mcp_tool_registry
+        from baserow.contrib.database.mcp.table.tools import ListRowsMcpTool
+
+        mcp_tool_registry.register(ListRowsMcpTool())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.database.data_sync.signals  # noqa: F403, F401
@@ -1030,7 +1035,6 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.table.receivers  # noqa: F401
         import baserow.contrib.database.views.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
-        import baserow.contrib.database.mcp.tools  # noqa: F401
 
         # Make sure that from now on, no model can make the User cache to expire,
         # because that can be a problem if some other thread tries to access the related

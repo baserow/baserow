@@ -1,26 +1,31 @@
 import contextvars
-from contextlib import asynccontextmanager
-
-from mcp.types import Tool as MCPTool
-from mcp.server.sse import SseServerTransport
-from mcp.server.lowlevel.server import Server as MCPServer
-from mcp.types import TextContent
-from mcp.server.lowlevel.server import lifespan as default_lifespan
-
-from starlette.requests import Request
-from starlette.routing import Mount, Route
-from starlette.applications import Starlette
+import traceback
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 
-# Context variable to store the token
-current_token: contextvars.ContextVar[str] = contextvars.ContextVar("current_token")
+from mcp.server.lowlevel.server import Server
+from mcp.server.lowlevel.server import lifespan as default_lifespan
+from mcp.server.sse import SseServerTransport
+from mcp.types import TextContent
+from mcp.types import Tool as MCPTool
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.routing import Mount, Route
+
+from baserow.core.mcp.registries import mcp_tool_registry
+
+User = get_user_model()
+current_endpoint: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "current_endpoint"
+)
+
 
 class BaserowMCPServer:
     def __init__(self):
-        self._mcp_server = MCPServer(
+        self._mcp_server = Server(
             name="Baserow MCP",
-            instructions="@TODO",
+            instructions="Handles all the actions and tools related to Baserow.",
             lifespan=default_lifespan,
         )
 
@@ -30,53 +35,33 @@ class BaserowMCPServer:
         self._mcp_server.list_tools()(self.list_tools)
         self._mcp_server.call_tool()(self.call_tool)
 
+    async def get_user(self) -> User:
+        endpoint = current_endpoint.get()
+        # @TODO implement fetching the user dynamically.
+        print(f"@TODO fetch user based on endpoint {endpoint}")
+        user = await User.objects.aget(email="bram@baserow.io")
+        return user
+
     async def call_tool(self, name: str, arguments):
-        token = current_token.get()
-        return [TextContent(type="text", text=f"Tool '{name}' called with token: {token}")]
+        user = await self.get_user()
+        tool, params = mcp_tool_registry.match_by_name(name)
+        if not tool or not params:
+            return [TextContent(type="text", text=f"Tool '{name}' not found.")]
+        return await tool.call(user, name, params, arguments)
 
     async def list_tools(self) -> list[MCPTool]:
-        from drf_spectacular import serializers
-        from .utils import serializer_to_openapi_inline
-        from baserow.contrib.database.api.tables.serializers import TableSerializer
-        import json
-
-        print(
-            json.dumps(serializer_to_openapi_inline(
-                TableSerializer,
-                direction='request'
-            ), indent=4)
-        )
-
-
-
-        token = current_token.get()
-        print(f"[list_tools] token: {token}")
-
-        return [
-            MCPTool(
-                name="create_test",
-                description=f"This is a test tool for token: {token}",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"}
-                    },
-                    "required": ["name"]
-                }
-            )
-        ]
+        user = await self.get_user()
+        return await mcp_tool_registry.list_all_tools(user)
 
     def sse_app(self) -> Starlette:
-        sse_path = "/mcp/{token}/sse"
+        sse_path = "/mcp/{endpoint}/sse"
         messages_path = "/mcp/messages/"
         sse = SseServerTransport(messages_path)
 
         async def handle_sse(request: Request) -> None:
             # Save the token in the context var
-            token = request.path_params["token"]
-            token_ctx = current_token.set(token)
-
-            print('@TODO do token authentication')
+            endpoint = request.path_params["endpoint"]
+            endpoint_ctx = current_endpoint.set(endpoint)
 
             try:
                 async with sse.connect_sse(
@@ -89,12 +74,14 @@ class BaserowMCPServer:
                         streams[1],
                         self._mcp_server.create_initialization_options(),
                     )
+            except Exception:
+                traceback.print_exc()
             finally:
                 # Reset the context variable when done
-                current_token.reset(token_ctx)
+                current_endpoint.reset(endpoint_ctx)
 
         return Starlette(
-            debug=settings.DEBUG,
+            debug=False,
             routes=[
                 Route(sse_path, endpoint=handle_sse),
                 Mount(messages_path, app=sse.handle_post_message),
@@ -102,28 +89,4 @@ class BaserowMCPServer:
         )
 
 
-
-# Create server instance
 baserow_mcp = BaserowMCPServer()
-
-# class BaserowFastMCP(FastMCP):
-#     async def list_tools(self) -> list[MCPTool]:
-#         """List all available tools."""
-#         tools = self._tool_manager.list_tools()
-#         for t in tools:
-#             print(t.parameters)
-#         return [
-#             MCPTool(
-#                 name=info.name,
-#                 description=info.description,
-#                 inputSchema=info.parameters,
-#             )
-#             for info in tools
-#         ]
-
-
-# baserow_mcp = BaserowFastMCP(
-#     "Baserow MCP",
-#     sse_path="/mcp/sse",
-#     message_path="/mcp/messages/"
-# )
