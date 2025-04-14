@@ -36,6 +36,7 @@ from baserow.core.registries import plugin_registry
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.registries import user_source_type_registry
+from baserow_enterprise.features import BUILDER_NO_BRANDING
 
 
 class DomainSerializer(serializers.ModelSerializer):
@@ -339,7 +340,7 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
         ) + list(license_plugin.get_active_workspace_licenses(workspace))
         # With Enterprise license or Advanced SaaS plan, don't show the label
         for license_type in license_types:
-            if "enterprise" in license_type.type or "advanced" in license_type.type:
+            if license_type.has_feature(BUILDER_NO_BRANDING):
                 return False
         return True
 
