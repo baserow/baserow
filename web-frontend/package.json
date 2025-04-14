@@ -94,6 +94,7 @@
     "posthog-js": "^1.232.4",
     "resize-observer-polyfill": "^1.5.1",
     "sass-loader": "10.4.1",
+    "serve-static": "^2.2.0",
     "thenby": "^1.3.4",
     "tiptap-markdown": "^0.8.9",
     "tldjs": "^2.3.1",
