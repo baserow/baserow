@@ -40,14 +40,6 @@ class AutomationWorkflow(
         ordering = ("order",)
         unique_together = [["automation", "name"]]
 
-    @staticmethod
-    def get_type_registry():
-        from baserow.contrib.automation.workflows.registries import (
-            automation_workflow_type_registry,
-        )
-
-        return automation_workflow_type_registry
-
     def get_parent(self):
         return self.automation
 

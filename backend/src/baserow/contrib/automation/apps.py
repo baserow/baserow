@@ -18,6 +18,7 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.workflows.actions import (
             CreateAutomationWorkflowActionType,
             DeleteAutomationWorkflowActionType,
+            DuplicateAutomationWorkflowActionType,
             OrderAutomationWorkflowActionType,
             UpdateAutomationWorkflowActionType,
         )
@@ -35,14 +36,8 @@ class AutomationConfig(AppConfig):
             RestoreAutomationWorkflowOperationType,
             UpdateAutomationWorkflowOperationType,
         )
-        from baserow.contrib.automation.workflows.registries import (
-            automation_workflow_type_registry,
-        )
         from baserow.contrib.automation.workflows.trash_types import (
             AutomationWorkflowTrashableItemType,
-        )
-        from baserow.contrib.automation.workflows.workflow_types import (
-            AutomationWorkflowType,
         )
         from baserow.core.action.registries import action_type_registry
         from baserow.core.jobs.registries import job_type_registry
@@ -70,13 +65,12 @@ class AutomationConfig(AppConfig):
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())
 
-            automation_workflow_type_registry.register(AutomationWorkflowType())
-
             trash_item_type_registry.register(AutomationWorkflowTrashableItemType())
 
             action_type_registry.register(CreateAutomationWorkflowActionType())
             action_type_registry.register(UpdateAutomationWorkflowActionType())
             action_type_registry.register(DeleteAutomationWorkflowActionType())
+            action_type_registry.register(DuplicateAutomationWorkflowActionType())
             action_type_registry.register(OrderAutomationWorkflowActionType())
 
             # The signals must always be imported last because they use

@@ -103,7 +103,6 @@ class AutomationWorkflowHandler:
         """
 
         workflow.delete()
-        AutomationWorkflowType().after_delete(workflow)
 
     def update_workflow(
         self, workflow: AutomationWorkflow, **kwargs
@@ -118,12 +117,9 @@ class AutomationWorkflowHandler:
         """
 
         workflow_type = AutomationWorkflowType()
+        original_workflow_values = workflow_type.export_prepared_values(workflow)
+
         allowed_values = extract_allowed(kwargs, workflow_type.allowed_fields)
-
-        original_workflow_values = workflow_type.export_prepared_values(
-            instance=workflow
-        )
-
         for key, value in allowed_values.items():
             setattr(workflow, key, value)
 
@@ -136,7 +132,7 @@ class AutomationWorkflowHandler:
                 )
             raise
 
-        new_workflow_values = workflow_type.export_prepared_values(instance=workflow)
+        new_workflow_values = workflow_type.export_prepared_values(workflow)
 
         return UpdatedAutomationWorkflow(
             workflow, original_workflow_values, new_workflow_values

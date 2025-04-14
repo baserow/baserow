@@ -5,6 +5,7 @@ import pytest
 from baserow.contrib.automation.workflows.actions import (
     CreateAutomationWorkflowActionType,
     DeleteAutomationWorkflowActionType,
+    DuplicateAutomationWorkflowActionType,
     OrderAutomationWorkflowActionType,
     UpdateAutomationWorkflowActionType,
 )
@@ -218,6 +219,76 @@ def test_delete_redo(data_fixture):
     # Reverse the undo; the workflow should no longer exist
     DeleteAutomationWorkflowActionType.redo(user, params, MagicMock())
     assert automation.workflows.count() == 0
+
+
+@pytest.mark.django_db
+def test_duplicate_do(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(name="test", user=user)
+    automation = workflow.automation
+
+    assert automation.workflows.count() == 1
+
+    duplicated_workflow = DuplicateAutomationWorkflowActionType.do(user, workflow)
+
+    assert automation.workflows.count() == 2
+    assert automation.workflows.first() == workflow
+    assert automation.workflows.last() == duplicated_workflow
+
+
+@pytest.mark.django_db
+def test_duplicate_undo(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(name="test", user=user)
+    automation = workflow.automation
+
+    # Duplicate the workflow
+    duplicated_workflow = DuplicateAutomationWorkflowActionType.do(user, workflow)
+    assert automation.workflows.count() == 2
+
+    params = DuplicateAutomationWorkflowActionType.Params(
+        automation_id=automation.id,
+        automation_name=automation.name,
+        workflow_id=duplicated_workflow.id,
+        workflow_name=duplicated_workflow.name,
+        original_workflow_id=workflow.id,
+        original_workflow_name=workflow.name,
+    )
+
+    # Now undo the duplication
+    DuplicateAutomationWorkflowActionType.undo(user, params, MagicMock())
+
+    assert automation.workflows.count() == 1
+    assert automation.workflows.first() == workflow
+
+
+@pytest.mark.django_db
+def test_duplicate_redo(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(name="test", user=user)
+    automation = workflow.automation
+
+    # Duplicate the workflow
+    duplicated_workflow = DuplicateAutomationWorkflowActionType.do(user, workflow)
+    assert automation.workflows.count() == 2
+
+    # Now undo the duplication
+    params = DuplicateAutomationWorkflowActionType.Params(
+        automation_id=automation.id,
+        automation_name=automation.name,
+        workflow_id=duplicated_workflow.id,
+        workflow_name=duplicated_workflow.name,
+        original_workflow_id=workflow.id,
+        original_workflow_name=workflow.name,
+    )
+    DuplicateAutomationWorkflowActionType.undo(user, params, MagicMock())
+    assert automation.workflows.count() == 1
+
+    # Now redo the last action, i.e. the duplicated workflow should be restored
+    DuplicateAutomationWorkflowActionType.redo(user, params, MagicMock())
+    assert automation.workflows.count() == 2
+    assert automation.workflows.first() == workflow
+    assert automation.workflows.last() == duplicated_workflow
 
 
 @pytest.mark.django_db

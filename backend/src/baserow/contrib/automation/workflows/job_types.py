@@ -9,11 +9,13 @@ from baserow.contrib.automation.api.workflows.serializers import (
     AutomationWorkflowSerializer,
 )
 from baserow.contrib.automation.models import DuplicateAutomationWorkflowJob
+from baserow.contrib.automation.workflows.actions import (
+    DuplicateAutomationWorkflowActionType,
+)
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.operations import (
     DuplicateAutomationWorkflowOperationType,
 )
-from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.registries import JobType
 
@@ -58,7 +60,7 @@ class DuplicateAutomationWorkflowJobType(JobType):
         return {"original_automation_workflow": workflow}
 
     def run(self, job, progress):
-        new_workflow_clone = AutomationWorkflowService().duplicate_workflow(
+        new_workflow_clone = DuplicateAutomationWorkflowActionType.do(
             job.user,
             job.original_automation_workflow,
             progress_builder=progress.create_child_builder(

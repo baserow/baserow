@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -16,6 +16,7 @@ from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.utils import ChildProgressBuilder
 
 
 class CreateAutomationWorkflowActionType(UndoableActionType):
@@ -204,6 +205,78 @@ class DeleteAutomationWorkflowActionType(UndoableActionType):
         action_to_redo: Action,
     ):
         AutomationWorkflowService().delete_workflow(user, params.workflow_id)
+
+
+class DuplicateAutomationWorkflowActionType(UndoableActionType):
+    type = "duplicate_automation_workflow"
+    description = ActionTypeDescription(
+        _("Duplicate automation workflow"),
+        _(
+            'Workflow "%(workflow_name)s" (%(workflow_id)s) duplicated from'
+            '"%(original_workflow_name)s" (%(original_workflow_id)s) '
+        ),
+        AUTOMATION_ACTION_CONTEXT,
+    )
+
+    @dataclass
+    class Params:
+        automation_id: int
+        automation_name: str
+        workflow_id: int
+        workflow_name: str
+        original_workflow_id: int
+        original_workflow_name: str
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        workflow: AutomationWorkflow,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> AutomationWorkflow:
+        workflow_clone = AutomationWorkflowService().duplicate_workflow(
+            user, workflow, progress_builder=progress_builder
+        )
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                workflow.automation.id,
+                workflow.automation.name,
+                workflow_clone.id,
+                workflow_clone.name,
+                workflow.id,
+                workflow.name,
+            ),
+            scope=cls.scope(workflow.automation.id),
+            workspace=workflow.automation.workspace,
+        )
+        return workflow_clone
+
+    @classmethod
+    def scope(cls, automation_id):
+        return ApplicationActionScopeType.value(automation_id)
+
+    @classmethod
+    def undo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_undo: Action,
+    ):
+        AutomationWorkflowService().delete_workflow(user, params.workflow_id)
+
+    @classmethod
+    def redo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_redo: Action,
+    ):
+        TrashHandler.restore_item(
+            user,
+            AutomationWorkflowTrashableItemType.type,
+            params.workflow_id,
+        )
 
 
 class OrderAutomationWorkflowActionType(UndoableActionType):

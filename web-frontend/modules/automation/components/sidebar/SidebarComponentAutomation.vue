@@ -85,15 +85,9 @@ export default {
     },
   },
   methods: {
-    async selected(application) {
+    selected(application) {
       try {
         this.$store.dispatch('application/select', application)
-        await this.$nuxt.$router.push({
-          name: 'automation-application',
-          params: {
-            automationId: this.application.id,
-          },
-        })
       } catch (error) {
         if (error.name !== 'NavigationDuplicated') {
           notifyIf(error, 'workspace')

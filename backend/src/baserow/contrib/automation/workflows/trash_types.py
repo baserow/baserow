@@ -3,10 +3,10 @@ from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandl
 from baserow.contrib.automation.workflows.operations import (
     RestoreAutomationWorkflowOperationType,
 )
-from baserow.contrib.automation.workflows.registries import (
-    automation_workflow_type_registry,
+from baserow.contrib.automation.workflows.signals import (
+    automation_workflow_created,
+    automation_workflow_deleted,
 )
-from baserow.contrib.automation.workflows.signals import automation_workflow_created
 from baserow.core.models import TrashEntry
 from baserow.core.trash.registries import TrashableItemType
 
@@ -27,13 +27,15 @@ class AutomationWorkflowTrashableItemType(TrashableItemType):
         requesting_user,
         trash_entry: TrashEntry,
     ):
-        workflow_type = automation_workflow_type_registry.get_by_model(item_to_trash)
-        workflow_type.before_trashed(item_to_trash)
         super().trash(item_to_trash, requesting_user, trash_entry)
+        automation_workflow_deleted.send(
+            self,
+            automation=item_to_trash.automation,
+            workflow_id=item_to_trash.id,
+            user=None,
+        )
 
     def restore(self, trashed_item: AutomationWorkflow, trash_entry: TrashEntry):
-        workflow_type = automation_workflow_type_registry.get_by_model(trashed_item)
-        workflow_type.before_restore(trashed_item)
         super().restore(trashed_item, trash_entry)
         automation_workflow_created.send(self, workflow=trashed_item, user=None)
 

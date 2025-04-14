@@ -19,7 +19,6 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflow_updated,
     automation_workflows_reordered,
 )
-from baserow.contrib.automation.workflows.workflow_types import AutomationWorkflowType
 from baserow.core.handler import CoreHandler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder
@@ -74,7 +73,6 @@ class AutomationWorkflowService:
             context=automation,
         )
 
-        AutomationWorkflowType().before_create(automation)
         workflow = self.handler.create_workflow(automation, name)
         automation_workflow_created.send(self, workflow=workflow, user=user)
 
