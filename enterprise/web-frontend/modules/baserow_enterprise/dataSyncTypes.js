@@ -62,7 +62,10 @@ export class JiraIssuesDataSyncType extends DataSyncType {
   }
 
   getDeactivatedClickModal() {
-    return [PaidFeaturesModal, {}]
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': DataSyncPaidFeature.getType() },
+    ]
   }
 }
 
@@ -89,7 +92,10 @@ export class GitHubIssuesDataSyncType extends DataSyncType {
   }
 
   getDeactivatedClickModal() {
-    return [PaidFeaturesModal, {}]
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': DataSyncPaidFeature.getType() },
+    ]
   }
 }
 
@@ -116,7 +122,10 @@ export class GitLabIssuesDataSyncType extends DataSyncType {
   }
 
   getDeactivatedClickModal() {
-    return [PaidFeaturesModal, {}]
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': DataSyncPaidFeature.getType() },
+    ]
   }
 }
 
@@ -143,6 +152,9 @@ export class HubspotContactsDataSyncType extends DataSyncType {
   }
 
   getDeactivatedClickModal() {
-    return [PaidFeaturesModal, {}]
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': DataSyncPaidFeature.getType() },
+    ]
   }
 }
