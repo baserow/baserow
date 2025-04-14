@@ -55,9 +55,15 @@
 }
 
 .form-view__sidebar-fields-description {
-  font-size: 13px;
-  color: $color-neutral-900;
+  font-size: 12px;
+  line-height: 20px;
   margin: 18px 0;
+  padding: 18px;
+  text-align: center;
+  border: dashed 1px $palette-neutral-400;
+  color: $palette-neutral-900;
+
+  @include rounded($rounded-md);
 }
 
 .form-view__sidebar-fields-list {
@@ -124,7 +130,7 @@
   @extend %ellipsis;
 
   width: 100%;
-  line-height: 36px;
+  line-height: 34px;
   font-size: 13px;
   font-weight: 500;
   color: $palette-neutral-1200;
