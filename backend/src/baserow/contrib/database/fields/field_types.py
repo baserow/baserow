@@ -1306,14 +1306,6 @@ class DateFieldType(FieldType):
                             else NULL
                             end;
 
-                        /** LEAST(
-                             '9999-12-31'::{sql_type},
-                                 GREATEST(
-                                 {sql_function}(p_in::text, 'FM{sql_format}'),
-                                 '0001-01-01'::{sql_type}
-                                 )
-                             );
-                             **/
                     END IF;
                 exception when others then
                     begin
@@ -1326,8 +1318,6 @@ class DateFieldType(FieldType):
                             else NULL
                             end;
 
-                        /** LEAST('9999-12-31'::date, GREATEST(p_in::{sql_type},
-                         '0001-01-01'::{sql_type})); **/
                     exception when others then
                         p_in = p_default;
                     end;

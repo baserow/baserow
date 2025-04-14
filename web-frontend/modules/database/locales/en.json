@@ -763,7 +763,7 @@
   },
   "importFromAirtable": {
     "airtableShareLinkTitle": "Share a link to your Base",
-    "airtableShareLinkDescription": "To import your Airtable base, you need to have a shared link to your entire base. In Airtable, click on the share button in the top right corner after opening your base. After that you must choose the \"Share via link\" option. In the share modal you can click on the \"Share publicly\" tab and then on “Enabl;e shared base link”. Copy the public link and paste it in the input below.",
+    "airtableShareLinkDescription": "To import your Airtable base, you need to have a shared link to your entire base. In Airtable, click on the share button in the top right corner after opening your base. After that you must choose the \"Share via link\" option. In the share modal you can click on the \"Share publicly\" tab and then on “Enable shared base link”. Copy the public link and paste it in the input below.",
     "airtableShareLinkBeta": "This functionality will import most of the data, but there are incompatibilities. A table named \"Airtable import report\" will therefore be added containing a list of things that were not or partially imported.",
     "airtableShareLinkPaste": "Paste the link here",
     "importButtonLabel": "Import from Airtable",

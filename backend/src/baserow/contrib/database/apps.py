@@ -17,6 +17,8 @@ from baserow.core.usage.registries import workspace_storage_usage_item_registry
 from baserow.ws.registries import page_registry
 
 
+from baserow.contrib.database.fields.utils.pg_datetime import pg_init
+
 class DatabaseConfig(AppConfig):
     name = "baserow.contrib.database"
 
@@ -1031,10 +1033,6 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.views.tasks  # noqa: F401
 
         # date/datetime min/max year handling - replace overflowed date with None
-        from baserow.contrib.database.fields.utils.pg_datetime import (  # noqa: F401
-            pg_init,
-        )
-
         pg_init()
 
 
