@@ -1840,7 +1840,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
     # is slow, and so we disable instrumenting it to save significant resources in
     # telemetry platforms receiving the instrumentation.
     @disable_instrumentation
-    def sync_templates(self, storage=None, pattern: str | None = None):
+    def sync_templates(
+        self, storage=None, pattern: str | None = None, force: bool = False
+    ):
         """
         Synchronizes the JSON template files with the templates stored in the database.
         We need to have a copy in the database so that the user can live preview a
@@ -1856,6 +1858,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :param storage: Storage to use to get the files.
         :param pattern: A regular expression to match names to sync. If None then
             all found templates will be synced.
+        :param force: Force template sync even if they already exist.
         """
 
         clean_templates = False
@@ -1897,6 +1900,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
                     installed_templates,
                     installed_categories,
                     storage,
+                    force=force,
                 )
 
         if clean_templates:
@@ -1929,6 +1933,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         installed_templates,
         installed_categories,
         storage,
+        force: bool = False,
     ):
         """
         Sync a specific template to the database.
@@ -1943,6 +1948,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :type installed_categories: List[TemplateCategory]
         :param storage: The storage where the files can be loaded from.
         :type storage: Storage or None
+        :param force: Force template sync even if they already exist.
         :return: None
         """
 
@@ -1971,7 +1977,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         if (
             installed_template
             and installed_template.workspace
-            and installed_template.export_hash != export_hash
+            and (installed_template.export_hash != export_hash or force)
         ):
             TrashHandler.permanently_delete(installed_template.workspace)
 
@@ -1980,7 +1986,11 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         # create a new workspace and import the exported applications into that
         # workspace.
         imported_id_mapping = None
-        if not installed_template or installed_template.export_hash != export_hash:
+        if (
+            not installed_template
+            or installed_template.export_hash != export_hash
+            or force
+        ):
             # It is optionally possible for a template to have additional files.
             # They are stored in a ZIP file and are generated when the template
             # is exported. They for example contain file field files.

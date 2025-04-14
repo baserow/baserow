@@ -1,7 +1,6 @@
 version: "3.4"
 
 services:
-
   backend:
     image: ${BACKEND_CI_DEV_IMAGE:-baserow_backend_dev:latest}
     environment:
@@ -10,7 +9,7 @@ services:
       PUBLIC_WEB_FRONTEND_URL: http://web-frontend:3000
       BASEROW_AMOUNT_OF_WORKERS: 2
       BASEROW_TRIGGER_SYNC_TEMPLATES_AFTER_MIGRATION: false
-      DJANGO_SETTINGS_MODULE: 'baserow.config.settings.e2e'
+      DJANGO_SETTINGS_MODULE: "baserow.config.settings.e2e"
       AWS_ACCESS_KEY_ID: anyvalue
       AWS_SECRET_ACCESS_KEY: anyvalue
       AWS_STORAGE_BUCKET_NAME: testbucket
@@ -32,7 +31,7 @@ services:
   celery:
     image: ${BACKEND_CI_DEV_IMAGE:-baserow_backend_dev:latest}
     environment:
-      BASEROW_RUN_MINIMAL: 'yes'
+      BASEROW_RUN_MINIMAL: "yes"
       BASEROW_AMOUNT_OF_WORKERS: 1
       SECRET_KEY: test
       AWS_ACCESS_KEY_ID: anyvalue
@@ -73,7 +72,9 @@ services:
 
   s3mock:
     container_name: s3mock
-    image: adobe/s3mock:latest
+    # We fixed the version because boto3 is not compatible with a next version for some
+    # reasons
+    image: adobe/s3mock:3.12.0
     environment:
       initialBuckets: testbucket
 
