@@ -149,8 +149,15 @@ export class ViewType extends Registerable {
    * view is selected. Extra options like filters and sorting could be added
    * here.
    */
-  getHeaderComponent() {
+  getHeaderComponent(view) {
     return null
+  }
+
+  /**
+   * Optionally add additional class names to the header element.
+   */
+  getHeaderClassNames() {
+    return ''
   }
 
   /**
@@ -517,6 +524,10 @@ export class GridViewType extends ViewType {
 
   getHeaderComponent() {
     return GridViewHeader
+  }
+
+  getHeaderClassNames() {
+    return 'header--dark-border'
   }
 
   getComponent() {
