@@ -35,6 +35,13 @@ class BaserowMCPServer:
         self._mcp_server.list_tools()(self.list_tools)
         self._mcp_server.call_tool()(self.call_tool)
 
+        self._mcp_server.list_resources()(self.return_empty)
+        self._mcp_server.list_prompts()(self.return_empty)
+        self._mcp_server.list_resource_templates()(self.return_empty)
+
+    async def return_empty(self):
+        return []
+
     async def get_user(self) -> User:
         endpoint = current_endpoint.get()
         # @TODO implement fetching the user dynamically.
