@@ -5,8 +5,8 @@ from django.urls import re_path
 from channels.routing import ProtocolTypeRouter, URLRouter
 
 from baserow.config.helpers import ConcurrencyLimiterASGI
-from baserow.core.telemetry.telemetry import setup_logging, setup_telemetry
 from baserow.core.mcp import baserow_mcp
+from baserow.core.telemetry.telemetry import setup_logging, setup_telemetry
 from baserow.ws.routers import websocket_router
 
 # The telemetry instrumentation library setup needs to run prior to django's setup.

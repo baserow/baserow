@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Sequence, TYPE_CHECKING, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from django.contrib.auth.models import AbstractUser
 
@@ -7,7 +7,6 @@ from mcp.types import EmbeddedResource, ImageContent, TextContent
 
 from baserow.core.mcp.utils import NameRoute
 from baserow.core.registry import Instance, Registry
-
 
 """
         from drf_spectacular import serializers
@@ -116,7 +115,6 @@ class MCPToolRegistry(Registry[MCPTool]):
             if params:
                 return tool, params
         return None, None
-
 
 
 mcp_tool_registry = MCPToolRegistry()

@@ -1,9 +1,6 @@
 from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
 from baserow.contrib.database.api.tables.serializers import TableSerializer
-from baserow.contrib.database.api.views.serializers import (
-    CreateViewSerializer,
-    ViewSerializer,
-)
+from baserow.contrib.database.api.views.serializers import CreateViewSerializer
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.mcp.utils import serializer_to_openapi_inline
 

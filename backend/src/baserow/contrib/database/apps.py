@@ -1013,8 +1013,8 @@ class DatabaseConfig(AppConfig):
         notification_type_registry.register(WebhookDeactivatedNotificationType())
         notification_type_registry.register(WebhookPayloadTooLargeNotificationType())
 
-        from baserow.core.mcp.registries import mcp_tool_registry
         from baserow.contrib.database.mcp.table.tools import ListRowsMcpTool
+        from baserow.core.mcp.registries import mcp_tool_registry
 
         mcp_tool_registry.register(ListRowsMcpTool())
 
