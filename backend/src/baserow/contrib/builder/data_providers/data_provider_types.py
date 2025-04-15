@@ -152,6 +152,7 @@ class DataSourceDataProviderType(BuilderDataProviderType):
         return DispatchDataSourceDataSourceContextSerializer(
             required=False,
             default={},
+            allow_null=True,
             help_text="The data source dispatch data.",
         )
 
@@ -573,6 +574,15 @@ class UserDataProviderType(BuilderDataProviderType):
     """
 
     type = "user"
+
+    def get_request_serializer(self):
+        """
+        Returns the serializer used to parse data for this data provider.
+        """
+
+        return serializers.IntegerField(
+            help_text="Current user id.", required=False, allow_null=True
+        )
 
     def translate_default_user_role(self, user: UserSourceUser) -> str:
         """

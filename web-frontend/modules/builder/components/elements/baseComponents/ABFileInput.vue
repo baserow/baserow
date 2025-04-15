@@ -145,7 +145,15 @@ export default {
       return files.length ? files[0] : null
     },
     onFileChange(event) {
-      const selectedFiles = Array.from(event.target.files).map((file) =>
+      this.addFiles(Array.from(event.target.files))
+      event.target.value = ''
+    },
+    onDrop(event) {
+      this.addFiles(Array.from(event.dataTransfer.files))
+      this.isDragOver = false
+    },
+    addFiles(files) {
+      const newFiles = files.map((file) =>
         this.newFile({
           name: file.name,
           data: file,
@@ -154,27 +162,11 @@ export default {
         })
       )
       if (this.multiple) {
-        this.files.push(...selectedFiles)
+        this.files.push(...newFiles)
       } else {
-        this.files = selectedFiles.slice(0, 1)
+        this.files = newFiles.slice(0, 1)
       }
       this.$emit('input', this.toValueFormat(this.files))
-      event.target.value = ''
-    },
-    onDrop(event) {
-      const droppedFiles = Array.from(event.dataTransfer.files).map((file) => ({
-        name: file.name,
-        data: file,
-        contentType: file.type,
-        size: file.size,
-      }))
-      if (this.multiple) {
-        this.files.push(...droppedFiles)
-      } else {
-        this.files = droppedFiles.slice(0, 1)
-      }
-      this.$emit('input', this.toValueFormat(this.files))
-      this.isDragOver = false
     },
     onDragOver() {
       this.isDragOver = true

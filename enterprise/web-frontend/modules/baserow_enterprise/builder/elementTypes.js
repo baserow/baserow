@@ -147,6 +147,13 @@ export class FileInputElementType extends FormElementType {
     }
   }
 
+  /**
+   * We extract the files from the file input element to the context.
+   * @param {*} element
+   * @param {*} value
+   * @param {*} files
+   * @returns
+   */
   beforeActionDispatchContext(element, value, files) {
     const withoutFiles = (element.multiple ? value : [value]).map((v) => {
       if (typeof v === 'object' && v.__file__) {

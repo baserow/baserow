@@ -1145,6 +1145,15 @@ export class FormElementType extends ElementType {
       type: this.formDataType(element),
     }
   }
+
+  /**
+   * Hook to pre process actionDispatchContext before it's used.
+   * @param {Object} element the form element
+   * @param {*} value the value of the actionDispatchContext
+   * @param {Object} files a map that can be updated to add files to the payload of the
+   *   action.
+   */
+  beforeActionDispatchContext(element, value, files) {}
 }
 
 export class InputTextElementType extends FormElementType {

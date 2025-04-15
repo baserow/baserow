@@ -41,14 +41,14 @@ export default (client) => {
 
       return client.post(
         `builder/domains/published/data-source/${dataSourceId}/dispatch/`,
-        dispatchContext,
+        { metadata: dispatchContext },
         config
       )
     },
     dispatchAll(pageId, params) {
       return client.post(
         `builder/domains/published/page/${pageId}/dispatch-data-sources/`,
-        params
+        { metadata: params }
       )
     },
   }
