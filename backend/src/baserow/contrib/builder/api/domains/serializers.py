@@ -31,12 +31,10 @@ from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
-from baserow.core.models import Workspace
 from baserow.core.registries import plugin_registry
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.registries import user_source_type_registry
-from baserow_enterprise.features import BUILDER_NO_BRANDING
 
 
 class DomainSerializer(serializers.ModelSerializer):
@@ -245,6 +243,27 @@ class PolymorphicPublicUserSourceSerializer(PolymorphicSerializer):
     request = False
 
 
+class PublicWorkspaceSerializer(WorkspaceSerializer):
+    licenses = serializers.SerializerMethodField()
+
+    class Meta(WorkspaceSerializer.Meta):
+        fields = WorkspaceSerializer.Meta.fields + ("licenses",)
+
+    def get_licenses(self, object):
+        all_licenses = set()
+        license_plugin = plugin_registry.get_by_type(PremiumPlugin).get_license_plugin(
+            cache_queries=True
+        )
+        license_types = list(
+            license_plugin.get_active_instance_wide_license_types(None)
+        ) + list(license_plugin.get_active_workspace_licenses(object))
+
+        for license_type in license_types:
+            all_licenses.add(license_type.type)
+
+        return list(all_licenses)
+
+
 class PublicBuilderSerializer(serializers.ModelSerializer):
     """
     A public version of the builder serializer with less data to prevent data leaks.
@@ -275,7 +294,7 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
         help_text=Builder._meta.get_field("login_page").help_text
     )
 
-    workspace = serializers.SerializerMethodField(help_text="The workspace.")
+    workspace = serializers.SerializerMethodField()
 
     class Meta:
         model = Builder
@@ -330,20 +349,6 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
             return UserFileSerializer(favicon_file).data
         return None
 
-    @staticmethod
-    def show_made_with_baserow_label(workspace: Workspace) -> bool:
-        license_plugin = plugin_registry.get_by_type(PremiumPlugin).get_license_plugin(
-            cache_queries=True
-        )
-        license_types = list(
-            license_plugin.get_active_instance_wide_license_types(None)
-        ) + list(license_plugin.get_active_workspace_licenses(workspace))
-        # With Enterprise license or Advanced SaaS plan, don't show the label
-        for license_type in license_types:
-            if license_type.has_feature(BUILDER_NO_BRANDING):
-                return False
-        return True
-
     def get_workspace(self, obj):
         if not obj.workspace_id:
             domain = DomainHandler().get_domain_for_builder(obj)
@@ -351,11 +356,7 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
         else:
             workspace = obj.workspace
 
-        data = WorkspaceSerializer(workspace).data
-        data["show_made_with_baserow_label"] = self.show_made_with_baserow_label(
-            workspace
-        )
-        return data
+        return PublicWorkspaceSerializer(workspace).data
 
 
 class PublicDataSourceSerializer(PublicServiceSerializer):

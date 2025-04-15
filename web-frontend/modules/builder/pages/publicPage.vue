@@ -261,6 +261,7 @@ export default {
       builder,
       pageId: pageFound.id,
     })
+
     return {
       workspace: builder.workspace,
       builder,

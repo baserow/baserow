@@ -1,5 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import { ensureBoolean } from '../../../../web-frontend/modules/core/utils/validator'
+import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 
 /**
  * The BuilderPageDecorator type serves as a wrapper component that can be
@@ -52,8 +52,10 @@ export class MadeWithBaserowBuilderPageDecoratorType extends BuilderPageDecorato
       .default
   }
 
-  isDecorationAllowed(workspace = { show_made_with_baserow_label: true }) {
-    // Only show the decorator if the workspace doesn't have an Enterprise license
-    return ensureBoolean(workspace.show_made_with_baserow_label)
+  isDecorationAllowed(workspace) {
+    return !this.app.$hasFeature(
+      EnterpriseFeaturesObject.BUILDER_NO_BRANDING,
+      workspace
+    )
   }
 }

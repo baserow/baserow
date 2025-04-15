@@ -1,11 +1,12 @@
 <template>
-  <div class="made-with-baserow-wrapper">
+  <div>
     <slot></slot>
-    <div class="made-with-baserow">
+    <a class="made-with-baserow" href="https://baserow.io/" target="_blank">
+      Made with
       <img
-        src="@baserow_enterprise/assets/images/builder/made_with_baserow.svg"
-        alt="Made with Baserow"
+        src="@baserow_enterprise/assets/images/builder/mini_logo.svg"
+        alt="Baserow"
       />
-    </div>
+    </a>
   </div>
 </template>
