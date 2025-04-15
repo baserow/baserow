@@ -207,10 +207,12 @@ export default {
       return this.columnsBuffer[lastColumn].item?.date || null
     },
     startDateFieldReadOnly() {
-      return this.startDateField.read_only || false
+      const fieldType = this.$registry.get('field', this.startDateField.type)
+      return fieldType.isReadOnlyField(this.startDateField)
     },
     endDateFieldReadOnly() {
-      return this.endDateField.read_only || false
+      const fieldType = this.$registry.get('field', this.endDateField.type)
+      return fieldType.isReadOnlyField(this.endDateField)
     },
     // Decorations from the viewDecoration mixin
     firstCellDecorations() {

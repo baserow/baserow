@@ -97,7 +97,7 @@
         :all-fields-in-table="allFieldsInTable"
         :state="state"
         :multi-select-position="getMultiSelectPosition(row.id, field)"
-        :read-only="readOnly || field.read_only"
+        :read-only="readOnly || isReadonlyField(field)"
         :store-prefix="storePrefix"
         :group-end="groupEnd"
         :style="{
@@ -287,6 +287,9 @@ export default {
     },
   },
   methods: {
+    isReadonlyField(field) {
+      return this.$registry.get('field', field.type).isReadOnlyField(field)
+    },
     isCellSelected(fieldId) {
       return this.row._.selected && this.row._.selectedFieldId === fieldId
     },

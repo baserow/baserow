@@ -97,15 +97,19 @@ export default {
     },
     disabledFields() {
       return this.sortedFields.filter((field) => {
+        const fieldType = this.$registry.get('field', field.type)
         return (
-          !this.getFieldOption(field.id, 'enabled', false) || field.read_only
+          !this.getFieldOption(field.id, 'enabled', false) ||
+          fieldType.isReadOnlyField(field)
         )
       })
     },
     enabledFields() {
       return this.sortedFields.filter((field) => {
+        const fieldType = this.$registry.get('field', field.type)
         return (
-          this.getFieldOption(field.id, 'enabled', false) && !field.read_only
+          this.getFieldOption(field.id, 'enabled', false) &&
+          !fieldType.isReadOnlyField(field)
         )
       })
     },

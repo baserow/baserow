@@ -49,7 +49,7 @@ export default {
       const fieldType = this.$registry.get('field', this.field.type)
       return (
         Object.keys(fieldType.getFormViewFieldComponents(this.field, this))
-          .length > 0 && !this.field.read_only
+          .length > 0 && !fieldType.isReadOnlyField(this.field)
       )
     },
   },

@@ -1970,10 +1970,8 @@ export const actions = {
       )
 
       const fieldsToFinalize = fields
-        .filter(
-          (field) =>
-            field.read_only ||
-            this.$registry.get('field', field._.type.type).isReadOnly
+        .filter((field) =>
+          this.$registry.get('field', field.type).isReadOnlyField(field)
         )
         .map((field) => `field_${field.id}`)
       commit('FINALIZE_ROWS_IN_BUFFER', {
@@ -2536,7 +2534,7 @@ export const actions = {
     // maybe because the provided index is outside of the available fields or
     // because there are only read only fields, we don't want to do anything.
     const writeFields = fieldsInOrder.filter(
-      (field) => !field._.type.isReadOnly
+      (field) => !this.$registry.get('field', field.type).isReadOnlyField(field)
     )
     if (writeFields.length === 0) {
       return
@@ -2572,8 +2570,9 @@ export const actions = {
       valuesForUpdate[rowIndex] = { id: row.id }
 
       fieldsInOrder.forEach((field, fieldIndex) => {
+        const fieldType = this.$registry.get('field', field.type)
         // We can't pre-filter because we need the correct filter index.
-        if (field._.type.isReadOnly) {
+        if (fieldType.isReadOnlyField(field)) {
           return
         }
 
@@ -2581,7 +2580,6 @@ export const actions = {
         const textValue = textData[rowIndex][fieldIndex]
         const jsonValue =
           jsonData != null ? jsonData[rowIndex][fieldIndex] : undefined
-        const fieldType = this.$registry.get('field', field.type)
         const preparedValue = fieldType.prepareValueForPaste(
           field,
           textValue,

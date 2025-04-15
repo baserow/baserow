@@ -502,7 +502,7 @@ export function canRowsBeOptimisticallyUpdatedInView(
   activeSearchTerm
 ) {
   const isFieldReadOnly = (field) => {
-    return field.read_only || $registry.get('field', field.type).isReadOnly
+    return $registry.get('field', field.type).isReadOnlyField(field)
   }
   const readOnlyFieldIds = new Set(
     fields.filter(isFieldReadOnly).map((field) => String(field.id))

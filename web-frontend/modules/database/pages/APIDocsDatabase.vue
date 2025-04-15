@@ -235,7 +235,10 @@ export default {
         Object.entries(this.fields).map(([key, fields]) => {
           return [
             key,
-            fields.filter((field) => !field._.isReadOnly && !field.read_only),
+            fields.filter((field) => {
+              const fieldType = this.$registry.get('field', field.type)
+              return !fieldType.isReadOnlyField(field)
+            }),
           ]
         })
       )
@@ -281,9 +284,9 @@ export default {
         responseExample: fieldType.getDocsResponseExample(field),
         fieldResponseExample: fieldType.getDocsFieldResponseExample(
           field,
-          fieldType.isReadOnly
+          fieldType.isReadOnlyField(field)
         ),
-        isReadOnly: fieldType.isReadOnly,
+        fieldType,
       }
       return field
     },
@@ -324,7 +327,7 @@ export default {
       let fieldsToLoopOver = this.fields[table.id]
       if (!response) {
         fieldsToLoopOver = fieldsToLoopOver.filter(
-          (field) => !field._.isReadOnly
+          (field) => !this.$registry('field', field.type).isReadOnlyField(field)
         )
       }
 

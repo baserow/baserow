@@ -144,10 +144,11 @@ export default {
             .get('field', this.field.type)
             .getEmptyValue(this.field)
           const oldValue = this.value
+          const fieldType = this.$registry.get('field', this.field.type)
           if (
             value !== oldValue &&
             !this.readOnly &&
-            !this.field._.type.isReadOnly
+            !fieldType.isReadOnlyField(this.field)
           ) {
             this.$emit('update', value, oldValue)
           }
@@ -208,12 +209,12 @@ export default {
                 jsonData !== null ? jsonData[0][0] : undefined
               )
             const oldValue = this.value
-
+            const fieldType = this.$registry.get('field', this.field.type)
             if (
               value !== undefined &&
               value !== oldValue &&
               !this.readOnly &&
-              !this.field._.type.isReadOnly
+              !fieldType.isReadOnlyField(this.field)
             ) {
               this.$emit('update', value, oldValue)
             }

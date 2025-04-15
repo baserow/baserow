@@ -448,7 +448,6 @@ export class FieldType extends Registerable {
     this.type = this.getType()
     this.iconClass = this.getIconClass()
     this.canBePrimaryField = this.getCanBePrimaryField()
-    this.isReadOnly = this.getIsReadOnly()
 
     if (this.type === null) {
       throw new Error('The type name of a view type must be set.')
@@ -479,7 +478,6 @@ export class FieldType extends Registerable {
       type: this.type,
       iconClass: this.iconClass,
       name: this.getName(),
-      isReadOnly: this.isReadOnly,
       canImport: this.getCanImport(),
       canBePrimaryField: this.canBePrimaryField,
     }
@@ -805,12 +803,15 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * Determines whether the fieldType is a read only field. Read only fields will be
-   * excluded from update requests to the backend. It is also not possible to change
-   * the value by for example pasting.
+   * Determines whether the field type is inherently read-only, such as a
+   * FormulaFieldType or CreatedOnFieldType, which are always read-only. Some fields may
+   * have the `read_only` attribute set, indicating that while the field type itself is
+   * not inherently read-only, the specific field instance is, such as in the case of
+   * data-synced fields. Read-only fields are excluded from update requests to the
+   * backend and cannot have their values modified, for example, by pasting.
    */
-  getIsReadOnly() {
-    return false
+  isReadOnlyField(field) {
+    return Boolean(field.read_only)
   }
 
   /**
@@ -2304,7 +2305,7 @@ export class DateFieldType extends BaseDateFieldType {
 }
 
 export class CreatedOnLastModifiedBaseFieldType extends BaseDateFieldType {
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -2443,7 +2444,7 @@ export class LastModifiedByFieldType extends FieldType {
     return {}
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -2585,7 +2586,7 @@ export class CreatedByFieldType extends FieldType {
     return {}
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -4091,7 +4092,7 @@ export class FormulaFieldType extends mix(
     return []
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -4495,7 +4496,7 @@ export class UUIDFieldType extends FieldType {
     return {}
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -4574,7 +4575,7 @@ export class AutonumberFieldType extends FieldType {
     return {}
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 

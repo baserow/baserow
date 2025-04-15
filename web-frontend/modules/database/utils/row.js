@@ -10,9 +10,9 @@ import { clone } from '@baserow/modules/core/utils/object'
 export function prepareRowForRequest(row, fields, registry) {
   return fields.reduce((preparedRow, field) => {
     const name = `field_${field.id}`
-    const fieldType = registry.get('field', field._.type.type)
+    const fieldType = registry.get('field', field.type)
 
-    if (fieldType.isReadOnly) {
+    if (fieldType.isReadOnlyField(field)) {
       return preparedRow
     }
 
@@ -98,7 +98,7 @@ export function extractRowReadOnlyValues(row, allFields, registry) {
     const fieldType = registry.get('field', field.type)
     const fieldKey = `field_${field.id}`
     if (
-      (fieldType.getIsReadOnly() || field.read_only) &&
+      fieldType.isReadOnlyField(field) &&
       Object.prototype.hasOwnProperty.call(row, fieldKey)
     ) {
       readOnlyValues[fieldKey] = row[fieldKey]
