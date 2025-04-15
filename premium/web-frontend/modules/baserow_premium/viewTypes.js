@@ -222,7 +222,7 @@ export class KanbanViewType extends PremiumViewType {
     fieldType,
     storePrefix = ''
   ) {
-    const value = fieldType.getEmptyValue(field)
+    const value = fieldType.getDefaultValue(field)
     await dispatch(
       storePrefix + 'view/kanban/addField',
       { field, value },
@@ -436,7 +436,7 @@ export class CalendarViewType extends PremiumViewType {
     fieldType,
     storePrefix = ''
   ) {
-    const value = fieldType.getEmptyValue(field)
+    const value = fieldType.getDefaultValue(field)
     await dispatch(
       storePrefix + 'view/calendar/addField',
       { field, value },

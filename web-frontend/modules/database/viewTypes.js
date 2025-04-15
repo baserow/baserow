@@ -635,7 +635,7 @@ export class GridViewType extends ViewType {
     fieldType,
     storePrefix = ''
   ) {
-    const value = fieldType.getEmptyValue(field)
+    const value = fieldType.getDefaultValue(field)
     await dispatch(
       storePrefix + 'view/grid/addField',
       { field, value },
@@ -931,7 +931,7 @@ export const BaseBufferedRowViewTypeMixin = (Base) =>
       fieldType,
       storePrefix = ''
     ) {
-      const value = fieldType.getEmptyValue(field)
+      const value = fieldType.getDefaultValue(field)
       await dispatch(
         storePrefix + 'view/' + this.getType() + '/addField',
         { field, value },

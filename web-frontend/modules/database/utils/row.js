@@ -18,7 +18,7 @@ export function prepareRowForRequest(row, fields, registry) {
 
     preparedRow[name] = Object.prototype.hasOwnProperty.call(row, name)
       ? (preparedRow[name] = fieldType.prepareValueForUpdate(field, row[name]))
-      : fieldType.getEmptyValue(field)
+      : fieldType.getDefaultValue(field)
 
     return preparedRow
   }, {})

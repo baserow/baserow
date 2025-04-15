@@ -3,6 +3,7 @@ from enum import Enum
 from typing import NewType
 
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.functional import cached_property
@@ -362,6 +363,14 @@ class NumberField(Field):
         help_text="The thousand and decimal separator to use for the field.",
     )
 
+    number_default = models.DecimalField(
+        max_digits=50,
+        decimal_places=20,
+        null=True,
+        blank=True,
+        help_text="The default value for field if none is provided.",
+    )
+
     def save(self, *args, **kwargs):
         """Check if the number_decimal_places has a valid choice."""
 
@@ -415,11 +424,22 @@ class RatingField(Field):
 
 
 class BooleanField(Field):
-    pass
+    boolean_default = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="The default value for field if none is provided.",
+    )
 
 
 class DateField(Field, BaseDateMixin):
-    pass
+    date_default_now = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text=(
+            "If enabled, the default value for new rows will be set to the current date "
+            "and time when the row is created. If disabled, no default value will be set."
+        ),
+    )
 
 
 class LastModifiedField(Field, BaseDateMixin):
@@ -530,11 +550,28 @@ class FileField(Field):
 
 
 class SingleSelectField(Field):
-    pass
+    single_select_default = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "The default value for the field if none is provided. Can be None if no default "
+            "is set, or the ID of an available select option."
+        ),
+    )
 
 
 class MultipleSelectField(Field):
     THROUGH_DATABASE_TABLE_PREFIX = MULTIPLE_SELECT_THROUGH_TABLE_PREFIX
+
+    multiple_select_default = ArrayField(
+        models.PositiveBigIntegerField(),
+        null=True,
+        blank=True,
+        help_text=(
+            "The default value for the field if none is provided. Can be None if no default "
+            "is set, or the IDs of an available select options."
+        ),
+    )
 
     @property
     def through_table_name(self):
@@ -848,6 +885,16 @@ class MultipleCollaboratorsField(Field):
         help_text=(
             "Indicates if the user should be notified when they are added as a "
             "collaborator."
+        ),
+    )
+    multiple_collaborators_default = ArrayField(
+        models.PositiveBigIntegerField(),
+        null=True,
+        blank=True,
+        help_text=(
+            "The default value for the field if none is provided. Can be None if no "
+            "default is set, or the IDs of available collaborators or value 0 to "
+            "automatically set the current user when row is created."
         ),
     )
 

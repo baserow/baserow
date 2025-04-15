@@ -36,6 +36,7 @@ import FieldLinkRowSubForm from '@baserow/modules/database/components/field/Fiel
 import FieldSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSelectOptionsSubForm'
 import FieldCollaboratorSubForm from '@baserow/modules/database/components/field/FieldCollaboratorSubForm'
 import FieldPasswordSubForm from '@baserow/modules/database/components/field/FieldPasswordSubForm'
+import FieldBooleanSubForm from '@baserow/modules/database/components/field/FieldBooleanSubForm'
 
 import GridViewFieldText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldText'
 import GridViewFieldLongText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldLongText'
@@ -327,9 +328,9 @@ export class FieldType extends Registerable {
 
   /**
    * Because we want to show a new row immediately after creating we need to have an
-   * empty value to show right away.
+   * default value to show right away.
    */
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return null
   }
 
@@ -784,7 +785,7 @@ export class FieldType extends Registerable {
    * call submitted to the backend, so the user will immediately see it.
    */
   getNewRowValue(field) {
-    return this.getEmptyValue(field)
+    return this.getDefaultValue(field)
   }
 
   /**
@@ -986,8 +987,8 @@ export class TextFieldType extends FieldType {
     return RowHistoryFieldText
   }
 
-  getEmptyValue(field) {
-    return field.text_default
+  getDefaultValue(field) {
+    return field.text_default || ''
   }
 
   canUpsert() {
@@ -1101,7 +1102,7 @@ export class LongTextFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return ''
   }
 
@@ -1213,7 +1214,7 @@ export class LinkRowFieldType extends FieldType {
     return RowHistoryFieldLinkRow
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return []
   }
 
@@ -1488,7 +1489,7 @@ export class LinkRowFieldType extends FieldType {
       }
     }
 
-    return items.length > 0 ? items : this.getEmptyValue()
+    return items.length > 0 ? items : this.getDefaultValue()
   }
 
   getCanImport() {
@@ -1772,7 +1773,7 @@ export class RatingFieldType extends FieldType {
     return ['text', '1', '9']
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return 0
   }
 
@@ -1849,7 +1850,7 @@ export class RatingFieldType extends FieldType {
     const valueParsed = parseInt(value, 10)
 
     if (isNaN(valueParsed) || valueParsed < 0) {
-      return this.getEmptyValue()
+      return this.getDefaultValue()
     }
 
     if (valueParsed > field.max_value) {
@@ -1886,6 +1887,10 @@ export class BooleanFieldType extends FieldType {
     return 'checkbox'
   }
 
+  getFormComponent() {
+    return FieldBooleanSubForm
+  }
+
   getGridViewFieldComponent() {
     return GridViewFieldBoolean
   }
@@ -1906,8 +1911,8 @@ export class BooleanFieldType extends FieldType {
     return RowHistoryFieldBoolean
   }
 
-  getEmptyValue(field) {
-    return false
+  getDefaultValue(field) {
+    return field.boolean_default || false
   }
 
   getSortIndicator() {
@@ -2905,7 +2910,7 @@ export class URLFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return ''
   }
 
@@ -3008,7 +3013,7 @@ export class EmailFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return ''
   }
 
@@ -3188,7 +3193,7 @@ export class FileFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return []
   }
 
@@ -3494,7 +3499,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       (option) => option.value === value
     )
 
-    return selectedOption ?? this.getEmptyValue()
+    return selectedOption ?? this.getDefaultValue()
   }
 
   getCanImport() {
@@ -3747,7 +3752,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
     return genericContainsWordFilter
   }
 
-  getEmptyValue() {
+  getDefaultValue() {
     return []
   }
 
@@ -3773,7 +3778,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
       values.includes(option.value)
     )
 
-    return selectOptions.length > 0 ? selectOptions : this.getEmptyValue()
+    return selectOptions.length > 0 ? selectOptions : this.getDefaultValue()
   }
 
   getCanImport() {
@@ -3858,7 +3863,7 @@ export class PhoneNumberFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return ''
   }
 
@@ -4011,7 +4016,7 @@ export class FormulaFieldType extends mix(
     return this.getFormulaType(field)?.getSortTypes(field)
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return null
   }
 
@@ -4275,7 +4280,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     return components
   }
 
-  getEmptyValue() {
+  getDefaultValue() {
     return []
   }
 

@@ -445,13 +445,13 @@ export function newFieldMatchesActiveSearchTerm(
 ) {
   if (newField && activeSearchTerm !== '') {
     const fieldType = registry.get('field', newField.type)
-    const emptyValue = fieldType.getEmptyValue(newField)
+    const defaultValue = fieldType.getDefaultValue(newField)
 
     return valueMatchesActiveSearchTerm(
       searchMode,
       registry,
       newField,
-      emptyValue,
+      defaultValue,
       activeSearchTerm
     )
   }
