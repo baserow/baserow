@@ -462,7 +462,7 @@ class RowsView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -825,7 +825,7 @@ class RowView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -948,7 +948,7 @@ class RowView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -1045,7 +1045,7 @@ class RowMoveView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -1156,7 +1156,7 @@ class BatchRowsView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -1292,7 +1292,7 @@ class BatchRowsView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -1416,7 +1416,7 @@ class BatchDeleteRowsView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
