@@ -327,6 +327,13 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Should return the empty value for the field type.
+   */
+  getEmptyValue(field) {
+    return null
+  }
+
+  /**
    * Because we want to show a new row immediately after creating we need to have an
    * default value to show right away.
    */
@@ -987,8 +994,12 @@ export class TextFieldType extends FieldType {
     return RowHistoryFieldText
   }
 
+  getEmptyValue(field) {
+    return ''
+  }
+
   getDefaultValue(field) {
-    return field.text_default || ''
+    return field.text_default || this.getEmptyValue(field)
   }
 
   canUpsert() {
@@ -1911,8 +1922,12 @@ export class BooleanFieldType extends FieldType {
     return RowHistoryFieldBoolean
   }
 
+  getEmptyValue(field) {
+    return false
+  }
+
   getDefaultValue(field) {
-    return field.boolean_default || false
+    return field.boolean_default || this.getEmptyValue(field)
   }
 
   getSortIndicator() {
