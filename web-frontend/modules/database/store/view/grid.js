@@ -781,7 +781,7 @@ export const actions = {
           groupBy: getGroupBy(rootGetters, getters.getLastGridId),
           orderBy: getOrderBy(view, getters.getAdhocSorting),
           filters: getFilters(view, getters.getAdhocFiltering),
-          excludeCount: getters.getCount > 0,
+          excludeCount: getters.canExcludeCount,
         })
         .then(({ data }) => {
           // Don't do anything if the gridId does not match the current view gridId
@@ -1041,7 +1041,7 @@ export const actions = {
             groupBy: getGroupBy(rootGetters, getters.getLastGridId),
             orderBy: getOrderBy(view, adhocSorting),
             filters: getFilters(view, adhocFiltering),
-            excludeCount: true,
+            excludeCount: true, // We already have it from the previous request.
           })
           .then(({ data }) => ({
             data: { ...data, count },
@@ -1748,7 +1748,7 @@ export const actions = {
       filters: getFilters(view, getters.getAdhocFiltering),
       includeFields: fields,
       excludeFields,
-      excludeCount: getters.getCount > 0,
+      excludeCount: getters.canExcludeCount,
     })
     return data.results
   },
@@ -3189,6 +3189,12 @@ export const getters = {
   },
   getCount(state) {
     return state.count
+  },
+  canExcludeCount(state) {
+    // If the count has already been set for the view, there's no need to fetch it again
+    // considering it's slow for large tables. Every time something changes in the view,
+    // the refresh action is called making sure the count is up to date.
+    return state.count > 0
   },
   getRowHeight(state) {
     return state.rowHeight
