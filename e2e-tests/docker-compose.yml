@@ -25,6 +25,7 @@ services:
     environment:
       PUBLIC_BACKEND_URL: http://backend:8000
       PUBLIC_WEB_FRONTEND_URL: http://web-frontend:3000
+      NODE_OPTIONS: "--max-old-space-size=8192"
     command:
       - nuxt-dev-no-attach
 

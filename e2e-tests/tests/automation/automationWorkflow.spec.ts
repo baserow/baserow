@@ -5,7 +5,7 @@ test.describe("Automation workflow test suite", () => {
     await automationWorkflowPage.goto();
   });
 
-  test("Can create a workflow", async ({ page }) => {
+  test("Can create a workflow", { tag: "@slow" }, async ({ page }) => {
     const workflowName = "Foo workflow"
 
     await page.getByText("New workflow").click();
@@ -28,7 +28,7 @@ test.describe("Automation workflow test suite", () => {
     ).toBeVisible();
   });
 
-  test("Can duplicate a workflow", async ({ page }) => {
+  test("Can duplicate a workflow", { tag: "@slow" }, async ({ page }) => {
     const defaultWorkflowName = "Default workflow"
     const workflow = await page.locator(".side-bar-automation__link-text").getByText(defaultWorkflowName);
     await workflow.hover();
@@ -43,7 +43,7 @@ test.describe("Automation workflow test suite", () => {
     ).toBeVisible();
   });
 
-  test("Can rename a workflow", async ({ page }) => {
+  test("Can rename a workflow", { tag: "@slow" }, async ({ page }) => {
     const defaultWorkflowName = "Default workflow"
     const workflow = await page.locator(".side-bar-automation__link-text").getByText(defaultWorkflowName);
     await workflow.hover();
@@ -76,7 +76,7 @@ test.describe("Automation workflow test suite", () => {
     ).toBeVisible();
   });
 
-  test("Can delete a workflow", async ({ page }) => {
+  test("Can delete a workflow", { tag: "@slow" }, async ({ page }) => {
     const defaultWorkflowName = "Default workflow"
     const workflow = await page.locator(".side-bar-automation__link-text").getByText(defaultWorkflowName);
     await workflow.hover();

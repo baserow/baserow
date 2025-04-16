@@ -130,7 +130,6 @@ class AutomationWorkflowHandler:
         :return: The updated AutomationWorkflow.
         """
 
-        
         original_workflow_values = self.export_prepared_values(workflow)
 
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
