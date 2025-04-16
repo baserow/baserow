@@ -3,6 +3,7 @@ import { RolePermissionManagerType } from '@baserow_enterprise/permissionManager
 import { AuthProvidersType, AuditLogType } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
+import { MadeWithBaserowBuilderPageDecoratorType } from '@baserow_enterprise/builderPageDecoratorTypes'
 import {
   PasswordAuthProviderType,
   SamlAuthProviderType,
@@ -183,4 +184,10 @@ export default (context) => {
     new AdvancedWebhooksPaidFeature(context)
   )
   app.$registry.register('paidFeature', new SupportWebhooksPaidFeature(context))
+  // Register builder page decorator namespace and types
+  app.$registry.registerNamespace('builderPageDecorator')
+  app.$registry.register(
+    'builderPageDecorator',
+    new MadeWithBaserowBuilderPageDecoratorType(context)
+  )
 }

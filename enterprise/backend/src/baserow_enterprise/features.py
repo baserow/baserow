@@ -10,3 +10,4 @@ DATA_SYNC = "data_sync"
 ADVANCED_WEBHOOKS = "advanced_webhooks"
 
 BUILDER_SSO = "application_user_sso"
+BUILDER_NO_BRANDING = "application_no_branding"
