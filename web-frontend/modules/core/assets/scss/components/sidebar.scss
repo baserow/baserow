@@ -1,7 +1,7 @@
 .sidebar {
   @include absolute(0);
 
-  background-color: $color-neutral-50;
+  background-color: $palette-neutral-25;
   border-right: solid 1px $palette-neutral-200;
   height: 100%;
   display: flex;
