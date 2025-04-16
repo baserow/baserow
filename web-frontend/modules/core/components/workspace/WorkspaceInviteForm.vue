@@ -160,7 +160,10 @@ export default {
     clickOnDeactivatedItem(value) {
       const role = this.roles.find((role) => role.uid === value)
       if (role && role.isDeactivated) {
-        this.$refs[`deactivatedClickModal-${value}`][0].show()
+        const ref = this.$refs[`deactivatedClickModal-${value}`]
+        if (ref) {
+          ref[0].show()
+        }
       }
     },
   },
