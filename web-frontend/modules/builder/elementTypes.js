@@ -1153,7 +1153,9 @@ export class FormElementType extends ElementType {
    * @param {Object} files a map that can be updated to add files to the payload of the
    *   action.
    */
-  beforeActionDispatchContext(element, value, files) {}
+  beforeActionDispatchContext(element, value, files) {
+    return value
+  }
 }
 
 export class InputTextElementType extends FormElementType {
