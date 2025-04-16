@@ -146,7 +146,10 @@ export default {
         .getDeactivatedClickModal()
     },
     clickOnDeactivatedItem(value) {
-      this.$refs[`deactivatedClickModal-${value}`][0].show()
+      const ref = this.$refs[`deactivatedClickModal-${value}`]
+      if (ref) {
+        ref[0].show()
+      }
     },
   },
 }

@@ -97,12 +97,12 @@ export class EnterpriseEditorRoleType extends MemberRoleType {
     return !this.app.$hasFeature(EnterpriseFeatures.RBAC, workspaceId)
   }
 
-  getDeactivatedClickModal(workspaceId) {
-    return [
-      PaidFeaturesModal,
-      { 'initial-selected-type': RBACPaidFeature.getType() },
-    ]
-  }
+  // getDeactivatedClickModal(workspaceId) {
+  //   return [
+  //     PaidFeaturesModal,
+  //     { 'initial-selected-type': RBACPaidFeature.getType() },
+  //   ]
+  // }
 }
 
 export class EnterpriseCommenterRoleType extends MemberRoleType {
