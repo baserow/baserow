@@ -84,7 +84,7 @@
     "emailNotifications": "Email notifications",
     "tokens": "Database tokens",
     "deleteAccount": "Delete account",
-    "mcpEndpoint": "MCP"
+    "mcpEndpoint": "MCP server"
   },
   "userFileUploadType": {
     "file": "my device",

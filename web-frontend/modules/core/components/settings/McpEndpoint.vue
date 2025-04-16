@@ -79,8 +79,16 @@
         <Copied ref="copied"></Copied>
       </a>
     </div>
+    <div class="flex">
+      <a v-if="!reveal" href="#" @click.prevent="reveal = true">{{
+        $t('mcpEndpoint.reveal')
+      }}</a>
+      <div class="mcp-endpoint__warning margin-bottom-1">
+        {{ $t('mcpEndpoint.warning') }}
+      </div>
+    </div>
     <Tabs no-padding>
-      <Tab :title="'Claude'">
+      <Tab title="Claude">
         <MarkdownIt
           class="mcp-endpoint__instructions margin-bottom-1"
           :content="$t('mcpEndpoint.claudeInstructions')"
@@ -96,6 +104,41 @@
     }
   }
 }</code></pre>
+        <a v-if="!reveal" href="#" @click.prevent="reveal = true">{{
+          $t('mcpEndpoint.reveal')
+        }}</a>
+      </Tab>
+      <Tab title="Cursor">
+        <MarkdownIt
+          class="mcp-endpoint__instructions margin-bottom-1"
+          :content="$t('mcpEndpoint.cursorInstructions')"
+        ></MarkdownIt>
+        <pre><code class="mcp-endpoint__code">{
+  "mcpServers": {
+    "Baserow MCP": {
+      "url": "{{ endpointUrl }}"
+    }
+  }
+}</code></pre>
+        <a v-if="!reveal" href="#" @click.prevent="reveal = true">{{
+          $t('mcpEndpoint.reveal')
+        }}</a>
+      </Tab>
+      <Tab title="Windsurf">
+        <MarkdownIt
+          class="mcp-endpoint__instructions margin-bottom-1"
+          :content="$t('mcpEndpoint.windsurfInstructions')"
+        ></MarkdownIt>
+        <pre><code class="mcp-endpoint__code">{
+  "mcpServers": {
+    "Baserow MCP": {
+      "serverUrl": "{{ endpointUrl }}"
+    }
+  }
+}</code></pre>
+        <a v-if="!reveal" href="#" @click.prevent="reveal = true">{{
+          $t('mcpEndpoint.reveal')
+        }}</a>
       </Tab>
     </Tabs>
   </Expandable>
@@ -116,20 +159,25 @@ export default {
   },
   data() {
     return {
+      reveal: false,
       deleteLoading: false,
     }
   },
   computed: {
     endpointUrl() {
-      return `${this.$config.PUBLIC_BACKEND_URL}/mcp/${this.endpoint.key}/sse`
+      const key = this.reveal ? this.endpoint.key : '•••••••'
+      return this.getEndpointUrl(key)
     },
     workspace() {
       return this.$store.getters['workspace/get'](this.endpoint.workspace_id)
     },
   },
   methods: {
+    getEndpointUrl(key) {
+      return `${this.$config.PUBLIC_BACKEND_URL}/mcp/${key}/sse`
+    },
     copyShareUrlToClipboard() {
-      copyToClipboard(this.endpointUrl)
+      copyToClipboard(this.getEndpointUrl(this.endpoint.key))
       this.$refs.copied.show()
     },
     enableRename() {

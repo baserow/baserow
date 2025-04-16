@@ -83,12 +83,15 @@
   }
 }
 
-.mcp-endpoint__instructions {
+.mcp-endpoint__warning {
+  font-size: 11px;
+  color: $palette-yellow-700;
+}
 
+.mcp-endpoint__instructions {
   &.markdown code {
     display: inline-block;
-    font-size: 14px;
-    padding: 3px 6px;
+    padding: 0 6px;
     background-color: $color-neutral-100;
 
     @include rounded($rounded);
@@ -116,6 +119,7 @@
   display: block;
   width: 100%;
   padding: 6px;
+  font-size: 12px;
   background-color: $color-neutral-100;
   line-height: 140%;
 

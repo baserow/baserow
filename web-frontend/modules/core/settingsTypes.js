@@ -141,7 +141,7 @@ export class MCPEndpointSettingsType extends SettingsType {
   }
 
   getIconClass() {
-    return 'iconoir-todo'
+    return 'iconoir-magic-wand'
   }
 
   getName() {
