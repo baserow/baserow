@@ -19,7 +19,6 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
-from baserow.contrib.automation.workflows.workflow_types import AutomationWorkflowType
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.utils import (
     ChildProgressBuilder,
@@ -30,6 +29,8 @@ from baserow.core.utils import (
 
 
 class AutomationWorkflowHandler:
+    allowed_fields = ["name"]
+
     def get_workflow(
         self, workflow_id: int, base_queryset: Optional[QuerySet] = None
     ) -> AutomationWorkflow:
@@ -104,6 +105,19 @@ class AutomationWorkflowHandler:
 
         workflow.delete()
 
+    def export_prepared_values(self, workflow: AutomationWorkflow) -> Dict[Any, Any]:
+        """
+        Return a serializable dict of prepared values for the workflow attributes.
+
+        It is called by undo/redo ActionHandler to store the values in a way that
+        could be restored later.
+
+        :param instance: The workflow instance to export values for.
+        :return: A dict of prepared values.
+        """
+
+        return {key: getattr(workflow, key) for key in self.allowed_fields}
+
     def update_workflow(
         self, workflow: AutomationWorkflow, **kwargs
     ) -> UpdatedAutomationWorkflow:
@@ -116,10 +130,10 @@ class AutomationWorkflowHandler:
         :return: The updated AutomationWorkflow.
         """
 
-        workflow_type = AutomationWorkflowType()
-        original_workflow_values = workflow_type.export_prepared_values(workflow)
+        
+        original_workflow_values = self.export_prepared_values(workflow)
 
-        allowed_values = extract_allowed(kwargs, workflow_type.allowed_fields)
+        allowed_values = extract_allowed(kwargs, self.allowed_fields)
         for key, value in allowed_values.items():
             setattr(workflow, key, value)
 
@@ -132,7 +146,7 @@ class AutomationWorkflowHandler:
                 )
             raise
 
-        new_workflow_values = workflow_type.export_prepared_values(workflow)
+        new_workflow_values = self.export_prepared_values(workflow)
 
         return UpdatedAutomationWorkflow(
             workflow, original_workflow_values, new_workflow_values

@@ -210,3 +210,12 @@ def test_import_workflow_only(data_fixture):
     assert id_mapping["automation_workflows"] == {
         serialized_workflow["id"]: workflow.id
     }
+
+
+@pytest.mark.django_db
+def test_export_prepared_values(data_fixture):
+    workflow = data_fixture.create_automation_workflow(name="test")
+
+    result = AutomationWorkflowHandler().export_prepared_values(workflow)
+
+    assert result == {"name": "test"}
