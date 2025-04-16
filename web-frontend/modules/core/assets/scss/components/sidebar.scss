@@ -1,8 +1,8 @@
 .sidebar {
   @include absolute(0);
 
-  background-color: $color-neutral-50;
-  border-right: solid 1px $color-neutral-200;
+  background-color: $palette-neutral-25;
+  border-right: solid 1px $palette-neutral-200;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -165,9 +165,19 @@
 
   .sidebar--collapsed & {
     flex-direction: column;
-    gap: 8px;
     margin-top: 0;
-    margin-bottom: 8px;
+    margin-bottom: 16px;
+  }
+}
+
+.sidebar__foot-separator {
+  width: 1px;
+  height: 16px;
+  background-color: $palette-neutral-200;
+
+  .sidebar--collapsed & {
+    width: 16px;
+    height: 1px;
   }
 }
 
