@@ -13,7 +13,7 @@
         <li class="header__filter-item header__filter-item--grids">
           <a
             ref="viewsSelectToggle"
-            class="header__filter-link"
+            class="header__filter-link active"
             :class="{ 'header__filter-link--disabled': views === null }"
             data-highlight="views"
             @click="views !== null && openTableViewsContext()"
