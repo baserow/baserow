@@ -8,34 +8,6 @@ from mcp.types import EmbeddedResource, ImageContent, TextContent
 from baserow.core.mcp.utils import NameRoute
 from baserow.core.registry import Instance, Registry
 
-"""
-        from drf_spectacular import serializers
-        from .utils import serializer_to_openapi_inline
-
-        token = current_token.get()
-        print(f"[list_tools] token: {token}")
-
-        schema = serializer_to_openapi_inline(DiscriminatorCustomFieldsMappingSerializer(
-            view_type_registry, CreateViewSerializer
-        ))
-
-        return [
-            MCPTool(
-                name="create_test",
-                description=f"This is a test tool for token: {token}",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "test": schema
-                    },
-                    "required": [
-                        "test"
-                    ]
-                }
-            )
-        ]
-"""
-
 
 class MCPTool(Instance):
     name = None
