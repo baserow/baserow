@@ -1,10 +1,9 @@
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-from django.contrib.auth.models import AbstractUser
-
 from mcp import Tool
 from mcp.types import EmbeddedResource, ImageContent, TextContent
 
+from baserow.core.mcp import MCPEndpoint
 from baserow.core.mcp.utils import NameRoute
 from baserow.core.registry import Instance, Registry
 
@@ -24,10 +23,10 @@ class MCPTool(Instance):
             )
         return self.name
 
-    async def list(self, user: AbstractUser) -> List[Tool]:
+    async def list(self, endpoint: MCPEndpoint) -> List[Tool]:
         """
-        :param user: The authenticated user object. Can be used to dynamically check
-            which tools the user has access to.
+        :param endpoint: The endpoint related to the request. Can be used to
+            dynamically check which tools the user has access to.
         :return: List of all the available tools to the user.
         """
 
@@ -35,14 +34,13 @@ class MCPTool(Instance):
 
     async def call(
         self,
-        user: AbstractUser,
+        endpoint: MCPEndpoint,
         name_parameters: Dict[str, Any],
         call_arguments: Dict[str, Any],
     ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
         """
 
-        :param user: The authenticated user object. Can be used to dynamically check
-            the permissions.
+        :param endpoint: The endpoint related to the authenticated user.
         :param name_parameters: A dict containing the provided name params defined in
             the `name` property like {id}.
         :param call_arguments: A dict containing the validated arguments from the
@@ -59,16 +57,16 @@ class MCPTool(Instance):
 class MCPToolRegistry(Registry[MCPTool]):
     name = "mcp_tools"
 
-    async def list_all_tools(self, user: AbstractUser) -> List[Tool]:
+    async def list_all_tools(self, endpoint: MCPEndpoint) -> List[Tool]:
         """
-        :param user: The authenticated user object. Can be used to dynamically check
-            which tools the user has access to.
+        :param endpoint: The endpoint related to the request. Can be used to
+            dynamically check which tools the user has access to.
         :return: List of all the available tools to the provided user.
         """
 
         all_tools = []
         for mcp in self.registry.values():
-            tools = await mcp.list(user)
+            tools = await mcp.list(endpoint)
             all_tools.extend(tools)
         return tools
 

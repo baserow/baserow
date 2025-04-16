@@ -1,8 +1,7 @@
 import contextvars
 import traceback
 
-from django.contrib.auth import get_user_model
-
+from asgiref.sync import sync_to_async
 from mcp.server.lowlevel.server import Server
 from mcp.server.lowlevel.server import lifespan as default_lifespan
 from mcp.server.sse import SseServerTransport
@@ -10,14 +9,13 @@ from mcp.types import TextContent
 from mcp.types import Tool as MCPTool
 from starlette.applications import Starlette
 from starlette.requests import Request
+from starlette.responses import Response
 from starlette.routing import Mount, Route
 
-from baserow.core.mcp.registries import mcp_tool_registry
+from baserow.core.mcp.models import MCPEndpoint
+from baserow.core.subjects import UserSubjectType
 
-User = get_user_model()
-current_endpoint: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "current_endpoint"
-)
+current_key: contextvars.ContextVar[str] = contextvars.ContextVar("current_key")
 
 
 class BaserowMCPServer:
@@ -41,33 +39,59 @@ class BaserowMCPServer:
     async def return_empty(self):
         return []
 
-    async def get_user(self) -> User:
-        endpoint = current_endpoint.get()
-        # @TODO implement fetching the user dynamically.
-        print(f"@TODO fetch user based on endpoint {endpoint}")
-        user = await User.objects.aget(email="bram@baserow.io")
-        return user
+    async def get_endpoint(self) -> MCPEndpoint:
+        key = current_key.get()
+        try:
+            endpoint = await MCPEndpoint.objects.select_related(
+                "user", "user__profile", "workspace"
+            ).aget(key=key)
+            # This call checks if the user is active, account is not deleted, and if it
+            # belongs in the workspace. It's important to check this everytime an
+            # operation is done because the permissions could have changed.
+            check_method = UserSubjectType().is_in_workspace
+            valid = await sync_to_async(check_method)(endpoint.user, endpoint.workspace)
+            if not valid:
+                return None
+            return endpoint
+        except MCPEndpoint.DoesNotExist:
+            return None
 
     async def call_tool(self, name: str, arguments):
-        user = await self.get_user()
+        from baserow.core.mcp.registries import mcp_tool_registry
+
+        endpoint = await self.get_endpoint()
+        if not endpoint:
+            return [TextContent(type="text", text=f"Endpoint not found.")]
         tool, params = mcp_tool_registry.match_by_name(name)
         if not tool or not params:
             return [TextContent(type="text", text=f"Tool '{name}' not found.")]
-        return await tool.call(user, name, params, arguments)
+        return await tool.call(endpoint, name, params, arguments)
 
     async def list_tools(self) -> list[MCPTool]:
-        user = await self.get_user()
-        return await mcp_tool_registry.list_all_tools(user)
+        from baserow.core.mcp.registries import mcp_tool_registry
+
+        endpoint = await self.get_endpoint()
+        if not endpoint:
+            # It's only possible to respond with a list of `MCPTool` objects. If the
+            # user isn't active anymore, then we can respond with an empty list,
+            # insinuating that nothing is possible anymore.
+            return []
+        return await mcp_tool_registry.list_all_tools(endpoint)
 
     def sse_app(self) -> Starlette:
-        sse_path = "/mcp/{endpoint}/sse"
+        sse_path = "/mcp/{key}/sse"
         messages_path = "/mcp/messages/"
         sse = SseServerTransport(messages_path)
 
         async def handle_sse(request: Request) -> None:
-            # Save the token in the context var
-            endpoint = request.path_params["endpoint"]
-            endpoint_ctx = current_endpoint.set(endpoint)
+            key = request.path_params["key"]
+            key_ctx = current_key.set(key)
+
+            endpoint = await self.get_endpoint()
+            if not endpoint:
+                # If there is no endpoint, then there is no need to start a
+                # connection. It's valid to immediately respond with a 401 error.
+                return Response("Endpoint not found.", status_code=401)
 
             try:
                 async with sse.connect_sse(
@@ -84,7 +108,7 @@ class BaserowMCPServer:
                 traceback.print_exc()
             finally:
                 # Reset the context variable when done
-                current_endpoint.reset(endpoint_ctx)
+                current_key.reset(key_ctx)
 
         return Starlette(
             debug=False,
