@@ -15,6 +15,7 @@ import {
   AccountSettingsType,
   PasswordSettingsType,
   EmailNotificationsSettingsType,
+  MCPEndpointSettingsType,
   DeleteAccountSettingsType,
 } from '@baserow/modules/core/settingsTypes'
 import { GenerativeAIWorkspaceSettingsType } from '@baserow/modules/core/workspaceSettingsTypes'
@@ -145,6 +146,7 @@ export default (context, inject) => {
   registry.register('settings', new AccountSettingsType(context))
   registry.register('settings', new PasswordSettingsType(context))
   registry.register('settings', new EmailNotificationsSettingsType(context))
+  registry.register('settings', new MCPEndpointSettingsType(context))
   registry.register('settings', new DeleteAccountSettingsType(context))
 
   registry.register(

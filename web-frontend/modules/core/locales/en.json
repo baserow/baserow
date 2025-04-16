@@ -942,5 +942,21 @@
   "createNewGuidedTourStep": {
     "title": "Create a new database or application",
     "content": "Click “Add new…” to set up a new database, application or dashboard for your project, department, or team."
+  },
+  "mcpEndpointSettings": {
+    "title": "MCP",
+    "createEndpoint": "Create endpoint",
+    "createNewTitle": "Create MCP endpoint",
+    "backToOverview": "Back",
+    "noEndpointsMessage": "No MCP endpoints have been added. These can be used to directly integrate with an LLM like Claude, and let the LLM perform actions directly in Baserow."
+  },
+  "mcpEndpointForm": {
+    "nameLabel": "Name",
+    "workspaceLabel": "Workspace"
+  },
+  "mcpEndpoint": {
+    "detailLabel": "More details",
+    "endpointURLIntro": "The MCP endpoint SSE URL can be added to any client that supports MCP servers. It's a unique URL that gives the LLM direct access to perform actions in the workspace.",
+    "claudeInstructions": "Two simple steps to get started with Claude Desktop and the Baserow MCP.\n\n1. Copy your unique MCP server URL.\n1. Configure Claude Desktop with your MCP URL (see details below)\n\nInclude the following JSON configuration in `claude_desktop_config.json`."
   }
 }
