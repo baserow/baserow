@@ -1,5 +1,6 @@
 .kanban-view {
   overflow-x: scroll;
+  background-color: $white;
 
   @include absolute(0);
 }
@@ -45,20 +46,21 @@
 }
 
 .kanban-view__stack {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: $palette-neutral-25;
   max-height: 100%;
   width: 320px;
   display: flex;
   flex-direction: column;
+  border: solid 1px $palette-neutral-200;
 
-  @include rounded($rounded-xl);
+  @include rounded($rounded-md);
 }
 
 .kanban-view__stack-head {
   display: flex;
   align-items: center;
   width: 100%;
-  padding: 20px 20px 10px;
+  padding: 16px 20px;
 }
 
 .kanban-view__drag {
@@ -79,7 +81,7 @@
   margin-right: 10px;
   line-height: 120%;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .kanban-view__option-wrapper {
@@ -91,28 +93,35 @@
 .kanban-view__option {
   @extend %ellipsis;
   @include select-option-style(inline-block, false);
+
+  line-height: 28px;
+  height: 28px;
+  font-weight: 500;
 }
 
 .kanban-view__count {
   flex: 0 0;
-  background-color: $color-neutral-200;
-  color: $color-neutral-700;
+  background-color: $palette-neutral-200;
+  color: $palette-neutral-900;
   padding: 0 8px;
-  margin-right: 10px;
+  margin-right: 16px;
+  font-weight: 500;
+  border-radius: 28px;
+  flex-basis: 28px;
+  text-align: center;
 
-  @include fixed-height(22px, 12px);
-  @include rounded($rounded);
+  @include fixed-height(28px, 11px);
 }
 
 .kanban-view__options {
   flex: 0 0;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 22px;
-  color: $color-neutral-900;
+  color: $palette-neutral-600;
 
   &:hover {
     text-decoration: none;
-    color: $color-neutral-500;
+    color: $palette-neutral-900;
   }
 }
 
@@ -144,12 +153,14 @@
     right: 0;
     opacity: 0.9;
     transform: none !important;
+
+    @include elevation($elevation-high);
   }
 
   &.kanban-view__stack-card--dragging {
-    background: transparent;
-    border: none;
     box-shadow: none;
+    border: 1px dashed $palette-neutral-400;
+    background-color: $palette-neutral-200;
 
     * {
       visibility: hidden;
@@ -166,14 +177,15 @@
         .kanban-view__stack-card--dragging
       ) {
       cursor: pointer;
-
-      @include elevation($elevation-medium);
+      border-color: $palette-neutral-300;
     }
   }
 }
 
 .kanban-view__stack-foot {
-  padding: 10px 20px 20px;
+  display: flex;
+  justify-content: center;
+  padding: 10px 20px 16px;
 }
 
 .kanban-view__add-stack {

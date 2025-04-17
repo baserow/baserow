@@ -113,10 +113,12 @@
     "title": "Group field",
     "chooseField": "Which single select field should the cards be stacked by?"
   },
+  "kanbanView": {
+    "addStack": "Add stack"
+  },
   "kanbanViewStack": {
     "uncategorized": "Uncategorized",
-    "tryAgain": "Try again",
-    "new": "New"
+    "tryAgain": "Try again"
   },
   "calendarViewType": {
     "sharedViewText": "Allow anyone to see the data in this view or sync events to your external calendar.",
