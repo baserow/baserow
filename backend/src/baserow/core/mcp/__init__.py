@@ -22,7 +22,8 @@ class BaserowMCPServer:
     def __init__(self):
         self._mcp_server = Server(
             name="Baserow MCP",
-            instructions="Handles all the actions and tools related to Baserow.",
+            instructions="Handles all the actions, operations, mutations, and tools "
+            "related to Baserow.",
             lifespan=default_lifespan,
         )
 
@@ -32,11 +33,18 @@ class BaserowMCPServer:
         self._mcp_server.list_tools()(self.list_tools)
         self._mcp_server.call_tool()(self.call_tool)
 
+        # Return an empty list because there are no resources, prompts, and
+        # resource_templates in Baserow.
         self._mcp_server.list_resources()(self.return_empty)
         self._mcp_server.list_prompts()(self.return_empty)
         self._mcp_server.list_resource_templates()(self.return_empty)
 
-    async def return_empty(self):
+    async def return_empty(self) -> list:
+        """
+        Placeholder so that the server always responds with an empty list when certain
+        resources are requested.
+        """
+
         return []
 
     async def get_endpoint(self) -> MCPEndpoint:
@@ -104,8 +112,8 @@ class BaserowMCPServer:
                         streams[1],
                         self._mcp_server.create_initialization_options(),
                     )
-            except Exception:
-                traceback.print_exc()
+            except Exception as e:
+                traceback.print_exception(type(e), e, e.__traceback__)
             finally:
                 # Reset the context variable when done
                 current_key.reset(key_ctx)

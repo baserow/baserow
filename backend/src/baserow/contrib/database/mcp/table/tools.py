@@ -1,4 +1,5 @@
 import json
+
 from asgiref.sync import sync_to_async
 from mcp import Tool
 from mcp.types import TextContent
@@ -6,8 +7,8 @@ from mcp.types import TextContent
 from baserow.contrib.database.api.tables.serializers import (
     TableWithoutDataSyncSerializer,
 )
-from baserow.core.mcp.registries import MCPTool
 from baserow.contrib.database.mcp.table.utils import get_all_tables
+from baserow.core.mcp.registries import MCPTool
 
 
 class ListTablesMcpTool(MCPTool):

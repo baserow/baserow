@@ -197,6 +197,12 @@ from baserow.core.integrations.operations import (
     ReadIntegrationOperationType,
     UpdateIntegrationOperationType,
 )
+from baserow.core.mcp.operations import (
+    CreateMCPEndpointOperationType,
+    DeleteMCPEndpointOperationType,
+    ReadMCPEndpointOperationType,
+    UpdateMCPEndpointOperationType,
+)
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
     CreateInvitationsWorkspaceOperationType,
@@ -334,6 +340,10 @@ default_roles[VIEWER_ROLE_UID].extend(
         ListDashboardDataSourcesOperationType,
         ReadDashboardDataSourceOperationType,
         DispatchDashboardDataSourceOperationType,
+        ReadMCPEndpointOperationType,
+        CreateMCPEndpointOperationType,
+        UpdateMCPEndpointOperationType,
+        DeleteMCPEndpointOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(

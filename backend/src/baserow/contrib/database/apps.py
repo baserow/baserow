@@ -1014,10 +1014,10 @@ class DatabaseConfig(AppConfig):
         notification_type_registry.register(WebhookPayloadTooLargeNotificationType())
 
         from baserow.contrib.database.mcp.rows.tools import (
-            ListRowsMcpTool,
             CreateRowMcpTool,
-            UpdateRowMcpTool,
             DeleteRowMcpTool,
+            ListRowsMcpTool,
+            UpdateRowMcpTool,
         )
         from baserow.contrib.database.mcp.table.tools import ListTablesMcpTool
         from baserow.core.mcp.registries import mcp_tool_registry

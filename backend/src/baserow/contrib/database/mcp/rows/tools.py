@@ -2,11 +2,23 @@ from asgiref.sync import sync_to_async
 from mcp import Tool
 from mcp.types import TextContent
 from rest_framework.response import Response
+from starlette.status import HTTP_204_NO_CONTENT
 
 from baserow.contrib.database.api.rows.serializers import get_row_serializer_class
+from baserow.contrib.database.mcp.table.utils import (
+    get_all_tables,
+    remove_table_no_permission,
+    table_in_workspace_of_endpoint,
+)
+from baserow.contrib.database.rows.operations import (
+    DeleteDatabaseRowOperationType,
+    UpdateDatabaseRowOperationType,
+)
+from baserow.contrib.database.table.operations import (
+    CreateRowDatabaseTableOperationType,
+)
 from baserow.core.mcp.registries import MCPTool
 from baserow.core.mcp.utils import internal_api_request, serializer_to_openapi_inline
-from baserow.contrib.database.mcp.table.utils import get_all_tables
 
 
 class ListRowsMcpTool(MCPTool):
@@ -14,7 +26,6 @@ class ListRowsMcpTool(MCPTool):
     name = "list_rows_table_{id}"
 
     async def list(self, endpoint):
-        # @TODO make sure more efficient.
         tables = await sync_to_async(get_all_tables)(endpoint)
 
         tools = []
@@ -26,7 +37,24 @@ class ListRowsMcpTool(MCPTool):
                     f'named "{table.name}".',
                     inputSchema={
                         "type": "object",
-                        "properties": {},
+                        "properties": {
+                            "search": {
+                                "type": "string",
+                                "description": "Optionally search in the whole table.",
+                            },
+                            "page": {
+                                "type": "integer",
+                                "default": 1,
+                                "description": "Rows/records are paginated. Provide "
+                                "if a different page should be fetched.",
+                            },
+                            "size": {
+                                "type": "integer",
+                                "default": 100,
+                                "description": "Maximum rows/records that must be "
+                                "returned.",
+                            },
+                        },
                     },
                 )
             )
@@ -39,16 +67,25 @@ class ListRowsMcpTool(MCPTool):
         name_parameters,
         call_arguments,
     ):
-        # @TODO introduce a check to see if the user has access to the table, and if it
-        #  belongs to the workspace of the endpoint.
+        table_id = name_parameters["id"]
+        if not await sync_to_async(table_in_workspace_of_endpoint)(endpoint, table_id):
+            return [TextContent(type="text", text="Table not in endpoint workspace.")]
+
+        search = call_arguments.get("search", "")
+        page = call_arguments.get("page", 1)
+        size = call_arguments.get("size", 100)
 
         response: Response = await sync_to_async(internal_api_request)(
             "api:database:rows:list",
-            path_params={"table_id": name_parameters["id"]},
+            path_params={"table_id": table_id},
             user=endpoint.user,
-            query_params={"user_field_names": "true"},
+            query_params={
+                "user_field_names": "true",
+                "search": search,
+                "page": page,
+                "size": size,
+            },
         )
-        # @TODO remove the pagination in the response.
 
         return [TextContent(type="text", text=response.content)]
 
@@ -58,9 +95,10 @@ class CreateRowMcpTool(MCPTool):
     name = "create_row_table_{id}"
 
     async def list(self, endpoint):
-        # @TODO make sure more efficient, and check if the user can write into the
-        #  table.
         tables = await sync_to_async(get_all_tables)(endpoint)
+        tables = await sync_to_async(remove_table_no_permission)(
+            endpoint, tables, CreateRowDatabaseTableOperationType
+        )
 
         tools = []
         for table in tables:
@@ -95,22 +133,18 @@ class CreateRowMcpTool(MCPTool):
         name_parameters,
         call_arguments,
     ):
-        # @TODO introduce a check to see if the user has access to the table, and if it
-        #  belongs to the workspace of the endpoint.
+        table_id = name_parameters["id"]
+        if not await sync_to_async(table_in_workspace_of_endpoint)(endpoint, table_id):
+            return [TextContent(type="text", text="Table not in endpoint workspace.")]
 
-        try:
-            response: Response = await sync_to_async(internal_api_request)(
-                "api:database:rows:list",
-                method="POST",
-                path_params={"table_id": name_parameters["id"]},
-                user=endpoint.user,
-                data=call_arguments["row"],
-                query_params={"user_field_names": "true"},
-            )
-        except Exception as e:
-            import traceback
-
-            traceback.print_exception(type(e), e, e.__traceback__)
+        response: Response = await sync_to_async(internal_api_request)(
+            "api:database:rows:list",
+            method="POST",
+            path_params={"table_id": name_parameters["id"]},
+            user=endpoint.user,
+            data=call_arguments["row"],
+            query_params={"user_field_names": "true"},
+        )
 
         return [TextContent(type="text", text=response.content)]
 
@@ -120,9 +154,10 @@ class UpdateRowMcpTool(MCPTool):
     name = "update_row_table_{id}"
 
     async def list(self, endpoint):
-        # @TODO make sure more efficient, and check if the user can write into the
-        #  table.
         tables = await sync_to_async(get_all_tables)(endpoint)
+        tables = await sync_to_async(remove_table_no_permission)(
+            endpoint, tables, UpdateDatabaseRowOperationType
+        )
 
         tools = []
         for table in tables:
@@ -160,25 +195,21 @@ class UpdateRowMcpTool(MCPTool):
         name_parameters,
         call_arguments,
     ):
-        # @TODO introduce a check to see if the user has access to the table, and if it
-        #  belongs to the workspace of the endpoint.
+        table_id = name_parameters["id"]
+        if not await sync_to_async(table_in_workspace_of_endpoint)(endpoint, table_id):
+            return [TextContent(type="text", text="Table not in endpoint workspace.")]
 
-        try:
-            response: Response = await sync_to_async(internal_api_request)(
-                "api:database:rows:item",
-                method="PATCH",
-                path_params={
-                    "table_id": name_parameters["id"],
-                    "row_id": call_arguments["id"],
-                },
-                user=endpoint.user,
-                data=call_arguments["row"],
-                query_params={"user_field_names": "true"},
-            )
-        except Exception as e:
-            import traceback
-
-            traceback.print_exception(type(e), e, e.__traceback__)
+        response: Response = await sync_to_async(internal_api_request)(
+            "api:database:rows:item",
+            method="PATCH",
+            path_params={
+                "table_id": name_parameters["id"],
+                "row_id": call_arguments["id"],
+            },
+            user=endpoint.user,
+            data=call_arguments["row"],
+            query_params={"user_field_names": "true"},
+        )
 
         return [TextContent(type="text", text=response.content)]
 
@@ -188,9 +219,10 @@ class DeleteRowMcpTool(MCPTool):
     name = "delete_row_table_{id}"
 
     async def list(self, endpoint):
-        # @TODO make sure more efficient, and check if the user can write into the
-        #  table.
         tables = await sync_to_async(get_all_tables)(endpoint)
+        tables = await sync_to_async(remove_table_no_permission)(
+            endpoint, tables, DeleteDatabaseRowOperationType
+        )
 
         tools = []
         for table in tables:
@@ -219,22 +251,23 @@ class DeleteRowMcpTool(MCPTool):
         name_parameters,
         call_arguments,
     ):
-        # @TODO introduce a check to see if the user has access to the table, and if it
-        #  belongs to the workspace of the endpoint.
+        table_id = name_parameters["id"]
+        if not await sync_to_async(table_in_workspace_of_endpoint)(endpoint, table_id):
+            return [TextContent(type="text", text="Table not in endpoint workspace.")]
 
-        try:
-            response: Response = await sync_to_async(internal_api_request)(
-                "api:database:rows:item",
-                method="DELETE",
-                path_params={
-                    "table_id": name_parameters["id"],
-                    "row_id": call_arguments["id"],
-                },
-                user=endpoint.user,
-            )
-        except Exception as e:
-            import traceback
+        response: Response = await sync_to_async(internal_api_request)(
+            "api:database:rows:item",
+            method="DELETE",
+            path_params={
+                "table_id": name_parameters["id"],
+                "row_id": call_arguments["id"],
+            },
+            user=endpoint.user,
+        )
 
-            traceback.print_exception(type(e), e, e.__traceback__)
-
-        return [TextContent(type="text", text=response.content)]
+        content = (
+            "successfully deleted"
+            if response.status_code == HTTP_204_NO_CONTENT
+            else response.content
+        )
+        return [TextContent(type="text", text=content)]
