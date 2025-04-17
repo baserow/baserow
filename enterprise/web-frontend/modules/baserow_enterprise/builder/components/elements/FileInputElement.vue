@@ -175,8 +175,10 @@ export default {
             // instance) we just want to nuke the data.
             this.fileData = {
               ...this.fileData,
-              content_type: 'application/octet-stream',
-              size: null,
+              [fileObj.url]: {
+                content_type: 'application/octet-stream',
+                size: null,
+              },
             }
           }
         }

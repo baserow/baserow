@@ -131,7 +131,7 @@ def _handle_file(file_obj: dict, user: AbstractUser) -> dict:
             # It's a random URL let's try to upload it as new user file
             user_file = UserFileHandler().upload_user_file_by_url(
                 user,
-                file_obj["url"],
+                url,
                 file_name=file_obj.get("name"),
             )
         return user_file.serialize()
@@ -162,22 +162,24 @@ def prepare_files_for_db(value: Any, user: AbstractUser) -> List[dict]:
 
     for f in data:
         if isinstance(f, dict) and f.get("__file__"):
+            file_name = f.get("name", "unnamed")
             try:
                 result.append(_handle_file(f, user))
             except FileURLCouldNotBeReached as exc:
                 raise ServiceImproperlyConfigured(
-                    f"The file {f.get('name', 'unnamed')} couldn't be reached."
+                    f"The file {file_name} couldn't be reached."
                 ) from exc
             except FileSizeTooLargeError as exc:
                 raise ServiceImproperlyConfigured(
-                    f"The file {f.get('name', 'unnamed')} is too large."
+                    f"The file {file_name} is too large."
                 ) from exc
             except Exception as exc:
-                logger.exception(f"Unprocessed file {f.get('name', 'unnamed')}")
+                logger.exception(f"Unprocessed file {file_name}")
                 raise ServiceImproperlyConfigured(
-                    f"The file {f.get('name', 'unnamed')} couldn't "
+                    f"The file {file_name} couldn't "
                     f"be processed for unknown reason: {exc}"
                 ) from exc
+
         else:
             # Otherwise we keep it as it as we don't know what to do
             result.append(f)

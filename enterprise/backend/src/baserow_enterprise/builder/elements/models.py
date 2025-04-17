@@ -51,7 +51,7 @@ class FileInputElement(FormElement):
             MinValueValidator(1, message="Value cannot be less than 1."),
             MaxValueValidator(
                 MAX_FILE_SIZE,
-                message=(f"Value cannot be greater than" f" {MAX_FILE_SIZE}."),
+                message=(f"Value cannot be greater than {MAX_FILE_SIZE}."),
             ),
         ],
     )

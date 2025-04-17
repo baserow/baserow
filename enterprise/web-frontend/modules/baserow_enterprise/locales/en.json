@@ -491,7 +491,7 @@
     "multiple": "Multiple files?",
     "required": "Required",
     "fileTypes": "File types",
-    "fileTypesHelper": "Choose which file extensions are allowed by the file input (e.g. jpg, png, svg, pdf). you can specify image/*, video/* or audio/* to allow all files of this type. Leave empty to permit all file types.",
+    "fileTypesHelper": "Choose which file extensions are allowed by the file input (e.g. jpg, png, svg, pdf). you can specify image/*, video/* or audio/* to allow all files of these types. Leave empty to permit all file types.",
     "preview": "Preview images?",
     "maxFileSize": "Maximum file size",
     "maxFileSizePlaceholder": "Enter a number...",
