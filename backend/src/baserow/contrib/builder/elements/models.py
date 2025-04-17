@@ -57,6 +57,11 @@ class INPUT_TEXT_TYPES(models.TextChoices):
     PASSWORD = "password"  # nosec bandit B105
 
 
+class MENU_TYPES(models.TextChoices):
+    EXPANDED = "expanded"
+    MOBILE = "mobile"
+
+
 def get_default_element_content_type():
     return ContentType.objects.get_for_model(Element)
 
@@ -66,6 +71,14 @@ def get_default_table_orientation():
         "smartphone": "horizontal",
         "tablet": "horizontal",
         "desktop": "horizontal",
+    }
+
+
+def get_default_menu_type():
+    return {
+        "smartphone": MENU_TYPES.MOBILE,
+        "tablet": MENU_TYPES.MOBILE,
+        "desktop": MENU_TYPES.EXPANDED,
     }
 
 
@@ -1111,6 +1124,13 @@ class MenuElement(Element):
         choices=HorizontalAlignments.choices,
         max_length=10,
         default=HorizontalAlignments.LEFT,
+    )
+
+    menu_type = models.JSONField(
+        blank=True,
+        null=True,
+        default=get_default_menu_type,
+        help_text="The menu type (expanded or mobile) for each device type",
     )
 
     menu_items = models.ManyToManyField(MenuItemElement)

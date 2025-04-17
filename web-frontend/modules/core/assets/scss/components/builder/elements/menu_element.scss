@@ -3,6 +3,10 @@
   justify-content: var(--alignment);
 }
 
+.menu-element__wrapper {
+  position: relative;
+}
+
 /**
   Disable pointer events when in Page Editor.
   */
@@ -11,12 +15,15 @@
   user-select: none;
 }
 
+// Base styles for submenu containers
 .menu-element__sub-links {
   display: flex;
   flex-direction: column;
   width: 100%;
   gap: 10px;
   padding: 5px;
+  border-radius: 6px;
+  background-color: var(--page-background-color, #fff);
 }
 
 .menu-element__container--vertical {
@@ -38,10 +45,7 @@
     gap: 10px;
     padding: 10px;
     margin-left: 10px;
-    border-radius: 6px;
 
-    // We want the same color as page background
-    background-color: var(--page-background-color, #fff);
     .ab-link {
       padding-left: 0;
     }
@@ -53,11 +57,35 @@
   }
 }
 
+// General sub-link styles (must come before more specific mobile styles)
+.menu-element__sub-link-menu--container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+}
+
+.menu-element__sub-link {
+  width: 100%;
+  display: block;
+  padding: 10px;
+  text-decoration: none;
+}
+
+.menu-element__sub-link--container {
+  margin-top: 5px;
+}
+
+.menu-element__sub-link:hover {
+  background: var(--page-background-color-contrast, $palette-neutral-100);
+}
+
 .menu-element__container--mobile {
   display: flex;
   flex-direction: column;
   gap: 20px;
   width: 100%;
+  margin-bottom: 10px;
 
   .menu-element__menu-item-separator {
     width: 100%;
@@ -85,25 +113,101 @@
   .menu-element__burger-menu-left {
     display: flex;
     justify-content: flex-start;
+    padding: 10px;
+    position: relative;
+    z-index: 2;
+
+    i {
+      font-size: 24px;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
 
   .menu-element__burger-menu-right {
     display: flex;
     justify-content: flex-end;
+    padding: 10px;
+    position: relative;
+    z-index: 2;
+
+    i {
+      font-size: 24px;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
 
-  &.menu-element__burger-full-screen {
+  &.menu-element__burger-active {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    padding: 20px;
+    padding: 10px 30px 10px 17px;
     height: 100vh;
-    background-color: white;
+    background-color: var(--page-background-color, white);
     display: flex;
     flex-direction: column;
-    transition: transform 0.3s ease-in-out;
+    justify-content: flex-start;
+    align-items: var(--alignment);
     z-index: 1;
+
+    // Add top padding to ensure content doesn't overlap with the close button
+
+    // Position the close button consistently with the menu button
+    .iconoir-cancel {
+      position: absolute;
+      top: 10px;
+      font-size: 24px;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .menu-element__menu-item-link {
+      position: relative;
+      top: 10px;
+      left: 10px;
+    }
+
+    // For desktop mode, limit width and align with page content
+    @media (min-width: 768px) {
+      position: absolute;
+      width: auto;
+      min-width: 250px;
+      left: auto;
+      transform: none;
+      height: auto;
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border-radius: 6px;
+      margin-top: 10px;
+      padding: 0 20px 30px 5px;
+    }
+  }
+
+  .menu-element__sub-link--container {
+    .menu-element__sub-links {
+      border-radius: 6px;
+
+      // We want the same color as page background
+      background-color: var(--page-background-color, #fff);
+    }
+
+    .menu-element__sub-link:hover {
+      background: var(--page-background-color-contrast, $palette-neutral-100);
+    }
   }
 }
 
@@ -125,26 +229,4 @@
     height: 20px;
     background-color: $palette-neutral-500;
   }
-}
-
-.menu-element__sub-link-menu--container {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 5px;
-}
-
-.menu-element__sub-link {
-  width: 100%;
-  display: block;
-  padding: 10px;
-  text-decoration: none;
-}
-
-.menu-element__sub-link--container {
-  margin-top: 5px;
-}
-
-.menu-element__sub-link:hover {
-  background: var(--page-background-color-contrast, $palette-neutral-100);
 }

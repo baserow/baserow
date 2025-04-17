@@ -1,47 +1,63 @@
 <template>
   <div
-    :style="{
-      '--alignment': menuAlignment,
-    }"
-    :class="menuContainerClass"
+    :class="[
+      'menu-element__wrapper',
+      `menu-element__align-${element.alignment.toLowerCase()}`,
+    ]"
   >
-    <template v-if="!isMobileDevice">
-      <div
-        v-for="item in element.menu_items"
-        :key="item.id"
-        :class="`menu-element__menu-item-${item.type}`"
-      >
-        <ABMenuItem :key="item.uid" :menu-item="item" :element="element" />
-      </div>
-    </template>
-
-    <template v-else>
-      <div
-        :class="[
-          element.alignment === alignments.LEFT
-            ? 'menu-element__burger-menu-left'
-            : 'menu-element__burger-menu-right',
-        ]"
-      >
-        <i
-          :class="burgerMenuActive ? 'iconoir-cancel' : 'iconoir-menu'"
-          @click="burgerMenuActive = !burgerMenuActive"
-        ></i>
-      </div>
-
-      <template v-if="burgerMenuActive">
+    <div
+      :style="{
+        '--alignment': menuAlignment,
+      }"
+      :class="menuContainerClass"
+    >
+      <template v-if="!useMobileMenu">
         <div
           v-for="item in element.menu_items"
           :key="item.id"
           :class="`menu-element__menu-item-${item.type}`"
         >
-          <ABMenuItem :key="item.uid" :menu-item="item" :element="element" />
+          <ABMenuItem
+            :key="item.uid"
+            :menu-item="item"
+            :element="element"
+            :is-mobile-device="useMobileMenu"
+          />
         </div>
       </template>
-    </template>
 
-    <div v-if="!element.menu_items.length" class="element--no-value">
-      {{ $t('menuElement.missingValue') }}
+      <template v-else>
+        <div
+          :class="[
+            'menu-element__burger-menu',
+            `menu-element__burger-menu-${element.alignment.toLowerCase()}`,
+          ]"
+        >
+          <i
+            :class="burgerMenuActive ? 'iconoir-cancel' : 'iconoir-menu'"
+            @click="burgerMenuActive = !burgerMenuActive"
+          ></i>
+        </div>
+
+        <template v-if="burgerMenuActive">
+          <div
+            v-for="item in element.menu_items"
+            :key="item.id"
+            :class="`menu-element__menu-item-${item.type}`"
+          >
+            <ABMenuItem
+              :key="item.uid"
+              :menu-item="item"
+              :element="element"
+              :is-mobile-device="useMobileMenu"
+            />
+          </div>
+        </template>
+      </template>
+
+      <div v-if="!element.menu_items.length" class="element--no-value">
+        {{ $t('menuElement.missingValue') }}
+      </div>
     </div>
   </div>
 </template>
@@ -53,6 +69,16 @@ import { HORIZONTAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
 /**
  * @typedef MenuElement
  * @property {Array}  menu_items Array of Menu items
+ *
+ *  The `MenuElement` supports two menu layouts for three device types:
+ *
+ * Expanded (normal) menu: Best for wider screens.
+ * Mobile (burger) menu: Ideal for smaller devices like smartphones and tablets.
+ *
+ * Like other Baserow elements, the menu type can be customized per device.
+ * Users can opt for the mobile burger menu even on `desktop`, or use the expanded menu
+ * across all three device types: `tablet`, `desktop`, and `smartphone`.
+ *
  */
 
 export default {
@@ -75,10 +101,10 @@ export default {
     },
     menuContainerClass() {
       const classes = ['menu-element__container']
-      if (this.isMobileDevice) {
+      if (this.useMobileMenu) {
         classes.push('menu-element__container--mobile')
         if (this.burgerMenuActive) {
-          classes.push('menu-element__burger-full-screen')
+          classes.push('menu-element__burger-active')
         }
       } else {
         classes.push(`menu-element__container--${this.element.orientation}`)
@@ -88,13 +114,21 @@ export default {
     menuAlignment() {
       const alignmentsCSS = {
         [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
-        [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
+        [HORIZONTAL_ALIGNMENTS.CENTER]: this.useMobileMenu
+          ? 'flex-start'
+          : 'center',
         [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
       }
       return alignmentsCSS[this.element.alignment]
     },
-    isMobileDevice() {
-      return this.$store.getters['page/getDeviceTypeSelected'] === 'smartphone'
+    useMobileMenu() {
+      const deviceType = this.$store.getters['page/getDeviceTypeSelected']
+      // If menu_type is defined for the current device, use it,
+      // otherwise fall back to the default behavior
+      if (this.element.menu_type && this.element.menu_type[deviceType]) {
+        return this.element.menu_type[deviceType] === 'mobile'
+      }
+      return deviceType === 'smartphone'
     },
   },
 }

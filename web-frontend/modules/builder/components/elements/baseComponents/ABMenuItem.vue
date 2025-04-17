@@ -99,7 +99,7 @@
       :ref="`subLinkContext_${menuItem.id}`"
       :hide-on-click-outside="true"
     >
-      <ThemeProvider>
+      <ThemeProvider class="menu-element__sub-links">
         <div
           v-for="child in menuItem.children"
           :key="child.id"
@@ -151,6 +151,10 @@ export default {
       type: Object,
       required: true,
     },
+    isMobileDevice: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
@@ -159,9 +163,6 @@ export default {
     }
   },
   computed: {
-    isMobileDevice() {
-      return this.$store.getters['page/getDeviceTypeSelected'] === 'smartphone'
-    },
     menuElementType() {
       return this.$registry.get('element', 'menu')
     },
