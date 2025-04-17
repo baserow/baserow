@@ -867,7 +867,8 @@
     "addLogo": "Add a logo",
     "titlePlaceholder": "Title",
     "descriptionPlaceholder": "Description",
-    "noFields": "This form doesn't have any fields. Click on a field in the left sidebar to add one."
+    "noFieldsTitle": "This form doesn't have any fields",
+    "noFieldsContent": "Click on a field in the left sidebar to add one."
   },
   "table": {
     "adjacentRow": {

@@ -45,7 +45,10 @@
             <i class="form-view__edit-icon iconoir-edit-pencil"></i>
           </a>
         </div>
-        <div class="form-view__field-description">
+        <div
+          v-show="selected || fieldOptions.description"
+          class="form-view__field-description"
+        >
           <Editable
             ref="description"
             :value="fieldOptions.description"
