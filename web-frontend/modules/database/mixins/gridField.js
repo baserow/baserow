@@ -147,7 +147,7 @@ export default {
           if (
             value !== oldValue &&
             !this.readOnly &&
-            !this.field._.type.isReadOnly
+            !this.isReadOnlyField(this.field)
           ) {
             this.$emit('update', value, oldValue)
           }
@@ -208,12 +208,11 @@ export default {
                 jsonData !== null ? jsonData[0][0] : undefined
               )
             const oldValue = this.value
-
             if (
               value !== undefined &&
               value !== oldValue &&
               !this.readOnly &&
-              !this.field._.type.isReadOnly
+              !this.isReadOnlyField(this.field)
             ) {
               this.$emit('update', value, oldValue)
             }
@@ -225,6 +224,12 @@ export default {
         } catch (e) {}
       }
       this.addEventListenerWithAutoRemove(document, 'paste', pasteEventListener)
+    },
+    /** Returns true if the field is read only. */
+    isReadOnlyField(field) {
+      return this.$registry
+        .get('field', field.type)
+        .isReadOnlyField(field, this.readOnly)
     },
     /**
      * Adds all the event listeners related to all the field types, for example when a

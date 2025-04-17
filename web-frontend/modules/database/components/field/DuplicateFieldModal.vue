@@ -69,7 +69,8 @@ export default {
       return this.allFieldsInTable.map((field) => field.name)
     },
     formFieldTypeIsReadOnly() {
-      return this.$registry.get('field', this.fromField.type).isReadOnly
+      const fieldType = this.$registry.get('field', this.fromField.type)
+      return fieldType.isReadOnlyField(this.fromField)
     },
   },
   methods: {

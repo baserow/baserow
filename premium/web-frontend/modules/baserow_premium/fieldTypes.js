@@ -27,7 +27,7 @@ export class AIFieldType extends FieldType {
     return i18n.t('premiumFieldType.ai')
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
