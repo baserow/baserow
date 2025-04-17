@@ -987,15 +987,6 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
     return SimpleContainerElementForm
   }
 
-  getPagePlace(element) {
-    if (element?.behaviour === 'fixed') {
-      if (element?.alignment === 'top') {
-        return PAGE_PLACES.FIXED_HEADER
-      }
-    }
-    return PAGE_PLACES.CONTENT
-  }
-
   // We want this element to be as neutral as possible so there is no padding by
   // default.
   getDefaultValues(page, values) {
@@ -2164,6 +2155,9 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
   }
 
   getPagePlace(element) {
+    if (element?.behaviour === 'fixed') {
+      return PAGE_PLACES.FIXED_HEADER
+    }
     return PAGE_PLACES.HEADER
   }
 
@@ -2231,6 +2225,9 @@ export class FooterElementType extends HeaderElementType {
   }
 
   getPagePlace(element) {
+    if (element?.behaviour === 'fixed') {
+      return PAGE_PLACES.FIXED_FOOTER
+    }
     return PAGE_PLACES.FOOTER
   }
 

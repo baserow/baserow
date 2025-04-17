@@ -19,16 +19,6 @@ class VerticalAlignments(models.TextChoices):
     BOTTOM = "bottom"
 
 
-class PageAlignments(models.TextChoices):
-    TOP = "top"
-    BOTTOM = "bottom"
-
-
-class PageBehaviours(models.TextChoices):
-    NORMAL = "normal"
-    FIXED = "fixed"
-
-
 class WIDTHS(models.TextChoices):
     AUTO = "auto"
     FULL = "full"

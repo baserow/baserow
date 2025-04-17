@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page__sticky-header">
       <PageElement
-        v-for="element in fixedHeaderElements"
+        v-for="element in elementsPerPagePlaces[PAGE_PLACES.FIXED_HEADER]"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -12,7 +12,7 @@
       />
     </div>
     <PageElement
-      v-for="element in headerElements"
+      v-for="element in elementsPerPagePlaces[PAGE_PLACES.HEADER]"
       :key="element.id"
       :element="element"
       :mode="mode"
@@ -21,7 +21,7 @@
       }"
     />
     <PageElement
-      v-for="element in contentElements"
+      v-for="element in elementsPerPagePlaces[PAGE_PLACES.CONTENT]"
       :key="element.id"
       :element="element"
       :mode="mode"
@@ -30,7 +30,7 @@
       }"
     />
     <PageElement
-      v-for="element in footerElements"
+      v-for="element in elementsPerPagePlaces[PAGE_PLACES.FOOTER]"
       :key="element.id"
       :element="element"
       :mode="mode"
@@ -70,7 +70,15 @@ export default {
     },
   },
   computed: {
-    fixedHeaderElements() {
+    elementsPerPagePlaces() {
+      return _.groupBy([...this.elements, ...this.sharedElements], (element) =>
+        this.$registry.get('element', element.type).getPagePlace(element)
+      )
+    },
+    PAGE_PLACES() {
+      return PAGE_PLACES
+    },
+    /* fixedHeaderElements() {
       return [...this.elements, ...this.sharedElements].filter(
         (element) =>
           this.$registry.get('element', element.type).getPagePlace(element) ===
@@ -97,7 +105,7 @@ export default {
           this.$registry.get('element', element.type).getPagePlace(element) ===
           PAGE_PLACES.FOOTER
       )
-    },
+    }, */
   },
   watch: {
     'dimensions.width': {

@@ -62,8 +62,6 @@ from baserow.contrib.builder.elements.models import (
     NavigationElementMixin,
     RatingElement,
     RatingInputElement,
-    PageAlignments,
-    PageBehaviours,
     RecordSelectorElement,
     RepeatElement,
     SimpleContainerElement,
@@ -295,27 +293,23 @@ class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
     model_class = SimpleContainerElement
 
     class SerializedDict(ContainerElementTypeMixin.SerializedDict):
-        alignment: str
         behaviour: str
 
     @property
     def serializer_field_names(self):
         return super().serializer_field_names + [
-            "alignment",
             "behaviour",
         ]
 
     @property
     def allowed_fields(self):
         return super().allowed_fields + [
-            "alignment",
             "behaviour",
         ]
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
-            "behaviour": PageBehaviours.NORMAL,
-            "alignment": PageAlignments.TOP,
+            "behaviour": SimpleContainerElement.PAGE_BEHAVIOURS.NORMAL,
         }
 
 

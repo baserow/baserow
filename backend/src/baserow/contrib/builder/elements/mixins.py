@@ -831,19 +831,15 @@ class MultiPageElementTypeMixin:
 
     @property
     def serializer_field_names(self):
-        return super().serializer_field_names + [
-            "share_type",
-            "pages",
-        ]
+        return super().serializer_field_names + ["share_type", "pages", "behaviour"]
 
     @property
     def allowed_fields(self):
-        return super().allowed_fields + [
-            "share_type",
-        ]
+        return super().allowed_fields + ["share_type", "behaviour"]
 
     class SerializedDict(ElementDict):
         share_type: str
+        behaviour: str
         pages: List[int]
 
     def after_create(self, instance, values):
@@ -939,4 +935,4 @@ class MultiPageElementTypeMixin:
         return instance
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
-        return {"share_type": "all"}
+        return {"share_type": "all", "behaviour": "normal"}
