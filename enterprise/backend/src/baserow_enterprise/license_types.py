@@ -8,6 +8,7 @@ from baserow.core.models import Workspace
 from baserow_enterprise.features import (
     ADVANCED_WEBHOOKS,
     AUDIT_LOG,
+    BUILDER_NO_BRANDING,
     BUILDER_SSO,
     DATA_SYNC,
     ENTERPRISE_SETTINGS,
@@ -35,6 +36,7 @@ class EnterpriseWithoutSupportLicenseType(LicenseType):
         ENTERPRISE_SETTINGS,
         DATA_SYNC,
         BUILDER_SSO,
+        BUILDER_NO_BRANDING,
         ADVANCED_WEBHOOKS,
     ]
     instance_wide = True

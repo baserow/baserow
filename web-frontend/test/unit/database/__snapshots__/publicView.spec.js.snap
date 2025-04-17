@@ -39,7 +39,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
   >
     <div>
       <header
-        class="layout__col-2-1 header"
+        class="layout__col-2-1 header header--dark-border"
       >
         <div
           class="header__loading"

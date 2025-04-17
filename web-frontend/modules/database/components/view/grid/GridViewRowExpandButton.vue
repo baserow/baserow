@@ -3,7 +3,7 @@
     class="grid-view__row-more"
     @click="listeners['edit-modal'] && listeners['edit-modal']()"
   >
-    <i class="iconoir-expand"></i>
+    <i class="baserow-icon-enlarge-row"></i>
   </a>
 </template>
 <script>
