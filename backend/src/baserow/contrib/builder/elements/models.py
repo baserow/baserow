@@ -10,8 +10,6 @@ from baserow.contrib.builder.constants import (
     BACKGROUND_IMAGE_MODES,
     COLOR_FIELD_MAX_LENGTH,
     HorizontalAlignments,
-    PageAlignments,
-    PageBehaviours,
     VerticalAlignments,
 )
 from baserow.core.constants import (
@@ -1025,10 +1023,22 @@ class MultiPageElement(Element):
         ONLY = "only"
         EXCEPT = "except"
 
+    class PAGE_BEHAVIOURS(models.TextChoices):
+        NORMAL = "normal"
+        FIXED = "fixed"
+        STICKY = "sticky"
+
     share_type = models.CharField(
         choices=SHARE_TYPE.choices,
         max_length=10,
         default=SHARE_TYPE.ALL,
+    )
+
+    behaviour = models.CharField(
+        choices=PAGE_BEHAVIOURS.choices,
+        max_length=15,
+        default=PAGE_BEHAVIOURS.NORMAL,
+        db_default=PAGE_BEHAVIOURS.NORMAL,
     )
 
     pages = models.ManyToManyField("builder.Page", blank=True)
@@ -1130,14 +1140,13 @@ class SimpleContainerElement(ContainerElement):
     and behaviour.
     """
 
-    behaviour = models.CharField(
-        choices=PageBehaviours.choices,
-        max_length=15,
-        default=PageBehaviours.NORMAL,
-    )
+    class PAGE_BEHAVIOURS(models.TextChoices):
+        NORMAL = "normal"
+        STICKY = "sticky"
 
-    alignment = models.CharField(
-        choices=PageAlignments.choices,
+    behaviour = models.CharField(
+        choices=PAGE_BEHAVIOURS.choices,
         max_length=15,
-        default=PageAlignments.TOP,
+        default=PAGE_BEHAVIOURS.NORMAL,
+        db_default=PAGE_BEHAVIOURS.NORMAL,
     )

@@ -224,12 +224,8 @@ export const TIME_FORMATS = {
   },
 }
 
-export const PAGE_ALIGNMENTS = {
-  TOP: 'top',
-  BOTTOM: 'bottom',
-}
-
-export const PAGE_ALIGNMENT_BEHAVIOURS = {
+export const PAGE_ELEMENT_BEHAVIOURS = {
   NORMAL: 'normal',
+  STICKY: 'sticky',
   FIXED: 'fixed',
 }

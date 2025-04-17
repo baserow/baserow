@@ -277,8 +277,6 @@
   },
   "simpleContainerElementForm": {
     "behaviourLabel": "Page Behaviour",
-    "behaviourNormal": "Normal",
-    "behaviourFixed": "Fixed",
     "alignmentLabel": "Page alignment",
     "alignmentTop": "Top",
     "alignmentBottom": "Bottom",
@@ -1080,5 +1078,10 @@
   "previewPublishGuidedTourStep": {
     "title": "Preview & Publish Your App",
     "content": "Click **Preview** to test your app privately. When ready, click **Publish** to share it with the public via a domain."
+  },
+  "pageElementBehaviour": {
+    "normal": "Normal",
+    "fixed": "Fixed",
+    "sticky": "Sticky"
   }
 }
