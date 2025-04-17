@@ -32,17 +32,19 @@ test.describe("Builder page heading element test suite", () => {
   }) => {
     const builderElementModal = await builderPagePage.openAddElementModal();
     await builderElementModal.addElementByName("Rating input");
+
     await expect(
       page.locator('[data-test-id="rating-form-value"]')
     ).toBeVisible();
+
     await page.evaluate(() => {
       const node = document.querySelector(".toasts__container-top");
       if (node) node.remove();
     });
-    const [newPage] = await Promise.all([
-      context.waitForEvent("page"), // Waits for a new tab to open
-      page.locator("button").filter({ hasText: "Preview" }).click(),
-    ]);
+
+    await page.getByRole("button", { name: "Preview" }).click();
+
+    const newPage = await context.waitForEvent("page");
 
     await newPage.waitForLoadState();
 

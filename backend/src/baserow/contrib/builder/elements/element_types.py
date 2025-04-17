@@ -928,7 +928,7 @@ class NavigationElementManager:
 
             if page_parameter_type is None:
                 raise DRFValidationError(
-                    f"Page path parameter {page_parameter} does not exist."
+                    f"Page path parameter {page_parameter['name']} does not exist."
                 )
 
 

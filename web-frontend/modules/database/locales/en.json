@@ -71,6 +71,7 @@
     "updateSyncConfig": "Update sync configuration"
   },
   "duplicateTableJobType": {
+    "name": "Duplicate table",
     "duplicating": "Duplicating",
     "duplicatedTitle": "Table duplicated"
   },

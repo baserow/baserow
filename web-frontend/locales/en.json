@@ -74,7 +74,9 @@
     "cantSelectTableTitle": "Couldn't select the database.",
     "cantSelectTableDescription": "The database couldn't be selected because it doesn't have any tables. Use the sidebar to create one.",
     "cantSelectPageTitle": "Couldn't select the application.",
-    "cantSelectPageDescription": "The application builder couldn't be selected because it doesn't have any pages. Use the sidebar to create one."
+    "cantSelectPageDescription": "The application builder couldn't be selected because it doesn't have any pages. Use the sidebar to create one.",
+    "cantSelectAutomationWorkflowTitle": "Couldn't select the automation.",
+    "cantSelectAutomationWorkflowDescription": "The automation couldn't be selected because it doesn't have any workflows. Use the sidebar to create one."
   },
   "settingType": {
     "account": "Account",
@@ -303,6 +305,7 @@
   "trashType": {
     "workspace": "workspace",
     "application": "application",
+    "automation_workflow": "automationWorkflow",
     "table": "table",
     "field": "field",
     "row": "row",

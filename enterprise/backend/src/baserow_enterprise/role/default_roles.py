@@ -9,6 +9,18 @@ from baserow_premium.row_comments.operations import (
     UpdateRowCommentsOperationType,
 )
 
+from baserow.contrib.automation.operations import (
+    ListAutomationWorkflowsOperationType,
+    OrderAutomationWorkflowsOperationType,
+)
+from baserow.contrib.automation.workflows.operations import (
+    CreateAutomationWorkflowOperationType,
+    DeleteAutomationWorkflowOperationType,
+    DuplicateAutomationWorkflowOperationType,
+    ReadAutomationWorkflowOperationType,
+    RestoreAutomationWorkflowOperationType,
+    UpdateAutomationWorkflowOperationType,
+)
 from baserow.contrib.builder.data_sources.operations import (
     CreateDataSourceOperationType,
     DeleteDataSourceOperationType,
@@ -469,6 +481,14 @@ default_roles[BUILDER_ROLE_UID].extend(
         CreateDashboardDataSourceOperationType,
         DeleteDashboardDataSourceOperationType,
         UpdateDashboardDataSourceOperationType,
+        ListAutomationWorkflowsOperationType,
+        OrderAutomationWorkflowsOperationType,
+        CreateAutomationWorkflowOperationType,
+        RestoreAutomationWorkflowOperationType,
+        DeleteAutomationWorkflowOperationType,
+        UpdateAutomationWorkflowOperationType,
+        ReadAutomationWorkflowOperationType,
+        DuplicateAutomationWorkflowOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(
