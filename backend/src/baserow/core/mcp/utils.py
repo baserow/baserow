@@ -1,6 +1,7 @@
 import json
 import re
 from typing import Dict, Optional
+from urllib.parse import urlencode
 
 from django.contrib.auth.models import AbstractUser
 from django.urls import reverse
@@ -143,6 +144,7 @@ def internal_api_request(
     path_params: Optional[dict] = None,
     data: Optional[dict] = None,
     user: Optional[AbstractUser] = None,
+    query_params: Optional[dict] = None,
 ):
     """
     Simulate an internal API request in Django.
@@ -152,6 +154,7 @@ def internal_api_request(
     :param path_params: Dictionary of path parameters.
     :param data: JSON payload for POST requests.
     :param user: User object or None if anonymous.
+    :param query_params: Dictionary of query parameters.
     :return: Response from the view function.
     """
 
@@ -161,23 +164,20 @@ def internal_api_request(
         jwt_token = str(AccessToken.for_user(user))
         client.credentials(HTTP_AUTHORIZATION=f"JWT {jwt_token}")
 
-    url_path = reverse(route_name, kwargs=path_params or {})
+    base_url = reverse(route_name, kwargs=path_params or {})
+    if query_params:
+        query_string = urlencode(query_params)
+        url_path = f"{base_url}?{query_string}"
+    else:
+        url_path = base_url
+
     headers = {
         "Content-Type": "application/json",
     }
 
-    # Make the request based on the method
-    if method.upper() == "GET":
-        response = client.get(url_path, data=data, **headers)
-    elif method.upper() == "POST":
-        response = client.post(url_path, data=json.dumps(data), **headers)
-    elif method.upper() == "PUT":
-        response = client.put(url_path, data=json.dumps(data), **headers)
-    elif method.upper() == "PATCH":
-        response = client.patch(url_path, data=json.dumps(data), **headers)
-    elif method.upper() == "DELETE":
-        response = client.delete(url_path, data=data, **headers)
-    else:
+    method_func = getattr(client, method.lower(), None)
+    if not method_func:
         raise ValueError(f"Unsupported HTTP method: {method}")
 
+    response = method_func(url_path, data=data, **headers)
     return response

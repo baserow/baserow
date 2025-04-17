@@ -68,7 +68,7 @@ class MCPToolRegistry(Registry[MCPTool]):
         for mcp in self.registry.values():
             tools = await mcp.list(endpoint)
             all_tools.extend(tools)
-        return tools
+        return all_tools
 
     def match_by_name(self, name: str) -> Union[Optional[MCPTool], Optional[dict]]:
         """
@@ -82,7 +82,7 @@ class MCPToolRegistry(Registry[MCPTool]):
         for tool in self.registry.values():
             tool_name = NameRoute(tool.name)
             params = tool_name.match(name)
-            if params:
+            if params is not None:
                 return tool, params
         return None, None
 

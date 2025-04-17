@@ -63,7 +63,7 @@ class BaserowMCPServer:
         if not endpoint:
             return [TextContent(type="text", text=f"Endpoint not found.")]
         tool, params = mcp_tool_registry.match_by_name(name)
-        if not tool or not params:
+        if not tool or params is None:
             return [TextContent(type="text", text=f"Tool '{name}' not found.")]
         return await tool.call(endpoint, name, params, arguments)
 
