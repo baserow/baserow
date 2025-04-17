@@ -8,7 +8,7 @@
             This form doesn't have any fields
           </div>
           <div class="form-view__no-fields-content">
-            Click on a field in the left sidebar to add one.
+            Use Baserow to add at least one field.
           </div>
         </div>
         <FormViewPoweredBy v-if="showLogo"></FormViewPoweredBy>
