@@ -13,7 +13,7 @@
     "test-builder": "playwright test --project=chrome --grep builder",
     "test-automation": "playwright test --project=chrome --grep automation",
     "test-headed": "playwright test --project=chrome --headed",
-    "test-ci": "playwright test --grep-invert=slow",
+    "test-ci": "playwright test --grep-invert=@slow",
     "codegen": "playwright codegen"
   },
   "dependencies": {
