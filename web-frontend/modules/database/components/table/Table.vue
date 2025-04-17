@@ -475,6 +475,9 @@ export default {
       return type.getHeaderComponent()
     },
     getViewHeaderClassNames(view) {
+      if (!this.hasSelectedView) {
+        return ''
+      }
       const type = this.$registry.get('view', view.type)
       return type.getHeaderClassNames(view)
     },
