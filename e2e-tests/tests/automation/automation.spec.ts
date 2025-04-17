@@ -1,0 +1,44 @@
+import { expect, test } from "../baserowTest";
+
+test.describe("Automation application test suite", () => {
+  test.beforeEach(async ({ workspacePage }) => {
+    await workspacePage.goto();
+  });
+
+  test("Can create automation application - default name", { tag: "@slow" }, async ({ page }) => {
+    // Create an automation application
+    await page.locator(".sidebar__new").getByText("Add new").click();
+    await page.locator(".context__menu").getByText("Automation").click();
+    await page.locator(".modal__wrapper").getByText("Add automation").click();
+
+    await expect(
+      page.locator(".automation-app__title").getByText("Workflow"),
+      "Ensure we see the newly created Automation's workflow."
+    ).toBeVisible();
+
+    await expect(
+      page.locator(".tree__link").getByText("Untitled Automation"),
+      "Ensure the default automation name is displayed in the sidebar."
+    ).toBeVisible();
+  });
+
+  test("Can create automation application - custom name", { tag: "@slow" }, async ({ page }) => {
+    // Create an automation application
+    await page.locator(".sidebar__new").getByText("Add new").click();
+    await page.locator(".context__menu").getByText("Automation").click();
+
+    // Specify a custom name for the automation
+    await page.locator(".modal__wrapper input").fill("Foo Automation");
+    await page.locator(".modal__wrapper").getByText("Add automation").click();
+
+    await expect(
+      page.locator(".automation-app__title").getByText("Workflow"),
+      "Ensure we see the newly created Automation's workflow."
+    ).toBeVisible();
+
+    await expect(
+      page.locator(".tree__link").getByText("Foo Automation"),
+      "Ensure the custom automation name is displayed in the sidebar."
+    ).toBeVisible();
+  });
+});
