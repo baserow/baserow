@@ -76,24 +76,29 @@
 </template>
 
 <script>
+import { useCookies } from '@vueuse/integrations/useCookies'
 const helpDisplayCookieName = 'baserow_dashboard_alert_closed'
 
 export default {
   name: 'DashboardHelp',
-  data() {
+  setup() {
+    const cookies = useCookies(['helpDisplayCookieName'])
     return {
-      showAlert: true,
+      cookies,
     }
   },
-  computed: {
-    displayAlert() {
-      return this.showAlert && !this.$cookies.get(helpDisplayCookieName)
-    },
+  data() {
+    return {
+      displayAlert: false,
+    }
+  },
+  mounted() {
+    this.displayAlert = !this.cookies.get(helpDisplayCookieName)
   },
   methods: {
     handleAlertClose() {
-      this.showAlert = false
-      this.$cookies.set(helpDisplayCookieName, true, {
+      this.displayAlert = false
+      this.cookies.set(helpDisplayCookieName, true, {
         path: '/',
         maxAge: 60 * 60 * 24 * 182, // 6 months
       })

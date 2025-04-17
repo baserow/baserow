@@ -1,6 +1,7 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import jwtDecode from 'jwt-decode'
 import { getDomain } from 'tldjs'
+import { getCookiesInstance } from '@baserow/modules/core/utils/cookies'
 
 const cookieTokenName = 'jwt_token'
 export const userSourceCookieTokenName = 'user_source_token'
@@ -8,14 +9,17 @@ export const userSessionCookieName = 'user_session'
 const refreshTokenMaxAge = 60 * 60 * 24 * 7
 
 export const setToken = (
-  { $config, $cookies },
+  { $config },
   token,
   key = cookieTokenName,
   configuration = { sameSite: null }
 ) => {
   if (process.SERVER_BUILD) return
+
+  const cookiesInstance = getCookiesInstance()
   const secure = isSecureURL($config.PUBLIC_WEB_FRONTEND_URL)
-  $cookies.set(key, token, {
+
+  cookiesInstance.set(key, token, {
     path: '/',
     maxAge: refreshTokenMaxAge,
     sameSite:
@@ -39,13 +43,14 @@ export const setToken = (
  * @returns
  */
 export const setUserSessionCookie = (
-  { $config, $cookies },
+  { $config },
   signedUserSession,
   key = userSessionCookieName,
   configuration = { sameSite: null }
 ) => {
   if (process.SERVER_BUILD) return
   const secure = isSecureURL($config.PUBLIC_WEB_FRONTEND_URL)
+  const cookiesInstance = getCookiesInstance()
 
   // To make the cookie available to all subdomains, set the domain to the top-level
   // domain. This is necessary for the secure_file_serve feature to work across
@@ -55,7 +60,7 @@ export const setUserSessionCookie = (
   // domain, so this won't work if the frontend and backend are on different domains.
   const topLevelDomain = getDomain($config.PUBLIC_BACKEND_URL)
 
-  $cookies.set(key, signedUserSession, {
+  cookiesInstance.set(key, signedUserSession, {
     path: '/',
     maxAge: refreshTokenMaxAge,
     sameSite:
@@ -65,28 +70,27 @@ export const setUserSessionCookie = (
   })
 }
 
-export const unsetToken = ({ $cookies }, key = cookieTokenName) => {
+export const unsetToken = (key = cookieTokenName) => {
   if (process.SERVER_BUILD) return
-  $cookies.remove(key)
+  const cookiesInstance = getCookiesInstance()
+  cookiesInstance.remove(key)
 }
 
-export const unsetUserSessionCookie = (
-  { $cookies },
-  key = userSessionCookieName
-) => {
+export const unsetUserSessionCookie = (key = userSessionCookieName) => {
   if (process.SERVER_BUILD) return
-  $cookies.remove(key)
+  const cookiesInstance = getCookiesInstance()
+  cookiesInstance.remove(key)
 }
 
-export const getToken = ({ $cookies }, key = cookieTokenName) => {
-  return $cookies.get(key)
+export const getToken = (key = cookieTokenName, req = null) => {
+  const cookiesInstance = getCookiesInstance(req?.headers?.cookie)
+  const token = cookiesInstance.get(key)
+
+  return token
 }
 
-export const getTokenIfEnoughTimeLeft = (
-  { $cookies },
-  key = cookieTokenName
-) => {
-  const token = getToken({ $cookies }, key)
+export const getTokenIfEnoughTimeLeft = (key = cookieTokenName, req = null) => {
+  const token = getToken(key, req)
   const now = Math.ceil(new Date().getTime() / 1000)
 
   let data
@@ -106,6 +110,7 @@ export const logoutAndRedirectToLogin = (
   showPasswordChangedToast = false,
   invalidateToken = false
 ) => {
+  console.log('logoutAndRedirectToLogin')
   if (showPasswordChangedToast) {
     store.dispatch('auth/forceLogoff')
   } else {

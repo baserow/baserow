@@ -74,7 +74,6 @@
     "bignumber.js": "9.1.1",
     "chart.js": "3.9.1",
     "chartjs-adapter-moment": "1.0.1",
-    "cookie-universal-nuxt": "2.2.2",
     "cross-env": "^7.0.2",
     "flush-promises": "^1.0.2",
     "iconoir": "^6.11.0",
@@ -101,7 +100,11 @@
     "uuid": "9.0.0",
     "vue-chartjs": "^5.3.2",
     "vue2-smooth-scroll": "^1.6.0",
-    "vuejs-datepicker": "1.6.2"
+    "vuejs-datepicker": "1.6.2",
+    "universal-cookie": "^7",
+    "@vueuse/nuxt": "11.3.0",
+    "@vueuse/core": "11.3.0",
+    "@vueuse/integrations": "11.3.0"
   },
   "devDependencies": {
     "@babel/core": "7.23.6",

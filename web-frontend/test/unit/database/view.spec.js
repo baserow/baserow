@@ -6,6 +6,7 @@ import {
   decodeDefaultViewIdPerTable,
   encodeDefaultViewIdPerTable,
 } from '@baserow/modules/database/utils/view'
+import { getCookiesInstance } from '@baserow/modules/core/utils/cookies'
 
 // Mock out debounce so we don't have to wait or simulate waiting for the various
 // debounces in the search functionality.
@@ -15,11 +16,16 @@ describe('View Tests', () => {
   let testApp = null
   let mockServer = null
   let originalReplaceFunc = null
+  let cookiesInstance = null
 
   beforeAll(() => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
-
+    cookiesInstance = getCookiesInstance()
+    // Setting HAS_DOCUMENT_COOKIE to false to indicate that we're in a test environment
+    // where document.cookie is not available (Node.js). This makes the cookie implementation
+    // use a mock/alternative storage mechanism instead of the browser's document.cookie API.
+    cookiesInstance.HAS_DOCUMENT_COOKIE = false
     // Mock the redirect function so we can test the component without having to
     // worry about the router.
     originalReplaceFunc = testApp._app.$router.replace
@@ -39,7 +45,6 @@ describe('View Tests', () => {
   })
 
   test('Default view is being set correctly initially', async () => {
-    const allCookies = testApp.store.$cookies
     const { application, table, views } =
       await givenATableInTheServerWithMultipleViews()
 
@@ -60,7 +65,8 @@ describe('View Tests', () => {
     // Check if Vuex store is updated correctly (first view):
     expect(testApp.store.getters['view/first'].id).toBe(gridView.id)
     // Check if cookie is updated correctly (default view):
-    const defaultViewId = readDefaultViewIdFromCookie(allCookies, tableId)
+    const defaultViewId = readDefaultViewIdFromCookie(tableId)
+
     expect(defaultViewId).not.toBe(null)
     const defaultView = testApp.store.getters['view/get'](defaultViewId)
     expect(defaultView.table_id).toBe(tableId)
@@ -89,13 +95,12 @@ describe('View Tests', () => {
       },
     })
 
-    const allCookies = testApp.store.$cookies
     const tableId = gridView.table_id
 
     // Check if Vuex store is updated correctly (first view):
     expect(testApp.store.getters['view/first'].id).toBe(gridView.id)
     // Check if cookie is updated correctly (default view):
-    const defaultViewId = readDefaultViewIdFromCookie(allCookies, tableId)
+    const defaultViewId = readDefaultViewIdFromCookie(tableId)
     expect(defaultViewId).not.toBe(null)
     const defaultView = testApp.store.getters['view/get'](defaultViewId)
     expect(defaultView.table_id).toBe(tableId)
@@ -113,13 +118,10 @@ describe('View Tests', () => {
     expect(testApp.store.getters['view/first'].id).toBe(gridView.id)
     // Check if cookie is updated correctly (default view):
     const updatedCookieValue = decodeDefaultViewIdPerTable(
-      allCookies.get(DEFAULT_VIEW_ID_COOKIE_NAME)
+      cookiesInstance.get(DEFAULT_VIEW_ID_COOKIE_NAME)
     )
     expect(updatedCookieValue.length).toBe(1)
-    const updatedDefaultViewId = readDefaultViewIdFromCookie(
-      allCookies,
-      tableId
-    )
+    const updatedDefaultViewId = readDefaultViewIdFromCookie(tableId)
     const updatedDefaultView =
       testApp.store.getters['view/get'](updatedDefaultViewId)
     expect(updatedDefaultView.table_id).toBe(tableId)
@@ -146,17 +148,15 @@ describe('View Tests', () => {
       },
     })
 
-    const allCookies = testApp.store.$cookies
-
     // Check if Vuex store is updated correctly (first view):
     expect(testApp.store.getters['view/first'].id).toBe(firstTableGridView.id)
     // Check if cookie is updated correctly (default view):
     const cookieValue = decodeDefaultViewIdPerTable(
-      allCookies.get(DEFAULT_VIEW_ID_COOKIE_NAME)
+      cookiesInstance.get(DEFAULT_VIEW_ID_COOKIE_NAME)
     )
+
     expect(cookieValue.length).toBe(1)
     const defaultViewId = readDefaultViewIdFromCookie(
-      allCookies,
       firstTableGridView.table_id
     )
     expect(defaultViewId).not.toBe(null)
@@ -185,9 +185,8 @@ describe('View Tests', () => {
     })
     testApp.store.dispatch('view/selectById', secondTableGridView.id)
 
-    const allCookiesAfterChangingTable = testApp.store.$cookies
     const cookieValueAfterChangingTable = decodeDefaultViewIdPerTable(
-      allCookiesAfterChangingTable.get(DEFAULT_VIEW_ID_COOKIE_NAME)
+      cookiesInstance.get(DEFAULT_VIEW_ID_COOKIE_NAME)
     )
 
     // Check if Vuex store is updated correctly (first view):
@@ -195,7 +194,6 @@ describe('View Tests', () => {
     // Check if cookie is updated correctly (default view):
     expect(cookieValueAfterChangingTable.length).toBe(2)
     const defaultViewIdAfterChangingTable = readDefaultViewIdFromCookie(
-      allCookies,
       secondTableGridView.table_id
     )
     expect(defaultViewIdAfterChangingTable).not.toBe(null)
@@ -226,17 +224,14 @@ describe('View Tests', () => {
     })
     testApp.store.dispatch('view/selectById', firstTableGridView.id)
 
-    const allCookiesAfterSwitchingBack = testApp.store.$cookies
-
     // Check if Vuex store is updated correctly (first view):
     expect(testApp.store.getters['view/first'].id).toBe(firstTableGridView.id)
     // Check if cookie is updated correctly (default view):
     const cookieValueAfterSwitchingBack = decodeDefaultViewIdPerTable(
-      allCookiesAfterSwitchingBack.get(DEFAULT_VIEW_ID_COOKIE_NAME)
+      cookiesInstance.get(DEFAULT_VIEW_ID_COOKIE_NAME)
     )
     expect(cookieValueAfterSwitchingBack.length).toBe(2)
     const defaultViewIdAfterSwitchingBack = readDefaultViewIdFromCookie(
-      allCookiesAfterSwitchingBack,
       firstTableGridView.table_id
     )
     expect(defaultViewIdAfterSwitchingBack).not.toBe(null)
@@ -261,7 +256,6 @@ describe('View Tests', () => {
     const galleryView = views[1]
 
     const tableId = gridView.table_id
-    const allCookies = testApp.store.$cookies
 
     // Set the cookie for defaultView manually:
     const defaultViewIdData = []
@@ -269,7 +263,7 @@ describe('View Tests', () => {
       tableId: galleryView.table_id,
       viewId: galleryView.id,
     })
-    allCookies.set(
+    cookiesInstance.set(
       DEFAULT_VIEW_ID_COOKIE_NAME,
       encodeDefaultViewIdPerTable(defaultViewIdData)
     )
@@ -288,10 +282,10 @@ describe('View Tests', () => {
     expect(testApp.store.getters['view/first'].id).toBe(gridView.id)
     // Check if cookie is updated correctly (default view):
     const cookieValue = decodeDefaultViewIdPerTable(
-      allCookies.get(DEFAULT_VIEW_ID_COOKIE_NAME)
+      cookiesInstance.get(DEFAULT_VIEW_ID_COOKIE_NAME)
     )
     expect(cookieValue.length).toBe(1)
-    const defaultViewId = readDefaultViewIdFromCookie(allCookies, tableId)
+    const defaultViewId = readDefaultViewIdFromCookie(tableId)
     expect(defaultViewId).not.toBe(null)
     const defaultView = testApp.store.getters['view/get'](defaultViewId)
     expect(defaultView.table_id).toBe(tableId)
@@ -322,8 +316,7 @@ describe('View Tests', () => {
       randomData.push(entry)
     }
 
-    const allCookies = testApp.store.$cookies
-    allCookies.set(
+    cookiesInstance.set(
       DEFAULT_VIEW_ID_COOKIE_NAME,
       encodeDefaultViewIdPerTable(randomData)
     )
@@ -340,7 +333,7 @@ describe('View Tests', () => {
 
     // The Default view is the Grid view and it should be set (appended) in the cookie
     const cookieValue = decodeDefaultViewIdPerTable(
-      allCookies.get(DEFAULT_VIEW_ID_COOKIE_NAME)
+      cookiesInstance.get(DEFAULT_VIEW_ID_COOKIE_NAME)
     )
     expect(cookieValue.length).toBeGreaterThan(0)
 
@@ -355,7 +348,7 @@ describe('View Tests', () => {
 
     // Ensure that the first element is removed from the cookie array
     const updatedCookieValue = decodeDefaultViewIdPerTable(
-      allCookies.get(DEFAULT_VIEW_ID_COOKIE_NAME)
+      cookiesInstance.get(DEFAULT_VIEW_ID_COOKIE_NAME)
     )
     expect(updatedCookieValue).not.toContainEqual(randomData[0])
     expect(updatedCookieValue.length).toBeLessThan(originalDataLength)

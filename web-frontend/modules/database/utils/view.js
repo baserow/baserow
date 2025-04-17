@@ -5,6 +5,7 @@ import { escapeRegExp, isSecureURL } from '@baserow/modules/core/utils/string'
 import { SearchModes } from '@baserow/modules/database/utils/search'
 import { convertStringToMatchBackendTsvectorData } from '@baserow/modules/database/search/regexes'
 import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
+import { getCookiesInstance } from '@baserow/modules/core/utils/cookies'
 
 export const DEFAULT_VIEW_ID_COOKIE_NAME = 'defaultViewId'
 
@@ -685,20 +686,19 @@ export function encodeDefaultViewIdPerTable(data) {
 
 /**
  * Reads the default view for table from cookies.
- *
- * @param {Object} cookies - The cookies object.
+ 
  * @param {Number} tableId - The id of the table.
  * @param {String} cookieName - The name of the cookie.
  * @returns {Number|null} - The id of the default view for the table, or null if there
  * is no default view for the table.
  */
 export function readDefaultViewIdFromCookie(
-  cookies,
   tableId,
   cookieName = DEFAULT_VIEW_ID_COOKIE_NAME
 ) {
   try {
-    const cookieValue = cookies.get(cookieName) || ''
+    const cookiesInstance = getCookiesInstance()
+    const cookieValue = cookiesInstance.get(cookieName)
     const defaultViews = decodeDefaultViewIdPerTable(cookieValue)
     const defaultView = defaultViews.find((view) => view.tableId === tableId)
     return defaultView ? defaultView.viewId : null
@@ -713,18 +713,19 @@ export function readDefaultViewIdFromCookie(
  * visited view. If the entire list does not fit in the cookie, the oldest entries (the
  * first ones) will be removed.
  *
- * @param {Object} cookies - The cookies object.
  * @param {Object} view - The view object.
  * @param {Object} config - The config object.
  * @param {String} cookieName - The name of the cookie.
  */
+
 export function saveDefaultViewIdInCookie(
-  cookies,
   view,
   config,
   cookieName = DEFAULT_VIEW_ID_COOKIE_NAME
 ) {
-  const cookieValue = cookies.get(cookieName) || ''
+  const cookiesInstance = getCookiesInstance()
+  const cookieValue = cookiesInstance.get(cookieName) || ''
+
   let defaultViews = decodeDefaultViewIdPerTable(cookieValue)
 
   function createEntry(view) {
@@ -749,7 +750,7 @@ export function saveDefaultViewIdInCookie(
       encodeDefaultViewIdPerTable
     )
     const secure = isSecureURL(config.PUBLIC_WEB_FRONTEND_URL)
-    cookies.set(cookieName, fittedListEncoded, {
+    cookiesInstance.set(cookieName, fittedListEncoded, {
       path: '/',
       maxAge: 60 * 60 * 24 * 365, // 1 year
       sameSite: config.BASEROW_FRONTEND_SAME_SITE_COOKIE,

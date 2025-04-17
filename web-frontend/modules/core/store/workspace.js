@@ -390,8 +390,11 @@ export const actions = {
    */
   selectById({ dispatch, getters }, id) {
     const workspace = getters.get(id)
+
     if (workspace === undefined) {
-      throw new StoreItemLookupError(`Workspace with id ${id} is not found.`)
+      throw new StoreItemLookupError(
+        `Workspace with id ${id} is not found in the store.`
+      )
     }
     return dispatch('select', workspace)
   },
@@ -400,7 +403,7 @@ export const actions = {
    */
   unselect({ commit, dispatch, getters }, workspace) {
     commit('UNSELECT', {})
-    unsetWorkspaceCookie(this.app)
+    unsetWorkspaceCookie()
     dispatch(
       'undoRedo/updateCurrentScopeSet',
       CORE_ACTION_SCOPES.workspace(null),
