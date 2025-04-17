@@ -6,6 +6,10 @@ import es from '@baserow/modules/automation/locales/es.json'
 import it from '@baserow/modules/automation/locales/it.json'
 import pl from '@baserow/modules/automation/locales/pl.json'
 import ko from '@baserow/modules/automation/locales/ko.json'
+import {
+  GeneralAutomationSettingsType,
+  IntegrationsAutomationSettingsType,
+} from '@baserow/modules/automation/automationSettingTypes'
 
 import { registerRealtimeEvents } from '@baserow/modules/automation/realtime'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
@@ -47,6 +51,16 @@ export default (context) => {
     app.$registry.register(
       'job',
       new DuplicateAutomationWorkflowJobType(context)
+    )
+
+    app.$registry.registerNamespace('automationSettings')
+    app.$registry.register(
+      'automationSettings',
+      new GeneralAutomationSettingsType(context)
+    )
+    app.$registry.register(
+      'automationSettings',
+      new IntegrationsAutomationSettingsType(context)
     )
   }
 }

@@ -29,6 +29,7 @@
     "test-storybook": "test-storybook"
   },
   "dependencies": {
+    "@nuxtjs/composition-api": "^0.34.0",
     "@nuxtjs/i18n": "7.3.1",
     "@nuxtjs/sentry": "7.5.0",
     "@storybook/core-client": "6.5.9",

@@ -22,5 +22,18 @@
   },
   "trashType": {
     "workflow": "workflow"
+  },
+  "generalSettings": {
+    "titleOverview": "General",
+    "nameLabel": "Automation name",
+    "notificationLabel": "Notifications",
+    "notificationCheckboxLabel": "Get notified when this automation fails",
+    "cantUpdateAutomationTitle": "Couldn't Update Automation",
+    "cantUpdateAutomationDescription": "Sorry, could not update the automation."
+  },
+  "integrationSettings": {
+    "title": "Integrations",
+    "noIntegrationMessage": "You have not yet created any integrations. They can be created by adding data source, action or user authentication.",
+    "integrationMessage": "You can create new integrations by adding data source, action or user authentication."
   }
 }

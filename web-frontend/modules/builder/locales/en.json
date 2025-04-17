@@ -1017,5 +1017,8 @@
     "smile": "Smile",
     "thumbsUp": "Thumbs Up",
     "flag": "Flag"
+  },
+  "automationSettingsModal": {
+    "title": "Workflow"
   }
 }
