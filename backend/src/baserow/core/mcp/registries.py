@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 from mcp import Tool
 from mcp.types import EmbeddedResource, ImageContent, TextContent
 
-from baserow.core.mcp import MCPEndpoint
+from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.mcp.utils import NameRoute
 from baserow.core.registry import Instance, Registry
 

@@ -12,9 +12,6 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Mount, Route
 
-from baserow.core.mcp.models import MCPEndpoint
-from baserow.core.subjects import UserSubjectType
-
 current_key: contextvars.ContextVar[str] = contextvars.ContextVar("current_key")
 
 
@@ -47,7 +44,10 @@ class BaserowMCPServer:
 
         return []
 
-    async def get_endpoint(self) -> MCPEndpoint:
+    async def get_endpoint(self):
+        from baserow.core.mcp.models import MCPEndpoint
+        from baserow.core.subjects import UserSubjectType
+
         key = current_key.get()
         try:
             endpoint = await MCPEndpoint.objects.select_related(
