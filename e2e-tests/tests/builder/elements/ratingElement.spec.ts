@@ -41,7 +41,7 @@ test.describe("Builder page heading element test suite", () => {
     });
     const [newPage] = await Promise.all([
       context.waitForEvent("page"), // Waits for a new tab to open
-      page.locator("a").filter({ hasText: "Preview" }).click(),
+      page.locator("button").filter({ hasText: "Preview" }).click(),
     ]);
 
     await newPage.waitForLoadState();

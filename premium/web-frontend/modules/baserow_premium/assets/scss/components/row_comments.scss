@@ -177,17 +177,19 @@
 }
 
 .row-comments-expand-button {
-  @include center-text(18px, 11px);
+  @include center-text(20px, 11px);
 
   white-space: nowrap;
-  color: $color-neutral-900;
-  background-color: $color-neutral-100;
+  color: $palette-neutral-900;
+  background-color: rgba($palette-neutral-1300, 0.04);
   text-decoration: none;
+  font-weight: 500;
+  margin-right: 2px;
 
   @include rounded($rounded);
 
   &:hover {
-    background-color: $color-primary-100;
+    background-color: rgba($palette-neutral-1300, 0.06);
     text-decoration: none;
   }
 

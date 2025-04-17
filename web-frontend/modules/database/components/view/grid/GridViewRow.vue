@@ -53,7 +53,10 @@
           >
             <div
               class="grid-view__row-count"
-              :class="{ 'grid-view__row-count--small': rowIdentifier > 9999 }"
+              :class="{
+                'grid-view__row-count--small': rowIdentifier > 9999,
+                'grid-view__row-count--hide-on-hover': canDrag,
+              }"
               :title="rowIdentifier"
             >
               {{ rowIdentifier }}
