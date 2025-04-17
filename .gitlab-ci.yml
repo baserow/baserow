@@ -526,7 +526,7 @@ e2e-tests:
   artifacts:
     paths:
       # Save the HTML report as an artifact for download or visualization
-      - e2e-tests/playwright-report/
+      - e2e-tests/test-results/
 
 # ================================== ALL IN ONES ======================================
 # If pipeline not triggered by tag:
