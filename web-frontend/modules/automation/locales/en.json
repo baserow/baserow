@@ -35,5 +35,12 @@
     "title": "Integrations",
     "noIntegrationMessage": "You have not yet created any integrations. They can be created by adding data source, action or user authentication.",
     "integrationMessage": "You can create new integrations by adding data source, action or user authentication."
+  },
+  "automationHeader": {
+    "runOnceBtn": "Run once",
+    "publishBtn": "Publish",
+    "settingsBtn": "Settings",
+    "historyBtn": "History",
+    "switchLabel": "Draft"
   }
 }
