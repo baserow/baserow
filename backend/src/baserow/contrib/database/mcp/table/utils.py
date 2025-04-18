@@ -2,8 +2,8 @@ from typing import List
 
 from baserow.contrib.database.operations import ListTablesDatabaseTableOperationType
 from baserow.contrib.database.table.models import Table
-from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.handler import CoreHandler
+from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.registries import OperationType
 from baserow.core.types import PermissionCheck
 

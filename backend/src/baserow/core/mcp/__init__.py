@@ -4,13 +4,14 @@ import traceback
 from asgiref.sync import sync_to_async
 from mcp.server.lowlevel.server import Server
 from mcp.server.lowlevel.server import lifespan as default_lifespan
-from mcp.server.sse import SseServerTransport
 from mcp.types import TextContent
 from mcp.types import Tool as MCPTool
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Mount, Route
+
+from baserow.core.mcp.sse import DjangoChannelsSseServerTransport
 
 current_key: contextvars.ContextVar[str] = contextvars.ContextVar("current_key")
 
@@ -89,7 +90,7 @@ class BaserowMCPServer:
     def sse_app(self) -> Starlette:
         sse_path = "/mcp/{key}/sse"
         messages_path = "/mcp/messages/"
-        sse = SseServerTransport(messages_path)
+        sse = DjangoChannelsSseServerTransport(messages_path)
 
         async def handle_sse(request: Request) -> None:
             key = request.path_params["key"]
