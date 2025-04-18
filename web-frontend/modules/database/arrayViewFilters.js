@@ -786,8 +786,15 @@ export class HasDateWithinViewFilterType extends ArrayDateMultiStepViewFilterTyp
       startOfToday.tz(timezone)
     }
     startOfToday.startOf('day')
+    let start = lowerBound
+    let end = upperBound
+    if (startOfToday.isBefore(upperBound)) {
+      start = startOfToday
+    } else {
+      end = startOfToday.add(1, 'day')
+    }
     return rowDates.some(
-      (value) => value.isSameOrAfter(startOfToday) && value.isBefore(upperBound)
+      (value) => value.isSameOrAfter(start) && value.isBefore(end)
     )
   }
 }
