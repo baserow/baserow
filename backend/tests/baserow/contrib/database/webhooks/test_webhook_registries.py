@@ -35,6 +35,7 @@ def test_signal_listener(mock_call_webhook, data_fixture):
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_id": kwargs["payload"]["event_id"],
         "event_type": "rows.created",
         "items": [{"id": 1, "order": "1.00000000000000000000"}],
