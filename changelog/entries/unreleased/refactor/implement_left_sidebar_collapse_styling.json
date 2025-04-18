@@ -1,0 +1,8 @@
+{
+  "type": "refactor",
+  "message": "Implemented small styling changes for the collapsing of the left sidebar.",
+  "domain": "core",
+  "issue_number": null,
+  "bullet_points": [],
+  "created_at": "2025-04-04"
+}

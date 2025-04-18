@@ -2,7 +2,6 @@ import json
 import os
 from pathlib import Path
 from unittest.mock import patch
-from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
@@ -16,7 +15,10 @@ from baserow.contrib.database.airtable.exceptions import (
     AirtableBaseRequiresAuthentication,
     AirtableShareIsNotABase,
 )
-from baserow.contrib.database.airtable.handler import AirtableHandler
+from baserow.contrib.database.airtable.handler import (
+    AirtableFileImport,
+    AirtableHandler,
+)
 from baserow.contrib.database.airtable.job_types import AirtableImportJobType
 from baserow.contrib.database.airtable.models import AirtableImportJob
 from baserow.contrib.database.fields.models import TextField
@@ -274,14 +276,12 @@ def test_to_baserow_database_export():
         init_data, request_id, cookies, schema, tables, AirtableImportConfig()
     )
 
-    with ZipFile(files_buffer, "r", ZIP_DEFLATED, False) as zip_file:
-        assert len(zip_file.infolist()) == 3
-        assert (
-            zip_file.read(
-                "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample" ".txt"
-            )
-            == b"test\n"
-        )
+    assert isinstance(files_buffer, AirtableFileImport)
+    assert len(files_buffer.files_to_download) == 3
+    with files_buffer.open(
+        "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample.txt"
+    ) as file_handler:
+        assert file_handler.read() == b"test\n"
 
     assert baserow_database_export["id"] == 1
     assert baserow_database_export["name"] == "Test"
@@ -531,14 +531,12 @@ def test_download_files_via_endpoint():
         init_data, request_id, cookies, schema, tables, AirtableImportConfig()
     )
 
-    with ZipFile(files_buffer, "r", ZIP_DEFLATED, False) as zip_file:
-        assert len(zip_file.infolist()) == 3
-        assert (
-            zip_file.read(
-                "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample" ".txt"
-            )
-            == b"test\n"
-        )
+    assert isinstance(files_buffer, AirtableFileImport)
+    assert len(files_buffer.files_to_download) == 3
+    with files_buffer.open(
+        "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample.txt"
+    ) as file_handler:
+        assert file_handler.read() == b"test\n"
 
 
 @pytest.mark.django_db
@@ -639,8 +637,8 @@ def test_config_skip_files(tmpdir, data_fixture):
         AirtableImportConfig(skip_files=True),
     )
 
-    with ZipFile(files_buffer, "r", ZIP_DEFLATED, False) as zip_file:
-        assert len(zip_file.infolist()) == 0
+    assert isinstance(files_buffer, AirtableFileImport)
+    assert len(files_buffer.files_to_download) == 0
 
 
 @pytest.mark.django_db

@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Set empty value on cell(s) clear for text field with default value",
+    "domain": "database",
+    "issue_number": 3568,
+    "bullet_points": [],
+    "created_at": "2025-04-15"
+}

@@ -158,6 +158,7 @@
     "selectParent": "Select parent"
   },
   "duplicatePageJobType": {
+    "name": "Duplicate page",
     "duplicating": "Duplicating",
     "duplicatedTitle": "Page duplicated"
   },
@@ -1016,5 +1017,8 @@
     "smile": "Smile",
     "thumbsUp": "Thumbs Up",
     "flag": "Flag"
+  },
+  "automationSettingsModal": {
+    "title": "Workflow"
   }
 }

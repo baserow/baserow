@@ -66,17 +66,15 @@ function populateRows({
     }
 
     fieldsInOrder.forEach((field, fieldIndex) => {
+      const fieldType = this.$registry.get('field', field.type)
       // We can't pre-filter because we need the correct filter index.
-      if (
-        field._.type.isReadOnly ||
-        (field._.type.getIsReadOnly && field._.type.getIsReadOnly())
-      ) {
+      if (fieldType.isReadOnlyField(field)) {
         return
       }
+
       const fieldId = `field_${field.id}`
       const textValue = tsvRow[fieldIndex]
       const jsonValue = jsonData != null ? jsonData[rowIndex][fieldIndex] : null
-      const fieldType = registry.get('field', field.type)
       const preparedValue = fieldType.prepareValueForPaste(
         field,
         textValue,
@@ -2024,8 +2022,8 @@ export const actions = {
       const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
         `table_${table.id}`
       )
-      // we're queueing this task, so other tasks, that may read state and modify it,
-      // won't overalp
+      // We're queueing this task, so other tasks, that may read state and modify it,
+      // won't overalp.
       const taskId = taskQueue.add(async () => {
         const resp = await RowService(this.$client).batchCreate(
           table.id,
@@ -2036,10 +2034,8 @@ export const actions = {
         data = resp.data
 
         const fieldsToFinalize = fields
-          .filter(
-            (field) =>
-              field.read_only ||
-              this.$registry.get('field', field._.type.type).isReadOnly
+          .filter((field) =>
+            this.$registry.get('field', field.type).isReadOnlyField(field)
           )
           .map((field) => `field_${field.id}`)
         commit('FINALIZE_ROWS_IN_BUFFER', {
@@ -2602,7 +2598,7 @@ export const actions = {
     // maybe because the provided index is outside of the available fields or
     // because there are only read only fields, we don't want to do anything.
     const writeFields = fieldsInOrder.filter(
-      (field) => !field._.type.isReadOnly
+      (field) => !this.$registry.get('field', field.type).isReadOnlyField(field)
     )
     if (writeFields.length === 0) {
       return

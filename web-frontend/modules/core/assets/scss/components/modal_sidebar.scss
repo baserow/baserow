@@ -2,7 +2,8 @@
   display: flex;
   align-items: center;
   padding: 16px;
-  gap: 16px;
+  gap: 10px;
+  border-bottom: solid 1px $palette-neutral-200;
 }
 
 .modal-sidebar__head-icon {
@@ -11,7 +12,7 @@
 }
 
 .modal-sidebar__head-name {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .modal-sidebar__head-icon-and-name {
@@ -25,10 +26,24 @@
   font-size: 12px;
 }
 
+.modal-sidebar__title {
+  @extend %ellipsis;
+
+  color: $palette-neutral-900;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  padding: 16px 16px 0;
+
+  .modal-sidebar__nav + & {
+    padding-top: 4px;
+  }
+}
+
 .modal-sidebar__nav {
   list-style: none;
   margin: 0;
-  padding: 0 0 16px;
+  padding: 8px 0;
 }
 
 .modal-sidebar__nav-link {
@@ -36,22 +51,25 @@
   @include flex-align-items(10px);
 
   position: relative;
-  height: 42px;
-  line-height: 42px;
-  padding: 0 20px;
-  border-left: solid 4px transparent;
-  color: $color-neutral-900;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 8px;
+  margin: 0 8px;
+  color: $palette-neutral-900;
   user-select: none;
+  font-weight: 500;
+  margin-bottom: 2px;
+
+  @include rounded($rounded-md);
 
   &:hover {
     text-decoration: none;
-    background-color: darken($color-neutral-100, 2%);
+    background-color: rgba($palette-neutral-1300, 0.04);
   }
 
   &.active {
-    background-color: darken($color-neutral-100, 2%);
-    border-left-color: $color-primary-500;
-    font-weight: 600;
+    background-color: rgba($palette-neutral-1300, 0.04);
+    color: $palette-neutral-1200;
   }
 }
 

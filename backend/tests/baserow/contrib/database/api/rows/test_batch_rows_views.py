@@ -241,6 +241,9 @@ def test_batch_create_rows(api_client, data_fixture):
     boolean_field = data_fixture.create_boolean_field(
         table=table, order=2, name="For sale"
     )
+    boolean_field_2 = data_fixture.create_boolean_field(
+        table=table, order=3, name="Available", boolean_default=True
+    )
     model = table.get_model()
     url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
     request_body = {
@@ -249,11 +252,13 @@ def test_batch_create_rows(api_client, data_fixture):
                 f"field_{text_field.id}": "green",
                 f"field_{number_field.id}": 120,
                 f"field_{boolean_field.id}": True,
+                f"field_{boolean_field_2.id}": False,
             },
             {
                 f"field_{text_field.id}": "yellow",
                 f"field_{number_field.id}": 240,
                 f"field_{boolean_field.id}": False,
+                # Not providing boolean_field_2 should use the default True value
             },
         ]
     }
@@ -264,6 +269,7 @@ def test_batch_create_rows(api_client, data_fixture):
                 f"field_{text_field.id}": "green",
                 f"field_{number_field.id}": "120",
                 f"field_{boolean_field.id}": True,
+                f"field_{boolean_field_2.id}": False,
                 "order": "1.00000000000000000000",
             },
             {
@@ -271,6 +277,7 @@ def test_batch_create_rows(api_client, data_fixture):
                 f"field_{text_field.id}": "yellow",
                 f"field_{number_field.id}": "240",
                 f"field_{boolean_field.id}": False,
+                f"field_{boolean_field_2.id}": True,
                 "order": "2.00000000000000000000",
             },
         ]
@@ -289,8 +296,56 @@ def test_batch_create_rows(api_client, data_fixture):
     row_2 = model.objects.get(pk=2)
     assert getattr(row_1, f"field_{text_field.id}") == "green"
     assert getattr(row_2, f"field_{text_field.id}") == "yellow"
+    assert getattr(row_1, f"field_{boolean_field.id}") is True
+    assert getattr(row_2, f"field_{boolean_field.id}") is False
+    assert getattr(row_1, f"field_{boolean_field_2.id}") is False
+    assert getattr(row_2, f"field_{boolean_field_2.id}") is True
     assert row_1.needs_background_update
     assert row_2.needs_background_update
+
+    # Test creating rows without providing any values
+    request_body_empty = {
+        "items": [
+            {},  # Empty values should use defaults
+            {},
+        ]
+    }
+    expected_response_body_empty = {
+        "items": [
+            {
+                "id": 3,
+                f"field_{text_field.id}": "white",  # text_default
+                f"field_{number_field.id}": None,
+                f"field_{boolean_field.id}": False,  # default without boolean_default
+                f"field_{boolean_field_2.id}": True,  # boolean_default=True
+                "order": "3.00000000000000000000",
+            },
+            {
+                "id": 4,
+                f"field_{text_field.id}": "white",
+                f"field_{number_field.id}": None,
+                f"field_{boolean_field.id}": False,
+                f"field_{boolean_field_2.id}": True,
+                "order": "4.00000000000000000000",
+            },
+        ]
+    }
+
+    response = api_client.post(
+        url,
+        request_body_empty,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == expected_response_body_empty
+    row_3 = model.objects.get(pk=3)
+    row_4 = model.objects.get(pk=4)
+    assert getattr(row_3, f"field_{boolean_field.id}") is False
+    assert getattr(row_4, f"field_{boolean_field.id}") is False
+    assert getattr(row_3, f"field_{boolean_field_2.id}") is True
+    assert getattr(row_4, f"field_{boolean_field_2.id}") is True
 
 
 @pytest.mark.django_db
@@ -1274,6 +1329,8 @@ def test_batch_update_rows(api_client, data_fixture):
     row_2.refresh_from_db()
     assert getattr(row_1, f"field_{text_field.id}") == "green"
     assert getattr(row_2, f"field_{text_field.id}") == "yellow"
+    assert getattr(row_1, f"field_{boolean_field.id}") is True
+    assert getattr(row_2, f"field_{boolean_field.id}") is False
     assert row_1.needs_background_update
     assert row_2.needs_background_update
 

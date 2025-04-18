@@ -16,9 +16,10 @@
       </span>
     </div>
     <component
-      :is="deactivatedModal"
+      :is="deactivatedModal[0]"
       v-if="deactivatedModal != null"
       ref="deactivatedModal"
+      v-bind="deactivatedModal[1]"
       :name="widgetType.name"
       :workspace="dashboard.workspace"
     ></component>

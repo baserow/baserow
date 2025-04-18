@@ -1,10 +1,10 @@
 import json
 import re
 from collections import defaultdict
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from io import BytesIO, IOBase
 from typing import Dict, List, Optional, Tuple, Union
-from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
@@ -76,6 +76,53 @@ BASE_HEADERS = {
     "Pragma": "no-cache",
     "Cache-Control": "no-cache",
 }
+
+
+class AirtableFileImport:
+    """
+    A file-like object (we only need open and close methods) that facilitates on-demand
+    file downloads from Airtable for re-uploading to Baserow. This avoids downloading
+    all files at once, enabling efficient, one-by-one downloads as needed during the
+    import process.
+    """
+
+    def __init__(self, init_data, request_id, cookies, headers=BASE_HEADERS):
+        self.files_to_download = {}
+        self.init_data = init_data
+        self.request_id = request_id
+        self.cookies = cookies
+        self.headers = headers
+
+    def add_files(self, files_to_download):
+        self.files_to_download.update(files_to_download)
+
+    @contextmanager
+    def open(self, name):
+        download_file = self.files_to_download.get(name)
+        if download_file is None:
+            raise ValueError(f"No file with name {name} found.")
+
+        if download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH:
+            response = requests.get(
+                download_file.url, headers=BASE_HEADERS
+            )  # nosec B113
+        elif download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_ATTACHMENT_ENDPOINT:
+            response = AirtableHandler.fetch_attachment(
+                row_id=download_file.row_id,
+                column_id=download_file.column_id,
+                attachment_id=download_file.attachment_id,
+                init_data=self.init_data,
+                request_id=self.request_id,
+                cookies=self.cookies,
+            )
+        stream = BytesIO(response.content)
+        try:
+            yield stream
+        finally:
+            stream.close()
+
+    def close(self):
+        pass
 
 
 class AirtableHandler:
@@ -486,8 +533,10 @@ class AirtableHandler:
         files_buffer: Union[None, IOBase] = None,
     ) -> BytesIO:
         """
-        Downloads all the user files in the provided dict and adds them to a zip file.
-        The key of the dict will be the file name in the zip file.
+        This method was used to download the files, but now it only collects
+        them to be downloaded later so we can upload files to our storage one by one
+        so that the memory needed is less.
+        #TODO: Clean this up, rename the method properly and remove the old code.
 
         :param files_to_download: A dict that contains all the user file URLs that must
             be downloaded. The key is the file name and the value the URL. Additional
@@ -505,12 +554,7 @@ class AirtableHandler:
         :return: An in memory buffer as zip file containing all the user files.
         """
 
-        if files_buffer is None:
-            files_buffer = BytesIO()
-
-        progress = ChildProgressBuilder.build(
-            progress_builder, child_total=len(files_to_download.keys())
-        )
+        progress = ChildProgressBuilder.build(progress_builder, child_total=1)
 
         # Prevent downloading any file if desired. This can cause the import to fail,
         # but that's intentional because that way it can easily be discovered that the
@@ -523,30 +567,16 @@ class AirtableHandler:
                     "code, accidentally adding files to the `files_to_download`."
                 )
 
-        with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
-            for index, (file_name, download_file) in enumerate(
-                files_to_download.items()
-            ):
-                if download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH:
-                    response = requests.get(
-                        download_file.url, headers=BASE_HEADERS
-                    )  # nosec B113
-                elif (
-                    download_file.type
-                    == AIRTABLE_DOWNLOAD_FILE_TYPE_ATTACHMENT_ENDPOINT
-                ):
-                    response = AirtableHandler.fetch_attachment(
-                        row_id=download_file.row_id,
-                        column_id=download_file.column_id,
-                        attachment_id=download_file.attachment_id,
-                        init_data=init_data,
-                        request_id=request_id,
-                        cookies=cookies,
-                    )
-                files_zip.writestr(file_name, response.content)
-                progress.increment(state=AIRTABLE_EXPORT_JOB_DOWNLOADING_FILES)
+        file_archive = AirtableFileImport(
+            init_data=init_data,
+            request_id=request_id,
+            cookies=cookies,
+            headers=BASE_HEADERS,
+        )
+        file_archive.add_files(files_to_download)
+        progress.increment(state=AIRTABLE_EXPORT_JOB_DOWNLOADING_FILES)
 
-        return files_buffer
+        return file_archive
 
     @classmethod
     def _parse_table_fields(

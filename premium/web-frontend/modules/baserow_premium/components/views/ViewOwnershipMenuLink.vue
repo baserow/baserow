@@ -12,7 +12,7 @@
       v-else
       v-tooltip="$t('premium.deactivated')"
       class="context__menu-item-link"
-      @click="$refs.premiumModal.show()"
+      @click="$refs.paidFeaturesModal.show()"
     >
       <i class="context__menu-item-icon iconoir-right-round-arrow"></i>
       {{ changeOwnershipTypeText }}
@@ -20,11 +20,11 @@
         <i class="iconoir-lock"></i>
       </div>
     </a>
-    <PremiumModal
-      ref="premiumModal"
-      :name="$t('premiumFeatures.personalViews')"
+    <PaidFeaturesModal
+      ref="paidFeaturesModal"
+      initial-selected-type="personal_views"
       :workspace="database.workspace"
-    ></PremiumModal>
+    ></PaidFeaturesModal>
   </li>
 </template>
 
@@ -32,12 +32,12 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { CollaborativeViewOwnershipType } from '@baserow/modules/database/viewOwnershipTypes'
 import { PersonalViewOwnershipType } from '@baserow_premium/viewOwnershipTypes'
-import PremiumModal from '@baserow_premium/components/PremiumModal'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
   name: 'ViewOwnershipMenuLink',
   components: {
-    PremiumModal,
+    PaidFeaturesModal,
   },
   props: {
     view: {

@@ -278,8 +278,7 @@ export default {
      */
     writableFields() {
       return this.fields.filter(
-        ({ type, read_only: readOnly }) =>
-          !this.fieldTypes[type].getIsReadOnly() && !readOnly
+        (field) => !this.fieldTypes[field.type].isReadOnlyField(field)
       )
     },
     /**
@@ -507,7 +506,7 @@ export default {
 
           // Template row with default values
           const defaultRow = this.writableFields.map((field) =>
-            this.fieldTypes[field.type].getEmptyValue(field)
+            this.fieldTypes[field.type].getDefaultValue(field)
           )
 
           // Precompute the prepare value function for each field

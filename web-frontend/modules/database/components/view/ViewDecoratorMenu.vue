@@ -11,7 +11,7 @@
     <a
       ref="contextLink"
       class="header__filter-link"
-      :class="{ 'active--primary': decoratorCount > 0 }"
+      :class="{ 'active active--primary': decoratorCount > 0 }"
       @click="$refs.context.toggle($refs.contextLink, 'bottom', 'left', 4, -16)"
     >
       <i class="header__filter-icon iconoir-palette"></i>

@@ -17,9 +17,10 @@
       ></i>
     </a>
     <component
-      :is="deactivatedClickModal"
+      :is="deactivatedClickModal[0]"
       v-if="deactivatedClickModal !== null"
       ref="deactivatedClickModal"
+      v-bind="deactivatedClickModal[1]"
       :workspace="database.workspace"
       :name="exporterType.getName()"
     ></component>

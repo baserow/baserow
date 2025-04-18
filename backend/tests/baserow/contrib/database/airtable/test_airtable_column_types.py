@@ -203,10 +203,23 @@ def test_airtable_import_checkbox_column_with_default_value(data_fixture, api_cl
         AirtableImportConfig(),
         import_report,
     )
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "Checkbox"
-    assert import_report.items[0].scope == SCOPE_FIELD
-    assert import_report.items[0].table == ""
+    assert baserow_field.boolean_default is True
+    assert len(import_report.items) == 0
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            "2022-01-03T14:51:00.000Z",
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == "true"
+    )
 
 
 @pytest.mark.django_db
@@ -2574,3 +2587,73 @@ def test_airtable_import_autonumber_column(data_fixture, api_client):
         == 1
     )
     assert len(import_report.items) == 0
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_checkbox_column_empty_value_with_default(
+    data_fixture, api_client
+):
+    airtable_field = {
+        "id": "fldp1IFu0zdgRy70RoX",
+        "name": "Checkbox",
+        "type": "checkbox",
+        "typeOptions": {"color": "green", "icon": "check"},
+        "default": True,
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert baserow_field.boolean_default is True
+    assert len(import_report.items) == 0
+
+    assert (
+        airtable_column_type.to_baserow_export_empty_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == "false"
+    )
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            True,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == "true"
+    )
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            False,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == "false"
+    )

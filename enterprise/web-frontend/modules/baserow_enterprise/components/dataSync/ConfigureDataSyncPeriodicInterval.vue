@@ -71,17 +71,17 @@
           <Button
             type="primary"
             icon="iconoir-no-lock"
-            @click="$refs.enterpriseModal.show()"
+            @click="$refs.paidFeaturesModal.show()"
           >
             {{ $t('configureDataSyncPeriodicInterval.more') }}
           </Button>
         </div>
       </div>
-      <EnterpriseModal
-        ref="enterpriseModal"
-        :name="$t('configureDataSyncPeriodicInterval.title')"
+      <PaidFeaturesModal
+        ref="paidFeaturesModal"
+        initial-selected-type="data_sync"
         :workspace="database.workspace"
-      ></EnterpriseModal>
+      ></PaidFeaturesModal>
     </div>
   </div>
 </template>
@@ -91,12 +91,12 @@ import EnterpriseDataSyncService from '@baserow_enterprise/services/dataSync'
 import error from '@baserow/modules/core/mixins/error'
 import DataSyncPeriodicIntervalForm from '@baserow_enterprise/components/dataSync/DataSyncPeriodicIntervalForm'
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
 import { clone } from '@baserow/modules/core/utils/object'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
   name: 'ConfigureDataSyncPeriodicInterval',
-  components: { EnterpriseModal, DataSyncPeriodicIntervalForm },
+  components: { PaidFeaturesModal, DataSyncPeriodicIntervalForm },
   mixins: [error],
   props: {
     database: {

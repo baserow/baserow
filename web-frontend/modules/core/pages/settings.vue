@@ -19,12 +19,12 @@
       </Tab>
     </Tabs>
     <component
-      :is="page.deactivatedModal"
+      :is="page.deactivatedModal[0]"
       v-for="page in deactivatedPagesWithModal"
       :key="page.type"
       :ref="'deactivatedModal' + page.type"
+      v-bind="page.deactivatedModal[1]"
       :workspace="workspace"
-      :name="page.name"
     ></component>
   </div>
 </template>

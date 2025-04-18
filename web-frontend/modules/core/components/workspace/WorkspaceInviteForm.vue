@@ -59,10 +59,18 @@
                 </Badge>
                 <i v-if="role.isDeactivated" class="iconoir-lock"></i>
                 <component
-                  :is="deactivatedClickModal(role)"
+                  :is="
+                    deactivatedClickModal(role)
+                      ? deactivatedClickModal(role)[0]
+                      : null
+                  "
                   :ref="'deactivatedClickModal-' + role.uid"
                   :v-if="deactivatedClickModal(role)"
-                  :name="$t('workspaceInviteForm.additionalRoles')"
+                  v-bind="
+                    deactivatedClickModal(role)
+                      ? deactivatedClickModal(role)[1]
+                      : null
+                  "
                   :workspace="workspace"
                 ></component>
               </DropdownItem>
@@ -152,7 +160,10 @@ export default {
     clickOnDeactivatedItem(value) {
       const role = this.roles.find((role) => role.uid === value)
       if (role && role.isDeactivated) {
-        this.$refs[`deactivatedClickModal-${value}`][0].show()
+        const ref = this.$refs[`deactivatedClickModal-${value}`]
+        if (ref) {
+          ref[0].show()
+        }
       }
     },
   },

@@ -38,11 +38,7 @@ describe('Row utilities', () => {
             {
               name: 'field_1',
               id: 1,
-              _: {
-                type: {
-                  type: 'text',
-                },
-              },
+              type: 'text',
             },
           ],
         },
@@ -60,21 +56,13 @@ describe('Row utilities', () => {
             {
               name: 'field_1',
               id: 1,
-              _: {
-                type: {
-                  type: 'text',
-                },
-              },
+              type: 'text',
             },
             {
               name: 'field_2',
               id: 2,
               text_default: 'some default',
-              _: {
-                type: {
-                  type: 'text',
-                },
-              },
+              type: 'text',
             },
           ],
         },
@@ -93,11 +81,7 @@ describe('Row utilities', () => {
             {
               name: 'field_1',
               id: 1,
-              _: {
-                type: {
-                  type: 'formula',
-                },
-              },
+              type: 'formula',
             },
           ],
         },
@@ -112,11 +96,7 @@ describe('Row utilities', () => {
               name: 'field_1',
               id: 1,
               text_default: 'some default',
-              _: {
-                type: {
-                  type: 'text',
-                },
-              },
+              type: 'text',
             },
           ],
         },
