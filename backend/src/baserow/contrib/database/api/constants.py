@@ -38,6 +38,17 @@ ONLY_COUNT_API_PARAM = OpenApiParameter(
     description="If provided only the count will be returned.",
 )
 
+EXCLUDE_COUNT_API_PARAM = OpenApiParameter(
+    name="exclude_count",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.BOOL,
+    description=(
+        "If provided, the count, previous, and next properties will be excluded from "
+        "the response. This is useful for large datasets where counting the total "
+        "number of results is slow."
+    ),
+)
+
 
 def get_filters_object_description(combine_filters=True, view_is_aggregating=False):
     return (
