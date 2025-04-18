@@ -43,9 +43,9 @@ EXCLUDE_COUNT_API_PARAM = OpenApiParameter(
     location=OpenApiParameter.QUERY,
     type=OpenApiTypes.BOOL,
     description=(
-        "If provided, the count will be excluded from the response. "
-        "This is useful for large datasets where counting the total number of "
-        "results is slow."
+        "If provided, the count, previous, and next properties will be excluded from "
+        "the response. This is useful for large datasets where counting the total "
+        "number of results is slow."
     ),
 )
 
