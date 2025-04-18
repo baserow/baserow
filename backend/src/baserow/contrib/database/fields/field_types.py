@@ -647,7 +647,10 @@ class NumberFieldType(FieldType):
             # precision we keep it as a string.
             instance = field_object["field"]
             if instance.number_decimal_places == 0:
-                return int(value)
+                try:
+                    return int(value)
+                except (ValueError, TypeError):
+                    pass
 
             # DRF's Decimal Serializer knows how to quantize and format the decimal
             # correctly so lets use it instead of trying to do it ourselves.
