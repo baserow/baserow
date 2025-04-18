@@ -2021,8 +2021,12 @@ export const actions = {
 
     try {
       let data = {}
-      const q = createAndUpdateRowQueue.getOrCreateQueue(`table_${table.id}`)
-      const tid = q.add(async () => {
+      const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
+        `table_${table.id}`
+      )
+      // we're queueing this task, so other tasks, that may read state and modify it,
+      // won't overalp
+      const taskId = taskQueue.add(async () => {
         const resp = await RowService(this.$client).batchCreate(
           table.id,
           rowsPrepared,
@@ -2030,57 +2034,58 @@ export const actions = {
           undoRedoActionGroupId
         )
         data = resp.data
-      })
-      await q.waitFor(tid)
 
-      const fieldsToFinalize = fields
-        .filter(
-          (field) =>
-            field.read_only ||
-            this.$registry.get('field', field._.type.type).isReadOnly
-        )
-        .map((field) => `field_${field.id}`)
-      commit('FINALIZE_ROWS_IN_BUFFER', {
-        oldRows: rowsPopulated,
-        newRows: data.items,
-        fields: fieldsToFinalize,
-      })
+        const fieldsToFinalize = fields
+          .filter(
+            (field) =>
+              field.read_only ||
+              this.$registry.get('field', field._.type.type).isReadOnly
+          )
+          .map((field) => `field_${field.id}`)
+        commit('FINALIZE_ROWS_IN_BUFFER', {
+          oldRows: rowsPopulated,
+          newRows: data.items,
+          fields: fieldsToFinalize,
+        })
 
-      for (let i = 0; i < data.items.length; i += 1) {
-        const item = data.items[i]
-        // Use the updated row in the buffer if it exists, otherwise use the populated
-        // row object to update inner state.
-        const row = state.rows.find((r) => r.id === item.id) || rowsPopulated[i]
-        if (!canUpdateOptimistically) {
-          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-            fields,
-            registry: this.$registry,
-            row,
-            increase: true,
-            decrease: false,
-          })
-        }
-        dispatch('onRowChange', { view, row, fields })
-        const rowId = row.id
-        setTimeout(() => {
-          // Get the latest row so that any changes that might have been made in the
-          // meantime are included. This is needed to pass the correct row into the
-          // `refreshRow` that shows/hide the row.
-          const row = getters.getRow(rowId)
-          if (row && !row._.selected) {
-            dispatch('refreshRow', {
-              grid: view,
-              row,
+        for (let i = 0; i < data.items.length; i += 1) {
+          const item = data.items[i]
+          // Use the updated row in the buffer if it exists, otherwise use the populated
+          // row object to update inner state.
+          const row =
+            state.rows.find((r) => r.id === item.id) || rowsPopulated[i]
+          if (!canUpdateOptimistically) {
+            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
               fields,
-              isRowOpenedInModal,
+              registry: this.$registry,
+              row,
+              increase: true,
+              decrease: false,
             })
           }
-        }, REFRESH_ROW_DELAY)
-      }
+          dispatch('onRowChange', { view, row, fields })
+          const rowId = row.id
+          setTimeout(() => {
+            // Get the latest row so that any changes that might have been made in the
+            // meantime are included. This is needed to pass the correct row into the
+            // `refreshRow` that shows/hide the row.
+            const row = getters.getRow(rowId)
+            if (row && !row._.selected) {
+              dispatch('refreshRow', {
+                grid: view,
+                row,
+                fields,
+                isRowOpenedInModal,
+              })
+            }
+          }, REFRESH_ROW_DELAY)
+        }
 
-      await dispatch('fetchAllFieldAggregationData', {
-        view,
+        await dispatch('fetchAllFieldAggregationData', {
+          view,
+        })
       })
+      await taskQueue.waitFor(taskId)
     } catch (error) {
       if (isSingleRowInsertion) {
         commit('UPDATE_GROUP_BY_METADATA_COUNT', {
@@ -2627,8 +2632,10 @@ export const actions = {
     // performing another request to create those rows in the backend.
     // If we call RowService too soon here, we'll send placeholder .id values (uuid)
     // to a PATCH operation.
-    const q = createAndUpdateRowQueue.getOrCreateQueue(`table_${table.id}`)
-    await q.waitAll()
+    const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
+      `table_${table.id}`
+    )
+    await taskQueue.waitAll()
 
     // Create a copy of the existing (old) rows, which are needed to create the
     // comparison when checking if the rows still matches the filters and position.
