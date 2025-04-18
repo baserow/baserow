@@ -46,6 +46,7 @@ export class EnterpriseWithoutSupportLicenseType extends LicenseType {
       EnterpriseFeaturesObject.BUILDER_SSO,
       EnterpriseFeaturesObject.BUILDER_NO_BRANDING,
       EnterpriseFeaturesObject.ADVANCED_WEBHOOKS,
+      EnterpriseFeaturesObject.FIELD_LEVEL_PERMISSIONS,
     ]
   }
 

@@ -4,10 +4,12 @@ from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
+from baserow_premium.license.models import License
 from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -16,7 +18,9 @@ from baserow_enterprise.role.models import Role
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_only_builder_and_up_can_get_field_permissions(enterprise_data_fixture):
+def test_only_builder_and_up_can_get_field_permissions(
+    enterprise_data_fixture, synced_roles
+):
     user = enterprise_data_fixture.create_user()
     database = enterprise_data_fixture.create_database_application(user=user)
     table = enterprise_data_fixture.create_database_table(database=database)
@@ -44,7 +48,9 @@ def test_only_builder_and_up_can_get_field_permissions(enterprise_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_only_builder_and_up_can_update_field_permissions(enterprise_data_fixture):
+def test_only_builder_and_up_can_update_field_permissions(
+    enterprise_data_fixture, synced_roles
+):
     user = enterprise_data_fixture.create_user()
     database = enterprise_data_fixture.create_database_application(user=user)
     table = enterprise_data_fixture.create_database_table(database=database)
@@ -84,7 +90,7 @@ def test_only_builder_and_up_can_update_field_permissions(enterprise_data_fixtur
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_update_field_permissions_send_permissions_updated_signal(
-    enterprise_data_fixture,
+    enterprise_data_fixture, synced_roles
 ):
     user = enterprise_data_fixture.create_user()
     test_user = enterprise_data_fixture.create_user()
@@ -117,7 +123,7 @@ def test_update_field_permissions_send_permissions_updated_signal(
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_cannot_create_or_update_rows_without_proper_permisisons(
-    enterprise_data_fixture,
+    enterprise_data_fixture, synced_roles
 ):
     user = enterprise_data_fixture.create_user()
     test_user = enterprise_data_fixture.create_user()
@@ -252,7 +258,7 @@ def test_cannot_create_or_update_rows_without_proper_permisisons(
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_fields_with_permissions_can_be_excluded_from_forms(
-    api_client, enterprise_data_fixture
+    api_client, enterprise_data_fixture, synced_roles
 ):
     user = enterprise_data_fixture.create_user()
     database = enterprise_data_fixture.create_database_application(user=user)
@@ -341,3 +347,73 @@ def test_fields_with_permissions_can_be_excluded_from_forms(
     submitted_row = model.objects.get(id=submitted_row_id)
     assert getattr(submitted_row, text_field.db_column) == "nobody can edit me"
     assert getattr(submitted_row, number_field.db_column) == 10
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_if_license_expires_field_permissions_are_ignored(
+    enterprise_data_fixture, synced_roles
+):
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    enterprise_data_fixture.enable_enterprise()
+    model = table.get_model()
+
+    (row,) = RowHandler().force_create_rows(user, table, [{}], model=model).created_rows
+
+    def _assign_role(role):
+        RoleAssignmentHandler().assign_role(
+            subject=user,
+            workspace=database.workspace,
+            role=role,
+            scope=database,
+        )
+
+    def _create_row_with_field_value(field, value):
+        RowHandler().create_rows(
+            user=user,
+            table=table,
+            rows_values=[{field.db_column: value}],
+            model=model,
+        )
+
+    def _update_row_with_field_value(field, value):
+        RowHandler().update_rows(
+            user=user,
+            table=table,
+            rows_values=[{"id": row.id, field.db_column: value}],
+            model=model,
+        )
+
+    def _import_rows_with_field_value(field, value):
+        return RowHandler().import_rows(
+            user=user,
+            table=table,
+            data=[[value]],
+            configuration=None,
+            validate=False,
+        )
+
+    FieldPermissionsHandler.update_field_permissions(user, text_field, "NOBODY")
+
+    with pytest.raises(PermissionDenied):
+        _update_row_with_field_value(text_field, "nobody")
+
+    with pytest.raises(PermissionDenied):
+        _create_row_with_field_value(text_field, "nobody")
+
+    rows, _ = _import_rows_with_field_value(text_field, "nobody")
+    assert len(rows) == 1
+    assert getattr(rows[0], text_field.db_column) is None
+
+    License.objects.all().delete()
+    local_cache.clear()
+
+    _update_row_with_field_value(text_field, "nobody")
+    _create_row_with_field_value(text_field, "nobody")
+
+    rows, _ = _import_rows_with_field_value(text_field, "nobody")
+    assert len(rows) == 1
+    assert getattr(rows[0], text_field.db_column) == "nobody"

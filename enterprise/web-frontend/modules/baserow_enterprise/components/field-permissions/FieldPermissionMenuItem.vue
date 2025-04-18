@@ -5,26 +5,32 @@
       :field="field"
       :workspace-id="database.workspace.id"
     />
-    <a
-      class="context__menu-item-link"
-      @click="
-        $refs.editFieldPermissionModal.show()
-        $emit('hide-context')
-      "
-    >
+    <PaidFeaturesModal
+      ref="paidFeaturesModal"
+      :workspace="database.workspace"
+      :initial-selected-type="featureName"
+    />
+    <a class="context__menu-item-link" @click="onClick">
       <i class="context__menu-item-icon iconoir-lock"></i>
       {{ $t('fieldPermissionMenuItem.label') }}
+      <div v-if="deactivated" class="deactivated-label">
+        <i class="iconoir-lock"></i>
+      </div>
     </a>
   </li>
 </template>
 
 <script>
 import FieldPermissionModal from '@baserow_enterprise/components/field-permissions/FieldPermissionModal'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import EnterpriseFeatures from '@baserow_enterprise/features'
+import { FieldLevelPermissionsPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 export default {
   name: 'FieldPermissionMenuItem',
   components: {
     FieldPermissionModal,
+    PaidFeaturesModal,
   },
   props: {
     field: {
@@ -36,9 +42,31 @@ export default {
       required: true,
     },
   },
+  computed: {
+    featureName() {
+      return FieldLevelPermissionsPaidFeature.getType()
+    },
+    deactivated() {
+      return this.isDeactivated(this.database.workspace.id)
+    },
+  },
   methods: {
     isFieldReadOnly(field) {
       return this.$registry.get('field', field.type).isReadOnlyField(field)
+    },
+    isDeactivated(workspaceId) {
+      return !this.$hasFeature(
+        EnterpriseFeatures.FIELD_LEVEL_PERMISSIONS,
+        workspaceId
+      )
+    },
+    onClick() {
+      if (this.deactivated) {
+        this.$refs.paidFeaturesModal.show()
+      } else {
+        this.$refs.editFieldPermissionModal.show()
+        this.$emit('hide-context')
+      }
     },
   },
 }

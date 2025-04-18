@@ -68,6 +68,7 @@ import {
   RBACPaidFeature,
   SSOPaidFeature,
   SupportWebhooksPaidFeature,
+  FieldLevelPermissionsPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionMenuItemType } from '@baserow_enterprise/components/field-permissions/updateFieldMenuItemTypes'
 import { FF_FIELD_PERMISSIONS } from '@baserow/modules/core/plugins/featureFlags'
@@ -195,6 +196,10 @@ export default (context) => {
   app.$registry.register(
     'paidFeature',
     new AdvancedWebhooksPaidFeature(context)
+  )
+  app.$registry.register(
+    'paidFeature',
+    new FieldLevelPermissionsPaidFeature(context)
   )
   app.$registry.register('paidFeature', new SupportWebhooksPaidFeature(context))
   // Register builder page decorator namespace and types
