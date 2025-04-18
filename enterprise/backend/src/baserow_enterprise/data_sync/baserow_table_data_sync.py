@@ -122,16 +122,20 @@ class BaserowFieldDataSyncProperty(DataSyncProperty):
         model_class = self.field_types_override.get(
             field_type.type, field_type.model_class
         )
-        return model_class(
-            **{
-                allowed_field: getattr(self.field, allowed_field)
-                for allowed_field in allowed_fields
-                if hasattr(self.field, allowed_field)
-                and hasattr(model_class, allowed_field)
-                # Select options can't be set directly because that results in an error.
-                and allowed_field != "select_options"
-            }
-        )
+        field_kwargs = {
+            allowed_field: getattr(self.field, allowed_field)
+            for allowed_field in allowed_fields
+            if hasattr(self.field, allowed_field)
+            and hasattr(model_class, allowed_field)
+            # Select options can't be set directly because that results in an error.
+            and allowed_field != "select_options"
+        }
+        # Handle single_select_default separately since it needs to be mapped
+        if hasattr(self.field, "single_select_default_id"):
+            field_kwargs[
+                "single_select_default_id"
+            ] = self.field.single_select_default_id
+        return model_class(**field_kwargs)
 
     def get_metadata(self, baserow_field, existing_metadata=None):
         new_metadata = super().get_metadata(baserow_field, existing_metadata)
@@ -157,6 +161,18 @@ class BaserowFieldDataSyncProperty(DataSyncProperty):
             existing_mapping,
         )
         new_metadata["select_options_mapping"] = select_options_mapping
+
+        # Map the single_select_default_id if it exists
+        if (
+            hasattr(self.field, "single_select_default_id")
+            and self.field.single_select_default_id
+        ):
+            default_id = str(self.field.single_select_default_id)
+            if default_id in select_options_mapping:
+                baserow_field.single_select_default_id = select_options_mapping[
+                    default_id
+                ]
+                baserow_field.save()
 
         return new_metadata
 

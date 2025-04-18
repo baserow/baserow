@@ -2611,3 +2611,79 @@ def test_batch_delete_rows_disabled_webhook_events(api_client, data_fixture):
         )
         assert response.status_code == HTTP_204_NO_CONTENT
         m.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
+def test_batch_create_rows_single_select_default(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    option_field = data_fixture.create_single_select_field(
+        table=table, name="option_field", order=1
+    )
+    option_1 = data_fixture.create_select_option(
+        field=option_field, value="1", color="blue"
+    )
+    option_2 = data_fixture.create_select_option(
+        field=option_field, value="2", color="red"
+    )
+
+    field_handler = FieldHandler()
+    option_field = field_handler.update_field(
+        user=user, field=option_field, single_select_default=option_1.id
+    )
+
+    model = table.get_model()
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+
+    request_body = {
+        "items": [
+            {
+                f"field_{option_field.id}": option_2.id,
+            },
+            {
+                # Not providing a value should use the default (active)
+            },
+        ]
+    }
+
+    expected_response_body = {
+        "items": [
+            {
+                "id": 1,
+                f"field_{option_field.id}": {
+                    "id": option_2.id,
+                    "value": "2",
+                    "color": "red",
+                },
+                "order": "1.00000000000000000000",
+            },
+            {
+                "id": 2,
+                f"field_{option_field.id}": {
+                    "id": option_1.id,
+                    "value": "1",
+                    "color": "blue",
+                },
+                "order": "2.00000000000000000000",
+            },
+        ]
+    }
+
+    response = api_client.post(
+        url,
+        request_body,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == expected_response_body
+
+    row_1 = model.objects.get(pk=1)
+    row_2 = model.objects.get(pk=2)
+    assert getattr(row_1, f"field_{option_field.id}").id == option_2.id
+    assert getattr(row_2, f"field_{option_field.id}").id == option_1.id
+    assert row_1.needs_background_update
+    assert row_2.needs_background_update

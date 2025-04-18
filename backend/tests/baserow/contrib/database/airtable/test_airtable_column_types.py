@@ -2489,17 +2489,40 @@ def test_airtable_import_select_column_with_default_value(
             "disableColors": False,
         },
     }
-    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig(), import_report
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "Single select"
-    assert import_report.items[0].scope == SCOPE_FIELD
-    assert import_report.items[0].table == ""
+    assert isinstance(baserow_field, SingleSelectField)
+    assert isinstance(airtable_column_type, SelectAirtableColumnType)
+
+    baserow_field.table_id = table.id
+    baserow_field.order = 999
+    baserow_field.save()
+
+    with django_assert_num_queries(0):
+        select_options = list(baserow_field.select_options.all())
+
+    assert len(select_options) == 2
+    assert select_options[0].id == "fldRd2Vkzgsf6X4z6B4_selbh6rEWaaiyQvWyfg"
+    assert select_options[0].value == "Option A"
+    assert select_options[0].color == "light-blue"
+    assert select_options[0].order == 0
+    assert select_options[1].id == "fldRd2Vkzgsf6X4z6B4_selvZgpWhbkeRVphROT"
+    assert select_options[1].value == "Option B"
+    assert select_options[1].color == "light-cyan"
+    assert select_options[1].order == 1
+
+    # Verify the default value is set correctly
+    assert (
+        baserow_field.single_select_default_id
+        == "fldRd2Vkzgsf6X4z6B4_selbh6rEWaaiyQvWyfg"
+    )
 
 
 @pytest.mark.django_db

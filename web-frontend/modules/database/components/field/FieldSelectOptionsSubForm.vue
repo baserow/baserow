@@ -1,18 +1,32 @@
 <template>
   <div>
     <div v-if="loading" class="loading"></div>
-
-    <FormGroup
-      v-else
-      small-label
-      required
-      :label="$t('fieldSingleSelectSubForm.optionsLabel')"
-    >
-      <FieldSelectOptions
-        ref="selectOptions"
-        v-model="values.select_options"
-      ></FieldSelectOptions>
-    </FormGroup>
+    <template v-else>
+      <FormGroup
+        small-label
+        required
+        :label="$t('fieldSingleSelectSubForm.optionsLabel')"
+        class="margin-bottom-2"
+      >
+        <FieldSelectOptions
+          ref="selectOptions"
+          v-model="values.select_options"
+        ></FieldSelectOptions>
+      </FormGroup>
+      <FormGroup
+        small-label
+        :label="$t('fieldSingleSelectSubForm.defaultOptionLabel')"
+      >
+        <Dropdown v-model="v$.values.single_select_default.$model">
+          <DropdownItem
+            v-for="option in values.select_options"
+            :key="option.id"
+            :name="option.value"
+            :value="option.id"
+          />
+        </Dropdown>
+      </FormGroup>
+    </template>
   </div>
 </template>
 
@@ -23,17 +37,22 @@ import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import FieldSelectOptions from '@baserow/modules/database/components/field/FieldSelectOptions'
 import FieldService from '@baserow/modules/database/services/field'
 import { randomColor } from '@baserow/modules/core/utils/colors'
+import { useVuelidate } from '@vuelidate/core'
 
 export default {
   name: 'FieldSelectOptionsSubForm',
   components: { FieldSelectOptions },
   mixins: [form, fieldSubForm],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       loading: false,
-      allowedValues: ['select_options'],
+      allowedValues: ['select_options', 'single_select_default'],
       values: {
         select_options: [],
+        single_select_default: null,
       },
     }
   },
@@ -88,6 +107,13 @@ export default {
       }
       this.loading = false
     },
+  },
+  validations() {
+    return {
+      values: {
+        single_select_default: {},
+      },
+    }
   },
 }
 </script>

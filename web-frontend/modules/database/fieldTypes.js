@@ -3596,7 +3596,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       (option) => option.value === value
     )
 
-    return selectedOption ?? this.getDefaultValue()
+    return selectedOption ?? this.getDefaultValue(field)
   }
 
   getCanImport() {
@@ -3619,6 +3619,20 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     const value1Id = value1?.id || null
     const value2Id = value2?.id || null
     return value1Id === value2Id
+  }
+
+  getDefaultValue(field) {
+    return field.single_select_default ?? this.getEmptyValue(field)
+  }
+
+  getNewRowValue(field) {
+    const defaultValue = this.getDefaultValue(field)
+    if (defaultValue === null) {
+      return null
+    }
+    return (
+      field.select_options.find((option) => option.id === defaultValue) || null
+    )
   }
 }
 

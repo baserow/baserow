@@ -46,6 +46,7 @@ from django.db.models import (
     When,
     Window,
 )
+from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import ManyToManyField
 from django.db.models.functions import Cast, Coalesce, RowNumber
 
@@ -3976,10 +3977,35 @@ class SelectOptionBaseFieldType(FieldType):
 class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     type = "single_select"
     model_class = SingleSelectField
+    allowed_fields = ["select_options", "single_select_default"]
+    serializer_field_names = ["select_options", "single_select_default"]
     _can_order_by_types = [DEFAULT_SORT_TYPE_KEY, SINGLE_SELECT_SORT_BY_ORDER]
+
+    def get_single_select_default(self, instance, default_value):
+        """
+        Checks if the provided default value is a valid option and returns it.
+        If the default value is not a valid option, it returns None.
+        """
+
+        default_value = default_value or instance.single_select_default
+
+        if (
+            default_value is not None
+            and not default_value == NOT_PROVIDED
+            and instance.select_options.filter(id=default_value).exists()
+        ):
+            return default_value
+        return None
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
+
+        default = self.get_single_select_default(
+            instance, kwargs.get("single_select_default", None)
+        )
+        if default is not None:
+            kwargs["default"] = default
+
         field_serializer = IntegerOrStringField(
             **{
                 "required": required,
@@ -4036,10 +4062,8 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         invalid_values_by_index = {}
 
         for row_index, value in values_by_row.items():
-            if value is None:
-                continue
-
-            if isinstance(value, SelectOption):
+            # Ignore empty and select values
+            if value is None or isinstance(value, SelectOption):
                 continue
             elif isinstance(value, int):
                 unique_ids.add(value)
@@ -4085,9 +4109,18 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
         # Replace original values by real option object if possible
         for row_index, value in values_by_row.items():
-            # Ignore empty and select values
-            if value is None or isinstance(value, SelectOption):
+            # Handle default value for None
+            if value is None:
+                if instance.single_select_default is not None:
+                    default_option = option_map.get(instance.single_select_default)
+                    if default_option is not None:
+                        values_by_row[row_index] = default_option
                 continue
+
+            # Ignore select values
+            if isinstance(value, SelectOption):
+                continue
+
             if continue_on_error and value not in option_map:
                 values_by_row[row_index] = ValidationError(
                     f"The provided value {value} is not a valid option.",
@@ -4144,6 +4177,13 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         return value.value
 
     def get_model_field(self, instance, **kwargs):
+        default = self.get_single_select_default(
+            instance, kwargs.get("single_select_default", None)
+        )
+
+        if default is not None:
+            kwargs["default"] = default
+
         return SingleSelectForeignKey(
             to=SelectOption,
             on_delete=models.SET_NULL,
@@ -4305,6 +4345,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         select_option_mapping = id_mapping["database_field_select_options"]
 
         if not value or value not in select_option_mapping:
+            setattr(row, field_name + "_id", None)
             return
 
         setattr(row, field_name + "_id", select_option_mapping[value])

@@ -1037,6 +1037,10 @@ class FieldType(
             if self.can_have_select_options
             else []
         )
+
+        # TODO: will work only for SingleSelectField
+        select_default = serialized_copy.pop("single_select_default", None)
+
         should_create_tsvector_column = (
             not import_export_config.reduce_disk_space_usage
             and table.tsvectors_are_supported
@@ -1064,6 +1068,12 @@ class FieldType(
                 id_mapping["database_field_select_options"][
                     select_option_id
                 ] = select_option_object.id
+
+            if select_default is not None:
+                field.single_select_default = id_mapping[
+                    "database_field_select_options"
+                ][select_default]
+                field.save()
 
         return field
 
