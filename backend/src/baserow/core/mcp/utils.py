@@ -15,6 +15,8 @@ from drf_spectacular.plumbing import (
 )
 from rest_framework import viewsets
 from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.serializers import Serializer
 from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework_simplejwt.tokens import AccessToken
 
@@ -64,10 +66,23 @@ class FullyInlineAutoSchema(AutoSchema):
         return type("ResolvedInline", (), {"ref": schema_dict})()
 
 
-def serializer_to_openapi_inline(serializer_class, method="GET", direction="response"):
+def serializer_to_openapi_inline(
+    serializer_class: Serializer, method: str = "GET", direction: str = "request"
+) -> Dict:
     """
-    Generate an inline OpenAPI schema dict from a DRF serializer using drf-spectacular
-    (v0.27.2), without $ref or component registration.
+    This helper method converts the provided serializer class into an inline OpenAPI
+    schema dict. It uses the `drf-spectacular` library that we're already using to
+    automatically generate the full API docs.
+
+    It's also compatible with OpenAPI serializer extensions like
+    `CustomFieldRegistryMappingSerializer`.
+
+    :param serializer_class: The serializer class that must be converted to the OpenAI
+        dict.
+    :param method: `drf-spectacular` automatically extracts information from a view.
+        It therefore also extracts the method, and it must be provided here.
+    :param direction: `request` or `response` serializer.
+    :return: The OpenAPI spec of the serializer as dict.
     """
 
     class DummyViewSet(viewsets.ViewSet):
@@ -105,6 +120,16 @@ def serializer_to_openapi_inline(serializer_class, method="GET", direction="resp
 
 
 class NameRoute:
+    """
+    Helper class to construct an match a route with parameters. Can be used like:
+
+    ```
+    route = NameRoute("/page/{id}/test")
+    route.match("/page/1/test") == {"id": 1}
+    route.match("other-page") == None
+    ```
+    """
+
     def __init__(self, pattern: str):
         self.pattern = pattern
         self.regex, self.param_names = self._compile_pattern(pattern)
@@ -113,19 +138,16 @@ class NameRoute:
         param_names = []
         regex_pattern = ""
 
-        # Tokenize the pattern
         pos = 0
         for match in re.finditer(r"{(\w+)}", pattern):
             start, end = match.span()
             param_name = match.group(1)
             param_names.append(param_name)
 
-            # Add literal part and capture group
             regex_pattern += re.escape(pattern[pos:start])
             regex_pattern += r"(?P<%s>[^/]+)" % param_name
             pos = end
 
-        # Add the remaining literal part
         regex_pattern += re.escape(pattern[pos:])
         regex = re.compile(f"^{regex_pattern}$")
         return regex, param_names
@@ -144,15 +166,16 @@ def internal_api_request(
     data: Optional[dict] = None,
     user: Optional[AbstractUser] = None,
     query_params: Optional[dict] = None,
-):
+) -> Response:
     """
     Simulate an internal API request in Django.
 
     :param route_name: Name of the URL pattern (named route).
     :param method: HTTP method (e.g., 'GET', 'POST').
     :param path_params: Dictionary of path parameters.
-    :param data: JSON payload for POST requests.
-    :param user: User object or None if anonymous.
+    :param data: Dictory used as payload in the body.
+    :param user: User object or None if anonymous. Automatically adds the `JWT`
+        authorization header if provided.
     :param query_params: Dictionary of query parameters.
     :return: Response from the view function.
     """
@@ -170,9 +193,7 @@ def internal_api_request(
     else:
         url_path = base_url
 
-    headers = {
-        "Content-Type": "application/json",
-    }
+    headers = {"Content-Type": "application/json"}
 
     method_func = getattr(client, method.lower(), None)
     if not method_func:

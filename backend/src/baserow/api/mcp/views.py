@@ -42,7 +42,12 @@ class MCPEndpointsView(APIView):
     @extend_schema(
         tags=["MCP endpoints"],
         operation_id="list_mcp_endpoints",
-        description="Lists all the MCP endpoints of a user.",
+        description=(
+            "Lists all the MCP (Model Context Protocol) endpoints of a user. These can"
+            "be used to directly integrate with an LLM like Claude, and let the LLM "
+            "perform actions directly in Baserow. Treat your MCP URL like a password,"
+            "as it has the ability to modify data in Baserow."
+        ),
         responses={200: MCPEndpointSerializer(many=True)},
     )
     def get(self, request):
@@ -58,8 +63,8 @@ class MCPEndpointsView(APIView):
         tags=["MCP endpoints"],
         operation_id="create_mcp_endpoint",
         description=(
-            "Creates a new MCP endpoint for a given workspace. The endpoint can be used for "
-            "MCP integration."
+            "Creates a new MCP endpoint for a given workspace. The endpoint can be "
+            "used for an MCP integration."
         ),
         request=CreateMCPEndpointSerializer,
         responses={

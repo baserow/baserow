@@ -68,7 +68,8 @@ export default {
     }
   },
   /**
-   * When the component is mounted we immediately want to fetch all the endpoints.
+   * When the component is mounted we immediately want to fetch all the endpoints, so
+   * that they can be displayed to the user.
    */
   async mounted() {
     try {

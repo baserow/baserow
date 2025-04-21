@@ -154,17 +154,17 @@ class MCPEndpointHandler:
         :rtype: MCPEndpoint
         """
 
+        if not user.id == endpoint.user_id:
+            raise MCPEndpointDoesNotBelongToUser(
+                "The user is not authorized to update the endpoint."
+            )
+
         CoreHandler().check_permissions(
             user,
             UpdateMCPEndpointOperationType.type,
             workspace=endpoint.workspace,
             context=endpoint,
         )
-
-        if not user.id == endpoint.user_id:
-            raise MCPEndpointDoesNotBelongToUser(
-                "The user is not authorized to update the endpoint."
-            )
 
         endpoint.name = name
         endpoint.save()
@@ -181,16 +181,16 @@ class MCPEndpointHandler:
             belong the provided user.
         """
 
+        if not user.id == endpoint.user_id:
+            raise MCPEndpointDoesNotBelongToUser(
+                "The user is not authorized to delete the endpoint."
+            )
+
         CoreHandler().check_permissions(
             user,
             DeleteMCPEndpointOperationType.type,
             workspace=endpoint.workspace,
             context=endpoint,
         )
-
-        if not user.id == endpoint.user_id:
-            raise MCPEndpointDoesNotBelongToUser(
-                "The user is not authorized to delete the endpoint."
-            )
 
         endpoint.delete()

@@ -33,14 +33,20 @@ def get_all_tables(endpoint: MCPEndpoint) -> List[Table]:
 
 def remove_table_no_permission(
     endpoint: MCPEndpoint, tables: List[Table], operation_type: List[OperationType]
-):
+) -> List[Table]:
     """
-    @TODO docs and write tests for this.
+    Helper method that filters out the tables where the user doesn't have
+    `operation_type` permissions for. This can be used to nicely list what the user
+    does have access to.
 
-    :param endpoint:
-    :param tables:
-    :param operation_type:
-    :return:
+    :param endpoint: The MCPEndpoint where the user and workspace will be extracted
+        from.
+    :param tables: A list of tables where the permissions of the `operation_type` must
+        be checked for.
+    :param operation_type: The operation type where to check if the user has table
+        permissions for.
+    :return: An updated list, only containing the tables that the user has
+        `operation_type` permissions for.
     """
 
     checks = [

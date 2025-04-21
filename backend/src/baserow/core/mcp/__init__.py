@@ -17,6 +17,18 @@ current_key: contextvars.ContextVar[str] = contextvars.ContextVar("current_key")
 
 
 class BaserowMCPServer:
+    """
+    This class is inspired by FastMCP
+    (https://github.com/modelcontextprotocol/python-sdk/blob/main/src/mcp/server/fastmcp/server.py)
+    but modified to work better in combination with Django Rest Framework that Baserow
+    uses.
+
+    The MCP server can be tested with tools like:
+
+    SERVER_PORT=3001 npx @modelcontextprotocol/inspector
+    npx @wong2/mcp-cli --sse URL
+    """
+
     def __init__(self):
         self._mcp_server = Server(
             name="Baserow MCP",
@@ -119,6 +131,13 @@ class BaserowMCPServer:
                 # Reset the context variable when done
                 current_key.reset(key_ctx)
 
+        # It might seem a bit hacky to use Starlette here instead of the existing
+        # Django logic. However, it made more sense to stay as close to the recommended
+        # code of the MCP library
+        # https://github.com/modelcontextprotocol/python-sdk?tab=readme-ov-file#mounting-to-an-existing-asgi-server
+        # for compatibility reasons. If anything changes in the Python SDK, which seems
+        # to be active development, then we should remain close in terms of
+        # compatibility.
         return Starlette(
             debug=False,
             routes=[

@@ -20,6 +20,8 @@ def test_serializer_to_openapi_inline():
             "database_id": {"type": "integer", "readOnly": True},
             "data_sync": {
                 "type": "object",
+                # Confirm that the child serializers are not rendered as `$ref`, but
+                # rather fully inline.
                 "properties": {
                     "id": {"type": "integer", "readOnly": True},
                     "type": {"type": "string", "readOnly": True},
@@ -63,6 +65,8 @@ def test_polymorphic_serializer_to_openapi_inline():
             view_type_registry, CreateViewSerializer
         )
     ) == {
+        # Confirm that the function is compatible with OpenAPI extensions, and the
+        # `DiscriminatorCustomFieldsMappingSerializer` in particular.
         "oneOf": [
             {
                 "type": "object",
@@ -226,8 +230,9 @@ def test_polymorphic_serializer_to_openapi_inline():
                         "properties": {
                             "size": {
                                 "type": "integer",
-                                "maximum": 2147483647,
+                                "maximum": 9223372036854775807,
                                 "minimum": 0,
+                                "format": "int64",
                             },
                             "mime_type": {"type": "string", "maxLength": 127},
                             "is_image": {"type": "boolean"},
@@ -277,8 +282,9 @@ def test_polymorphic_serializer_to_openapi_inline():
                         "properties": {
                             "size": {
                                 "type": "integer",
-                                "maximum": 2147483647,
+                                "maximum": 9223372036854775807,
                                 "minimum": 0,
+                                "format": "int64",
                             },
                             "mime_type": {"type": "string", "maxLength": 127},
                             "is_image": {"type": "boolean"},

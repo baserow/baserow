@@ -63,6 +63,8 @@ if "SECRET_KEY" in os.environ:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("BASEROW_BACKEND_DEBUG", "off") == "on"
 
+# The `testserver` is needed for the
+# `src/baserow/core/mcp/utils.py::internal_api_request`.
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 ALLOWED_HOSTS += os.getenv("BASEROW_EXTRA_ALLOWED_HOSTS", "").split(",")
 

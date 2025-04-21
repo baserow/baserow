@@ -6,7 +6,7 @@ This module implements a Server-Sent Events (SSE) transport layer for MCP server
 Example usage:
 ```
     # Create an SSE transport at an endpoint
-    sse = SseServerTransport("/messages/")
+    sse = DjangoChannelsSseServerTransport("/messages/")
 
     # Create Starlette routes for SSE and message handling
     routes = [
