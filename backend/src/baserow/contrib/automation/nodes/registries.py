@@ -26,7 +26,7 @@ from baserow.core.registry import (
     Registry,
 )
 
-AUTOMATION_WORKFLOW_NODES = "automation_workflow_nodes"
+AUTOMATION_NODES = "automation_nodes"
 
 
 class AutomationNodeType(
@@ -37,7 +37,7 @@ class AutomationNodeType(
     Instance,
 ):
     parent_property_name = "workflow"
-    id_mapping_name = AUTOMATION_WORKFLOW_NODES
+    id_mapping_name = AUTOMATION_NODES
 
     def prepare_values(
         self,

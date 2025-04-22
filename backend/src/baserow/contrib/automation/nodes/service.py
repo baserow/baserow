@@ -6,7 +6,7 @@ from baserow.core.handler import CoreHandler
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.operations import (
-    ListAutomationWorkflowNodeOperationType,
+    ListAutomationNodeOperationType,
     CreateAutomationNodeOperationType,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
@@ -72,14 +72,14 @@ class AutomationNodeService:
 
         CoreHandler().check_permissions(
             user,
-            ListAutomationWorkflowNodeOperationType.type,
+            ListAutomationNodeOperationType.type,
             workspace=workflow.automation.workspace,
             context=workflow,
         )
 
         user_nodes = CoreHandler().filter_queryset(
             user,
-            ListAutomationWorkflowNodeOperationType.type,
+            ListAutomationNodeOperationType.type,
             AutomationNode.objects.all(),
             workspace=workflow.automation.workspace,
         )

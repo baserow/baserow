@@ -28,6 +28,9 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.workflows.object_scopes import (
             AutomationWorkflowObjectScopeType,
         )
+        from baserow.contrib.automation.nodes.object_scopes import (
+            AutomationNodeObjectScopeType
+        )
         from baserow.contrib.automation.workflows.operations import (
             CreateAutomationWorkflowOperationType,
             DeleteAutomationWorkflowOperationType,
@@ -47,7 +50,7 @@ class AutomationConfig(AppConfig):
             RowUpdatedNodeType,
         )
         from baserow.contrib.automation.nodes.operations import (
-            ListAutomationWorkflowNodeOperationType,
+            ListAutomationNodeOperationType,
             CreateAutomationNodeOperationType,
         )
 
@@ -70,6 +73,7 @@ class AutomationConfig(AppConfig):
 
             object_scope_type_registry.register(AutomationObjectScopeType())
             object_scope_type_registry.register(AutomationWorkflowObjectScopeType())
+            object_scope_type_registry.register(AutomationNodeObjectScopeType())
 
             operation_type_registry.register(CreateAutomationWorkflowOperationType())
             operation_type_registry.register(DeleteAutomationWorkflowOperationType())
@@ -79,7 +83,7 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(ListAutomationWorkflowsOperationType())
             operation_type_registry.register(OrderAutomationWorkflowsOperationType())
             operation_type_registry.register(RestoreAutomationWorkflowOperationType())
-            operation_type_registry.register(ListAutomationWorkflowNodeOperationType())
+            operation_type_registry.register(ListAutomationNodeOperationType())
             operation_type_registry.register(CreateAutomationNodeOperationType())
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())

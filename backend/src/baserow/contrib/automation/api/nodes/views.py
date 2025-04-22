@@ -94,3 +94,48 @@ class AutomationNodesView(APIView):
         )
 
         return Response(serializer.data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workflow_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="Returns the nodes related to a specific workflow.",
+            )
+        ],
+        tags=["Automation nodes"],
+        operation_id="list_nodes",
+        description=(
+            "Lists all the nodes of the workflow related to the provided parameter "
+            "if the user has access to the related automation's workspace. "
+            "If the workspace is related to a template, then this endpoint will be "
+            "publicly accessible."
+        ),
+        responses={
+            200: DiscriminatorCustomFieldsMappingSerializer(
+                automation_node_type_registry,
+                AutomationNodeSerializer,
+                many=True,
+            ),
+            404: get_error_schema(["ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
+        }
+    )
+    def get(self, request, workflow_id: int):
+        workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+
+        nodes = AutomationNodeService().get_nodes(request.user, workflow)
+        
+        data = [
+            automation_node_type_registry.get_serializer(
+                node, AutomationNodeSerializer
+            ).data
+            for node in nodes
+        ]
+
+        return Response(data)
