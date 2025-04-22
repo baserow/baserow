@@ -7,11 +7,12 @@
         required
         horizontal
         horizontal-narrow
+        :disabled="disabled"
         class="margin-bottom-2"
       >
         <Dropdown
           :value="values.aggregation_type"
-          :error="fieldHasErrors('aggregation_type')"
+          :error="!disabled && fieldHasErrors('aggregation_type')"
           @change="aggregationTypeChanged"
         >
           <DropdownItem
@@ -29,10 +30,11 @@
         required
         horizontal
         horizontal-narrow
+        :disabled="disabled"
       >
         <Dropdown
           v-model="values.field_id"
-          :error="fieldHasErrors('field_id')"
+          :error="!disabled && fieldHasErrors('field_id')"
           @change="v$.values.field_id.$touch"
         >
           <DropdownItem
@@ -81,6 +83,11 @@ export default {
     seriesIndex: {
       type: Number,
       required: true,
+    },
+    disabled: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   setup() {
