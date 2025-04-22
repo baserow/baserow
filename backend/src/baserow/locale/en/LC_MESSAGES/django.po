@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-15 13:02+0000\n"
+"POT-Creation-Date: 2025-04-22 11:57+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -24,6 +24,61 @@ msgstr ""
 
 #: src/baserow/api/authentication.py:34
 msgid "User not found"
+msgstr ""
+
+#: src/baserow/contrib/automation/actions.py:4
+#, python-format
+msgid "in automation \"%(automation_name)s\" (%(automation_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/automation/automation_init_application.py:24
+msgid "Workflow"
+msgstr ""
+
+#: src/baserow/contrib/automation/workflows/actions.py:25
+msgid "Create automation workflow"
+msgstr ""
+
+#: src/baserow/contrib/automation/workflows/actions.py:26
+#, python-format
+msgid "Workflow \"%(workflow_name)s\" (%(workflow_id)s) created"
+msgstr ""
+
+#: src/baserow/contrib/automation/workflows/actions.py:87
+msgid "Update automation workflow"
+msgstr ""
+
+#: src/baserow/contrib/automation/workflows/actions.py:88
+#, python-format
+msgid "Workflow \"%(workflow_name)s\" (%(workflow_id)s) updated"
+msgstr ""
+
+#: src/baserow/contrib/automation/workflows/actions.py:156
+msgid "Delete workflow"
+msgstr ""
+
+#: src/baserow/contrib/automation/workflows/actions.py:157
+#, python-format
+msgid "Workflow \"%(workflow_name)s\" (%(workflow_id)s) deleted"
+msgstr ""
+
+#: src/baserow/contrib/automation/workflows/actions.py:213
+msgid "Duplicate automation workflow"
+msgstr ""
+
+#: src/baserow/contrib/automation/workflows/actions.py:215
+#, python-format
+msgid ""
+"Workflow \"%(workflow_name)s\" (%(workflow_id)s) duplicated "
+"from\"%(original_workflow_name)s\" (%(original_workflow_id)s) "
+msgstr ""
+
+#: src/baserow/contrib/automation/workflows/actions.py:285
+msgid "Order workflows"
+msgstr ""
+
+#: src/baserow/contrib/automation/workflows/actions.py:286
+msgid "Workflow order changed"
 msgstr ""
 
 #: src/baserow/contrib/dashboard/actions.py:3
