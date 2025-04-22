@@ -13,11 +13,11 @@
         horizontal-narrow
       >
         <Dropdown
-          v-model="values.table_id"
+          :value="values.table_id"
           :show-search="true"
           fixed-items
           :error="fieldHasErrors('table_id')"
-          @change="v$.values.table_id.$touch"
+          @change="changeTableId($event)"
         >
           <DropdownSection
             v-for="database in databases"
@@ -127,7 +127,7 @@
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
-import tableFields from '@baserow/modules/database/mixins/tableFields'
+import FieldService from '@baserow/modules/database/services/field'
 
 const includes = (array) => (value) => {
   return array.includes(value)
@@ -142,7 +142,7 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'AggregateRowsDataSourceForm',
-  mixins: [form, tableFields],
+  mixins: [form],
   props: {
     dashboard: {
       type: Object,
@@ -177,6 +177,9 @@ export default {
       tableLoading: false,
       databaseSelectedId: null,
       skipFirstValuesEmit: true,
+      tableFields: [],
+      tableFieldsTableId: null,
+      fieldsLoading: false,
     }
   },
   computed: {
@@ -235,20 +238,12 @@ export default {
   watch: {
     dataSource: {
       async handler(values) {
-        this.setEmitValues(false)
-        // Reset the form to set default values
-        // again after a different widget is selected
-        await this.reset(true)
-        // Run form validation so that
-        // problems are highlighted immediately
-        this.v$.$touch()
-        await this.$nextTick()
-        this.setEmitValues(true)
+        await this.resetOnDataSourceChange()
       },
       deep: true,
     },
     'values.table_id': {
-      handler(tableId) {
+      async handler(tableId) {
         if (tableId !== null) {
           const databaseOfTableId = this.databases.find((database) =>
             database.tables.some((table) => table.id === tableId)
@@ -257,29 +252,10 @@ export default {
             this.databaseSelectedId = databaseOfTableId.id
           }
 
-          // If the values are not changed by the user
-          // we don't want to continue with preselecting
-          // default values
-          if (tableId === this.defaultValues.table_id) {
-            return
-          }
-
-          if (
-            !this.tableViews.some((view) => view.id === this.values.view_id)
-          ) {
-            this.values.view_id = null
-          }
-
-          if (
-            !this.tableFields.some((field) => field.id === this.values.field_id)
-          ) {
-            if (this.tableFields.length > 0) {
-              this.values.field_id = this.tableFields[0].id
-            }
-          }
+          await this.fetchFields()
         }
       },
-      immediate: true,
+      immediate: false,
     },
     'values.field_id': {
       handler(fieldId) {
@@ -299,8 +275,8 @@ export default {
       immediate: false,
     },
   },
-  mounted() {
-    this.v$.$validate()
+  async mounted() {
+    await this.resetOnDataSourceChange()
   },
   validations() {
     const self = this
@@ -337,9 +313,59 @@ export default {
     }
   },
   methods: {
-    /* Overrides the method in the tableFields mixin */
-    getTableId() {
-      return this.values.table_id
+    async changeTableId(tableId) {
+      if (this.values.table_id !== tableId) {
+        this.values.table_id = tableId
+        await this.fetchFields()
+
+        if (!this.tableViews.some((view) => view.id === this.values.view_id)) {
+          this.values.view_id = null
+        }
+
+        if (
+          !this.tableFields.some((field) => field.id === this.values.field_id)
+        ) {
+          if (this.tableFields.length > 0) {
+            this.values.field_id = this.tableFields[0].id
+          }
+        }
+
+        this.v$.values.table_id.$touch()
+      }
+    },
+    async resetOnDataSourceChange() {
+      this.setEmitValues(false)
+      // Reset the form to set default values
+      // again after a different widget is selected
+      await this.reset(true)
+      // Run form validation so that
+      // problems are highlighted immediately
+      this.v$.$touch()
+      await this.$nextTick()
+      this.setEmitValues(true)
+    },
+    async fetchFields() {
+      if (!this.values.table_id) {
+        return
+      }
+
+      if (this.tableFieldsTableId === this.values.table_id) {
+        // The correct fields are fetched already
+        return
+      }
+
+      this.fieldsLoading = true
+      try {
+        const { data } = await FieldService(this.$client).fetchAll(
+          this.values.table_id
+        )
+        this.tableFields = data
+      } catch (e) {
+        this.tableFields = []
+      } finally {
+        this.tableFieldsTableId = this.values.table_id
+        this.fieldsLoading = false
+      }
     },
     fieldIconClass(field) {
       const fieldType = this.$registry.get('field', field.type)

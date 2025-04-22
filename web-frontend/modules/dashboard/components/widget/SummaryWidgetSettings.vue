@@ -64,8 +64,7 @@ export default {
             }
           )
         } catch (error) {
-          this.$refs.dataSourceForm.reset()
-          this.$refs.dataSourceForm.touch()
+          this.$refs.dataSourceForm.resetOnDataSourceChange()
           notifyIf(error, 'dashboard')
         }
       }
