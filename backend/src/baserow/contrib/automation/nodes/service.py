@@ -8,10 +8,15 @@ from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.operations import (
     ListAutomationNodeOperationType,
     CreateAutomationNodeOperationType,
+    UpdateAutomationNodeOperationType,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.signals import automation_node_created
+from baserow.contrib.automation.nodes.signals import (
+    automation_node_created,
+    automation_node_updated,
+)
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
 
 
 class AutomationNodeService:
@@ -87,3 +92,31 @@ class AutomationNodeService:
         return self.handler.get_nodes(
             workflow, base_queryset=user_nodes
         )
+
+    def update_node(
+        self, user: AbstractUser, node_id: int, **kwargs
+    ) -> UpdatedAutomationNode:
+        """
+        Updates fields of a node.
+
+        :param user: The user trying to update the node.
+        :param node_id: The node that should be updated.
+        :param kwargs: The fields that should be updated with their corresponding value
+        :return: The updated workflow.
+        """
+
+        node = self.handler.get_node(node_id)
+
+        CoreHandler().check_permissions(
+            user,
+            UpdateAutomationNodeOperationType.type,
+            workspace=node.workflow.automation.workspace,
+            context=node,
+        )
+
+        updated_node = self.handler.update_node(node, **kwargs)
+        automation_node_updated.send(
+            self, user=user, node=updated_node.node
+        )
+
+        return updated_node

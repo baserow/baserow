@@ -1,7 +1,13 @@
-from typing import TypeVar
+from dataclasses import dataclass
+from typing import NewType
 
-from baserow.contrib.automation.types import AutomationNodeDict
 from baserow.contrib.automation.nodes.models import AutomationNode
 
-AutomationNodeDictSubClass = TypeVar("AutomationNodeDictSubClass", bound=AutomationNodeDict)
-AutomationNodeSubClass = TypeVar("AutomationNodeSubClass", bound=AutomationNode)
+AutomationNodeForUpdate = NewType("AutomationNodeForUpdate", AutomationNode)
+
+
+@dataclass
+class UpdatedAutomationNode:
+    node: AutomationNode
+    original_values: dict[str, any]
+    new_values: dict[str, any]

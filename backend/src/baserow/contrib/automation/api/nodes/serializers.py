@@ -20,7 +20,7 @@ class AutomationNodeSerializer(WorkflowActionSerializer):
 
     class Meta:
         model = AutomationNode
-        fields = ("id", "order", "workflow_id", "type")
+        fields = ("id", "order", "workflow_id", "type", "previous_node_output")
 
         extra_kwargs = {
             "id": {"read_only": True},
@@ -43,3 +43,9 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutomationNode
         fields = ("id", "workflow_id", "type")
+
+
+class UpdateAutomationNodeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AutomationNode
+        fields = ("previous_node_output",)

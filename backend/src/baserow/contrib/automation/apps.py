@@ -52,6 +52,7 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.nodes.operations import (
             ListAutomationNodeOperationType,
             CreateAutomationNodeOperationType,
+            UpdateAutomationNodeOperationType,
         )
 
         from baserow.contrib.integrations.local_baserow.service_types import (
@@ -85,6 +86,7 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(RestoreAutomationWorkflowOperationType())
             operation_type_registry.register(ListAutomationNodeOperationType())
             operation_type_registry.register(CreateAutomationNodeOperationType())
+            operation_type_registry.register(UpdateAutomationNodeOperationType())
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())
 

@@ -1,4 +1,11 @@
+from abc import ABC
+
 from baserow.contrib.automation.workflows.operations import AutomationWorkflowOperationType
+from baserow.contrib.automation.operations import AutomationOperationType
+
+
+class AutomationNodeOperationType(AutomationOperationType, ABC):
+    context_scope_name = "automation_node"
 
 
 class ListAutomationNodeOperationType(AutomationWorkflowOperationType):
@@ -7,4 +14,8 @@ class ListAutomationNodeOperationType(AutomationWorkflowOperationType):
 
 
 class CreateAutomationNodeOperationType(AutomationWorkflowOperationType):
-    type = "automation.workflow.create_node"
+    type = "automation.create_node"
+
+
+class UpdateAutomationNodeOperationType(AutomationNodeOperationType):
+    type = "automation.node.update"

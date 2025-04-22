@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from baserow.api.decorators import (
     map_exceptions,
     validate_body_custom_fields,
+    validate_body,
 )
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.utils import (
@@ -19,16 +20,24 @@ from baserow.api.utils import (
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.api.nodes.serializers import (
     AutomationNodeSerializer,
+    UpdateAutomationNodeSerializer,
     CreateAutomationNodeSerializer,
 )
 from baserow.contrib.automation.api.workflows.errors import (
-    ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST
+    ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
+    ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
 )
 from baserow.contrib.automation.workflows.exceptions import (
-    AutomationWorkflowDoesNotExist
+    AutomationWorkflowDoesNotExist,
+)
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeDoesNotExist,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.contrib.automation.nodes.actions import UpdateAutomationNodeActionType
+
+AUTOMATION_NODES_TAG = "Automation nodes"
 
 
 class AutomationNodesView(APIView):
@@ -50,7 +59,7 @@ class AutomationNodesView(APIView):
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
-        tags=["Automation nodes"],
+        tags=[AUTOMATION_NODES_TAG],
         operation_id="create_automation_workflow_node",
         description="Creates a new automation workflow node",
         request=DiscriminatorCustomFieldsMappingSerializer(
@@ -104,7 +113,7 @@ class AutomationNodesView(APIView):
                 description="Returns the nodes related to a specific workflow.",
             )
         ],
-        tags=["Automation nodes"],
+        tags=[AUTOMATION_NODES_TAG],
         operation_id="list_nodes",
         description=(
             "Lists all the nodes of the workflow related to the provided parameter "
@@ -139,3 +148,57 @@ class AutomationNodesView(APIView):
         ]
 
         return Response(data)
+
+
+class AutomationNodeView(APIView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="node_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The id of the node.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=[AUTOMATION_NODES_TAG],
+        operation_id="update_automation_workflow",
+        description="Updates an existing workflow of an automation.",
+        request=DiscriminatorCustomFieldsMappingSerializer(
+            automation_node_type_registry,
+            UpdateAutomationNodeSerializer,
+            request=True,
+        ),
+        responses={
+            200: DiscriminatorCustomFieldsMappingSerializer(
+                automation_node_type_registry, AutomationNodeSerializer
+            ),
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                ]
+            ),
+            404: get_error_schema(
+                [
+                    "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+        }
+    )
+    @validate_body_custom_fields(
+        automation_node_type_registry,
+        base_serializer_class=UpdateAutomationNodeSerializer,
+    )
+    def patch(self, request, data: Dict, node_id: int):
+        node = UpdateAutomationNodeActionType.do(
+            request.user, node_id, data
+        )
+
+        serializer = AutomationNodeSerializer(node)
+        return Response(serializer.data)

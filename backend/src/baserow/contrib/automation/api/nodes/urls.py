@@ -1,7 +1,8 @@
 from django.urls import re_path
 
 from baserow.contrib.automation.api.nodes.views import (
-    AutomationNodesView
+    AutomationNodesView,
+    AutomationNodeView,
 )
 
 app_name = "baserow.contrib.automation.api.nodes"
@@ -10,6 +11,11 @@ urlpatterns = [
     re_path(
         r"workflows/(?P<workflow_id>[0-9]+)/nodes/$",
         AutomationNodesView.as_view(),
+        name="list",
+    ),
+    re_path(
+        r"nodes/(?P<node_id>[0-9]+)/$",
+        AutomationNodeView.as_view(),
         name="list",
     ),
 ]
