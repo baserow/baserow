@@ -1,5 +1,6 @@
 import importlib
 import json
+import logging
 import os
 import re
 from datetime import timedelta
@@ -8,6 +9,7 @@ from ipaddress import ip_network
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
+import yaml
 from django.core.exceptions import ImproperlyConfigured
 
 import dj_database_url
@@ -37,6 +39,7 @@ FEATURE_FLAGS = [
 ]
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CONTRIB_MODULE_DIR = os.path.join(os.path.dirname(BASE_DIR), "contrib")
 
 BASEROW_PLUGIN_DIR_PATH = Path(os.environ.get("BASEROW_PLUGIN_DIR", "/baserow/plugins"))
 
@@ -410,6 +413,22 @@ SIMPLE_JWT = {
     "USER_AUTHENTICATION_RULE": lambda user: user is not None,
 }
 
+DEV_OPENAPI_SPEC_PATHS = []
+AUTOMATIONS_ENABLED = "automations" in FEATURE_FLAGS or "*" in FEATURE_FLAGS
+if AUTOMATIONS_ENABLED:
+    DEV_OPENAPI_SPEC_PATHS = [Path(CONTRIB_MODULE_DIR, "automation/api/openapi.yaml")]
+
+SPECTACULAR_DEV_ANNOTATIONS = {"paths": {}, "components": {}}
+for DEV_OPENAPI_SPEC_PATH in DEV_OPENAPI_SPEC_PATHS:
+    with open(DEV_OPENAPI_SPEC_PATH, "r") as file:
+        try:
+            openapi_yaml = yaml.safe_load(file)
+        except Exception:
+            print(f"Unable to read development API spec '{DEV_OPENAPI_SPEC_PATH}'")
+            continue
+    SPECTACULAR_DEV_ANNOTATIONS["paths"].update(openapi_yaml.get("paths", {}))
+    SPECTACULAR_DEV_ANNOTATIONS["components"].update(openapi_yaml.get("components", {}))
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Baserow API spec",
     "DESCRIPTION": "For more information about our REST API, please visit "
@@ -422,6 +441,8 @@ SPECTACULAR_SETTINGS = {
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
     "VERSION": "1.33.0",
+    "APPEND_PATHS": SPECTACULAR_DEV_ANNOTATIONS["paths"],
+    "APPEND_COMPONENTS": SPECTACULAR_DEV_ANNOTATIONS["components"],
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
