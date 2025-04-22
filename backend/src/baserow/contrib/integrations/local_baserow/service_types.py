@@ -97,6 +97,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
 )
+from baserow.core.services.registries import TriggerServiceTypeMixin
 from baserow.core.cache import global_cache
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
@@ -124,6 +125,7 @@ if TYPE_CHECKING:
 
 
 SCHEMA_CACHE_TTL = 60 * 60  # 1 hour
+
 
 
 class LocalBaserowServiceType(ServiceType):
@@ -2511,3 +2513,18 @@ class LocalBaserowDeleteRowServiceType(
                 ) from exc
 
         return {"data": {}, "baserow_table_model": model}
+
+
+from baserow.contrib.integrations.local_baserow.models import (
+    LocalBaserowRowCreated,
+    LocalBaserowRowUpdated,
+)
+
+class LocalBaserowRowCreatedTriggerServiceType(ServiceType, TriggerServiceTypeMixin):
+    type = "local_baserow_row_created"
+    model_class = LocalBaserowRowCreated
+
+
+class LocalBaserowRowUpdatedTriggerServiceType(ServiceType, TriggerServiceTypeMixin):
+    type = "local_baserow_row_updated"
+    model_class = LocalBaserowRowUpdated
