@@ -39,6 +39,22 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.workflows.trash_types import (
             AutomationWorkflowTrashableItemType,
         )
+        from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+        from baserow.contrib.automation.nodes.node_types import (
+            CreateRowNodeType,
+            UpdateRowNodeType,
+            RowCreatedNodeType,
+            RowUpdatedNodeType,
+        )
+        from baserow.contrib.automation.nodes.operations import (
+            ListAutomationWorkflowNodeOperationType,
+            CreateAutomationNodeOperationType,
+        )
+
+        from baserow.contrib.integrations.local_baserow.service_types import (
+            LocalBaserowRowCreatedTriggerServiceType,
+            LocalBaserowRowUpdatedTriggerServiceType,
+        )
         from baserow.core.action.registries import action_type_registry
         from baserow.core.jobs.registries import job_type_registry
         from baserow.core.registries import (
@@ -46,6 +62,7 @@ class AutomationConfig(AppConfig):
             object_scope_type_registry,
             operation_type_registry,
         )
+        from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
 
         if feature_flag_is_enabled(FF_AUTOMATION):
@@ -62,6 +79,8 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(ListAutomationWorkflowsOperationType())
             operation_type_registry.register(OrderAutomationWorkflowsOperationType())
             operation_type_registry.register(RestoreAutomationWorkflowOperationType())
+            operation_type_registry.register(ListAutomationWorkflowNodeOperationType())
+            operation_type_registry.register(CreateAutomationNodeOperationType())
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())
 
@@ -72,6 +91,14 @@ class AutomationConfig(AppConfig):
             action_type_registry.register(DeleteAutomationWorkflowActionType())
             action_type_registry.register(DuplicateAutomationWorkflowActionType())
             action_type_registry.register(OrderAutomationWorkflowActionType())
+
+            automation_node_type_registry.register(CreateRowNodeType())
+            automation_node_type_registry.register(UpdateRowNodeType())
+            automation_node_type_registry.register(RowCreatedNodeType())
+            automation_node_type_registry.register(RowUpdatedNodeType())
+
+            # service_type_registry.register(LocalBaserowRowCreatedTriggerServiceType())
+            # service_type_registry.register(LocalBaserowRowUpdatedTriggerServiceType())
 
             # The signals must always be imported last because they use
             # the registries which need to be filled first.

@@ -13,3 +13,10 @@ class AutomationDict(TypedDict):
     order: int
     type: str
     workflows: List[AutomationWorkflowDict]
+
+
+class AutomationNodeDict(TypedDict):
+    id: int
+    order: int
+    type: str
+    parent_node_id: int

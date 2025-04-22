@@ -21,6 +21,10 @@ from baserow.contrib.automation.workflows.operations import (
     RestoreAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
 )
+from baserow.contrib.automation.nodes.operations import (
+    ListAutomationWorkflowNodeOperationType,
+    CreateAutomationNodeOperationType,
+)
 from baserow.contrib.builder.data_sources.operations import (
     CreateDataSourceOperationType,
     DeleteDataSourceOperationType,
@@ -505,6 +509,8 @@ default_roles[BUILDER_ROLE_UID].extend(
         DuplicateAutomationWorkflowOperationType,
         UpdateFieldPermissionsOperationType,
         ReadFieldPermissionsOperationType,
+        ListAutomationWorkflowNodeOperationType,
+        CreateAutomationNodeOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(
