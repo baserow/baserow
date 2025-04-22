@@ -1,7 +1,7 @@
 from django.db import transaction
 
 import pytest
-from asgiref.sync import async_to_sync, sync_to_async
+from asgiref.sync import async_to_sync
 from mcp.shared.memory import (
     create_connected_server_and_client_session as client_session,
 )
@@ -9,67 +9,77 @@ from mcp.shared.memory import (
 from baserow.core.mcp import BaserowMCPServer, current_key
 
 
-@pytest.mark.asyncio
-async def test_create_server():
-    mcp = BaserowMCPServer()
-    assert mcp._mcp_server.name == "Baserow MCP"
-    assert "Baserow" in mcp._mcp_server.instructions
-
-
-@pytest.mark.asyncio
 @pytest.mark.django_db
-async def test_get_endpoint_invalid_key(data_fixture):
+def test_create_server():
+    async def inner():
+        mcp = BaserowMCPServer()
+        assert mcp._mcp_server.name == "Baserow MCP"
+        assert "Baserow" in mcp._mcp_server.instructions
+
+    with transaction.atomic():
+        async_to_sync(inner)()
+
+
+@pytest.mark.django_db
+def test_get_endpoint_invalid_key(data_fixture):
     mcp = BaserowMCPServer()
 
     key_token = current_key.set("test-key")
 
     try:
-        endpoint = await mcp.get_endpoint()
-        assert endpoint is None
+
+        async def inner():
+            endpoint = await mcp.get_endpoint()
+            assert endpoint is None
+
+        with transaction.atomic():
+            async_to_sync(inner)()
     finally:
         current_key.reset(key_token)
 
 
-@pytest.mark.asyncio
 @pytest.mark.django_db
-async def test_get_endpoint_user_not_part_of_workspace(data_fixture):
-    def setup():
-        user = data_fixture.create_user()
-        workspace = data_fixture.create_workspace()
-        endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-        return endpoint
-
-    endpoint = await sync_to_async(setup)()
+def test_get_endpoint_user_not_part_of_workspace(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace()
+    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
 
     mcp = BaserowMCPServer()
 
     key_token = current_key.set(endpoint.key)
 
     try:
-        endpoint = await mcp.get_endpoint()
-        assert endpoint is None
+
+        async def inner():
+            async with client_session(mcp._mcp_server) as client:
+                endpoint = await mcp.get_endpoint()
+            assert endpoint is None
+
+        with transaction.atomic():
+            async_to_sync(inner)()
     finally:
         current_key.reset(key_token)
 
 
-@pytest.mark.asyncio
 @pytest.mark.django_db
-async def test_get_valid_endpoint(data_fixture):
-    def setup():
-        user = data_fixture.create_user()
-        workspace = data_fixture.create_workspace(user=user)
-        endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-        return endpoint
-
-    setup_endpoint = await sync_to_async(setup)()
+def test_get_valid_endpoint(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
 
     mcp = BaserowMCPServer()
 
-    key_token = current_key.set(setup_endpoint.key)
+    key_token = current_key.set(endpoint.key)
 
     try:
-        endpoint = await mcp.get_endpoint()
-        assert endpoint.id == setup_endpoint.id
+
+        async def inner():
+            async with client_session(mcp._mcp_server) as client:
+                endpoint = await mcp.get_endpoint()
+                assert endpoint.id == endpoint.id
+
+        with transaction.atomic():
+            async_to_sync(inner)()
     finally:
         current_key.reset(key_token)
 
