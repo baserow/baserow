@@ -1,0 +1,45 @@
+from django.utils.functional import lazy
+
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
+
+from baserow.api.workflow_actions.serializers import WorkflowActionSerializer
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.nodes.models import AutomationNode
+
+
+class AutomationNodeSerializer(WorkflowActionSerializer):
+    """Basic automation node serializer."""
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_type(self, instance):
+        return automation_node_type_registry.get_by_model(
+            instance.specific_class
+        ).type
+
+    class Meta:
+        model = AutomationNode
+        fields = ("id", "order", "workflow_id", "type")
+
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "workflow_id": {"read_only": True},
+        }
+
+
+class CreateAutomationNodeSerializer(serializers.ModelSerializer):
+    type = serializers.ChoiceField(
+        choices=lazy(automation_node_type_registry.get_types, list)(),
+        required=True,
+        help_text="The type of the automation node",
+    )
+    workflow_id = serializers.IntegerField(
+        allow_null=True,
+        required=False,
+        help_text="The id of the workflow the node is associated with",
+    )
+
+    class Meta:
+        model = AutomationNode
+        fields = ("id", "workflow_id", "type")
