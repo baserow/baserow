@@ -27,7 +27,7 @@
         <FormInput
           ref="inputs"
           v-model="item.value"
-          :error="v$.options.$each.$response?.$data[index].value.$error"
+          :error="v$.options.$each.$response?.$data?.[index]?.value.$error"
           @input="$emit('input', value)"
           @blur="v$.options.$touch"
         />
