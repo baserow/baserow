@@ -11,7 +11,7 @@
       }"
       :class="menuContainerClass"
     >
-      <template v-if="!useMobileMenu">
+      <template v-if="!useBurgerMenu">
         <div
           v-for="item in element.menu_items"
           :key="item.id"
@@ -21,7 +21,7 @@
             :key="item.uid"
             :menu-item="item"
             :element="element"
-            :is-mobile-device="useMobileMenu"
+            :is-mobile-device="useBurgerMenu"
           />
         </div>
       </template>
@@ -49,7 +49,7 @@
               :key="item.uid"
               :menu-item="item"
               :element="element"
-              :is-mobile-device="useMobileMenu"
+              :is-mobile-device="useBurgerMenu"
             />
           </div>
         </template>
@@ -75,9 +75,9 @@ import { HORIZONTAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
  * Expanded (normal) menu: Best for wider screens.
  * Mobile (burger) menu: Ideal for smaller devices like smartphones and tablets.
  *
- * Like other Baserow elements, the menu type can be customized per device.
- * Users can opt for the mobile burger menu even on `desktop`, or use the expanded menu
- * across all three device types: `tablet`, `desktop`, and `smartphone`.
+ * The menu type can be customized per device. Users can opt for the mobile burger
+ * menu even on `desktop`, or use the expanded menu across
+ * all three device types: `tablet`, `desktop`, and `smartphone`.
  *
  */
 
@@ -101,8 +101,8 @@ export default {
     },
     menuContainerClass() {
       const classes = ['menu-element__container']
-      if (this.useMobileMenu) {
-        classes.push('menu-element__container--mobile')
+      if (this.useBurgerMenu) {
+        classes.push('menu-element__container--burger')
         if (this.burgerMenuActive) {
           classes.push('menu-element__burger-active')
         }
@@ -114,14 +114,14 @@ export default {
     menuAlignment() {
       const alignmentsCSS = {
         [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
-        [HORIZONTAL_ALIGNMENTS.CENTER]: this.useMobileMenu
+        [HORIZONTAL_ALIGNMENTS.CENTER]: this.useBurgerMenu
           ? 'flex-start'
           : 'center',
         [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
       }
       return alignmentsCSS[this.element.alignment]
     },
-    useMobileMenu() {
+    useBurgerMenu() {
       const deviceType = this.$store.getters['page/getDeviceTypeSelected']
       // If menu_type is defined for the current device, use it,
       // otherwise fall back to the default behavior
