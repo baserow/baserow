@@ -123,17 +123,23 @@ class DiscriminatorMappingSerializerExtension(OpenApiSerializerExtension):
 
         for key, serializer_class in mapping.items():
             sub_serializer = force_instance(serializer_class)
-            resolved_sub_serializer = auto_schema.resolve_serializer(
-                sub_serializer, direction
-            )
-            sub_components.append((key, resolved_sub_serializer.ref))
+            resolved = auto_schema.resolve_serializer(sub_serializer, direction)
+            schema = resolved.ref
+
+            if isinstance(schema, list):
+                for item in schema:
+                    sub_components.append((key, item))
+            else:
+                sub_components.append((key, schema))
 
         return {
-            "oneOf": [ref for _, ref in sub_components],
+            "oneOf": [schema for _, schema in sub_components],
             "discriminator": {
                 "propertyName": self.target.type_field_name,
                 "mapping": {
-                    resource_type: ref["$ref"] for resource_type, ref in sub_components
+                    key: value["$ref"]
+                    for key, value in sub_components
+                    if isinstance(value, dict) and "$ref" in value
                 },
             },
         }

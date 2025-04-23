@@ -83,7 +83,8 @@
     "password": "Password",
     "emailNotifications": "Email notifications",
     "tokens": "Database tokens",
-    "deleteAccount": "Delete account"
+    "deleteAccount": "Delete account",
+    "mcpEndpoint": "MCP server"
   },
   "userFileUploadType": {
     "file": "my device",

@@ -16,6 +16,7 @@ from .generative_ai import GenerativeAIFixtures
 from .import_export import ImportExportWorkspaceFixtures
 from .integration import IntegrationFixtures
 from .job import JobFixtures
+from .mcp import MCPFixtures
 from .notifications import NotificationsFixture
 from .page import PageFixtures
 from .row import RowFixture
@@ -71,6 +72,7 @@ class Fixtures(
     ImportExportWorkspaceFixtures,
     DashboardDataSourceFixtures,
     WidgetFixtures,
+    MCPFixtures,
 ):
     def __init__(self, fake=None):
         self.fake = fake
