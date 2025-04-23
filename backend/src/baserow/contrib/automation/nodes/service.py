@@ -152,7 +152,7 @@ class AutomationNodeService:
 
         automation_node_deleted.send(
             self,
-            automation=node.workflow.automation,
+            workflow=node.workflow,
             node_id=node_id,
             user=None,
         )

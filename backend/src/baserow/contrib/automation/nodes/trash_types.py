@@ -29,7 +29,7 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         super().trash(item_to_trash, requesting_user, trash_entry)
         automation_node_deleted.send(
             self,
-            automation=item_to_trash.workflow.automation,
+            workflow=item_to_trash.workflow,
             node_id=item_to_trash.id,
             user=None,
         )

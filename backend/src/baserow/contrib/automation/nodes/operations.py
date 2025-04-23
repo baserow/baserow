@@ -17,6 +17,10 @@ class CreateAutomationNodeOperationType(AutomationWorkflowOperationType):
     type = "automation.create_node"
 
 
+class ReadAutomationNodeOperationType(AutomationNodeOperationType):
+    type = "automation.node.read"
+
+
 class UpdateAutomationNodeOperationType(AutomationNodeOperationType):
     type = "automation.node.update"
 

@@ -58,6 +58,7 @@ class AutomationConfig(AppConfig):
             ListAutomationNodeOperationType,
             CreateAutomationNodeOperationType,
             UpdateAutomationNodeOperationType,
+            ReadAutomationNodeOperationType,
             DeleteAutomationNodeOperationType,
             RestoreAutomationNodeOperationType,
             OrderAutomationNodeOperationType,
@@ -98,6 +99,7 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(ListAutomationNodeOperationType())
             operation_type_registry.register(CreateAutomationNodeOperationType())
             operation_type_registry.register(UpdateAutomationNodeOperationType())
+            operation_type_registry.register(ReadAutomationNodeOperationType())
             operation_type_registry.register(DeleteAutomationNodeOperationType())
             operation_type_registry.register(RestoreAutomationNodeOperationType())
             operation_type_registry.register(OrderAutomationNodeOperationType())
