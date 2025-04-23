@@ -44,3 +44,12 @@ class UpdateAutomationNodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutomationNode
         fields = ("previous_node_output",)
+
+
+class OrderAutomationNodesSerializer(serializers.Serializer):
+    node_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text=(
+            "The ids of the nodes in the order they are supposed to be set in."
+        ),
+    )

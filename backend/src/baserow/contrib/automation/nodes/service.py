@@ -10,12 +10,14 @@ from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
     UpdateAutomationNodeOperationType,
     DeleteAutomationNodeOperationType,
+    OrderAutomationNodeOperationType,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_updated,
     automation_node_deleted,
+    automation_nodes_reordered,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
@@ -156,3 +158,42 @@ class AutomationNodeService:
         )
 
         return node
+    
+    def order_nodes(
+        self, user: AbstractUser, workflow: AutomationWorkflow, order: List[int]
+    ) -> List[int]:
+        """
+        Assigns a new order to the nodes in a workflow.
+
+        :param user: The user trying to order the workflows.
+        :param workflow The workflow that the nodes belong to.
+        :param order: The new order of the nodes.
+        :return: The new order of the nodes.
+        """
+
+        automation = workflow.automation
+        CoreHandler().check_permissions(
+            user,
+            OrderAutomationNodeOperationType.type,
+            workspace=automation.workspace,
+            context=automation,
+        )
+
+        all_nodes = self.handler.get_nodes(
+            workflow, base_queryset=AutomationNode.objects
+        )
+
+        user_nodes = CoreHandler().filter_queryset(
+            user,
+            OrderAutomationNodeOperationType.type,
+            all_nodes,
+            workspace=automation.workspace,
+        )
+
+        full_order = self.handler.order_nodes(workflow, order, user_nodes)
+
+        automation_nodes_reordered.send(
+            self, automation=automation, order=full_order, user=user
+        )
+
+        return full_order

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -11,6 +12,8 @@ from baserow.core.action.registries import ActionTypeDescription, UndoableAction
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.trash.handler import TrashHandler
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
 
 class UpdateAutomationNodeActionType(UndoableActionType):
@@ -134,3 +137,68 @@ class DeleteAutomationNodeActionType(UndoableActionType):
         action_to_redo: Action,
     ):
         AutomationNodeService().delete_node(user, params.workflow_id)
+
+
+class OrderAutomationNodesActionType(UndoableActionType):
+    type = "order_automation_nodes"
+    description = ActionTypeDescription(
+        _("Order nodes"),
+        _("Node order changed"),
+        AUTOMATION_ACTION_CONTEXT,
+    )
+
+    @dataclass
+    class Params:
+        workflow_id: int
+        nodes_order: List[int]
+        original_nodess_order: List[int]
+
+    @classmethod
+    def do(cls, user: AbstractUser, workflow_id: int, order: List[int]) -> None:
+        workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+
+        original_nodes_order = AutomationNodeHandler().get_nodes_order(workflow)
+        params = cls.Params(
+            workflow_id,
+            order,
+            original_nodes_order,
+        )
+
+        AutomationNodeService().order_nodes(user, workflow, order=order)
+
+        cls.register_action(
+            user=user,
+            params=params,
+            scope=cls.scope(workflow_id),
+            workspace=workflow.automation.workspace,
+        )
+
+    @classmethod
+    def scope(cls, automation_id):
+        return ApplicationActionScopeType.value(automation_id)
+
+    @classmethod
+    def undo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_undo: Action,
+    ):
+        AutomationNodeService().order_nodes(
+            user,
+            AutomationWorkflowHandler().get_workflow(params.workflow_id),
+            order=params.original_nodes_order,
+        )
+
+    @classmethod
+    def redo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_redo: Action,
+    ):
+        AutomationNodeService().order_nodes(
+            user,
+            AutomationWorkflowHandler().get_workflow(params.workflow_id),
+            order=params.nodes_order,
+        )

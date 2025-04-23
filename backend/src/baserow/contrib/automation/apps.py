@@ -42,6 +42,11 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.workflows.trash_types import (
             AutomationWorkflowTrashableItemType,
         )
+        from baserow.contrib.automation.nodes.actions import (
+            UpdateAutomationNodeActionType,
+            DeleteAutomationNodeActionType,
+            OrderAutomationNodesActionType,
+        )
         from baserow.contrib.automation.nodes.registries import automation_node_type_registry
         from baserow.contrib.automation.nodes.node_types import (
             CreateRowNodeType,
@@ -55,6 +60,7 @@ class AutomationConfig(AppConfig):
             UpdateAutomationNodeOperationType,
             DeleteAutomationNodeOperationType,
             RestoreAutomationNodeOperationType,
+            OrderAutomationNodeOperationType,
         )
         from baserow.contrib.automation.nodes.trash_types import (
             AutomationNodeTrashableItemType,
@@ -94,6 +100,7 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(UpdateAutomationNodeOperationType())
             operation_type_registry.register(DeleteAutomationNodeOperationType())
             operation_type_registry.register(RestoreAutomationNodeOperationType())
+            operation_type_registry.register(OrderAutomationNodeOperationType())
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())
 
@@ -105,16 +112,17 @@ class AutomationConfig(AppConfig):
             action_type_registry.register(DeleteAutomationWorkflowActionType())
             action_type_registry.register(DuplicateAutomationWorkflowActionType())
             action_type_registry.register(OrderAutomationWorkflowActionType())
+            action_type_registry.register(UpdateAutomationNodeActionType())
+            action_type_registry.register(DeleteAutomationNodeActionType())
+            action_type_registry.register(OrderAutomationNodesActionType())
 
             automation_node_type_registry.register(CreateRowNodeType())
             automation_node_type_registry.register(UpdateRowNodeType())
             automation_node_type_registry.register(RowCreatedNodeType())
             automation_node_type_registry.register(RowUpdatedNodeType())
 
-            # service_type_registry.register(LocalBaserowRowCreatedTriggerServiceType())
-            # service_type_registry.register(LocalBaserowRowUpdatedTriggerServiceType())
-
             # The signals must always be imported last because they use
             # the registries which need to be filled first.
             import baserow.contrib.automation.workflows.signals  # noqa: F403, F401
             import baserow.contrib.automation.workflows.ws.signals  # noqa: F403, F401
+            # import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401

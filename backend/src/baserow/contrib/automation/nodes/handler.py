@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, List, Iterable, Optional
 
 from django.db.models import QuerySet
 
@@ -8,8 +8,12 @@ from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeDoesNotExist,
+    AutomationNodeNotInWorkflow,
+)
 from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
+from baserow.core.exceptions import IdDoesNotExist
 
 
 class AutomationNodeHandler:
@@ -35,7 +39,7 @@ class AutomationNodeHandler:
 
     def get_nodes(
         self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
-    ) -> Iterable[AutomationNode]:
+    ) -> QuerySet:
         """
         Return all the nodes for a workflow.
 
@@ -45,18 +49,9 @@ class AutomationNodeHandler:
         """
 
         if base_queryset is None:
-            base_queryset = self.model.objects
+            base_queryset = AutomationNode.objects.all()
 
-        base_queryset = base_queryset.filter(workflow=workflow)
-
-        return specific_iterator(
-            base_queryset,
-            per_content_type_queryset_hook=(
-                lambda action, queryset: automation_node_type_registry.get_by_model(
-                    action
-                ).enhance_queryset(queryset)
-            ),
-        )
+        return base_queryset.filter(workflow=workflow)
     
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
@@ -127,3 +122,37 @@ class AutomationNodeHandler:
         """
 
         node.delete()
+
+    def get_nodes_order(self, workflow: AutomationWorkflow) -> List[int]:
+        """
+        Returns the nodes in the workflow ordered by the order field.
+
+        :param workflow: The workflow that the nodes belong to.
+        :return: A list containing the order of the nodes in the workflow.
+        """
+
+        return [node.id for node in workflow.automation_workflow_nodes.order_by("order")]
+
+    def order_nodes(
+        self, workflow: AutomationWorkflow, order: List[int], base_qs=None
+    ) -> List[int]:
+        """
+        Assigns a new order to the nodes in a workflow.
+
+        A base_qs can be provided to pre-filter the nodes affected by this change.
+
+        :param workflow: The workflow that the nodes belong to.
+        :param order: The new order of the nodes.
+        :param base_qs: A QS that can have filters already applied.
+        :raises AutomationNodeNotInWorkflow: If the node is not part of the
+            provided workflow.
+        :return: The new order of the nodes.
+        """
+
+        if base_qs is None:
+            base_qs = AutomationNode.objects.filter(workflow=workflow)
+
+        try:
+            return AutomationNode.order_objects(base_qs, order)
+        except IdDoesNotExist as error:
+            raise AutomationNodeNotInWorkflow(error.not_existing_id)

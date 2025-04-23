@@ -22,22 +22,26 @@ from baserow.contrib.automation.api.nodes.serializers import (
     AutomationNodeSerializer,
     UpdateAutomationNodeSerializer,
     CreateAutomationNodeSerializer,
+    OrderAutomationNodesSerializer,
 )
 from baserow.contrib.automation.api.workflows.errors import (
     ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
     ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+    ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
 )
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
 )
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
+    AutomationNodeNotInWorkflow,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.actions import (
     UpdateAutomationNodeActionType,
     DeleteAutomationNodeActionType,
+    OrderAutomationNodesActionType,
 )
 
 
@@ -235,5 +239,53 @@ class AutomationNodeView(APIView):
     @transaction.atomic
     def delete(self, request, node_id: int):
         DeleteAutomationNodeActionType.do(request.user, node_id)
+
+        return Response(status=204)
+
+
+class OrderAutomationNodesView(APIView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workflow_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The workflow that the node belongs to.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=[AUTOMATION_NODES_TAG],
+        operation_id="order_automation_node",
+        description="Apply a new order to the nodes of a workflow.",
+        request=OrderAutomationNodesSerializer,
+        responses={
+            204: None,
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW",
+                ]
+            ),
+            404: get_error_schema(
+                [
+                    "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
+                    "ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
+            AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+            AutomationNodeNotInWorkflow: ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
+        }
+    )
+    @validate_body(OrderAutomationNodesSerializer)
+    def post(self, request, data: Dict, workflow_id: int):
+        OrderAutomationNodesActionType.do(
+            request.user, workflow_id, data["node_ids"]
+        )
 
         return Response(status=204)

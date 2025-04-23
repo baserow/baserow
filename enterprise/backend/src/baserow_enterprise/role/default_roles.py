@@ -31,6 +31,8 @@ from baserow.contrib.automation.nodes.operations import (
     RestoreAutomationNodeOperationType,
     UpdateAutomationNodeOperationType,
     DeleteAutomationNodeOperationType,
+    OrderAutomationNodeOperationType,
+    RestoreAutomationNodeOperationType,
 )
 from baserow.contrib.builder.data_sources.operations import (
     CreateDataSourceOperationType,
@@ -525,6 +527,8 @@ default_roles[BUILDER_ROLE_UID].extend(
         RestoreAutomationNodeOperationType,
         DuplicateAutomationNodeOperationType,
         DeleteAutomationNodeOperationType,
+        OrderAutomationNodeOperationType,
+        RestoreAutomationNodeOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(
