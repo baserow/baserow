@@ -53,6 +53,11 @@ class AutomationConfig(AppConfig):
             ListAutomationNodeOperationType,
             CreateAutomationNodeOperationType,
             UpdateAutomationNodeOperationType,
+            DeleteAutomationNodeOperationType,
+            RestoreAutomationNodeOperationType,
+        )
+        from baserow.contrib.automation.nodes.trash_types import (
+            AutomationNodeTrashableItemType,
         )
 
         from baserow.contrib.integrations.local_baserow.service_types import (
@@ -87,10 +92,13 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(ListAutomationNodeOperationType())
             operation_type_registry.register(CreateAutomationNodeOperationType())
             operation_type_registry.register(UpdateAutomationNodeOperationType())
+            operation_type_registry.register(DeleteAutomationNodeOperationType())
+            operation_type_registry.register(RestoreAutomationNodeOperationType())
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())
 
             trash_item_type_registry.register(AutomationWorkflowTrashableItemType())
+            trash_item_type_registry.register(AutomationNodeTrashableItemType())
 
             action_type_registry.register(CreateAutomationWorkflowActionType())
             action_type_registry.register(UpdateAutomationWorkflowActionType())

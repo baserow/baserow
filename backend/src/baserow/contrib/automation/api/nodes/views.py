@@ -35,7 +35,11 @@ from baserow.contrib.automation.nodes.exceptions import (
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.nodes.service import AutomationNodeService
-from baserow.contrib.automation.nodes.actions import UpdateAutomationNodeActionType
+from baserow.contrib.automation.nodes.actions import (
+    UpdateAutomationNodeActionType,
+    DeleteAutomationNodeActionType,
+)
+
 
 AUTOMATION_NODES_TAG = "Automation nodes"
 
@@ -157,13 +161,13 @@ class AutomationNodeView(APIView):
                 name="node_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
-                description="The id of the node.",
+                description="The id of the node to update.",
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
         tags=[AUTOMATION_NODES_TAG],
-        operation_id="update_automation_workflow",
-        description="Updates an existing workflow of an automation.",
+        operation_id="update_automation_node",
+        description="Updates an existing automation node.",
         request=DiscriminatorCustomFieldsMappingSerializer(
             automation_node_type_registry,
             UpdateAutomationNodeSerializer,
@@ -202,3 +206,34 @@ class AutomationNodeView(APIView):
 
         serializer = AutomationNodeSerializer(node)
         return Response(serializer.data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="node_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The id of the node to delete.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=[AUTOMATION_NODES_TAG],
+        operation_id="delete_automation_node",
+        description="Deletes an existing automation node.",
+        responses={
+            204: None,
+            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
+            404: get_error_schema(["ERROR_AUTOMATION_NODE_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+        }
+    )
+    @transaction.atomic
+    def delete(self, request, node_id: int):
+        DeleteAutomationNodeActionType.do(request.user, node_id)
+
+        return Response(status=204)

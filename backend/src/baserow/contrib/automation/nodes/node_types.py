@@ -42,7 +42,7 @@ class AutomationNodeServiceActionType(AutomationNodeType):
 
 class AutomationNodeServiceTriggerType(AutomationNodeType):
     service_type = None
-    allowed_fields = ["order"]
+    allowed_fields = ["service", "workflow", "order"]
 
     def prepare_values(
         self,

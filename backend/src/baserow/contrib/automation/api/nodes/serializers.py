@@ -34,15 +34,10 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
         required=True,
         help_text="The type of the automation node",
     )
-    workflow_id = serializers.IntegerField(
-        allow_null=True,
-        required=False,
-        help_text="The id of the workflow the node is associated with",
-    )
 
     class Meta:
         model = AutomationNode
-        fields = ("id", "workflow_id", "type")
+        fields = ("id", "type")
 
 
 class UpdateAutomationNodeSerializer(serializers.ModelSerializer):

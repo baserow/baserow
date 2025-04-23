@@ -9,14 +9,17 @@ from baserow.contrib.automation.nodes.operations import (
     ListAutomationNodeOperationType,
     CreateAutomationNodeOperationType,
     UpdateAutomationNodeOperationType,
+    DeleteAutomationNodeOperationType,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_updated,
+    automation_node_deleted,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
+from baserow.core.trash.handler import TrashHandler
 
 
 class AutomationNodeService:
@@ -55,7 +58,7 @@ class AutomationNodeService:
 
         automation_node_created.send(
             self,
-            automation_node=new_node,
+            node=new_node,
             user=user,
         )
 
@@ -120,3 +123,36 @@ class AutomationNodeService:
         )
 
         return updated_node
+
+    def delete_node(
+        self, user: AbstractUser, node_id: int
+    ) -> AutomationWorkflow:
+        """
+        Deletes the specified automation node.
+
+        :param user: The user trying to delete the node.
+        :param node_id: The ID of the node to delete.
+        """
+
+        node = self.handler.get_node(node_id)
+
+        workspace = node.workflow.automation.workspace
+        CoreHandler().check_permissions(
+            user,
+            DeleteAutomationNodeOperationType.type,
+            workspace=workspace,
+            context=node,
+        )
+
+        TrashHandler.trash(
+            user, workspace, node.workflow.automation, node
+        )
+
+        automation_node_deleted.send(
+            self,
+            automation=node.workflow.automation,
+            node_id=node_id,
+            user=None,
+        )
+
+        return node

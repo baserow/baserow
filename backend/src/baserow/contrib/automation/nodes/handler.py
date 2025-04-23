@@ -25,7 +25,7 @@ class AutomationNodeHandler:
         """
 
         allowed_prepared_values = extract_allowed(
-            kwargs, node_type.allowed_fields
+            kwargs, self.allowed_fields + node_type.allowed_fields
         )
 
         node = node_type.model_class(**allowed_prepared_values)
@@ -78,7 +78,7 @@ class AutomationNodeHandler:
             return base_queryset.select_related("workflow__automation__workspace").get(
                 id=node_id
             )
-        except AutomationWorkflow.DoesNotExist:
+        except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist()
     
     def update_node(self, node: AutomationNode, **kwargs) -> UpdatedAutomationNode:
@@ -118,3 +118,12 @@ class AutomationNodeHandler:
         """
 
         return {key: getattr(node, key) for key in self.allowed_fields}
+
+    def delete_node(self, node: AutomationNode) -> None:
+        """
+        Deletes the specified AutomationNode.
+
+        :param node: The AutomationNode that must be deleted.
+        """
+
+        node.delete()

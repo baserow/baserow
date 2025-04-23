@@ -86,7 +86,7 @@ class AutomationWorkflowService:
         Deletes the specified workflow.
 
         :param user: The user trying to delete the workflow.
-        :param workflow: The AutomationWorkflow instance that must be deleted.
+        :param workflow_id: The AutomationWorkflow ID that must be deleted.
         """
 
         workflow = self.handler.get_workflow(workflow_id)

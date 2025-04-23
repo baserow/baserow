@@ -19,3 +19,10 @@ class CreateAutomationNodeOperationType(AutomationWorkflowOperationType):
 
 class UpdateAutomationNodeOperationType(AutomationNodeOperationType):
     type = "automation.node.update"
+
+
+class DeleteAutomationNodeOperationType(AutomationNodeOperationType):
+    type = "automation.node.delete"
+
+class RestoreAutomationNodeOperationType(AutomationNodeOperationType):
+    type = "automation.node.restore"
