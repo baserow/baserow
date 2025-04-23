@@ -12,6 +12,7 @@ import GridViewFieldAIGenerateValuesContextItem from '@baserow_premium/component
 import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { AIPaidFeature } from '@baserow_premium/paidFeatures'
+import _ from 'lodash'
 
 export class AIFieldType extends FieldType {
   static getType() {
@@ -27,7 +28,10 @@ export class AIFieldType extends FieldType {
     return i18n.t('premiumFieldType.ai')
   }
 
-  isReadOnlyField() {
+  isReadOnlyField(field) {
+    if (field && _.isBoolean(field.read_only)) {
+      return field.read_only
+    }
     return true
   }
 
