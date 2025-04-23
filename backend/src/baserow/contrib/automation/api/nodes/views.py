@@ -42,6 +42,7 @@ from baserow.contrib.automation.nodes.actions import (
     UpdateAutomationNodeActionType,
     DeleteAutomationNodeActionType,
     OrderAutomationNodesActionType,
+    DuplicateAutomationNodeActionType,
 )
 
 
@@ -286,6 +287,48 @@ class OrderAutomationNodesView(APIView):
     def post(self, request, data: Dict, workflow_id: int):
         OrderAutomationNodesActionType.do(
             request.user, workflow_id, data["node_ids"]
+        )
+
+        return Response(status=204)
+
+
+class DuplicateAutomationNodeView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="node_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The node that is to be duplicated.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=[AUTOMATION_NODES_TAG],
+        operation_id="duplicate_automation_node",
+        description="Duplicate a node of a workflow.",
+        request=OrderAutomationNodesSerializer,
+        responses={
+            204: None,
+            404: get_error_schema(
+                [
+                    "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+        }
+    )
+    def post(self, request, node_id):
+        """Duplicate an automation node."""
+
+        DuplicateAutomationNodeActionType.do(
+            request.user, node_id
         )
 
         return Response(status=204)

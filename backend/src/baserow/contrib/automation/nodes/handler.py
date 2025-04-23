@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Iterable, Optional
+from collections import defaultdict
 
 from django.db.models import QuerySet
 
@@ -14,6 +15,10 @@ from baserow.contrib.automation.nodes.exceptions import (
 )
 from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.contrib.automation.nodes.types import AutomationNodeDict
+from baserow.core.utils import (
+    MirrorDict,
+)
 
 
 class AutomationNodeHandler:
@@ -156,3 +161,138 @@ class AutomationNodeHandler:
             return AutomationNode.order_objects(base_qs, order)
         except IdDoesNotExist as error:
             raise AutomationNodeNotInWorkflow(error.not_existing_id)
+    
+    def duplicate_node(self, node: AutomationNode) -> AutomationNode:
+        """
+        Duplicates an existing AutomationNode instance.
+
+        :param node: The AutomationNode that is being duplicated.
+        :raises ValueError: When the provided node is not an instance of
+            AutomationNode.
+        :return: The duplicated node
+        """
+
+        exported_node = self.export_node(node)
+
+        exported_node["order"] = AutomationNode.get_last_order(node.workflow)
+
+        id_mapping = defaultdict(lambda: MirrorDict())
+        id_mapping["automation_nodes"] = MirrorDict()
+
+        new_node_clone = self.import_node(
+            node,
+            exported_node,
+            id_mapping=id_mapping,
+        )
+
+        return new_node_clone
+
+    def export_node(
+        self,
+        node: AutomationNode,
+        *args: Any,
+        **kwargs: Any,
+    ) -> List[AutomationNodeDict]:
+        """
+        Serializes the given workflow.
+
+        :param workflow: The AutomationWorkflow instance to serialize.
+        :param files_zip: A zip file to store files in necessary.
+        :param storage: Storage to use.
+        :return: The serialized version.
+        """
+
+        return AutomationNodeDict(
+            id=node.id,
+            order=node.order,
+            workflow_id=node.workflow.id,
+            parent_node_id=node.parent_node.id,
+            previous_node_id=node.previous_node.id,
+            previous_node_output=node.previous_node_output,
+        )
+    
+    def import_node(
+        self,
+        workflow: AutomationWorkflow,
+        serialized_node: Dict[str, Any],
+        id_mapping: Dict[str, Dict[int, int]],
+        *args,
+        **kwargs,
+    ) -> AutomationNode:
+        """
+        Creates an instance of AutomationNode using the serialized version
+        previously exported with `.export_workflow'.
+
+        :param workflow: The workflow instance the new node should
+            belong to.
+        :param serialized_node: The serialized version of the
+            AutomationNode.
+        :param id_mapping: A map of old->new id per data type
+            when we have foreign keys that need to be migrated.
+        :return: the newly created instance.
+        """
+
+        return self.import_nodes(
+            workflow,
+            [serialized_node],
+            id_mapping,
+            *args,
+            **kwargs,
+        )[0]
+    
+    def import_nodes(
+        self,
+        workflow: AutomationWorkflow,
+        serialized_nodes: List[Dict[str, Any]],
+        id_mapping: Dict[str, Dict[int, int]],
+        *args,
+        **kwargs,
+    ):
+        """
+        Import multiple nodes at once.
+
+        :param workflow: The workflow instance the new node should
+            belong to.
+        :param serialized_nodes: The serialized version of the nodes.
+        :param id_mapping: A map of old->new id per data type
+            when we have foreign keys that need to be migrated.
+        :return: the newly created instances.
+        """
+
+        if cache is None:
+            cache = {}
+
+        imported_nodes = []
+        for serialized_node in serialized_nodes:
+            node_instance = self.import_node_only(
+                workflow,
+                serialized_node,
+                id_mapping,
+                *args,
+                **kwargs,
+            )
+            imported_nodes.append([node_instance, serialized_node])
+
+        return [i[0] for i in imported_nodes]
+
+    def import_node_only(
+        self,
+        workflow: AutomationWorkflow,
+        serialized_node: Dict[str, Any],
+        id_mapping: Dict[str, Dict[int, int]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> AutomationNode:
+        if "automation_nodes" not in id_mapping:
+            id_mapping["automation_nodes"] = {}
+
+        node_instance = AutomationNode.objects.create(
+            workflow=workflow,
+            order=serialized_node["order"],
+        )
+
+        id_mapping["automation_workflows"][
+            serialized_node["id"]
+        ] = node_instance.id
+
+        return node_instance

@@ -11,6 +11,8 @@ from baserow.contrib.automation.nodes.operations import (
     UpdateAutomationNodeOperationType,
     DeleteAutomationNodeOperationType,
     OrderAutomationNodeOperationType,
+    DuplicateAutomationNodeOperationType,
+    ReadAutomationNodeOperationType,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.signals import (
@@ -65,6 +67,26 @@ class AutomationNodeService:
         )
 
         return new_node
+
+    def get_node(self, user: AbstractUser, node_id: int) -> AutomationNode:
+        """
+        Returns an AutomationNode instance by its ID.
+
+        :param user: The user trying to get the workflow_actions.
+        :param node_id: The ID of the node.
+        :return: The node instance.
+        """
+
+        node = self.handler.get_node(node_id)
+
+        CoreHandler().check_permissions(
+            user,
+            ReadAutomationNodeOperationType.type,
+            workspace=node.workflow.automation.workspace,
+            context=node.workflow,
+        )
+
+        return node
 
     def get_nodes(
         self,
@@ -197,3 +219,31 @@ class AutomationNodeService:
         )
 
         return full_order
+    
+    def duplicate_node(
+        self,
+        user: AbstractUser,
+        node: AutomationNode,
+    ) -> AutomationNode:
+        """
+        Duplicates an existing AutomationNode instance.
+
+        :param user: The user initiating the duplication.
+        :param node: The node that is being duplicated.
+        :raises ValueError: When the provided node is not an instance of
+            AutomationNode.
+        :return: The duplicated node.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            DuplicateAutomationNodeOperationType.type,
+            node.workflow.automation.workspace,
+            context=node,
+        )
+
+        node_clone = self.handler.duplicate_node(node)
+
+        automation_node_created.send(self, node_clone, user=user)
+
+        return node_clone

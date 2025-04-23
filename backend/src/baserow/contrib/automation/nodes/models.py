@@ -93,6 +93,11 @@ class AutomationNode(
     def get_parent(self):
         return self.workflow
 
+    @classmethod
+    def get_last_order(cls, workflow: "AutomationWorkflow"):
+        queryset = AutomationNode.objects.filter(workflow=workflow)
+        return cls.get_highest_order_of_queryset(queryset) + 1
+
 
 class AutomationTriggerNode(AutomationNode):
     ...

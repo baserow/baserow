@@ -13,6 +13,10 @@ class ListAutomationNodeOperationType(AutomationWorkflowOperationType):
     object_scope_name = "automation_node"
 
 
+class OrderAutomationNodeOperationType(AutomationWorkflowOperationType):
+    type = "automation.workflow.order_nodes"
+
+
 class CreateAutomationNodeOperationType(AutomationWorkflowOperationType):
     type = "automation.create_node"
 
@@ -33,5 +37,5 @@ class RestoreAutomationNodeOperationType(AutomationNodeOperationType):
     type = "automation.node.restore"
 
 
-class OrderAutomationNodeOperationType(AutomationOperationType):
-    type = "automation.workflow.order_nodes"
+class DuplicateAutomationNodeOperationType(AutomationNodeOperationType):
+    type = "automation.node.duplicate"

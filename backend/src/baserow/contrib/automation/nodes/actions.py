@@ -202,3 +202,66 @@ class OrderAutomationNodesActionType(UndoableActionType):
             AutomationWorkflowHandler().get_workflow(params.workflow_id),
             order=params.nodes_order,
         )
+
+
+
+class DuplicateAutomationNodeActionType(UndoableActionType):
+    type = "duplicate_automation_node"
+    description = ActionTypeDescription(
+        _("Duplicate automation node"),
+        _("Node duplicated"),
+        AUTOMATION_ACTION_CONTEXT,
+    )
+
+    @dataclass
+    class Params:
+        workflow_id: int
+        node_id: int
+        original_node_id: int
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        node_id: int,
+    ) -> AutomationNode:
+        node = AutomationNodeService().get_node(user, node_id)
+
+        node_clone = AutomationNodeService().duplicate_node(user, node)
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                node_clone.workflow.id,
+                node_clone.id,
+                node_id,
+            ),
+            scope=cls.scope(node.workflow.automation.id),
+            workspace=node.workflow.automation.workspace,
+        )
+        return node_clone
+
+    @classmethod
+    def scope(cls, automation_id):
+        return ApplicationActionScopeType.value(automation_id)
+
+    @classmethod
+    def undo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_undo: Action,
+    ):
+        AutomationNodeService().delete_node(user, params.node_id)
+
+    @classmethod
+    def redo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_redo: Action,
+    ):
+        TrashHandler.restore_item(
+            user,
+            AutomationNodeTrashableItemType.type,
+            params.node_id,
+        )

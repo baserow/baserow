@@ -61,6 +61,7 @@ class AutomationConfig(AppConfig):
             ReadAutomationNodeOperationType,
             DeleteAutomationNodeOperationType,
             RestoreAutomationNodeOperationType,
+            DuplicateAutomationNodeOperationType,
             OrderAutomationNodeOperationType,
         )
         from baserow.contrib.automation.nodes.trash_types import (
@@ -102,6 +103,7 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(ReadAutomationNodeOperationType())
             operation_type_registry.register(DeleteAutomationNodeOperationType())
             operation_type_registry.register(RestoreAutomationNodeOperationType())
+            operation_type_registry.register(DuplicateAutomationNodeOperationType())
             operation_type_registry.register(OrderAutomationNodeOperationType())
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())
@@ -127,4 +129,4 @@ class AutomationConfig(AppConfig):
             # the registries which need to be filled first.
             import baserow.contrib.automation.workflows.signals  # noqa: F403, F401
             import baserow.contrib.automation.workflows.ws.signals  # noqa: F403, F401
-            # import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401
+            import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401
