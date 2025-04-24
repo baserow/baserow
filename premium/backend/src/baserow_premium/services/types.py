@@ -2,6 +2,7 @@ from typing import TypedDict
 
 
 class ServiceAggregationSeriesDict(TypedDict):
+    id: int | None
     field_id: int | None
     aggregation_type: str
 

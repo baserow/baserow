@@ -2863,13 +2863,13 @@ def test_grouped_aggregate_rows_service_export_serialized(
         table=table,
         view=view,
     )
-    LocalBaserowTableServiceAggregationSeries.objects.create(
+    series_1 = LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field, aggregation_type="sum", order=1
     )
-    LocalBaserowTableServiceAggregationSeries.objects.create(
+    series_2 = LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field_2, aggregation_type="min", order=2
     )
-    LocalBaserowTableServiceAggregationSeries.objects.create(
+    series_3 = LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field_3, aggregation_type="max", order=3
     )
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
@@ -2903,9 +2903,9 @@ def test_grouped_aggregate_rows_service_export_serialized(
             {"field_id": field_3.id},
         ],
         "service_aggregation_series": [
-            {"aggregation_type": "sum", "field_id": field.id},
-            {"aggregation_type": "min", "field_id": field_2.id},
-            {"aggregation_type": "max", "field_id": field_3.id},
+            {"aggregation_type": "sum", "field_id": field.id, "id": series_1.id},
+            {"aggregation_type": "min", "field_id": field_2.id, "id": series_2.id},
+            {"aggregation_type": "max", "field_id": field_3.id, "id": series_3.id},
         ],
         "service_aggregation_sorts": [
             {
