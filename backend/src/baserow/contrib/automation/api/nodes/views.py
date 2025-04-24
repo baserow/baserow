@@ -241,7 +241,7 @@ class OrderAutomationNodesView(APIView):
                 name="workflow_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
-                description="The workflow that the node belongs to.",
+                description="The workflow that the nodes belong to.",
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],

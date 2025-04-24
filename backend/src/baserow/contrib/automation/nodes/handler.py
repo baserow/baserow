@@ -82,7 +82,7 @@ class AutomationNodeHandler:
         """
         Updates fields of the provided AutomationNode.
 
-        :param workflow: The AutomationNode that should be updated.
+        :param node: The AutomationNode that should be updated.
         :param kwargs: The fields that should be updated with their
             corresponding values.
         :return: The updated AutomationNode.
@@ -191,9 +191,9 @@ class AutomationNodeHandler:
         **kwargs: Any,
     ) -> List[AutomationNodeDict]:
         """
-        Serializes the given workflow.
+        Serializes the given node.
 
-        :param workflow: The AutomationWorkflow instance to serialize.
+        :param node: The AutomationNode instance to serialize.
         :param files_zip: A zip file to store files in necessary.
         :param storage: Storage to use.
         :return: The serialized version.
