@@ -3148,7 +3148,7 @@ def test_link_row_field_type_create_row_no_multiple_relationships(
     assert response_json == {
         "error": "ERROR_REQUEST_BODY_VALIDATION",
         "detail": {
-            "field_3": [
+            f"field_{link_row_field.id}": [
                 {
                     "error": "Ensure this field has no more than 1 elements.",
                     "code": "max_length",
@@ -3231,7 +3231,7 @@ def test_link_row_field_type_update_row_no_multiple_relationships(
     assert response_json == {
         "error": "ERROR_REQUEST_BODY_VALIDATION",
         "detail": {
-            "field_3": [
+            f"field_{link_row_field.id}": [
                 {
                     "error": "Ensure this field has no more than 1 elements.",
                     "code": "max_length",
