@@ -180,7 +180,7 @@ class AutomationNodeHandler:
         id_mapping["automation_nodes"] = MirrorDict()
 
         new_node_clone = self.import_node(
-            node,
+            node.workflow,
             exported_node,
             id_mapping=id_mapping,
         )
@@ -206,9 +206,11 @@ class AutomationNodeHandler:
             id=node.id,
             order=node.order,
             workflow_id=node.workflow.id,
-            parent_node_id=node.parent_node.id,
-            previous_node_id=node.previous_node.id,
+            service_id=node.specific.service.id,
+            parent_node_id=node.parent_node.id if node.parent_node else None,
+            previous_node_id=node.previous_node.id if node.previous_node else None,
             previous_node_output=node.previous_node_output,
+            type=node.get_type().type,
         )
     
     def import_node(
@@ -245,6 +247,7 @@ class AutomationNodeHandler:
         workflow: AutomationWorkflow,
         serialized_nodes: List[Dict[str, Any]],
         id_mapping: Dict[str, Dict[int, int]],
+        cache: Optional[Dict] = None,
         *args,
         **kwargs,
     ):
@@ -268,6 +271,7 @@ class AutomationNodeHandler:
                 workflow,
                 serialized_node,
                 id_mapping,
+                cache=cache,
                 *args,
                 **kwargs,
             )
@@ -286,12 +290,17 @@ class AutomationNodeHandler:
         if "automation_nodes" not in id_mapping:
             id_mapping["automation_nodes"] = {}
 
-        node_instance = AutomationNode.objects.create(
-            workflow=workflow,
-            order=serialized_node["order"],
+        node_type = automation_node_type_registry.get(serialized_node["type"])
+
+        node_instance = node_type.import_serialized(
+            workflow,
+            serialized_node,
+            id_mapping,
+            *args,
+            **kwargs,
         )
 
-        id_mapping["automation_workflows"][
+        id_mapping["automation_nodes"][
             serialized_node["id"]
         ] = node_instance.id
 

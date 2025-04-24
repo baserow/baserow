@@ -17,6 +17,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.handler import ServiceHandler
+from baserow.contrib.automation.types import AutomationNodeDict
 
 
 def service_backed_automation_nodes():
@@ -42,7 +43,18 @@ class AutomationNodeServiceActionType(AutomationNodeType):
 
 class AutomationNodeServiceTriggerType(AutomationNodeType):
     service_type = None
-    allowed_fields = ["service", "workflow", "order"]
+    _allowed_fields = ["service", "workflow", "order"]
+
+    class SerializedDict(AutomationNodeDict):
+        service_id: int
+    
+    @property
+    def serializer_field_names(self):
+        return super().serializer_field_names + self._allowed_fields
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + self._allowed_fields
 
     def prepare_values(
         self,

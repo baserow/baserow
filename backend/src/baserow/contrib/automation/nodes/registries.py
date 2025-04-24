@@ -25,6 +25,7 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     Registry,
 )
+from baserow.contrib.automation.types import AutomationNodeDict
 
 AUTOMATION_NODES = "automation_nodes"
 
@@ -38,6 +39,10 @@ class AutomationNodeType(
 ):
     parent_property_name = "workflow"
     id_mapping_name = AUTOMATION_NODES
+    
+    class SerializedDict(AutomationNodeDict):
+        ...
+
 
     def prepare_values(
         self,

@@ -83,7 +83,7 @@ class AutomationNodeService:
             user,
             ReadAutomationNodeOperationType.type,
             workspace=node.workflow.automation.workspace,
-            context=node.workflow,
+            context=node,
         )
 
         return node
@@ -238,12 +238,16 @@ class AutomationNodeService:
         CoreHandler().check_permissions(
             user,
             DuplicateAutomationNodeOperationType.type,
-            node.workflow.automation.workspace,
+            workspace=node.workflow.automation.workspace,
             context=node,
         )
 
         node_clone = self.handler.duplicate_node(node)
 
-        automation_node_created.send(self, node_clone, user=user)
+        automation_node_created.send(
+            self,
+            node=node_clone,
+            user=user,
+        )
 
         return node_clone

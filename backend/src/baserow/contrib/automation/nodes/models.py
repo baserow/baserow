@@ -96,7 +96,7 @@ class AutomationNode(
     @classmethod
     def get_last_order(cls, workflow: "AutomationWorkflow"):
         queryset = AutomationNode.objects.filter(workflow=workflow)
-        return cls.get_highest_order_of_queryset(queryset) + 1
+        return cls.get_highest_order_of_queryset(queryset)[0]
 
 
 class AutomationTriggerNode(AutomationNode):
