@@ -43,6 +43,7 @@ from baserow.contrib.automation.nodes.actions import (
     DeleteAutomationNodeActionType,
     OrderAutomationNodesActionType,
     DuplicateAutomationNodeActionType,
+    CreateAutomationNodeActionType,
 )
 
 
@@ -69,7 +70,7 @@ class AutomationNodesView(APIView):
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
         tags=[AUTOMATION_NODES_TAG],
-        operation_id="create_automation_workflow_node",
+        operation_id="create_automation_node",
         description="Creates a new automation workflow node",
         request=DiscriminatorCustomFieldsMappingSerializer(
             automation_node_type_registry,
@@ -103,15 +104,11 @@ class AutomationNodesView(APIView):
         node_type = automation_node_type_registry.get(type_name)
         workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
 
-        node = AutomationNodeService().create_node(
-            request.user, node_type, workflow, **data
+        CreateAutomationNodeActionType.do(
+            request.user, node_type, workflow, data
         )
 
-        serializer = automation_node_type_registry.get_serializer(
-            node, AutomationNodeSerializer
-        )
-
-        return Response(serializer.data)
+        return Response(status=204)
 
     @extend_schema(
         parameters=[

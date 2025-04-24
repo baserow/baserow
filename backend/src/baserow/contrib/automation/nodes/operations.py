@@ -18,7 +18,7 @@ class OrderAutomationNodeOperationType(AutomationWorkflowOperationType):
 
 
 class CreateAutomationNodeOperationType(AutomationWorkflowOperationType):
-    type = "automation.create_node"
+    type = "automation.workflow.create_node"
 
 
 class ReadAutomationNodeOperationType(AutomationNodeOperationType):

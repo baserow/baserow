@@ -9,12 +9,78 @@ from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
-from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.trash.handler import TrashHandler
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.action.scopes import NodeActionScopeType
+from baserow.contrib.automation.nodes.node_types import AutomationNodeType
+from baserow.contrib.automation.workflows.models import AutomationWorkflow
+
+
+class CreateAutomationNodeActionType(UndoableActionType):
+    type = "create_automation_node"
+    description = ActionTypeDescription(
+        _("Create automation node"),
+        _('Node "%(node_id)s" created'),
+        AUTOMATION_ACTION_CONTEXT,
+    )
+
+    @dataclass
+    class Params:
+        automation_id: int
+        automation_name: str
+        node_id: int
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        node_type: AutomationNodeType,
+        workflow: AutomationWorkflow,
+        data: dict,
+    ) -> AutomationNode:
+        node = AutomationNodeService().create_node(
+            user, node_type, workflow, **data
+        )
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                node.workflow.automation.id,
+                node.workflow.automation.name,
+                node.id,
+            ),
+            scope=cls.scope(node.id),
+            workspace=node.workflow.automation.workspace,
+        )
+        return node
+
+    @classmethod
+    def scope(cls, node_id):
+        return NodeActionScopeType.value(node_id)
+
+    @classmethod
+    def undo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_undo: Action,
+    ):
+        AutomationNodeService().delete_node(user, params.node_id)
+
+    @classmethod
+    def redo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_redo: Action,
+    ):
+        TrashHandler.restore_item(
+            user,
+            AutomationNodeTrashableItemType.type,
+            params.node_id,
+        )
 
 
 class UpdateAutomationNodeActionType(UndoableActionType):
