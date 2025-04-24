@@ -13,7 +13,7 @@ from baserow.core.trash.handler import TrashHandler
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-from baserow.contrib.automation.action.scopes import NodeActionScopeType
+from baserow.contrib.automation.action.scopes import NodeActionScopeType, WorkflowActionScopeType
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 
@@ -219,7 +219,7 @@ class OrderAutomationNodesActionType(UndoableActionType):
     class Params:
         workflow_id: int
         nodes_order: List[int]
-        original_nodess_order: List[int]
+        original_nodes_order: List[int]
 
     @classmethod
     def do(cls, user: AbstractUser, workflow_id: int, order: List[int]) -> None:
@@ -242,8 +242,8 @@ class OrderAutomationNodesActionType(UndoableActionType):
         )
 
     @classmethod
-    def scope(cls, node_id):
-        return NodeActionScopeType.value(node_id)
+    def scope(cls, workflow_id):
+        return WorkflowActionScopeType.value(workflow_id)
 
     @classmethod
     def undo(

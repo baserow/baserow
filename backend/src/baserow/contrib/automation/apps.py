@@ -81,7 +81,7 @@ class AutomationConfig(AppConfig):
             object_scope_type_registry,
             operation_type_registry,
         )
-        from baserow.contrib.automation.action.scopes import NodeActionScopeType
+        from baserow.contrib.automation.action.scopes import NodeActionScopeType, WorkflowActionScopeType
         from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
 
@@ -126,6 +126,7 @@ class AutomationConfig(AppConfig):
             action_type_registry.register(DuplicateAutomationNodeActionType())
 
             action_scope_registry.register(NodeActionScopeType())
+            action_scope_registry.register(WorkflowActionScopeType())
 
             automation_node_type_registry.register(CreateRowNodeType())
             automation_node_type_registry.register(UpdateRowNodeType())

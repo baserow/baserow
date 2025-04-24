@@ -198,7 +198,7 @@ class AutomationNodeService:
             user,
             OrderAutomationNodeOperationType.type,
             workspace=automation.workspace,
-            context=automation,
+            context=workflow,
         )
 
         all_nodes = self.handler.get_nodes(
@@ -215,7 +215,7 @@ class AutomationNodeService:
         full_order = self.handler.order_nodes(workflow, order, user_nodes)
 
         automation_nodes_reordered.send(
-            self, automation=automation, order=full_order, user=user
+            self, workflow=workflow, order=full_order, user=user
         )
 
         return full_order
