@@ -2,27 +2,27 @@ from typing import List
 
 from django.contrib.auth.models import AbstractUser
 
-from baserow.core.handler import CoreHandler
-from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.models import AutomationWorkflow
-from baserow.contrib.automation.nodes.operations import (
-    ListAutomationNodeOperationType,
-    CreateAutomationNodeOperationType,
-    UpdateAutomationNodeOperationType,
-    DeleteAutomationNodeOperationType,
-    OrderAutomationNodeOperationType,
-    DuplicateAutomationNodeOperationType,
-    ReadAutomationNodeOperationType,
-)
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.node_types import AutomationNodeType
+from baserow.contrib.automation.nodes.operations import (
+    CreateAutomationNodeOperationType,
+    DeleteAutomationNodeOperationType,
+    DuplicateAutomationNodeOperationType,
+    ListAutomationNodeOperationType,
+    OrderAutomationNodeOperationType,
+    ReadAutomationNodeOperationType,
+    UpdateAutomationNodeOperationType,
+)
 from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
-    automation_node_updated,
     automation_node_deleted,
+    automation_node_updated,
     automation_nodes_reordered,
 )
-from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
+from baserow.core.handler import CoreHandler
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -116,9 +116,7 @@ class AutomationNodeService:
             workspace=workflow.automation.workspace,
         )
 
-        return self.handler.get_nodes(
-            workflow, base_queryset=user_nodes
-        )
+        return self.handler.get_nodes(workflow, base_queryset=user_nodes)
 
     def update_node(
         self, user: AbstractUser, node_id: int, **kwargs
@@ -142,15 +140,11 @@ class AutomationNodeService:
         )
 
         updated_node = self.handler.update_node(node, **kwargs)
-        automation_node_updated.send(
-            self, user=user, node=updated_node.node
-        )
+        automation_node_updated.send(self, user=user, node=updated_node.node)
 
         return updated_node
 
-    def delete_node(
-        self, user: AbstractUser, node_id: int
-    ) -> AutomationWorkflow:
+    def delete_node(self, user: AbstractUser, node_id: int) -> AutomationWorkflow:
         """
         Deletes the specified automation node.
 
@@ -168,9 +162,7 @@ class AutomationNodeService:
             context=node,
         )
 
-        TrashHandler.trash(
-            user, workspace, node.workflow.automation, node
-        )
+        TrashHandler.trash(user, workspace, node.workflow.automation, node)
 
         automation_node_deleted.send(
             self,
@@ -180,7 +172,7 @@ class AutomationNodeService:
         )
 
         return node
-    
+
     def order_nodes(
         self, user: AbstractUser, workflow: AutomationWorkflow, order: List[int]
     ) -> List[int]:
@@ -219,7 +211,7 @@ class AutomationNodeService:
         )
 
         return full_order
-    
+
     def duplicate_node(
         self,
         user: AbstractUser,

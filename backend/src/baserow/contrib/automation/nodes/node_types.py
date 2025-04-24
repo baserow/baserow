@@ -1,23 +1,25 @@
-from typing import Dict
-from typing import Any, Union
+from typing import Any, Dict, Union
 
 from django.contrib.auth.models import AbstractUser
 
-from baserow.contrib.automation.nodes.registries import AutomationNodeType, automation_node_type_registry
 from baserow.contrib.automation.nodes.models import (
     LocalBaserowCreateRowActionNode,
-    LocalBaserowUpdateRowActionNode,
     LocalBaserowRowCreatedTriggerNode,
     LocalBaserowRowUpdatedTriggerNode,
+    LocalBaserowUpdateRowActionNode,
 )
+from baserow.contrib.automation.nodes.registries import (
+    AutomationNodeType,
+    automation_node_type_registry,
+)
+from baserow.contrib.automation.types import AutomationNodeDict
 from baserow.contrib.integrations.local_baserow.service_types import (
-    LocalBaserowUpsertRowServiceType,
     LocalBaserowRowCreatedTriggerServiceType,
     LocalBaserowRowUpdatedTriggerServiceType,
+    LocalBaserowUpsertRowServiceType,
 )
-from baserow.core.services.registries import service_type_registry
 from baserow.core.services.handler import ServiceHandler
-from baserow.contrib.automation.types import AutomationNodeDict
+from baserow.core.services.registries import service_type_registry
 
 
 def service_backed_automation_nodes():
@@ -48,7 +50,7 @@ class AutomationNodeServiceTriggerType(AutomationNodeType):
 
     class SerializedDict(AutomationNodeDict):
         service_id: int
-    
+
     @property
     def serializer_field_names(self):
         return super().serializer_field_names + self._allowed_fields

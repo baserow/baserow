@@ -7,8 +7,44 @@ class AutomationConfig(AppConfig):
     name = "baserow.contrib.automation"
 
     def ready(self):
+        from baserow.contrib.automation.action.scopes import (
+            NodeActionScopeType,
+            WorkflowActionScopeType,
+        )
         from baserow.contrib.automation.application_types import (
             AutomationApplicationType,
+        )
+        from baserow.contrib.automation.nodes.actions import (
+            CreateAutomationNodeActionType,
+            DeleteAutomationNodeActionType,
+            DuplicateAutomationNodeActionType,
+            OrderAutomationNodesActionType,
+            UpdateAutomationNodeActionType,
+        )
+        from baserow.contrib.automation.nodes.node_types import (
+            CreateRowNodeType,
+            RowCreatedNodeType,
+            RowUpdatedNodeType,
+            UpdateRowNodeType,
+        )
+        from baserow.contrib.automation.nodes.object_scopes import (
+            AutomationNodeObjectScopeType,
+        )
+        from baserow.contrib.automation.nodes.operations import (
+            CreateAutomationNodeOperationType,
+            DeleteAutomationNodeOperationType,
+            DuplicateAutomationNodeOperationType,
+            ListAutomationNodeOperationType,
+            OrderAutomationNodeOperationType,
+            ReadAutomationNodeOperationType,
+            RestoreAutomationNodeOperationType,
+            UpdateAutomationNodeOperationType,
+        )
+        from baserow.contrib.automation.nodes.registries import (
+            automation_node_type_registry,
+        )
+        from baserow.contrib.automation.nodes.trash_types import (
+            AutomationNodeTrashableItemType,
         )
         from baserow.contrib.automation.object_scopes import AutomationObjectScopeType
         from baserow.contrib.automation.operations import (
@@ -28,9 +64,6 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.workflows.object_scopes import (
             AutomationWorkflowObjectScopeType,
         )
-        from baserow.contrib.automation.nodes.object_scopes import (
-            AutomationNodeObjectScopeType
-        )
         from baserow.contrib.automation.workflows.operations import (
             CreateAutomationWorkflowOperationType,
             DeleteAutomationWorkflowOperationType,
@@ -42,47 +75,16 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.workflows.trash_types import (
             AutomationWorkflowTrashableItemType,
         )
-        from baserow.contrib.automation.nodes.actions import (
-            CreateAutomationNodeActionType,
-            UpdateAutomationNodeActionType,
-            DeleteAutomationNodeActionType,
-            OrderAutomationNodesActionType,
-            DuplicateAutomationNodeActionType,
+        from baserow.core.action.registries import (
+            action_scope_registry,
+            action_type_registry,
         )
-        from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-        from baserow.contrib.automation.nodes.node_types import (
-            CreateRowNodeType,
-            UpdateRowNodeType,
-            RowCreatedNodeType,
-            RowUpdatedNodeType,
-        )
-        from baserow.contrib.automation.nodes.operations import (
-            ListAutomationNodeOperationType,
-            CreateAutomationNodeOperationType,
-            UpdateAutomationNodeOperationType,
-            ReadAutomationNodeOperationType,
-            DeleteAutomationNodeOperationType,
-            RestoreAutomationNodeOperationType,
-            DuplicateAutomationNodeOperationType,
-            OrderAutomationNodeOperationType,
-        )
-        from baserow.contrib.automation.nodes.trash_types import (
-            AutomationNodeTrashableItemType,
-        )
-
-        from baserow.contrib.integrations.local_baserow.service_types import (
-            LocalBaserowRowCreatedTriggerServiceType,
-            LocalBaserowRowUpdatedTriggerServiceType,
-        )
-        from baserow.core.action.registries import action_type_registry, action_scope_registry
         from baserow.core.jobs.registries import job_type_registry
         from baserow.core.registries import (
             application_type_registry,
             object_scope_type_registry,
             operation_type_registry,
         )
-        from baserow.contrib.automation.action.scopes import NodeActionScopeType, WorkflowActionScopeType
-        from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
 
         if feature_flag_is_enabled(FF_AUTOMATION):
@@ -135,6 +137,6 @@ class AutomationConfig(AppConfig):
 
             # The signals must always be imported last because they use
             # the registries which need to be filled first.
+            import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401
             import baserow.contrib.automation.workflows.signals  # noqa: F403, F401
             import baserow.contrib.automation.workflows.ws.signals  # noqa: F403, F401
-            import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401

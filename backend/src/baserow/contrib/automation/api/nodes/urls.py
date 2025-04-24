@@ -3,8 +3,8 @@ from django.urls import re_path
 from baserow.contrib.automation.api.nodes.views import (
     AutomationNodesView,
     AutomationNodeView,
-    OrderAutomationNodesView,
     DuplicateAutomationNodeView,
+    OrderAutomationNodesView,
 )
 
 app_name = "baserow.contrib.automation.api.nodes"

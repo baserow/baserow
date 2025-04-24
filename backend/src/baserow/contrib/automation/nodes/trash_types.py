@@ -1,13 +1,14 @@
-from baserow.core.models import TrashEntry
-from baserow.core.trash.registries import TrashableItemType
-
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.operations import (
+    RestoreAutomationNodeOperationType,
+)
 from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_deleted,
 )
-from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.operations import RestoreAutomationNodeOperationType
+from baserow.core.models import TrashEntry
+from baserow.core.trash.registries import TrashableItemType
 
 
 class AutomationNodeTrashableItemType(TrashableItemType):

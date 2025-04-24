@@ -1,5 +1,5 @@
-from django.db import models
 from django.contrib.contenttypes.models import ContentType
+from django.db import models
 
 from baserow.contrib.automation.workflows.models import (
     AutomationWorkflow,
@@ -14,8 +14,6 @@ from baserow.core.mixins import (
     WithRegistry,
 )
 from baserow.core.services.models import Service
-from baserow.contrib.automation.models import AutomationWorkflow
-
 
 __all__ = [
     "AutomationNode",
@@ -86,7 +84,9 @@ class AutomationNode(
 
     @staticmethod
     def get_type_registry():
-        from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+        from baserow.contrib.automation.nodes.registries import (
+            automation_node_type_registry,
+        )
 
         return automation_node_type_registry
 
@@ -127,7 +127,7 @@ class ServiceActionNode(AutomationActionNode):
 
     class Meta:
         abstract = True
-    
+
 
 class ActionNodeHTTP(AutomationActionNode):
     url = models.URLField()
@@ -138,7 +138,6 @@ class TriggerNodeHTTP(AutomationTriggerNode):
 
 
 class LocalBaserowRowCreatedTriggerNode(ServiceTriggerNode):
-
     def save(self, *args, **kwargs):
         """TODO: this shouldn't be required. There seems to be a MRO issue."""
 

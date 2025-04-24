@@ -1,31 +1,19 @@
-from abc import ABC
-from typing import (
-    Any,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    TypedDict,
-    TypeVar,
-    Union,
-)
+from typing import Any, Dict
 
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.types import AutomationNodeDict
 from baserow.core.registry import (
-    InstanceWithFormulaMixin,
-    PublicCustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
     Instance,
+    InstanceWithFormulaMixin,
     ModelInstanceMixin,
     ModelRegistryMixin,
+    PublicCustomFieldsInstanceMixin,
     Registry,
 )
-from baserow.contrib.automation.types import AutomationNodeDict
 
 AUTOMATION_NODES = "automation_nodes"
 
@@ -39,10 +27,9 @@ class AutomationNodeType(
 ):
     parent_property_name = "workflow"
     id_mapping_name = AUTOMATION_NODES
-    
+
     class SerializedDict(AutomationNodeDict):
         ...
-
 
     def prepare_values(
         self,

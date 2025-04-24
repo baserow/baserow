@@ -1,7 +1,7 @@
 from django.urls import include, path, re_path
 
-from baserow.contrib.automation.api.workflows import urls as workflow_urls
 from baserow.contrib.automation.api.nodes import urls as node_urls
+from baserow.contrib.automation.api.workflows import urls as workflow_urls
 
 app_name = "baserow.contrib.automation.api"
 

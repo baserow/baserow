@@ -18,9 +18,9 @@ class IntegrationsConfig(AppConfig):
             LocalBaserowDeleteRowServiceType,
             LocalBaserowGetRowUserServiceType,
             LocalBaserowListRowsUserServiceType,
-            LocalBaserowUpsertRowServiceType,
             LocalBaserowRowCreatedTriggerServiceType,
             LocalBaserowRowUpdatedTriggerServiceType,
+            LocalBaserowUpsertRowServiceType,
         )
 
         service_type_registry.register(LocalBaserowGetRowUserServiceType())

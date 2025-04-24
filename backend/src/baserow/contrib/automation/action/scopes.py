@@ -6,11 +6,12 @@ from rest_framework import serializers
 
 from baserow.core.action.registries import ActionScopeStr, ActionScopeType
 
-AUTOMATION_ACTION_CONTEXT = _('in automation "%(automation_name)s" (%(automation_id)s).')
+AUTOMATION_ACTION_CONTEXT = _(
+    'in automation "%(automation_name)s" (%(automation_id)s).'
+)
 
 NODE_ACTION_CONTEXT = _(
-    'in node (%(node_id)s) '
-    'of automation "%(automation_name)s" (%(automation_id)s).'
+    "in node (%(node_id)s) " 'of automation "%(automation_name)s" (%(automation_id)s).'
 )
 
 

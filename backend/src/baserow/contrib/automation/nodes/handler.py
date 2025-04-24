@@ -1,28 +1,25 @@
-from typing import Any, Dict, List, Iterable, Optional
 from collections import defaultdict
+from typing import Any, Dict, List, Optional
 
 from django.db.models import QuerySet
 
-from baserow.core.db import specific_iterator
-from baserow.core.utils import extract_allowed
 from baserow.contrib.automation.models import AutomationWorkflow
-from baserow.contrib.automation.nodes.node_types import AutomationNodeType
-from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeNotInWorkflow,
 )
-from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
-from baserow.core.exceptions import IdDoesNotExist
-from baserow.contrib.automation.nodes.types import AutomationNodeDict
-from baserow.core.utils import (
-    MirrorDict,
+from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.node_types import AutomationNodeType
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.nodes.types import (
+    AutomationNodeDict,
+    UpdatedAutomationNode,
 )
+from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.utils import MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
-
     allowed_fields = ["previous_node_output"]
 
     def create_node(self, node_type: AutomationNodeType, **kwargs) -> AutomationNode:
@@ -57,7 +54,7 @@ class AutomationNodeHandler:
             base_queryset = AutomationNode.objects.all()
 
         return base_queryset.filter(workflow=workflow)
-    
+
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
     ) -> AutomationNode:
@@ -80,7 +77,7 @@ class AutomationNodeHandler:
             )
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist()
-    
+
     def update_node(self, node: AutomationNode, **kwargs) -> UpdatedAutomationNode:
         """
         Updates fields of the provided AutomationNode.
@@ -102,9 +99,7 @@ class AutomationNodeHandler:
 
         new_node_values = self.export_prepared_values(node)
 
-        return UpdatedAutomationNode(
-            node, original_node_values, new_node_values
-        )
+        return UpdatedAutomationNode(node, original_node_values, new_node_values)
 
     def export_prepared_values(self, node: AutomationNode) -> Dict[Any, Any]:
         """
@@ -136,7 +131,9 @@ class AutomationNodeHandler:
         :return: A list containing the order of the nodes in the workflow.
         """
 
-        return [node.id for node in workflow.automation_workflow_nodes.order_by("order")]
+        return [
+            node.id for node in workflow.automation_workflow_nodes.order_by("order")
+        ]
 
     def order_nodes(
         self, workflow: AutomationWorkflow, order: List[int], base_qs=None
@@ -161,7 +158,7 @@ class AutomationNodeHandler:
             return AutomationNode.order_objects(base_qs, order)
         except IdDoesNotExist as error:
             raise AutomationNodeNotInWorkflow(error.not_existing_id)
-    
+
     def duplicate_node(self, node: AutomationNode) -> AutomationNode:
         """
         Duplicates an existing AutomationNode instance.
@@ -212,7 +209,7 @@ class AutomationNodeHandler:
             previous_node_output=node.previous_node_output,
             type=node.get_type().type,
         )
-    
+
     def import_node(
         self,
         workflow: AutomationWorkflow,
@@ -241,7 +238,7 @@ class AutomationNodeHandler:
             *args,
             **kwargs,
         )[0]
-    
+
     def import_nodes(
         self,
         workflow: AutomationWorkflow,
@@ -300,8 +297,6 @@ class AutomationNodeHandler:
             **kwargs,
         )
 
-        id_mapping["automation_nodes"][
-            serialized_node["id"]
-        ] = node_instance.id
+        id_mapping["automation_nodes"][serialized_node["id"]] = node_instance.id
 
         return node_instance

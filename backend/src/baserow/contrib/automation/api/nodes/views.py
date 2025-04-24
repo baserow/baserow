@@ -10,42 +10,39 @@ from rest_framework.views import APIView
 
 from baserow.api.decorators import (
     map_exceptions,
-    validate_body_custom_fields,
     validate_body,
+    validate_body_custom_fields,
 )
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
-from baserow.api.utils import (
-    DiscriminatorCustomFieldsMappingSerializer,
-)
-from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
 from baserow.contrib.automation.api.nodes.serializers import (
     AutomationNodeSerializer,
-    UpdateAutomationNodeSerializer,
     CreateAutomationNodeSerializer,
     OrderAutomationNodesSerializer,
+    UpdateAutomationNodeSerializer,
 )
 from baserow.contrib.automation.api.workflows.errors import (
-    ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
     ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
     ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
+    ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
 )
-from baserow.contrib.automation.workflows.exceptions import (
-    AutomationWorkflowDoesNotExist,
+from baserow.contrib.automation.nodes.actions import (
+    CreateAutomationNodeActionType,
+    DeleteAutomationNodeActionType,
+    DuplicateAutomationNodeActionType,
+    OrderAutomationNodesActionType,
+    UpdateAutomationNodeActionType,
 )
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeNotInWorkflow,
 )
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
-from baserow.contrib.automation.nodes.actions import (
-    UpdateAutomationNodeActionType,
-    DeleteAutomationNodeActionType,
-    OrderAutomationNodesActionType,
-    DuplicateAutomationNodeActionType,
-    CreateAutomationNodeActionType,
+from baserow.contrib.automation.workflows.exceptions import (
+    AutomationWorkflowDoesNotExist,
 )
-
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
 AUTOMATION_NODES_TAG = "Automation nodes"
 
@@ -104,9 +101,7 @@ class AutomationNodesView(APIView):
         node_type = automation_node_type_registry.get(type_name)
         workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
 
-        CreateAutomationNodeActionType.do(
-            request.user, node_type, workflow, data
-        )
+        CreateAutomationNodeActionType.do(request.user, node_type, workflow, data)
 
         return Response(status=204)
 
@@ -145,7 +140,7 @@ class AutomationNodesView(APIView):
         workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
 
         nodes = AutomationNodeService().get_nodes(request.user, workflow)
-        
+
         data = [
             automation_node_type_registry.get_serializer(
                 node, AutomationNodeSerializer
@@ -202,9 +197,7 @@ class AutomationNodeView(APIView):
         base_serializer_class=UpdateAutomationNodeSerializer,
     )
     def patch(self, request, data: Dict, node_id: int):
-        node = UpdateAutomationNodeActionType.do(
-            request.user, node_id, data
-        )
+        node = UpdateAutomationNodeActionType.do(request.user, node_id, data)
 
         serializer = AutomationNodeSerializer(node)
         return Response(serializer.data)
@@ -282,9 +275,7 @@ class OrderAutomationNodesView(APIView):
     )
     @validate_body(OrderAutomationNodesSerializer)
     def post(self, request, data: Dict, workflow_id: int):
-        OrderAutomationNodesActionType.do(
-            request.user, workflow_id, data["node_ids"]
-        )
+        OrderAutomationNodesActionType.do(request.user, workflow_id, data["node_ids"])
 
         return Response(status=204)
 
@@ -324,8 +315,6 @@ class DuplicateAutomationNodeView(APIView):
     def post(self, request, node_id):
         """Duplicate an automation node."""
 
-        DuplicateAutomationNodeActionType.do(
-            request.user, node_id
-        )
+        DuplicateAutomationNodeActionType.do(request.user, node_id)
 
         return Response(status=204)

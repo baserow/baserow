@@ -20,5 +20,3 @@ class AutomationNodeDict(TypedDict):
     parent_node_id: int
     previous_node_id: int
     previous_node_output: str
-
-    

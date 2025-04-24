@@ -4,18 +4,21 @@ from typing import List
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
+from baserow.contrib.automation.action.scopes import (
+    NodeActionScopeType,
+    WorkflowActionScopeType,
+)
 from baserow.contrib.automation.actions import AUTOMATION_ACTION_CONTEXT
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
 from baserow.core.trash.handler import TrashHandler
-from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
-from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-from baserow.contrib.automation.action.scopes import NodeActionScopeType, WorkflowActionScopeType
-from baserow.contrib.automation.nodes.node_types import AutomationNodeType
-from baserow.contrib.automation.workflows.models import AutomationWorkflow
 
 
 class CreateAutomationNodeActionType(UndoableActionType):
@@ -40,9 +43,7 @@ class CreateAutomationNodeActionType(UndoableActionType):
         workflow: AutomationWorkflow,
         data: dict,
     ) -> AutomationNode:
-        node = AutomationNodeService().create_node(
-            user, node_type, workflow, **data
-        )
+        node = AutomationNodeService().create_node(user, node_type, workflow, **data)
 
         cls.register_action(
             user=user,
@@ -106,9 +107,7 @@ class UpdateAutomationNodeActionType(UndoableActionType):
         node_id: int,
         new_data: dict,
     ) -> AutomationNode:
-        updated_node = AutomationNodeService().update_node(
-            user, node_id, **new_data
-        )
+        updated_node = AutomationNodeService().update_node(user, node_id, **new_data)
 
         cls.register_action(
             user=user,
@@ -155,7 +154,7 @@ class DeleteAutomationNodeActionType(UndoableActionType):
     type = "delete_automation_node"
     description = ActionTypeDescription(
         _("Delete automation node"),
-        _('Node (%(node_id)s) deleted'),
+        _("Node (%(node_id)s) deleted"),
         AUTOMATION_ACTION_CONTEXT,
     )
 
@@ -270,7 +269,6 @@ class OrderAutomationNodesActionType(UndoableActionType):
             AutomationWorkflowHandler().get_workflow(params.workflow_id),
             order=params.nodes_order,
         )
-
 
 
 class DuplicateAutomationNodeActionType(UndoableActionType):

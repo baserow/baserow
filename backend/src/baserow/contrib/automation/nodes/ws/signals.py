@@ -4,7 +4,20 @@ from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.dispatch import receiver
 
+from baserow.contrib.automation.api.nodes.serializers import AutomationNodeSerializer
 from baserow.contrib.automation.models import AutomationWorkflow
+from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.object_scopes import AutomationNodeObjectScopeType
+from baserow.contrib.automation.nodes.operations import (
+    ListAutomationNodeOperationType,
+    ReadAutomationNodeOperationType,
+)
+from baserow.contrib.automation.nodes.signals import (
+    automation_node_created,
+    automation_node_deleted,
+    automation_node_updated,
+    automation_nodes_reordered,
+)
 from baserow.contrib.automation.workflows.object_scopes import (
     AutomationWorkflowObjectScopeType,
 )
@@ -12,25 +25,8 @@ from baserow.core.utils import generate_hash
 from baserow.ws.tasks import broadcast_to_group, broadcast_to_permitted_users
 
 
-from baserow.contrib.automation.nodes.signals import (
-    automation_node_created,
-    automation_node_updated,
-    automation_node_deleted,
-    automation_nodes_reordered,
-)
-from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.nodes.operations import (
-    ReadAutomationNodeOperationType,
-    ListAutomationNodeOperationType,
-)
-from baserow.contrib.automation.nodes.object_scopes import AutomationNodeObjectScopeType
-from baserow.contrib.automation.api.nodes.serializers import AutomationNodeSerializer
-from baserow.contrib.automation.workflows.object_scopes import AutomationWorkflowObjectScopeType
-
 @receiver(automation_node_created)
-def node_created(
-    sender, node: AutomationNode, user: AbstractUser, **kwargs
-):
+def node_created(sender, node: AutomationNode, user: AbstractUser, **kwargs):
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
             node.workflow.automation.workspace_id,
@@ -67,9 +63,7 @@ def node_deleted(
 
 
 @receiver(automation_node_updated)
-def node_updated(
-    sender, node: AutomationNode, user: AbstractUser, **kwargs
-):
+def node_updated(sender, node: AutomationNode, user: AbstractUser, **kwargs):
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
             node.workflow.automation.workspace_id,

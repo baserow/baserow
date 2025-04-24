@@ -1,7 +1,9 @@
 from abc import ABC
 
-from baserow.contrib.automation.workflows.operations import AutomationWorkflowOperationType
 from baserow.contrib.automation.operations import AutomationOperationType
+from baserow.contrib.automation.workflows.operations import (
+    AutomationWorkflowOperationType,
+)
 
 
 class AutomationNodeOperationType(AutomationOperationType, ABC):

@@ -31,7 +31,7 @@ class DispatchTypes(str, Enum):
     DISPATCH_WORKFLOW_ACTION = "dispatch-action"
     # A `ServiceType` which is used by a `DataSource`.
     DISPATCH_DATA_SOURCE = "dispatch-data-source"
-    
+
     # A `ServiceType` which is used by a `AutomationNode`.
     DISPATCH_TRIGGER = "dispatch-trigger"
 
@@ -361,8 +361,7 @@ class ServiceType(
         return property_name
 
 
-class TriggerServiceTypeMixin():
-
+class TriggerServiceTypeMixin:
     service_type = DispatchTypes.DISPATCH_TRIGGER
 
 
