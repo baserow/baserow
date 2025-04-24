@@ -23,7 +23,6 @@ import {
   VueFlow,
   useVueFlow,
 } from '@baserow/modules/automation/components/workflow/@vue-flow/core'
-import '@baserow/modules/automation/components/workflow/vue-flow-styles.css'
 
 export default {
   name: 'AutomationWorkflow',
