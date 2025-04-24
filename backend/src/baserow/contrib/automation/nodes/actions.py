@@ -176,7 +176,7 @@ class DeleteAutomationNodeActionType(UndoableActionType):
                 automation.name,
                 node_id,
             ),
-            scope=cls.scope(automation.id),
+            scope=cls.scope(node_id),
             workspace=automation.workspace,
         )
 
@@ -194,7 +194,7 @@ class DeleteAutomationNodeActionType(UndoableActionType):
         TrashHandler.restore_item(
             user,
             AutomationNodeTrashableItemType.type,
-            params.workflow_id,
+            params.node_id,
         )
 
     @classmethod
@@ -204,7 +204,7 @@ class DeleteAutomationNodeActionType(UndoableActionType):
         params: Params,
         action_to_redo: Action,
     ):
-        AutomationNodeService().delete_node(user, params.workflow_id)
+        AutomationNodeService().delete_node(user, params.node_id)
 
 
 class OrderAutomationNodesActionType(UndoableActionType):
