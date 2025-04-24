@@ -23,7 +23,7 @@ export default {
     },
     connectable: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     isValidSourcePos: Function,
     data: {

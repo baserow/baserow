@@ -8,7 +8,22 @@
           :edges="edges"
           class="basic-flow"
           :zoom-on-scroll="false"
+          :nodes-draggable="nodesDraggable"
+          :zoom-on-drag="zoomOnScroll"
+          :pan-on-scroll="true"
         >
+          <template #node-baserow="slotProps">
+            <BaserowNode
+              :id="slotProps.id"
+              :type="slotProps.type"
+              :data="slotProps.data"
+              :label="slotProps.label"
+              :selected="slotProps.selected"
+              :dragging="slotProps.dragging"
+              :connectable="slotProps.connectable"
+              :position="slotProps.position"
+            />
+          </template>
         </VueFlow>
       </client-only>
     </div>
@@ -17,6 +32,8 @@
 
 <script>
 import AutomationHeader from '@baserow/modules/automation/components/AutomationHeader'
+import BaserowNode from '@baserow/modules/automation/components/workflow/BaserowNode.vue'
+
 import { ref } from 'vue'
 import { initialEdges, initialNodes } from './initial-elements.js'
 import {
@@ -26,7 +43,7 @@ import {
 
 export default {
   name: 'AutomationWorkflow',
-  components: { AutomationHeader, VueFlow },
+  components: { AutomationHeader, VueFlow, BaserowNode },
   provide() {
     return {
       workspace: this.workspace,
@@ -36,28 +53,26 @@ export default {
   },
   layout: 'app',
   setup() {
-    const { onInit, onNodeDragStop, onConnect, addEdges } = useVueFlow()
+    const { onInit, onConnect, addEdges } = useVueFlow()
 
     const nodes = ref(initialNodes)
     const edges = ref(initialEdges)
+    const nodesDraggable = ref(false)
+    const zoomOnScroll = ref(false)
 
     onInit((vueFlowInstance) => {
-      // instance is the same as the return of `useVueFlow`
-      vueFlowInstance.fitView()
-    })
-
-    onNodeDragStop(({ event, nodes, node }) => {
-      console.log('Node Drag Stop', { event, nodes, node })
+      vueFlowInstance.fitView({ maxZoom: 1, minZoom: 1 })
     })
 
     onConnect((connection) => {
       addEdges(connection)
     })
 
-    // Retourner nodes et edges pour les rendre accessibles au template
     return {
       nodes,
       edges,
+      nodesDraggable,
+      zoomOnScroll,
     }
   },
   async asyncData({ store, params, error, $registry }) {

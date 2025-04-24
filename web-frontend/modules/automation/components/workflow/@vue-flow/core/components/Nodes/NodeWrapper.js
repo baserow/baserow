@@ -303,6 +303,24 @@ const NodeWrapper = defineComponent({
         return null
       }
 
+      // Noter le changement ici pour Vue 2.7 - comment nous gérons les slots
+      // Modification pour Vue 2.7 des slots nommés
+      const nodeData = {
+        id: node.id,
+        type: node.type,
+        data: node.data,
+        selected: node.selected,
+        dragging: dragging?.value,
+        connectable: isConnectable.value,
+        position: node.computedPosition,
+        dimensions: node.dimensions,
+        isValidTargetPos: node.isValidTargetPos,
+        isValidSourcePos: node.isValidSourcePos,
+        targetPosition: node.targetPosition,
+        sourcePosition: node.sourcePosition,
+        label: node.label || '',
+      }
+
       return h(
         'div',
         {
@@ -349,28 +367,17 @@ const NodeWrapper = defineComponent({
           },
         },
         [
-          h(
-            nodeCmp.value === false
-              ? getNodeTypes.value.default
-              : nodeCmp.value,
-            {
-              props: {
-                id: node.id,
-                type: node.type,
-                data: node.data,
-                selected: node.selected,
-                dragging: dragging.value,
-                connectable: isConnectable.value,
-                position: node.computedPosition,
-                dimensions: node.dimensions,
-                isValidTargetPos: node.isValidTargetPos,
-                isValidSourcePos: node.isValidSourcePos,
-                targetPosition: node.targetPosition,
-                sourcePosition: node.sourcePosition,
-                label: node.label || '',
-              },
-            }
-          ),
+          // Vérifier si nous avons un slot pour ce type de nœud
+          slots?.[`node-${node.type || 'default'}`]
+            ? slots[`node-${node.type || 'default'}`](nodeData)
+            : h(
+                nodeCmp.value === false
+                  ? getNodeTypes.value.default
+                  : nodeCmp.value,
+                {
+                  props: nodeData,
+                }
+              ),
         ]
       )
     }
