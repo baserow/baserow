@@ -14,6 +14,7 @@ from baserow.core.trash.handler import TrashHandler
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.automation.action.scopes import NodeActionScopeType
 
 
 class UpdateAutomationNodeActionType(UndoableActionType):
@@ -42,6 +43,7 @@ class UpdateAutomationNodeActionType(UndoableActionType):
         updated_node = AutomationNodeService().update_node(
             user, node_id, **new_data
         )
+
         cls.register_action(
             user=user,
             params=cls.Params(
@@ -51,14 +53,14 @@ class UpdateAutomationNodeActionType(UndoableActionType):
                 updated_node.original_values,
                 updated_node.new_values,
             ),
-            scope=cls.scope(updated_node.node.workflow.automation.id),
+            scope=cls.scope(node_id),
             workspace=updated_node.node.workflow.automation.workspace,
         )
         return updated_node.node
 
     @classmethod
-    def scope(cls, automation_id):
-        return ApplicationActionScopeType.value(automation_id)
+    def scope(cls, node_id):
+        return NodeActionScopeType.value(node_id)
 
     @classmethod
     def undo(
@@ -113,8 +115,8 @@ class DeleteAutomationNodeActionType(UndoableActionType):
         )
 
     @classmethod
-    def scope(cls, automation_id):
-        return ApplicationActionScopeType.value(automation_id)
+    def scope(cls, node_id):
+        return NodeActionScopeType.value(node_id)
 
     @classmethod
     def undo(
@@ -174,8 +176,8 @@ class OrderAutomationNodesActionType(UndoableActionType):
         )
 
     @classmethod
-    def scope(cls, automation_id):
-        return ApplicationActionScopeType.value(automation_id)
+    def scope(cls, node_id):
+        return NodeActionScopeType.value(node_id)
 
     @classmethod
     def undo(
@@ -241,8 +243,8 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
         return node_clone
 
     @classmethod
-    def scope(cls, automation_id):
-        return ApplicationActionScopeType.value(automation_id)
+    def scope(cls, node_id):
+        return NodeActionScopeType.value(node_id)
 
     @classmethod
     def undo(

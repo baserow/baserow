@@ -46,6 +46,7 @@ class AutomationConfig(AppConfig):
             UpdateAutomationNodeActionType,
             DeleteAutomationNodeActionType,
             OrderAutomationNodesActionType,
+            DuplicateAutomationNodeActionType,
         )
         from baserow.contrib.automation.nodes.registries import automation_node_type_registry
         from baserow.contrib.automation.nodes.node_types import (
@@ -72,13 +73,14 @@ class AutomationConfig(AppConfig):
             LocalBaserowRowCreatedTriggerServiceType,
             LocalBaserowRowUpdatedTriggerServiceType,
         )
-        from baserow.core.action.registries import action_type_registry
+        from baserow.core.action.registries import action_type_registry, action_scope_registry
         from baserow.core.jobs.registries import job_type_registry
         from baserow.core.registries import (
             application_type_registry,
             object_scope_type_registry,
             operation_type_registry,
         )
+        from baserow.contrib.automation.action.scopes import NodeActionScopeType
         from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
 
@@ -119,6 +121,9 @@ class AutomationConfig(AppConfig):
             action_type_registry.register(UpdateAutomationNodeActionType())
             action_type_registry.register(DeleteAutomationNodeActionType())
             action_type_registry.register(OrderAutomationNodesActionType())
+            action_type_registry.register(DuplicateAutomationNodeActionType())
+
+            action_scope_registry.register(NodeActionScopeType())
 
             automation_node_type_registry.register(CreateRowNodeType())
             automation_node_type_registry.register(UpdateRowNodeType())

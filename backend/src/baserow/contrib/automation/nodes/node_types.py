@@ -43,6 +43,7 @@ class AutomationNodeServiceActionType(AutomationNodeType):
 
 class AutomationNodeServiceTriggerType(AutomationNodeType):
     service_type = None
+    request_serializer_field_names = []
     _allowed_fields = ["service", "workflow", "order"]
 
     class SerializedDict(AutomationNodeDict):
