@@ -2,6 +2,15 @@ import { getPrimaryOrFirstField } from '@baserow/modules/database/utils/field'
 import BigNumber from 'bignumber.js'
 
 export default {
+  data() {
+    return {
+      // If true, then the user must choose which values will be deleted. This only
+      // happens if field.link_row_multiple_relationships == false, meaning that only
+      // one relationship can persist.
+      removingRelationships: false,
+      removingRelationShipIds: [],
+    }
+  },
   computed: {
     /**
      * Returns the value of the field that can be used when creating a new row
@@ -37,12 +46,53 @@ export default {
         ),
       }
     },
+    visibleValues() {
+      if (this.removingRelationships) {
+        return this.value.filter(
+          (v) => !this.removingRelationShipIds.includes(v.id)
+        )
+      } else {
+        return this.value
+      }
+    },
+    canAddValue() {
+      return (
+        this.field.link_row_multiple_relationships ||
+        (Array.isArray(this.value) && this.value.length < 1)
+      )
+    },
   },
   methods: {
     /**
      * Removes an existing relation from the value.
      */
     removeValue(event, value, id) {
+      // If the cell is in delete relationships mode, then the newly deleted
+      // relationship must be added to the list of to be deleted items.
+      if (this.removingRelationships) {
+        this.removingRelationShipIds.push(id)
+        // The backend only accepts one value in that case, so if one is left, then
+        // the value is actually updated.
+        if (this.removingRelationShipIds.length + 1 === value.length) {
+          const newValue = JSON.parse(JSON.stringify(value)).filter(
+            (v) => !this.removingRelationShipIds.includes(v.id)
+          )
+          this.removingRelationships = false
+          this.removingRelationShipIds = []
+          this.$emit('update', newValue, value)
+        }
+        return
+      }
+
+      // If it's not allowed to have multiple relationships, then the backend will
+      // accept only one value during update. Because it will otherwise fail, the cell
+      // is put in a mode where the user must delete all relationships except one.
+      if (!this.field.link_row_multiple_relationships && value.length > 2) {
+        this.removingRelationships = true
+        this.removingRelationShipIds = [id]
+        return
+      }
+
       const newValue = JSON.parse(JSON.stringify(value))
       const index = newValue.findIndex((item) => item.id === id)
       if (index === -1) {

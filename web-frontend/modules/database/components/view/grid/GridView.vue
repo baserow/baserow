@@ -701,7 +701,18 @@ export default {
     },
     duplicateSelectedRow(event, selectedRow) {
       event.preventFieldCellUnselect = true
-      this.addRowAfter(selectedRow, selectedRow)
+      const duplicatedRow = clone(selectedRow)
+      this.fields.forEach((field) => {
+        const fieldType = this.$registry.get('field', field.type)
+        const fieldKey = `field_${field.id}`
+        if (Object.prototype.hasOwnProperty.call(duplicatedRow, fieldKey)) {
+          duplicatedRow[fieldKey] = fieldType.prepareValueForDuplicate(
+            field,
+            duplicatedRow[fieldKey]
+          )
+        }
+      })
+      this.addRowAfter(selectedRow, duplicatedRow)
       this.$refs.rowContext.hide()
     },
     copyLinkToSelectedRow(event, selectedRow) {
