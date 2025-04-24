@@ -1,0 +1,1030 @@
+import { zoomIdentity } from 'd3-zoom'
+import { until } from '@vueuse/core'
+import { useViewportHelper } from '../composables'
+import {
+  applyChanges,
+  clamp,
+  createAdditionChange,
+  createEdgeRemoveChange,
+  createGraphEdges,
+  createGraphNodes,
+  createNodeRemoveChange,
+  createSelectionChange,
+  getConnectedEdges as getConnectedEdgesBase,
+  getDimensions,
+  getHandleBounds,
+  getIncomers as getIncomersBase,
+  getOutgoers as getOutgoersBase,
+  getOverlappingArea,
+  getSelectionChanges,
+  isDef,
+  isEdge,
+  isGraphNode,
+  isNode,
+  isRect,
+  nodeToRect,
+  updateConnectionLookup,
+  updateEdgeAction,
+} from '../utils'
+import { storeOptionsToSkip, useState } from './state'
+
+export function useActions(state, nodeLookup, edgeLookup) {
+  const viewportHelper = useViewportHelper(state)
+
+  const updateNodeInternals = (ids) => {
+    const updateIds = ids ?? []
+
+    state.hooks.updateNodeInternals.trigger(updateIds)
+  }
+
+  const getIncomers = (nodeOrId) => {
+    return getIncomersBase(nodeOrId, state.nodes, state.edges)
+  }
+
+  const getOutgoers = (nodeOrId) => {
+    return getOutgoersBase(nodeOrId, state.nodes, state.edges)
+  }
+
+  const getConnectedEdges = (nodesOrId) => {
+    return getConnectedEdgesBase(nodesOrId, state.edges)
+  }
+
+  const getHandleConnections = ({ id, type, nodeId }) => {
+    return Array.from(
+      state.connectionLookup.get(`${nodeId}-${type}-${id ?? null}`)?.values() ??
+        []
+    )
+  }
+
+  const findNode = (id) => {
+    if (!id) {
+      return
+    }
+
+    return nodeLookup.value.get(id)
+  }
+
+  const findEdge = (id) => {
+    if (!id) {
+      return
+    }
+
+    return edgeLookup.value.get(id)
+  }
+
+  const updateNodePositions = (dragItems, changed, dragging) => {
+    const changes = []
+
+    for (const node of dragItems) {
+      const change = {
+        id: node.id,
+        type: 'position',
+        dragging,
+        from: node.from,
+      }
+
+      if (changed) {
+        change.position = node.position
+
+        if (node.parentNode) {
+          const parentNode = findNode(node.parentNode)
+
+          change.position = {
+            x: change.position.x - (parentNode?.computedPosition?.x ?? 0),
+            y: change.position.y - (parentNode?.computedPosition?.y ?? 0),
+          }
+        }
+      }
+
+      changes.push(change)
+    }
+
+    if (changes?.length) {
+      state.hooks.nodesChange.trigger(changes)
+    }
+  }
+
+  const updateNodeDimensions = (updates) => {
+    if (!state.vueFlowRef) {
+      return
+    }
+
+    const viewportNode = state.vueFlowRef.querySelector(
+      '.vue-flow__transformationpane'
+    )
+
+    if (!viewportNode) {
+      return
+    }
+
+    const style = window.getComputedStyle(viewportNode)
+    const { m22: zoom } = new window.DOMMatrixReadOnly(style.transform)
+
+    const changes = []
+
+    for (let i = 0; i < updates.length; ++i) {
+      const update = updates[i]
+
+      const node = findNode(update.id)
+
+      if (node) {
+        const dimensions = getDimensions(update.nodeElement)
+
+        const doUpdate = !!(
+          dimensions.width &&
+          dimensions.height &&
+          (node.dimensions.width !== dimensions.width ||
+            node.dimensions.height !== dimensions.height ||
+            update.forceUpdate)
+        )
+
+        if (doUpdate) {
+          const nodeBounds = update.nodeElement.getBoundingClientRect()
+          node.dimensions = dimensions
+          node.handleBounds.source = getHandleBounds(
+            'source',
+            update.nodeElement,
+            nodeBounds,
+            zoom
+          )
+          node.handleBounds.target = getHandleBounds(
+            'target',
+            update.nodeElement,
+            nodeBounds,
+            zoom
+          )
+
+          changes.push({
+            id: node.id,
+            type: 'dimensions',
+            dimensions,
+          })
+        }
+      }
+    }
+
+    if (!state.fitViewOnInitDone && state.fitViewOnInit) {
+      viewportHelper.value.fitView().then(() => {
+        state.fitViewOnInitDone = true
+      })
+    }
+
+    if (changes.length) {
+      state.hooks.nodesChange.trigger(changes)
+    }
+  }
+
+  const elementSelectionHandler = (elements, selected) => {
+    const nodeIds = new Set()
+    const edgeIds = new Set()
+
+    for (const element of elements) {
+      if (isNode(element)) {
+        nodeIds.add(element.id)
+      } else if (isEdge(element)) {
+        edgeIds.add(element.id)
+      }
+    }
+
+    const changedNodes = getSelectionChanges(nodeLookup.value, nodeIds, true)
+    const changedEdges = getSelectionChanges(edgeLookup.value, edgeIds)
+
+    if (state.multiSelectionActive) {
+      for (const nodeId of nodeIds) {
+        changedNodes.push(createSelectionChange(nodeId, selected))
+      }
+
+      for (const edgeId of edgeIds) {
+        changedEdges.push(createSelectionChange(edgeId, selected))
+      }
+    }
+
+    if (changedNodes.length) {
+      state.hooks.nodesChange.trigger(changedNodes)
+    }
+
+    if (changedEdges.length) {
+      state.hooks.edgesChange.trigger(changedEdges)
+    }
+  }
+
+  const addSelectedNodes = (nodes) => {
+    if (state.multiSelectionActive) {
+      const nodeChanges = nodes.map((node) =>
+        createSelectionChange(node.id, true)
+      )
+      state.hooks.nodesChange.trigger(nodeChanges)
+      return
+    }
+
+    state.hooks.nodesChange.trigger(
+      getSelectionChanges(
+        nodeLookup.value,
+        new Set(nodes.map((n) => n.id)),
+        true
+      )
+    )
+    state.hooks.edgesChange.trigger(getSelectionChanges(edgeLookup.value))
+  }
+
+  const addSelectedEdges = (edges) => {
+    if (state.multiSelectionActive) {
+      const changedEdges = edges.map((edge) =>
+        createSelectionChange(edge.id, true)
+      )
+      state.hooks.edgesChange.trigger(changedEdges)
+      return
+    }
+
+    state.hooks.edgesChange.trigger(
+      getSelectionChanges(edgeLookup.value, new Set(edges.map((e) => e.id)))
+    )
+    state.hooks.nodesChange.trigger(
+      getSelectionChanges(nodeLookup.value, new Set(), true)
+    )
+  }
+
+  const addSelectedElements = (elements) => {
+    elementSelectionHandler(elements, true)
+  }
+
+  const removeSelectedNodes = (nodes) => {
+    const nodesToUnselect = nodes || state.nodes
+
+    const nodeChanges = nodesToUnselect.map((n) => {
+      n.selected = false
+      return createSelectionChange(n.id, false)
+    })
+
+    state.hooks.nodesChange.trigger(nodeChanges)
+  }
+
+  const removeSelectedEdges = (edges) => {
+    const edgesToUnselect = edges || state.edges
+
+    const edgeChanges = edgesToUnselect.map((e) => {
+      e.selected = false
+      return createSelectionChange(e.id, false)
+    })
+
+    state.hooks.edgesChange.trigger(edgeChanges)
+  }
+
+  const removeSelectedElements = (elements) => {
+    if (!elements || !elements.length) {
+      return elementSelectionHandler([], false)
+    }
+
+    const changes = elements.reduce(
+      (changes, curr) => {
+        const selectionChange = createSelectionChange(curr.id, false)
+
+        if (isNode(curr)) {
+          changes.nodes.push(selectionChange)
+        } else {
+          changes.edges.push(selectionChange)
+        }
+
+        return changes
+      },
+      { nodes: [], edges: [] }
+    )
+
+    if (changes.nodes.length) {
+      state.hooks.nodesChange.trigger(changes.nodes)
+    }
+
+    if (changes.edges.length) {
+      state.hooks.edgesChange.trigger(changes.edges)
+    }
+  }
+
+  const setMinZoom = (minZoom) => {
+    state.d3Zoom?.scaleExtent([minZoom, state.maxZoom])
+    state.minZoom = minZoom
+  }
+
+  const setMaxZoom = (maxZoom) => {
+    state.d3Zoom?.scaleExtent([state.minZoom, maxZoom])
+    state.maxZoom = maxZoom
+  }
+
+  const setTranslateExtent = (translateExtent) => {
+    state.d3Zoom?.translateExtent(translateExtent)
+    state.translateExtent = translateExtent
+  }
+
+  const setNodeExtent = (nodeExtent) => {
+    state.nodeExtent = nodeExtent
+    updateNodeInternals()
+  }
+
+  const setPaneClickDistance = (clickDistance) => {
+    state.d3Zoom?.clickDistance(clickDistance)
+  }
+
+  const setInteractive = (isInteractive) => {
+    state.nodesDraggable = isInteractive
+    state.nodesConnectable = isInteractive
+    state.elementsSelectable = isInteractive
+  }
+
+  const setNodes = (nodes) => {
+    const nextNodes = nodes instanceof Function ? nodes(state.nodes) : nodes
+
+    if (!state.initialized && !nextNodes.length) {
+      return
+    }
+
+    state.nodes = createGraphNodes(
+      nextNodes,
+      findNode,
+      state.hooks.error.trigger
+    )
+  }
+
+  const setEdges = (edges) => {
+    const nextEdges = edges instanceof Function ? edges(state.edges) : edges
+
+    if (!state.initialized && !nextEdges.length) {
+      return
+    }
+
+    const validEdges = createGraphEdges(
+      nextEdges,
+      state.isValidConnection,
+      findNode,
+      findEdge,
+      state.hooks.error.trigger,
+      state.defaultEdgeOptions,
+      state.nodes,
+      state.edges
+    )
+
+    updateConnectionLookup(state.connectionLookup, edgeLookup.value, validEdges)
+
+    state.edges = validEdges
+  }
+
+  const setElements = (elements) => {
+    const nextElements =
+      elements instanceof Function
+        ? elements([...state.nodes, ...state.edges])
+        : elements
+
+    if (!state.initialized && !nextElements.length) {
+      return
+    }
+
+    setNodes(nextElements.filter(isNode))
+    setEdges(nextElements.filter(isEdge))
+  }
+
+  const addNodes = (nodes) => {
+    let nextNodes = nodes instanceof Function ? nodes(state.nodes) : nodes
+    nextNodes = Array.isArray(nextNodes) ? nextNodes : [nextNodes]
+
+    const graphNodes = createGraphNodes(
+      nextNodes,
+      findNode,
+      state.hooks.error.trigger
+    )
+
+    const changes = []
+    for (const node of graphNodes) {
+      changes.push(createAdditionChange(node))
+    }
+
+    if (changes.length) {
+      state.hooks.nodesChange.trigger(changes)
+    }
+  }
+
+  const addEdges = (params) => {
+    let nextEdges = params instanceof Function ? params(state.edges) : params
+    nextEdges = Array.isArray(nextEdges) ? nextEdges : [nextEdges]
+
+    const validEdges = createGraphEdges(
+      nextEdges,
+      state.isValidConnection,
+      findNode,
+      findEdge,
+      state.hooks.error.trigger,
+      state.defaultEdgeOptions,
+      state.nodes,
+      state.edges
+    )
+
+    const changes = []
+    for (const edge of validEdges) {
+      changes.push(createAdditionChange(edge))
+    }
+
+    if (changes.length) {
+      state.hooks.edgesChange.trigger(changes)
+    }
+  }
+
+  const removeNodes = (
+    nodes,
+    removeConnectedEdges = true,
+    removeChildren = false
+  ) => {
+    const nextNodes = nodes instanceof Function ? nodes(state.nodes) : nodes
+    const nodesToRemove = Array.isArray(nextNodes) ? nextNodes : [nextNodes]
+
+    const nodeChanges = []
+    const edgeChanges = []
+
+    function createEdgeRemovalChanges(nodes) {
+      const connectedEdges = getConnectedEdges(nodes)
+      for (const edge of connectedEdges) {
+        if (isDef(edge.deletable) ? edge.deletable : true) {
+          edgeChanges.push(
+            createEdgeRemoveChange(
+              edge.id,
+              edge.source,
+              edge.target,
+              edge.sourceHandle,
+              edge.targetHandle
+            )
+          )
+        }
+      }
+    }
+
+    // recursively get all children and if the child is a parent, get those children as well until all nodes have been removed that are children of the current node
+    function createChildrenRemovalChanges(id) {
+      const children = []
+      for (const node of state.nodes) {
+        if (node.parentNode === id) {
+          children.push(node)
+        }
+      }
+
+      if (children.length) {
+        for (const child of children) {
+          nodeChanges.push(createNodeRemoveChange(child.id))
+        }
+
+        if (removeConnectedEdges) {
+          createEdgeRemovalChanges(children)
+        }
+
+        for (const child of children) {
+          createChildrenRemovalChanges(child.id)
+        }
+      }
+    }
+
+    for (const item of nodesToRemove) {
+      const currNode = typeof item === 'string' ? findNode(item) : item
+
+      if (!currNode) {
+        continue
+      }
+
+      if (isDef(currNode.deletable) && !currNode.deletable) {
+        continue
+      }
+
+      nodeChanges.push(createNodeRemoveChange(currNode.id))
+
+      if (removeConnectedEdges) {
+        createEdgeRemovalChanges([currNode])
+      }
+
+      if (removeChildren) {
+        createChildrenRemovalChanges(currNode.id)
+      }
+    }
+
+    if (edgeChanges.length) {
+      state.hooks.edgesChange.trigger(edgeChanges)
+    }
+
+    if (nodeChanges.length) {
+      state.hooks.nodesChange.trigger(nodeChanges)
+    }
+  }
+
+  const removeEdges = (edges) => {
+    const nextEdges = edges instanceof Function ? edges(state.edges) : edges
+    const edgesToRemove = Array.isArray(nextEdges) ? nextEdges : [nextEdges]
+
+    const changes = []
+
+    for (const item of edgesToRemove) {
+      const currEdge = typeof item === 'string' ? findEdge(item) : item
+
+      if (!currEdge) {
+        continue
+      }
+
+      if (isDef(currEdge.deletable) && !currEdge.deletable) {
+        continue
+      }
+
+      changes.push(
+        createEdgeRemoveChange(
+          typeof item === 'string' ? item : item.id,
+          currEdge.source,
+          currEdge.target,
+          currEdge.sourceHandle,
+          currEdge.targetHandle
+        )
+      )
+    }
+
+    state.hooks.edgesChange.trigger(changes)
+  }
+
+  const updateEdge = (oldEdge, newConnection, shouldReplaceId = true) => {
+    const prevEdge = findEdge(oldEdge.id)
+
+    if (!prevEdge) {
+      return false
+    }
+
+    const prevEdgeIndex = state.edges.indexOf(prevEdge)
+
+    const newEdge = updateEdgeAction(
+      oldEdge,
+      newConnection,
+      prevEdge,
+      shouldReplaceId,
+      state.hooks.error.trigger
+    )
+
+    if (newEdge) {
+      const [validEdge] = createGraphEdges(
+        [newEdge],
+        state.isValidConnection,
+        findNode,
+        findEdge,
+        state.hooks.error.trigger,
+        state.defaultEdgeOptions,
+        state.nodes,
+        state.edges
+      )
+
+      state.edges = state.edges.map((edge, index) =>
+        index === prevEdgeIndex ? validEdge : edge
+      )
+
+      updateConnectionLookup(state.connectionLookup, edgeLookup.value, [
+        validEdge,
+      ])
+
+      return validEdge
+    }
+
+    return false
+  }
+
+  const updateEdgeData = (id, dataUpdate, options = { replace: false }) => {
+    const edge = findEdge(id)
+
+    if (!edge) {
+      return
+    }
+
+    const nextData =
+      typeof dataUpdate === 'function' ? dataUpdate(edge) : dataUpdate
+
+    edge.data = options.replace ? nextData : { ...edge.data, ...nextData }
+  }
+
+  const applyNodeChanges = (changes) => {
+    return applyChanges(changes, state.nodes)
+  }
+
+  const applyEdgeChanges = (changes) => {
+    const changedEdges = applyChanges(changes, state.edges)
+
+    updateConnectionLookup(
+      state.connectionLookup,
+      edgeLookup.value,
+      changedEdges
+    )
+
+    return changedEdges
+  }
+
+  // todo: maybe we should use a more immutable approach, this is a bit too much mutation and hard to maintain
+  const updateNode = (id, nodeUpdate, options = { replace: false }) => {
+    const node = findNode(id)
+
+    if (!node) {
+      return
+    }
+
+    const nextNode =
+      typeof nodeUpdate === 'function' ? nodeUpdate(node) : nodeUpdate
+
+    if (options.replace) {
+      state.nodes.splice(state.nodes.indexOf(node), 1, nextNode)
+    } else {
+      Object.assign(node, nextNode)
+    }
+  }
+
+  const updateNodeData = (id, dataUpdate, options = { replace: false }) => {
+    const node = findNode(id)
+
+    if (!node) {
+      return
+    }
+
+    const nextData =
+      typeof dataUpdate === 'function' ? dataUpdate(node) : dataUpdate
+
+    node.data = options.replace ? nextData : { ...node.data, ...nextData }
+  }
+
+  const startConnection = (startHandle, position, isClick = false) => {
+    if (isClick) {
+      state.connectionClickStartHandle = startHandle
+    } else {
+      state.connectionStartHandle = startHandle
+    }
+
+    state.connectionEndHandle = null
+    state.connectionStatus = null
+
+    if (position) {
+      state.connectionPosition = position
+    }
+  }
+
+  const updateConnection = (position, result = null, status = null) => {
+    if (state.connectionStartHandle) {
+      state.connectionPosition = position
+      state.connectionEndHandle = result
+      state.connectionStatus = status
+    }
+  }
+
+  const endConnection = (event, isClick) => {
+    state.connectionPosition = { x: Number.NaN, y: Number.NaN }
+    state.connectionEndHandle = null
+    state.connectionStatus = null
+
+    if (isClick) {
+      state.connectionClickStartHandle = null
+    } else {
+      state.connectionStartHandle = null
+    }
+  }
+
+  const getNodeRect = (nodeOrRect) => {
+    const isRectObj = isRect(nodeOrRect)
+    const node = isRectObj
+      ? null
+      : isGraphNode(nodeOrRect)
+      ? nodeOrRect
+      : findNode(nodeOrRect.id)
+
+    if (!isRectObj && !node) {
+      return [null, null, isRectObj]
+    }
+
+    const nodeRect = isRectObj ? nodeOrRect : nodeToRect(node)
+
+    return [nodeRect, node, isRectObj]
+  }
+
+  const getIntersectingNodes = (
+    nodeOrRect,
+    partially = true,
+    nodes = state.nodes
+  ) => {
+    const [nodeRect, node, isRect] = getNodeRect(nodeOrRect)
+
+    if (!nodeRect) {
+      return []
+    }
+
+    const intersections = []
+    for (const n of nodes || state.nodes) {
+      if (!isRect && (n.id === node.id || !n.computedPosition)) {
+        continue
+      }
+
+      const currNodeRect = nodeToRect(n)
+      const overlappingArea = getOverlappingArea(currNodeRect, nodeRect)
+      const partiallyVisible = partially && overlappingArea > 0
+
+      if (
+        partiallyVisible ||
+        overlappingArea >= Number(nodeRect.width) * Number(nodeRect.height)
+      ) {
+        intersections.push(n)
+      }
+    }
+
+    return intersections
+  }
+
+  const isNodeIntersecting = (nodeOrRect, area, partially = true) => {
+    const [nodeRect] = getNodeRect(nodeOrRect)
+
+    if (!nodeRect) {
+      return false
+    }
+
+    const overlappingArea = getOverlappingArea(nodeRect, area)
+    const partiallyVisible = partially && overlappingArea > 0
+
+    return (
+      partiallyVisible ||
+      overlappingArea >= Number(nodeRect.width) * Number(nodeRect.height)
+    )
+  }
+
+  const panBy = (delta) => {
+    const { viewport, dimensions, d3Zoom, d3Selection, translateExtent } = state
+
+    if (!d3Zoom || !d3Selection || (!delta.x && !delta.y)) {
+      return false
+    }
+
+    const nextTransform = zoomIdentity
+      .translate(viewport.x + delta.x, viewport.y + delta.y)
+      .scale(viewport.zoom)
+
+    const extent = [
+      [0, 0],
+      [dimensions.width, dimensions.height],
+    ]
+
+    const constrainedTransform = d3Zoom.constrain()(
+      nextTransform,
+      extent,
+      translateExtent
+    )
+
+    const transformChanged =
+      state.viewport.x !== constrainedTransform.x ||
+      state.viewport.y !== constrainedTransform.y ||
+      state.viewport.zoom !== constrainedTransform.k
+
+    d3Zoom.transform(d3Selection, constrainedTransform)
+
+    return transformChanged
+  }
+
+  const setState = (options) => {
+    const opts = options instanceof Function ? options(state) : options
+
+    // these options cannot be set after initialization
+    const exclude = [
+      'd3Zoom',
+      'd3Selection',
+      'd3ZoomHandler',
+      'viewportRef',
+      'vueFlowRef',
+      'dimensions',
+      'hooks',
+    ]
+
+    // we need to set the default opts before setting any elements so the options are applied to the elements on first render
+    if (isDef(opts.defaultEdgeOptions)) {
+      state.defaultEdgeOptions = opts.defaultEdgeOptions
+    }
+
+    const elements =
+      opts.modelValue || opts.nodes || opts.edges ? [] : undefined
+
+    if (elements) {
+      if (opts.modelValue) {
+        elements.push(...opts.modelValue)
+      }
+
+      if (opts.nodes) {
+        elements.push(...opts.nodes)
+      }
+
+      if (opts.edges) {
+        elements.push(...opts.edges)
+      }
+
+      setElements(elements)
+    }
+
+    const setSkippedOptions = () => {
+      if (isDef(opts.maxZoom)) {
+        setMaxZoom(opts.maxZoom)
+      }
+      if (isDef(opts.minZoom)) {
+        setMinZoom(opts.minZoom)
+      }
+      if (isDef(opts.translateExtent)) {
+        setTranslateExtent(opts.translateExtent)
+      }
+    }
+
+    for (const o of Object.keys(opts)) {
+      const key = o
+      const option = opts[key]
+
+      if (![...storeOptionsToSkip, ...exclude].includes(key) && isDef(option)) {
+        state[key] = option
+      }
+    }
+
+    until(() => state.d3Zoom)
+      .not.toBeNull()
+      .then(setSkippedOptions)
+
+    if (!state.initialized) {
+      state.initialized = true
+    }
+  }
+
+  const toObject = () => {
+    const nodes = []
+    const edges = []
+
+    for (const node of state.nodes) {
+      const {
+        computedPosition: _,
+        handleBounds: __,
+        selected: ___,
+        dimensions: ____,
+        isParent: _____,
+        resizing: ______,
+        dragging: _______,
+        events: _________,
+        ...rest
+      } = node
+
+      nodes.push(rest)
+    }
+
+    for (const edge of state.edges) {
+      const {
+        selected: _,
+        sourceNode: __,
+        targetNode: ___,
+        events: ____,
+        ...rest
+      } = edge
+
+      edges.push(rest)
+    }
+
+    // we have to stringify/parse so objects containing refs (like nodes and edges) can potentially be saved in a storage
+    return JSON.parse(
+      JSON.stringify({
+        nodes,
+        edges,
+        position: [state.viewport.x, state.viewport.y],
+        zoom: state.viewport.zoom,
+        viewport: state.viewport,
+      })
+    )
+  }
+
+  const fromObject = (obj) => {
+    return new Promise((resolve) => {
+      const { nodes, edges, position, zoom, viewport } = obj
+
+      if (nodes) {
+        setNodes(nodes)
+      }
+
+      if (edges) {
+        setEdges(edges)
+      }
+
+      if ((viewport?.x && viewport?.y) || position) {
+        const x = viewport?.x || position[0]
+        const y = viewport?.y || position[1]
+        const nextZoom = viewport?.zoom || zoom || state.viewport.zoom
+
+        return until(() => viewportHelper.value.viewportInitialized)
+          .toBe(true)
+          .then(() => {
+            viewportHelper.value
+              .setViewport({
+                x,
+                y,
+                zoom: nextZoom,
+              })
+              .then(() => {
+                resolve(true)
+              })
+          })
+      } else {
+        resolve(true)
+      }
+    })
+  }
+
+  const $reset = () => {
+    const resetState = useState()
+
+    state.edges = []
+    state.nodes = []
+
+    // reset the zoom state
+    if (state.d3Zoom && state.d3Selection) {
+      const updatedTransform = zoomIdentity
+        .translate(
+          resetState.defaultViewport.x ?? 0,
+          resetState.defaultViewport.y ?? 0
+        )
+        .scale(
+          clamp(
+            resetState.defaultViewport.zoom ?? 1,
+            resetState.minZoom,
+            resetState.maxZoom
+          )
+        )
+
+      const bbox = state.viewportRef.getBoundingClientRect()
+
+      const extent = [
+        [0, 0],
+        [bbox.width, bbox.height],
+      ]
+
+      const constrainedTransform = state.d3Zoom.constrain()(
+        updatedTransform,
+        extent,
+        resetState.translateExtent
+      )
+      state.d3Zoom.transform(state.d3Selection, constrainedTransform)
+    }
+
+    setState(resetState)
+  }
+
+  return {
+    updateNodePositions,
+    updateNodeDimensions,
+    setElements,
+    setNodes,
+    setEdges,
+    addNodes,
+    addEdges,
+    removeNodes,
+    removeEdges,
+    findNode,
+    findEdge,
+    updateEdge,
+    updateEdgeData,
+    updateNode,
+    updateNodeData,
+    applyEdgeChanges,
+    applyNodeChanges,
+    addSelectedElements,
+    addSelectedNodes,
+    addSelectedEdges,
+    setMinZoom,
+    setMaxZoom,
+    setTranslateExtent,
+    setNodeExtent,
+    setPaneClickDistance,
+    removeSelectedElements,
+    removeSelectedNodes,
+    removeSelectedEdges,
+    startConnection,
+    updateConnection,
+    endConnection,
+    setInteractive,
+    setState,
+    getIntersectingNodes,
+    getIncomers,
+    getOutgoers,
+    getConnectedEdges,
+    getHandleConnections,
+    isNodeIntersecting,
+    panBy,
+    fitView: (params) => viewportHelper.value.fitView(params),
+    zoomIn: (transitionOpts) => viewportHelper.value.zoomIn(transitionOpts),
+    zoomOut: (transitionOpts) => viewportHelper.value.zoomOut(transitionOpts),
+    zoomTo: (zoomLevel, transitionOpts) =>
+      viewportHelper.value.zoomTo(zoomLevel, transitionOpts),
+    setViewport: (params, transitionOpts) =>
+      viewportHelper.value.setViewport(params, transitionOpts),
+    setTransform: (params, transitionOpts) =>
+      viewportHelper.value.setTransform(params, transitionOpts),
+    getViewport: () => viewportHelper.value.getViewport(),
+    getTransform: () => viewportHelper.value.getTransform(),
+    setCenter: (x, y, opts) => viewportHelper.value.setCenter(x, y, opts),
+    fitBounds: (params, opts) => viewportHelper.value.fitBounds(params, opts),
+    project: (params) => viewportHelper.value.project(params),
+    screenToFlowCoordinate: (params) =>
+      viewportHelper.value.screenToFlowCoordinate(params),
+    flowToScreenCoordinate: (params) =>
+      viewportHelper.value.flowToScreenCoordinate(params),
+    toObject,
+    fromObject,
+    updateNodeInternals,
+    viewportHelper,
+    $reset,
+    $destroy: () => {},
+  }
+}

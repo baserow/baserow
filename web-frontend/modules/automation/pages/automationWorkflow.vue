@@ -2,19 +2,32 @@
   <div class="automation-app">
     <AutomationHeader :automation="automation" />
     <div class="layout__col-2-2 automation-app__content">
-      <div class="automation-app__content-header">
-        <div class="automation-app__title">{{ currentWorkflow.name }}</div>
-      </div>
+      <client-only>
+        <VueFlow
+          :nodes="nodes"
+          :edges="edges"
+          class="basic-flow"
+          :zoom-on-scroll="false"
+        >
+        </VueFlow>
+      </client-only>
     </div>
   </div>
 </template>
 
 <script>
 import AutomationHeader from '@baserow/modules/automation/components/AutomationHeader'
+import { ref } from 'vue'
+import { initialEdges, initialNodes } from './initial-elements.js'
+import {
+  VueFlow,
+  useVueFlow,
+} from '@baserow/modules/automation/components/workflow/@vue-flow/core'
+import '@baserow/modules/automation/components/workflow/vue-flow-styles.css'
 
 export default {
   name: 'AutomationWorkflow',
-  components: { AutomationHeader },
+  components: { AutomationHeader, VueFlow },
   provide() {
     return {
       workspace: this.workspace,
@@ -23,6 +36,31 @@ export default {
     }
   },
   layout: 'app',
+  setup() {
+    const { onInit, onNodeDragStop, onConnect, addEdges } = useVueFlow()
+
+    const nodes = ref(initialNodes)
+    const edges = ref(initialEdges)
+
+    onInit((vueFlowInstance) => {
+      // instance is the same as the return of `useVueFlow`
+      vueFlowInstance.fitView()
+    })
+
+    onNodeDragStop(({ event, nodes, node }) => {
+      console.log('Node Drag Stop', { event, nodes, node })
+    })
+
+    onConnect((connection) => {
+      addEdges(connection)
+    })
+
+    // Retourner nodes et edges pour les rendre accessibles au template
+    return {
+      nodes,
+      edges,
+    }
+  },
   async asyncData({ store, params, error, $registry }) {
     const automationId = parseInt(params.automationId)
     const workflowId = parseInt(params.workflowId)
