@@ -327,6 +327,7 @@ def test_rows_history_updated(mock_broadcast_channel_group, data_fixture):
                 "row_history_entry": {
                     "id": AnyInt(),
                     "action_type": "update_rows",
+                    "action_command_type": "DO",
                     "user": OrderedDict([("id", user.id), ("name", user.first_name)]),
                     "timestamp": "2023-03-30T00:00:00Z",
                     "before": {f"field_{field.id}": "row 1"},
@@ -348,6 +349,7 @@ def test_rows_history_updated(mock_broadcast_channel_group, data_fixture):
                 "row_history_entry": {
                     "id": AnyInt(),
                     "action_type": "update_rows",
+                    "action_command_type": "DO",
                     "user": OrderedDict([("id", user.id), ("name", user.first_name)]),
                     "timestamp": "2023-03-30T00:00:00Z",
                     "before": {f"field_{field.id}": "row 2"},

@@ -2,38 +2,54 @@
   <div class="row-history-entry">
     <div class="row-history-entry__header">
       <span class="row-history-entry__initials">{{ initials }}</span>
-      <span class="row-history-entry__name">{{ name }}</span>
+      <span class="row-history-entry__name">{{ name }} {{ actionName }}</span>
       <span class="row-history-entry__timestamp" :title="timestampTooltip">{{
         formattedTimestamp
       }}</span>
     </div>
-    <div class="row-history-entry__content">
-      <template v-for="fieldIdentifier in entryFields">
-        <template
-          v-if="
-            getFieldName(fieldIdentifier) && getEntryComponent(fieldIdentifier)
-          "
-        >
-          <div :key="fieldIdentifier" class="row-history-entry__field">
-            {{ getFieldName(fieldIdentifier) }}
-          </div>
-          <component
-            :is="getEntryComponent(fieldIdentifier)"
-            :key="fieldIdentifier + 'content'"
-            :entry="entry"
-            :workspace-id="workspaceId"
-            :field-identifier="fieldIdentifier"
-            :field="getField(fieldIdentifier)"
-          ></component>
+    <template v-if="hasContent">
+      <div class="row-history-entry__content">
+        <template v-for="fieldIdentifier in entryFields">
+          <template
+            v-if="
+              getFieldName(fieldIdentifier) &&
+              getEntryComponent(fieldIdentifier)
+            "
+          >
+            <div :key="fieldIdentifier" class="row-history-entry__field">
+              {{ getFieldName(fieldIdentifier) }}
+            </div>
+            <component
+              :is="getEntryComponent(fieldIdentifier)"
+              :key="fieldIdentifier + 'content'"
+              :entry="entry"
+              :workspace-id="workspaceId"
+              :field-identifier="fieldIdentifier"
+              :field="getField(fieldIdentifier)"
+            ></component>
+          </template>
         </template>
-      </template>
-    </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script>
+import _ from 'lodash'
 import moment from '@baserow/modules/core/moment'
 import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
+
+const actioNameMapping = {
+  create_rows: 'created',
+  create_row: 'created',
+  submit_form: 'submitted',
+  update_rows: 'updated',
+  update_row: 'updated',
+  delete_row: 'deleted',
+  delete_rows: 'deleted',
+  restored: 'restored',
+  removedCreated: 'removedCreated',
+}
 
 export default {
   name: 'RowHistoryEntry',
@@ -72,6 +88,17 @@ export default {
       return new Set(
         Object.keys(this.entry.before).concat(Object.keys(this.entry.after))
       )
+    },
+    hasContent() {
+      return !_.isEmpty(this.entry.before) || !_.isEmpty(this.entry.after)
+    },
+    actionName() {
+      const actionCommandType = this.entry.action_command_type
+      let actionName = actioNameMapping[this.entry.action_type]
+      if (actionCommandType === 'UNDO') {
+        actionName = `${actionName}Undo`
+      }
+      return this.$t(`rowHistorySidebar.${actionName}`)
     },
   },
   methods: {

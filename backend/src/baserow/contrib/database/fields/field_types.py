@@ -3538,7 +3538,7 @@ class LinkRowFieldType(
         }
 
     def are_row_values_equal(self, value1: any, value2: any) -> bool:
-        return set(value1) == set(value2)
+        return set(value1 or []) == set(value2 or [])
 
     def empty_query(
         self,
@@ -4787,7 +4787,7 @@ class MultipleSelectFieldType(
         }
 
     def are_row_values_equal(self, value1: any, value2: any) -> bool:
-        return set(value1) == set(value2)
+        return set(value1 or []) == set(value2 or [])
 
     def get_formula_reference_to_model_field(
         self, model_field, db_column, already_in_subquery

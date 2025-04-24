@@ -104,6 +104,7 @@ export default {
     }),
     entriesWithContents() {
       const fieldIds = this.fields.map((f) => f.id)
+
       const entriesToRender = this.entries.filter((entry) => {
         const entryFields = new Set(
           Object.keys(entry.before).concat(Object.keys(entry.after))
@@ -111,7 +112,15 @@ export default {
         const validEntryFieldIds = entryFields
           .map((fieldIdentifier) => entry.fields_metadata[fieldIdentifier]?.id)
           .filter((entryFieldId) => fieldIds.includes(entryFieldId))
-        return validEntryFieldIds.size > 0
+        return (
+          validEntryFieldIds.size > 0 || entry.action_type !== 'update_rows'
+        )
+      })
+
+      console.log('entries', {
+        fields: this.fields,
+        entries: this.entries,
+        entriesToRender,
       })
       return entriesToRender
     },

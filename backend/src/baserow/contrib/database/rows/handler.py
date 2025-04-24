@@ -2372,6 +2372,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 send_realtime_update=send_realtime_update,
                 send_webhook_events=send_webhook_events,
             )
+        return row
 
     def delete_row(
         self,

@@ -16,6 +16,19 @@ from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.rows.exceptions import CannotCreateRowsInTable
+from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.rows.helpers import (
+    construct_entry_from_action_and_diff,
+    construct_related_rows_entries,
+    extract_row_diff,
+    update_related_tables_entries,
+)
+from baserow.contrib.database.rows.models import RowHistory
+from baserow.contrib.database.rows.types import (
+    ActionData,
+    RelatedRowsDiff,
+    RowChangeDiff,
+)
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist, ViewNotInTable
@@ -36,6 +49,7 @@ from baserow.core.action.registries import (
     ActionTypeDescription,
     UndoableActionType,
 )
+from baserow.core.action.signals import ActionCommandType
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -2330,6 +2344,7 @@ class SubmitFormActionType(ActionType):
         database_name: str
         row_id: int
         values: Dict[str, Any]
+        fields_metadata: dict[str, Any]
 
     @classmethod
     def do(
@@ -2363,8 +2378,21 @@ class SubmitFormActionType(ActionType):
             model = form.table.get_model()
 
         row = ViewHandler().submit_form_view(user, form, values, model, field_options)
-
+        rh = RowHandler()
         table = model.baserow_table
+        tmodel = table.get_model()
+        fields_metadata = rh.get_fields_metadata_for_rows([row], tmodel.get_fields())[
+            row.id
+        ]
+        cache = {}
+        serialized_values = {
+            f["name"]: f["type"].get_export_serialized_value(
+                row, f["name"], cache=cache, files_zip=None, storage=None
+            )
+            for f in tmodel.get_field_objects()
+            if not f["type"].read_only
+        }
+
         workspace = table.database.workspace
         params = cls.Params(
             form.id,
@@ -2374,7 +2402,8 @@ class SubmitFormActionType(ActionType):
             table.database.id,
             table.database.name,
             row.id,
-            values,
+            serialized_values,
+            fields_metadata=fields_metadata,
         )
         cls.register_action(user, params, scope=cls.scope(form.id), workspace=workspace)
 
@@ -2383,3 +2412,79 @@ class SubmitFormActionType(ActionType):
     @classmethod
     def scope(cls, view_id: int) -> ActionScopeStr:
         return ViewActionScopeType.value(view_id)
+
+    @classmethod
+    def get_row_change_history(cls, user, action: "ActionData") -> list[RowHistory]:
+        params: SubmitFormActionType.Params = cls.serialized_to_params(action.params)
+        table_id = params.table_id
+        after = params.values
+        row_id = params.row_id
+
+        before = {"id": params.row_id}
+
+        if action.command_type == ActionCommandType.UNDO:
+            before, after = after, before
+
+        row_history_entries = []
+        related_rows_diff: RelatedRowsDiff = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(dict))
+        )
+
+        def are_equal_on_create(field_identifier, before_value, after_value) -> bool:
+            # both fields are empty, but they may
+            # be empty in a different way ('' vs None)
+            if not before_value and not after_value:
+                return True
+            return before_value == after_value
+
+        fields_metadata = params.fields_metadata
+
+        if not any(after):
+            before = {**before, **after}
+        else:
+            before = {
+                **before,
+                **{field_name: "" for field_name in fields_metadata.keys()},
+            }
+
+        row_diff = extract_row_diff(
+            table_id,
+            row_id,
+            fields_metadata,
+            before,
+            after,
+            are_equal=are_equal_on_create,
+        )
+
+        if row_diff is None:
+            row_diff = RowChangeDiff(
+                table_id=table_id,
+                row_id=row_id,
+                changed_field_names=[],
+                before_values={},
+                after_values={},
+            )
+            changed_fields_metadata = {}
+        else:
+            changed_fields_metadata = {
+                k: v
+                for k, v in fields_metadata.items()
+                if k in row_diff.changed_field_names
+            }
+
+        entry = construct_entry_from_action_and_diff(
+            user,
+            action,
+            changed_fields_metadata,
+            row_diff,
+        )
+        row_history_entries.append(entry)
+        update_related_tables_entries(
+            related_rows_diff, changed_fields_metadata, row_diff
+        )
+
+        related_entries = construct_related_rows_entries(
+            related_rows_diff, user, action
+        )
+        row_history_entries.extend(related_entries)
+        return row_history_entries

@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Show row creation/deletion in row history'",
+    "domain": "database",
+    "issue_number": 2117,
+    "bullet_points": [],
+    "created_at": "2025-04-24"
+}
