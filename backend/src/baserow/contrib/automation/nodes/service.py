@@ -176,7 +176,7 @@ class AutomationNodeService:
             self,
             workflow=node.workflow,
             node_id=node_id,
-            user=None,
+            user=user,
         )
 
         return node

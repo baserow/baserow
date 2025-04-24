@@ -303,7 +303,7 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
                 node_clone.id,
                 node_id,
             ),
-            scope=cls.scope(node.workflow.automation.id),
+            scope=cls.scope(node_clone.id),
             workspace=node.workflow.automation.workspace,
         )
         return node_clone
