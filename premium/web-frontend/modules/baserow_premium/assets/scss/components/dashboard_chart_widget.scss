@@ -1,0 +1,15 @@
+.dashboard-chart-widget {
+  // nothing
+}
+
+.dashboard-chart-widget__content {
+  height: 280px;
+}
+
+.dashboard-chart-widget__loading {
+  height: 341px;
+
+  .dashboard-chart-widget--with-header-description & {
+    height: 362.8px;
+  }
+}

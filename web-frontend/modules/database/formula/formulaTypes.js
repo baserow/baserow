@@ -73,6 +73,7 @@ import {
 } from '@baserow/modules/database/utils/fieldFilters'
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
 import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions.vue'
+import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
 export class BaserowFormulaTypeDefinition extends Registerable {
   getIconClass() {
@@ -196,6 +197,19 @@ export class BaserowFormulaTypeDefinition extends Registerable {
     return underlyingFieldType.getSort(name, order, field)
   }
 
+  getSortTypes(field) {
+    const underlyingFieldType = this.app.$registry.get(
+      'field',
+      this.getFieldType()
+    )
+    const fieldSortTypes = underlyingFieldType.getSortTypes(field)
+    // Only the default sort type is supported for formulas at the moment because
+    // there is no way to configure different types in the backend.
+    return {
+      [DEFAULT_SORT_TYPE_KEY]: fieldSortTypes[DEFAULT_SORT_TYPE_KEY],
+    }
+  }
+
   _mapFormulaTypeToFieldType(formulaType) {
     return this.app.$registry.get('formula_type', formulaType).getFieldType()
   }
@@ -260,6 +274,14 @@ export class BaserowFormulaTypeDefinition extends Registerable {
 
   toBaserowFormulaType(field) {
     return this.getType()
+  }
+
+  parseFromLinkedRowItemValue(field, value) {
+    const underlyingFieldType = this.app.$registry.get(
+      'field',
+      this._mapFormulaTypeToFieldType(field.formula_type)
+    )
+    return underlyingFieldType.parseFromLinkedRowItemValue(field, value)
   }
 }
 
@@ -753,8 +775,10 @@ export class BaserowFormulaArrayType extends mix(
     const innerSortFunction = subType.getSort(name, order, field)
 
     return (a, b) => {
-      const valuesA = a[name].map(subType.mapToSortableArray.bind(subType))
-      const valuesB = b[name].map(subType.mapToSortableArray.bind(subType))
+      const valA = Array.isArray(a[name]) ? a[name] : [a[name]]
+      const valB = Array.isArray(b[name]) ? b[name] : [b[name]]
+      const valuesA = valA.map(subType.mapToSortableArray.bind(subType))
+      const valuesB = valB.map(subType.mapToSortableArray.bind(subType))
 
       for (let i = 0; i < Math.max(valuesA.length, valuesB.length); i++) {
         let compared = 0
@@ -824,6 +848,11 @@ export class BaserowFormulaArrayType extends mix(
 
   toBaserowFormulaType(field) {
     return this.getSubType(field)?.toBaserowFormulaType(field)
+  }
+
+  parseFromLinkedRowItemValue(field, value) {
+    const subType = this.getSubType(field)
+    return subType.parseFromLinkedRowItemValue(field, value)
   }
 }
 

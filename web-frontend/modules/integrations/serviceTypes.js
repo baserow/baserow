@@ -171,6 +171,8 @@ export class LocalBaserowListRowsServiceType extends LocalBaserowTableServiceTyp
         let valueFormula = `get('current_record.${field}')`
         if (originalType === 'boolean') {
           outputType = 'boolean'
+        } else if (originalType === 'rating') {
+          outputType = 'rating'
         } else if (originalType === 'url') {
           return {
             link_name: valueFormula,
@@ -293,13 +295,14 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
     if (service.table_id && tableSelected) {
       const defaultTableDescription = `${this.name} - ${tableSelected.name}`
       if (service.field_id) {
-        const fieldSelected = tableSelected.fields.find(
-          ({ id }) => id === service.field_id
-        )
-        const fieldName = fieldSelected
-          ? fieldSelected.name
-          : this.app.i18n.t('serviceType.trashedField')
-        return `${defaultTableDescription} - ${fieldName}`
+        if (service.context_data.field) {
+          const fieldName = service.context_data.field.name
+          return `${defaultTableDescription} - ${fieldName}`
+        } else {
+          return `${defaultTableDescription} - ${this.app.i18n.t(
+            'serviceType.trashedField'
+          )}`
+        }
       }
 
       return defaultTableDescription

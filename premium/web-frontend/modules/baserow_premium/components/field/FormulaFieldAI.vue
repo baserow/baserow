@@ -4,7 +4,7 @@
       <i class="iconoir-magic-wand"></i>
       {{ $t('formulaFieldAI.generateWithAI') }}
     </a>
-    <a v-else @click="$refs.premiumModal.show()">
+    <a v-else @click="$refs.paidFeaturesModal.show()">
       <i class="iconoir-lock"></i>
       {{ $t('formulaFieldAI.generateWithAI') }}
     </a>
@@ -14,22 +14,22 @@
       :table="table"
       @formula="$emit('update-formula', $event)"
     ></AIFormulaModal>
-    <PremiumModal
-      ref="premiumModal"
+    <PaidFeaturesModal
+      ref="paidFeaturesModal"
       :workspace="workspace"
-      :name="$t('formulaFieldAI.featureName')"
-    ></PremiumModal>
+      initial-selected-type="ai_features"
+    ></PaidFeaturesModal>
   </div>
 </template>
 
 <script>
 import AIFormulaModal from '@baserow_premium/components/field/AIFormulaModal'
 import PremiumFeatures from '@baserow_premium/features'
-import PremiumModal from '@baserow_premium/components/PremiumModal.vue'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
   name: 'FormulaFieldAI',
-  components: { PremiumModal, AIFormulaModal },
+  components: { PaidFeaturesModal, AIFormulaModal },
   props: {
     database: {
       type: Object,

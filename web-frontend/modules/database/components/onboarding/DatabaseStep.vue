@@ -4,7 +4,7 @@
     <p>
       {{ $t('databaseStep.description') }}
     </p>
-    <div class="margin-bottom-3">
+    <div class="margin-bottom-2">
       <SegmentControl
         :active-index.sync="selectedTypeIndex"
         :segments="types"
@@ -29,19 +29,31 @@
     <AirtableImportForm
       v-if="selectedType === 'airtable'"
       ref="airtable"
-      @input="handleAirtableInput"
+      @input="updateValue($event)"
     ></AirtableImportForm>
+    <TemplateImportForm
+      v-if="selectedType === 'template'"
+      @selected-template="selectedTemplate"
+    ></TemplateImportForm>
   </div>
 </template>
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
-import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm.vue'
+import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm'
+import TemplateImportForm from '@baserow/modules/database/components/onboarding/TemplateImportForm'
+import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
 
 export default {
   name: 'DatabaseStep',
-  components: { AirtableImportForm },
+  components: { AirtableImportForm, TemplateImportForm },
+  props: {
+    data: {
+      required: true,
+      type: Object,
+    },
+  },
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
@@ -60,10 +72,13 @@ export default {
           type: 'airtable',
           label: this.$t('databaseStep.airtable'),
         },
+        {
+          type: 'template',
+          label: this.$t('databaseStep.template'),
+        },
       ],
       selectedTypeIndex: 0,
       name: '',
-      airtableUrl: '',
     }
   },
 
@@ -75,39 +90,39 @@ export default {
       return ['scratch', 'import'].includes(this.selectedType)
     },
   },
-  watch: {
-    selectedTypeIndex() {
-      this.airtableUrl = ''
-    },
-  },
   mounted() {
     this.updateValue()
   },
   methods: {
     isValid() {
-      return !this.v$.$invalid && this.v$.$dirty
+      if (this.selectedType === 'airtable') {
+        const airtable = this.$refs.airtable
+        return !!airtable && !airtable.v$.$invalid && airtable.v$.$dirty
+      } else if (this.selectedType === 'template') {
+        const template = this.data[DatabaseOnboardingType.getType()].template
+        return !!template
+      } else {
+        return !this.v$.$invalid && this.v$.$dirty
+      }
     },
-    updateValue() {
+    updateValue(airtable = {}) {
       this.$emit('update-data', {
         name: this.name,
         type: this.selectedType,
-        airtableUrl: this.airtableUrl,
+        ...airtable,
       })
     },
-    handleAirtableInput(event) {
-      this.v$.airtableUrl.$model = event
-      this.v$.airtableUrl.$touch()
-      this.updateValue()
+    selectedTemplate(template) {
+      this.$emit('update-data', {
+        type: this.selectedType,
+        template,
+      })
     },
   },
   validations() {
     const rules = {}
     if (this.hasName) {
       rules.name = {
-        required: helpers.withMessage(this.$t('error.requiredField'), required),
-      }
-    } else if (this.selectedType === 'airtable') {
-      rules.airtableUrl = {
         required: helpers.withMessage(this.$t('error.requiredField'), required),
       }
     }

@@ -205,7 +205,9 @@
         "importingState": "Importando",
         "publish": "Pubblica",
         "noDomain": "Devi configurare almeno un dominio per poter pubblicare la tua applicazione.",
-        "publishSucceedDescription": "Il sito è stato pubblicato con successo."
+        "publishSucceedDescription": "Il sito è stato pubblicato con successo.",
+        "publishSucceedLink": "Vedi sito",
+        "addDomain": "Aggiungi dominio"
     },
     "domainSettings": {
         "titleOverview": "Domini",
@@ -789,5 +791,14 @@
     "dataSourceDropdown": {
         "noDataSources": "Nessuna sorgente di dati disponibile",
         "label": "Sorgente di dati"
+    },
+    "common": {
+        "dateFormatTitle": "Formato data",
+        "dateFormatEU": "Europeo",
+        "dateFormatUS": "US",
+        "dateFormatISO": "ISO",
+        "timeFormatTitle": "Formato ora",
+        "timeFormat24Hour": "24 h",
+        "timeFormat12Hour": "12 h"
     }
 }

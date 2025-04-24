@@ -4,6 +4,7 @@
   "icon": "file",
   "keywords": ["Example", "Template", "For", "Search"],
   "categories": ["Test category 1"],
+  "open_application": 2,
   "export": [
     {
       "id": 2,

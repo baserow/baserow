@@ -9,15 +9,15 @@
           <Button
             type="primary"
             icon="iconoir-no-lock"
-            @click="$refs.premiumModal.show()"
+            @click="$refs.paidFeaturesModal.show()"
           >
             {{ $t('formViewModePreviewSurvey.more') }}
           </Button>
         </div>
-        <PremiumModal
-          ref="premiumModal"
+        <PaidFeaturesModal
+          ref="paidFeaturesModal"
           :name="modeType.getName()"
-        ></PremiumModal>
+        ></PaidFeaturesModal>
       </div>
     </div>
     <template v-else>
@@ -91,7 +91,12 @@
           <div class="form-view-survey__center-inner-1">
             <div class="form-view-survey__center-inner-2">
               <div v-if="fields.length === 0" class="form-view__no-fields">
-                {{ $t('formViewModePreviewForm.noFields') }}
+                <div class="form-view__no-fields-title">
+                  {{ $t('formViewModePreviewForm.noFieldsTitle') }}
+                </div>
+                <div class="form-view__no-fields-content">
+                  {{ $t('formViewModePreviewForm.noFieldsContent') }}
+                </div>
               </div>
               <FormViewMetaControls
                 v-else
@@ -165,7 +170,6 @@ import formViewHelpers from '@baserow/modules/database/mixins/formViewHelpers'
 import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
 import FormViewMetaControls from '@baserow/modules/database/components/view/form/FormViewMetaControls'
 import ViewFieldsContext from '@baserow/modules/database/components/view/ViewFieldsContext'
-import PremiumModal from '@baserow_premium/components/PremiumModal'
 
 export default {
   name: 'FormViewModePreviewSurvey',
@@ -174,7 +178,6 @@ export default {
     FormViewPoweredBy,
     FormViewField,
     FormViewMetaControls,
-    PremiumModal,
   },
   mixins: [formViewHelpers],
   props: {

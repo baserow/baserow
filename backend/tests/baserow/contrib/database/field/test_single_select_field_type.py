@@ -23,11 +23,14 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption, SingleSelectField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils import DeferredForeignKeyUpdater
+from baserow.contrib.database.rows.actions import UpdateRowsActionType
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.rows.history import RowHistoryHandler
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import GridView
 from baserow.contrib.database.views.registries import view_filter_type_registry
+from baserow.core.action.registries import action_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import AnyInt
@@ -1105,7 +1108,7 @@ def test_single_select_adjacent_row(data_fixture):
             },
         ],
         model=table_model,
-    )
+    ).created_rows
 
     previous_row = handler.get_adjacent_row(
         table_model, row_b.id, previous=True, view=grid_view
@@ -1141,7 +1144,7 @@ def test_single_select_adjacent_row_working_with_sorts_and_null_values(data_fixt
             {},
         ],
         model=table_model,
-    )
+    ).created_rows
 
     next_row = handler.get_adjacent_row(table_model, row_a.id, view=grid_view)
     assert next_row.id == row_b.id
@@ -1379,8 +1382,12 @@ def setup_view_for_single_select_field(data_fixture, option_values):
     def prep_row(option):
         return {single_select_field.db_column: option.id if option else None}
 
-    rows = RowHandler().force_create_rows(
-        user, table, [prep_row(option) for option in options], model=model
+    rows = (
+        RowHandler()
+        .force_create_rows(
+            user, table, [prep_row(option) for option in options], model=model
+        )
+        .created_rows
     )
 
     fields = {
@@ -1456,6 +1463,14 @@ def test_single_select_equal_filter_type_export_import():
     assert view_filter_type.set_import_serialized_value("1", id_mapping) == "2"
     assert view_filter_type.set_import_serialized_value("", id_mapping) == ""
     assert view_filter_type.set_import_serialized_value("wrong", id_mapping) == ""
+
+
+@pytest.mark.django_db
+def test_single_select_equal_filter_type_export_import_string_keys():
+    view_filter_type = view_filter_type_registry.get("single_select_equal")
+    id_mapping = {"database_field_select_options": {"test": 2}}
+    assert view_filter_type.set_import_serialized_value("test", id_mapping) == "2"
+    assert view_filter_type.set_import_serialized_value("test2", id_mapping) == ""
 
 
 @pytest.mark.django_db
@@ -1756,6 +1771,36 @@ def test_single_select_is_any_of_filter_type_export_import():
 
 
 @pytest.mark.django_db
+def test_single_select_is_any_of_filter_type_export_import_string_keys():
+    view_filter_type = view_filter_type_registry.get("single_select_is_any_of")
+    id_mapping = {"database_field_select_options": {"test": 2, "test2": 3}}
+    assert view_filter_type.set_import_serialized_value("1", id_mapping) == ""
+    assert view_filter_type.set_import_serialized_value("", id_mapping) == ""
+    assert view_filter_type.set_import_serialized_value("test", id_mapping) == "2"
+    assert (
+        view_filter_type.set_import_serialized_value("test,test2", id_mapping) == "2,3"
+    )
+    assert (
+        view_filter_type.set_import_serialized_value("test,invalid", id_mapping) == "2"
+    )
+
+
+@pytest.mark.django_db
+def test_single_multiple_select_has_type_export_import_string_keys():
+    view_filter_type = view_filter_type_registry.get("multiple_select_has")
+    id_mapping = {"database_field_select_options": {"test": 2, "test2": 3}}
+    assert view_filter_type.set_import_serialized_value("1", id_mapping) == ""
+    assert view_filter_type.set_import_serialized_value("", id_mapping) == ""
+    assert view_filter_type.set_import_serialized_value("test", id_mapping) == "2"
+    assert (
+        view_filter_type.set_import_serialized_value("test,test2", id_mapping) == "2,3"
+    )
+    assert (
+        view_filter_type.set_import_serialized_value("test,invalid", id_mapping) == "2"
+    )
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "field_name", ["single_select", "ref_single_select", "ref_ref_single_select"]
 )
@@ -1802,3 +1847,49 @@ def test_single_select_is_none_of_filter_type(field_name, data_fixture):
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
     # only the empty row is selected
     assert ids == [rows[4].id]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_single_select
+@pytest.mark.row_history
+def test_single_select_serialize_metadata_for_row_history_using_option_values(
+    data_fixture, django_assert_num_queries
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field_handler = FieldHandler()
+    field = field_handler.create_field(
+        user=user,
+        table=table,
+        type_name="single_select",
+        name="Single select",
+        select_options=[
+            {"value": "Option 1", "color": "blue"},
+            {"value": "Option 2", "color": "red"},
+        ],
+    )
+    model = table.get_model()
+    row_handler = RowHandler()
+    select_options = field.select_options.order_by("id").all()
+    option_1_id = select_options[0].id
+    option_2_id = select_options[1].id
+    row = row_handler.create_row(
+        user=user,
+        table=table,
+        model=model,
+        values={f"field_{field.id}": "Option 1"},
+    )
+
+    action_type_registry.get_by_type(UpdateRowsActionType).do(
+        user,
+        table,
+        [{"id": row.id, f"field_{field.id}": "Option 2"}],
+        model=model,
+    )
+
+    entries = RowHistoryHandler.list_row_history(
+        table.database.workspace, table.id, row.id
+    )
+    assert len(entries) == 1
+    assert entries[0].before_values == {field.db_column: option_1_id}
+    assert entries[0].after_values == {field.db_column: option_2_id}

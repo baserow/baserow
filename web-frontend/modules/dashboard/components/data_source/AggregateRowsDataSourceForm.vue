@@ -13,11 +13,10 @@
         horizontal-narrow
       >
         <Dropdown
-          v-model="values.table_id"
+          v-model="computedTableId"
           :show-search="true"
           fixed-items
           :error="fieldHasErrors('table_id')"
-          @change="v$.values.table_id.$touch"
         >
           <DropdownSection
             v-for="database in databases"
@@ -46,11 +45,11 @@
         horizontal-narrow
       >
         <Dropdown
-          v-model="values.view_id"
+          v-model="v$.values.view_id.$model"
           :show-search="false"
           fixed-items
+          :disabled="fieldsLoading"
           :error="fieldHasErrors('view_id')"
-          @change="v$.values.view_id.$touch"
         >
           <DropdownItem
             :name="$t('aggregateRowsDataSourceForm.notSelected')"
@@ -77,10 +76,9 @@
         horizontal-narrow
       >
         <Dropdown
-          v-model="values.field_id"
-          :disabled="tableFields.length === 0"
+          v-model="v$.values.field_id.$model"
+          :disabled="tableFields.length === 0 || fieldsLoading"
           :error="fieldHasErrors('field_id')"
-          @change="v$.values.field_id.$touch"
         >
           <DropdownItem
             v-for="field in tableFields"
@@ -101,9 +99,9 @@
         horizontal-narrow
       >
         <Dropdown
-          v-model="values.aggregation_type"
+          v-model="v$.values.aggregation_type.$model"
           :error="fieldHasErrors('aggregation_type')"
-          @change="v$.values.aggregation_type.$touch"
+          :disabled="fieldsLoading"
         >
           <DropdownItem
             v-for="viewAggregation in viewAggregationTypes"
@@ -125,6 +123,7 @@
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
+import tableFields from '@baserow/modules/database/mixins/tableFields'
 
 const includes = (array) => (value) => {
   return array.includes(value)
@@ -139,7 +138,7 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'AggregateRowsDataSourceForm',
-  mixins: [form],
+  mixins: [form, tableFields],
   props: {
     dashboard: {
       type: Object,
@@ -172,11 +171,24 @@ export default {
         aggregation_type: 'sum',
       },
       tableLoading: false,
-      databaseSelectedId: null,
       skipFirstValuesEmit: true,
+      tableIdHasChanged: false,
     }
   },
   computed: {
+    computedTableId: {
+      get() {
+        return this.v$.values.table_id.$model
+      },
+      set(tableId) {
+        if (tableId !== this.v$.values.table_id.$model) {
+          this.v$.values.table_id.$model = tableId
+          this.tableIdHasChanged = true
+          this.v$.values.view_id.$model = null
+          this.v$.values.field_id.$model = null
+        }
+      },
+    },
     integration() {
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/getIntegrationById`
@@ -186,8 +198,8 @@ export default {
       return this.integration.context_data.databases
     },
     databaseSelected() {
-      return this.databases.find(
-        (database) => database.id === this.databaseSelectedId
+      return this.databases.find((database) =>
+        database.tables.some((table) => table.id === this.values.table_id)
       )
     },
     tables() {
@@ -198,9 +210,6 @@ export default {
     },
     tableSelected() {
       return this.tables.find(({ id }) => id === this.values.table_id)
-    },
-    tableFields() {
-      return this.tableSelected?.fields || []
     },
     tableFieldIds() {
       return this.tableFields.map((field) => field.id)
@@ -247,50 +256,24 @@ export default {
       },
       deep: true,
     },
-    'values.table_id': {
-      handler(tableId) {
-        if (tableId !== null) {
-          const databaseOfTableId = this.databases.find((database) =>
-            database.tables.some((table) => table.id === tableId)
-          )
-          if (databaseOfTableId) {
-            this.databaseSelectedId = databaseOfTableId.id
-          }
-
-          // If the values are not changed by the user
-          // we don't want to continue with preselecting
-          // default values
-          if (tableId === this.defaultValues.table_id) {
-            return
-          }
-
-          if (
-            !this.tableViews.some((view) => view.id === this.values.view_id)
-          ) {
-            this.values.view_id = null
-          }
-
-          if (
-            !this.tableFields.some((field) => field.id === this.values.field_id)
-          ) {
-            if (this.tableFields.length > 0) {
-              this.values.field_id = this.tableFields[0].id
-            }
-          }
+    fieldsLoading(loading) {
+      if (this.tableIdHasChanged && !loading) {
+        if (this.tableFields.length > 0) {
+          this.v$.values.field_id.$model = this.tableFields[0].id
         }
-      },
-      immediate: true,
+        this.tableIdHasChanged = false
+      }
     },
     'values.field_id': {
       handler(fieldId) {
         if (fieldId !== null) {
           if (
             !this.viewAggregationTypes.some(
-              (agg) => agg.getType() === this.values.aggregation_type
+              (agg) => agg.getType() === this.v$.values.aggregation_type.$model
             )
           ) {
             if (this.viewAggregationTypes.length > 0) {
-              this.values.aggregation_type =
+              this.v$.values.aggregation_type.$model =
                 this.viewAggregationTypes[0].getType()
             }
           }
@@ -337,6 +320,10 @@ export default {
     }
   },
   methods: {
+    /* Overrides the method in the tableFields mixin */
+    getTableId() {
+      return this.values.table_id
+    },
     fieldIconClass(field) {
       const fieldType = this.$registry.get('field', field.type)
       return fieldType.iconClass

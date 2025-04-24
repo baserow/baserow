@@ -311,9 +311,19 @@ class RoleAssignmentHandler:
         """
 
         actor_subject_type = subject_type_registry.get_by_model(actor)
-        return self.get_roles_per_scope_for_actors(
-            workspace, actor_subject_type, [actor], include_trash=include_trash
-        )[actor]
+        actor_cache_key = (
+            f"{actor_subject_type.type}_{actor.id}_{workspace.id}_{include_trash}"
+        )
+
+        def _get_roles_per_scope():
+            return self.get_roles_per_scope_for_actors(
+                workspace, actor_subject_type, [actor], include_trash=include_trash
+            )[actor]
+
+        return local_cache.get(
+            f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_get_roles_per_scope_{actor_cache_key}",
+            _get_roles_per_scope,
+        )
 
     def get_roles_per_scope_for_actors(
         self,
@@ -351,10 +361,9 @@ class RoleAssignmentHandler:
             subject_id__in=actor_by_id.keys(),
         )
 
-        model_class_meta = actor_subject_type.model_class._meta
-        actor_type = f"{model_class_meta.app_label}.{model_class_meta.model_name}"
-        actor_ids = "_".join([str(a.id) for a in actors])
-        actors_cache_key = f"{actor_type}_{actor_ids}"
+        actors_cache_key = (
+            f"{actor_subject_type.type}_{'_'.join([str(a.id) for a in actors])}"
+        )
 
         def _get_teams_subjects():
             return users_teams_qs.values_list("team_id", "subject_id")

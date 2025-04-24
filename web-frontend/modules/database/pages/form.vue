@@ -4,8 +4,12 @@
     <div class="form-view__page">
       <div v-if="fields.length === 0" class="form-view__body">
         <div class="form-view__no-fields margin-bottom-4">
-          This form doesn't have any fields. Use Baserow to add at least one
-          field.
+          <div class="form-view__no-fields-title">
+            This form doesn't have any fields
+          </div>
+          <div class="form-view__no-fields-content">
+            Use Baserow to add at least one field.
+          </div>
         </div>
         <FormViewPoweredBy v-if="showLogo"></FormViewPoweredBy>
       </div>
@@ -103,7 +107,7 @@ export default {
 
       const prefill = prefillField(field, prefills)
 
-      values[`field_${field.field.id}`] = fieldType.getEmptyValue(field.field) // Default value
+      values[`field_${field.field.id}`] = fieldType.getDefaultValue(field.field) // Default value
       if (
         prefill !== undefined &&
         prefill !== null &&
@@ -233,7 +237,7 @@ export default {
           .forEach((f) => {
             visibleValues['field_' + f.field.id] = this.$registry
               .get('field', f.field.type)
-              .getEmptyValue(f.field)
+              .getDefaultValue(f.field)
           })
 
         if (

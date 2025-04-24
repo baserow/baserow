@@ -21,6 +21,8 @@
   overflow: hidden;
   padding-right: 14px;
   padding-top: 4px;
+  display: flex;
+  flex-direction: column;
 
   .theme-config-block--no-preview & {
     display: none;

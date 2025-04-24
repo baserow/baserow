@@ -137,8 +137,27 @@ export const escapeRegExp = (string) => {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-export const isNumeric = (value) => {
+export const isInteger = (value) => {
   return /^-?\d+$/.test(value)
+}
+
+export const isNumeric = (value) => {
+  return /^-?\d+([.]\d+)?$/.test(value)
+}
+
+export const parseLocalizedNumber = (str, locale) => {
+  const parts = new Intl.NumberFormat(locale).formatToParts(12345.6)
+  let group = parts.find((p) => p.type === 'group')?.value || ''
+  let decimal = parts.find((p) => p.type === 'decimal')?.value || '.'
+
+  // Escape special characters for regex
+  group = group.replace(/[\u202F\u00A0\s]/g, '\\s') // match all common spaces
+  decimal = decimal === '.' ? '\\.' : decimal
+  group = group === '.' ? '\\.' : group
+
+  const groupRegex = new RegExp(group, 'g')
+  // Remove group separator and replace decimal with "."
+  return str.replace(groupRegex, '').replace(decimal, '.')
 }
 
 /**

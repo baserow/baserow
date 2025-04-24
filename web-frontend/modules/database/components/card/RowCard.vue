@@ -7,6 +7,12 @@
     @mouseenter="$emit('mouseenter', $event)"
     @contextmenu.prevent="$emit('row-context', { row, event: $event })"
   >
+    <component
+      :is="dec.component"
+      v-for="dec in firstCellDecorations"
+      :key="dec.decoration.id"
+      v-bind="dec.propsFn(row)"
+    />
     <RecursiveWrapper
       :components="
         wrapperDecorations.map((comp) => ({
@@ -29,12 +35,6 @@
         ></div>
       </div>
       <div class="card__content">
-        <component
-          :is="dec.component"
-          v-for="dec in firstCellDecorations"
-          :key="dec.decoration.id"
-          v-bind="dec.propsFn(row)"
-        />
         <div class="card__fields">
           <div v-for="field in fields" :key="field.id" class="card__field">
             <div class="card__field-name">{{ field.name }}</div>

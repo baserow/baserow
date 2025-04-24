@@ -1,5 +1,4 @@
 import { ViewDecoratorType } from '@baserow/modules/database/viewDecorators'
-import PremiumModal from '@baserow_premium/components/PremiumModal'
 
 import {
   GridViewType,
@@ -14,6 +13,8 @@ import backgroundDecoratorImage from '@baserow_premium/assets/images/backgroundD
 import LeftBorderColorViewDecorator from '@baserow_premium/components/views/LeftBorderColorViewDecorator'
 import BackgroundColorViewDecorator from '@baserow_premium/components/views/BackgroundColorViewDecorator'
 import PremiumFeatures from '@baserow_premium/features'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { RowColoringPaidFeature } from '@baserow_premium/paidFeatures'
 
 export class LeftBorderColorViewDecoratorType extends ViewDecoratorType {
   static getType() {
@@ -44,7 +45,10 @@ export class LeftBorderColorViewDecoratorType extends ViewDecoratorType {
   }
 
   getDeactivatedClickModal() {
-    return PremiumModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': RowColoringPaidFeature.getType() },
+    ]
   }
 
   isDeactivated(workspaceId) {
@@ -134,7 +138,10 @@ export class BackgroundColorViewDecoratorType extends ViewDecoratorType {
   }
 
   getDeactivatedClickModal() {
-    return PremiumModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': RowColoringPaidFeature.getType() },
+    ]
   }
 
   isDeactivated(workspaceId) {

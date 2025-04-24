@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
+from loguru import logger
+
 from baserow.contrib.database.action.scopes import (
     TABLE_ACTION_CONTEXT,
     TableActionScopeType,
@@ -18,6 +20,7 @@ from baserow.contrib.database.rows.handler import (
     GeneratedTableModelForUpdate,
     RowHandler,
 )
+from baserow.contrib.database.rows.types import FileImportDict
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.core.action.models import Action
@@ -82,7 +85,7 @@ class CreateRowActionType(UndoableActionType):
         :return: The created row instance.
         """
 
-        if hasattr(table, "data_sync") and table.data_sync is not None:
+        if table.is_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )
@@ -173,18 +176,22 @@ class CreateRowsActionType(UndoableActionType):
         :return: The created list of rows instances.
         """
 
-        if hasattr(table, "data_sync") and table.data_sync is not None:
+        if table.is_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )
 
-        rows = RowHandler().create_rows(
-            user,
-            table,
-            rows_values,
-            before_row=before_row,
-            model=model,
-            send_webhook_events=send_webhook_events,
+        rows = (
+            RowHandler()
+            .create_rows(
+                user,
+                table,
+                rows_values,
+                before_row=before_row,
+                model=model,
+                send_webhook_events=send_webhook_events,
+            )
+            .created_rows
         )
 
         workspace = table.database.workspace
@@ -244,7 +251,7 @@ class ImportRowsActionType(UndoableActionType):
         cls,
         user: AbstractUser,
         table: Table,
-        data=List[List[Any]],
+        data: FileImportDict,
         progress: Optional[Progress] = None,
     ) -> Tuple[List[GeneratedTableModel], Dict[str, Any]]:
         """
@@ -264,15 +271,20 @@ class ImportRowsActionType(UndoableActionType):
         :return: The created list of rows instances and the error report.
         """
 
-        if hasattr(table, "data_sync") and table.data_sync is not None:
+        if table.is_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )
 
         created_rows, error_report = RowHandler().import_rows(
-            user, table, data, progress=progress
+            user,
+            table,
+            data=data["data"],
+            configuration=data.get("configuration") or {},
+            progress=progress,
         )
-
+        if error_report:
+            logger.warning(f"Errors during rows import: {error_report}")
         workspace = table.database.workspace
         params = cls.Params(
             table.id,
@@ -353,7 +365,7 @@ class DeleteRowActionType(UndoableActionType):
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
-        if hasattr(table, "data_sync") and table.data_sync is not None:
+        if table.is_data_synced_table:
             raise CannotDeleteRowsInTable(
                 "Can't delete rows because it has a data sync."
             )
@@ -430,7 +442,7 @@ class DeleteRowsActionType(UndoableActionType):
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
-        if hasattr(table, "data_sync") and table.data_sync is not None:
+        if table.is_data_synced_table:
             raise CannotDeleteRowsInTable(
                 "Can't delete rows because it has a data sync."
             )
@@ -826,7 +838,7 @@ class UpdateRowsActionType(UndoableActionType):
             table.database.id,
             table.database.name,
             [row.id for row in updated_rows],
-            rows_values,
+            result.updated_rows_values,
             result.original_rows_values_by_id,
             result.updated_fields_metadata_by_row_id,
         )

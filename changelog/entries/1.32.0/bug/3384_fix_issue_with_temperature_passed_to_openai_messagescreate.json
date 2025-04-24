@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix issue with unexpected temperature argument passed to OpenAI messages.create",
+    "domain": "database",
+    "issue_number": 3384,
+    "bullet_points": [],
+    "created_at": "2025-03-13"
+}

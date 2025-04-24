@@ -36,6 +36,15 @@ class BuilderWorkflowAction(
         Element, on_delete=models.CASCADE, null=True, default=None
     )
 
+    @classmethod
+    def is_dynamic_event(cls, event: str) -> bool:
+        """
+        :return: Whether the given event is dynamically generated.
+        """
+
+        default_event_types = [e.value for e in EventTypes]
+        return event and event not in default_event_types
+
     @staticmethod
     def get_type_registry() -> ModelRegistryMixin:
         from baserow.contrib.builder.workflow_actions.registries import (

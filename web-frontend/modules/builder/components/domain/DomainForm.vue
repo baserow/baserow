@@ -105,6 +105,7 @@ export default {
         })
         this.hideError()
         this.hideForm()
+        this.$emit('created')
       } catch (error) {
         this.handleAnyError(error)
       }

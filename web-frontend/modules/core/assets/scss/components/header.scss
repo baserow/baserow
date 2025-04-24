@@ -2,10 +2,14 @@
   display: flex;
   justify-content: left;
   background-color: $white;
-  border-bottom: 2px solid $color-neutral-200;
+  border-bottom: 1px solid $palette-neutral-200;
 
   &.header--space-between {
     justify-content: space-between;
+  }
+
+  &.header--dark-border {
+    border-bottom-color: $palette-neutral-400;
   }
 }
 
@@ -104,12 +108,12 @@
   display: flex;
   align-items: center;
   font-weight: 500;
-  color: $color-neutral-900;
   padding: 0 10px;
   white-space: nowrap;
+  color: $palette-neutral-900;
 
   @include fixed-height(32px, 13px);
-  @include rounded($rounded);
+  @include rounded($rounded-md);
 
   &:hover {
     text-decoration: none;
@@ -122,6 +126,10 @@
   }
 
   &.active {
+    color: $palette-neutral-1200;
+  }
+
+  &.active--success {
     background-color: $color-success-100;
   }
 
@@ -173,8 +181,8 @@
 }
 
 .header__filter-icon {
-  color: $color-neutral-900;
-  font-size: 17px;
+  color: $palette-neutral-900;
+  font-size: 16px;
 
   &:not(:last-child) {
     margin-right: 4px;
@@ -191,6 +199,10 @@
 
   &.header-filter-icon--no-choice {
     color: $color-neutral-200;
+  }
+
+  .header__filter-link.active & {
+    color: $palette-neutral-1200;
   }
 }
 
@@ -242,4 +254,30 @@
 .header__search-icon {
   color: $color-neutral-900;
   font-size: 16px;
+}
+
+.header__buttons {
+  padding: 7px 24px;
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+
+  &--with-separator {
+    border-left: 1px solid $palette-neutral-200;
+  }
+}
+
+.header__right {
+  margin-left: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.header__switch-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-right: 24px;
 }

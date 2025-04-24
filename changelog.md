@@ -1,5 +1,124 @@
 # Changelog
 
+## Released 1.32.5
+
+### Bug fixes
+* [Core] Clear local_cache for celery tasks [#3528](https://gitlab.com/baserow/baserow/-/issues/3528)
+* [Database] Fix broken continue button and validation of the onboarding import step.
+* [Builder] Fix schema caching issue again
+
+### Breaking API changes
+* [Database] Updated Langchain, Gunicorn, and Django backend dependencies.
+
+
+## Released 1.32.4
+
+### New features
+* [Database] Import Airtable gallery view. [#793](https://gitlab.com/baserow/baserow/-/issues/793)
+
+### Bug fixes
+* [Builder] Ensure that workflow action and user source forms disallow choose a data synced table. [#3104](https://gitlab.com/baserow/baserow/-/issues/3104)
+* [Database] Fix issue with 'this_week' and 'next_week' operators in date filters [#3526](https://gitlab.com/baserow/baserow/-/issues/3526)
+* [Database] Fix bug where the Airtable import crashes if the table has sections.
+* [Builder] Fix cache invalidation on field change for data sources
+* [Core] Record frontend sessions in Sentry if there is an error.
+
+### Refactors
+* [Builder] Integration endpoint doesn't return the table fields anymore to improve performance
+
+
+## Released 1.32.3
+
+### New features
+* [Database] Optionally provide session authentication for Airtable import.
+* [Core] Updated Posthog library and disabled session recording by default.
+
+### Bug fixes
+* [Database] Fix form meta controls validation.
+
+
+## Released 1.32.2
+
+### Bug fixes
+* [Database] Fixed a bug where the filters of a created and updated by fields could not load all collaborators.
+
+
+## Released 1.32.1
+
+### Bug fixes
+* [Database] Fixed a bug in which sorting by a link row field caused the frontend to crash. [#3522](https://gitlab.com/baserow/baserow/-/issues/3522)
+
+
+## Released 1.32.0
+
+### New features
+* Add support for collaborator fields in form views. [#1554](https://gitlab.com/baserow/baserow/-/issues/1554)
+* [Dashboard] Introduce dashboards with summary and chart widgets [#2206](https://gitlab.com/baserow/baserow/-/issues/2206)
+* [Database] Introduce row update functionality during table import [#2213](https://gitlab.com/baserow/baserow/-/issues/2213)
+* [Database] Add rows enter view webhook event type. [#3009](https://gitlab.com/baserow/baserow/-/issues/3009)
+* [Core] Hide Baserow description in all emails if logo is changed. [#3066](https://gitlab.com/baserow/baserow/-/issues/3066)
+* [Builder] Allow to customize table header filter/sort/search buttons [#3151](https://gitlab.com/baserow/baserow/-/issues/3151)
+* [Builder] Introduced Saml and OpenID Connect authentication in the application builder. [#3167](https://gitlab.com/baserow/baserow/-/issues/3167)
+* [Builder] Added a shortcut in the publishing modal so that domains can be created if an application doesn't yet have any. [#3170](https://gitlab.com/baserow/baserow/-/issues/3170)
+* [Builder] Improve 'Add new element' modal. [#3172](https://gitlab.com/baserow/baserow/-/issues/3172)
+* Add abilty to export files in grid [#3203](https://gitlab.com/baserow/baserow/-/issues/3203)
+* Airtable import report. [#3263](https://gitlab.com/baserow/baserow/-/issues/3263)
+* [Database] Show relationship changes (added or removed) in the related row's change history. [#3264](https://gitlab.com/baserow/baserow/-/issues/3264)
+* Multiple collaborator field group by support. [#3447](https://gitlab.com/baserow/baserow/-/issues/3447)
+* Airtable import field type improvements. [#3455](https://gitlab.com/baserow/baserow/-/issues/3455)
+* [Builder] Added a container element to group multiple elements. [#3458](https://gitlab.com/baserow/baserow/-/issues/3458)
+* [Builder] Improved the performance of published applications. [#3472](https://gitlab.com/baserow/baserow/-/issues/3472)
+* [Builder] Added the Menu element. [#3477](https://gitlab.com/baserow/baserow/-/issues/3477)
+* [Builder] Added theme setting to configure Link decoration. [#3515](https://gitlab.com/baserow/baserow/-/issues/3515)
+* [Database] Introduced the ability to sort by single select option order. [#786](https://gitlab.com/baserow/baserow/-/issues/786)
+* [Database] Import Airtable view colors. [#793](https://gitlab.com/baserow/baserow/-/issues/793)
+* [Database] Import Airtable view filters. [#793](https://gitlab.com/baserow/baserow/-/issues/793)
+* Import Airtable grid views, their sorts, group by, and field options. [#793](https://gitlab.com/baserow/baserow/-/issues/793)
+* Add SegmentControl variants
+* [Builder] Introduced a shortcut in the Login form configuration so that it's easier to create a new user source.
+* Send notification to authorized user when periodic data sync is deactivated.
+* Send notification to all admins when a webhook is deactivated.
+
+### Bug fixes
+* Preserve the precision of the currency field in the Airtable import. [#1058](https://gitlab.com/baserow/baserow/-/issues/1058)
+* [Builder] Fixed element position resets on editing of it's properties [#2342](https://gitlab.com/baserow/baserow/-/issues/2342)
+* Fix pasting markdown text into rich edit that resulted in unformatted markdown [#2383](https://gitlab.com/baserow/baserow/-/issues/2383)
+* [Database] Fix select option values in row history after API changes [#2509](https://gitlab.com/baserow/baserow/-/issues/2509)
+* [Database] Fixed a bug that prevented duplicating views filtered by a collaborator correctly. [#3017](https://gitlab.com/baserow/baserow/-/issues/3017)
+* [Database] Fixed unscrollable timezone dropdown issue when creating/editing a field. [#3041](https://gitlab.com/baserow/baserow/-/issues/3041)
+* [Database] Fix protected fields in the data sync forms. [#3191](https://gitlab.com/baserow/baserow/-/issues/3191)
+* Database: when an error is returned by the backend, it will be shown inside of the body of the view, so user still have access to navigation interface. [#3331](https://gitlab.com/baserow/baserow/-/issues/3331)
+* [Database] Fix issue with unexpected temperature argument passed to OpenAI messages.create [#3384](https://gitlab.com/baserow/baserow/-/issues/3384)
+* [Database] Allow bigger image dimensions. [#3387](https://gitlab.com/baserow/baserow/-/issues/3387)
+* Preserve the currency symbol and formatting of the currency field in Airtable import. [#3395](https://gitlab.com/baserow/baserow/-/issues/3395)
+* Prevent view from updated state with data from wrong view when pending request completes. [#3398](https://gitlab.com/baserow/baserow/-/issues/3398)
+* [Database] Fix for data sync failing when syncing baserow table with AIField [#3403](https://gitlab.com/baserow/baserow/-/issues/3403)
+* Use BigIntegerField for ImportExportResource.size  [#3424](https://gitlab.com/baserow/baserow/-/issues/3424)
+* [Builder] Fix updating of page parameters when URL query parameters change. [#3434](https://gitlab.com/baserow/baserow/-/issues/3434)
+* [Database] Fix field formatting options in rollup fields targeting formula fields [#3443](https://gitlab.com/baserow/baserow/-/issues/3443)
+* Fixed null check for query parameters in link URL generation [#3444](https://gitlab.com/baserow/baserow/-/issues/3444)
+* [Database] Do not register jobs that have unknown job type in the job type in the registry. [#3447](https://gitlab.com/baserow/baserow/-/issues/3447)
+* Fix for Secure File Serve with SSO SAML/OIDC authentication [#3449](https://gitlab.com/baserow/baserow/-/issues/3449)
+* [Builder] Resolved a bug where creating an element with an invalid parent would raise an error. [#3452](https://gitlab.com/baserow/baserow/-/issues/3452)
+* [Builder] Add page background color to theme block [#3457](https://gitlab.com/baserow/baserow/-/issues/3457)
+* [Database] Updating a cell no longer fails when a view is sorted or grouped by a linked field whose primary field is a formula. [#3484](https://gitlab.com/baserow/baserow/-/issues/3484)
+* [Database] Fix for creating snapshot triggers infinite loop for checking status update [#3490](https://gitlab.com/baserow/baserow/-/issues/3490)
+* [Database] Allow change field type with active sort [#3519](https://gitlab.com/baserow/baserow/-/issues/3519)
+* [Builder] Fix broken pagination after filtering collection elements
+* [Builder] Fix crash when creating a builder application after deleting another one
+* Fix error when syncing a table with a trashed field.
+* [Database] Fix the progress bar percentage when importing applications into the workspace.
+
+### Refactors
+* Upgrade vuelidate [#2805](https://gitlab.com/baserow/baserow/-/issues/2805)
+* [Builder] Improve data dispatching performances [#2978](https://gitlab.com/baserow/baserow/-/issues/2978)
+* Reduce the number of queries when logging in or load Baserow. [#3364](https://gitlab.com/baserow/baserow/-/issues/3364)
+* [Builder] Improve integration endpoint performances [#3418](https://gitlab.com/baserow/baserow/-/issues/3418)
+* Lowered grid view minimum field with from 100 to 78. [#3428](https://gitlab.com/baserow/baserow/-/issues/3428)
+* [Builder] Improved performance in preview mode
+* Speed up database setup for tests
+
+
 ## Released 1.31.1
 
 ### Bug fixes

@@ -44,7 +44,6 @@ from baserow.contrib.database.fields.operations import (
     CreateFieldOperationType,
     DeleteFieldOperationType,
     DuplicateFieldOperationType,
-    ListFieldsOperationType,
     ReadFieldOperationType,
     UpdateFieldOperationType,
 )
@@ -193,51 +192,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
 
         return field
 
-    def list_workspace_fields(
-        self,
-        user: AbstractUser,
-        workspace,
-        base_queryset=None,
-        include_trashed=False,
-        specific: bool = True,
-    ) -> Iterable[Table]:
-        """
-        Lists available fields for a user/workspace combination.
-
-        :user: The user on whose behalf we want to return fields.
-        :workspace: The workspace for which the fields should be returned.
-        :base_queryset: specify a base queryset to use.
-        :return: Iterator over returned fields.
-        """
-
-        field_qs = base_queryset if base_queryset else Field.objects.all()
-
-        field_qs = field_qs.filter(table__database__workspace=workspace).select_related(
-            "table", "table__database", "table__database__workspace"
-        )
-
-        if not include_trashed:
-            field_qs = field_qs.filter(table__database__workspace__trashed=False)
-
-        filtered_qs = CoreHandler().filter_queryset(
-            user,
-            ListFieldsOperationType.type,
-            field_qs,
-            workspace=workspace,
-        )
-
-        if specific:
-            return specific_iterator(
-                filtered_qs.select_related("content_type"),
-                per_content_type_queryset_hook=(
-                    lambda field, queryset: field_type_registry.get_by_model(
-                        field
-                    ).enhance_field_queryset(queryset, field)
-                ),
-            )
-        else:
-            return filtered_qs
-
     def get_base_fields_queryset(self) -> QuerySet[Field]:
         """
         Returns a base queryset with proper select and prefetch related fields to use in
@@ -254,6 +208,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 queryset=User.objects.filter(profile__to_be_deleted=False).order_by(
                     "first_name"
                 ),
+                to_attr="available_collaborators",
             ),
             "select_options",
         )
@@ -363,7 +318,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         # already exists. If so the field cannot be created and an exception is raised.
         if primary and Field.objects.filter(table=table, primary=True).exists():
             raise PrimaryFieldAlreadyExists(
-                f"A primary field already exists for the " f"table {table}."
+                f"A primary field already exists for the table {table}."
             )
 
         # Figure out which model to use and which field types are allowed for the given
@@ -579,6 +534,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             raise IncompatiblePrimaryFieldTypeError(to_field_type_name)
 
         if baserow_field_type_changed:
+            ViewHandler().before_field_type_change(field)
             dependants_broken_due_to_type_change = (
                 from_field_type.get_dependants_which_will_break_when_field_type_changes(
                     field, to_field_type, field_cache

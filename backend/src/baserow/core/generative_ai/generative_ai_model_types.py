@@ -118,26 +118,27 @@ class OpenAIGenerativeAIModelType(
         run, thread, assistant = None, None, None
         try:
             client = self.get_client(workspace)
+            kwargs = {}
+            if temperature:
+                kwargs["temperature"] = temperature
+
             assistant = client.beta.assistants.create(
                 name="Assistant that have access to user files",
                 instructions="",
                 model=model,
                 tools=[{"type": "file_search"}],
+                **kwargs,
             )
             thread = client.beta.threads.create()
             attachments = [
                 {"file_id": file_id, "tools": [{"type": "file_search"}]}
                 for file_id in file_ids
             ]
-            kwargs = {}
-            if temperature:
-                kwargs["temperature"] = temperature
             message = client.beta.threads.messages.create(
                 thread_id=thread.id,
                 role="user",
                 content=prompt,
                 attachments=attachments,
-                **kwargs,
             )
             run = client.beta.threads.runs.create_and_poll(
                 thread_id=thread.id,

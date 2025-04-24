@@ -11,7 +11,7 @@
         <div>
           <div
             v-for="(status, checkName) in healthChecks"
-            :key="status"
+            :key="checkName"
             class="admin-health__check-item"
           >
             <div class="admin-health__check-item-label">

@@ -12,14 +12,16 @@
       </p>
       <div class="licenses__features margin-bottom-2">
         <div
-          v-for="licenseType in licenseTypesWithFeatureComponent"
-          :key="licenseType.type"
+          v-for="(features, planName) in paidFeaturePlans"
+          :key="planName"
         >
-          <h2>{{ licenseType.getName() }}</h2>
-          <component
-            :is="licenseType.getFeaturesComponent()"
-            class="margin-bottom-2"
-          ></component>
+          <h2>{{ planName }}</h2>
+          <ul class="premium-features margin-bottom-2">
+            <li v-for="feature in features" class="premium-features__feature">
+              <i class="iconoir-check premium-features__feature-icon"></i>
+              {{ feature.getName() }}
+            </li>
+          </ul>
         </div>
       </div>
       <div class="placeholder__action">
@@ -127,8 +129,12 @@
               {{ license.seats_taken }} / {{ license.seats }}
               {{ $t('licenses.seats') }}
             </li>
-            <li v-if="license.application_users" class="licenses__item-detail-item">
-              {{ license.application_users_taken }} / {{ license.application_users }}
+            <li
+              v-if="license.application_users"
+              class="licenses__item-detail-item"
+            >
+              {{ license.application_users_taken }} /
+              {{ license.application_users }}
               {{ $t('licenses.applicationUsers') }}
             </li>
           </ul>
@@ -148,7 +154,6 @@
               ></i>
             </li>
           </ul>
-
         </nuxt-link>
       </div>
     </div>
@@ -160,8 +165,6 @@
 import LicenseService from '@baserow_premium/services/license'
 import RegisterLicenseModal from '@baserow_premium/components/license/RegisterLicenseModal'
 import RedirectToBaserowModal from '@baserow_premium/components/RedirectToBaserowModal'
-import PremiumFeatures from '@baserow_premium/components/PremiumFeatures'
-import EnterpriseFeatures from '@baserow_enterprise/components/EnterpriseFeatures'
 import moment from '@baserow/modules/core/moment'
 import SettingsService from '@baserow/modules/core/services/settings'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
@@ -170,8 +173,6 @@ export default {
   components: {
     RedirectToBaserowModal,
     RegisterLicenseModal,
-    PremiumFeatures,
-    EnterpriseFeatures,
   },
   layout: 'app',
   middleware: 'staff',
@@ -193,6 +194,17 @@ export default {
     }
   },
   computed: {
+    paidFeaturePlans() {
+      const plans = {}
+      Object.values(this.$registry.getAll('paidFeature')).forEach((feature) => {
+        const plan = feature.getPlan()
+        if (!Object.prototype.hasOwnProperty.call(plans, plan)) {
+          plans[plan] = []
+        }
+        plans[plan].push(feature)
+      })
+      return plans
+    },
     orderedLicenses() {
       return this.licenses
         .slice()
@@ -204,11 +216,6 @@ export default {
           a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1
         )
         .sort((a, b) => a.application_users - b.application_users)
-    },
-    licenseTypesWithFeatureComponent() {
-      return Object.values(this.$registry.getAll('license')).filter(
-        (licenseType) => licenseType.getFeaturesComponent() !== null
-      )
     },
   },
   methods: {

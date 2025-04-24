@@ -3,6 +3,14 @@
   flex-direction: column;
 }
 
+/**
+  Disable pointer events when in Page Editor.
+  */
+.element--read-only .ab-link {
+  pointer-events: none;
+  user-select: none;
+}
+
 .link-element__link {
   font-size: 14px;
   color: $black;

@@ -216,7 +216,9 @@ export const mutations = {
     state,
     { rows, prependToRows, appendToRows, count, bufferStartIndex, bufferLimit }
   ) {
-    state.count = count
+    if (count !== undefined) {
+      state.count = count
+    }
     state.bufferStartIndex = bufferStartIndex
     state.bufferLimit = bufferLimit
 
@@ -574,7 +576,11 @@ export const mutations = {
         .map((groupBy) => {
           return fields.find((f) => f.id === groupBy.field)
         })
-      const entries = existingMetadata[`field_${groupBy.field}`] || []
+      const fieldName = `field_${groupBy.field}`
+      if (!Object.prototype.hasOwnProperty.call(existingMetadata, fieldName)) {
+        existingMetadata[`field_${groupBy.field}`] = []
+      }
+      const entries = existingMetadata[`field_${groupBy.field}`]
       entries.forEach((entry, index) => {
         const equal = fieldValuesAreEqualInObjects(
           groupByFields,
@@ -775,6 +781,7 @@ export const actions = {
           groupBy: getGroupBy(rootGetters, getters.getLastGridId),
           orderBy: getOrderBy(view, getters.getAdhocSorting),
           filters: getFilters(view, getters.getAdhocFiltering),
+          excludeCount: getters.canExcludeCount,
         })
         .then(({ data }) => {
           // Don't do anything if the gridId does not match the current view gridId
@@ -1017,9 +1024,9 @@ export const actions = {
           count >= bufferEndIndex
             ? getters.getBufferStartIndex
             : Math.max(0, count - limit)
-        return { limit, offset }
+        return { limit, offset, count }
       })
-      .then(({ limit, offset }) =>
+      .then(({ limit, offset, count }) =>
         GridService(this.$client)
           .fetchRows({
             gridId,
@@ -1034,9 +1041,10 @@ export const actions = {
             groupBy: getGroupBy(rootGetters, getters.getLastGridId),
             orderBy: getOrderBy(view, adhocSorting),
             filters: getFilters(view, adhocFiltering),
+            excludeCount: true, // We already have it from the previous request.
           })
           .then(({ data }) => ({
-            data,
+            data: { ...data, count },
             offset,
           }))
       )
@@ -1740,6 +1748,7 @@ export const actions = {
       filters: getFilters(view, getters.getAdhocFiltering),
       includeFields: fields,
       excludeFields,
+      excludeCount: getters.canExcludeCount,
     })
     return data.results
   },
@@ -1966,10 +1975,8 @@ export const actions = {
       )
 
       const fieldsToFinalize = fields
-        .filter(
-          (field) =>
-            field.read_only ||
-            this.$registry.get('field', field._.type.type).isReadOnly
+        .filter((field) =>
+          this.$registry.get('field', field.type).isReadOnlyField(field)
         )
         .map((field) => `field_${field.id}`)
       commit('FINALIZE_ROWS_IN_BUFFER', {
@@ -2532,7 +2539,7 @@ export const actions = {
     // maybe because the provided index is outside of the available fields or
     // because there are only read only fields, we don't want to do anything.
     const writeFields = fieldsInOrder.filter(
-      (field) => !field._.type.isReadOnly
+      (field) => !this.$registry.get('field', field.type).isReadOnlyField(field)
     )
     if (writeFields.length === 0) {
       return
@@ -2568,8 +2575,9 @@ export const actions = {
       valuesForUpdate[rowIndex] = { id: row.id }
 
       fieldsInOrder.forEach((field, fieldIndex) => {
+        const fieldType = this.$registry.get('field', field.type)
         // We can't pre-filter because we need the correct filter index.
-        if (field._.type.isReadOnly) {
+        if (fieldType.isReadOnlyField(field)) {
           return
         }
 
@@ -2577,7 +2585,6 @@ export const actions = {
         const textValue = textData[rowIndex][fieldIndex]
         const jsonValue =
           jsonData != null ? jsonData[rowIndex][fieldIndex] : undefined
-        const fieldType = this.$registry.get('field', field.type)
         const preparedValue = fieldType.prepareValueForPaste(
           field,
           textValue,
@@ -3180,6 +3187,12 @@ export const getters = {
   },
   getCount(state) {
     return state.count
+  },
+  canExcludeCount(state) {
+    // If the count has already been set for the view, there's no need to fetch it again
+    // considering it's slow for large tables. Every time something changes in the view,
+    // the refresh action is called making sure the count is up to date.
+    return state.count > 0
   },
   getRowHeight(state) {
     return state.rowHeight

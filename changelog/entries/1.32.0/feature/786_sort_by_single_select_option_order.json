@@ -1,0 +1,8 @@
+{
+  "type": "feature",
+  "message": "Introduced the ability to sort by single select option order.",
+  "domain": "database",
+  "issue_number": 786,
+  "bullet_points": [],
+  "created_at": "2025-03-10"
+}

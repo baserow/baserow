@@ -493,6 +493,7 @@ def test_get_permissions(data_fixture):
             "name": "allow_if_template",
             "permissions": {
                 "allowed_operations_on_templates": [
+                    "workspace.read",
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
@@ -547,6 +548,7 @@ def test_get_permissions(data_fixture):
             "name": "allow_if_template",
             "permissions": {
                 "allowed_operations_on_templates": [
+                    "workspace.read",
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
@@ -618,6 +620,7 @@ def test_get_permissions(data_fixture):
             "name": "allow_if_template",
             "permissions": {
                 "allowed_operations_on_templates": [
+                    "workspace.read",
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
@@ -672,6 +675,7 @@ def test_get_permissions(data_fixture):
             "name": "allow_if_template",
             "permissions": {
                 "allowed_operations_on_templates": [
+                    "workspace.read",
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
@@ -743,6 +747,7 @@ def test_get_permissions(data_fixture):
             "name": "allow_if_template",
             "permissions": {
                 "allowed_operations_on_templates": [
+                    "workspace.read",
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
@@ -797,6 +802,7 @@ def test_get_permissions(data_fixture):
             "name": "allow_if_template",
             "permissions": {
                 "allowed_operations_on_templates": [
+                    "workspace.read",
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
@@ -868,6 +874,7 @@ def test_get_permissions(data_fixture):
             "name": "allow_if_template",
             "permissions": {
                 "allowed_operations_on_templates": [
+                    "workspace.read",
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",

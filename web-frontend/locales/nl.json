@@ -72,7 +72,11 @@
         "dashboard": "Dashboard",
         "dashboards": "Dashboards",
         "dashboardDefaultName": "Dashboard zonder titel",
-        "dashboardDesc": "Visualiseer je data en statistieken met grafieken, tabellen of diagrammen."
+        "dashboardDesc": "Visualiseer je data en statistieken met grafieken, tabellen of diagrammen.",
+        "automation": "Automatisering",
+        "automationDefaultName": "Automatisering zonder titel",
+        "automationDesc": "Automatiseer terugkerende taken en workflows.",
+        "automations": "Automatiseringen"
     },
     "settingType": {
         "account": "Account",
@@ -146,7 +150,9 @@
         "multipleSelectCheckboxes": "Selectievakjes",
         "duration": "Duur",
         "password": "Wachtwoord",
-        "ai": "AI prompt"
+        "ai": "AI prompt",
+        "multipleCollaboratorsDropdown": "Dropdown",
+        "multipleCollaboratorsCheckboxes": "Selectievakjes"
     },
     "fieldErrors": {
         "invalidNumber": "Ongeldig nummer",

@@ -1321,6 +1321,8 @@ def local_baserow_get_context_data_fixture(data_fixture):
     )
 
     return {
+        "user": user,
+        "table": table,
         "field": field,
         "service": service,
         "service_type": service_type,
@@ -1403,6 +1405,162 @@ def test_local_baserow_table_service_type_get_context_data_schema_excludes_field
 
 
 @pytest.mark.django_db
+def test_local_baserow_table_service_type_get_context_data_schema_excludes_fields_with_cache(
+    local_baserow_get_context_data_fixture,
+):
+    """
+    Test the LocalBaserowTableServiceType's get_context_data_schema() method.
+
+    Ensure that when the optional allowed_fields list is supplied it works with cache.
+    """
+
+    field = local_baserow_get_context_data_fixture["field"]
+    service = local_baserow_get_context_data_fixture["service"]
+    service_type = local_baserow_get_context_data_fixture["service_type"]
+
+    allowed_fields = []
+    schema = service_type.get_context_data_schema(
+        service, allowed_fields=allowed_fields
+    )
+
+    assert schema is None
+
+    allowed_fields = [field.db_column]
+    schema = service_type.get_context_data_schema(
+        service, allowed_fields=allowed_fields
+    )
+
+    assert schema == {
+        "properties": {
+            field.db_column: {
+                "default": None,
+                "items": {
+                    "properties": {
+                        "color": {
+                            "type": "string",
+                        },
+                        "id": {
+                            "type": "number",
+                        },
+                        "value": {
+                            "type": "string",
+                        },
+                    },
+                    "type": "object",
+                },
+                "title": "Category",
+                "type": "array",
+            },
+        },
+        "title": f"Table{service.table_id}Schema",
+        "type": "object",
+    }
+
+
+@pytest.mark.django_db
+def test_local_baserow_table_service_type_get_context_data_schema_cache_invalidation(
+    local_baserow_get_context_data_fixture,
+):
+    """
+    Test the LocalBaserowTableServiceType's get_context_data_schema() method.
+
+    Ensure that the cache is invalidated when table schema changes.
+    """
+
+    field = local_baserow_get_context_data_fixture["field"]
+    service = local_baserow_get_context_data_fixture["service"]
+    service_type = local_baserow_get_context_data_fixture["service_type"]
+    table = local_baserow_get_context_data_fixture["table"]
+    user = local_baserow_get_context_data_fixture["user"]
+
+    schema = service_type.get_context_data_schema(service, allowed_fields=None)
+
+    assert schema == {
+        "properties": {
+            field.db_column: {
+                "default": None,
+                "items": {
+                    "properties": {
+                        "color": {
+                            "type": "string",
+                        },
+                        "id": {
+                            "type": "number",
+                        },
+                        "value": {
+                            "type": "string",
+                        },
+                    },
+                    "type": "object",
+                },
+                "title": "Category",
+                "type": "array",
+            },
+        },
+        "title": f"Table{service.table_id}Schema",
+        "type": "object",
+    }
+
+    field2 = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="single_select",
+        name="New field",
+        select_options=[
+            {
+                "value": "Option 1",
+                "color": "red",
+            },
+            {
+                "value": "Option 2",
+                "color": "green",
+            },
+        ],
+    )
+
+    schema = service_type.get_context_data_schema(service, allowed_fields=None)
+
+    assert schema == {
+        "properties": {
+            field.db_column: {
+                "default": None,
+                "items": {
+                    "properties": {
+                        "color": {
+                            "type": "string",
+                        },
+                        "id": {
+                            "type": "number",
+                        },
+                        "value": {
+                            "type": "string",
+                        },
+                    },
+                    "type": "object",
+                },
+                "title": "Category",
+                "type": "array",
+            },
+            field2.db_column: {
+                "default": None,
+                "items": {
+                    "properties": {
+                        "color": {"type": "string"},
+                        "id": {"type": "number"},
+                        "value": {"type": "string"},
+                    },
+                    "type": "object",
+                },
+                "title": "New field",
+                "type": "array",
+            },
+        },
+        "title": f"Table{service.table_id}Schema",
+        "type": "object",
+    }
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "allowed_fields_id_indexes,expect_empty_dict",
     [
@@ -1460,6 +1618,115 @@ def test_local_baserow_table_service_type_get_context_data_excludes_fields(
                 for option in select_options
             ]
         }
+
+
+@pytest.mark.django_db
+def test_local_baserow_table_service_type_get_context_data_excludes_fields_with_cache(
+    local_baserow_get_context_data_fixture,
+):
+    """
+    Test the LocalBaserowTableServiceType's get_context_data() method.
+    """
+
+    field = local_baserow_get_context_data_fixture["field"]
+    service = local_baserow_get_context_data_fixture["service"]
+    service_type = local_baserow_get_context_data_fixture["service_type"]
+
+    select_options = field.select_options.all()
+
+    # First populate cache
+    allowed_fields = []
+    schema = service_type.get_context_data(service, allowed_fields=allowed_fields)
+
+    assert schema == {}
+
+    # Check it's still working
+    allowed_fields = [field.db_column]
+    schema = service_type.get_context_data(service, allowed_fields=allowed_fields)
+
+    assert schema == {
+        field.db_column: [
+            {
+                "color": option.color,
+                "value": option.value,
+                "id": option.id,
+            }
+            for option in select_options
+        ]
+    }
+
+
+@pytest.mark.django_db
+def test_local_baserow_table_service_type_get_context_data_cache_invalidation(
+    local_baserow_get_context_data_fixture,
+):
+    """
+    Test the LocalBaserowTableServiceType's get_context_data() method.
+
+    Ensure that when the optional allowed_fields list is supplied, any field
+    not in the list are excluded from the schema.
+    """
+
+    field = local_baserow_get_context_data_fixture["field"]
+    service = local_baserow_get_context_data_fixture["service"]
+    service_type = local_baserow_get_context_data_fixture["service_type"]
+    user = local_baserow_get_context_data_fixture["user"]
+    table = local_baserow_get_context_data_fixture["table"]
+
+    select_options = field.select_options.all()
+
+    schema = service_type.get_context_data(service, allowed_fields=None)
+
+    assert schema == {
+        field.db_column: [
+            {
+                "color": option.color,
+                "value": option.value,
+                "id": option.id,
+            }
+            for option in select_options
+        ]
+    }
+
+    field2 = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="single_select",
+        name="New field",
+        select_options=[
+            {
+                "value": "Option 1",
+                "color": "red",
+            },
+            {
+                "value": "Option 2",
+                "color": "green",
+            },
+        ],
+    )
+
+    schema = service_type.get_context_data(service, allowed_fields=None)
+
+    select_options2 = field2.select_options.all()
+
+    assert schema == {
+        field.db_column: [
+            {
+                "color": option.color,
+                "value": option.value,
+                "id": option.id,
+            }
+            for option in select_options
+        ],
+        field2.db_column: [
+            {
+                "color": option.color,
+                "value": option.value,
+                "id": option.id,
+            }
+            for option in select_options2
+        ],
+    }
 
 
 @pytest.mark.django_db
@@ -1533,15 +1800,7 @@ def test_local_baserow_table_service_type_generate_schema_excludes_fields(
 
     if expect_empty_dict:
         assert schema == {
-            "properties": {
-                "id": {
-                    "filterable": False,
-                    "searchable": False,
-                    "sortable": False,
-                    "title": "Id",
-                    "type": "number",
-                },
-            },
+            "properties": {},
             "title": f"Table{service.table_id}Schema",
             "type": "object",
         }
@@ -1568,6 +1827,106 @@ def test_local_baserow_table_service_type_generate_schema_excludes_fields(
             schema["properties"][field.db_column]["properties"]
             == expected_field_properties
         )
+
+
+@pytest.mark.django_db
+def test_local_baserow_table_service_type_generate_schema_excludes_fields_with_cache(
+    local_baserow_get_context_data_fixture,
+):
+    """
+    Test the LocalBaserowTableServiceType's generate_schema() method.
+
+    Ensure that when we have a cached value for certain allowed fields we still can
+    change the allowed fields.
+    """
+
+    field = local_baserow_get_context_data_fixture["field"]
+    service = local_baserow_get_context_data_fixture["service"]
+    service_type = local_baserow_get_context_data_fixture["service_type"]
+
+    # No allowed field -> schema should be empty
+    allowed_fields = []
+    schema = service_type.generate_schema(service, allowed_fields=allowed_fields)
+
+    assert schema == {
+        "properties": {},
+        "title": f"Table{service.table_id}Schema",
+        "type": "object",
+    }
+
+    # Again with allowed fields, even if the value was cached it should return the
+    # right schema
+    allowed_fields = [field.db_column]
+    schema = service_type.generate_schema(service, allowed_fields=allowed_fields)
+
+    expected_field_properties = {
+        "color": {"title": "color", "type": "string"},
+        "id": {"title": "id", "type": "number"},
+        "value": {"title": "value", "type": "string"},
+    }
+
+    assert (
+        schema["properties"][field.db_column]["properties"] == expected_field_properties
+    )
+
+
+@pytest.mark.django_db
+def test_local_baserow_table_service_type_generate_schema_cache_invalidation(
+    local_baserow_get_context_data_fixture,
+):
+    """
+    Test the LocalBaserowTableServiceType's generate_schema() method.
+
+    Ensure that when we have a cached value for certain allowed fields we still can
+    change the allowed fields.
+    """
+
+    field = local_baserow_get_context_data_fixture["field"]
+    service = local_baserow_get_context_data_fixture["service"]
+    service_type = local_baserow_get_context_data_fixture["service_type"]
+    table = local_baserow_get_context_data_fixture["table"]
+    user = local_baserow_get_context_data_fixture["user"]
+
+    schema = service_type.generate_schema(service, allowed_fields=None)
+
+    expected_field_properties = {
+        "color": {"title": "color", "type": "string"},
+        "id": {"title": "id", "type": "number"},
+        "value": {"title": "value", "type": "string"},
+    }
+
+    assert (
+        schema["properties"][field.db_column]["properties"] == expected_field_properties
+    )
+
+    field2 = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="single_select",
+        name="New field",
+        select_options=[
+            {
+                "value": "Option 1",
+                "color": "red",
+            },
+            {
+                "value": "Option 2",
+                "color": "green",
+            },
+        ],
+    )
+
+    schema = service_type.generate_schema(service, allowed_fields=None)
+
+    expected_field_properties = {
+        "color": {"title": "color", "type": "string"},
+        "id": {"title": "id", "type": "number"},
+        "value": {"title": "value", "type": "string"},
+    }
+
+    assert (
+        schema["properties"][field.db_column]["properties"] == expected_field_properties
+    )
 
 
 @pytest.mark.django_db

@@ -50,6 +50,8 @@ def setup_dev_e2e_users_and_instance_id(User, args, kwargs):
                 user = User.objects.get(email=email)
             user.is_staff = True
             user.save()
+            user.profile.completed_guided_tours = ["sidebar", "database", "builder"]
+            user.profile.save()
             logger.info(
                 f"\033[93mCreated staff user: {user.email} with password: {password}\033[0m"
             )
@@ -119,6 +121,13 @@ def str_to_bool(s: str) -> bool:
 def try_int(s: str | int | None, default: Any = None) -> int | None:
     try:
         return int(s)
+    except (TypeError, ValueError):
+        return default
+
+
+def try_float(s: str | float | None, default: Any = None) -> float | None:
+    try:
+        return float(s)
     except (TypeError, ValueError):
         return default
 

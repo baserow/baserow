@@ -1,5 +1,6 @@
 from typing import Any, Dict, List
 
+from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
@@ -78,6 +79,7 @@ from baserow.core.services.exceptions import (
     ServiceSortPropertyDoesNotExist,
 )
 from baserow.core.services.registries import service_type_registry
+from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
 class PublicBuilderByDomainNameView(APIView):
@@ -113,25 +115,25 @@ class PublicBuilderByDomainNameView(APIView):
 
         data = global_cache.get(
             DomainHandler.get_public_builder_by_domain_cache_key(domain_name),
-            default=lambda: self._get_public_builder_by_domain(request, domain_name),
+            default=lambda: self._get_public_builder_by_domain(domain_name),
             timeout=BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS,
         )
         return Response(data)
 
-    def _get_public_builder_by_domain(self, request: Request, domain_name: str):
+    def _get_public_builder_by_domain(self, domain_name: str):
         """
         Returns a serialized builder which has a domain matching `domain_name`.
 
         Only requested if the public get-by-domain cache is stale, or if the
         application has been re-published.
 
-        :param request: the HTTP request.
         :param domain_name: the domain name to match.
         :return: a publicly serialized builder.
         """
 
+        # Should be accessed by anonymous user
         builder = DomainService().get_public_builder_by_domain_name(
-            request.user, domain_name
+            AnonymousUser(), domain_name
         )
         return PublicBuilderSerializer(builder).data
 
@@ -219,16 +221,18 @@ class PublicElementsView(APIView):
                 PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "elements"
                 ),
-                default=lambda: self._get_public_page_elements(request, page_id),
+                default=lambda: self._get_public_page_elements(
+                    request.user_source_user, page_id
+                ),
                 timeout=BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
             )
         else:
-            data = self._get_public_page_elements(request, page_id)
+            data = self._get_public_page_elements(request.user, page_id)
 
         return Response(data)
 
     def _get_public_page_elements(
-        self, request: Request, page_id: int
+        self, user: AbstractUser, page_id: int
     ) -> List[Dict[str, Any]]:
         """
         Returns a list of serialized elements that belong to the given page id.
@@ -236,13 +240,13 @@ class PublicElementsView(APIView):
         Only requested if the public elements cache is stale, or if the page is
         being previewed.
 
-        :param request: the HTTP request.
+        :param user: the user requesting the elements.
         :param page_id: the page id.
         :return: a list of serialized elements.
         """
 
         page = PageHandler().get_page(page_id)
-        elements = ElementService().get_elements(request.user, page)
+        elements = ElementService().get_elements(user, page)
         return [
             element_type_registry.get_serializer(element, PublicElementSerializer).data
             for element in elements
@@ -291,31 +295,38 @@ class PublicDataSourcesView(APIView):
                 PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "data_sources"
                 ),
-                default=lambda: self._get_public_page_data_sources(request, page_id),
+                default=lambda: self._get_public_page_data_sources(
+                    request.user_source_user, request.user_source_user, page_id
+                ),
                 timeout=BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
             )
         else:
-            data = self._get_public_page_data_sources(request, page_id)
+            data = self._get_public_page_data_sources(
+                request.user, request.user_source_user, page_id
+            )
 
         return Response(data)
 
-    def _get_public_page_data_sources(self, request: Request, page_id: int):
+    def _get_public_page_data_sources(
+        self, user: AbstractUser, user_source_user: UserSourceUser, page_id: int
+    ):
         """
         Returns a list of serialized data sources that belong to the given page id.
 
         Only requested if the public data sources cache is stale, or if the page is
         being previewed.
 
-        :param request: the HTTP request.
+        :param user: the user requesting the data sources.
+        :param user_source_user: the user source user we want the data for.
         :param page_id: the page id.
         :return: a list of serialized data sources.
         """
 
         page = PageHandler().get_page(page_id)
-        data_sources = DataSourceService().get_data_sources(request.user, page)
+        data_sources = DataSourceService().get_data_sources(user, page)
 
         public_properties = BuilderHandler().get_builder_public_properties(
-            request.user_source_user, page.builder
+            user_source_user, page.builder
         )
         allowed_fields = []
         for fields in public_properties["external"].values():
@@ -380,30 +391,30 @@ class PublicBuilderWorkflowActionsView(APIView):
                     page_id, request.user_source_user, "workflow_actions"
                 ),
                 default=lambda: self._get_public_page_workflow_actions(
-                    request, page_id
+                    request.user_source_user, page_id
                 ),
                 timeout=BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
             )
         else:
-            data = self._get_public_page_workflow_actions(request, page_id)
+            data = self._get_public_page_workflow_actions(request.user, page_id)
 
         return Response(data)
 
-    def _get_public_page_workflow_actions(self, request: Request, page_id: int):
+    def _get_public_page_workflow_actions(self, user: AbstractUser, page_id: int):
         """
         Returns a list of serialized workflow actions that belong to the given page id.
 
         Only requested if the public workflow actions cache is stale, or if the page is
         being previewed.
 
-        :param request: the HTTP request.
+        :param user: the user requesting the actions.
         :param page_id: the page id.
         :return: a list of serialized workflow actions.
         """
 
         page = PageHandler().get_page(page_id)
         workflow_actions = BuilderWorkflowActionService().get_workflow_actions(
-            request.user, page
+            user, page
         )
 
         return [

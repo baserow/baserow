@@ -14,6 +14,7 @@ export default function ({ app: { router, $config, store } }, inject) {
     api_host: host,
     capture_pageview: false,
     capture_pageleave: false,
+    disable_session_recording: true,
     autocapture: {
       css_selector_allowlist: ['[ph-autocapture]'],
     },

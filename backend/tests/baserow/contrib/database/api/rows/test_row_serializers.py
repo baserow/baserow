@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from pytest_unordered import unordered
 from rest_framework import serializers
 
 from baserow.contrib.database.api.rows.serializers import (
@@ -23,9 +24,12 @@ def test_get_table_serializer(data_fixture):
     )
     data_fixture.create_number_field(table=table, order=1, name="Horsepower")
     data_fixture.create_boolean_field(table=table, order=3, name="For sale")
+    data_fixture.create_boolean_field(
+        table=table, order=4, name="Available", boolean_default=True
+    )
     data_fixture.create_number_field(
         table=table,
-        order=4,
+        order=5,
         name="Price",
         number_negative=True,
         number_decimal_places=2,
@@ -41,6 +45,7 @@ def test_get_table_serializer(data_fixture):
         "color": "white",
         "horsepower": None,
         "for_sale": False,
+        "available": True,
         "price": None,
     }
 
@@ -105,6 +110,23 @@ def test_get_table_serializer(data_fixture):
     assert not serializer_instance.is_valid()
     assert len(serializer_instance.errors["for_sale"]) == 1
 
+    # boolean field with default=True
+    serializer_instance = serializer_class(data={"available": True})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["available"] is True
+
+    serializer_instance = serializer_class(data={"available": False})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["available"] is False
+
+    serializer_instance = serializer_class(data={"available": None})
+    assert not serializer_instance.is_valid()
+    assert len(serializer_instance.errors["available"]) == 1
+
+    serializer_instance = serializer_class(data={"available": "abc"})
+    assert not serializer_instance.is_valid()
+    assert len(serializer_instance.errors["available"]) == 1
+
     # price field
     serializer_instance = serializer_class(data={"price": 120})
     assert serializer_instance.is_valid()
@@ -129,18 +151,26 @@ def test_get_table_serializer(data_fixture):
         "color": "white",
         "horsepower": None,
         "for_sale": False,
+        "available": True,
         "price": None,
     }
 
     # all fields
     serializer_instance = serializer_class(
-        data={"color": "green", "horsepower": 120, "for_sale": True, "price": 120.22}
+        data={
+            "color": "green",
+            "horsepower": 120,
+            "for_sale": True,
+            "available": False,
+            "price": 120.22,
+        }
     )
     assert serializer_instance.is_valid()
     assert serializer_instance.data == {
         "color": "green",
         "horsepower": "120",
         "for_sale": True,
+        "available": False,
         "price": "120.22",
     }
 
@@ -432,10 +462,12 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                         "value": "E",
                     },
                 ],
-                "formula_multiple_collaborators": [
-                    {"id": u2.id, "name": u2.first_name},
-                    {"id": u3.id, "name": u3.first_name},
-                ],
+                "formula_multiple_collaborators": unordered(
+                    [
+                        {"id": u2.id, "name": u2.first_name},
+                        {"id": u3.id, "name": u3.first_name},
+                    ]
+                ),
                 "formula_text": "test FORMULA",
                 "count": "3",
                 "rollup": "-122.222",
@@ -449,10 +481,12 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                 "multiple_collaborators_lookup": [
                     {
                         "id": 1,
-                        "value": [
-                            {"id": u2.id, "name": u2.first_name},
-                            {"id": u3.id, "name": u3.first_name},
-                        ],
+                        "value": unordered(
+                            [
+                                {"id": u2.id, "name": u2.first_name},
+                                {"id": u3.id, "name": u3.first_name},
+                            ]
+                        ),
                     },
                     {
                         "id": 2,

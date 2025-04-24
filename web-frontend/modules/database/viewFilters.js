@@ -22,7 +22,7 @@ import {
   DATE_FILTER_OPERATOR_BOUNDS,
   DateFilterOperators,
 } from '@baserow/modules/database/utils/date'
-import { isNumeric } from '@baserow/modules/core/utils/string'
+import { isInteger } from '@baserow/modules/core/utils/string'
 import ViewFilterTypeFileTypeDropdown from '@baserow/modules/database/components/view/ViewFilterTypeFileTypeDropdown'
 import ViewFilterTypeCollaborators from '@baserow/modules/database/components/view/ViewFilterTypeCollaborators'
 import {
@@ -947,17 +947,7 @@ export class DateIsWithinMultiStepViewFilterType extends DateMultiStepViewFilter
   }
 
   getIncompatibleOperators() {
-    return [
-      DateFilterOperators.TODAY.value,
-      DateFilterOperators.YESTERDAY.value,
-      DateFilterOperators.ONE_WEEK_AGO.value,
-      DateFilterOperators.ONE_MONTH_AGO.value,
-      DateFilterOperators.ONE_YEAR_AGO.value,
-      DateFilterOperators.THIS_WEEK.value,
-      DateFilterOperators.THIS_MONTH.value,
-      DateFilterOperators.THIS_YEAR.value,
-      DateFilterOperators.NR_DAYS_AGO.value,
-    ]
+    return [DateFilterOperators.TODAY.value]
   }
 
   getName() {
@@ -971,7 +961,15 @@ export class DateIsWithinMultiStepViewFilterType extends DateMultiStepViewFilter
       startOfToday.tz(timezone)
     }
     startOfToday.startOf('day')
-    return rowDate.isSameOrAfter(startOfToday) && rowDate.isBefore(upperBound)
+
+    let start = lowerBound
+    let end = upperBound
+    if (startOfToday.isBefore(upperBound)) {
+      start = startOfToday
+    } else {
+      end = startOfToday.add(1, 'day')
+    }
+    return rowDate.isSameOrAfter(start) && rowDate.isBefore(end)
   }
 }
 
@@ -2446,7 +2444,7 @@ export class MultipleCollaboratorsHasFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isNumeric(filterValue)) {
+    if (!isInteger(filterValue)) {
       return true
     }
 
@@ -2481,7 +2479,7 @@ export class MultipleCollaboratorsHasNotFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isNumeric(filterValue)) {
+    if (!isInteger(filterValue)) {
       return true
     }
 
@@ -2517,7 +2515,7 @@ export class UserIsFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isNumeric(filterValue)) {
+    if (!isInteger(filterValue)) {
       return true
     }
 
@@ -2553,7 +2551,7 @@ export class UserIsNotFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isNumeric(filterValue)) {
+    if (!isInteger(filterValue)) {
       return true
     }
 
@@ -2624,7 +2622,7 @@ export class LinkRowHasFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isNumeric(filterValue)) {
+    if (!isInteger(filterValue)) {
       return true
     }
 
@@ -2656,7 +2654,7 @@ export class LinkRowHasNotFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isNumeric(filterValue)) {
+    if (!isInteger(filterValue)) {
       return true
     }
 

@@ -153,6 +153,8 @@ export default {
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
       }
+      data.database = null
+      data.table = null
       data.error = normalizeError(e)
       return data
     }
@@ -220,7 +222,7 @@ export default {
   },
   head() {
     return {
-      title: (this.view ? this.view.name + ' - ' : '') + this.table.name,
+      title: (this.view ? this.view.name + ' - ' : '') + this.table?.name || '',
     }
   },
   computed: {
@@ -244,10 +246,14 @@ export default {
     this.$store.dispatch('table/setLoading', false)
   },
   mounted() {
-    this.$realtime.subscribe('table', { table_id: this.table.id })
+    if (this.table) {
+      this.$realtime.subscribe('table', { table_id: this.table.id })
+    }
   },
   beforeDestroy() {
-    this.$realtime.unsubscribe('table', { table_id: this.table.id })
+    if (this.table) {
+      this.$realtime.unsubscribe('table', { table_id: this.table.id })
+    }
   },
   methods: {
     selectedView(view) {

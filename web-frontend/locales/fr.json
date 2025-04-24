@@ -72,7 +72,11 @@
         "dashboardDesc": "Visualisez vos données et vos indicateurs à l'aide de diagrammes, de tableaux ou de graphiques.",
         "dashboard": "Tableau de bord",
         "dashboards": "Tableaux de bord",
-        "dashboardDefaultName": "Tableau de bord sans titre"
+        "dashboardDefaultName": "Tableau de bord sans titre",
+        "automations": "Automatisations",
+        "automationDefaultName": "Automatisation sans nom",
+        "automation": "Automatisation",
+        "automationDesc": "Automatiser les tâches répétitives et les processus."
     },
     "settingType": {
         "account": "Informations personnelles",
@@ -146,7 +150,9 @@
         "multipleSelectCheckboxes": "Cases à cocher",
         "duration": "Durée",
         "password": "Mot de passe",
-        "ai": "Prompt pour l'IA"
+        "ai": "Prompt pour l'IA",
+        "multipleCollaboratorsCheckboxes": "Cases à cocher",
+        "multipleCollaboratorsDropdown": "Liste déroulante"
     },
     "fieldErrors": {
         "invalidNumber": "Nombre invalide",

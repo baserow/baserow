@@ -117,3 +117,9 @@ if CACHALOT_ENABLED:
     }
 
     install_cachalot()
+
+
+try:
+    from .local_test import *  # noqa: F403, F401
+except ImportError:
+    pass

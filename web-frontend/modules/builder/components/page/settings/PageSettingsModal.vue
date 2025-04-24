@@ -1,10 +1,8 @@
 <template>
   <Modal left-sidebar left-sidebar-scrollable>
     <template #sidebar>
-      <div class="modal-sidebar__head">
-        <div class="modal-sidebar__head-name">
-          {{ page.name }}
-        </div>
+      <div class="modal-sidebar__title">
+        {{ page.name }}
       </div>
       <ul class="modal-sidebar__nav">
         <li v-for="setting in registeredSettings" :key="setting.getType()">

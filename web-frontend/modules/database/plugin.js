@@ -320,6 +320,7 @@ import {
   FormSubmittedNotificationType,
   UserMentionInRichTextFieldNotificationType,
   WebhookDeactivatedNotificationType,
+  WebhookPayloadTooLargedNotificationType,
 } from '@baserow/modules/database/notificationTypes'
 import { HistoryRowModalSidebarType } from '@baserow/modules/database/rowModalSidebarTypes'
 import { FieldsDataProviderType } from '@baserow/modules/database/dataProviderTypes'
@@ -350,6 +351,7 @@ import {
   SyncedFieldsConfigureDataSyncType,
   SettingsConfigureDataSyncType,
 } from '@baserow/modules/database/configureDataSyncTypes'
+import { DatabaseGuidedTourType } from '@baserow/modules/database/guidedTourTypes'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -1024,6 +1026,10 @@ export default (context) => {
     'notification',
     new WebhookDeactivatedNotificationType(context)
   )
+  app.$registry.register(
+    'notification',
+    new WebhookPayloadTooLargedNotificationType(context)
+  )
 
   app.$registry.register(
     'rowModalSidebar',
@@ -1073,6 +1079,8 @@ export default (context) => {
     'configureDataSync',
     new SettingsConfigureDataSyncType(context)
   )
+
+  app.$registry.register('guidedTour', new DatabaseGuidedTourType(context))
 
   registerRealtimeEvents(app.$realtime)
 }

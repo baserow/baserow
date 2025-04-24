@@ -115,7 +115,7 @@ class WidgetService:
 
         widget_type_from_registry = widget_type_registry.get(widget_type)
 
-        widget_type_from_registry.before_create(dashboard)
+        widget_type_from_registry.before_create(user, dashboard)
 
         new_widget = self.handler.create_widget(
             widget_type_from_registry,

@@ -644,8 +644,8 @@ def test_admin_license_user_lookup(api_client, data_fixture):
         format="json",
         HTTP_AUTHORIZATION=f"JWT {admin_token}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_INVALID_PAGE"
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["results"] == []
 
     url = reverse(
         "api:premium:license:lookup_users",

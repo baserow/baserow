@@ -1,11 +1,11 @@
-django==5.0.9
+django==5.0.13
 django-cors-headers==4.3.1
 djangorestframework==3.15.1
 djangorestframework-simplejwt==5.3.1
 psycopg2==2.9.10
 Faker==25.0.1
 Twisted==24.3.0
-gunicorn==22.0.0
+gunicorn==23.0.0
 uvicorn[standard]==0.29.0
 websockets==12.0
 requests==2.31.0
@@ -28,7 +28,7 @@ service-identity==24.1.0
 regex==2024.4.28
 antlr4-python3-runtime==4.9.3
 tqdm==4.66.4
-boto3==1.34.98
+boto3<=1.35
 django-storages==1.14.3
 django-storages[azure]==1.14.3
 django-storages[google]==1.14.3
@@ -70,7 +70,7 @@ tzdata==2024.1
 sentry-sdk==2.0.1
 typing_extensions==4.11.0
 ollama==0.1.9
-langchain==0.1.17
+langchain==0.3.21
 openai==1.30.1
 anthropic==0.37.1
 mistralai==1.1.0

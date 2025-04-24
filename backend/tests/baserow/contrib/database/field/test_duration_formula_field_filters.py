@@ -79,7 +79,7 @@ def duration_formula_filter_proc(
         {src_field_name: 61, refname: "1m 1s"},
     ]
 
-    created = t.row_handler.create_rows(
+    t.row_handler.create_rows(
         user=t.user,
         table=t.table,
         rows_values=rows,

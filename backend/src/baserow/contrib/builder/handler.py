@@ -104,7 +104,7 @@ class BuilderHandler:
             self.get_builder_used_properties_cache_key(user, builder),
             default=compute_properties,
             # We want to invalidate the cache for all roles at once so we create a
-            # unique key for all.
+            # unique invalidate key for all.
             invalidate_key=self._get_builder_public_properties_version_cache(builder),
             timeout=settings.BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS
             if builder.workspace_id

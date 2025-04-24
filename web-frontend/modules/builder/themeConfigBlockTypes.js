@@ -11,6 +11,7 @@ import { FONT_WEIGHTS } from '@baserow/modules/builder/fontWeights'
 import {
   resolveColor,
   colorRecommendation,
+  colorContrast,
 } from '@baserow/modules/core/utils/colors'
 import {
   WIDTHS_NEW,
@@ -47,6 +48,12 @@ export class ThemeStyle {
   addColorRecommendationIfExists(theme, propName, styleName) {
     return this.addIfExists(theme, propName, styleName, (v) =>
       colorRecommendation(resolveColor(v, this.colorVariables))
+    )
+  }
+
+  addColorContrastIfExists(theme, propName, styleName) {
+    return this.addIfExists(theme, propName, styleName, (v) =>
+      colorContrast(resolveColor(v, this.colorVariables))
     )
   }
 
@@ -289,6 +296,36 @@ export class TypographyThemeConfigBlockType extends ThemeConfigBlockType {
         `heading_${level}_font_weight`,
         `--heading-h${level}-font-weight`
       )
+      style.addIfExists(
+        theme,
+        `heading_${level}_text_decoration`,
+        `--heading-h${level}-text-decoration`,
+        (v) => {
+          const value = []
+          if (v[0]) {
+            value.push('underline')
+          }
+          if (v[1]) {
+            value.push('line-through')
+          }
+          if (value.length === 0) {
+            return 'none'
+          }
+          return value.join(' ')
+        }
+      )
+      style.addIfExists(
+        theme,
+        `heading_${level}_text_decoration`,
+        `--heading-h${level}-text-transform`,
+        (v) => (v[2] ? 'uppercase' : 'none')
+      )
+      style.addIfExists(
+        theme,
+        `heading_${level}_text_decoration`,
+        `--heading-h${level}-font-style`,
+        (v) => (v[3] ? 'italic' : 'none')
+      )
     })
     style.addPixelValueIfExists(theme, `body_font_size`)
     style.addColorIfExists(theme, `body_text_color`)
@@ -398,6 +435,96 @@ export class LinkThemeConfigBlockType extends ThemeConfigBlockType {
       const fontFamilyType = this.app.$registry.get('fontFamily', v)
       return `"${fontFamilyType.name}","${fontFamilyType.safeFont}"`
     })
+    style.addIfExists(
+      theme,
+      'link_default_text_decoration',
+      '--link-default-text-decoration',
+      (v) => {
+        const value = []
+        if (v[0]) {
+          value.push('underline')
+        }
+        if (v[1]) {
+          value.push('line-through')
+        }
+        if (value.length === 0) {
+          return 'none'
+        }
+        return value.join(' ')
+      }
+    )
+    style.addIfExists(
+      theme,
+      'link_default_text_decoration',
+      '--link-default-text-transform',
+      (v) => (v[2] ? 'uppercase' : 'none')
+    )
+    style.addIfExists(
+      theme,
+      'link_default_text_decoration',
+      '--link-default-font-style',
+      (v) => (v[3] ? 'italic' : 'none')
+    )
+    style.addIfExists(
+      theme,
+      'link_hover_text_decoration',
+      '--link-hover-text-decoration',
+      (v) => {
+        const value = []
+        if (v[0]) {
+          value.push('underline')
+        }
+        if (v[1]) {
+          value.push('line-through')
+        }
+        if (value.length === 0) {
+          return 'none'
+        }
+        return value.join(' ')
+      }
+    )
+    style.addIfExists(
+      theme,
+      'link_hover_text_decoration',
+      '--link-hover-text-transform',
+      (v) => (v[2] ? 'uppercase' : 'none')
+    )
+    style.addIfExists(
+      theme,
+      'link_hover_text_decoration',
+      '--link-hover-font-style',
+      (v) => (v[3] ? 'italic' : 'none')
+    )
+    style.addIfExists(
+      theme,
+      'link_active_text_decoration',
+      '--link-active-text-decoration',
+      (v) => {
+        const value = []
+        if (v[0]) {
+          value.push('underline')
+        }
+        if (v[1]) {
+          value.push('line-through')
+        }
+        if (value.length === 0) {
+          return 'none'
+        }
+        return value.join(' ')
+      }
+    )
+    style.addIfExists(
+      theme,
+      'link_active_text_decoration',
+      '--link-active-text-transform',
+      (v) => (v[2] ? 'uppercase' : 'none')
+    )
+    style.addIfExists(
+      theme,
+      'link_active_text_decoration',
+      '--link-active-font-style',
+      (v) => (v[3] ? 'italic' : 'none')
+    )
     style.addPixelValueIfExists(theme, `link_font_size`)
     style.addFontWeightIfExists(theme, `link_font_weight`)
     return style.toObject()
@@ -527,6 +654,16 @@ export class PageThemeConfigBlockType extends ThemeConfigBlockType {
       $registry: this.app.$registry,
     })
     style.addColorIfExists(theme, 'page_background_color')
+    style.addColorRecommendationIfExists(
+      theme,
+      'page_background_color',
+      '--page-background-color-complement'
+    )
+    style.addColorContrastIfExists(
+      theme,
+      'page_background_color',
+      '--page-background-color-contrast'
+    )
     style.addIfExists(
       theme,
       'page_background_file',

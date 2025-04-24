@@ -12,12 +12,13 @@
   gap: 4px;
 
   &.active {
+    overflow: visible;
     height: auto;
     flex-flow: row;
     flex-wrap: wrap;
     bottom: auto;
-    min-width: calc(100% + 4px);
-    min-height: calc(100% + 4px);
+    min-width: 100%;
+    min-height: 100%;
   }
 
   .grid-view--row-height-medium &,

@@ -41,6 +41,7 @@ from baserow.contrib.database.table.exceptions import (
 from baserow.contrib.database.table.handler import TableHandler, TableUsageHandler
 from baserow.contrib.database.table.models import Table, TableUsage, TableUsageUpdate
 from baserow.contrib.database.views.models import GridView, GridViewFieldOptions, View
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.models import TrashEntry
@@ -766,7 +767,9 @@ def test_create_needs_background_update_column(data_fixture):
         with pytest.raises(FieldDoesNotExist):
             model._meta.get_field(system_updated_on_column)
 
-    TableHandler().create_needs_background_update_field(table)
+    with local_cache.context():
+        TableHandler().create_needs_background_update_field(table)
+
     table.refresh_from_db()
     assert table.needs_background_update_column_added
 
@@ -792,8 +795,9 @@ def test_create_last_modified_by_field(data_fixture):
     table.refresh_from_db()
     assert table.last_modified_by_column_added
 
-    model = table.get_model()
-    model._meta.get_field(LAST_MODIFIED_BY_COLUMN_NAME)
+    with local_cache.context():
+        model = table.get_model()
+        model._meta.get_field(LAST_MODIFIED_BY_COLUMN_NAME)
 
 
 @pytest.mark.django_db

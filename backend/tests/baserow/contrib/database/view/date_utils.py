@@ -562,7 +562,20 @@ DATE_MULTI_STEP_OPERATOR_VALID_RESULTS = {
         },
     },
     DateIsWithinMultiStepFilterType.type: {
+        DateFilterOperators.YESTERDAY: {"expected_results": ["-1d", "now"]},
         DateFilterOperators.TOMORROW: {"expected_results": ["now", "+1d"]},
+        DateFilterOperators.ONE_WEEK_AGO: {"expected_results": ["-1d", "now", "-1w"]},
+        DateFilterOperators.ONE_MONTH_AGO: {
+            "expected_results": ["-1d", "now", "-1w", "-1m"]
+        },
+        DateFilterOperators.ONE_YEAR_AGO: {
+            "expected_results": ["-1d", "now", "-1w", "-1m", "-1y"]
+        },
+        DateFilterOperators.THIS_WEEK: {"expected_results": ["now", "+1d"]},
+        DateFilterOperators.THIS_MONTH: {"expected_results": ["now", "+1d", "+1w"]},
+        DateFilterOperators.THIS_YEAR: {
+            "expected_results": ["now", "+1d", "+1w", "+1m"]
+        },
         DateFilterOperators.NEXT_WEEK: {"expected_results": ["now", "+1d", "+1w"]},
         DateFilterOperators.NEXT_MONTH: {
             "expected_results": ["now", "+1d", "+1w", "+1m"]
@@ -584,6 +597,22 @@ DATE_MULTI_STEP_OPERATOR_VALID_RESULTS = {
         },
         DateFilterOperators.NR_YEARS_FROM_NOW: {
             "expected_results": ["now", "+1d", "+1w", "+1m", "+1y"],
+            "value": 1,
+        },
+        DateFilterOperators.NR_DAYS_AGO: {
+            "expected_results": ["now", "-1d", "-1w"],
+            "value": 7,
+        },
+        DateFilterOperators.NR_WEEKS_AGO: {
+            "expected_results": ["now", "-1d", "-1w"],
+            "value": 1,
+        },
+        DateFilterOperators.NR_MONTHS_AGO: {
+            "expected_results": ["now", "-1d", "-1w", "-1m"],
+            "value": 1,
+        },
+        DateFilterOperators.NR_YEARS_AGO: {
+            "expected_results": ["now", "-1d", "-1w", "-1m", "-1y"],
             "value": 1,
         },
         DateFilterOperators.EXACT_DATE: {

@@ -36,3 +36,12 @@ class CannotDeleteRowsInTable(Exception):
     """
     Raised when it's not possible to delete rows in the table.
     """
+
+
+class InvalidRowLength(Exception):
+    """
+    Row's length doesn't match expected length based on schema.
+    """
+
+    def __init__(self, row_idx: int):
+        self.row_idx = row_idx

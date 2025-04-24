@@ -40,6 +40,7 @@ import {
   dateAfterCases,
   dateBeforeOrEqualCases,
   dateAfterOrEqualCases,
+  dateWithinDaysAgo,
   dateWithinDays,
   dateWithinWeeks,
   dateWithinMonths,
@@ -2011,6 +2012,14 @@ describe('Date array view filters', () => {
       expect(result).toBe(!values.expected)
     }
   )
+
+  test.each(dateWithinDaysAgo)('HasDateWithinDaysAgo', (values) => {
+    const rowValue = [{ value: values.rowValue }]
+    const result = new HasDateWithinViewFilterType({
+      app: testApp,
+    }).matches(rowValue, `${values.filterValue}?nr_days_ago`, {})
+    expect(result).toBe(values.expected)
+  })
 
   test.each(dateWithinDays)('HasDateWithinDays', (values) => {
     const rowValue = [{ value: values.rowValue }]

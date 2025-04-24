@@ -11,7 +11,6 @@ import { registerRealtimeEvents } from '@baserow/modules/dashboard/realtime'
 import { DashboardApplicationType } from '@baserow/modules/dashboard/applicationTypes'
 import { SummaryWidgetType } from '@baserow/modules/dashboard/widgetTypes'
 import dashboardApplicationStore from '@baserow/modules/dashboard/store/dashboardApplication'
-import { FF_DASHBOARDS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -37,8 +36,6 @@ export default (context) => {
     dashboardApplicationStore
   )
 
-  if (app.$featureFlagIsEnabled(FF_DASHBOARDS)) {
-    app.$registry.register('application', new DashboardApplicationType(context))
-    app.$registry.register('dashboardWidget', new SummaryWidgetType(context))
-  }
+  app.$registry.register('application', new DashboardApplicationType(context))
+  app.$registry.register('dashboardWidget', new SummaryWidgetType(context))
 }

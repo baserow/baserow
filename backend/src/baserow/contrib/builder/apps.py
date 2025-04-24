@@ -184,8 +184,11 @@ class BuilderConfig(AppConfig):
             InputTextElementType,
             LinkElementType,
             MenuElementType,
+            RatingElementType,
+            RatingInputElementType,
             RecordSelectorElementType,
             RepeatElementType,
+            SimpleContainerElementType,
             TableElementType,
             TextElementType,
         )
@@ -193,6 +196,8 @@ class BuilderConfig(AppConfig):
 
         element_type_registry.register(HeadingElementType())
         element_type_registry.register(TextElementType())
+        element_type_registry.register(RatingElementType())
+        element_type_registry.register(RatingInputElementType())
         element_type_registry.register(LinkElementType())
         element_type_registry.register(ImageElementType())
         element_type_registry.register(InputTextElementType())
@@ -209,6 +214,7 @@ class BuilderConfig(AppConfig):
         element_type_registry.register(HeaderElementType())
         element_type_registry.register(FooterElementType())
         element_type_registry.register(MenuElementType())
+        element_type_registry.register(SimpleContainerElementType())
 
         from .domains.domain_types import CustomDomainType, SubDomainType
         from .domains.registries import domain_type_registry
@@ -255,7 +261,6 @@ class BuilderConfig(AppConfig):
             ImageThemeConfigBlockType,
             InputThemeConfigBlockType,
             LinkThemeConfigBlockType,
-            MenuThemeConfigBlockType,
             PageThemeConfigBlockType,
             TableThemeConfigBlockType,
             TypographyThemeConfigBlockType,
@@ -264,12 +269,11 @@ class BuilderConfig(AppConfig):
         theme_config_block_registry.register(ColorThemeConfigBlockType())
         theme_config_block_registry.register(TypographyThemeConfigBlockType())
         theme_config_block_registry.register(ButtonThemeConfigBlockType())
-        theme_config_block_registry.register(LinkThemeConfigBlockType())
         theme_config_block_registry.register(ImageThemeConfigBlockType())
         theme_config_block_registry.register(PageThemeConfigBlockType())
         theme_config_block_registry.register(InputThemeConfigBlockType())
         theme_config_block_registry.register(TableThemeConfigBlockType())
-        theme_config_block_registry.register(MenuThemeConfigBlockType())
+        theme_config_block_registry.register(LinkThemeConfigBlockType())
 
         from .workflow_actions.registries import builder_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (
@@ -297,12 +301,14 @@ class BuilderConfig(AppConfig):
             ButtonCollectionFieldType,
             ImageCollectionFieldType,
             LinkCollectionFieldType,
+            RatingCollectionFieldType,
             TagsCollectionFieldType,
             TextCollectionFieldType,
         )
         from .elements.registries import collection_field_type_registry
 
         collection_field_type_registry.register(BooleanCollectionFieldType())
+        collection_field_type_registry.register(RatingCollectionFieldType())
         collection_field_type_registry.register(TextCollectionFieldType())
         collection_field_type_registry.register(LinkCollectionFieldType())
         collection_field_type_registry.register(TagsCollectionFieldType())

@@ -207,10 +207,10 @@ export default {
       return this.columnsBuffer[lastColumn].item?.date || null
     },
     startDateFieldReadOnly() {
-      return this.startDateField.read_only || false
+      return this.isReadOnlyField(this.startDateField)
     },
     endDateFieldReadOnly() {
-      return this.endDateField.read_only || false
+      return this.isReadOnlyField(this.endDateField)
     },
     // Decorations from the viewDecoration mixin
     firstCellDecorations() {
@@ -230,6 +230,11 @@ export default {
     },
   },
   methods: {
+    /* Returns true if the given field is read only. */
+    isReadOnlyField(field) {
+      const fieldType = this.$registry.get('field', field.type)
+      return fieldType.isReadOnlyField(field)
+    },
     /*
      * Returns the left offset of the given date in the timeline grid.
      */

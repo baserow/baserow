@@ -4,7 +4,7 @@
         "rbac": "RBAC",
         "sso": "SSO",
         "deactivated": "Disponible dans la version avancée/entreprise",
-        "licenseDescription": "Avoir le rôle de spectateur est inclus dans Baserow Entreprise. Si un utilisateur a un tout autre role, dans n'importe quel projet, il utilisera automatiquement un siège payant.",
+        "licenseDescription": "Avoir le rôle de spectateur est inclus dans Baserow Entreprise. Si un utilisateur a un tout autre rôle, dans n'importe quel projet, il utilisera automatiquement un siège payant.",
         "sidebarTooltip": "Votre compte a un accès global aux fonctions entreprise",
         "overflowWarning": "Vous avez trop d'utilisateurs non-spectateurs et avez utilisé tous vos sièges payants. Changez les utilisateurs pour qu'ils deviennent des spectateurs sur la page des membres de chaque projet."
     },
@@ -284,7 +284,9 @@
         "coBranding": "Remplacement du logo de co-branding",
         "auditLogs": "Journaux d'audit",
         "support": "Assistance en ligne",
-        "dataSync": "Synchronisation de données"
+        "dataSync": "Synchronisation de données",
+        "chartWidget": "Graphique",
+        "advancedWebhooks": "Webhooks avancés"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Assistance"
@@ -332,7 +334,7 @@
         "branding": "Image de marque",
         "showBaserowHelpMessage": "Afficher le message d'aide",
         "coBrandingLogo": "Logo",
-        "coBrandingLogoDescription": "Remplace le logo Baserow par une alternative co-brandée personnalisée (176x29)."
+        "coBrandingLogoDescription": "Remplace le logo Baserow par une alternative co-brandée personnalisée (176x29). Si défini, cela supprime également la description de Baserow dans le pied de tous les emails."
     },
     "enterpriseModal": {
         "title": "Changer de plan pour utiliser : {name}",
@@ -377,7 +379,7 @@
         "apiTokenHelper": "Le jeton d'API du compte Jira utilisé pour l'authentification. Il peut être créé à l'adresse https://id.atlassian.com/manage-profile/security/api-tokens.",
         "jiraUrl": "URL de l'instance Jira",
         "urlHelper": "L'URL de base de votre instance Jira (par exemple, https://your-domain.atlassian.net).",
-        "projectKeyHelper": "La clé de projet du projet Jira (par exemple, PROJ). On peut la trouver en cliquant sur \"Paramètres du projet\" dans Jira. Si elle n'est pas fournie, touts les tickets seront renvoyés.",
+        "projectKeyHelper": "La clé de projet du projet Jira (par exemple, PROJ). On peut la trouver en cliquant sur \"Paramètres du projet\" dans Jira. Si elle n'est pas fournie, tous les tickets seront renvoyés.",
         "jiraUsername": "Nom d'utilisateur Jira",
         "usernameHelper": "Le nom d'utilisateur du compte Jira utilisé pour l'authentification. Il s'agit de l'email que vous utilisez pour vous connecter.",
         "apiToken": "Jeton d'API Jira"
@@ -429,7 +431,8 @@
         "hour": "Heure",
         "minute": "Minute",
         "second": "Seconde",
-        "hourly": "Toutes les heures"
+        "hourly": "Toutes les heures",
+        "whenHourlyHelper": "Indiquez l'heure, la minute et la seconde exactes auxquelles la synchronisation des données doit avoir lieu."
     },
     "commonOidcSettingForm": {
         "callbackTitle": "URL de Callback (Cliquez pour copier)",
@@ -450,5 +453,42 @@
     },
     "oidcAuthLink": {
         "placeholderWithOIDC": "{login} avec {provider}"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "data": "Données",
+        "sourceFieldLabel": "Source",
+        "viewFieldLabel": "Vue",
+        "notSelected": "Non sélectionnée",
+        "addSeries": "Ajouter une série",
+        "series": "Série"
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Champ",
+        "aggregationTypeLabel": "Résumé",
+        "deleteSeries": "Supprimer la série"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Grouper par",
+        "groupByNone": "Aucun",
+        "groupByRowId": "ID de ligne"
+    },
+    "aggregationSortByForm": {
+        "none": "Aucun",
+        "ascending": "Ascendant",
+        "descending": "Descendant",
+        "sortByFieldLabel": "Trier par"
+    },
+    "periodicDataSyncDeactivatedNotification": {
+        "body": "La synchronisation périodique des données de {name} a été désactivée car elle a échoué consécutivement trop de fois."
+    },
+    "webhook": {
+        "rowsEnterVieweventType": "Des lignes entrent dans la vue"
+    },
+    "webhookForm": {
+        "helpTriggerWhenRowsEnterView": "Se déclenche uniquement lorsque l'option « Des lignes entrent dans la vue » est sélectionnée et que les lignes qui correspondent aux filtres entrent dans la vue.",
+        "triggerWhenRowsEnterView": "Déclenché lorsque de nouvelles lignes entrent dans la vue."
+    },
+    "chartWidget": {
+        "name": "Graphique"
     }
 }

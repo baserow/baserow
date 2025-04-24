@@ -29,7 +29,39 @@ import {
   ConditionalColorValueProviderType,
 } from '@baserow_premium/decoratorValueProviders'
 import { FormViewSurveyModeType } from '@baserow_premium/formViewModeTypes'
-
+import {
+  TextFieldType,
+  LongTextFieldType,
+  URLFieldType,
+  EmailFieldType,
+  NumberFieldType,
+  RatingFieldType,
+  BooleanFieldType,
+  SingleSelectFieldType,
+  PhoneNumberFieldType,
+  AutonumberFieldType,
+} from '@baserow/modules/database/fieldTypes'
+import {
+  CountViewAggregationType,
+  EmptyCountViewAggregationType,
+  NotEmptyCountViewAggregationType,
+  CheckedCountViewAggregationType,
+  NotCheckedCountViewAggregationType,
+  EmptyPercentageViewAggregationType,
+  NotEmptyPercentageViewAggregationType,
+  CheckedPercentageViewAggregationType,
+  NotCheckedPercentageViewAggregationType,
+  UniqueCountViewAggregationType,
+  MinViewAggregationType,
+  MaxViewAggregationType,
+  SumViewAggregationType,
+  AverageViewAggregationType,
+  StdDevViewAggregationType,
+  VarianceViewAggregationType,
+  MedianViewAggregationType,
+} from '@baserow/modules/database/viewAggregationTypes'
+import { ChartWidgetType } from '@baserow_premium/dashboard/widgetTypes'
+import { SingleSelectFormattingType } from '@baserow_premium/dashboard/chartFieldFormatting'
 import en from '@baserow_premium/locales/en.json'
 import fr from '@baserow_premium/locales/fr.json'
 import nl from '@baserow_premium/locales/nl.json'
@@ -54,6 +86,20 @@ import {
   ChoiceAIFieldOutputType,
   TextAIFieldOutputType,
 } from '@baserow_premium/aiFieldOutputTypes'
+import {
+  AIPaidFeature,
+  CalendarViewPaidFeature,
+  ExportsPaidFeature,
+  FormSurveyModePaidFeature,
+  KanbanViewPaidFeature,
+  PersonalViewsPaidFeature,
+  PublicLogoRemovalPaidFeature,
+  RowColoringPaidFeature,
+  RowCommentsPaidFeature,
+  RowNotificationsPaidFeature,
+  TimelineViewPaidFeature,
+  ChartPaidFeature,
+} from '@baserow_premium/paidFeatures'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -98,6 +144,7 @@ export default (context) => {
   store.registerModule('impersonating', impersonatingStore)
 
   app.$registry.registerNamespace('aiFieldOutputType')
+  app.$registry.registerNamespace('paidFeature')
 
   app.$registry.register('plugin', new PremiumPlugin(context))
   app.$registry.register('admin', new LicensesAdminType(context))
@@ -173,4 +220,138 @@ export default (context) => {
     'aiFieldOutputType',
     new ChoiceAIFieldOutputType(context)
   )
+  app.$registry.register(
+    'groupedAggregation',
+    new MinViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new MaxViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new SumViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new AverageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new MedianViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new StdDevViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new VarianceViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new CountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new EmptyCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotEmptyCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new CheckedCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotCheckedCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new EmptyPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotEmptyPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new CheckedPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotCheckedPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new UniqueCountViewAggregationType(context)
+  )
+
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new TextFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new LongTextFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new NumberFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new URLFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new RatingFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new BooleanFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new EmailFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new SingleSelectFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new PhoneNumberFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new AutonumberFieldType(context)
+  )
+
+  app.$registry.register('dashboardWidget', new ChartWidgetType(context))
+  app.$registry.register(
+    'chartFieldFormatting',
+    new SingleSelectFormattingType(context)
+  )
+
+  app.$registry.register('paidFeature', new KanbanViewPaidFeature(context))
+  app.$registry.register('paidFeature', new CalendarViewPaidFeature(context))
+  app.$registry.register('paidFeature', new TimelineViewPaidFeature(context))
+  app.$registry.register('paidFeature', new RowColoringPaidFeature(context))
+  app.$registry.register('paidFeature', new RowCommentsPaidFeature(context))
+  app.$registry.register(
+    'paidFeature',
+    new RowNotificationsPaidFeature(context)
+  )
+  app.$registry.register('paidFeature', new AIPaidFeature(context))
+  app.$registry.register('paidFeature', new PersonalViewsPaidFeature(context))
+  app.$registry.register('paidFeature', new ExportsPaidFeature(context))
+  app.$registry.register('paidFeature', new FormSurveyModePaidFeature(context))
+  app.$registry.register(
+    'paidFeature',
+    new PublicLogoRemovalPaidFeature(context)
+  )
+  app.$registry.register('paidFeature', new ChartPaidFeature(context))
 }

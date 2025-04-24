@@ -1,32 +1,56 @@
+// Main Component
 .add-element-card {
-  border: solid $color-neutral-400 1px;
-  padding: 10px 15px;
-  width: 133px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 125px;
   cursor: pointer;
 
   @include rounded($rounded-md);
 
   &:hover {
-    background-color: $color-neutral-100;
     text-decoration: none;
   }
 
   &--disabled {
     opacity: 0.3;
     cursor: not-allowed;
-    background-color: $color-neutral-100;
   }
-}
 
-.add-element-card__description {
-  font-size: 11px;
-  color: $color-neutral-400;
-}
+  // Nested elements
+  &__description {
+    font-size: 11px;
+    color: $color-neutral-400;
+  }
 
-.add-element-card__element-type {
-  @include flex-align-items(4px);
-}
+  &__element-type {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
 
-.add-element-card__element-type-icon {
-  font-size: 16px;
+    @include flex-align-items(4px);
+  }
+
+  &__element-type-icon {
+    display: inline-block;
+    width: 116px;
+    height: 110px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    font-size: 16px;
+
+    &:hover {
+      filter: contrast(0.95);
+    }
+  }
+
+  &__label {
+    display: block;
+    color: #202128;
+    font-size: 13px;
+    font-weight: 500;
+    width: 90px;
+    text-align: center;
+  }
 }

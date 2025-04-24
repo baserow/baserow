@@ -51,7 +51,7 @@
 // file.
 .grid-view__left {
   left: 0;
-  background-color: $color-neutral-50;
+  background-color: $palette-neutral-25;
 }
 
 // The width of the first column can be adjusted that is why the left offset is
@@ -67,7 +67,7 @@
 
   z-index: 3;
   width: 4px;
-  border-left: 1px solid $color-neutral-400;
+  border-left: 1px solid $palette-neutral-400;
   overflow: hidden;
   pointer-events: none;
 
@@ -101,8 +101,8 @@
 
   display: flex;
   height: 33px;
-  background-color: $color-neutral-50;
-  border-bottom: 1px solid $color-neutral-200;
+  background-color: $palette-neutral-25;
+  border-bottom: 1px solid $palette-neutral-400;
 }
 
 .grid-view__head-row-identifier {
@@ -115,10 +115,10 @@
   position: relative;
   z-index: 1;
   padding-left: 8px;
-  color: $color-neutral-600;
+  color: $palette-neutral-600;
 
   &:hover {
-    color: $color-neutral-900;
+    color: $palette-neutral-1000;
   }
 }
 
@@ -178,7 +178,7 @@
   background-color: $white;
   background-image: linear-gradient(
     0deg,
-    $color-neutral-200 1px,
+    $palette-neutral-200 1px,
     $white 1px $grid-view-row-height-small
   );
   background-size: 100% $grid-view-row-height-small;
@@ -187,7 +187,7 @@
     background-size: 100% $grid-view-row-height-medium;
     background-image: linear-gradient(
       0deg,
-      $color-neutral-200 1px,
+      $palette-neutral-200 1px,
       $white 1px $grid-view-row-height-medium
     );
   }
@@ -196,7 +196,7 @@
     background-size: 100% $grid-view-row-height-large;
     background-image: linear-gradient(
       0deg,
-      $color-neutral-200 1px,
+      $palette-neutral-200 1px,
       $white 1px $grid-view-row-height-large
     );
   }
@@ -261,12 +261,25 @@
   }
 
   &.grid-view__row--warning::before {
-    @include absolute(-2px, -2px, -2px, -2px);
+    @include absolute(-1px);
 
     content: '';
     z-index: 2;
-    border: 2px solid $color-warning-500;
+    border: 2px solid $palette-yellow-500;
     pointer-events: none;
+    border-radius: $rounded-md $rounded-md $rounded-md 0;
+
+    .grid-view__left & {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+      border-right: 0;
+    }
+
+    .grid-view__right & {
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+      border-left: 0;
+    }
   }
 
   &.grid-view__row--selected {
@@ -286,21 +299,23 @@
 }
 
 .grid-view__row-warning {
-  @include absolute(auto, auto, -20px, 0);
-  @include fixed-height(20px, 12px);
+  @include absolute(calc(100% - 1px), auto, -20px, 0);
+  @include fixed-height(23px, 11px);
 
   z-index: 1;
   background-color: $color-warning-500;
   color: $white;
-  padding: 0 4px;
+  font-weight: 500;
+  padding: 0 6px;
+  border-radius: 0 0 $rounded-md $rounded-md;
 }
 
 // Because the width of a column can be adjusted it is specified in the html file.
 .grid-view__column {
   position: relative;
   height: $grid-view-row-height-small;
-  border-right: 1px solid $color-neutral-200;
-  border-bottom: 1px solid $color-neutral-200;
+  border-right: 1px solid $palette-neutral-200;
+  border-bottom: 1px solid $palette-neutral-200;
 
   .grid-view--row-height-medium & {
     height: $grid-view-row-height-medium;
@@ -313,7 +328,8 @@
   .grid-view__head & {
     height: 32px;
     border-bottom: none;
-    background-color: $color-neutral-100;
+    background-color: $palette-neutral-100;
+    border-right-color: $palette-neutral-400;
   }
 
   .grid-view__foot & {
@@ -438,15 +454,10 @@
 }
 
 .grid-view__row-drag {
-  @include absolute(0, auto, 0, 0);
+  @include absolute(9px, auto, 0, 9px);
 
-  width: 18px;
-  height: $grid-view-row-height-small;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 1) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  width: 16px;
+  height: 16px;
   cursor: grab;
   display: none;
 
@@ -454,9 +465,12 @@
     @include absolute(0);
 
     content: '';
-    width: 8px;
-    background-image: radial-gradient($color-neutral-200 40%, transparent 40%);
-    background-size: 4px 4px;
+    width: 11px;
+    background-image: radial-gradient(
+      $palette-neutral-700 1.5px,
+      transparent 1.5px
+    );
+    background-size: 5px 5px;
     background-repeat: repeat;
   }
 
@@ -486,28 +500,34 @@
       margin-top: -0.7rem;
     }
   }
+
+  .grid-view__row--hover &.grid-view__row-count--hide-on-hover {
+    visibility: hidden;
+  }
 }
 
 .grid-view__row-more {
-  padding: 2px;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  color: $color-neutral-400;
+  color: $palette-neutral-700;
   visibility: hidden;
+  font-size: 14px;
+  height: 20px;
+  width: 20px;
+  text-align: center;
+  margin-right: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-  @include rounded($rounded);
-  @include flex-align-items;
+  @include rounded($rounded-md);
 
   .grid-view__row--hover &,
   .grid-view__row--selected & {
-    display: flex;
     visibility: visible;
   }
 
   &:hover {
-    background-color: $color-primary-100;
-    color: $color-primary-800;
+    background-color: rgba($palette-neutral-1300, 0.06);
+    color: $palette-neutral-1200;
   }
 }
 
@@ -517,23 +537,27 @@
   user-select: none;
 
   &.active {
-    @include absolute(-2px);
+    @include absolute(0);
 
     z-index: 2;
-    border: 2px solid $color-primary-500;
-    border-radius: 2px;
 
-    &.editing {
-      @include absolute(-3px);
+    &::before {
+      content: '';
+      background: transparent;
+      pointer-events: none;
+      border: 2px solid $color-primary-400;
+      border-radius: $rounded-md;
 
-      border: 3px solid $color-primary-600;
+      @include absolute(-1px, -2px, -2px, -1px);
     }
 
-    &.invalid {
-      border: 3px solid $color-error-400;
-      border-bottom: 0;
+    &.editing::before {
+      border-color: $color-primary-600;
+    }
+
+    &.invalid::before {
+      border-color: $color-error-400;
       border-bottom-left-radius: 0;
-      border-bottom-right-radius: 0;
     }
   }
 
@@ -561,70 +585,20 @@
   }
 
   .grid-view__column--multi-select & {
-    background-color: $color-primary-100;
-
-    &.active {
-      background-color: $color-primary-100;
-    }
+    background-color: rgba($palette-blue-500, 0.12);
   }
 
-  .grid-view__column--multi-select-top & {
-    top: -2px;
-    z-index: 2;
-    border-top: 2px solid $color-primary-500;
-  }
-
-  .grid-view__column--multi-select-right & {
-    right: -2px;
-    z-index: 2;
-    border-right: 2px solid $color-primary-500;
-  }
-
-  .grid-view__column--multi-select-bottom & {
-    bottom: -2px;
-    z-index: 2;
-    border-bottom: 2px solid $color-primary-500;
-  }
-
-  .grid-view__column--multi-select-left & {
-    left: -2px;
-    z-index: 2;
-    border-left: 2px solid $color-primary-500;
-  }
-
-  .grid-view__cell--error {
+  .grid-view__cell-error {
     @extend %ellipsis;
-    @include absolute(100%, -3px, auto, -3px);
+    @include absolute(100%, auto, auto, -1px);
+    @include fixed-height(23px, 11px);
 
-    border: 3px solid $color-error-400;
-    border-top: 0;
-    background-color: $color-error-100;
-    color: $color-error-900;
-    padding: 0 6px;
-    line-height: 34px;
-    height: 34px;
-    border-bottom-left-radius: 2px;
-    border-bottom-right-radius: 2px;
-  }
-
-  &.active-by {
-    border-color: $color-success-500;
-  }
-
-  .grid-view__cell--active-by {
-    @include absolute(-8px, 0, auto, auto);
-    @include fixed-height(18px, 12px);
-
-    background-color: $color-success-500;
+    background-color: $color-error-500;
+    max-width: calc(100% - 4px);
     color: $white;
-    padding: 0 3px;
-    transform: translateX(50%);
-
-    @include rounded($rounded);
-
-    .icon {
-      font-size: 9px;
-    }
+    padding: 0 6px;
+    font-weight: 500;
+    border-radius: 0 0 $rounded-md $rounded-md;
   }
 }
 
@@ -639,7 +613,7 @@
   .grid-view__description-icon,
   .grid-view__description-options {
     line-height: inherit;
-    color: $color-neutral-600;
+    color: $palette-neutral-600;
   }
 
   .grid-view__description-icon-container {
@@ -647,7 +621,7 @@
   }
 
   .grid-view__description-icon {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .grid-view__description-icon-synced {
@@ -676,16 +650,17 @@
   }
 
   .grid-view__description-icon-trigger {
-    color: $color-neutral-600;
+    color: $palette-neutral-600;
     cursor: pointer;
     padding: 0 10px 0 2px;
     height: 100%;
     display: flex;
     align-items: center;
     vertical-align: center;
+    font-size: 14px;
 
     &:hover {
-      color: $color-neutral-900;
+      color: $palette-neutral-1000;
     }
   }
 
@@ -701,6 +676,9 @@
 
     user-select: none;
     line-height: 15px;
+    font-size: 12px;
+    font-weight: 500;
+    color: $palette-neutral-900;
   }
 
   &.grid-view__description--loading {
@@ -721,7 +699,7 @@
 .grid-view__add-column {
   @include flex-align-items;
 
-  color: $color-neutral-900;
+  color: $palette-neutral-600;
   height: 100%;
   justify-content: center;
 
@@ -731,7 +709,7 @@
 }
 
 .grid-view__add-column-icon {
-  font-size: 22px;
+  font-size: 16px;
 }
 
 .grid-view__add-column-placeholder {
@@ -743,7 +721,7 @@
 }
 
 .grid-view__add-row {
-  color: $color-neutral-900;
+  color: $palette-neutral-600;
   background-color: $white;
   padding-left: 8px;
   height: 100%;
@@ -755,7 +733,7 @@
   }
 
   &.hover {
-    background-color: $color-primary-100;
+    background-color: $palette-neutral-50;
   }
 }
 
@@ -763,14 +741,14 @@
   @include absolute(0, auto);
 
   z-index: 4;
-  background-color: rgba(0, 0, 0, 0.08);
+  background-color: rgba($palette-neutral-1300, 0.04);
 }
 
 .grid-view__field-target {
   @include absolute(0, auto, 48px, auto);
 
   z-index: 5;
-  border-left: solid 1px $color-neutral-900;
+  border-left: solid 1px $palette-neutral-700;
 }
 
 .grid-view__row-dragging-container {
@@ -784,7 +762,7 @@
 .grid-view__row-dragging {
   @include absolute(auto, auto, auto, 0);
 
-  background-color: rgba(0, 0, 0, 0.08);
+  background-color: rgba($palette-neutral-1300, 0.04);
   height: $grid-view-row-height-small;
 
   .grid-view--row-height-medium & {
@@ -799,9 +777,9 @@
 .grid-view__row-target {
   @include absolute(auto, auto, auto, 0);
 
-  border-top: solid 1px $color-neutral-900;
+  border-top: solid 1px $palette-neutral-700;
 }
 
 .grid-view__add-row-icon {
-  font-size: 22px;
+  font-size: 16px;
 }

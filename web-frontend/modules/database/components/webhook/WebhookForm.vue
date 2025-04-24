@@ -113,20 +113,35 @@
         <div
           v-for="webhookEvent in webhookEventTypes"
           :key="webhookEvent.type"
+          v-tooltip="
+            webhookEvent.isDeactivated(database.workspace.id)
+              ? webhookEvent.getDeactivatedText()
+              : null
+          "
           class="webhook__type"
+          tooltip-position="bottom-cursor"
+          @mousedown="
+            webhookEvent.isDeactivated(database.workspace.id) &&
+              !values.events.includes(webhookEvent.type) &&
+              $refs[`${webhookEvent.getName()}DeactivatedClickModal`][0].show()
+          "
         >
           <Checkbox
             :checked="values.events.includes(webhookEvent.type)"
-            @input="
-              $event
-                ? values.events.push(webhookEvent.type)
-                : values.events.splice(
-                    values.events.indexOf(webhookEvent.type),
-                    1
-                  )
+            :disabled="
+              !values.events.includes(webhookEvent.type) &&
+              webhookEvent.isDeactivated(database.workspace.id)
             "
-            >{{ webhookEvent.getName() }}</Checkbox
+            @input="toggleEventType(webhookEvent, $event)"
           >
+            {{ webhookEvent.getName() }}
+            <div
+              v-if="webhookEvent.isDeactivated(database.workspace.id)"
+              class="deactivated-label"
+            >
+              <i class="iconoir-lock"></i>
+            </div>
+          </Checkbox>
           <div
             v-if="webhookEvent.getHasRelatedFields()"
             class="webhook__type-dropdown-container"
@@ -157,6 +172,42 @@
               :tooltip="webhookEvent.getRelatedFieldsHelpText()"
             />
           </div>
+          <div
+            v-if="webhookEvent.getHasRelatedView()"
+            class="webhook__type-dropdown-container"
+          >
+            <Dropdown
+              :value="
+                values.events.includes(webhookEvent.type)
+                  ? getEventView(webhookEvent)
+                  : null
+              "
+              :placeholder="webhookEvent.getRelatedViewPlaceholder()"
+              :disabled="!values.events.includes(webhookEvent.type)"
+              class="dropdown--tiny webhook__type-dropdown"
+              @input="setEventView(webhookEvent, $event)"
+            >
+              <DropdownItem
+                v-for="view in filterableViews"
+                :key="view.id"
+                :name="view.name"
+                :value="view.id"
+              >
+              </DropdownItem>
+            </Dropdown>
+            <HelpIcon
+              v-if="webhookEvent.getRelatedViewHelpText()"
+              class="margin-left-1"
+              :tooltip="webhookEvent.getRelatedViewHelpText()"
+            />
+          </div>
+          <component
+            :is="webhookEvent.getDeactivatedClickModal()[0]"
+            v-if="webhookEvent.isDeactivated(database.workspace.id)"
+            :ref="`${webhookEvent.getName()}DeactivatedClickModal`"
+            :workspace="database.workspace"
+            v-bind="webhookEvent.getDeactivatedClickModal()[1]"
+          ></component>
         </div>
       </div>
 
@@ -275,6 +326,10 @@ export default {
       type: Array,
       required: true,
     },
+    views: {
+      type: Array,
+      required: true,
+    },
   },
   setup() {
     const values = reactive({
@@ -351,6 +406,11 @@ export default {
     webhookEventTypes() {
       return this.$registry.getAll('webhookEvent')
     },
+    filterableViews() {
+      return this.views.filter(
+        (view) => this.$registry.get('view', view.type).canFilter
+      )
+    },
     /**
      * Generates an example payload of the webhook event based on the chosen webhook
      * event type.
@@ -366,7 +426,7 @@ export default {
       }
       this.fields.forEach((field) => {
         const fieldType = this.$registry.get('field', field.type)
-        const empty = fieldType.getEmptyValue(field)
+        const empty = fieldType.getDefaultValue(field)
         rowExample[
           this.values.use_user_field_names ? field.name : `field_${field.id}`
         ] = empty
@@ -408,7 +468,7 @@ export default {
       if (eventConfig === undefined) {
         return []
       }
-      return eventConfig.fields
+      return eventConfig.fields ?? []
     },
     setEventFields(event, fields) {
       const eventConfig = this.values.event_config.find(
@@ -423,6 +483,45 @@ export default {
       }
 
       eventConfig.fields = fields
+    },
+    getEventView(event) {
+      const eventConfig = this.values.event_config.find(
+        (e) => e.event_type === event.type
+      )
+      if (eventConfig === undefined) {
+        return null
+      }
+      const viewId = eventConfig.views?.[0]
+      const view =
+        viewId && this.filterableViews.find((view) => view.id === viewId)
+      return view?.id || null
+    },
+    setEventView(event, view) {
+      const eventConfig = this.values.event_config.find(
+        (e) => e.event_type === event.type
+      )
+      if (eventConfig === undefined) {
+        this.values.event_config.push({
+          event_type: event.type,
+          views: [],
+        })
+        return this.setEventView(event, view)
+      }
+      this.$set(eventConfig, 'views', [view])
+    },
+    toggleEventType(webhookEvent, event) {
+      if (event) {
+        this.values.events.push(webhookEvent.type)
+      } else {
+        this.values.events.splice(
+          this.values.events.indexOf(webhookEvent.type),
+          1
+        )
+        this.values.event_config.splice(
+          this.values.event_config.indexOf((e) => e.event_type === event.type),
+          1
+        )
+      }
     },
     prepareHeaders(headers) {
       const preparedHeaders = {}

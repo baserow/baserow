@@ -46,7 +46,9 @@
     "serviceType": {
         "localBaserowGetRow": "Leggi {singleRow}",
         "localBaserowListRows": "Elenca {multiple rows}",
-        "localBaserowAggregateRows": "Aggrega campo"
+        "localBaserowAggregateRows": "Aggrega campo",
+        "misconfigured": "Errore di configurazione",
+        "trashedField": "Campo eliminato"
     },
     "userSourceType": {
         "localBaserow": "Autenticazione tramite tabella di Baserow"

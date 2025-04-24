@@ -61,6 +61,7 @@ import RadioButton from '@baserow/modules/core/components/RadioButton'
 import Thumbnail from '@baserow/modules/core/components/Thumbnail'
 import ColorInput from '@baserow/modules/core/components/ColorInput'
 import SelectSearch from '@baserow/modules/core/components/SelectSearch'
+import SwitchButton from '@baserow/modules/core/components/SwitchButton'
 
 function setupVue(Vue) {
   Vue.component('Context', Context)
@@ -111,6 +112,7 @@ function setupVue(Vue) {
   Vue.component('ReadOnlyForm', ReadOnlyForm)
   Vue.component('FormSection', FormSection)
   Vue.component('SegmentControl', SegmentControl)
+  Vue.component('SwitchButton', SwitchButton)
 
   Vue.filter('lowercase', lowercase)
   Vue.filter('uppercase', uppercase)

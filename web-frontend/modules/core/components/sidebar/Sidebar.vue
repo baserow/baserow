@@ -20,6 +20,7 @@
       <a
         ref="workspaceContextAnchor"
         class="sidebar__workspaces-selector"
+        data-highlight="workspaces"
         @click="
           $refs.workspacesContext.toggle(
             $refs.workspaceContextAnchor,

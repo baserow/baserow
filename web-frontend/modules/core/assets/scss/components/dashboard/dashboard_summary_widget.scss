@@ -1,5 +1,5 @@
 .dashboard-summary-widget {
-  padding: 0 24px 24px;
+  // nothing
 }
 
 .dashboard-summary-widget__summary {
@@ -7,7 +7,6 @@
   font-size: 40px;
   font-weight: 600;
   line-height: 40px;
-  margin-top: 16px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -15,4 +14,12 @@
 
 .dashboard-summary-widget__summary--misconfigured {
   color: #cdcecf;
+}
+
+.dashboard-summary-widget__loading {
+  height: 120px;
+
+  .dashboard-summary-widget--with-header-description & {
+    height: 141.8px;
+  }
 }

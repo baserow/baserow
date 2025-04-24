@@ -44,7 +44,10 @@ import {
   RecordSelectorElementType,
   HeaderElementType,
   FooterElementType,
+  RatingElementType,
+  RatingInputElementType,
   MenuElementType,
+  SimpleContainerElementType,
 } from '@baserow/modules/builder/elementTypes'
 import {
   DesktopDeviceType,
@@ -123,6 +126,7 @@ import {
   ButtonCollectionFieldType,
   TagsCollectionFieldType,
   ImageCollectionFieldType,
+  RatingCollectionFieldType,
 } from '@baserow/modules/builder/collectionFieldTypes'
 
 import {
@@ -217,7 +221,9 @@ export default (context) => {
   app.$registry.register('element', new IFrameElementType(context))
   app.$registry.register('element', new LinkElementType(context))
   app.$registry.register('element', new ButtonElementType(context))
+  app.$registry.register('element', new RatingElementType(context))
   app.$registry.register('element', new TableElementType(context))
+  app.$registry.register('element', new SimpleContainerElementType(context))
   app.$registry.register('element', new ColumnElementType(context))
   app.$registry.register('element', new HeaderElementType(context))
   app.$registry.register('element', new FooterElementType(context))
@@ -228,6 +234,7 @@ export default (context) => {
   app.$registry.register('element', new DateTimePickerElementType(context))
   app.$registry.register('element', new RecordSelectorElementType(context))
   app.$registry.register('element', new RepeatElementType(context))
+  app.$registry.register('element', new RatingInputElementType(context))
   app.$registry.register('element', new MenuElementType(context))
 
   app.$registry.register('device', new DesktopDeviceType(context))
@@ -385,6 +392,10 @@ export default (context) => {
   app.$registry.register(
     'collectionField',
     new ImageCollectionFieldType(context)
+  )
+  app.$registry.register(
+    'collectionField',
+    new RatingCollectionFieldType(context)
   )
 
   app.$registry.register('fontFamily', new InterFontFamilyType(context))

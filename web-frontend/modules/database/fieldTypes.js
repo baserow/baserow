@@ -10,7 +10,7 @@ import {
 import {
   collatedStringCompare,
   getFilenameFromUrl,
-  isNumeric,
+  isInteger,
   isSimplePhoneNumber,
   isValidEmail,
   isValidURL,
@@ -36,6 +36,7 @@ import FieldLinkRowSubForm from '@baserow/modules/database/components/field/Fiel
 import FieldSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSelectOptionsSubForm'
 import FieldCollaboratorSubForm from '@baserow/modules/database/components/field/FieldCollaboratorSubForm'
 import FieldPasswordSubForm from '@baserow/modules/database/components/field/FieldPasswordSubForm'
+import FieldBooleanSubForm from '@baserow/modules/database/components/field/FieldBooleanSubForm'
 
 import GridViewFieldText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldText'
 import GridViewFieldLongText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldLongText'
@@ -158,7 +159,10 @@ import FieldLookupSubForm from '@baserow/modules/database/components/field/Field
 import FieldCountSubForm from '@baserow/modules/database/components/field/FieldCountSubForm'
 import FieldRollupSubForm from '@baserow/modules/database/components/field/FieldRollupSubForm'
 import RowEditFieldFormula from '@baserow/modules/database/components/row/RowEditFieldFormula'
-import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database/constants'
+import {
+  DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY,
+  DEFAULT_SORT_TYPE_KEY,
+} from '@baserow/modules/database/constants'
 import ViewService from '@baserow/modules/database/services/view'
 import FormService from '@baserow/modules/database/services/view/form'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
@@ -323,10 +327,17 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * Because we want to show a new row immediately after creating we need to have an
-   * empty value to show right away.
+   * Should return the empty value for the field type.
    */
   getEmptyValue(field) {
+    return null
+  }
+
+  /**
+   * Because we want to show a new row immediately after creating we need to have an
+   * default value to show right away.
+   */
+  getDefaultValue(field) {
     return null
   }
 
@@ -380,10 +391,6 @@ export class FieldType extends Registerable {
    */
   getCanGroupByInView(field) {
     return false
-  }
-
-  getGroupByIndicator(field, registry) {
-    return this.getSortIndicator(field, registry)
   }
 
   /**
@@ -441,7 +448,6 @@ export class FieldType extends Registerable {
     this.type = this.getType()
     this.iconClass = this.getIconClass()
     this.canBePrimaryField = this.getCanBePrimaryField()
-    this.isReadOnly = this.getIsReadOnly()
 
     if (this.type === null) {
       throw new Error('The type name of a view type must be set.')
@@ -472,7 +478,6 @@ export class FieldType extends Registerable {
       type: this.type,
       iconClass: this.iconClass,
       name: this.getName(),
-      isReadOnly: this.isReadOnly,
       canImport: this.getCanImport(),
       canBePrimaryField: this.canBePrimaryField,
     }
@@ -522,6 +527,28 @@ export class FieldType extends Registerable {
    */
   getSortIndicator() {
     return ['text', 'A', 'Z']
+  }
+
+  /**
+   * Should return a mapping containing all the available sort types for this field
+   * type. It always returns the default type, which uses the `getSort` and
+   * `getSortIndicator` by default.
+   */
+  getSortTypes(field) {
+    return {
+      [DEFAULT_SORT_TYPE_KEY]: {
+        function: this.getSort.bind(this),
+        indicator: this.getSortIndicator(field),
+      },
+    }
+  }
+
+  /**
+   * Can a field of this type be used to perform an update during import on rows that
+   * contain the same value as imported one.
+   */
+  canUpsert() {
+    return false
   }
 
   /**
@@ -763,7 +790,7 @@ export class FieldType extends Registerable {
    * call submitted to the backend, so the user will immediately see it.
    */
   getNewRowValue(field) {
-    return this.getEmptyValue(field)
+    return this.getDefaultValue(field)
   }
 
   /**
@@ -776,12 +803,15 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * Determines whether the fieldType is a read only field. Read only fields will be
-   * excluded from update requests to the backend. It is also not possible to change
-   * the value by for example pasting.
+   * Determines whether the field type is inherently read-only, such as a
+   * FormulaFieldType or CreatedOnFieldType, which are always read-only. Some fields may
+   * have the `read_only` attribute set, indicating that while the field type itself is
+   * not inherently read-only, the specific field instance is, such as in the case of
+   * data-synced fields. Read-only fields are excluded from update requests to the
+   * backend and cannot have their values modified, for example, by pasting.
    */
-  getIsReadOnly() {
-    return false
+  isReadOnlyField(field) {
+    return Boolean(field.read_only)
   }
 
   /**
@@ -966,7 +996,15 @@ export class TextFieldType extends FieldType {
   }
 
   getEmptyValue(field) {
-    return field.text_default
+    return ''
+  }
+
+  getDefaultValue(field) {
+    return field.text_default || this.getEmptyValue(field)
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {
@@ -1076,8 +1114,12 @@ export class LongTextFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return ''
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {
@@ -1184,7 +1226,7 @@ export class LinkRowFieldType extends FieldType {
     return RowHistoryFieldLinkRow
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return []
   }
 
@@ -1459,7 +1501,7 @@ export class LinkRowFieldType extends FieldType {
       }
     }
 
-    return items.length > 0 ? items : this.getEmptyValue()
+    return items.length > 0 ? items : this.getDefaultValue()
   }
 
   getCanImport() {
@@ -1527,6 +1569,10 @@ export class NumberFieldType extends FieldType {
 
   getSortIndicator() {
     return ['text', '1', '9']
+  }
+
+  canUpsert() {
+    return true
   }
 
   /**
@@ -1739,8 +1785,12 @@ export class RatingFieldType extends FieldType {
     return ['text', '1', '9']
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return 0
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {
@@ -1812,7 +1862,7 @@ export class RatingFieldType extends FieldType {
     const valueParsed = parseInt(value, 10)
 
     if (isNaN(valueParsed) || valueParsed < 0) {
-      return this.getEmptyValue()
+      return this.getDefaultValue()
     }
 
     if (valueParsed > field.max_value) {
@@ -1849,6 +1899,10 @@ export class BooleanFieldType extends FieldType {
     return 'checkbox'
   }
 
+  getFormComponent() {
+    return FieldBooleanSubForm
+  }
+
   getGridViewFieldComponent() {
     return GridViewFieldBoolean
   }
@@ -1873,8 +1927,16 @@ export class BooleanFieldType extends FieldType {
     return false
   }
 
+  getDefaultValue(field) {
+    return field.boolean_default || this.getEmptyValue(field)
+  }
+
   getSortIndicator() {
     return ['icon', 'baserow-icon-circle-empty', 'baserow-icon-circle-checked']
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {
@@ -2230,6 +2292,10 @@ export class DateFieldType extends BaseDateFieldType {
     return true
   }
 
+  canUpsert() {
+    return true
+  }
+
   parseQueryParameter(field, value) {
     return this.formatValue(
       field.field,
@@ -2239,7 +2305,7 @@ export class DateFieldType extends BaseDateFieldType {
 }
 
 export class CreatedOnLastModifiedBaseFieldType extends BaseDateFieldType {
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -2378,7 +2444,7 @@ export class LastModifiedByFieldType extends FieldType {
     return {}
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -2520,7 +2586,7 @@ export class CreatedByFieldType extends FieldType {
     return {}
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -2696,6 +2762,10 @@ export class DurationFieldType extends FieldType {
     return this.formatValue(field, value)
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const aValue = a[name]
@@ -2793,7 +2863,7 @@ export class DurationFieldType extends FieldType {
   }
 
   prepareValueForPaste(field, clipboardData, richClipboardData) {
-    if (richClipboardData && isNumeric(richClipboardData)) {
+    if (richClipboardData && isInteger(richClipboardData)) {
       return richClipboardData
     }
     return this.parseInputValue(field, clipboardData)
@@ -2843,6 +2913,10 @@ export class URLFieldType extends FieldType {
     return isValidURL(value) ? value : ''
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -2852,7 +2926,7 @@ export class URLFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return ''
   }
 
@@ -2942,6 +3016,10 @@ export class EmailFieldType extends FieldType {
     return isValidEmail(value) ? value : ''
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -2951,7 +3029,7 @@ export class EmailFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return ''
   }
 
@@ -3131,7 +3209,7 @@ export class FileFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return []
   }
 
@@ -3266,6 +3344,40 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     }
   }
 
+  getSortByOptionOrder(name, order, field) {
+    const getOrder = function (row, name, field) {
+      let id = null
+
+      try {
+        id = row[name].id || null
+      } catch (e) {
+        return -1
+      }
+
+      return field.select_options.findIndex((o) => o.id === id) || -1
+    }
+
+    return (a, b) => {
+      const aOrder = getOrder(a, name, field)
+      const bOrder = getOrder(b, name, field)
+
+      if (order === 'ASC') {
+        return aOrder - bOrder
+      } else if (order === 'DESC') {
+        return bOrder - aOrder
+      }
+    }
+  }
+
+  getSortTypes(field) {
+    const defaultTypes = super.getSortTypes(field)
+    defaultTypes.order = {
+      function: this.getSortByOptionOrder,
+      indicator: ['text', 'First', 'Last'],
+    }
+    return defaultTypes
+  }
+
   parseFromLinkedRowItemValue(field, value) {
     return value ? { value } : null
   }
@@ -3292,7 +3404,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   _findOptionWithMatchingId(field, rawTextValue) {
-    if (isNumeric(rawTextValue)) {
+    if (isInteger(rawTextValue)) {
       const pastedOptionId = parseInt(rawTextValue, 10)
       return field.select_options.find((option) => option.id === pastedOptionId)
     }
@@ -3403,7 +3515,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       (option) => option.value === value
     )
 
-    return selectedOption ?? this.getEmptyValue()
+    return selectedOption ?? this.getDefaultValue()
   }
 
   getCanImport() {
@@ -3656,7 +3768,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
     return genericContainsWordFilter
   }
 
-  getEmptyValue() {
+  getDefaultValue() {
     return []
   }
 
@@ -3682,7 +3794,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
       values.includes(option.value)
     )
 
-    return selectOptions.length > 0 ? selectOptions : this.getEmptyValue()
+    return selectOptions.length > 0 ? selectOptions : this.getDefaultValue()
   }
 
   getCanImport() {
@@ -3754,6 +3866,10 @@ export class PhoneNumberFieldType extends FieldType {
     return isSimplePhoneNumber(value) ? value : ''
   }
 
+  canUpsert() {
+    return true
+  }
+
   getSort(name, order) {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name]
@@ -3763,7 +3879,7 @@ export class PhoneNumberFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return ''
   }
 
@@ -3912,7 +4028,11 @@ export class FormulaFieldType extends mix(
     return this.getFormulaType(field)?.getSort(name, order, field)
   }
 
-  getEmptyValue(field) {
+  getSortTypes(field) {
+    return this.getFormulaType(field)?.getSortTypes(field)
+  }
+
+  getDefaultValue(field) {
     return null
   }
 
@@ -3972,7 +4092,7 @@ export class FormulaFieldType extends mix(
     return []
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -4176,7 +4296,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     return components
   }
 
-  getEmptyValue() {
+  getDefaultValue() {
     return []
   }
 
@@ -4335,6 +4455,27 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   canBeReferencedByFormulaField() {
     return true
   }
+
+  getCanGroupByInView(field) {
+    return true
+  }
+
+  getRowValueFromGroupValue(field, value) {
+    return value.map((optId) => {
+      return { id: optId }
+    })
+  }
+
+  getGroupValueFromRowValue(field, value) {
+    return value && value.map((o) => o.id)
+  }
+
+  isEqual(field, value1, value2) {
+    const value1Ids = value1.map((v) => v.id)
+    const value2Ids = value2.map((v) => v.id)
+
+    return _.isEqual(value1Ids, value2Ids)
+  }
 }
 
 export class UUIDFieldType extends FieldType {
@@ -4355,7 +4496,7 @@ export class UUIDFieldType extends FieldType {
     return {}
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -4377,6 +4518,10 @@ export class UUIDFieldType extends FieldType {
 
   getCardComponent() {
     return RowCardFieldUUID
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {
@@ -4430,7 +4575,7 @@ export class AutonumberFieldType extends FieldType {
     return {}
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -4456,6 +4601,10 @@ export class AutonumberFieldType extends FieldType {
 
   getCardComponent() {
     return RowCardFieldAutonumber
+  }
+
+  canUpsert() {
+    return true
   }
 
   getSort(name, order) {

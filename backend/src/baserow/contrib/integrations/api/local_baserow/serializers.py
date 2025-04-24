@@ -1,8 +1,7 @@
 from rest_framework import serializers
 
 from baserow.api.applications.serializers import ApplicationSerializer
-from baserow.contrib.database.api.fields.serializers import PolymorphicFieldSerializer
-from baserow.contrib.database.api.tables.serializers import TableSerializer
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import View
 
 
@@ -12,15 +11,19 @@ class LocalBaserowViewSerializer(serializers.ModelSerializer):
         fields = ("id", "table_id", "name")
 
 
-class TableSerializerWithFields(TableSerializer):
-    fields = PolymorphicFieldSerializer(many=True, help_text="Fields of this table")
+class LocalBaserowTableSerializer(serializers.ModelSerializer):
+    is_data_sync = serializers.BooleanField(
+        source="is_data_synced_table",
+        help_text="Whether this table is a data synced table or not.",
+    )
 
-    class Meta(TableSerializer.Meta):
-        fields = ("id", "name", "order", "database_id", "fields")
+    class Meta:
+        model = Table
+        fields = ("id", "database_id", "name", "is_data_sync")
 
 
 class LocalBaserowDatabaseSerializer(ApplicationSerializer):
-    tables = TableSerializerWithFields(
+    tables = LocalBaserowTableSerializer(
         many=True,
         help_text="This field is specific to the `database` application and contains "
         "an array of tables that are in the database.",

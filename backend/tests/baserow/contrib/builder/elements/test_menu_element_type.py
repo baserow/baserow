@@ -416,24 +416,68 @@ def test_import_export(menu_element_fixture, data_fixture):
 
     assert MenuElement.objects.count() == 0
     assert MenuItemElement.objects.count() == 0
-    assert NotificationWorkflowAction.objects.count() == 0
 
     # After importing the Menu element the menu items should be correctly
     # imported as well.
-    id_mapping = defaultdict(lambda: MirrorDict())
+    id_mapping = defaultdict(MirrorDict)
     menu_element_type.import_serialized(page, exported, id_mapping)
 
     menu_element = MenuElement.objects.first()
 
     # Ensure the Menu Items have been imported correctly
-    button_item = menu_element.menu_items.get(uid=uid_1)
-    assert button_item.name == "Greet"
+    # and uids should have been updated
+    button_item = menu_element.menu_items.get(name="Greet")
+    assert button_item.type == MenuItemElement.TYPES.BUTTON
+    assert button_item.uid != uid_1
 
-    link_item = menu_element.menu_items.get(uid=uid_2)
-    assert link_item.name == "Link A"
+    link_item = menu_element.menu_items.get(name="Link A")
+    assert link_item.type == MenuItemElement.TYPES.LINK
+    assert link_item.uid != uid_2
 
-    sublinks_item = menu_element.menu_items.get(uid=uid_3)
-    assert sublinks_item.name == "Sublinks"
+    sublinks_item = menu_element.menu_items.get(name="Sublinks")
+    assert sublinks_item.uid != uid_3
 
-    sublink_a = menu_element.menu_items.get(uid=uid_4)
-    assert sublink_a.name == "Sublink A"
+    sublink_a = menu_element.menu_items.get(name="Sublink A")
+    assert sublink_a.uid != uid_4
+
+
+@pytest.mark.django_db
+def test_delete_duplicated_menu_doesnt_affect_initial_element(
+    menu_element_fixture, data_fixture
+):
+    menu_element = menu_element_fixture["menu_element"]
+
+    # Create a Menu Element with Menu items.
+    uid_1 = uuid.uuid4()
+    menu_item_1 = {
+        "name": "Greet",
+        "type": MenuItemElement.TYPES.BUTTON,
+        "menu_item_order": 0,
+        "uid": uid_1,
+        "children": [],
+    }
+
+    data = {"menu_items": [menu_item_1]}
+    ElementHandler().update_element(menu_element, **data)
+
+    workflow_action = data_fixture.create_workflow_action(
+        NotificationWorkflowAction,
+        page=menu_element.page,
+        element=menu_element,
+        event=f"{uid_1}_click",
+    )
+
+    duplicated = ElementHandler().duplicate_element(menu_element)
+
+    element = duplicated["elements"][0]
+    duplicated_workflow_action = duplicated["workflow_actions"][0]
+
+    duplicated_workflow_action.event != workflow_action.event
+
+    assert NotificationWorkflowAction.objects.count() == 2
+
+    ElementHandler().delete_element(element)
+
+    # We want to make sure that deleting the clone doesn't delete the initial event
+    assert NotificationWorkflowAction.objects.count() == 1
+    assert NotificationWorkflowAction.objects.first().event == workflow_action.event

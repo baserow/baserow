@@ -4,6 +4,7 @@ import { maxPossibleOrderValue } from '@baserow/modules/database/viewTypes'
 import { escapeRegExp, isSecureURL } from '@baserow/modules/core/utils/string'
 import { SearchModes } from '@baserow/modules/database/utils/search'
 import { convertStringToMatchBackendTsvectorData } from '@baserow/modules/database/search/regexes'
+import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
 export const DEFAULT_VIEW_ID_COOKIE_NAME = 'defaultViewId'
 
@@ -20,7 +21,12 @@ export function getRowSortFunction($registry, sortings, fields, groupBys = []) {
     if (field !== undefined) {
       const fieldName = `field_${field.id}`
       const fieldType = $registry.get('field', field.type)
-      const fieldSortFunction = fieldType.getSort(fieldName, sort.order, field)
+      const sortTypes = fieldType.getSortTypes(field)
+      const fieldSortFunction = sortTypes[sort.type].function(
+        fieldName,
+        sort.order,
+        field
+      )
       sortFunction = sortFunction.thenBy(fieldSortFunction)
     }
   })
@@ -439,13 +445,13 @@ export function newFieldMatchesActiveSearchTerm(
 ) {
   if (newField && activeSearchTerm !== '') {
     const fieldType = registry.get('field', newField.type)
-    const emptyValue = fieldType.getEmptyValue(newField)
+    const defaultValue = fieldType.getDefaultValue(newField)
 
     return valueMatchesActiveSearchTerm(
       searchMode,
       registry,
       newField,
-      emptyValue,
+      defaultValue,
       activeSearchTerm
     )
   }
@@ -457,7 +463,13 @@ export function getGroupBy(rootGetters, viewId) {
     const view = rootGetters['view/get'](viewId)
     return view.group_bys
       .map((groupBy) => {
-        return `${groupBy.order === 'DESC' ? '-' : ''}field_${groupBy.field}`
+        let serialized = `${groupBy.order === 'DESC' ? '-' : ''}field_${
+          groupBy.field
+        }`
+        if (groupBy.type !== DEFAULT_SORT_TYPE_KEY) {
+          serialized += `[${groupBy.type}]`
+        }
+        return serialized
       })
       .join(',')
   } else {
@@ -489,17 +501,16 @@ export function canRowsBeOptimisticallyUpdatedInView(
   fields,
   activeSearchTerm
 ) {
-  const isFieldReadOnly = (field) => {
-    return field.read_only || $registry.get('field', field.type).isReadOnly
-  }
   const readOnlyFieldIds = new Set(
-    fields.filter(isFieldReadOnly).map((field) => String(field.id))
+    fields
+      .filter((f) => $registry.get('field', f.type).isReadOnlyField(f))
+      .map((field) => String(field.id))
   )
-  const isReadOnlyField = (sort) => readOnlyFieldIds.has(String(sort.field))
+  const hasReadOnlyField = (sort) => readOnlyFieldIds.has(String(sort.field))
   const readOnlyGroupBys = view.group_bys
-    ? view.group_bys.some(isReadOnlyField)
+    ? view.group_bys.some(hasReadOnlyField)
     : false
-  const readOnlySorts = view.sortings.some(isReadOnlyField)
+  const readOnlySorts = view.sortings.some(hasReadOnlyField)
   const readOnlyFilters = view.filters.some((filter) =>
     readOnlyFieldIds.has(String(filter.field))
   )
@@ -517,7 +528,11 @@ export function canRowsBeOptimisticallyUpdatedInView(
 export function getOrderBy(view, adhocSorting) {
   if (adhocSorting) {
     const serializeSort = (sort) => {
-      return `${sort.order === 'DESC' ? '-' : ''}field_${sort.field}`
+      let serialized = `${sort.order === 'DESC' ? '-' : ''}field_${sort.field}`
+      if (sort.type !== DEFAULT_SORT_TYPE_KEY) {
+        serialized += `[${sort.type}]`
+      }
+      return serialized
     }
     // Group bys first, then sorts to ensure that the order is correct.
     const groupBys = view.group_bys ? view.group_bys.map(serializeSort) : []

@@ -1331,6 +1331,34 @@ def test_sync_templates(data_fixture, tmpdir):
 
 
 @pytest.mark.django_db
+def test_sync_templates_mapped_open_application_id(data_fixture, tmpdir):
+    old_templates = settings.APPLICATION_TEMPLATES_DIR
+    settings.APPLICATION_TEMPLATES_DIR = os.path.join(
+        settings.BASE_DIR, "../../../tests/templates"
+    )
+
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+
+    handler = CoreHandler()
+    handler.sync_templates(storage=storage)
+
+    template_1 = Template.objects.get(slug="example-template")
+    template_2 = Template.objects.get(slug="example-template-2")
+
+    application = template_2.workspace.application_set.all().first()
+
+    assert template_1.open_application is None
+    assert template_2.open_application == application.id
+
+    handler.sync_templates(storage=storage)
+
+    assert template_1.open_application is None
+    assert template_2.open_application == application.id
+
+    settings.APPLICATION_TEMPLATES_DIR = old_templates
+
+
+@pytest.mark.django_db
 @patch("baserow.core.signals.application_created.send")
 def test_install_template(send_mock, tmpdir, data_fixture):
     old_templates = settings.APPLICATION_TEMPLATES_DIR

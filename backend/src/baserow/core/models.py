@@ -217,6 +217,12 @@ class UserProfile(models.Model):
     email_verified = models.BooleanField(null=True, default=False)
     # TODO Remove null=True in a future release.
     completed_onboarding = models.BooleanField(null=True, default=False)
+    completed_guided_tours = ArrayField(
+        base_field=models.TextField(),
+        default=list,
+        blank=True,
+        null=True,
+    )
 
     def iat_before_last_password_change(self, iat: int) -> bool:
         """
@@ -471,6 +477,11 @@ class Template(models.Model):
         default="",
         blank=True,
         help_text="Keywords related to the template that can be used for search.",
+    )
+    open_application = models.IntegerField(
+        null=True,
+        help_text="The application ID that must be opened when the template is "
+        "previewed. If null, then the first will automatically be chosen.",
     )
 
     class Meta:

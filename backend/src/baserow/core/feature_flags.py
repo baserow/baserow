@@ -2,7 +2,7 @@ from django.conf import settings
 
 from baserow.core.exceptions import FeatureDisabledException
 
-FF_DASHBOARDS = "dashboards"
+FF_AUTOMATION = "automation"
 FF_ENABLE_ALL = "*"
 
 

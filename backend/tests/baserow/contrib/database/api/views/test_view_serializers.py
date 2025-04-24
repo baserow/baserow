@@ -5,6 +5,7 @@ from baserow.contrib.database.api.views.serializers import serialize_group_by_me
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.test_utils.helpers import setup_interesting_test_table
 
 
@@ -65,7 +66,8 @@ def test_serialize_group_by_metadata(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fixture):
-    table, *_ = setup_interesting_test_table(data_fixture)
+    table, _, _, _, context = setup_interesting_test_table(data_fixture)
+    user2, user3 = context["user2"], context["user3"]
     model = table.get_model()
     queryset = model.objects.all()
     rows = list(queryset)
@@ -74,7 +76,9 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
     fields_to_group_by = [
         field
         for field in all_fields
-        if field_type_registry.get_by_model(field).check_can_group_by(field)
+        if field_type_registry.get_by_model(field).check_can_group_by(
+            field, DEFAULT_SORT_TYPE_KEY
+        )
     ]
 
     single_select_options = Field.objects.get(name="single_select").select_options.all()
@@ -283,6 +287,14 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
         "decimal_link_row": [
             {"field_decimal_link_row": [], "count": 1},
             {"field_decimal_link_row": [1, 2, 3], "count": 1},
+        ],
+        "multiple_collaborators_link_row": [
+            {"field_multiple_collaborators_link_row": [], "count": 1},
+            {"field_multiple_collaborators_link_row": [1, 2], "count": 1},
+        ],
+        "multiple_collaborators": [
+            {"field_multiple_collaborators": [], "count": 1},
+            {"field_multiple_collaborators": [user2.id, user3.id], "count": 1},
         ],
     }
     for key, actual_value in actual_result_per_field_name.items():

@@ -194,8 +194,6 @@ def test_get_integrations_serializer(
     assert response.status_code == HTTP_200_OK
     assert len(response_json) == 1
 
-    field = fields[0]
-
     assert response_json[0]["context_data"] == {
         "databases": [
             {
@@ -215,23 +213,8 @@ def test_get_integrations_serializer(
                     {
                         "id": table.id,
                         "name": table.name,
-                        "order": table.order,
                         "database_id": table.database_id,
-                        "fields": [
-                            {
-                                "description": None,
-                                "id": field.id,
-                                "name": "Name",
-                                "order": 0,
-                                "immutable_properties": False,
-                                "immutable_type": False,
-                                "primary": False,
-                                "read_only": False,
-                                "table_id": table.id,
-                                "text_default": "",
-                                "type": "text",
-                            },
-                        ],
+                        "is_data_sync": table.is_data_synced_table,
                     }
                 ],
                 "views": [

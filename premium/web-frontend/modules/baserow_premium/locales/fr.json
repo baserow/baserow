@@ -8,7 +8,8 @@
         "exporterType": {
             "json": "Exporter vers JSON",
             "xml": "Exporter vers XML",
-            "excel": "Exporter vers Excel"
+            "excel": "Exporter vers Excel",
+            "file": "Exporter les fichiers"
         },
         "deactivated": "Disponible en version premium",
         "adminType": {
@@ -49,7 +50,7 @@
             "unsupported": "La licence fournie est incompatible avec la version actuelle de Baserow. Veuillez mettre à jour votre instance avec la dernière version et essayez de nouveau.",
             "expiredTitle": "Expirée",
             "expired": "La licence fournie a expiré.",
-            "duplicateTitle": "Déja enregistrée",
+            "duplicateTitle": "Déjà enregistrée",
             "duplicate": "La licence fournie est déjà enregistrée sur cette instance.",
             "instanceMismatchTitle": "Instance incorrecte",
             "instanceMismatch": "La licence fournie n'a pas été créée pour cette instance."
@@ -57,7 +58,7 @@
     },
     "disconnectLicenseModal": {
         "disconnectLicense": "Déconnecter la licence",
-        "disconnectDescription": "Êtes-vous sur·e de vouloir déconnecter la licence ? Si vous déconnectez la licence alors que celle-ci est active, les utilisateurs associés n'auront plus accès aux fonctionnalités qu'elle offre. Cela retire définitivement la licence. Veuillez contacter notre support via {contact} si vous souhaitez utiliser cette licence sur une autre instance hebergée."
+        "disconnectDescription": "Êtes-vous sûr·e de vouloir déconnecter la licence ? Si vous déconnectez la licence alors que celle-ci est active, les utilisateurs associés n'auront plus accès aux fonctionnalités qu'elle offre. Cela retire définitivement la licence. Veuillez contacter notre support via {contact} si vous souhaitez utiliser cette licence sur une autre instance hébergée."
     },
     "registerLicenseForm": {
         "licenseKey": "Clé de licence"
@@ -93,7 +94,7 @@
         "new": "Nouveau"
     },
     "licenses": {
-        "titleNoLicenses": "Aucune licences trouvée",
+        "titleNoLicenses": "Aucune licence trouvée",
         "titleLicenses": "Licences",
         "noLicensesDescription": "Votre instance de Baserow n'a aucune licence enregistrée. Une licence premium vous donne immédiatement accès à plusieurs fonctionnalités additionnelles. Si vous avez déjà une licence, vous pouvez l'enregistrer ici. Vous pouvez également en obtenir une en cliquant sur le bouton ci-dessous.",
         "rowComments": "Commentaires par lignes",
@@ -109,7 +110,8 @@
         "expired": "Expirée",
         "validity": "Valide du {start} au {end}",
         "seats": "places",
-        "premiumFeatures": "Fonctionnalités premium"
+        "premiumFeatures": "Fonctionnalités premium",
+        "applicationUsers": "Utilisateurs de l'application"
     },
     "license": {
         "title": "Plan {name}",
@@ -129,7 +131,7 @@
         "lastCheck": "Dernière vérification",
         "lastCheckDescription": "La licence est vérifiée régulièrement. Si vous avez, par exemple, renouvelé ou mis à jour votre licence, les changements ne deviennent actifs qu'après la vérification.",
         "checkNow": "Vérifier maintenant",
-        "seats": "Places (nombre d'utilisateur max.)",
+        "seats": "Places (nombre d'utilisateurs max.)",
         "licensedTo": "Attribuée à",
         "premiumFeatures": "Fonctionnalités premium",
         "applications": "Applications / Bases de données",
@@ -137,13 +139,15 @@
         "rowUsage": "Nombre de ligne",
         "storeUsage": "Espace disponible",
         "disconnectLicense": "Déconnecter la licence",
-        "disconnectDescription": "Si vous déconnectez la licence alors que celle-ci est active, les utilisateurs associés n'auront plus accès aux fonctionnalités qu'elle offre. Cela retire définitivement la licence. Veuillez contacter notre support via {contact} si vous souhaitez utiliser cette licence sur une autre instance hebergée.",
+        "disconnectDescription": "Si vous déconnectez la licence alors que celle-ci est active, les utilisateurs associés n'auront plus accès aux fonctionnalités qu'elle offre. Cela retire définitivement la licence. Veuillez contacter notre support via {contact} si vous souhaitez utiliser cette licence sur une autre instance hébergée.",
         "moreSeatsNeededTitle": "Besoin de plus d´utilisateurs",
         "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} utilisateurs payants et {free_users_count} utilisateurs gratuits",
         "contactSalesMoreSeats": "Contacter un Vendeur pour plus d´utilisateurs",
         "premiumFeatureName": "Premium",
         "supportFeatureName": "Support",
-        "enterpriseFeatureName": "Enterprise"
+        "enterpriseFeatureName": "Enterprise",
+        "applicationUsers": "Utilisateurs des applications",
+        "applicationUsersDescription": "Le nombre total d'utilisateurs de chaque source d'utilisateurs des applications publiées."
     },
     "viewDecoratorType": {
         "onlyOneDecoratorPerView": "Vous ne pouvez utiliser qu'une seule décoration de ce type par vue",
@@ -200,7 +204,7 @@
         "timelineView": "Vue chronologique"
     },
     "formViewModePreviewSurvey": {
-        "deactivated": "Les sondage sont disponibles dans la version premium.",
+        "deactivated": "Les sondages sont disponibles dans la version premium.",
         "orderFields": "Ordonner les champs",
         "more": "Plus d'informations"
     },
@@ -213,7 +217,8 @@
         "baserowLogo": {
             "label": "Masquer le logo Baserow sur la vue partagée",
             "premiumModalName": "suppression du logo public"
-        }
+        },
+        "allowPublicExportLabel": "Autoriser l'export des vues partagées"
     },
     "viewsContext": {
         "personal": "Privée"
@@ -256,14 +261,14 @@
         "deletedUser": "Un utilisateur a été supprimé"
     },
     "RowEditModalCommentNotificationMode": {
-        "modeMentionsDesc": "Vous ne recevrez les notifications uniquement lorsque vous serez mentionné·e.",
+        "modeMentionsDesc": "Vous recevez les notifications uniquement lorsque vous êtes mentionné·e.",
         "modeAllTitle": "Tous les commentaires",
         "modeAllDesc": "Vous recevrez des notifications pour tous les commentaires de cette ligne.",
         "modeMentionsTitle": "Seulement les mentions"
     },
     "gridViewFieldAI": {
         "generate": "Générer",
-        "regenerate": "Re-générer"
+        "regenerate": "Regénérer"
     },
     "premiumFieldType": {
         "ai": "Prompt pour l'IA",
@@ -317,11 +322,11 @@
     "timelineDateSettingsForm": {
         "startDateField": "Date de début",
         "endDateField": "Date de fin",
-        "incompatibleFieldsErrorTitle": "Champs incomptabiles",
+        "incompatibleFieldsErrorTitle": "Champs incompatibles",
         "includeTime": "date et heure",
         "dateOnly": "date seulement",
-        "noCompatibleDateFields": "Aucun champs date dans la table. Ajoutez un champs date de début et de fin dans la table pour commencer.",
-        "incompatibleFieldsErrorMessage": "Les champs sont incompatibles.Choisissez deux champs dates valides qui utilisent le même paramètre d'inclusion de l'heure et la même timezone pour tous les collaborateurs.",
+        "noCompatibleDateFields": "Aucun champ date dans la table. Ajoutez un champ date de début et de fin dans la table pour commencer.",
+        "incompatibleFieldsErrorMessage": "Les champs sont incompatibles. Choisissez deux champs dates valides qui utilisent le même paramètre d'inclusion de l'heure et la même timezone pour tous les collaborateurs.",
         "forceTimezone": "{timezone}"
     },
     "initTimelineViewSettings": {
@@ -350,5 +355,11 @@
     },
     "tableExcelExporter": {
         "includeHeader": "Inclure les noms de champs comme en-tête"
+    },
+    "publicViewExport": {
+        "export": "Exporter"
+    },
+    "tableFileExporter": {
+        "organizeFiles": "Grouper les fichiers par identifiant de ligne"
     }
 }

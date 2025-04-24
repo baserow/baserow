@@ -1,6 +1,6 @@
 from typing import Optional
 
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
 
 from baserow_premium.license.handler import LicenseHandler
 from rest_framework.exceptions import PermissionDenied
@@ -13,7 +13,7 @@ from baserow_enterprise.features import AUDIT_LOG
 
 
 def check_for_license_and_permissions_or_raise(
-    user: AbstractBaseUser, workspace_id: Optional[int] = None
+    user: AbstractUser, workspace_id: Optional[int] = None
 ):
     """
     Check if the user has the feature enabled and has the correct permissions to list

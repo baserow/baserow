@@ -1,7 +1,9 @@
 import contextlib
+import random
+import time
 from collections import defaultdict
 from decimal import Decimal
-from functools import cache
+from functools import cache, wraps
 from math import ceil
 from typing import (
     Any,
@@ -14,12 +16,11 @@ from typing import (
     Set,
     Tuple,
     TypeVar,
-    Union,
 )
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.db import DEFAULT_DB_ALIAS, connection, transaction
+from django.db import DEFAULT_DB_ALIAS, OperationalError, connection, transaction
 from django.db.models import ForeignKey, ManyToManyField, Max, Model, Prefetch, QuerySet
 from django.db.models.functions import Collate
 from django.db.models.query import ModelIterable
@@ -28,7 +29,8 @@ from django.db.transaction import Atomic, get_connection
 
 from loguru import logger
 
-from baserow.core.psycopg import sql
+from baserow.contrib.database.exceptions import DeadlockException
+from baserow.core.psycopg import is_deadlock_error, sql
 
 from .utils import find_intermediate_order
 
@@ -73,11 +75,12 @@ T = TypeVar("T", bound=Model)
 
 
 def specific_iterator(
-    queryset_or_list: Union[QuerySet[T], List],
-    per_content_type_queryset_hook: Optional[Callable] = None,
-    base_model: Optional[Model] = None,
-    select_related: Optional[List] = None,
-) -> Iterable[T]:
+    queryset_or_list: QuerySet[T] | Iterable[T],
+    per_content_type_queryset_hook: Callable[[T, QuerySet[T]], QuerySet[T]]
+    | None = None,
+    base_model: T | None = None,
+    select_related: List[str] = None,
+) -> List[T]:
     """
     Iterates over the given queryset or list of model instances, and finds the specific
     objects with the least amount of queries. If a queryset is provided respects the
@@ -101,6 +104,7 @@ def specific_iterator(
     :param select_related: A `select_related` list can optionally be provided if a list
         is provided in the `queryset_or_list` argument. This should be used if the
         instances provided in the list have select related objects.
+    :return: A list of specific objects in the right order.
     """
 
     if isinstance(queryset_or_list, QuerySet):
@@ -211,8 +215,9 @@ def specific_iterator(
 
 def specific_queryset(
     queryset: QuerySet[T],
-    per_content_type_queryset_hook: Optional[Callable] = None,
-):
+    per_content_type_queryset_hook: Callable[[T, QuerySet[T]], QuerySet[T]]
+    | None = None,
+) -> QuerySet[T]:
     """
     Applies an iterable to the queryset that calls the `specific_iterator` when the
     queryset resolves. This allows for modifying the queryset, even after marking the
@@ -229,6 +234,7 @@ def specific_queryset(
     :param queryset: The queryset which we want to select the specific types from.
     :param per_content_type_queryset_hook: If provided, it will be called for every
         specific queryset to allow extending it.
+    :return: A queryset that will resolve to specific objects.
     """
 
     clone = queryset._clone()
@@ -799,3 +805,54 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                 row_id_to_field_name_to_target_ids[result[0]][result[1]] = result[2]
 
         return row_id_to_field_name_to_target_ids
+
+
+def atomic_with_retry_on_deadlock(
+    max_retries: Optional[int] = None,
+    initial_backoff: Optional[float] = None,
+    jitter: Optional[float] = 1.0,
+):
+    """
+    Decorator that wraps a function in a transaction.atomic block and retries
+    when deadlock occurswith exponential backoff.
+
+    The decorated function must be idempotent - it should be safe to retry multiple
+    times without changing behavior. Avoid modifying request.data or other mutable
+    state that could cause retries to behave differently from the original attempt.
+
+    :param max_retries: Maximum number of retry attempts
+    :param initial_backoff: Initial backoff time in seconds
+    :param jitter: Jitter factor to randomize the backoff time
+    """
+
+    if max_retries is None:
+        max_retries = settings.BASEROW_DEADLOCK_MAX_RETRIES
+    if initial_backoff is None:
+        initial_backoff = settings.BASEROW_DEADLOCK_INITIAL_BACKOFF
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            retries = 0
+            backoff = initial_backoff + random.uniform(0, jitter)  # nosec: B311
+
+            while retries <= max_retries:
+                try:
+                    with transaction.atomic():
+                        return func(*args, **kwargs)
+                except OperationalError as exc:
+                    if not is_deadlock_error(exc):
+                        raise exc
+
+                    if retries == max_retries:
+                        logger.exception(
+                            "Deadlock detected while committing transaction",
+                        )
+                        raise DeadlockException() from exc
+                    time.sleep(backoff)
+                    backoff *= 1.5 + random.uniform(0, jitter)  # nosec: B311
+                retries += 1
+
+        return wrapper
+
+    return decorator

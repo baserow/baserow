@@ -1,6 +1,7 @@
 <template>
   <div>
     <Toasts></Toasts>
+    <GuidedTour></GuidedTour>
     <div class="layout">
       <div class="layout__col-1" :style="{ width: col1Width + 'px' }">
         <Sidebar
@@ -39,6 +40,7 @@ import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar'
 import undoRedo from '@baserow/modules/core/mixins/undoRedo'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
+import GuidedTour from '@baserow/modules/core/components/guidedTour/GuidedTour'
 import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
 import {
   isOsSpecificModifierPressed,
@@ -50,6 +52,7 @@ export default {
     Toasts,
     Sidebar,
     HorizontalResize,
+    GuidedTour,
   },
   mixins: [undoRedo],
   middleware: [

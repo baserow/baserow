@@ -14,7 +14,9 @@ import TableElementForm from '@baserow/modules/builder/components/elements/compo
 import {
   ensureArray,
   ensureBoolean,
+  ensureNumeric,
   ensureInteger,
+  ensurePositiveInteger,
   ensureString,
   ensureStringOrInteger,
 } from '@baserow/modules/core/utils/validator'
@@ -37,6 +39,8 @@ import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { resolveFormula } from '@baserow/modules/core/formula'
 import FormContainerElement from '@baserow/modules/builder/components/elements/components/FormContainerElement.vue'
 import FormContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/FormContainerElementForm.vue'
+import SimpleContainerElement from '@baserow/modules/builder/components/elements/components/SimpleContainerElement.vue'
+import SimpleContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/SimpleContainerElementForm.vue'
 import ChoiceElement from '@baserow/modules/builder/components/elements/components/ChoiceElement.vue'
 import ChoiceElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ChoiceElementForm.vue'
 import CheckboxElement from '@baserow/modules/builder/components/elements/components/CheckboxElement.vue'
@@ -61,10 +65,18 @@ import {
 } from '@baserow/modules/builder/elementTypeMixins'
 import { isNumeric, isValidEmail } from '@baserow/modules/core/utils/string'
 import { FormattedDate, FormattedDateTime } from '@baserow/modules/builder/date'
+import RatingElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingElementForm'
+import RatingElement from '@baserow/modules/builder/components/elements/components/RatingElement.vue'
+import RatingInputElement from '@baserow/modules/builder/components/elements/components/RatingInputElement.vue'
+import RatingInputElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingInputElementForm.vue'
 
 export class ElementType extends Registerable {
   get name() {
     return null
+  }
+
+  category() {
+    return 'baseElement'
   }
 
   get description() {
@@ -697,6 +709,10 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     return 'form_container'
   }
 
+  category() {
+    return 'formElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.formContainer')
   }
@@ -779,6 +795,10 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
     return 'column'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.column')
   }
@@ -844,9 +864,65 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
   }
 }
 
+export class SimpleContainerElementType extends ContainerElementTypeMixin(
+  ElementType
+) {
+  static getType() {
+    return 'simple_container'
+  }
+
+  category() {
+    return 'layoutElement'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.simpleContainer')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.simpleContainerDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-square'
+  }
+
+  get component() {
+    return SimpleContainerElement
+  }
+
+  get generalFormComponent() {
+    return SimpleContainerElementForm
+  }
+
+  getDefaultValues(page, values) {
+    const superValues = super.getDefaultValues(page, values)
+    return {
+      ...superValues,
+      style_padding_left: 0,
+      style_padding_right: 0,
+      style_padding_top: 0,
+      style_padding_bottom: 0,
+    }
+  }
+
+  getDefaultChildValues(page, values) {
+    // Unlike other container we don't want to affect the child padding.
+    return {}
+  }
+
+  getElementPlaces(element) {
+    return [null]
+  }
+}
+
 export class TableElementType extends CollectionElementTypeMixin(ElementType) {
   static getType() {
     return 'table'
+  }
+
+  category() {
+    return 'layoutElement'
   }
 
   get name() {
@@ -917,6 +993,10 @@ export class RepeatElementType extends CollectionElementTypeMixin(
     return 'repeat'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.repeat')
   }
@@ -961,6 +1041,10 @@ export class FormElementType extends ElementType {
 
   formDataType(element) {
     return null
+  }
+
+  category() {
+    return 'formElement'
   }
 
   /**
@@ -1057,7 +1141,7 @@ export class InputTextElementType extends FormElementType {
   }
 
   formDataType(element) {
-    return 'string'
+    return element.validation_type === 'integer' ? 'number' : 'string'
   }
 
   getDisplayName(element, applicationContext) {
@@ -1075,12 +1159,16 @@ export class InputTextElementType extends FormElementType {
 
   getInitialFormDataValue(element, applicationContext) {
     try {
-      return this.resolveFormula(element.default_value, {
+      const value = this.resolveFormula(element.default_value, {
         element,
         ...applicationContext,
       })
+
+      return element.validation_type === 'integer'
+        ? ensureNumeric(value, { allowNull: true })
+        : ensureString(value)
     } catch {
-      return ''
+      return null
     }
   }
 }
@@ -1414,17 +1502,45 @@ export class ChoiceElementType extends FormElementType {
     return element.multiple ? 'array' : 'string'
   }
 
+  /**
+   * Returns the first option for this element.
+   * @param {Object} element the element we want the option for.
+   * @returns the first option value.
+   */
+  _getFirstOptionValue(element) {
+    switch (element.option_type) {
+      case CHOICE_OPTION_TYPES.MANUAL:
+        return element.options.find(({ value }) => value)
+      case CHOICE_OPTION_TYPES.FORMULAS: {
+        const formulaValues = ensureArray(
+          this.resolveFormula(this.element.formula_value)
+        )
+        if (formulaValues.length === 0) {
+          return null
+        }
+        return ensureStringOrInteger(formulaValues[0])
+      }
+      default:
+        return []
+    }
+  }
+
   getInitialFormDataValue(element, applicationContext) {
     try {
+      const firstValue = this._getFirstOptionValue(element)
+      let converter = ensureStringOrInteger
+      if (firstValue ?? Number.isInteger(firstValue)) {
+        converter = (v) => ensurePositiveInteger(v, { allowNull: true })
+      }
       if (element.multiple) {
         return ensureArray(
           this.resolveFormula(element.default_value, {
             element,
             ...applicationContext,
           })
-        ).map(ensureStringOrInteger)
+        ).map(converter)
       } else {
-        return ensureStringOrInteger(
+        return converter(
           this.resolveFormula(element.default_value, {
             element,
             ...applicationContext,
@@ -1817,6 +1933,10 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     return 'header'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   get name() {
     return this.app.i18n.t('elementType.header')
   }
@@ -1899,6 +2019,10 @@ export class FooterElementType extends HeaderElementType {
     return 'footer'
   }
 
+  category() {
+    return 'layoutElement'
+  }
+
   getPagePlace() {
     return PAGE_PLACES.FOOTER
   }
@@ -1957,6 +2081,103 @@ export class FooterElementType extends HeaderElementType {
       }
     }
     return null
+  }
+}
+
+export class RatingInputElementType extends FormElementType {
+  static getType() {
+    return 'rating_input'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.ratingInput')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.ratingInputDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-bubble-star'
+  }
+
+  get component() {
+    return RatingInputElement
+  }
+
+  get generalFormComponent() {
+    return RatingInputElementForm
+  }
+
+  formDataType(element) {
+    return 'number'
+  }
+
+  getInitialFormDataValue(element, applicationContext) {
+    try {
+      return ensurePositiveInteger(
+        this.resolveFormula(element.value, {
+          element,
+          ...applicationContext,
+        })
+      )
+    } catch {
+      return 0
+    }
+  }
+
+  isValid(element, value) {
+    if (element.required && (value === null || value === undefined)) {
+      return false
+    }
+    return value >= 0 && value <= element.max_value
+  }
+}
+
+export class RatingElementType extends ElementType {
+  static getType() {
+    return 'rating'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.rating')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.ratingDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-leaderboard-star'
+  }
+
+  get component() {
+    return RatingElement
+  }
+
+  get generalFormComponent() {
+    return RatingElementForm
+  }
+
+  formDataType(element) {
+    return 'number'
+  }
+
+  getInitialFormDataValue(element, applicationContext) {
+    try {
+      return ensurePositiveInteger(
+        this.resolveFormula(element.value, {
+          element,
+          ...applicationContext,
+        })
+      )
+    } catch {
+      return 0
+    }
+  }
+
+  isValid(element, value) {
+    return value >= 0 && value <= element.max_value
   }
 }
 

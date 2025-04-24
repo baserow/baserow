@@ -21,46 +21,16 @@
       :label="$t('formViewMetaControls.whenSubmittedLabel')"
       required
     >
-      <ul class="choice-items choice-items--inline">
-        <li>
-          <a
-            class="choice-items__link"
-            :class="{
-              active: view.submit_action === 'MESSAGE',
-              disabled: readOnly,
-            }"
-            @click="
-              !readOnly &&
-                view.submit_action !== 'MESSAGE' &&
-                $emit('updated-form', { submit_action: 'MESSAGE' })
-            "
-            ><span>{{ $t('formViewMetaControls.showMessage') }}</span>
-            <i
-              v-if="view.submit_action === 'MESSAGE'"
-              class="choice-items__icon-active iconoir-check-circle"
-            ></i
-          ></a>
-        </li>
-        <li>
-          <a
-            class="choice-items__link"
-            :class="{
-              active: view.submit_action === 'REDIRECT',
-              disabled: readOnly,
-            }"
-            @click="
-              !readOnly &&
-                view.submit_action !== 'REDIRECT' &&
-                $emit('updated-form', { submit_action: 'REDIRECT' })
-            "
-            ><span>{{ $t('formViewMetaControls.urlRedirect') }}</span>
-            <i
-              v-if="view.submit_action === 'REDIRECT'"
-              class="choice-items__icon-active iconoir-check-circle"
-            ></i
-          ></a>
-        </li>
-      </ul>
+      <SegmentControl
+        v-if="!readOnly"
+        :active-index="
+          submitActions.findIndex((s) => s.type === view.submit_action)
+        "
+        :segments="submitActions"
+        @update:activeIndex="
+          $emit('updated-form', { submit_action: submitActions[$event].type })
+        "
+      ></SegmentControl>
     </FormGroup>
 
     <FormGroup
@@ -70,14 +40,14 @@
       required
     >
       <FormTextarea
-        v-model="v$.values.submit_action_message.$model"
+        v-model="values.submit_action_message"
         class="form-view__meta-message-textarea"
         :placeholder="$t('formViewMetaControls.theMessage')"
         :rows="3"
         :disabled="readOnly"
         @blur="
           $emit('updated-form', {
-            submit_action_message: v$.values.submit_action_message.$model,
+            submit_action_message: values.submit_action_message,
           })
         "
       />
@@ -100,7 +70,8 @@
           ;[
             !v$.values.submit_action_redirect_url.$error &&
               $emit('updated-form', {
-                submit_action_redirect_url,
+                submit_action_redirect_url:
+                  v$.values.submit_action_redirect_url.$model,
               }),
           ]
         "
@@ -116,8 +87,8 @@
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
-import { reactive, getCurrentInstance } from 'vue'
 import { required, url, maxLength, helpers } from '@vuelidate/validators'
+import { reactive, getCurrentInstance } from 'vue'
 
 // Must be kept in sync with
 // `src/baserow/contrib/database/views/models.py::FormView::submit_action_redirect_url.max_length`
@@ -141,7 +112,13 @@ export default {
   },
   setup() {
     const instance = getCurrentInstance()
-    const values = reactive({ email: '', password: '' })
+
+    const values = reactive({
+      values: {
+        submit_action_message: '',
+        submit_action_redirect_url: '',
+      },
+    })
 
     const rules = {
       values: {
@@ -156,15 +133,28 @@ export default {
             maxLength(redirectUrlMaxLength)
           ),
         },
-        submit_action_message: {},
       },
     }
 
-    const v$ = useVuelidate(rules, { values }, { $lazy: true })
-
-    return { values, v$, loading: false }
+    return {
+      values: values.values,
+      v$: useVuelidate(rules, values, { $lazy: true }),
+    }
   },
-
+  data() {
+    return {
+      submitActions: [
+        {
+          type: 'MESSAGE',
+          label: this.$t('formViewMetaControls.showMessage'),
+        },
+        {
+          type: 'REDIRECT',
+          label: this.$t('formViewMetaControls.urlRedirect'),
+        },
+      ],
+    }
+  },
   watch: {
     'view.submit_action_message'(value) {
       this.values.submit_action_message = value

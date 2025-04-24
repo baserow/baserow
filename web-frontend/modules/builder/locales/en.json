@@ -65,11 +65,13 @@
     "publish": "Publish",
     "publishSucceedTitle": "Site published",
     "publishSucceedDescription": "The site has been successfully published.",
+    "publishSucceedLink": "View site",
     "publishFailedTitle": "Site publishing failed",
     "publishFailedDescription": "The site publishing has failed. Please try again later.",
     "openInNewTab": "Open in a new tab",
     "importingState": "Importing",
-    "noDomain": "You need to have at least one domain in order to publish your application."
+    "noDomain": "You need to have at least one domain in order to publish your application.",
+    "addDomain": "Add domain"
   },
   "lastPublishedDomainDate": {
     "neverPublished": "never",
@@ -123,9 +125,16 @@
     "notAllowedUnlessFooter": "This element is allowed only inside the page footer",
     "notAllowedInsideContainer": "This element is not allowed inside a container",
     "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
+    "ratingInput": "Rating input",
+    "ratingInputDescription": "A rating input element",
+    "rating": "Rating",
+    "ratingDescription": "A rating element",
+    "invalidElementValue": "Invalid element value: {value}",
     "notAllowedLocation": "This element is not allowed at this location",
     "menu": "Menu",
-    "menuDescription": "Menu element"
+    "menuDescription": "Menu element",
+    "simpleContainer": "Container",
+    "simpleContainerDescription": "A container for other elements"
   },
   "addElementButton": {
     "label": "Element"
@@ -135,6 +144,12 @@
     "searchPlaceholder": "Search elements",
     "elementInProgress": "Adding element..."
   },
+  "addElementCategory": {
+    "suggestedElement": "Suggested elements",
+    "baseElement": "Base elements",
+    "layoutElement": "Layout elements",
+    "formElement": "Form elements"
+  },
   "elementMenu": {
     "moveUp": "Move up",
     "moveDown": "Move down",
@@ -143,6 +158,7 @@
     "selectParent": "Select parent"
   },
   "duplicatePageJobType": {
+    "name": "Duplicate page",
     "duplicating": "Duplicating",
     "duplicatedTitle": "Page duplicated"
   },
@@ -211,7 +227,6 @@
     "menuItemDefaultName": "Page",
     "menuItemLabelLabel": "Label",
     "menuItemTypeLabel": "Type",
-    "menuItemTypeItem": "Item",
     "menuItemTypeSeparator": "Separator",
     "menuItemVariantLabel": "Variant",
     "menuItemVariantLink": "Link",
@@ -226,17 +241,22 @@
     "eventDescription": "To configure actions for this button, open the Events tab of this element.",
     "noMenuItemsMessage": "Click 'Add' to add your first menu item."
   },
+  "simpleContainerElementForm": {
+    "noConfigurationOptions": "The container element does not have any configuration options."
+  },
   "imageElement": {
     "missingValue": "Missing alt text...",
     "emptyValue": "Empty alt text..."
   },
   "generalForm": {
     "labelTitle": "Label",
-    "labelPlaceholder": "Enter a label (optional)",
-    "valueTitle": "Default value",
-    "valuePlaceholder": "Enter a default value (optional)",
+    "labelPlaceholder": "Enter label",
+    "valueTitle": "Value",
+    "defaultValueTitle": "Default value",
+    "defaultValuePlaceholder": "Enter default value",
+    "valuePlaceholder": "Enter value",
     "placeholderTitle": "Placeholder",
-    "placeholderPlaceholder": "Enter a placeholder (optional)",
+    "placeholderPlaceholder": "Enter a placeholder",
     "requiredTitle": "Required",
     "validationTitle": "Validation"
   },
@@ -247,7 +267,7 @@
     "validationTypeAnyLabel": "Any",
     "validationTypeAnyDescription": "Allow any value to be set in this input.",
     "validationTypeIntegerLabel": "Number",
-    "validationTypeIntegerDescription": "Enforce a number value in this input.",
+    "validationTypeIntegerDescription": "Enforce a numeric value in this input (accepts integers and decimals).",
     "validationTypeEmailLabel": "Email",
     "validationTypeEmailDescription": "Enforce an email address value in this input.",
     "inputType": "Input type",
@@ -335,7 +355,8 @@
   },
   "domainCard": {
     "refresh": "Refresh settings",
-    "detailLabel": "Show details"
+    "detailLabel": "Show details",
+    "unpublishedDomainWarning": "Please publish the application to make it available on this domain."
   },
   "domainTypes": {
     "customName": "Custom domain",
@@ -549,6 +570,7 @@
     "weight": "Weight",
     "textAlignment": "Alignment",
     "bodyLabel": "Body",
+    "decoration": "Text decoration",
     "fontFamily": "Font"
   },
   "fontWeightType": {
@@ -581,6 +603,10 @@
     "size": "Font size",
     "weight": "Font weight"
   },
+  "linkDecorations": {
+    "normal": "Normal",
+    "plain": "Plain"
+  },
   "linkThemeConfigBlock": {
     "color": "Color",
     "link": "Link",
@@ -590,7 +616,8 @@
     "alignment": "Alignment",
     "fontFamily": "Font",
     "size": "Font size",
-    "weight": "Font weight"
+    "weight": "Font weight",
+    "decoration": "Text decoration"
   },
   "inputThemeConfigBlock": {
     "label": "Label",
@@ -773,7 +800,8 @@
     "text": "Text",
     "link": "Link",
     "tags": "Tags",
-    "image": "Image"
+    "image": "Image",
+    "rating": "Rating"
   },
   "textFieldForm": {
     "fieldValueLabel": "Value",
@@ -936,6 +964,11 @@
     "label": "Property",
     "noProperties": "No properties available"
   },
+  "userSourceDropdown": {
+    "label": "User source",
+    "addUserSource": "Add new user source",
+    "noUserSources": "No user sources available"
+  },
   "dataSourceDropdown": {
     "label": "Data source",
     "noDataSources": "No data sources available",
@@ -958,5 +991,34 @@
   "authProviderWithModal": {
     "authProviderInError": "Please edit this provider to fix the error.",
     "title": "Edit provider: {name}"
+  },
+  "textDecorationSelector": {
+    "underline": "Underline",
+    "stroke": "Stroke",
+    "italic": "Italic",
+    "uppercase": "Uppercase"
+  },
+  "ratingFieldForm": {
+    "maxValue": "Max value",
+    "color": "Color",
+    "style": "Style",
+    "star": "Star",
+    "heart": "Heart",
+    "thumbsUp": "Thumbs up",
+    "flag": "Flag",
+    "value": "Value"
+  },
+  "ratingElementForm": {
+    "maxValue": "Maximum",
+    "color": "Color",
+    "ratingStyle": "Style",
+    "star": "Star",
+    "heart": "Heart",
+    "smile": "Smile",
+    "thumbsUp": "Thumbs Up",
+    "flag": "Flag"
+  },
+  "automationSettingsModal": {
+    "title": "Workflow"
   }
 }

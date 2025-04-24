@@ -20,7 +20,7 @@
         @keypress="onKeyPress(field, $event)"
         @input="onInput(field, $event)"
       />
-      <div v-show="!isValid()" class="grid-view__cell--error align-right">
+      <div v-show="!isValid()" class="grid-view__cell-error align-right">
         {{ getError() }}
       </div>
     </template>

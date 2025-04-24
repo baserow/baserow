@@ -8,7 +8,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
 )
-from baserow.core.models import Workspace, WorkspaceUser
+from baserow.core.models import Template, Workspace, WorkspaceUser
 from baserow.core.notifications.operations import (
     ClearNotificationsOperationType,
     ListNotificationsOperationType,
@@ -36,6 +36,7 @@ from .operations import (
     ListWorkspacesOperationType,
     ListWorkspaceUsersWorkspaceOperationType,
     ReadInvitationWorkspaceOperationType,
+    ReadWorkspaceOperationType,
     UpdateSettingsOperationType,
     UpdateWorkspaceInvitationType,
     UpdateWorkspaceOperationType,
@@ -107,6 +108,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
     supported_actor_types = [UserSubjectType.type, AnonymousUserSubjectType.type]
 
     OPERATION_ALLOWED_ON_TEMPLATES = [
+        ReadWorkspaceOperationType.type,
         ListApplicationsWorkspaceOperationType.type,
         ListIntegrationsApplicationOperationType.type,
         ListUserSourcesApplicationOperationType.type,
@@ -132,7 +134,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         return {
             "allowed_operations_on_templates": self.OPERATION_ALLOWED_ON_TEMPLATES,
             "workspace_template_ids": list(
-                Workspace.objects.exclude(template=None).values_list("id", flat=True)
+                Template.objects.values_list("workspace_id", flat=True)
             ),
         }
 

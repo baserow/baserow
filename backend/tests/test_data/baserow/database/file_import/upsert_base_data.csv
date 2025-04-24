@@ -1,0 +1,20 @@
+Text,Long text,Number,Rating,Boolean,Date,Datetime,Duration,URL,Phone number,Email,Single select
+aaa,one,1.000,5,True,2021-01-03,2021-01-02 23:00,0d 4h,http://a.com,+1234,test1@email.com,aaa
+bbb,two,2.000,4,False,2025-03-03,2025-03-02 23:00,0d 2h,http://a.com,+123456,test1@email.com,aaa
+ccc,three,3.000,3,True,2025-03-09,2025-03-08 23:00,0d 3h,http://a.com,+12345,test1@email.com,aaa
+ddd,four,4.000,2,False,,,,http://b.com,123457,test1@email.com,aaa
+eee,five,5.000,1,True,2022-02-01,2022-01-31 23:00,0d 4h,http://b.com,,test1@email.com,aaa
+fff,six,6.000,5,False,2020-01-02,2020-01-01 23:00,0d 2h,http://c.com,2222223,test1@email.com,aaa
+ggg,seven,7.000,4,True,2021-01-03,2021-01-02 23:00,0d 3h,http://a.com,,test1@email.com,aaa
+hhh,eight,8.000,3,False,2022-02-01,2022-01-31 23:00,0d 12h,,+12345,test1@email.com,aaa
+iii,nine,9.000,2,True,,,0d 13h,http://a.com,+123456,test1@email.com,aaa
+jjj,one zero,10.000,1,False,,,0d 12h,http://b.com,+123457,test2@email.com,aaa
+kkk,one one,11.000,5,True,2019-08-17,2019-08-16 22:00,0d 14h,http://a.com,,test2@email.com,aaa
+lll,one two,12.000,4,False,2025-03-12,2025-03-11 23:00,0d 2h,http://a.com,+12345,test2@email.com,aaa
+mmm,one three,13.000,3,True,2019-08-17,2019-08-16 22:00,0d 2h,http://a.com,+12345,test2@email.com,aaa
+nnn,one four,14.000,2,False,2020-01-02,2020-01-01 23:00,,http://a.com,+12345,test2@email.com,aaa
+ooo,one five,15.000,1,True,,,,,,test2@email.com,aaa
+ppp,one six,16.000,5,False,,,,,,test2@email.com,aaa
+qqq,one seven,17.000,4,True,,,,,,test2@email.com,aaa
+rrr,one eight,18.000,3,False,,,,,,test2@email.com,aaa
+sss,one nine,19.000,2,True,,,,,,test2@email.com,aaa

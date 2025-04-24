@@ -22,10 +22,6 @@
       <div class="form-view__sidebar-fields-name">
         {{ field.name }}
       </div>
-      <i
-        v-if="!compatible"
-        class="form-view__sidebar-fields-incompatible-icon iconoir-warning-triangle"
-      ></i>
       <i class="form-view__sidebar-fields-hover-arrow iconoir-arrow-right"></i>
     </a>
   </div>
@@ -49,7 +45,7 @@ export default {
       const fieldType = this.$registry.get('field', this.field.type)
       return (
         Object.keys(fieldType.getFormViewFieldComponents(this.field, this))
-          .length > 0 && !this.field.read_only
+          .length > 0 && !fieldType.isReadOnlyField(this.field)
       )
     },
   },

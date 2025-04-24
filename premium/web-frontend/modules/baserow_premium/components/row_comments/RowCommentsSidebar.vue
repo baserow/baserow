@@ -10,16 +10,16 @@
           <Button
             type="primary"
             icon="iconoir-no-lock"
-            @click="$refs.premiumModal.show()"
+            @click="$refs.paidFeaturesModal.show()"
           >
             {{ $t('rowCommentSidebar.more') }}
           </Button>
         </div>
-        <PremiumModal
-          ref="premiumModal"
-          :name="$t('rowCommentSidebar.name')"
+        <PaidFeaturesModal
+          ref="paidFeaturesModal"
+          initial-selected-type="row_comments"
           :workspace="workspace"
-        ></PremiumModal>
+        ></PaidFeaturesModal>
       </div>
     </template>
     <template v-else>
@@ -112,15 +112,15 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import RowComment from '@baserow_premium/components/row_comments/RowComment'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
-import PremiumModal from '@baserow_premium/components/PremiumModal'
 import PremiumFeatures from '@baserow_premium/features'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
   name: 'RowCommentsSidebar',
   components: {
+    PaidFeaturesModal,
     InfiniteScroll,
     RowComment,
-    PremiumModal,
     RichTextEditor,
   },
   props: {

@@ -309,6 +309,8 @@ class RowTrashableItemType(TrashableItemType):
             model=model,
             before=None,
             user=None,
+            fields=updated_fields,
+            dependant_fields=dependant_fields,
         )
 
     def permanently_delete_item(self, row, trash_item_lookup_cache=None):
@@ -432,6 +434,8 @@ class RowsTrashableItemType(TrashableItemType):
                 model=model,
                 before=None,
                 user=None,
+                fields=updated_fields,
+                dependant_fields=dependant_fields,
             )
         else:
             # Use table signal here instead of row signal because we don't want

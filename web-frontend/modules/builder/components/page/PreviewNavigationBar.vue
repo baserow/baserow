@@ -35,21 +35,22 @@
           class="preview-navigation-bar__query-separator"
         >
           {{ index === 0 ? '?' : '&' }}
-        </span>
-        <PreviewNavigationBarQueryParam
-          :key="`param-${queryParam.key}`"
-          :class="`preview-navigation-bar__query-parameter-input--${queryParam.type}`"
-          :validation-fn="queryParam.validationFn"
-          :default-value="pageParameters[queryParam.name]"
-          :name="queryParam.name"
-          @change="
-            actionSetParameter({
-              page,
-              name: queryParam.name,
-              value: $event,
-            })
-          "
-        />
+
+          <label :for="queryParam.name">{{ queryParam.name }}=</label>
+          <PreviewNavigationBarInput
+            :id="queryParam.name"
+            :key="`param-${queryParam.key}`"
+            :class="`preview-navigation-bar__query-parameter-input--${queryParam.type}`"
+            :validation-fn="queryParam.validationFn"
+            :default-value="pageParameters[queryParam.name]"
+            @change="
+              actionSetParameter({
+                page,
+                name: queryParam.name,
+                value: $event,
+              })
+            "
+        /></span>
       </template>
     </div>
     <div />
@@ -61,15 +62,13 @@ import { splitPath } from '@baserow/modules/builder/utils/path'
 import PreviewNavigationBarInput from '@baserow/modules/builder/components/page/PreviewNavigationBarInput'
 import UserSelector from '@baserow/modules/builder/components/page/UserSelector'
 import { mapActions } from 'vuex'
-import { PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS } from '@baserow/modules/builder/enums'
-import PreviewNavigationBarQueryParam from '@baserow/modules/builder/components/page/PreviewNavigationBarQueryParam.vue'
+import {
+  PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS,
+  QUERY_PARAM_TYPE_HANDLER_FUNCTIONS,
+} from '@baserow/modules/builder/enums'
 
 export default {
-  components: {
-    PreviewNavigationBarInput,
-    UserSelector,
-    PreviewNavigationBarQueryParam,
-  },
+  components: { PreviewNavigationBarInput, UserSelector },
   props: {
     page: {
       type: Object,
@@ -84,7 +83,7 @@ export default {
       return this.page.query_params.map((queryParam, idx) => ({
         ...queryParam,
         key: `query-param-${queryParam.name}-${idx}`,
-        validationFn: PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS[queryParam.type],
+        validationFn: QUERY_PARAM_TYPE_HANDLER_FUNCTIONS[queryParam.type],
       }))
     },
     splitPath() {

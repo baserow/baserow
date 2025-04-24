@@ -13,9 +13,10 @@
         :decorator-type="decoratorType"
       />
       <component
-        :is="decoratorType.getDeactivatedClickModal()"
+        :is="decoratorType.getDeactivatedClickModal()[0]"
         v-if="decoratorType.getDeactivatedClickModal() !== null"
         :ref="'deactivatedClickModal' + index.toString()"
+        v-bind="decoratorType.getDeactivatedClickModal()[1]"
         :name="decoratorType.getName()"
         :workspace="database.workspace"
       ></component>

@@ -17,6 +17,10 @@ def import_airtable_date_type_options(type_options) -> dict:
     }
 
 
+def to_import_select_option_id(field_id, choice_id):
+    return f"{field_id}_{choice_id}"
+
+
 def import_airtable_choices(field_id: str, type_options: dict) -> List[SelectOption]:
     order = type_options.get("choiceOrder", [])
     choices = type_options.get("choices", [])
@@ -24,7 +28,7 @@ def import_airtable_choices(field_id: str, type_options: dict) -> List[SelectOpt
         SelectOption(
             # Combine select id with choice id as choice id is not guaranteed to be
             # unique across table
-            id=f"{field_id}_{choice['id']}",
+            id=to_import_select_option_id(field_id, choice["id"]),
             value=choice["name"],
             color=AIRTABLE_BASEROW_COLOR_MAPPING.get(
                 # The color isn't always provided, hence the fallback to an empty

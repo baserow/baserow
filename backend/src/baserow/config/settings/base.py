@@ -23,6 +23,7 @@ from baserow.config.settings.utils import (
     read_file,
     set_settings_from_env_if_present,
     str_to_bool,
+    try_float,
     try_int,
 )
 from baserow.core.telemetry.utils import otel_is_enabled
@@ -91,6 +92,7 @@ INSTALLED_APPS = [
     "baserow.contrib.integrations",
     "baserow.contrib.builder",
     "baserow.contrib.dashboard",
+    "baserow.contrib.automation",
     *BASEROW_BUILT_IN_PLUGINS,
 ]
 
@@ -417,7 +419,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.31.1",
+    "VERSION": "1.32.5",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -892,7 +894,7 @@ APPLICATION_TEMPLATES_DIR = os.path.join(BASE_DIR, "../../../templates")
 # The template that must be selected when the user first opens the templates select
 # modal.
 # IF CHANGING KEEP IN SYNC WITH e2e-tests/wait-for-services.sh
-DEFAULT_APPLICATION_TEMPLATE = "project-tracker"
+DEFAULT_APPLICATION_TEMPLATES = ["project-tracker", "ab_ivory_theme"]
 BASEROW_SYNC_TEMPLATES_PATTERN = os.getenv("BASEROW_SYNC_TEMPLATES_PATTERN", None)
 
 MAX_FIELD_LIMIT = int(os.getenv("BASEROW_MAX_FIELD_LIMIT", 600))
@@ -979,6 +981,10 @@ BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS = int(
 )
 BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK = (
     int(os.getenv("BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK", "0")) or None
+)
+BASEROW_WEBHOOKS_BATCH_LIMIT = int(os.getenv("BASEROW_WEBHOOKS_BATCH_LIMIT", 5))
+BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE = int(
+    os.getenv("BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE", BATCH_ROWS_SIZE_LIMIT)
 )
 
 # ======== WARNING ========
@@ -1265,7 +1271,9 @@ BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE = int(
 
 BASEROW_USE_LOCAL_CACHE = str_to_bool(os.getenv("BASEROW_USE_LOCAL_CACHE", "true"))
 
+
 # -- CACHALOT SETTINGS --
+
 CACHALOT_TIMEOUT = int(os.getenv("BASEROW_CACHALOT_TIMEOUT", 60 * 60 * 24 * 7))
 BASEROW_CACHALOT_ONLY_CACHABLE_TABLES = os.getenv(
     "BASEROW_CACHALOT_ONLY_CACHABLE_TABLES", None
@@ -1349,3 +1357,13 @@ if CACHALOT_ENABLED:
         "VERSION": VERSION,
     }
 # -- END CACHALOT SETTINGS --
+
+
+BASEROW_DEADLOCK_MAX_RETRIES = max(
+    try_int(os.getenv("BASEROW_DEADLOCK_MAX_RETRIES"), 1),
+    1,
+)
+BASEROW_DEADLOCK_INITIAL_BACKOFF = max(
+    try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 1),
+    0.1,
+)

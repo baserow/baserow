@@ -20,6 +20,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.data_providers.exceptions import (
     DataProviderChunkInvalidException,
+    FormDataProviderChunkInvalidException,
 )
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
 from baserow.contrib.database.api.rows.serializers import (
@@ -61,6 +62,7 @@ from baserow.contrib.database.views.exceptions import (
     AggregationTypeDoesNotExist,
     ViewDoesNotExist,
 )
+from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.service import ViewService
 from baserow.contrib.database.views.view_aggregations import (
     DistributionViewAggregationType,
@@ -93,7 +95,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
 )
-from baserow.core.cache import global_cache, local_cache
+from baserow.core.cache import global_cache
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.handler import CoreHandler
@@ -494,15 +496,28 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             return None
 
         properties = global_cache.get(
-            f"table_{service.table_id}_{service.table.version}__service_schema",
-            default=lambda: self._get_table_properties(service, allowed_fields),
+            f"table_{service.table_id}__service_schema",
+            default=lambda: self._get_table_properties(service),
+            invalidate_key=f"table_{service.table_id}__service_invalidate_key",
             timeout=SCHEMA_CACHE_TTL,
         )
+
+        # When a schema is being generated, we will exclude properties that the
+        # Application creator did not actively configure. A configured property
+        # is one that the Application is using in a formula, configuration
+        # setting, or schema property.
+        if allowed_fields is not None:
+            allowed_fields = set(allowed_fields)
+            properties = {
+                field: value
+                for field, value in properties.items()
+                if field in allowed_fields
+            }
 
         return self.get_schema_for_return_type(service, properties)
 
     def _get_table_properties(
-        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+        self, service: ServiceSubClass
     ) -> Optional[Dict[str, Any]]:
         """
         Extracts the properties from the table model fields.
@@ -528,15 +543,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             }
         }
         for field_object in field_objects:
-            # When a schema is being generated, we will exclude properties that the
-            # Application creator did not actively configure. A configured property
-            # is one that the Application is using in a formula, configuration
-            # setting, or schema property.
-            if (
-                allowed_fields is not None
-                and field_object["name"] not in allowed_fields
-            ):
-                continue
             field_type = field_object["type"]
             # Only `TextField` has a default value at the moment.
             field = field_object["field"]
@@ -548,7 +554,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                 "searchable": field_type.is_searchable(field)
                 and field_type.type
                 not in self.unsupported_adhoc_searchable_field_types,
-                "sortable": field_type.check_can_order_by(field)
+                "sortable": field_type.check_can_order_by(field, DEFAULT_SORT_TYPE_KEY)
                 and field_type.type not in self.unsupported_adhoc_sortable_field_types,
                 "filterable": field_type.check_can_filter_by(field)
                 and field_type.type
@@ -599,10 +605,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if not service.table_id:
             return None
 
-        return local_cache.get(
-            f"integration_service_{service.table_id}_table_model",
-            lambda: service.table.get_model(),
-        )
+        return service.table.get_model()
 
     def get_table_field_objects(
         self, service: LocalBaserowTableService
@@ -627,15 +630,28 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if service.table_id is None:
             return None
 
-        return global_cache.get(
-            f"table_{service.table_id}_{service.table.version}__service_context_data",
-            default=lambda: self._get_context_data(service, allowed_fields),
+        context_data = global_cache.get(
+            f"table_{service.table_id}__service_context_data",
+            default=lambda: self._get_context_data(service),
+            invalidate_key=f"table_{service.table_id}__service_invalidate_key",
             timeout=SCHEMA_CACHE_TTL,
         )
 
-    def _get_context_data(
-        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        # When a context_data is being generated, we will exclude properties that
+        # the Application creator did not actively configure. A configured property
+        # is one that the Application is using in a formula, configuration
+        # setting, or schema property.
+        if allowed_fields is not None:
+            allowed_fields = set(allowed_fields)
+            context_data = {
+                field: value
+                for field, value in context_data.items()
+                if field in allowed_fields
+            }
+
+        return context_data
+
+    def _get_context_data(self, service: ServiceSubClass) -> Dict[str, Any]:
         field_objects = self.get_table_field_objects(service)
 
         if field_objects is None:
@@ -643,16 +659,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         ret = {}
         for field_object in field_objects:
-            # When a context_data is being generated, we will exclude properties that
-            # the Application creator did not actively configure. A configured property
-            # is one that the Application is using in a formula, configuration
-            # setting, or schema property.
-            if (
-                allowed_fields is not None
-                and field_object["name"] not in allowed_fields
-            ):
-                continue
-
             field_type = field_object["type"]
             if field_type.can_have_select_options:
                 field_serializer = field_type.get_serializer(
@@ -668,17 +674,35 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if service.table_id is None:
             return None
 
-        return global_cache.get(
-            f"table_{service.table_id}_{service.table.version}__service_context_data_schema",
-            default=lambda: self._get_context_data_schema(service, allowed_fields),
+        properties = global_cache.get(
+            f"table_{service.table_id}__service_context_data_schema",
+            default=lambda: self._get_context_data_properties(service),
+            invalidate_key=f"table_{service.table_id}__service_invalidate_key",
             timeout=SCHEMA_CACHE_TTL,
         )
 
-    def _get_context_data_schema(
-        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+        if allowed_fields is not None:
+            allowed_fields = set(allowed_fields)
+            properties = {
+                field: value
+                for field, value in properties.items()
+                if field in allowed_fields
+            }
+
+        if len(properties) == 0:
+            return None
+
+        return {
+            "type": "object",
+            "title": self.get_schema_name(service),
+            "properties": properties,
+        }
+
+    def _get_context_data_properties(
+        self, service: ServiceSubClass
     ) -> Optional[Dict[str, Any]]:
         """
-        Returns the context data schema for the table associated with the service.
+        Returns the context data properties for the table associated with the service.
         """
 
         field_objects = self.get_table_field_objects(service)
@@ -688,11 +712,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         properties = {}
         for field_object in field_objects:
-            if allowed_fields is not None and (
-                field_object["name"] not in allowed_fields
-            ):
-                continue
-
             if field_object["type"].can_have_select_options:
                 properties[field_object["name"]] = {
                     "type": "array",
@@ -708,14 +727,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                     },
                 }
 
-        if len(properties) == 0:
-            return None
-
-        return {
-            "type": "object",
-            "title": self.get_schema_name(service),
-            "properties": properties,
-        }
+        return properties
 
     def get_json_type_from_response_serializer_field(
         self, field, field_type
@@ -2200,6 +2212,8 @@ class LocalBaserowUpsertRowServiceType(
                     formula_runtime_function_registry,
                     dispatch_context,
                 )
+            except FormDataProviderChunkInvalidException as e:
+                raise ServiceImproperlyConfigured(str(e)) from e
             except DataProviderChunkInvalidException as e:
                 message = (
                     "Path error in formula for "

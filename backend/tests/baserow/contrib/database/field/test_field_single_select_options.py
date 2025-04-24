@@ -40,12 +40,16 @@ def test_migration_rows_with_deleted_singleselect_options(
         field=single_select_field, value=f"Option B"
     )
 
-    _, row_with_b = RowHandler().force_create_rows(
-        user=user,
-        table=table,
-        rows_values=[
-            {single_select_field.db_column: opt.id} for opt in (option_a, option_b)
-        ],
+    row_with_b = (
+        RowHandler()
+        .force_create_rows(
+            user=user,
+            table=table,
+            rows_values=[
+                {single_select_field.db_column: opt.id} for opt in (option_a, option_b)
+            ],
+        )
+        .created_rows[1]
     )
 
     single_select_field_type = field_type_registry.get_by_model(single_select_field)
@@ -95,12 +99,16 @@ def test_single_select_ids_are_removed_from_rows_when_deleted(data_fixture):
     option_a = data_fixture.create_select_option(field=single_select_field, value=f"A")
     option_b = data_fixture.create_select_option(field=single_select_field, value=f"B")
 
-    _, row_with_b = RowHandler().force_create_rows(
-        user=user,
-        table=table,
-        rows_values=[
-            {single_select_field.db_column: opt.id} for opt in (option_a, option_b)
-        ],
+    row_with_b = (
+        RowHandler()
+        .force_create_rows(
+            user=user,
+            table=table,
+            rows_values=[
+                {single_select_field.db_column: opt.id} for opt in (option_a, option_b)
+            ],
+        )
+        .created_rows[1]
     )
 
     # Keep only A, and remove B

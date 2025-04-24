@@ -1,7 +1,9 @@
 .ab-link {
   font-size: var(--link-font-size, 14px);
   font-weight: var(--link-font-weight, 400);
-  text-decoration: var(--link-text-decoration, underline);
+  text-decoration: var(--link-default-text-decoration, underline);
+  text-transform: var(--link-default-text-transform, none);
+  font-style: var(--link-default-font-style, none);
   color: var(--link-text-color, $black);
   align-self: var(--force-self-alignment, var(--link-text-alignment, initial));
   font-family: var(--link-font-family, Inter);
@@ -10,10 +12,14 @@
   &--force-hover {
     color: var(--link-hover-text-color, $black);
     text-decoration: var(--link-hover-text-decoration, underline);
+    text-transform: var(--link-hover-text-transform, none);
+    font-style: var(--link-hover-font-style, none);
   }
 
   &--force-active {
     color: var(--link-active-text-color, $black);
     text-decoration: var(--link-active-text-decoration, underline);
+    text-transform: var(--link-active-text-transform, none);
+    font-style: var(--link-active-font-style, none);
   }
 }

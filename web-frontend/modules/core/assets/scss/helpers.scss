@@ -218,6 +218,10 @@
   justify-content: space-between;
 }
 
+.justify-content-center {
+  justify-content: center;
+}
+
 .justify-content-end {
   justify-content: end;
 }
@@ -228,6 +232,14 @@
 
 .inline-block {
   display: inline-block;
+}
+
+.text-decoration-line-through {
+  text-decoration: line-through;
+}
+
+.max-width-100 {
+  max-width: 100%;
 }
 
 @keyframes spin {

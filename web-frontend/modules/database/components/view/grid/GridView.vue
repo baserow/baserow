@@ -210,7 +210,7 @@
         </li>
       </ul>
       <ul v-show="!isMultiSelectActive" class="context__menu">
-        <li>
+        <li class="context__menu-item">
           <a
             class="context__menu-item-link"
             @click=";[selectRow($event, selectedRow), $refs.rowContext.hide()]"
@@ -310,7 +310,7 @@
               database.workspace.id
             )
           "
-          class="context__menu-item"
+          class="context__menu-item context__menu-item--with-separator"
         >
           <a class="context__menu-item-link" @click="deleteRow(selectedRow)">
             <i class="context__menu-item-icon iconoir-bin"></i>

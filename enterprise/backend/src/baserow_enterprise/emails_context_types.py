@@ -27,5 +27,6 @@ class EnterpriseEmailContextType(EmailContextType):
         ):
             email_context["logo_url"] = UserFileSerializer(custom_logo).data["url"]
             email_context["logo_additional_text"] = "by Baserow"
+            email_context["show_baserow_description"] = False
 
         return email_context

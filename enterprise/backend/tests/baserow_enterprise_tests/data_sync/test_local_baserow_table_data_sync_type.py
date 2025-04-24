@@ -1617,3 +1617,29 @@ def test_table_with_trashed_synced_field(enterprise_data_fixture):
 
     data_sync.refresh_from_db()
     assert data_sync.last_error is None
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_table_model_is_data_synced_table(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+    source_for_synced_table = enterprise_data_fixture.create_database_table(
+        database=database, name="Synced"
+    )
+    table_with_no_synced_table = enterprise_data_fixture.create_database_table(
+        database=database, name="Table"
+    )
+
+    data_sync = DataSyncHandler().create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Source synced",
+        type_name="local_baserow_table",
+        synced_properties=["id"],
+        source_table_id=source_for_synced_table.id,
+    )
+
+    assert data_sync.table.is_data_synced_table
+    assert not table_with_no_synced_table.is_data_synced_table

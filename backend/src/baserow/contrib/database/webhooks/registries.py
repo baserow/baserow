@@ -2,12 +2,14 @@ import uuid
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
+from django.db.models import Q
 from django.dispatch.dispatcher import Signal
 
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.webhooks.models import TableWebhook, TableWebhookEvent
 from baserow.core.registry import Instance, ModelRegistryMixin, Registry
 
-from .exceptions import SkipWebhookCall
+from .exceptions import SkipWebhookCall, WebhookPayloadTooLarge
 from .tasks import call_webhook
 
 
@@ -15,8 +17,8 @@ class WebhookEventType(Instance):
     """
     This class represents a custom webhook event type that can be added to the webhook
     event type registry. Each registered event type needs to set a django signal on
-    which it will listen on. Upon initialization the webhook event type will connect
-    to the django signal.
+    which it will listen on. Upon initialization the webhook event type will connect to
+    the django signal.
 
     The 'listener' function will be called for every received signal. The listener will
     generate a unique ID for every received signal, find all webhooks that need to be
@@ -73,8 +75,9 @@ class WebhookEventType(Instance):
             "table_id": webhook.table_id,
             "database_id": webhook.table.database_id,
             "workspace_id": webhook.table.database.workspace_id,
+            "webhook_id": webhook.id,
             "event_id": str(event_id),
-            "event_type": self.type,
+            "event_type": kwargs.get("event_type", self.type),
         }
 
     def get_table_object(self, **kwargs: dict) -> Table:
@@ -97,6 +100,25 @@ class WebhookEventType(Instance):
 
         return table
 
+    def get_filters_for_webhooks_to_call(self, **kwargs: dict) -> Q:
+        """
+        Filters to pass to WebhookHandler.find_webhooks_to_call to find the webhooks
+        that need to be called for the table. By default it will filter on the event
+        type and the table id. This method can be overwritten to add additional filters
+        to the query.
+
+        :param kwargs: The arguments of the signal.
+        :return: A Q object containing the filters to pass to the query.
+        """
+
+        table = self.get_table_object(**kwargs)
+        q = Q(events__event_type__in=[self.type])
+
+        if self.should_trigger_when_all_event_types_selected:
+            q |= Q(include_all_events=True)
+
+        return q & Q(table_id=table.id, active=True)
+
     def listener(self, **kwargs: dict):
         """
         The method that is called when the signal is triggered. By default it will
@@ -106,6 +128,55 @@ class WebhookEventType(Instance):
         """
 
         transaction.on_commit(lambda: self.listener_after_commit(**kwargs))
+
+    def _paginate_payload(
+        self, webhook: TableWebhook, event_id: str, payload: dict[str, any]
+    ) -> tuple[dict, dict | None]:
+        """
+        This method is called in the celery task and can be overwritten to paginate the
+        payload, if it's too large to send all the data at once. The default
+        implementation returns the payload and None as the next cursor, but if the
+        payload is too large to be sent in one go, this method can be used to return a
+        part of the payload and the remaining part as the next cursor. Proper `batch_id`
+        values will be added to the payload by the caller to keep track of the current
+        batch.
+
+        :param payload: The payload that must be paginated.
+        :return: A tuple containing the payload to be sent and the remaining payload for
+            the next batch if any or None.
+        """
+
+        return payload, None
+
+    def paginate_payload(self, webhook, event_id, payload) -> tuple[dict, dict | None]:
+        """
+        This method calls the `_paginate_payload` method and adds a `batch_id` to the
+        payload if the remaining payload is not None. The `batch_id` is used to keep
+        track of the current batch of the payload.
+
+        :param webhook: The webhook object related to the call.
+        :param event_id: The unique uuid event id of the event that triggered the call.
+        :param payload: The payload that must be paginated.
+        :return: A tuple containing the payload to be sent and the remaining payload for
+            the next batch if any or None.
+        """
+
+        batch_id = int(payload.get("batch_id", None) or 1)
+        if webhook.batch_limit > 0 and batch_id > webhook.batch_limit:
+            raise WebhookPayloadTooLarge(
+                f"Payload for event '{self.type}' (event_id: '{event_id}') exceeds "
+                f"the batch limit of ({webhook.batch_limit} batches)."
+            )
+
+        prepared_payload, remaining_payload = self._paginate_payload(
+            webhook, event_id, payload
+        )
+
+        if remaining_payload is not None:
+            prepared_payload["batch_id"] = batch_id
+            remaining_payload["batch_id"] = batch_id + 1
+
+        return prepared_payload, remaining_payload
 
     def listener_after_commit(self, **kwargs):
         """
@@ -121,9 +192,8 @@ class WebhookEventType(Instance):
         if not kwargs.get("send_webhooks_events", True):
             return
 
-        table = self.get_table_object(**kwargs)
         webhook_handler = WebhookHandler()
-        webhooks = webhook_handler.find_webhooks_to_call(table.id, self.type)
+        webhooks = webhook_handler.find_webhooks_to_call(self, **kwargs)
         event_id = uuid.uuid4()
         for webhook in webhooks:
             try:
@@ -144,8 +214,24 @@ class WebhookEventType(Instance):
             except SkipWebhookCall:
                 pass
 
+    def after_create(self, webhook_event: TableWebhookEvent):
+        """
+        This method is called after a webhook event has been created. By default it
+        does nothing, but can be overwritten to add additional functionality.
 
-class WebhookEventTypeRegistry(ModelRegistryMixin, Registry):
+        :param webhook_event: The created webhook event.
+        """
+
+    def after_update(self, webhook_event: TableWebhookEvent):
+        """
+        This method is called after a webhook event has been updated. By default it
+        does nothing, but can be overwritten to add additional functionality.
+
+        :param webhook_event: The updated webhook event.
+        """
+
+
+class WebhookEventTypeRegistry(ModelRegistryMixin, Registry[WebhookEventType]):
     name = "webhook_event"
 
 

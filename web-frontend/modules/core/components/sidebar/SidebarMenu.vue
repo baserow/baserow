@@ -1,5 +1,5 @@
 <template>
-  <div class="sidebar__section" ph-autocapture="sidebar">
+  <div class="sidebar__section" ph-autocapture="sidebar" data-highlight="menu">
     <ul class="tree">
       <nuxt-link
         v-slot="{ href, navigate, isExactActive }"
@@ -132,7 +132,10 @@
               <span class="sidebar__item-name">{{ $t('sidebar.trash') }}</span>
             </span>
           </a>
-          <TrashModal ref="trashModal"></TrashModal>
+          <TrashModal
+            ref="trashModal"
+            :initial-workspace="selectedWorkspace"
+          ></TrashModal>
         </div>
       </li>
     </ul>

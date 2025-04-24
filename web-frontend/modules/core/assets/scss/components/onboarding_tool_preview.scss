@@ -5,6 +5,7 @@
   overflow: hidden;
   pointer-events: none;
   transition: left 0.5s ease;
+  z-index: $z-index-layout-col-1;
 
   @include absolute(10%, 0, 0, 10%);
 }
@@ -15,20 +16,8 @@
 
 .onboarding-tool-preview__inner {
   @include absolute(0, 0, 0, 0);
-}
 
-.onboarding-tool-preview__highlight {
-  box-shadow: rgba($palette-neutral-1200, 0.4) 0 0 0 5000px;
-  opacity: 1;
-  width: 200px;
-  height: 200px;
-  z-index: $z-index-highlight-overlay;
-  box-sizing: content-box;
-
-  @include rounded($rounded);
-  @include absolute(0, 0, 0, 0);
-
-  &--hidden {
-    box-shadow: none;
+  &--reserve-space-right {
+    right: -370px;
   }
 }

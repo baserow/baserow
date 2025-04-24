@@ -7,6 +7,7 @@
           v-model="v$.values.name.$model"
           :error="fieldHasErrors('name')"
           :placeholder="$t('fieldForm.name')"
+          @blur="v$.values.name.$touch()"
           @input="isPrefilledWithSuggestedFieldName = false"
           @keydown.enter="handleKeydownEnter($event)"
         ></FormInput>
@@ -49,13 +50,21 @@
               class="iconoir-lock"
             ></i>
             <component
-              :is="fieldType.getDeactivatedClickModal(workspace.id)"
+              :is="
+                fieldType.getDeactivatedClickModal(workspace.id)
+                  ? fieldType.getDeactivatedClickModal(workspace.id)[0]
+                  : null
+              "
               :ref="'deactivatedClickModal-' + fieldType.type"
               :v-if="
                 fieldType.isDeactivated(workspace.id) &&
                 fieldType.getDeactivatedClickModal(workspace.id)
               "
-              :name="$t(fieldType.getName())"
+              v-bind="
+                fieldType.getDeactivatedClickModal(workspace.id)
+                  ? fieldType.getDeactivatedClickModal(workspace.id)[1]
+                  : null
+              "
               :workspace="workspace"
             ></component>
           </DropdownItem>

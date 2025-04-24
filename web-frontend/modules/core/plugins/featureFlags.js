@@ -1,6 +1,5 @@
 const FF_ENABLE_ALL = '*'
-export const FF_DASHBOARDS = 'dashboards'
-export const FF_AB_SSO = 'ab_sso'
+export const FF_AUTOMATION = 'automation'
 
 /**
  * A comma separated list of feature flags used to enable in-progress or not ready

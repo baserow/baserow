@@ -62,14 +62,18 @@ def test_perm_deleting_rows_delete_rich_text_mentions(data_fixture):
         table=table, long_text_enable_rich_text=True
     )
 
-    row_1, row_2, row_3 = RowHandler().create_rows(
-        user=user,
-        table=table,
-        rows_values=[
-            {field.db_column: f"Hello @{user.id}!"},
-            {field.db_column: f"Ciao @{user.id}!"},
-            {field.db_column: f"Hola @{user.id}!"},
-        ],
+    row_1, row_2, row_3 = (
+        RowHandler()
+        .create_rows(
+            user=user,
+            table=table,
+            rows_values=[
+                {field.db_column: f"Hello @{user.id}!"},
+                {field.db_column: f"Ciao @{user.id}!"},
+                {field.db_column: f"Hola @{user.id}!"},
+            ],
+        )
+        .created_rows
     )
 
     mentions = RichTextFieldMention.objects.all()

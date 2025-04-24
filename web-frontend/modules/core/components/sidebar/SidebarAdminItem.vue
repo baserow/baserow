@@ -35,10 +35,10 @@
       </nuxt-link>
     </div>
     <component
-      :is="deactivatedModal"
+      :is="deactivatedModal[0]"
       v-if="deactivatedModal"
       ref="deactivatedModal"
-      :name="adminType.getName()"
+      v-bind="deactivatedModal[1]"
     ></component>
   </li>
 </template>

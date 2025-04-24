@@ -10,7 +10,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.core.management.color import no_style
 from django.db import connection, models
-from django.db.models import Prefetch
+from django.db.models import Prefetch, QuerySet
 from django.db.transaction import Atomic
 from django.urls import include, path
 from django.utils import translation
@@ -21,6 +21,7 @@ from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database, Field, View
+from baserow.contrib.database.operations import ListTablesDatabaseTableOperationType
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_queryset
@@ -33,12 +34,12 @@ from baserow.core.registries import (
 )
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.utils import ChildProgressBuilder, grouper
+from baserow.core.utils import ChildProgressBuilder, Progress, grouper
 
 from .constants import (
     EXPORT_SERIALIZED_EXPORTING_TABLE,
-    IMPORT_SERIALIZED_IMPORTING,
-    IMPORT_SERIALIZED_IMPORTING_TABLE,
+    IMPORT_SERIALIZED_IMPORTING_TABLE_DATA,
+    IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE,
 )
 from .data_sync.registries import data_sync_type_registry
 from .db.atomic import read_repeatable_single_database_atomic_transaction
@@ -293,7 +294,7 @@ class DatabaseApplicationType(ApplicationType):
         import_export_config: ImportExportConfig,
         external_table_fields_to_import: List[Tuple[Table, Dict[str, Any]]],
         deferred_fk_update_collector: DeferredForeignKeyUpdater,
-        progress: ChildProgressBuilder,
+        progress: Progress,
     ) -> ImportedFields:
         """
         Import the fields from the serialized data in the correct order based on their
@@ -308,6 +309,10 @@ class DatabaseApplicationType(ApplicationType):
             also be imported. These fields will be imported into the existing table
             provided in the first item in the tuple, the second being the serialized
             field to import.
+        :param deferred_fk_update_collector: A collector that collects all the foreign
+            keys to update them later when the model with all the fields is created.
+        :param progress: A progress used to report progress of the import.
+        :return: The imported fields.
         """
 
         field_cache = FieldCache()
@@ -348,7 +353,10 @@ class DatabaseApplicationType(ApplicationType):
             if table_instance not in table_fields_by_name:
                 table_fields_by_name[table_instance] = {}
             table_fields_by_name[table_instance][field_instance.name] = field_instance
-            progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+            table_name = serialized_table["name"]
+            progress.increment(
+                state=f"{IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE}{table_name}"
+            )
             return field_instance
 
         fields_without_dependencies: List[Field] = []
@@ -404,7 +412,7 @@ class DatabaseApplicationType(ApplicationType):
                 deferred_fk_update_collector,
             )
             SearchHandler.after_field_created(external_field)
-            progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+            progress.increment()
 
         deferred_fk_update_collector.run_deferred_fk_updates(
             id_mapping, "database_fields"
@@ -537,7 +545,9 @@ class DatabaseApplicationType(ApplicationType):
             self._create_table_schema(
                 serialized_table, already_created_through_table_names
             )
-            progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+            progress.increment(
+                state=f"{IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE}{serialized_table['name']}"
+            )
 
         # Now that everything is in place we can start filling the table with the rows
         # in an efficient matter by using the bulk_create functionality.
@@ -594,9 +604,9 @@ class DatabaseApplicationType(ApplicationType):
         user_email_mapping: Dict[str, Any],
         deferred_fk_update_collector: DeferredForeignKeyUpdater,
         id_mapping: Dict[str, Any],
-        files_zip: Optional[ZipFile] = None,
-        storage: Optional[Storage] = None,
-        progress: Optional[ChildProgressBuilder] = None,
+        files_zip: ZipFile | None,
+        storage: Storage | None,
+        progress: Progress,
     ):
         """
         Imports the rows of a table from the serialized data in an efficient manner.
@@ -610,7 +620,7 @@ class DatabaseApplicationType(ApplicationType):
             imported files from
         :param storage: An optional place to persist any user files if importing files
             from a the above file_zip.
-        :param progress: A progress builder used to report progress of the import.
+        :param progress: A progress used to report progress of the import.
         """
 
         table_cache: Dict[str, Any] = {}
@@ -668,7 +678,7 @@ class DatabaseApplicationType(ApplicationType):
 
                 rows_to_be_inserted.append(row_instance)
                 progress.increment(
-                    state=f"{IMPORT_SERIALIZED_IMPORTING_TABLE}{serialized_table['id']}"
+                    state=f"{IMPORT_SERIALIZED_IMPORTING_TABLE_DATA}{serialized_table['name']}"
                 )
 
             # We want to insert the rows in bulk because there could potentially be
@@ -678,7 +688,7 @@ class DatabaseApplicationType(ApplicationType):
                 table_model.objects.bulk_create(chunk, batch_size=512)
                 progress.increment(
                     len(chunk),
-                    state=f"{IMPORT_SERIALIZED_IMPORTING_TABLE}{serialized_table['id']}",
+                    state=f"{IMPORT_SERIALIZED_IMPORTING_TABLE_DATA}{serialized_table['name']}",
                 )
 
             # Every row import can have additional objects that must be inserted,
@@ -811,7 +821,7 @@ class DatabaseApplicationType(ApplicationType):
             field_type.after_rows_imported(
                 field, field_cache=imported_fields.field_cache
             )
-            progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+            progress.increment()
 
     def _create_table_schema(
         self, serialized_table, already_created_through_table_names
@@ -869,10 +879,13 @@ class DatabaseApplicationType(ApplicationType):
         """
 
         table = serialized_table["_object"]
+        table_name = serialized_table["name"]
         for serialized_view in serialized_table["views"]:
             view_type = view_type_registry.get(serialized_view["type"])
             view_type.import_serialized(table, serialized_view, id_mapping, files_zip)
-            progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+            progress.increment(
+                state=f"{IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE}{table_name}"
+            )
 
     def _import_tables(
         self,
@@ -906,7 +919,10 @@ class DatabaseApplicationType(ApplicationType):
             serialized_table["_object"] = table_instance
             serialized_table["field_instances"] = []
             imported_tables.append(table_instance)
-            progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+            table_name = serialized_table["name"]
+            progress.increment(
+                state=f"{IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE}{table_name}"
+            )
 
         return imported_tables
 
@@ -924,7 +940,7 @@ class DatabaseApplicationType(ApplicationType):
         Imports a database application exported by the `export_serialized` method.
         """
 
-        database_progress, table_progress = 1, 99
+        database_progress, table_progress = 1, len(serialized_values["tables"])
         progress = ChildProgressBuilder.build(
             progress_builder, child_total=database_progress + table_progress
         )
@@ -940,10 +956,7 @@ class DatabaseApplicationType(ApplicationType):
         )
 
         database = application.specific
-
-        if not serialized_values["tables"]:
-            progress.increment(state=IMPORT_SERIALIZED_IMPORTING, by=table_progress)
-        else:
+        if serialized_values["tables"]:
             self.import_tables_serialized(
                 database,
                 serialized_values["tables"],
@@ -962,3 +975,50 @@ class DatabaseApplicationType(ApplicationType):
             "table_set__data_sync",
             "table_set__data_sync__synced_properties",
         )
+
+    def enhance_and_filter_queryset(
+        self,
+        queryset: QuerySet[Database],
+        user: AbstractUser,
+        workspace: Workspace,
+    ) -> QuerySet[Database]:
+        tables_qs = Table.objects.select_related(
+            "database__workspace", "data_sync"
+        ).prefetch_related("data_sync__synced_properties")
+        return queryset.prefetch_related(
+            Prefetch(
+                "table_set",
+                queryset=CoreHandler().filter_queryset(
+                    user,
+                    ListTablesDatabaseTableOperationType.type,
+                    tables_qs,
+                    workspace=workspace,
+                ),
+                to_attr="tables",
+            ),
+        )
+
+    def fetch_tables_to_serialize(
+        self, database: Database, user: AbstractUser | None
+    ) -> List[Table]:
+        """
+        Serializes the pages of the builder application, making sure that the user has
+        the correct permissions to view them if provided, and fetching the related
+        elements and data sources correctly so additional queries are not needed.
+
+        :param builder: The builder application instance.
+        :param user: The user trying to access the pages.
+        :return: A list of serialized pages that belong to this instance with all
+            related elements and data sources fetched correctly.
+        """
+
+        base_queryset = Database.objects.filter(id=database.id)
+
+        if user:
+            instance = self.enhance_and_filter_queryset(
+                base_queryset, user, database.workspace
+            ).first()
+            return instance and instance.tables or []
+        else:
+            instance = self.enhance_queryset(base_queryset).first()
+            return instance and list(instance.table_set.all()) or []

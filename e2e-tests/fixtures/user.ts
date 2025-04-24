@@ -38,7 +38,10 @@ export async function getStaffUser(): Promise<User> {
   return getTokenAuth("e2e@baserow.io", "testpassword");
 }
 
-export async function createUser(skipOnboarding = true): Promise<User> {
+export async function createUser(
+  skipOnboarding = true,
+  skipGuidedTours = true
+): Promise<User> {
   const password = faker.internet.password();
   const response: any = await getClient().post("user/", {
     name: faker.name.fullName(),
@@ -55,9 +58,12 @@ export async function createUser(skipOnboarding = true): Promise<User> {
     accessToken: response.data.access_token,
     refreshToken: response.data.refresh_token,
   };
-  if (skipOnboarding) {
+  if (skipOnboarding || skipGuidedTours) {
     await getClient(user).patch("user/account/", {
-      completed_onboarding: true,
+      completed_onboarding: skipOnboarding,
+      completed_guided_tours: skipGuidedTours
+        ? ["sidebar", "database", "builder"]
+        : [],
     });
   }
   return user;

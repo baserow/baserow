@@ -1,10 +1,12 @@
 import pytest
 
 from baserow.contrib.database.airtable.utils import (
+    airtable_date_filter_value_to_baserow,
     extract_share_id_from_url,
     get_airtable_column_name,
     get_airtable_row_primary_value,
     quill_to_markdown,
+    unknown_value_to_human_readable,
 )
 
 
@@ -104,7 +106,7 @@ def test_quill_to_markdown_airtable_example():
             {"attributes": {"bold": True}, "insert": "n"},
             {"insert": "g 2"},
             {"attributes": {"header": 2}, "insert": "\n"},
-            {"insert": "Heading 3"},
+            {"insert": "Heading 3 without mentions"},
             {"attributes": {"header": 3}, "insert": "\n"},
             {"insert": "\none"},
             {"attributes": {"list": "ordered"}, "insert": "\n"},
@@ -197,7 +199,7 @@ def test_quill_to_markdown_airtable_example():
         markdown_value
         == """# He**adi**ng 1
 ## He[a](https://airtable.com)[**di**](https://airtable.com)**n**g 2
-### Heading 3
+### Heading 3 without mentions
 
 1. one
 1. two
@@ -215,7 +217,7 @@ def test_quill_to_markdown_airtable_example():
 - [ ] Check 2
 - [ ] Check 3
 
-Lorem **ipsum** dolor _sit_ amet, ~consectetur~ adipiscing `elit`. [Proin](https://airtable.com) ut metus quam. Ut tempus at [https://airtable.com](https://airtable.com) vel varius. Phasellus nec diam vitae urna mollis cursus. Donec mattis pellentesque nunc id dictum. Maecenas vel tortor quam. Vestibulum et enim ut mauris lacinia malesuada. Pellentesque euismod
+Lorem **ipsum** dolor _sit_ amet, ~~consectetur~~ adipiscing `elit`. [Proin](https://airtable.com) ut metus quam. Ut tempus at [https://airtable.com](https://airtable.com) vel varius. Phasellus nec diam vitae urna mollis cursus. Donec mattis pellentesque nunc id dictum. Maecenas vel tortor quam. Vestibulum et enim ut mauris lacinia malesuada. Pellentesque euismod
 iaculis felis, at posuere velit ullamcorper a. Aliquam eu ultricies neque, cursus accumsan metus. Etiam consectetur eu nisi id aliquet. @usrGIN77VWdhm7LKk gravida vestibulum egestas. Praesent pretium velit eu pretium ultrices. Nullam ut est non quam vulputate `tempus nec vel augue`. Aenean dui velit, ornare nec tincidunt eget, fermentum sed arcu. Suspendisse consequat bibendum molestie. Fusce at pulvinar enim.
 @usrGIN77VWdhm7LKk
 > Quote, but not actually
@@ -268,6 +270,47 @@ def test_quill_to_markdown_airtable_example_two_lists():
 
 - **item**
 - _item_
-- ~Item~
+- ~~Item~~
 - [link](https://airtable.com)"""
     )
+
+
+def test_airtable_date_filter_value_to_baserow():
+    assert (
+        airtable_date_filter_value_to_baserow(
+            {
+                "mode": "exactDate",
+                "exactDate": "2025-02-05T00:00:00.000Z",
+                "timeZone": "Europe/Amsterdam",
+                "shouldUseCorrectTimeZoneForFormulaicColumn": True,
+            }
+        )
+        == "Europe/Amsterdam?2025-02-05?exact_date"
+    )
+
+
+def test_airtable_date_string_filter_value_to_baserow():
+    assert (
+        airtable_date_filter_value_to_baserow("2025-02-05T00:00:00.000Z")
+        == "?2025-02-05?exact_date"
+    )
+
+
+def test_airtable_invalid_date_filter_value_to_baserow():
+    with pytest.raises(KeyError):
+        assert airtable_date_filter_value_to_baserow(
+            {
+                "mode": "not_found",
+                "exactDate": "2025-02-05T00:00:00.000Z",
+                "timeZone": "Europe/Amsterdam",
+                "shouldUseCorrectTimeZoneForFormulaicColumn": True,
+            }
+        )
+
+
+def test_unknown_value_to_human_readable():
+    assert unknown_value_to_human_readable(None) == ""
+    assert unknown_value_to_human_readable(["1", "2"]) == "2 items"
+    assert unknown_value_to_human_readable(["1"]) == "1 item"
+    assert unknown_value_to_human_readable("usrGUN1234") == "1 item"
+    assert unknown_value_to_human_readable("random") == "random"

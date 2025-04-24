@@ -70,6 +70,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_WITH_FORMULA,
 )
 from baserow.contrib.database.api.fields.serializers import (
+    AvailableCollaboratorsSerializer,
     BaserowBooleanField,
     CollaboratorSerializer,
     DurationFieldSerializer,
@@ -131,7 +132,11 @@ from baserow.contrib.database.types import SerializedRowHistoryFieldMetadata
 from baserow.contrib.database.validators import UnicodeRegexValidator
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist, ViewNotInTable
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.contrib.database.views.models import OWNERSHIP_TYPE_COLLABORATIVE, View
+from baserow.contrib.database.views.models import (
+    DEFAULT_SORT_TYPE_KEY,
+    OWNERSHIP_TYPE_COLLABORATIVE,
+    View,
+)
 from baserow.core.db import (
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
     collate_expression,
@@ -152,6 +157,7 @@ from baserow.core.utils import list_to_comma_separated_string
 from .constants import (
     BASEROW_BOOLEAN_FIELD_FALSE_VALUES,
     BASEROW_BOOLEAN_FIELD_TRUE_VALUES,
+    SINGLE_SELECT_SORT_BY_ORDER,
     UPSERT_OPTION_DICT_KEY,
     DeleteFieldStrategyEnum,
 )
@@ -259,7 +265,7 @@ if TYPE_CHECKING:
 
 class CollationSortMixin:
     def get_order(
-        self, field, field_name, order_direction, table_model=None
+        self, field, field_name, order_direction, sort_type, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         field_expr = collate_expression(F(field_name))
 
@@ -407,6 +413,8 @@ class TextFieldType(CollationSortMixin, FieldType):
     serializer_field_names = ["text_default"]
     _can_group_by = True
 
+    can_upsert = True
+
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
         return serializers.CharField(
@@ -451,8 +459,9 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     model_class = LongTextField
     allowed_fields = ["long_text_enable_rich_text"]
     serializer_field_names = ["long_text_enable_rich_text"]
+    can_upsert = True
 
-    def check_can_group_by(self, field: Field) -> bool:
+    def check_can_group_by(self, field: Field, sort_type: str) -> bool:
         return not field.long_text_enable_rich_text
 
     def can_be_primary_field(self, field_or_values: Union[Field, dict]) -> bool:
@@ -516,6 +525,7 @@ class URLFieldType(CollationSortMixin, TextFieldMatchingRegexFieldType):
     type = "url"
     model_class = URLField
     _can_group_by = True
+    can_upsert = True
 
     @property
     def regex(self):
@@ -565,6 +575,7 @@ class NumberFieldType(FieldType):
     }
     _can_group_by = True
     _db_column_fields = ["number_decimal_places"]
+    can_upsert = True
 
     def prepare_value_for_db(self, instance: NumberField, value):
         if value is None:
@@ -636,7 +647,10 @@ class NumberFieldType(FieldType):
             # precision we keep it as a string.
             instance = field_object["field"]
             if instance.number_decimal_places == 0:
-                return int(value)
+                try:
+                    return int(value)
+                except (ValueError, TypeError):
+                    pass
 
             # DRF's Decimal Serializer knows how to quantize and format the decimal
             # correctly so lets use it instead of trying to do it ourselves.
@@ -806,6 +820,7 @@ class RatingFieldType(FieldType):
     serializer_field_names = ["max_value", "color", "style"]
     _can_group_by = True
     _db_column_fields = []
+    can_upsert = True
 
     def prepare_value_for_db(self, instance, value):
         if not value:
@@ -930,7 +945,10 @@ class RatingFieldType(FieldType):
 class BooleanFieldType(FieldType):
     type = "boolean"
     model_class = BooleanField
+    allowed_fields = ["boolean_default"]
+    serializer_field_names = ["boolean_default"]
     _can_group_by = True
+    can_upsert = True
 
     def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
         """
@@ -949,10 +967,13 @@ class BooleanFieldType(FieldType):
         """
 
     def get_serializer_field(self, instance, **kwargs):
-        return BaserowBooleanField(**{"required": False, "default": False, **kwargs})
+        required = kwargs.get("required", False)
+        return BaserowBooleanField(
+            **{"required": required, "default": instance.boolean_default, **kwargs}
+        )
 
     def get_model_field(self, instance, **kwargs):
-        return models.BooleanField(default=False, **kwargs)
+        return models.BooleanField(default=instance.boolean_default, **kwargs)
 
     def random_value(self, instance, fake, cache):
         return fake.pybool()
@@ -1020,6 +1041,7 @@ class DateFieldType(FieldType):
     }
     _can_group_by = True
     _db_column_fields = ["date_include_time"]
+    can_upsert = True
 
     def can_represent_date(self, field):
         return True
@@ -1493,6 +1515,15 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
 
     source_field_name = "last_modified_by"
     model_field_kwargs = {"sync_with": "last_modified_by"}
+    request_serializer_field_names = []
+    request_serializer_field_overrides = {}
+    serializer_field_names = ["available_collaborators"]
+    serializer_field_overrides = {
+        "available_collaborators": AvailableCollaboratorsSerializer(),
+    }
+
+    def can_represent_collaborators(self, field):
+        return True
 
     def get_model_field(self, instance, **kwargs):
         kwargs["null"] = True
@@ -1616,7 +1647,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         return user.email if user else None
 
     def get_order(
-        self, field, field_name, order_direction, table_model=None
+        self, field, field_name, order_direction, sort_type, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         """
         If the user wants to sort the results they expect them to be ordered
@@ -1624,7 +1655,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         """
 
         order = collate_expression(
-            self.get_sortable_column_expression(field, field_name)
+            self.get_sortable_column_expression(field, field_name, sort_type)
         )
 
         if order_direction == "ASC":
@@ -1691,7 +1722,10 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         )
 
     def get_sortable_column_expression(
-        self, field: Field, field_name: str
+        self,
+        field: Field,
+        field_name: str,
+        sort_type: str,
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
 
@@ -1707,6 +1741,15 @@ class CreatedByFieldType(ReadOnlyFieldType):
 
     source_field_name = "created_by"
     model_field_kwargs = {"sync_with_add": "created_by"}
+    request_serializer_field_names = []
+    request_serializer_field_overrides = {}
+    serializer_field_names = ["available_collaborators"]
+    serializer_field_overrides = {
+        "available_collaborators": AvailableCollaboratorsSerializer(),
+    }
+
+    def can_represent_collaborators(self, field):
+        return True
 
     def get_model_field(self, instance, **kwargs):
         kwargs["null"] = True
@@ -1830,7 +1873,7 @@ class CreatedByFieldType(ReadOnlyFieldType):
         return user.email if user else None
 
     def get_order(
-        self, field, field_name, order_direction, table_model=None
+        self, field, field_name, order_direction, sort_type, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         """
         If the user wants to sort the results they expect them to be ordered
@@ -1838,7 +1881,7 @@ class CreatedByFieldType(ReadOnlyFieldType):
         """
 
         order = collate_expression(
-            self.get_sortable_column_expression(field, field_name)
+            self.get_sortable_column_expression(field, field_name, sort_type)
         )
 
         if order_direction == "ASC":
@@ -1905,7 +1948,10 @@ class CreatedByFieldType(ReadOnlyFieldType):
         )
 
     def get_sortable_column_expression(
-        self, field: Field, field_name: str
+        self,
+        field: Field,
+        field_name: str,
+        sort_type: str,
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
 
@@ -1920,6 +1966,7 @@ class DurationFieldType(FieldType):
     serializer_field_names = ["duration_format"]
     _can_group_by = True
     _db_column_fields = []
+    can_upsert = True
 
     def get_model_field(self, instance: DurationField, **kwargs):
         return DurationModelField(instance.duration_format, null=True, **kwargs)
@@ -2067,7 +2114,10 @@ class DurationFieldType(FieldType):
         setattr(row, field_name, value)
 
     def get_sortable_column_expression(
-        self, field: Field, field_name: str
+        self,
+        field: Field,
+        field_name: str,
+        sort_type: str,
     ) -> Expression | F:
         return F(f"{field_name}")
 
@@ -2187,16 +2237,18 @@ class LinkRowFieldType(
             return field.specific.link_row_table_primary_field
 
     def _check_related_field_can_order_by(
-        self, related_primary_field: Type[Field]
+        self,
+        related_primary_field: Type[Field],
+        order_type: str,
     ) -> bool:
         related_primary_field_type = field_type_registry.get_by_model(
             related_primary_field.specific_class
         )
         return related_primary_field_type.check_can_order_by(
-            related_primary_field.specific
+            related_primary_field.specific, order_type
         )
 
-    def check_can_group_by(self, field):
+    def check_can_group_by(self, field, sort_type):
         related_primary_field = self._get_related_table_primary_field(field)
         if related_primary_field is None:
             return False
@@ -2204,7 +2256,9 @@ class LinkRowFieldType(
         related_primary_field_type = field_type_registry.get_by_model(
             related_primary_field
         )
-        return related_primary_field_type.check_can_group_by(related_primary_field)
+        return related_primary_field_type.check_can_group_by(
+            related_primary_field, sort_type
+        )
 
     def _get_group_by_agg_expression(self, field_name: str) -> dict:
         return ArrayAgg(
@@ -2218,11 +2272,13 @@ class LinkRowFieldType(
             distinct=True,
         )
 
-    def check_can_order_by(self, field: Field) -> bool:
+    def check_can_order_by(self, field: Field, sort_type: str) -> bool:
         related_primary_field = self._get_related_table_primary_field(field)
         if related_primary_field is None:
             return False
-        return self._check_related_field_can_order_by(related_primary_field.specific)
+        return self._check_related_field_can_order_by(
+            related_primary_field.specific, sort_type
+        )
 
     def get_value_for_filter(self, row: "GeneratedTableModel", field):
         related_primary_field = self._get_related_table_primary_field(
@@ -2238,7 +2294,9 @@ class LinkRowFieldType(
             row, related_primary_field
         )
 
-    def get_order(self, field, field_name, order_direction, table_model=None):
+    def get_order(
+        self, field, field_name, order_direction, sort_type, table_model=None
+    ):
         related_primary_field = self._get_related_table_primary_field(
             field, table_model
         )
@@ -2246,7 +2304,9 @@ class LinkRowFieldType(
             raise ValueError("Cannot find the related primary field.")
 
         related_primary_field = related_primary_field.specific
-        if not self._check_related_field_can_order_by(related_primary_field):
+        if not self._check_related_field_can_order_by(
+            related_primary_field, DEFAULT_SORT_TYPE_KEY
+        ):
             raise ValueError(
                 "The primary field for the related table cannot be ordered by."
             )
@@ -2257,6 +2317,7 @@ class LinkRowFieldType(
             related_primary_field_type.get_sortable_column_expression(
                 related_primary_field,
                 f"{field_name}__{related_primary_field.db_column}",
+                sort_type,
             )
         )
 
@@ -3431,6 +3492,9 @@ class LinkRowFieldType(
                 **already_serialized_linked_rows,
                 **new_serialized_linked_rows,
             },
+            "linked_table_id": field.link_row_table_id,
+            "linked_field_id": field.link_row_related_field_id,
+            "primary_value": str(row),
         }
 
     def are_row_values_equal(self, value1: any, value2: any) -> bool:
@@ -3458,6 +3522,7 @@ class LinkRowFieldType(
 class EmailFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
     type = "email"
     model_class = EmailField
+    can_upsert = True
 
     @property
     def regex(self):
@@ -3493,7 +3558,7 @@ class FileFieldType(FieldType):
     model_class = FileField
     can_be_in_form_view = True
     can_get_unique_values = False
-    _can_order_by = False
+    _can_order_by_types = []
 
     def to_baserow_formula_type(self, field) -> BaserowFormulaType:
         return BaserowFormulaArrayType(BaserowFormulaSingleFileType(nullable=True))
@@ -3846,7 +3911,10 @@ class SelectOptionBaseFieldType(FieldType):
         return queryset
 
     def get_sortable_column_expression(
-        self, field: Field, field_name: str
+        self,
+        field: Field,
+        field_name: str,
+        sort_type: str,
     ) -> Expression | F:
         return F(f"{field_name}__value")
 
@@ -3868,6 +3936,7 @@ class SelectOptionBaseFieldType(FieldType):
 class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     type = "single_select"
     model_class = SingleSelectField
+    _can_order_by_types = [DEFAULT_SORT_TYPE_KEY, SINGLE_SELECT_SORT_BY_ORDER]
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
@@ -4121,8 +4190,19 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             connection, from_field, to_field
         )
 
+    def get_sortable_column_expression(
+        self,
+        field: Field,
+        field_name: str,
+        sort_type: str,
+    ) -> Expression | F:
+        if sort_type == SINGLE_SELECT_SORT_BY_ORDER:
+            return F(f"{field_name}__order")
+        else:
+            return super().get_sortable_column_expression(field, field_name, sort_type)
+
     def get_order(
-        self, field, field_name, order_direction, table_model=None
+        self, field, field_name, order_direction, sort_type, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         """
         If the user wants to sort the results they expect them to be ordered
@@ -4131,9 +4211,14 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         to the correct position.
         """
 
-        order = collate_expression(
-            self.get_sortable_column_expression(field, field_name)
+        column_expression = self.get_sortable_column_expression(
+            field, field_name, sort_type
         )
+
+        if sort_type == SINGLE_SELECT_SORT_BY_ORDER:
+            order = column_expression
+        else:
+            order = collate_expression(column_expression)
 
         if order_direction == "ASC":
             order = order.asc(nulls_first=True)
@@ -4582,7 +4667,9 @@ class MultipleSelectFieldType(
             q={f"select_option_value_{field_name}__iregex": rf"\m{value}\M"},
         )
 
-    def get_order(self, field, field_name, order_direction, table_model=None):
+    def get_order(
+        self, field, field_name, order_direction, sort_type, table_model=None
+    ):
         """
         Order by the concatenated values of the select options, separated by a comma.
         """
@@ -4595,7 +4682,7 @@ class MultipleSelectFieldType(
         sort_column_name = f"{field_name}_agg_sort"
         query = Coalesce(
             StringAgg(
-                self.get_sortable_column_expression(field, field_name),
+                self.get_sortable_column_expression(field, field_name, sort_type),
                 ",",
                 output_field=models.TextField(),
             ),
@@ -4695,6 +4782,7 @@ class PhoneNumberFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
 
     type = "phone_number"
     model_class = PhoneNumberField
+    can_upsert = True
 
     MAX_PHONE_NUMBER_LENGTH = 100
 
@@ -5008,6 +5096,8 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         field_cache: "Optional[FieldCache]" = None,
         via_path_to_starting_table: Optional[List[LinkRowField]] = None,
         already_updated_fields: Optional[List[Field]] = None,
+        skip_search_updates: bool = False,
+        database_id: Optional[int] = None,
     ):
         from baserow.contrib.database.fields.dependencies.update_collector import (
             FieldUpdateCollector,
@@ -5036,15 +5126,18 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
 
         for update_collector in update_collectors.values():
             updated_fields |= set(
-                update_collector.apply_updates_and_get_updated_fields(field_cache)
+                update_collector.apply_updates_and_get_updated_fields(
+                    field_cache, skip_search_updates=skip_search_updates
+                )
             )
 
-        all_dependent_fields_grouped_by_depth = FieldDependencyHandler.group_all_dependent_fields_by_level_from_fields(
-            fields,
-            field_cache,
-            associated_relations_changed=False,
-            # We can't provide the `database_id_prefilter` here because the fields
-            # can belong in different databases.
+        all_dependent_fields_grouped_by_depth = (
+            FieldDependencyHandler.group_all_dependent_fields_by_level_from_fields(
+                fields,
+                field_cache,
+                associated_relations_changed=False,
+                database_id_prefilter=database_id,
+            )
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
             for table_id, dependant_field in dependant_fields_group:
@@ -5059,7 +5152,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
                     via_path_to_starting_table,
                 )
             updated_fields |= set(
-                update_collector.apply_updates_and_get_updated_fields(field_cache)
+                update_collector.apply_updates_and_get_updated_fields(
+                    field_cache, skip_search_updates=skip_search_updates
+                )
             )
 
         update_collector.send_force_refresh_signals_for_all_updated_tables()
@@ -5253,15 +5348,22 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         if apply_updates:
             update_collector.apply_updates_and_get_updated_fields(field_cache)
 
-    def check_can_order_by(self, field):
+    def check_can_order_by(self, field, order_type):
+        # The formula types are not compatible with the order type. Therefore,
+        # if the `order_type` is not the default, it will always return False.
+        if order_type != DEFAULT_SORT_TYPE_KEY:
+            return False
         return self.to_baserow_formula_type(field.specific).can_order_by
 
-    def check_can_group_by(self, field):
+    def check_can_group_by(self, field, sort_type):
+        # The formula types are not compatible with the order type. Therefore,
+        # if the `order_type` is not the default, it will always return False.
         return self.to_baserow_formula_type(field.specific).can_group_by
 
     def get_order(
-        self, field, field_name, order_direction, table_model=None
+        self, field, field_name, order_direction, sort_type, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
+        # Ignore the `sort_type` because that is not yet supported in formulas.
         return self.to_baserow_formula_type(field.specific).get_order(
             field, field_name, order_direction, table_model=table_model
         )
@@ -6008,22 +6110,32 @@ class LookupFieldType(FormulaFieldType):
 
 
 class MultipleCollaboratorsFieldType(
-    CollationSortMixin, ManyToManyFieldTypeSerializeToInputValueMixin, FieldType
+    CollationSortMixin,
+    ManyToManyFieldTypeSerializeToInputValueMixin,
+    ManyToManyGroupByMixin,
+    FieldType,
 ):
     type = "multiple_collaborators"
     model_class = MultipleCollaboratorsField
     can_get_unique_values = False
     allowed_fields = ["notify_user_when_added"]
-    serializer_field_names = ["available_collaborators", "notify_user_when_added"]
-    serializer_field_overrides = {
-        "available_collaborators": serializers.ListField(
-            child=CollaboratorSerializer(),
-            read_only=True,
-            source="table.database.workspace.users.all",
-        ),
+    request_serializer_field_names = ["notify_user_when_added"]
+    request_serializer_field_overrides = {
         "notify_user_when_added": serializers.BooleanField(required=False),
     }
+    serializer_field_names = [
+        "available_collaborators",
+        *request_serializer_field_names,
+    ]
+    serializer_field_overrides = {
+        "available_collaborators": AvailableCollaboratorsSerializer(),
+        **request_serializer_field_overrides,
+    }
     is_many_to_many_field = True
+    _can_group_by = True
+
+    def can_represent_collaborators(self, field):
+        return True
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.pop("required", False)
@@ -6337,7 +6449,9 @@ class MultipleCollaboratorsFieldType(
     def random_to_input_value(self, field, value):
         return [{"id": user_id} for user_id in value]
 
-    def get_order(self, field, field_name, order_direction, table_model=None):
+    def get_order(
+        self, field, field_name, order_direction, sort_type, table_model=None
+    ):
         """
         If the user wants to sort the results they expect them to be ordered
         alphabetically based on the user's name and not in the id which is
@@ -6348,7 +6462,7 @@ class MultipleCollaboratorsFieldType(
         sort_column_name = f"{field_name}_agg_sort"
         query = Coalesce(
             StringAgg(
-                self.get_sortable_column_expression(field, field_name),
+                self.get_sortable_column_expression(field, field_name, sort_type),
                 "",
                 output_field=models.TextField(),
             ),
@@ -6373,7 +6487,10 @@ class MultipleCollaboratorsFieldType(
         return value
 
     def get_sortable_column_expression(
-        self, field: Field, field_name: str
+        self,
+        field: Field,
+        field_name: str,
+        sort_type: str,
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
 
@@ -6391,13 +6508,17 @@ class MultipleCollaboratorsFieldType(
                 JSONBAgg(
                     get_collaborator_extractor(db_column, model_field),
                     filter=Q(**{f"{db_column}__isnull": False}),
+                    order=f"{db_column}__id",
                 ),
                 Value([], output_field=JSONField()),
             )
         else:
             return Coalesce(
                 wrap_in_subquery(
-                    JSONBAgg(get_collaborator_extractor(db_column, model_field)),
+                    JSONBAgg(
+                        get_collaborator_extractor(db_column, model_field),
+                        order=f"{db_column}__id",
+                    ),
                     db_column,
                     model_field.model,
                 ),
@@ -6726,7 +6847,7 @@ class PasswordFieldType(FieldType):
     model_class = PasswordField
     can_be_in_form_view = True
     keep_data_on_duplication = True
-    _can_order_by = False
+    _can_order_by_types = []
     _can_be_primary_field = False
     can_get_unique_values = False
 
@@ -6772,7 +6893,7 @@ class PasswordFieldType(FieldType):
         # `False` as string depending on whether the value is set.
         return bool(value)
 
-    def prepare_row_history_value_from_action_meta_data(self, value):
+    def prepare_value_for_row_history(self, value):
         # We don't want to expose the hash of the password, so we just show `True` or
         # `False` as string depending on whether the value is set.
         return bool(value)

@@ -28,11 +28,12 @@ class TemplateSerializer(serializers.ModelSerializer):
             "keywords",
             "workspace_id",
             "is_default",
+            "open_application",
         )
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_is_default(self, instance):
-        return instance.slug == settings.DEFAULT_APPLICATION_TEMPLATE
+        return instance.slug == settings.DEFAULT_APPLICATION_TEMPLATES[0]
 
 
 class TemplateCategoriesSerializer(serializers.ModelSerializer):

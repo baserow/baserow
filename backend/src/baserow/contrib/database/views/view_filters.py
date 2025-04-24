@@ -21,6 +21,7 @@ from baserow.contrib.database.fields.field_filters import (
     FilterBuilder,
     OptionallyAnnotatedQ,
     filename_contains_filter,
+    map_ids_from_csv_string,
     parse_ids_from_csv_string,
 )
 from baserow.contrib.database.fields.field_types import (
@@ -436,6 +437,10 @@ class HigherThanOrEqualViewFilterType(NumericComparisonViewFilterType):
 
 
 class TimezoneAwareDateViewFilterType(ViewFilterType):
+    @property
+    def time_sensitive(self) -> bool:
+        return True
+
     compatible_field_types = [
         DateFieldType.type,
         LastModifiedFieldType.type,
@@ -1102,12 +1107,11 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
         return filter_function(field_name, value, model_field, field)
 
     def set_import_serialized_value(self, value, id_mapping):
+        mapping = id_mapping["database_field_select_options"]
         try:
-            value = int(value)
-        except ValueError:
+            return map_ids_from_csv_string(value, mapping)[0]
+        except IndexError:
             return ""
-
-        return str(id_mapping["database_field_select_options"].get(value, ""))
 
 
 class SingleSelectNotEqualViewFilterType(
@@ -1159,13 +1163,8 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         return filter_function(field_name, option_ids, model_field, field)
 
     def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
-        # Parses the old option ids and remaps them to the new option ids.
-        old_options_ids = parse_ids_from_csv_string(value or "")
         select_option_map = id_mapping["database_field_select_options"]
-        new_values = []
-        for old_id in old_options_ids:
-            if new_id := select_option_map.get(old_id):
-                new_values.append(str(new_id))
+        new_values = map_ids_from_csv_string(value or "", select_option_map)
         return ",".join(new_values)
 
 
@@ -1222,8 +1221,9 @@ class ManyToManyHasBaseViewFilter(ViewFilterType):
     def _get_filter(self, field_name, value, model_field, field):
         remote_field = model_field.remote_field
         remote_model = remote_field.model
+        filter_dict = {"id__in": value} if isinstance(value, list) else {"id": value}
         return Q(
-            id__in=remote_model.objects.filter(id=value).values(
+            id__in=remote_model.objects.filter(**filter_dict).values(
                 f"{remote_field.related_name}__id"
             )
         )
@@ -1257,6 +1257,14 @@ class LinkRowHasViewFilterType(ManyToManyHasBaseViewFilter):
 
     type = "link_row_has"
     compatible_field_types = [LinkRowFieldType.type]
+
+    def get_filter(self, field_name, value, model_field, field):
+        if not (option_ids := parse_ids_from_csv_string(value)):
+            return Q()
+
+        field_type = field_type_registry.get_by_model(field)
+        filter_function = self.filter_functions.get(field_type.type, self._get_filter)
+        return filter_function(field_name, option_ids, model_field, field)
 
     def get_preload_values(self, view_filter):
         """
@@ -1414,15 +1422,8 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         return filter_function(field_name, option_ids, model_field, field)
 
     def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
-        # Parses the old option ids and remaps them to the new option ids.
-        old_options_ids = parse_ids_from_csv_string(value or "")
         select_option_map = id_mapping["database_field_select_options"]
-
-        new_values = []
-        for old_id in old_options_ids:
-            if new_id := select_option_map.get(old_id):
-                new_values.append(str(new_id))
-
+        new_values = map_ids_from_csv_string(value or "", select_option_map)
         return ",".join(new_values)
 
 
@@ -1696,7 +1697,7 @@ DATE_FILTER_OPERATOR_BOUNDS = {
     ),
     DateFilterOperators.THIS_WEEK: lambda filter_date: DateFilterBounds(
         filter_date + relativedelta(weekday=MO(-1)),
-        filter_date + relativedelta(weekday=MO(+1)),
+        filter_date + relativedelta(days=1, weekday=MO(+1)),
     ),
     DateFilterOperators.THIS_MONTH: lambda filter_date: DateFilterBounds(
         filter_date.replace(day=1),
@@ -1707,8 +1708,8 @@ DATE_FILTER_OPERATOR_BOUNDS = {
         filter_date.replace(day=1, month=1) + relativedelta(years=1),
     ),
     DateFilterOperators.NEXT_WEEK: lambda filter_date: DateFilterBounds(
-        filter_date + relativedelta(weekday=MO(+1)),
-        filter_date + relativedelta(weekday=MO(+2)),
+        filter_date + relativedelta(days=1, weekday=MO(+1)),
+        filter_date + relativedelta(days=1, weekday=MO(+2)),
     ),
     DateFilterOperators.NEXT_MONTH: lambda filter_date: DateFilterBounds(
         filter_date.replace(day=1) + relativedelta(months=1),
@@ -1724,7 +1725,7 @@ DATE_FILTER_OPERATOR_BOUNDS = {
     ),
     DateFilterOperators.NR_WEEKS_AGO: lambda filter_date: DateFilterBounds(
         filter_date + relativedelta(weekday=MO(-1)),
-        filter_date + relativedelta(weekday=MO(+1)),
+        filter_date + relativedelta(days=1, weekday=MO(+1)),
     ),
     DateFilterOperators.NR_MONTHS_AGO: lambda filter_date: DateFilterBounds(
         filter_date.replace(day=1), filter_date.replace(day=1) + relativedelta(months=1)
@@ -1739,7 +1740,7 @@ DATE_FILTER_OPERATOR_BOUNDS = {
     ),
     DateFilterOperators.NR_WEEKS_FROM_NOW: lambda filter_date: DateFilterBounds(
         filter_date + relativedelta(weekday=MO(-1)),
-        filter_date + relativedelta(weekday=MO(+1)),
+        filter_date + relativedelta(days=1, weekday=MO(+1)),
     ),
     DateFilterOperators.NR_MONTHS_FROM_NOW: lambda filter_date: DateFilterBounds(
         filter_date.replace(day=1), filter_date.replace(day=1) + relativedelta(months=1)
@@ -1776,6 +1777,10 @@ DATE_FILTER_OPERATOR_DELTA_MAP = {
 
 class BaseDateMultiStepViewFilterType(ViewFilterType):
     incompatible_operators = []
+
+    @property
+    def time_sensitive(self) -> bool:
+        return True
 
     def get_filter_date(
         self,
@@ -2081,20 +2086,7 @@ class DateIsOnOrAfterMultiStepFilterType(DateMultiStepViewFilterType):
 class DateIsWithinMultiStepFilterType(DateMultiStepViewFilterType):
     type = "date_is_within"
 
-    incompatible_operators = [
-        DateFilterOperators.TODAY,
-        DateFilterOperators.YESTERDAY,
-        DateFilterOperators.ONE_WEEK_AGO,
-        DateFilterOperators.ONE_MONTH_AGO,
-        DateFilterOperators.ONE_YEAR_AGO,
-        DateFilterOperators.THIS_WEEK,
-        DateFilterOperators.THIS_MONTH,
-        DateFilterOperators.THIS_YEAR,
-        DateFilterOperators.NR_DAYS_AGO,
-        DateFilterOperators.NR_WEEKS_AGO,
-        DateFilterOperators.NR_MONTHS_AGO,
-        DateFilterOperators.NR_YEARS_AGO,
-    ]
+    incompatible_operators = [DateFilterOperators.TODAY]
 
     def get_filter_query_dict(
         self,
@@ -2103,7 +2095,12 @@ class DateIsWithinMultiStepFilterType(DateMultiStepViewFilterType):
         upper_bound: Union[date, datetime],
         timezone: datetime_module.tzinfo,
     ) -> Dict[str, Union[date, datetime]]:
+        today = datetime.now(tz=timezone).date()
+        if today < upper_bound:
+            lower_bound = today
+        else:
+            upper_bound = today + timedelta(days=1)
         return {
-            f"{field_name}__gte": datetime.now(tz=timezone).date(),
+            f"{field_name}__gte": lower_bound,
             f"{field_name}__lt": upper_bound,
         }

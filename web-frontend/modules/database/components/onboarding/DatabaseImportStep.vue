@@ -43,12 +43,15 @@
       </ul>
     </FormGroup>
 
-    <component
-      :is="importerComponent"
-      ref="importer"
-      @data="onData($event)"
-      @getData="onGetData($event)"
-    />
+    <div class="margin-bottom-2">
+      <component
+        :is="importerComponent"
+        ref="importer"
+        @data="onData($event)"
+        @getData="onGetData($event)"
+      />
+    </div>
+
     <SimpleGrid
       v-if="dataLoaded"
       :rows="previewFileData"
@@ -118,7 +121,7 @@ export default {
     isValid() {
       return (
         !this.v$.$invalid &&
-        this.v$.$dirty &&
+        this.v$.tableName.$dirty &&
         this.getData !== null &&
         this.dataLoaded
       )

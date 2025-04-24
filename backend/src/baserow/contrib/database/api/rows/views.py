@@ -1,8 +1,8 @@
+from copy import deepcopy
 from typing import Any, Dict
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import transaction
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
@@ -54,6 +54,7 @@ from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIS
 from baserow.contrib.database.api.tokens.authentications import TokenAuthentication
 from baserow.contrib.database.api.tokens.errors import (
     ERROR_CANNOT_INCLUDE_ROW_METADATA,
+    ERROR_DATABASE_DEADLOCK,
     ERROR_NO_PERMISSION_TO_TABLE,
 )
 from baserow.contrib.database.api.utils import (
@@ -68,6 +69,7 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
 from baserow.contrib.database.api.views.utils import serialize_single_row_metadata
+from baserow.contrib.database.exceptions import DeadlockException
 from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     FilterFieldNotFound,
@@ -119,6 +121,7 @@ from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.core.action.registries import action_type_registry
+from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
@@ -290,7 +293,6 @@ class RowsView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_PAGE_SIZE_LIMIT",
-                    "ERROR_INVALID_PAGE",
                     "ERROR_ORDER_BY_FIELD_NOT_FOUND",
                     "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE",
                     "ERROR_FILTER_FIELD_NOT_FOUND",
@@ -432,8 +434,7 @@ class RowsView(APIView):
                 name="table_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
-                description="Creates a row in the table related to the provided "
-                "value.",
+                description="Creates a row in the table related to the provided value.",
             ),
             OpenApiParameter(
                 name="before",
@@ -460,7 +461,7 @@ class RowsView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -504,7 +505,6 @@ class RowsView(APIView):
             ),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
@@ -512,8 +512,10 @@ class RowsView(APIView):
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             CannotCreateRowsInTable: ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
+    @atomic_with_retry_on_deadlock()
     @validate_query_parameters(CreateRowQueryParamsSerializer)
     def post(self, request: Request, table_id: int, query_params) -> Response:
         """
@@ -522,6 +524,7 @@ class RowsView(APIView):
         """
 
         table = TableHandler().get_table(table_id)
+        request_data = deepcopy(request.data)
 
         TokenHandler().check_table_permissions(request, "create", table, False)
 
@@ -540,7 +543,7 @@ class RowsView(APIView):
         validation_serializer = get_row_serializer_class(
             model, user_field_names=user_field_names
         )
-        data = validate_data(validation_serializer, request.data)
+        data = validate_data(validation_serializer, request_data)
 
         before_id = query_params.get("before")
         before_row = (
@@ -821,7 +824,7 @@ class RowView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -862,15 +865,16 @@ class RowView(APIView):
             ),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
+    @atomic_with_retry_on_deadlock()
     @require_request_data_type(dict)
     def patch(self, request: Request, table_id: int, row_id: int) -> Response:
         """
@@ -886,14 +890,16 @@ class RowView(APIView):
         table = TableHandler().get_table(table_id)
         TokenHandler().check_table_permissions(request, "update", table, False)
 
+        request_data = deepcopy(request.data)
+
         user_field_names = extract_user_field_names_from_params(request.GET)
         send_webhook_events = extract_send_webhook_events_from_params(request.GET)
         field_ids, field_names = None, None
 
         if user_field_names:
-            field_names = request.data.keys()
+            field_names = request_data.keys()
         else:
-            field_ids = RowHandler().extract_field_ids_from_dict(request.data)
+            field_ids = RowHandler().extract_field_ids_from_dict(request_data)
 
         model = table.get_model()
         validation_serializer = get_row_serializer_class(
@@ -902,8 +908,7 @@ class RowView(APIView):
             field_names_to_include=field_names,
             user_field_names=user_field_names,
         )
-        data = validate_data(validation_serializer, request.data, return_validated=True)
-
+        data = validate_data(validation_serializer, request_data, return_validated=True)
         try:
             data["id"] = int(row_id)
             row = action_type_registry.get_by_type(UpdateRowsActionType).do(
@@ -942,7 +947,7 @@ class RowView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -965,7 +970,6 @@ class RowView(APIView):
             ),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
@@ -974,8 +978,10 @@ class RowView(APIView):
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             CannotDeleteAlreadyDeletedItem: ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM,
             CannotDeleteRowsInTable: ERROR_CANNOT_DELETE_ROWS_IN_TABLE,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
+    @atomic_with_retry_on_deadlock()
     def delete(self, request, table_id, row_id):
         """
         Deletes an existing row with the given row_id for table with the given
@@ -1038,7 +1044,7 @@ class RowMoveView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -1064,15 +1070,16 @@ class RowMoveView(APIView):
             ),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
+    @atomic_with_retry_on_deadlock()
     @validate_query_parameters(MoveRowQueryParamsSerializer)
     def patch(self, request, table_id, row_id, query_params):
         """Moves the row to another position."""
@@ -1148,7 +1155,7 @@ class BatchRowsView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -1194,7 +1201,6 @@ class BatchRowsView(APIView):
             ),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
@@ -1203,8 +1209,10 @@ class BatchRowsView(APIView):
             RowIdsNotUnique: ERROR_ROW_IDS_NOT_UNIQUE,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             CannotCreateRowsInTable: ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
+    @atomic_with_retry_on_deadlock()
     @validate_query_parameters(BatchCreateRowsQueryParamsSerializer)
     def post(self, request: Request, table_id: int, query_params) -> Response:
         """
@@ -1215,6 +1223,7 @@ class BatchRowsView(APIView):
         table = TableHandler().get_table(table_id)
         TokenHandler().check_table_permissions(request, "create", table, False)
         model = table.get_model()
+        request_data = deepcopy(request.data)
 
         user_field_names = extract_user_field_names_from_params(request.GET)
         send_webhook_events = extract_send_webhook_events_from_params(request.GET)
@@ -1232,7 +1241,7 @@ class BatchRowsView(APIView):
             row_validation_serializer
         )
         data = validate_data(
-            validation_serializer, request.data, partial=True, return_validated=True
+            validation_serializer, request_data, partial=True, return_validated=True
         )
 
         try:
@@ -1282,7 +1291,7 @@ class BatchRowsView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -1329,7 +1338,6 @@ class BatchRowsView(APIView):
             ),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
@@ -1337,8 +1345,10 @@ class BatchRowsView(APIView):
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             RowIdsNotUnique: ERROR_ROW_IDS_NOT_UNIQUE,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
+    @atomic_with_retry_on_deadlock()
     def patch(self, request, table_id):
         """
         Updates all provided rows at once for the table with
@@ -1348,6 +1358,7 @@ class BatchRowsView(APIView):
         table = TableHandler().get_table(table_id)
         TokenHandler().check_table_permissions(request, "update", table, False)
         model = table.get_model()
+        request_data = deepcopy(request.data)
 
         user_field_names = extract_user_field_names_from_params(request.GET)
         send_webhook_events = extract_send_webhook_events_from_params(request.GET)
@@ -1362,7 +1373,7 @@ class BatchRowsView(APIView):
             row_validation_serializer
         )
         data = validate_data(
-            validation_serializer, request.data, partial=True, return_validated=True
+            validation_serializer, request_data, partial=True, return_validated=True
         )
 
         try:
@@ -1404,7 +1415,7 @@ class BatchDeleteRowsView(APIView):
                 type=OpenApiTypes.BOOL,
                 description=(
                     "A flag query parameter that triggers webhooks after the operation,"
-                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. "
                     "Defaults to `true`"
                 ),
             ),
@@ -1433,7 +1444,6 @@ class BatchDeleteRowsView(APIView):
             ),
         },
     )
-    @transaction.atomic
     @validate_body(BatchDeleteRowsSerializer)
     @map_exceptions(
         {
@@ -1444,8 +1454,10 @@ class BatchDeleteRowsView(APIView):
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             CannotDeleteAlreadyDeletedItem: ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM,
             CannotDeleteRowsInTable: ERROR_CANNOT_DELETE_ROWS_IN_TABLE,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
+    @atomic_with_retry_on_deadlock()
     def post(self, request: Request, table_id: int, data: Dict[str, Any]) -> Response:
         """
         Batch deletes existing rows based on provided row ids for the table with
