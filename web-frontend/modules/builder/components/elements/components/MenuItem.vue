@@ -132,14 +132,14 @@
 import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
 import element from '@baserow/modules/builder/mixins/element'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
-import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
+import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider.vue'
 import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 /**
- * @typedef ABMenuItem
+ * @typedef MenuItem
  */
 
 export default {
-  name: 'ABMenuItem',
+  name: 'MenuItem',
   components: { ThemeProvider },
   mixins: [element],
   props: {

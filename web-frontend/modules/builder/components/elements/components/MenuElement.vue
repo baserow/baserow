@@ -17,7 +17,7 @@
           :key="item.id"
           :class="`menu-element__menu-item-${item.type}`"
         >
-          <ABMenuItem
+          <MenuItem
             :key="item.uid"
             :menu-item="item"
             :element="element"
@@ -45,7 +45,7 @@
             :key="item.id"
             :class="`menu-element__menu-item-${item.type}`"
           >
-            <ABMenuItem
+            <MenuItem
               :key="item.uid"
               :menu-item="item"
               :element="element"
@@ -65,6 +65,7 @@
 <script>
 import element from '@baserow/modules/builder/mixins/element'
 import { HORIZONTAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
+import MenuItem from '@baserow/modules/builder/components/elements/components/MenuItem'
 
 /**
  * @typedef MenuElement
@@ -83,6 +84,7 @@ import { HORIZONTAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'MenuElement',
+  components: { MenuItem },
   mixins: [element],
   props: {
     element: {
@@ -96,9 +98,6 @@ export default {
     }
   },
   computed: {
-    alignments() {
-      return HORIZONTAL_ALIGNMENTS
-    },
     menuContainerClass() {
       const classes = ['menu-element__container']
       if (this.useBurgerMenu) {
