@@ -4,6 +4,4 @@ AUTOMATION_ACTION_CONTEXT = _(
     'in automation "%(automation_name)s" (%(automation_id)s).'
 )
 
-AUTOMATION_WORKFLOW_CONTEXT = _(
-    'in workflow (%(workflow_id)s).'
-)
+AUTOMATION_WORKFLOW_CONTEXT = _("in workflow (%(workflow_id)s).")

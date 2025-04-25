@@ -8,7 +8,10 @@ from baserow.contrib.automation.action.scopes import (
     NodeActionScopeType,
     WorkflowActionScopeType,
 )
-from baserow.contrib.automation.actions import AUTOMATION_ACTION_CONTEXT, AUTOMATION_WORKFLOW_CONTEXT
+from baserow.contrib.automation.actions import (
+    AUTOMATION_ACTION_CONTEXT,
+    AUTOMATION_WORKFLOW_CONTEXT,
+)
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
