@@ -614,6 +614,8 @@ class NumberFieldType(FieldType):
         return value
 
     def get_serializer_field(self, instance: NumberField, **kwargs):
+        required = kwargs.pop("required", False)
+
         kwargs["decimal_places"] = instance.number_decimal_places
 
         if not instance.number_negative:
@@ -621,15 +623,16 @@ class NumberFieldType(FieldType):
 
         default = instance.number_default
         if default is not None:
-            kwargs["default"] = default
-
-        required = kwargs.get("required", False) and not default
+            required = False
+        else:
+            default = serializers.empty
 
         return serializers.DecimalField(
             **{
                 "max_digits": self.MAX_DIGITS + kwargs["decimal_places"],
                 "required": required,
                 "allow_null": not required,
+                "default": default,
                 **kwargs,
             }
         )

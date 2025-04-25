@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.contrib.contenttypes.models import ContentType
 
 import pytest
+from rest_framework import serializers
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import NumberField
@@ -345,3 +346,36 @@ def test_number_field_default_value(data_fixture):
     assert getattr(row_3, f"field_{number_field.id}") == 100
     assert getattr(row_4, f"field_{number_field.id}") == 50
     assert getattr(row_5, f"field_{number_field.id}") == 0
+
+
+@pytest.mark.django_db
+def test_number_field_serializer_default_with_required(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    field_with_default = data_fixture.create_number_field(
+        table=table, number_decimal_places=0, number_default=0
+    )
+    field_without_default = data_fixture.create_number_field(
+        table=table, number_decimal_places=0, number_default=None
+    )
+
+    field_type = field_type_registry.get_by_model(field_with_default)
+
+    # Test with required=True for both fields
+    serializer_field_with_default = field_type.get_serializer_field(
+        field_with_default, required=True
+    )
+    serializer_field_without_default = field_type.get_serializer_field(
+        field_without_default, required=True
+    )
+
+    # Field with default should not be required even if required=True
+    assert serializer_field_with_default.required is False
+    assert serializer_field_with_default.allow_null is True
+    assert serializer_field_with_default.default == 0
+
+    # Field without default should respect the required parameter
+    assert serializer_field_without_default.required is True
+    assert serializer_field_without_default.allow_null is False
+    assert serializer_field_without_default.default is serializers.empty
