@@ -1128,8 +1128,8 @@ class MenuElement(Element):
 
     menu_type = models.JSONField(
         blank=True,
-        null=True,
         default=get_default_menu_type,
+        db_default=get_default_menu_type(),
         help_text="The menu type (expanded or mobile) for each device type",
     )
 

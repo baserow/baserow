@@ -5,41 +5,14 @@
       `menu-element__align-${element.alignment.toLowerCase()}`,
     ]"
   >
-    <div
-      :style="{
-        '--alignment': menuAlignment,
-      }"
-      :class="menuContainerClass"
-    >
-      <template v-if="!useBurgerMenu">
-        <div
-          v-for="item in element.menu_items"
-          :key="item.id"
-          :class="`menu-element__menu-item-${item.type}`"
-        >
-          <MenuItem
-            :key="item.uid"
-            :menu-item="item"
-            :element="element"
-            :is-mobile-device="useBurgerMenu"
-          />
-        </div>
-      </template>
-
-      <template v-else>
-        <div
-          :class="[
-            'menu-element__burger-menu',
-            `menu-element__burger-menu-${element.alignment.toLowerCase()}`,
-          ]"
-        >
-          <i
-            :class="burgerMenuActive ? 'iconoir-cancel' : 'iconoir-menu'"
-            @click="burgerMenuActive = !burgerMenuActive"
-          ></i>
-        </div>
-
-        <template v-if="burgerMenuActive">
+    <client-only>
+      <div
+        :style="{
+          '--alignment': menuAlignment,
+        }"
+        :class="menuContainerClass"
+      >
+        <template v-if="!useBurgerMenu">
           <div
             v-for="item in element.menu_items"
             :key="item.id"
@@ -53,12 +26,41 @@
             />
           </div>
         </template>
-      </template>
 
-      <div v-if="!element.menu_items.length" class="element--no-value">
-        {{ $t('menuElement.missingValue') }}
+        <template v-else>
+          <div
+            :class="[
+              'menu-element__burger-menu',
+              `menu-element__burger-menu-${element.alignment.toLowerCase()}`,
+            ]"
+          >
+            <i
+              :class="burgerMenuActive ? 'iconoir-cancel' : 'iconoir-menu'"
+              @click="burgerMenuActive = !burgerMenuActive"
+            ></i>
+          </div>
+
+          <template v-if="burgerMenuActive">
+            <div
+              v-for="item in element.menu_items"
+              :key="item.id"
+              :class="`menu-element__menu-item-${item.type}`"
+            >
+              <MenuItem
+                :key="item.uid"
+                :menu-item="item"
+                :element="element"
+                :is-mobile-device="useBurgerMenu"
+              />
+            </div>
+          </template>
+        </template>
+
+        <div v-if="!element.menu_items.length" class="element--no-value">
+          {{ $t('menuElement.missingValue') }}
+        </div>
       </div>
-    </div>
+    </client-only>
   </div>
 </template>
 
