@@ -1281,3 +1281,4 @@ def test_all_scope_types_query_methods():
 
         for parent in scope_type.get_parent_scopes():
             assert isinstance(scope_type.get_filter_for_scope_type(parent, []), Q)
+            

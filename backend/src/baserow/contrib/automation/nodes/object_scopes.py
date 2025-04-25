@@ -3,7 +3,12 @@ from typing import Optional
 from django.db.models import Q, QuerySet
 
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.object_scopes import AutomationObjectScopeType
+from baserow.contrib.automation.object_scopes import (
+    AutomationObjectScopeType,
+)
+from baserow.contrib.automation.workflows.object_scopes import (
+    AutomationWorkflowObjectScopeType,
+)
 from baserow.core.object_scopes import (
     ApplicationObjectScopeType,
     WorkspaceObjectScopeType,
@@ -39,5 +44,11 @@ class AutomationNodeObjectScopeType(ObjectScopeType):
             or scope_type.type == ApplicationObjectScopeType.type
         ):
             return Q(workflow__automation__in=[s.id for s in scopes])
+        
+        if (
+            scope_type.type == AutomationWorkflowObjectScopeType.type
+            or scope_type.type == ApplicationObjectScopeType.type
+        ):
+            return Q(workflow__id__in=[s.id for s in scopes])
 
         raise TypeError("The given type is not handled.")
