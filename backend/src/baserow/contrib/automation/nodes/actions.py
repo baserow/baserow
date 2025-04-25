@@ -8,7 +8,7 @@ from baserow.contrib.automation.action.scopes import (
     NodeActionScopeType,
     WorkflowActionScopeType,
 )
-from baserow.contrib.automation.actions import AUTOMATION_ACTION_CONTEXT
+from baserow.contrib.automation.actions import AUTOMATION_ACTION_CONTEXT, AUTOMATION_WORKFLOW_CONTEXT
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
@@ -211,7 +211,7 @@ class OrderAutomationNodesActionType(UndoableActionType):
     description = ActionTypeDescription(
         _("Order nodes"),
         _("Node order changed"),
-        AUTOMATION_ACTION_CONTEXT,
+        AUTOMATION_WORKFLOW_CONTEXT,
     )
 
     @dataclass
@@ -276,7 +276,7 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
     description = ActionTypeDescription(
         _("Duplicate automation node"),
         _("Node duplicated"),
-        AUTOMATION_ACTION_CONTEXT,
+        AUTOMATION_WORKFLOW_CONTEXT,
     )
 
     @dataclass
