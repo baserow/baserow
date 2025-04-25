@@ -18,7 +18,7 @@ urlpatterns = [
     re_path(
         r"nodes/(?P<node_id>[0-9]+)/$",
         AutomationNodeView.as_view(),
-        name="list",
+        name="item",
     ),
     re_path(
         r"workflows/(?P<workflow_id>[0-9]+)/order/$",
