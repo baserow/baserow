@@ -6,12 +6,11 @@ import {
   ensureNumeric,
   ensureStringOrInteger,
   ensurePositiveInteger,
+  ensureDate,
 } from '@baserow/modules/core/utils/validator'
 import { expect } from '@jest/globals'
-import {
-  DATE_FORMATS,
-  QUERY_PARAM_TYPE_HANDLER_FUNCTIONS,
-} from '@baserow/modules/builder/enums'
+import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
+import { DateOnly } from '@baserow/modules/core/utils/date'
 
 describe('ensureInteger', () => {
   it('should return the value as an integer if it is already an integer', () => {
@@ -182,6 +181,16 @@ describe('ensureString', () => {
       '{"foo":["a","b"],"baz":{"d":["e","f"]}}'
     )
   })
+  it('should convert dates', () => {
+    expect(ensureString('2025-07-03')).toBe('2025-07-03')
+    expect(ensureString('2025-07-09T22:00:00Z')).toBe('2025-07-09 22:00:00')
+    expect(ensureString(new Date('2025-07-09T22:00:00Z'))).toBe(
+      '2025-07-09 22:00:00'
+    )
+    expect(ensureString(new DateOnly('2025-07-09'))).toBe('2025-07-09')
+    expect(ensureString(new DateOnly(NaN))).toBe('Invalid Date')
+    expect(ensureString(new Date(NaN))).toBe('Invalid Date')
+  })
 })
 
 describe('ensureStringOrInteger', () => {
@@ -291,30 +300,6 @@ describe('ensurePositiveInteger', () => {
   })
 })
 
-describe('ensureDateTime', () => {
-  it('should raise an error for empty values', () => {
-    const error = new Error(`Value is not a valid date`)
-    expect(() => ensureDateTime(null)).toThrow(error)
-    expect(() => ensureDateTime('')).toThrow(error)
-    expect(() => ensureDateTime({})).toThrow(error)
-    expect(() => ensureDateTime([])).toThrow(error)
-  })
-
-  it('should convert the value to a date if valid', () => {
-    // In JavaScript Date objects month are 0 indexed, so month 0 is January
-    const date = new Date(2024, 3, 25).toISOString()
-    expect(
-      ensureDateTime('2024-04-25', DATE_FORMATS.ISO.format).toISOString()
-    ).toBe(date)
-    expect(
-      ensureDateTime('25/04/2024', DATE_FORMATS.EU.format).toISOString()
-    ).toBe(date)
-    expect(
-      ensureDateTime('04/25/2024', DATE_FORMATS.US.format).toISOString()
-    ).toBe(date)
-  })
-})
-
 describe('QUERY_PARAM_TYPE_HANDLER_FUNCTIONS', () => {
   describe('numeric handler', () => {
     const numericHandler = QUERY_PARAM_TYPE_HANDLER_FUNCTIONS.numeric
@@ -376,6 +361,185 @@ describe('QUERY_PARAM_TYPE_HANDLER_FUNCTIONS', () => {
     it('should handle numeric values as strings', () => {
       expect(textHandler('123')).toBe('123')
       expect(textHandler('test,123,abc')).toEqual(['test', '123', 'abc'])
+    })
+  })
+})
+
+describe('ensureDate', () => {
+  describe('with allowEmpty = true (default)', () => {
+    test('returns null for null value', () => {
+      const result = ensureDate(null)
+      expect(result).toBeNull()
+    })
+
+    test('returns null for undefined value', () => {
+      const result = ensureDate(undefined)
+      expect(result).toBeNull()
+    })
+
+    test('returns null for empty string', () => {
+      const result = ensureDate('')
+      expect(result).toBeNull()
+    })
+
+    test('returns DateOnly for valid date string', () => {
+      const result = ensureDate('2023-12-01')
+      expect(result).toBeInstanceOf(DateOnly)
+      expect(result.getFullYear()).toBe(2023)
+    })
+
+    test('returns DateOnly for Date object', () => {
+      const date = new Date('2023-12-01')
+      const result = ensureDate(date)
+      expect(result).toBeInstanceOf(DateOnly)
+    })
+
+    test('throws TypeError for invalid date string', () => {
+      expect(() => ensureDate('invalid-date')).toThrow(TypeError)
+      expect(() => ensureDate('invalid-date')).toThrow(
+        'Value is not a valid date or convertible to a date.'
+      )
+    })
+
+    test('throws TypeError for non-date values', () => {
+      expect(() => ensureDate(123)).toThrow(TypeError)
+      expect(() => ensureDate({})).toThrow(TypeError)
+      expect(() => ensureDate([])).toThrow(TypeError)
+    })
+  })
+
+  describe('with allowEmpty = false', () => {
+    test('throws Error for null value', () => {
+      expect(() => ensureDate(null, { allowEmpty: false })).toThrow(Error)
+      expect(() => ensureDate(null, { allowEmpty: false })).toThrow(
+        'A non empty value is required.'
+      )
+    })
+
+    test('throws Error for undefined value', () => {
+      expect(() => ensureDate(undefined, { allowEmpty: false })).toThrow(Error)
+      expect(() => ensureDate(undefined, { allowEmpty: false })).toThrow(
+        'A non empty value is required.'
+      )
+    })
+
+    test('throws Error for empty string', () => {
+      expect(() => ensureDate('', { allowEmpty: false })).toThrow(Error)
+      expect(() => ensureDate('', { allowEmpty: false })).toThrow(
+        'A non empty value is required.'
+      )
+    })
+
+    test('returns DateOnly for valid date', () => {
+      const result = ensureDate('2023-12-01', { allowEmpty: false })
+      expect(result).toBeInstanceOf(DateOnly)
+    })
+  })
+})
+
+describe('ensureDateTime', () => {
+  describe('with allowEmpty = true (default)', () => {
+    test('returns null for null value', () => {
+      const result = ensureDateTime(null)
+      expect(result).toBeNull()
+    })
+
+    test('returns null for undefined value', () => {
+      const result = ensureDateTime(undefined)
+      expect(result).toBeNull()
+    })
+
+    test('returns null for empty string', () => {
+      const result = ensureDateTime('')
+      expect(result).toBeNull()
+    })
+
+    test('returns same Date object when value is already a Date', () => {
+      const date = new Date('2023-12-01T10:30:00Z')
+      const result = ensureDateTime(date)
+      expect(result).toBe(date)
+    })
+
+    test('returns Date for valid ISO string with default format', () => {
+      const result = ensureDateTime('2023-12-01T10:30:00Z')
+      expect(result).toBeInstanceOf(Date)
+      expect(result.getUTCFullYear()).toBe(2023)
+      expect(result.getUTCMonth()).toBe(11)
+      expect(result.getUTCDate()).toBe(1)
+      expect(result.getUTCHours()).toBe(10)
+      expect(result.getUTCMinutes()).toBe(30)
+    })
+
+    test('returns Date for valid string with custom format', () => {
+      const result = ensureDateTime('01/12/2023 10:30', {
+        format: 'DD/MM/YYYY HH:mm',
+      })
+      expect(result).toBeInstanceOf(Date)
+      expect(result.getUTCDate()).toBe(1)
+      expect(result.getUTCMonth()).toBe(11)
+    })
+
+    test('throws TypeError for invalid date string with default format', () => {
+      expect(() => ensureDateTime('invalid-date')).toThrow(TypeError)
+      expect(() => ensureDateTime('invalid-date')).toThrow(
+        'Value is not a valid datetime or convertible to a datetime.'
+      )
+    })
+
+    test('throws TypeError for invalid date string with custom format', () => {
+      expect(() =>
+        ensureDateTime('2023-12-01', { format: 'DD/MM/YYYY' })
+      ).toThrow(TypeError)
+    })
+  })
+
+  describe('with allowEmpty = false', () => {
+    test('throws Error for null value', () => {
+      expect(() => ensureDateTime(null, { allowEmpty: false })).toThrow(Error)
+      expect(() => ensureDateTime(null, { allowEmpty: false })).toThrow(
+        'A non empty value is required.'
+      )
+    })
+
+    test('throws Error for undefined value', () => {
+      expect(() => ensureDateTime(undefined, { allowEmpty: false })).toThrow(
+        Error
+      )
+      expect(() => ensureDateTime(undefined, { allowEmpty: false })).toThrow(
+        'A non empty value is required.'
+      )
+    })
+
+    test('throws Error for empty string', () => {
+      expect(() => ensureDateTime('', { allowEmpty: false })).toThrow(Error)
+      expect(() => ensureDateTime('', { allowEmpty: false })).toThrow(
+        'A non empty value is required.'
+      )
+    })
+
+    test('returns Date for valid datetime', () => {
+      const result = ensureDateTime('2023-12-01T10:30:00Z', {
+        allowEmpty: false,
+      })
+      expect(result).toBeInstanceOf(Date)
+    })
+  })
+
+  describe('with custom format', () => {
+    test('parses date with DD/MM/YYYY format', () => {
+      const result = ensureDateTime('15/03/2023', { format: 'DD/MM/YYYY' })
+      expect(result.getUTCDate()).toBe(15)
+      expect(result.getUTCMonth()).toBe(2) // March is month 2
+      expect(result.getUTCFullYear()).toBe(2023)
+    })
+
+    test('parses datetime with custom format', () => {
+      const result = ensureDateTime('2023-12-01 14:30:45', {
+        format: 'YYYY-MM-DD HH:mm:ss',
+      })
+      expect(result.getUTCHours()).toBe(14)
+      expect(result.getUTCMinutes()).toBe(30)
+      expect(result.getUTCSeconds()).toBe(45)
     })
   })
 })

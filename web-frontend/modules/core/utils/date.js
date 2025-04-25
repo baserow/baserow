@@ -164,3 +164,63 @@ export function getUserTimeZone() {
     return moment.tz.guess()
   }
 }
+
+export class DateOnly extends Date {
+  constructor(...args) {
+    // We directly give the parameters to moment for flexbility
+    const momentDate = moment(...args).startOf('day')
+
+    // Check if moment is invalid
+    if (!momentDate.isValid()) {
+      super('invalid')
+      this._moment = momentDate
+      return
+    }
+
+    super(momentDate.toDate())
+    this._moment = momentDate
+  }
+
+  // Override other methods...
+  setHours() {
+    return this
+  }
+
+  setMinutes() {
+    return this
+  }
+
+  setSeconds() {
+    return this
+  }
+
+  setMilliseconds() {
+    return this
+  }
+
+  getHours() {
+    return 0
+  }
+
+  getMinutes() {
+    return 0
+  }
+
+  getSeconds() {
+    return 0
+  }
+
+  getMilliseconds() {
+    return 0
+  }
+
+  toString() {
+    return this._moment.isValid()
+      ? this._moment.format('YYYY-MM-DD')
+      : 'Invalid Date'
+  }
+
+  toJSON() {
+    return this.toString()
+  }
+}

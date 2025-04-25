@@ -1,9 +1,11 @@
 import _ from 'lodash'
 
 import { trueValues, falseValues } from '@baserow/modules/core/utils/constants'
-import { DATE_FORMATS } from '@baserow/modules/builder/enums'
 import moment from '@baserow/modules/core/moment'
+import { DateOnly } from '@baserow/modules/core/utils/date'
 
+const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/
+const isoDateFormat = 'YYYY-MM-DD HH:mm:ss'
 /**
  * Ensures that the value is a Numeral or can be converted to a numeric value.
  * @param {number|string} value - The value to ensure as a number.
@@ -81,23 +83,38 @@ export const ensureString = (value, { allowEmpty = true } = {}) => {
     value === undefined ||
     value === '' ||
     (Array.isArray(value) && !value.length) ||
-    (typeof value === 'object' && _.isEmpty(value))
+    (typeof value === 'object' && !(value instanceof Date) && _.isEmpty(value))
   ) {
     if (!allowEmpty) {
       throw new Error('A valid String is required.')
     }
     return ''
   }
+
   if (Array.isArray(value)) {
     // convert item into a string recursively
     const results = value.map((item) => ensureString(item))
     return results.join(',')
+  } else if (value instanceof DateOnly) {
+    return value.toString()
+  } else if (value instanceof Date) {
+    if (!isNaN(value)) {
+      return moment(value).format(isoDateFormat)
+    }
   } else if (typeof value === 'object') {
     // If it's a file we just extract the name
     if (value.__file__) {
       return value.name
     }
     return JSON.stringify(value)
+  } else if (typeof value === 'string') {
+    // Special case for iso strings. We parse them as dates for better display.
+    if (isoRegex.test(value)) {
+      const date = moment(value)
+      if (date.isValid()) {
+        return date.format(isoDateFormat)
+      }
+    }
   }
   return `${value}`
 }
@@ -177,16 +194,55 @@ export const ensureBoolean = (value) => {
 }
 
 /**
+ * Ensures that the value is a valid date or convert it.
+ * @param {*} value - The value to ensure as a date
+ * @returns {DateOnly} - The converted value as a DateOnly object.
+ * @throws {Error} if `value` is not a valid date representation.
+ */
+export const ensureDate = (value, { allowEmpty = true } = {}) => {
+  if (value === null || value === undefined || value === '') {
+    if (!allowEmpty) {
+      throw new Error('A non empty value is required.')
+    }
+    return null
+  }
+
+  const result = new DateOnly(value, 'YYYY-MM-DD', true)
+
+  if (isNaN(result)) {
+    throw new TypeError('Value is not a valid date or convertible to a date.')
+  }
+
+  return result
+}
+
+/**
  * Ensures that the value is a valid datetime or convert it.
  * @param {*} value - The value to ensure as a datetime
- * @param {string} format - The format to use to parse the date.
+ * @param {boolean} allowEmpty - Whether to allow empty values.
+ * @param {string} format - The format to use to parse the datetime.
  * @returns {Date} - The converted value as a Date object.
  * @throws {Error} if `value` is not a valid date representation.
  */
-export const ensureDateTime = (value, format = DATE_FORMATS.ISO.format) => {
-  const momentObject = moment.utc(value, format)
-  if (!momentObject.isValid()) {
-    throw new Error('Value is not a valid date')
+export const ensureDateTime = (
+  value,
+  { allowEmpty = true, format = moment.ISO_8601 } = {}
+) => {
+  if (value === null || value === undefined || value === '') {
+    if (!allowEmpty) {
+      throw new Error('A non empty value is required.')
+    }
+    return null
   }
-  return momentObject.toDate()
+  if (value instanceof Date) {
+    return value
+  } else {
+    const parsed = format ? moment(value, format, true) : moment(value)
+    if (!parsed.isValid()) {
+      throw new TypeError(
+        'Value is not a valid datetime or convertible to a datetime.'
+      )
+    }
+    return parsed.toDate()
+  }
 }
