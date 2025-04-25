@@ -2516,11 +2516,11 @@ class LocalBaserowDeleteRowServiceType(
         return {"data": {}, "baserow_table_model": model}
 
 
-class LocalBaserowRowCreatedTriggerServiceType(ServiceType, TriggerServiceTypeMixin):
+class LocalBaserowRowCreatedTriggerServiceType(LocalBaserowTableServiceType, TriggerServiceTypeMixin):
     type = "local_baserow_row_created"
     model_class = LocalBaserowRowCreated
 
 
-class LocalBaserowRowUpdatedTriggerServiceType(ServiceType, TriggerServiceTypeMixin):
+class LocalBaserowRowUpdatedTriggerServiceType(LocalBaserowTableServiceType, TriggerServiceTypeMixin):
     type = "local_baserow_row_updated"
     model_class = LocalBaserowRowUpdated
