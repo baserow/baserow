@@ -76,6 +76,7 @@ import integrationStore from '@baserow/modules/core/store/integration'
 import userSourceStore from '@baserow/modules/core/store/userSource'
 import notificationStore from '@baserow/modules/core/store/notification'
 import userSourceUserStore from '@baserow/modules/core/store/userSourceUser'
+import modalStore from '@baserow/modules/core/store/modal'
 import routeMounted from '@baserow/modules/core/store/routeMounted'
 
 import en from '@baserow/modules/core/locales/en.json'
@@ -204,6 +205,7 @@ export default (context, inject) => {
   store.registerModule('userSource', userSourceStore)
   store.registerModule('notification', notificationStore)
   store.registerModule('userSourceUser', userSourceUserStore)
+  store.registerModule('modalStore', modalStore)
   store.registerModule('routeMounted', routeMounted)
 
   registry.register('authProvider', new PasswordAuthProviderType(context))
