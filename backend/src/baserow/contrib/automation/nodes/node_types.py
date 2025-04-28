@@ -44,18 +44,17 @@ class AutomationServiceNodeActionType(AutomationNodeType):
 class AutomationServiceNodeTriggerType(AutomationNodeType):
     service_type = None
     request_serializer_field_names = []
-    _allowed_fields = ["service", "workflow", "order"]
 
     class SerializedDict(AutomationNodeDict):
         service_id: int
 
     @property
     def serializer_field_names(self):
-        return super().serializer_field_names + self._allowed_fields
+        return super().serializer_field_names + ["service", "workflow", "order"]
 
     @property
     def allowed_fields(self):
-        return super().allowed_fields + self._allowed_fields
+        return super().allowed_fields + ["service", "workflow", "order"]
 
     def prepare_values(
         self,
