@@ -40,6 +40,7 @@ from baserow.contrib.database.fields.field_types import (
     MultipleCollaboratorsFieldType,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
 from baserow.contrib.database.fields.registries import (
     field_aggregation_registry,
     field_type_registry,
@@ -2261,7 +2262,22 @@ class LocalBaserowUpsertRowServiceType(
             enabled=True
         )
 
-        for field_mapping in field_mappings:
+        # Only iterate over field mappings which we know our authorized user is
+        # allowed to write values to. Writable doesn't refer to the field type being
+        # writable, but rather if the authorized user has the correct permission.
+        writable_field_mappings = [
+            field_mapping
+            for field_mapping in field_mappings
+            if CoreHandler().check_permissions(
+                service.integration.authorized_user,
+                WriteFieldValuesOperationType.type,
+                workspace=service.integration.application.workspace,
+                context=field_mapping.field,
+                raise_permission_exceptions=False,
+            )
+        ]
+
+        for field_mapping in writable_field_mappings:
             if field_mapping.id not in resolved_values:
                 continue
 

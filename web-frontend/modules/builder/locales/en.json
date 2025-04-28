@@ -886,6 +886,7 @@
   },
   "upsertRowWorkflowActionForm": {
     "fieldMappingPlaceholder": "Choose a field value",
+    "fieldMappingFieldProtected": "This field cannot be written or updated, please check its field permissions in its database.",
     "noTableSelectedMessage": "Choose a table to begin configuring your fields."
   },
   "fieldMappingContext": {
