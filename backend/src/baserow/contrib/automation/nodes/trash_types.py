@@ -1,4 +1,3 @@
-from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.operations import (
     RestoreAutomationNodeOperationType,
@@ -42,7 +41,7 @@ class AutomationNodeTrashableItemType(TrashableItemType):
     def permanently_delete_item(
         self, trashed_item: AutomationNode, trash_item_lookup_cache=None
     ):
-        AutomationNodeHandler().delete_node(trashed_item)
+        trashed_item.delete()
 
     def get_restore_operation_type(self) -> str:
         return RestoreAutomationNodeOperationType.type
