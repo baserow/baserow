@@ -99,15 +99,7 @@ class AutomationNode(
         return cls.get_highest_order_of_queryset(queryset)[0]
 
 
-class AutomationTriggerNode(AutomationNode):
-    ...
-
-
-class AutomationActionNode(AutomationNode):
-    ...
-
-
-class ServiceTriggerNode(AutomationTriggerNode):
+class AutomationServiceNode(AutomationNode):
     service = models.ForeignKey(
         Service,
         help_text="The service which this action is associated with.",
@@ -118,26 +110,7 @@ class ServiceTriggerNode(AutomationTriggerNode):
         abstract = True
 
 
-class ServiceActionNode(AutomationActionNode):
-    service = models.ForeignKey(
-        Service,
-        help_text="The service which this action is associated with.",
-        on_delete=models.CASCADE,
-    )
-
-    class Meta:
-        abstract = True
-
-
-class ActionNodeHTTP(AutomationActionNode):
-    url = models.URLField()
-
-
-class TriggerNodeHTTP(AutomationTriggerNode):
-    url = models.URLField()
-
-
-class LocalBaserowRowCreatedTriggerNode(ServiceTriggerNode):
+class LocalBaserowRowCreatedTriggerNode(AutomationServiceNode):
     def save(self, *args, **kwargs):
         """TODO: this shouldn't be required. There seems to be a MRO issue."""
 
@@ -145,13 +118,5 @@ class LocalBaserowRowCreatedTriggerNode(ServiceTriggerNode):
         super().save(*args, **kwargs)
 
 
-class LocalBaserowRowUpdatedTriggerNode(ServiceTriggerNode):
-    ...
-
-
-class LocalBaserowCreateRowActionNode(ServiceActionNode):
-    ...
-
-
-class LocalBaserowUpdateRowActionNode(ServiceActionNode):
+class LocalBaserowCreateRowActionNode(AutomationServiceNode):
     ...

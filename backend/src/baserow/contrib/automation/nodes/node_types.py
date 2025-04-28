@@ -1,12 +1,11 @@
-from typing import Any, Dict, Union
+from typing import Any, Dict
 
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.nodes.models import (
+    AutomationServiceNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowRowCreatedTriggerNode,
-    LocalBaserowRowUpdatedTriggerNode,
-    LocalBaserowUpdateRowActionNode,
 )
 from baserow.contrib.automation.nodes.registries import (
     AutomationNodeType,
@@ -15,7 +14,6 @@ from baserow.contrib.automation.nodes.registries import (
 from baserow.contrib.automation.types import AutomationNodeDict
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowCreatedTriggerServiceType,
-    LocalBaserowRowUpdatedTriggerServiceType,
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.services.handler import ServiceHandler
@@ -27,7 +25,7 @@ def service_backed_automation_nodes():
     Returns all Automation Node types which are backed by a service.
 
     This is done by checking if the Automation Node type is a subclass of the
-    base `AutomationNodeServiceActionType` class.
+    base `AutomationServiceNodeActionType` class.
 
     :return: A list of Automation Node types backed by a service.
     """
@@ -35,15 +33,15 @@ def service_backed_automation_nodes():
     return [
         automation_node_type
         for automation_node_type in automation_node_type_registry.get_all()
-        if issubclass(automation_node_type.__class__, AutomationNodeServiceActionType)
+        if issubclass(automation_node_type.__class__, AutomationServiceNodeActionType)
     ]
 
 
-class AutomationNodeServiceActionType(AutomationNodeType):
+class AutomationServiceNodeActionType(AutomationNodeType):
     service_type = None
 
 
-class AutomationNodeServiceTriggerType(AutomationNodeType):
+class AutomationServiceNodeTriggerType(AutomationNodeType):
     service_type = None
     request_serializer_field_names = []
     _allowed_fields = ["service", "workflow", "order"]
@@ -63,9 +61,7 @@ class AutomationNodeServiceTriggerType(AutomationNodeType):
         self,
         values: Dict[str, Any],
         user: AbstractUser,
-        instance: Union[
-            LocalBaserowRowCreatedTriggerNode, LocalBaserowRowUpdatedTriggerNode
-        ] = None,
+        instance: AutomationServiceNode = None,
     ):
         """
         Responsible for preparing the service based trigger node. By default,
@@ -73,7 +69,7 @@ class AutomationNodeServiceTriggerType(AutomationNodeType):
 
         :param values: The full trigger node values to prepare.
         :param user: The user on whose behalf the change is made.
-        :param instance: A `ServiceTriggerNode` subclass instance.
+        :param instance: A `AutomationServiceNode` subclass instance.
         :return: The modified trigger node values, prepared.
         """
 
@@ -102,7 +98,7 @@ class AutomationNodeServiceTriggerType(AutomationNodeType):
         return super().prepare_values(values, user, instance)
 
 
-class UpsertRowNodeType(AutomationNodeServiceActionType):
+class UpsertRowNodeType(AutomationServiceNodeActionType):
     type = "upsert_row"
     service_type = LocalBaserowUpsertRowServiceType.type
 
@@ -116,18 +112,7 @@ class CreateRowNodeType(UpsertRowNodeType):
     model_class = LocalBaserowCreateRowActionNode
 
 
-class UpdateRowNodeType(UpsertRowNodeType):
-    type = "update_row"
-    model_class = LocalBaserowUpdateRowActionNode
-
-
-class RowCreatedNodeType(AutomationNodeServiceTriggerType):
+class RowCreatedNodeType(AutomationServiceNodeTriggerType):
     type = "row_created"
     model_class = LocalBaserowRowCreatedTriggerNode
     service_type = LocalBaserowRowCreatedTriggerServiceType.type
-
-
-class RowUpdatedNodeType(AutomationNodeServiceTriggerType):
-    type = "row_updated"
-    model_class = LocalBaserowRowUpdatedTriggerNode
-    service_type = LocalBaserowRowUpdatedTriggerServiceType.type

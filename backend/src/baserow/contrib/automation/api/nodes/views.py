@@ -137,7 +137,7 @@ class AutomationNodesView(APIView):
         }
     )
     def get(self, request, workflow_id: int):
-        workflow = AutomationWorkflowService().get_workflow(workflow_id)
+        workflow = AutomationWorkflowService().get_workflow(request.user, workflow_id)
 
         nodes = AutomationNodeService().get_nodes(request.user, workflow)
 
