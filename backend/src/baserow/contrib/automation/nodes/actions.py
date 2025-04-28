@@ -17,8 +17,8 @@ from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
 from baserow.core.trash.handler import TrashHandler
@@ -225,7 +225,7 @@ class OrderAutomationNodesActionType(UndoableActionType):
 
     @classmethod
     def do(cls, user: AbstractUser, workflow_id: int, order: List[int]) -> None:
-        workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+        workflow = AutomationWorkflowService().get_workflow(user, workflow_id)
 
         original_nodes_order = AutomationNodeHandler().get_nodes_order(workflow)
         params = cls.Params(
@@ -256,7 +256,7 @@ class OrderAutomationNodesActionType(UndoableActionType):
     ):
         AutomationNodeService().order_nodes(
             user,
-            AutomationWorkflowHandler().get_workflow(params.workflow_id),
+            AutomationWorkflowService().get_workflow(user, params.workflow_id),
             order=params.original_nodes_order,
         )
 
@@ -269,7 +269,7 @@ class OrderAutomationNodesActionType(UndoableActionType):
     ):
         AutomationNodeService().order_nodes(
             user,
-            AutomationWorkflowHandler().get_workflow(params.workflow_id),
+            AutomationWorkflowService().get_workflow(user, params.workflow_id),
             order=params.nodes_order,
         )
 
