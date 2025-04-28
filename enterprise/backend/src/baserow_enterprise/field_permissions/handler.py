@@ -32,11 +32,28 @@ class FieldPermissionUpdated:
 
 class FieldPermissionsHandler:
     @classmethod
+    def _check_valid_role_value_or_raise(cls, role: str):
+        """
+        Validates the provided role and returns the corresponding
+        FieldPermissionRoleEnum.
+
+        :param role: The role to validate.
+        :raises ValueError if the role is not valid.
+        """
+
+        try:
+            FieldPermissionRoleEnum(role)
+        except ValueError:
+            raise ValueError(
+                f"Invalid role '{role}'. Must be one of {list(FieldPermissionRoleEnum.__members__.keys())}."
+            )
+
+    @classmethod
     def update_field_permissions(
         cls,
         user: AbstractUser,
         field: Field,
-        role: FieldPermissionRoleEnum,
+        role: FieldPermissionRoleEnum | str,
         allow_in_forms: bool = False,
     ) -> FieldPermissionUpdated:
         """
@@ -50,7 +67,14 @@ class FieldPermissionsHandler:
         :return: A FieldPermissionUpdated object containing the updated permissions and
             wether the user can write values to the field, which requires computing the
             roles on the field.
+        :raises: ValueError if the role provided as string is not a valid
+            FieldPermissionRoleEnum.
         """
+
+        if isinstance(role, FieldPermissionRoleEnum):
+            role = role.value
+        else:
+            cls._check_valid_role_value_or_raise(role)
 
         CoreHandler().check_permissions(
             user,

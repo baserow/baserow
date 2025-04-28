@@ -12,6 +12,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
+from baserow_enterprise.field_permissions.models import FieldPermissionRoleEnum
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -174,6 +175,11 @@ def test_cannot_create_or_update_rows_without_proper_permisisons(
 
     _assign_role(Role.objects.get(uid="EDITOR"))
 
+    with pytest.raises(ValueError):
+        FieldPermissionsHandler.update_field_permissions(
+            test_user, text_field, "NON_EXISTING_ROLE"
+        )
+
     # Default: everyone with at least EDITOR role can edit the field
     FieldPermissionsHandler.update_field_permissions(user, text_field, "EDITOR")
 
@@ -185,7 +191,9 @@ def test_cannot_create_or_update_rows_without_proper_permisisons(
     assert getattr(rows[0], text_field.db_column) == "editor"
 
     # BUILDER and up can edit the field
-    FieldPermissionsHandler.update_field_permissions(user, text_field, "BUILDER")
+    FieldPermissionsHandler.update_field_permissions(
+        user, text_field, FieldPermissionRoleEnum.BUILDER
+    )
 
     # cannot edit/create rows with the text_field
     with pytest.raises(PermissionDenied):
