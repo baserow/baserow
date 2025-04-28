@@ -37,12 +37,12 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeNotInWorkflow,
 )
-from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
 )
+from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 
 AUTOMATION_NODES_TAG = "Automation nodes"
 

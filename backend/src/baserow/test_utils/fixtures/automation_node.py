@@ -18,12 +18,9 @@ class AutomationNodeFixtures:
         elif isinstance(_node_type, str):
             node_type = automation_node_type_registry.get(_node_type)
         else:
-            node_type = _node_type 
-        
+            node_type = _node_type
+
         if "order" not in kwargs:
             kwargs["order"] = AutomationNode.get_last_order(workflow)
-        
-        return AutomationNodeService().create_node(user, node_type, workflow, **kwargs)
 
-        
-    
+        return AutomationNodeService().create_node(user, node_type, workflow, **kwargs)
