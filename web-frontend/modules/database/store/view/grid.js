@@ -2,6 +2,7 @@ import Vue from 'vue'
 import axios from 'axios'
 import _ from 'lodash'
 import BigNumber from 'bignumber.js'
+import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/action'
 
 import { uuid } from '@baserow/modules/core/utils/string'
 import { clone } from '@baserow/modules/core/utils/object'
@@ -33,6 +34,59 @@ import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/gr
 const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
 const REFRESH_ROW_DELAY = 1000
+
+/**
+ * Populates fresh rows from text (or JSON) data. The number of returned rows will match
+ * the number of rows from tsvData list.
+ *
+ * @param tsvData a list of values in text format
+ * @param jsonData (optional) a list of values from json. Should match in number with
+ *  tsvData
+ * @param fieldsInOrder a list of fields used
+ * @param registry
+ * @param fromRows (optional) a list of existing rows which will be used to pre-populate
+ *  rows
+ * @returns {*[]}
+ */
+function populateRows({
+  tsvData,
+  jsonData,
+  fieldsInOrder,
+  registry,
+  fromRows,
+}) {
+  const newRows = []
+
+  // Prepare the values for update and update the row objects.
+  tsvData.forEach((tsvRow, rowIndex) => {
+    const oldRow = fromRows ? fromRows[rowIndex] : {}
+    const row = {}
+    if (oldRow) {
+      row.id = oldRow.id
+    }
+
+    fieldsInOrder.forEach((field, fieldIndex) => {
+      const fieldType = registry.get('field', field.type)
+      // We can't pre-filter because we need the correct filter index.
+      if (fieldType.isReadOnlyField(field)) {
+        return
+      }
+
+      const fieldId = `field_${field.id}`
+      const textValue = tsvRow[fieldIndex]
+      const jsonValue = jsonData != null ? jsonData[rowIndex][fieldIndex] : null
+      const preparedValue = fieldType.prepareValueForPaste(
+        field,
+        textValue,
+        jsonValue
+      )
+      row[fieldId] = fieldType.prepareValueForUpdate(field, preparedValue)
+    })
+    newRows.push(row)
+  })
+
+  return newRows
+}
 
 export function populateRow(row, metadata = {}) {
   row._ = {
@@ -1835,6 +1889,7 @@ export const actions = {
       before = null,
       selectPrimaryCell = false,
       isRowOpenedInModal = undefined,
+      undoRedoActionGroupId = null,
     }
   ) {
     // Create an object of default field values that can be used to fill the row with
@@ -1968,58 +2023,70 @@ export const actions = {
     })
 
     try {
-      const { data } = await RowService(this.$client).batchCreate(
-        table.id,
-        rowsPrepared,
-        before !== null ? before.id : null
+      let data = {}
+      const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
+        `table_${table.id}`
       )
-
-      const fieldsToFinalize = fields
-        .filter((field) =>
-          this.$registry.get('field', field.type).isReadOnlyField(field)
+      // We're queueing this task, so other tasks, that may read state and modify it,
+      // won't overalp.
+      const taskId = taskQueue.add(async () => {
+        const resp = await RowService(this.$client).batchCreate(
+          table.id,
+          rowsPrepared,
+          before !== null ? before.id : null,
+          undoRedoActionGroupId
         )
-        .map((field) => `field_${field.id}`)
-      commit('FINALIZE_ROWS_IN_BUFFER', {
-        oldRows: rowsPopulated,
-        newRows: data.items,
-        fields: fieldsToFinalize,
-      })
+        data = resp.data
 
-      for (let i = 0; i < data.items.length; i += 1) {
-        const item = data.items[i]
-        // Use the updated row in the buffer if it exists, otherwise use the populated
-        // row object to update inner state.
-        const row = state.rows.find((r) => r.id === item.id) || rowsPopulated[i]
-        if (!canUpdateOptimistically) {
-          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-            fields,
-            registry: this.$registry,
-            row,
-            increase: true,
-            decrease: false,
-          })
-        }
-        dispatch('onRowChange', { view, row, fields })
-        const rowId = row.id
-        setTimeout(() => {
-          // Get the latest row so that any changes that might have been made in the
-          // meantime are included. This is needed to pass the correct row into the
-          // `refreshRow` that shows/hide the row.
-          const row = getters.getRow(rowId)
-          if (row && !row._.selected) {
-            dispatch('refreshRow', {
-              grid: view,
-              row,
+        const fieldsToFinalize = fields
+          .filter((field) =>
+            this.$registry.get('field', field.type).isReadOnlyField(field)
+          )
+          .map((field) => `field_${field.id}`)
+        commit('FINALIZE_ROWS_IN_BUFFER', {
+          oldRows: rowsPopulated,
+          newRows: data.items,
+          fields: fieldsToFinalize,
+        })
+
+        for (let i = 0; i < data.items.length; i += 1) {
+          const item = data.items[i]
+          // Use the updated row in the buffer if it exists, otherwise use the populated
+          // row object to update inner state.
+          const row =
+            state.rows.find((r) => r.id === item.id) || rowsPopulated[i]
+          if (!canUpdateOptimistically) {
+            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
               fields,
-              isRowOpenedInModal,
+              registry: this.$registry,
+              row,
+              increase: true,
+              decrease: false,
             })
           }
-        }, REFRESH_ROW_DELAY)
-      }
+          dispatch('onRowChange', { view, row, fields })
+          const rowId = row.id
+          setTimeout(() => {
+            // Get the latest row so that any changes that might have been made in the
+            // meantime are included. This is needed to pass the correct row into the
+            // `refreshRow` that shows/hide the row.
+            const row = getters.getRow(rowId)
+            if (row && !row._.selected) {
+              dispatch('refreshRow', {
+                grid: view,
+                row,
+                fields,
+                isRowOpenedInModal,
+              })
+            }
+          }, REFRESH_ROW_DELAY)
+        }
 
-      await dispatch('fetchAllFieldAggregationData', {
-        view,
+        await dispatch('fetchAllFieldAggregationData', {
+          view,
+        })
       })
+      await taskQueue.waitFor(taskId)
     } catch (error) {
       if (isSingleRowInsertion) {
         commit('UPDATE_GROUP_BY_METADATA_COUNT', {
@@ -2494,28 +2561,19 @@ export const actions = {
       fieldTailIndex = getters.getMultiSelectTailFieldIndex
     }
 
-    const newRowsCount = copiedRowsCount - (rowTailIndex - rowHeadIndex + 1)
-
-    // Create extra missing rows
-    if (newRowsCount > 0) {
-      await dispatch('createNewRows', {
-        view,
-        table,
-        fields: allFieldsInTable,
-        rows: Array.from(Array(newRowsCount), (element, index) => {
-          return {}
-        }),
-        selectPrimaryCell: false,
-      })
-      rowTailIndex = rowTailIndex + newRowsCount
-    }
-
-    if (!isSingleCellCopied && selectUpdatedCells) {
+    if (
+      !isSingleCellCopied &&
+      selectUpdatedCells &&
+      !(view.sortings || view.group_bys || view.filters)
+    ) {
       // Expand the selection of the multiple select to the cells that we're going to
       // paste in, so the user can see which values have been updated. This is because
       // it could be that there are more or less values in the clipboard compared to
       // what was originally selected.
-
+      // However, we should not mark multiple rows as selected if the view has
+      // any filtering/sorting/grouping by, as rows pasted may be scattered/hidden
+      // in the view. Multiselect will not show correct contents then, and we can't
+      // select disjoined rows.
       await dispatch('setMultipleSelect', {
         rowHeadIndex,
         fieldHeadIndex,
@@ -2523,6 +2581,12 @@ export const actions = {
         fieldTailIndex,
       })
     }
+
+    const newRowsCount = copiedRowsCount - (rowTailIndex - rowHeadIndex + 1)
+    const textDataToCreate = textData.slice(copiedRowsCount - newRowsCount)
+    const jsonDataToCreate = jsonData
+      ? jsonData.slice(copiedRowsCount - newRowsCount)
+      : undefined
 
     // Figure out which rows are already in the buffered and temporarily store them
     // in an array.
@@ -2564,46 +2628,57 @@ export const actions = {
           : [...rowsInOrder, ...rowsNotInBuffer]
     }
 
+    // before populating existing rows with new values and calling RowService,
+    // ensure no createRows is running. There can be a parallel createRows action
+    // performing another request to create those rows in the backend.
+    // If we call RowService too soon here, we'll send placeholder .id values (uuid)
+    // to a PATCH operation.
+    const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
+      `table_${table.id}`
+    )
+    await taskQueue.waitAll()
+
     // Create a copy of the existing (old) rows, which are needed to create the
     // comparison when checking if the rows still matches the filters and position.
     const oldRowsInOrder = clone(rowsInOrder)
-    // Prepare the values that must be send to the server.
-    const valuesForUpdate = []
-    // Prepare the values for update and update the row objects.
 
-    rowsInOrder.forEach((row, rowIndex) => {
-      valuesForUpdate[rowIndex] = { id: row.id }
-
-      fieldsInOrder.forEach((field, fieldIndex) => {
-        const fieldType = this.$registry.get('field', field.type)
-        // We can't pre-filter because we need the correct filter index.
-        if (fieldType.isReadOnlyField(field)) {
-          return
-        }
-
-        const fieldId = `field_${field.id}`
-        const textValue = textData[rowIndex][fieldIndex]
-        const jsonValue =
-          jsonData != null ? jsonData[rowIndex][fieldIndex] : undefined
-        const preparedValue = fieldType.prepareValueForPaste(
-          field,
-          textValue,
-          jsonValue
-        )
-        const newValue = fieldType.prepareValueForUpdate(field, preparedValue)
-        valuesForUpdate[rowIndex][fieldId] = newValue
-      })
+    // Prepare the values for update and update the row objects. The resulting list
+    // of objects will be send to the backend.
+    const valuesForUpdate = populateRows({
+      tsvData: textData.slice(0, rowsInOrder.length),
+      jsonData: jsonData ? jsonData.slice(0, rowsInOrder.length) : null,
+      fieldsInOrder,
+      registry: this.$registry,
+      fromRows: rowsInOrder,
     })
 
     // We don't have to update the rows in the buffer before the request is being made
     // because we're showing a loading animation to the user indicating that the
     // rows are being updated.
+    const undoRedoActionGroupId = createNewUndoRedoActionGroupId()
     const { data: responseData } = await RowService(this.$client).batchUpdate(
       table.id,
-      valuesForUpdate
+      valuesForUpdate,
+      undoRedoActionGroupId
     )
     const updatedRows = responseData.items
-
+    // Create extra missing rows
+    if (newRowsCount > 0) {
+      await dispatch('createNewRows', {
+        view,
+        table,
+        fields: allFieldsInTable,
+        rows: populateRows({
+          tsvData: textDataToCreate,
+          jsonData: jsonDataToCreate,
+          fieldsInOrder,
+          registry: this.$registry,
+        }),
+        selectPrimaryCell: false,
+        undoRedoActionGroupId,
+      })
+      rowTailIndex = rowTailIndex + newRowsCount
+    }
     // Loop over the old rows, find the matching updated row and update them in the
     // buffer accordingly.
     for (const row of oldRowsInOrder) {
@@ -2617,6 +2692,7 @@ export const actions = {
         fields: allFieldsInTable,
         row,
         values,
+        undoRedoActionGroupId,
       })
     }
 
@@ -2652,7 +2728,11 @@ export const actions = {
     const newRowExists = newRow._.matchFilters && newRow._.matchSearch
 
     if (oldRowExists && !newRowExists) {
-      await dispatch('deletedExistingRow', { view, fields, row })
+      await dispatch('deletedExistingRow', {
+        view,
+        fields,
+        row,
+      })
     } else if (!oldRowExists && newRowExists) {
       await dispatch('createdNewRow', {
         view,

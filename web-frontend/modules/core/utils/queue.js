@@ -46,6 +46,18 @@ export class TaskQueue {
     await task.wait
   }
 
+  /**
+   * waits for all queued tasks
+   *
+   * @returns {Promise<void>}
+   */
+  async waitAll() {
+    const waitlist = Array.from(this.queue, (item) => {
+      return item.wait
+    })
+    await Promise.all(waitlist)
+  }
+
   start() {
     if (this.running) {
       return
@@ -56,8 +68,10 @@ export class TaskQueue {
 
   async run() {
     while (this.queue.length > 0 && this.running && !this.locked) {
-      const task = this.queue.shift()
+      // need to keep queue filled when task is running
+      const task = this.queue[0]
       await task.run()
+      this.queue.shift()
     }
     this.running = false
     this.done()
