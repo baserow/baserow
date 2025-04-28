@@ -293,7 +293,6 @@ class RowsView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_PAGE_SIZE_LIMIT",
-                    "ERROR_INVALID_PAGE",
                     "ERROR_ORDER_BY_FIELD_NOT_FOUND",
                     "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE",
                     "ERROR_FILTER_FIELD_NOT_FOUND",

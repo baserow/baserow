@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from django.conf import settings
 from django.contrib.auth.models import User as DjangoUser
@@ -39,31 +39,33 @@ from .registries import webhook_event_type_registry
 from .typing import EventConfigItem
 from .validators import get_webhook_request_function
 
+if TYPE_CHECKING:
+    from baserow.contrib.database.webhooks.registries import WebhookEventType
+
 
 class WebhookHandler:
     def find_webhooks_to_call(
-        self, table_id: int, event_type: str, additional_filters: Q | None = None
+        self, webhook_event_type: "WebhookEventType", **webhook_event_type_kwargs
     ) -> QuerySet[TableWebhook]:
         """
-        This function is responsible for finding all the webhooks related to a table
-        that must be triggered on a specific event.
+        This function is responsible for finding all the webhooks related to the given
+        webhook_event_type that must be triggered on a specific event, defined by the
+        webhook_event_type_kwargs. It will return a queryset of webhooks that must be
+        triggered.
+
+        :param webhook_event_type: The event type that must be triggered.
+        :param webhook_event_type_kwargs: Additional arguments that can be used to
+            filter the webhooks.
+        :return: The webhooks that must be triggered.
         """
 
-        q = Q(events__event_type__in=[event_type])
-        if additional_filters is not None:
-            q &= additional_filters
-
-        event_type_object = webhook_event_type_registry.get(event_type)
-        if event_type_object.should_trigger_when_all_event_types_selected:
-            q |= Q(include_all_events=True)
+        q = webhook_event_type.get_filters_for_webhooks_to_call(
+            **webhook_event_type_kwargs
+        )
 
         return (
-            TableWebhook.objects.filter(
-                q,
-                table_id=table_id,
-                active=True,
-            )
-            .prefetch_related("headers", "events", "events__fields")
+            TableWebhook.objects.filter(q)
+            .prefetch_related("headers", "events__fields", "events__views")
             .select_related("table__database")
         )
 

@@ -13,11 +13,10 @@
         horizontal-narrow
       >
         <Dropdown
-          :value="values.table_id"
+          v-model="computedTableId"
           :show-search="true"
           fixed-items
           :error="fieldHasErrors('table_id')"
-          @change="changeTableId($event)"
         >
           <DropdownSection
             v-for="database in databases"
@@ -46,11 +45,10 @@
         horizontal-narrow
       >
         <Dropdown
-          v-model="values.view_id"
+          v-model="v$.values.view_id.$model"
           :show-search="false"
           fixed-items
           :error="fieldHasErrors('view_id')"
-          @change="v$.values.view_id.$touch"
         >
           <DropdownItem
             :name="$t('groupedAggregateRowsDataSourceForm.notSelected')"
@@ -91,6 +89,7 @@
         v-for="(series, index) in values.aggregation_series"
         ref="aggregationSeriesForms"
         :key="index"
+        :disabled="fieldsLoading"
         :table-fields="tableFields"
         :aggregation-series="values.aggregation_series"
         :series-index="index"
@@ -180,11 +179,26 @@ export default {
         aggregation_sorts: [],
       },
       tableLoading: false,
-      databaseSelectedId: null,
       skipFirstValuesEmit: true,
     }
   },
   computed: {
+    computedTableId: {
+      get() {
+        return this.v$.values.table_id.$model
+      },
+      set(tableId) {
+        if (tableId !== this.v$.values.table_id.$model) {
+          this.v$.values.table_id.$model = tableId
+          this.v$.values.view_id.$model = null
+          this.values.aggregation_series = [
+            { field_id: null, aggregation_type: '' },
+          ]
+          this.values.aggregation_group_bys = []
+          this.values.aggregation_sorts = []
+        }
+      },
+    },
     integration() {
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/getIntegrationById`
@@ -194,8 +208,8 @@ export default {
       return this.integration.context_data.databases
     },
     databaseSelected() {
-      return this.databases.find(
-        (database) => database.id === this.databaseSelectedId
+      return this.databases.find((database) =>
+        database.tables.some((table) => table.id === this.values.table_id)
       )
     },
     tables() {
@@ -223,6 +237,7 @@ export default {
     tableViewIds() {
       return this.tableViews.map((view) => view.id)
     },
+
     allowedSortReferences() {
       const seriesSortReferences = this.values.aggregation_series
         .filter(
@@ -286,19 +301,6 @@ export default {
       },
       deep: true,
     },
-    'values.table_id': {
-      handler(tableId) {
-        if (tableId !== null) {
-          const databaseOfTableId = this.databases.find((database) =>
-            database.tables.some((table) => table.id === tableId)
-          )
-          if (databaseOfTableId) {
-            this.databaseSelectedId = databaseOfTableId.id
-          }
-        }
-      },
-      immediate: true,
-    },
   },
   mounted() {
     this.v$.$touch()
@@ -336,18 +338,6 @@ export default {
     getAggregationName(aggregationType) {
       const aggType = this.$registry.get('groupedAggregation', aggregationType)
       return aggType.getName()
-    },
-    changeTableId(tableId) {
-      if (this.values.table_id !== tableId) {
-        this.values.table_id = tableId
-        this.values.view_id = null
-        this.values.aggregation_series = [
-          { field_id: null, aggregation_type: '' },
-        ]
-        this.values.aggregation_group_bys = []
-        this.values.aggregation_sorts = []
-        this.v$.values.table_id.$touch()
-      }
     },
     async addSeries() {
       this.setEmitValues(false)

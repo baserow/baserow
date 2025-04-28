@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
@@ -76,8 +75,9 @@ class WebhookEventType(Instance):
             "table_id": webhook.table_id,
             "database_id": webhook.table.database_id,
             "workspace_id": webhook.table.database.workspace_id,
+            "webhook_id": webhook.id,
             "event_id": str(event_id),
-            "event_type": self.type,
+            "event_type": kwargs.get("event_type", self.type),
         }
 
     def get_table_object(self, **kwargs: dict) -> Table:
@@ -100,16 +100,24 @@ class WebhookEventType(Instance):
 
         return table
 
-    def get_additional_filters_for_webhooks_to_call(
-        self, **kwargs: dict
-    ) -> Optional[Q]:
+    def get_filters_for_webhooks_to_call(self, **kwargs: dict) -> Q:
         """
-        Filters to pass to WebhookHandler.find_webhooks_to_call. By default, no
-        additional filters are applied.
+        Filters to pass to WebhookHandler.find_webhooks_to_call to find the webhooks
+        that need to be called for the table. By default it will filter on the event
+        type and the table id. This method can be overwritten to add additional filters
+        to the query.
 
         :param kwargs: The arguments of the signal.
-        :return: A dictionary of additional filters.
+        :return: A Q object containing the filters to pass to the query.
         """
+
+        table = self.get_table_object(**kwargs)
+        q = Q(events__event_type__in=[self.type])
+
+        if self.should_trigger_when_all_event_types_selected:
+            q |= Q(include_all_events=True)
+
+        return q & Q(table_id=table.id, active=True)
 
     def listener(self, **kwargs: dict):
         """
@@ -184,10 +192,8 @@ class WebhookEventType(Instance):
         if not kwargs.get("send_webhooks_events", True):
             return
 
-        table = self.get_table_object(**kwargs)
         webhook_handler = WebhookHandler()
-        filters = self.get_additional_filters_for_webhooks_to_call(**kwargs)
-        webhooks = webhook_handler.find_webhooks_to_call(table.id, self.type, filters)
+        webhooks = webhook_handler.find_webhooks_to_call(self, **kwargs)
         event_id = uuid.uuid4()
         for webhook in webhooks:
             try:

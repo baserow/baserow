@@ -23,6 +23,7 @@ from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS_WITH_AGGREGATION,
     ADHOC_FILTERS_API_PARAMS_WITH_AGGREGATION_NO_COMBINE,
     ADHOC_SORTING_API_PARAM,
+    EXCLUDE_COUNT_API_PARAM,
     EXCLUDE_FIELDS_API_PARAM,
     INCLUDE_FIELDS_API_PARAM,
     ONLY_COUNT_API_PARAM,
@@ -136,6 +137,7 @@ class GridViewView(APIView):
                 ),
             ),
             ONLY_COUNT_API_PARAM,
+            EXCLUDE_COUNT_API_PARAM,
             *PAGINATION_API_PARAMS,
             *ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
             ADHOC_SORTING_API_PARAM,
@@ -248,7 +250,7 @@ class GridViewView(APIView):
         )
         model = queryset.model
 
-        if "count" in request.GET:
+        if ONLY_COUNT_API_PARAM.name in request.GET:
             return Response({"count": queryset.count()})
 
         response, page, _ = paginate_and_serialize_queryset(
@@ -704,6 +706,7 @@ class PublicGridViewRowsView(APIView):
                 ),
             ),
             ONLY_COUNT_API_PARAM,
+            EXCLUDE_COUNT_API_PARAM,
             *PAGINATION_API_PARAMS,
             ADHOC_SORTING_API_PARAM,
             INCLUDE_FIELDS_API_PARAM,
@@ -807,8 +810,7 @@ class PublicGridViewRowsView(APIView):
         ) = get_public_view_filtered_queryset(view, request, query_params)
         model = queryset.model
 
-        count = "count" in request.GET
-        if count:
+        if ONLY_COUNT_API_PARAM.name in request.GET:
             return Response({"count": queryset.count()})
 
         response, page, _ = paginate_and_serialize_queryset(

@@ -3,6 +3,7 @@ import PasswordSettings from '@baserow/modules/core/components/settings/Password
 import AccountSettings from '@baserow/modules/core/components/settings/AccountSettings'
 import DeleteAccountSettings from '@baserow/modules/core/components/settings/DeleteAccountSettings'
 import EmailNotifications from '@baserow/modules/core/components/settings/EmailNotifications'
+import McpEndpointSettings from '@baserow/modules/core/components/settings/McpEndpointSettings.vue'
 
 /**
  * All settings types will be added to the settings modal.
@@ -131,6 +132,25 @@ export class EmailNotificationsSettingsType extends SettingsType {
 
   getComponent() {
     return EmailNotifications
+  }
+}
+
+export class MCPEndpointSettingsType extends SettingsType {
+  static getType() {
+    return 'mcp-endpoint'
+  }
+
+  getIconClass() {
+    return 'iconoir-magic-wand'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('settingType.mcpEndpoint')
+  }
+
+  getComponent() {
+    return McpEndpointSettings
   }
 }
 

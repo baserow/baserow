@@ -523,6 +523,48 @@ export const dateInThisYear = [
     expected: true,
   },
 ]
+export const dateWithinDaysAgo = [
+  {
+    rowValue: moment().tz('Europe/Berlin').subtract(1, 'days').format(),
+    filterValue: 'Europe/Berlin?1',
+    expected: true,
+  },
+  {
+    rowValue: '1970-08-11T23:30:37.940086Z',
+    filterValue: 'Europe/Berlin?2',
+    expected: false,
+  },
+  {
+    rowValue: moment().utc().subtract(2, 'days').format(),
+    filterValue: 'UTC?3',
+    expected: true,
+  },
+  {
+    rowValue: moment().utc().format(),
+    filterValue: '?1',
+    expected: true,
+  },
+  {
+    rowValue: moment().utc().format(),
+    filterValue: 'UTC?1',
+    expected: true,
+  },
+  {
+    rowValue: moment().utc().format(),
+    filterValue: '?',
+    expected: true,
+  },
+  {
+    rowValue: moment().utc().add(1, 'days').format(),
+    filterValue: '?',
+    expected: true,
+  },
+  {
+    rowValue: moment().utc().add(1, 'days').format(),
+    filterValue: '',
+    expected: true,
+  },
+]
 
 export const dateWithinDays = [
   {

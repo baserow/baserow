@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-18 19:55+0000\n"
+"POT-Creation-Date: 2025-04-22 11:57+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -242,9 +242,41 @@ msgstr ""
 msgid "Decimal number"
 msgstr ""
 
-#: src/baserow/core/handler.py:2130 src/baserow/core/user/handler.py:267
+#: src/baserow/core/handler.py:2182 src/baserow/core/user/handler.py:267
 #, python-format
 msgid "%(name)s's workspace"
+msgstr ""
+
+#: src/baserow/core/mcp/actions.py:20
+msgid "Create MCP endpoint"
+msgstr ""
+
+#: src/baserow/core/mcp/actions.py:22
+#, python-format
+msgid ""
+"An MCP Endpoint with name \"%(endpoint_name)s\" (%(endpoint_id)s) has been "
+"created"
+msgstr ""
+
+#: src/baserow/core/mcp/actions.py:60
+msgid "Update MCP endpoint name"
+msgstr ""
+
+#: src/baserow/core/mcp/actions.py:62
+#, python-format
+msgid ""
+"The MCP Endpoint (%(endpoint_id)s) name changed from "
+"\"%(original_endpoint_name)s\" to \"%(endpoint_name)s\""
+msgstr ""
+
+#: src/baserow/core/mcp/actions.py:108
+msgid "Delete MCP endpoint"
+msgstr ""
+
+#: src/baserow/core/mcp/actions.py:109
+#, python-format
+msgid ""
+"The MCP Endpoint \"%(endpoint_name)s\" (%(endpoint_id)s) has been deleted"
 msgstr ""
 
 #: src/baserow/core/notification_types.py:92
@@ -457,80 +489,80 @@ msgstr ""
 msgid "User \"%(user_email)s\" (%(user_id)s) updated"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:180
+#: src/baserow/core/user/actions.py:184
 msgid "Schedule user deletion"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:182
+#: src/baserow/core/user/actions.py:186
 #, python-format
 msgid ""
 "User \"%(user_email)s\" (%(user_id)s) scheduled to be deleted after grace "
 "time"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:216
+#: src/baserow/core/user/actions.py:220
 msgid "Cancel user deletion"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:218
+#: src/baserow/core/user/actions.py:222
 #, python-format
 msgid ""
 "User \"%(user_email)s\" (%(user_id)s) logged in cancelling the deletion "
 "process"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:252
+#: src/baserow/core/user/actions.py:256
 msgid "Sign In User"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:254
+#: src/baserow/core/user/actions.py:258
 #, python-format
 msgid ""
 "User \"%(user_email)s\" (%(user_id)s) signed in via "
 "\"%(auth_provider_type)s\" (%(auth_provider_id)s) auth provider"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:323
+#: src/baserow/core/user/actions.py:327
 msgid "Send reset user password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:324
+#: src/baserow/core/user/actions.py:328
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) requested to reset password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:357
+#: src/baserow/core/user/actions.py:361
 msgid "Change user password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:358
+#: src/baserow/core/user/actions.py:362
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) changed password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:397
+#: src/baserow/core/user/actions.py:401
 msgid "Reset user password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:398
+#: src/baserow/core/user/actions.py:402
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) reset password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:434
+#: src/baserow/core/user/actions.py:438
 msgid "Send verify email"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:435
+#: src/baserow/core/user/actions.py:439
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) requested to verify email"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:468
+#: src/baserow/core/user/actions.py:472
 msgid "Verify email"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:469
+#: src/baserow/core/user/actions.py:473
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) verify email"
 msgstr ""

@@ -468,7 +468,7 @@ export default {
       if (eventConfig === undefined) {
         return []
       }
-      return eventConfig.fields
+      return eventConfig.fields ?? []
     },
     setEventFields(event, fields) {
       const eventConfig = this.values.event_config.find(

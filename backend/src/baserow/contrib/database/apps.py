@@ -1013,6 +1013,21 @@ class DatabaseConfig(AppConfig):
         notification_type_registry.register(WebhookDeactivatedNotificationType())
         notification_type_registry.register(WebhookPayloadTooLargeNotificationType())
 
+        from baserow.contrib.database.mcp.rows.tools import (
+            CreateRowMcpTool,
+            DeleteRowMcpTool,
+            ListRowsMcpTool,
+            UpdateRowMcpTool,
+        )
+        from baserow.contrib.database.mcp.table.tools import ListTablesMcpTool
+        from baserow.core.mcp.registries import mcp_tool_registry
+
+        mcp_tool_registry.register(ListTablesMcpTool())
+        mcp_tool_registry.register(ListRowsMcpTool())
+        mcp_tool_registry.register(CreateRowMcpTool())
+        mcp_tool_registry.register(UpdateRowMcpTool())
+        mcp_tool_registry.register(DeleteRowMcpTool())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.database.data_sync.signals  # noqa: F403, F401

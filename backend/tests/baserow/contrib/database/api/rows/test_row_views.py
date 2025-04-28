@@ -186,8 +186,8 @@ def test_list_rows(api_client, data_fixture):
         f"{url}?size=2&page=3", format="json", HTTP_AUTHORIZATION=f"JWT {jwt_token}"
     )
     response_json = response.json()
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response_json["error"] == "ERROR_INVALID_PAGE"
+    assert response.status_code == HTTP_200_OK
+    assert response_json["results"] == []
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     response = api_client.get(

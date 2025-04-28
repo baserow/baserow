@@ -66,7 +66,7 @@ function populateRows({
     }
 
     fieldsInOrder.forEach((field, fieldIndex) => {
-      const fieldType = this.$registry.get('field', field.type)
+      const fieldType = registry.get('field', field.type)
       // We can't pre-filter because we need the correct filter index.
       if (fieldType.isReadOnlyField(field)) {
         return
@@ -270,7 +270,9 @@ export const mutations = {
     state,
     { rows, prependToRows, appendToRows, count, bufferStartIndex, bufferLimit }
   ) {
-    state.count = count
+    if (count !== undefined) {
+      state.count = count
+    }
     state.bufferStartIndex = bufferStartIndex
     state.bufferLimit = bufferLimit
 
@@ -833,6 +835,7 @@ export const actions = {
           groupBy: getGroupBy(rootGetters, getters.getLastGridId),
           orderBy: getOrderBy(view, getters.getAdhocSorting),
           filters: getFilters(view, getters.getAdhocFiltering),
+          excludeCount: getters.canExcludeCount,
         })
         .then(({ data }) => {
           // Don't do anything if the gridId does not match the current view gridId
@@ -1075,9 +1078,9 @@ export const actions = {
           count >= bufferEndIndex
             ? getters.getBufferStartIndex
             : Math.max(0, count - limit)
-        return { limit, offset }
+        return { limit, offset, count }
       })
-      .then(({ limit, offset }) =>
+      .then(({ limit, offset, count }) =>
         GridService(this.$client)
           .fetchRows({
             gridId,
@@ -1092,9 +1095,10 @@ export const actions = {
             groupBy: getGroupBy(rootGetters, getters.getLastGridId),
             orderBy: getOrderBy(view, adhocSorting),
             filters: getFilters(view, adhocFiltering),
+            excludeCount: true, // We already have it from the previous request.
           })
           .then(({ data }) => ({
-            data,
+            data: { ...data, count },
             offset,
           }))
       )
@@ -1798,6 +1802,7 @@ export const actions = {
       filters: getFilters(view, getters.getAdhocFiltering),
       includeFields: fields,
       excludeFields,
+      excludeCount: getters.canExcludeCount,
     })
     return data.results
   },
@@ -3262,6 +3267,12 @@ export const getters = {
   },
   getCount(state) {
     return state.count
+  },
+  canExcludeCount(state) {
+    // If the count has already been set for the view, there's no need to fetch it again
+    // considering it's slow for large tables. Every time something changes in the view,
+    // the refresh action is called making sure the count is up to date.
+    return state.count > 0
   },
   getRowHeight(state) {
     return state.rowHeight

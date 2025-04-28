@@ -57,6 +57,7 @@ def test_rows_enter_view_event_type(enterprise_data_fixture):
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_id": "1",
         "event_type": "view.rows_entered",
         "total_count": 1,
@@ -74,6 +75,7 @@ def test_rows_enter_view_event_type(enterprise_data_fixture):
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_id": "1",
         "event_type": "view.rows_entered",
         "total_count": 1,
@@ -103,6 +105,7 @@ def test_rows_enter_view_event_type(enterprise_data_fixture):
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_id": "1",
         "event_type": "view.rows_entered",
         "total_count": 1,
@@ -220,6 +223,7 @@ def test_rows_enter_view_event_event_type_test_payload(enterprise_data_fixture):
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_id": "1",
         "event_type": "view.rows_entered",
         "total_count": 1,
@@ -353,6 +357,13 @@ def test_rows_enter_view_event_type_paginate_data(
 
     responses.add(responses.POST, "http://localhost/", json={}, status=200)
 
+    webhook = WebhookHandler().create_table_webhook(
+        user=user,
+        table=table,
+        url="http://localhost/",
+        include_all_events=True,
+    )
+
     serialized_view = {
         "id": view.id,
         "table_id": table.id,
@@ -378,6 +389,7 @@ def test_rows_enter_view_event_type_paginate_data(
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_type": "view.rows_entered",
         "offset": 0,
         "total_count": 3,
@@ -392,10 +404,9 @@ def test_rows_enter_view_event_type_paginate_data(
     }
 
     with transaction.atomic():
-        WebhookHandler().create_table_webhook(
+        WebhookHandler().update_table_webhook(
             user=user,
-            table=table,
-            url="http://localhost/",
+            webhook=webhook,
             include_all_events=False,
             events=["view.rows_entered"],
             event_config=[{"event_type": "view.rows_entered", "views": [view.id]}],
@@ -430,6 +441,7 @@ def test_rows_enter_view_event_type_paginate_data(
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_type": "view.rows_entered",
         "offset": 2,
         "total_count": 3,

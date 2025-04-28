@@ -130,7 +130,7 @@ def test_admin_with_invalid_token_cannot_see_admin_users(api_client, data_fixtur
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_admin_accessing_invalid_user_admin_page_returns_error(
+def test_admin_accessing_invalid_user_admin_page_returns_empty_list(
     api_client, data_fixture
 ):
     _, token = data_fixture.create_user_and_token(
@@ -145,8 +145,9 @@ def test_admin_accessing_invalid_user_admin_page_returns_error(
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_INVALID_PAGE"
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["count"] == 1
+    assert response.json()["results"] == []
 
 
 @pytest.mark.django_db

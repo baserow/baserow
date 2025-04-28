@@ -14,6 +14,7 @@ from .auth_provider import urls as auth_provider_urls
 from .health import urls as health_urls
 from .integrations import urls as integrations_urls
 from .jobs import urls as jobs_urls
+from .mcp import urls as mcp_urls
 from .notifications import urls as notifications_urls
 from .settings import urls as settings_urls
 from .snapshots import urls as snapshots_urls
@@ -49,6 +50,7 @@ urlpatterns = (
         path("_health/", include(health_urls, namespace="health")),
         path("notifications/", include(notifications_urls, namespace="notifications")),
         path("admin/", include(admin_urls, namespace="admin")),
+        path("mcp/", include(mcp_urls, namespace="mcp")),
         path(
             "",
             include(integrations_urls, namespace="integrations"),

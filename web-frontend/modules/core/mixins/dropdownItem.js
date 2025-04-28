@@ -98,7 +98,8 @@ export default {
     },
     isActive(value) {
       if (this.multiple.value) {
-        return this.parent.value.includes(value)
+        const parentValue = this.parent.value ?? []
+        return parentValue.includes(value)
       } else {
         return this.parent.value === value
       }

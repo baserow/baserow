@@ -19,6 +19,8 @@ from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS,
     ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
+    EXCLUDE_COUNT_API_PARAM,
+    ONLY_COUNT_API_PARAM,
     SEARCH_MODE_API_PARAM,
 )
 from baserow.contrib.database.api.fields.errors import (
@@ -81,12 +83,8 @@ class GalleryViewView(APIView):
                 description="Returns only rows that belong to the related view's "
                 "table.",
             ),
-            OpenApiParameter(
-                name="count",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.BOOL,
-                description="If provided only the count will be returned.",
-            ),
+            ONLY_COUNT_API_PARAM,
+            EXCLUDE_COUNT_API_PARAM,
             OpenApiParameter(
                 name="include",
                 location=OpenApiParameter.QUERY,
@@ -229,7 +227,7 @@ class GalleryViewView(APIView):
         if order_by is not None:
             queryset = queryset.order_by_fields_string(order_by, False)
 
-        if "count" in request.GET:
+        if ONLY_COUNT_API_PARAM.name in request.GET:
             return Response({"count": queryset.count()})
 
         paginator = GalleryLimitOffsetPagination()

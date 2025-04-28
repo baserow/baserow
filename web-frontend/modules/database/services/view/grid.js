@@ -18,6 +18,7 @@ export default (client) => {
       filters = {},
       includeFields = [],
       excludeFields = [],
+      excludeCount = false,
     }) {
       const include = []
       const params = new URLSearchParams()
@@ -25,6 +26,10 @@ export default (client) => {
 
       if (offset !== null) {
         params.append('offset', offset)
+      }
+
+      if (excludeCount) {
+        params.append('exclude_count', true)
       }
 
       if (includeFieldOptions) {
