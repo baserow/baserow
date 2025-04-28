@@ -112,7 +112,7 @@ class FieldPermissionManagerType(PermissionManagerType):
 
             # WriteFieldValuesOperationType
             required_role = field_perm.role
-            if required_role == FieldPermissions.NOBDOY_ROLE_UID:
+            if required_role == FieldPermissions.NOBODY_ROLE_UID:
                 result[check] = PermissionDenied()
                 continue
             elif required_role == FieldPermissions.CUSTOM_ROLE_UID:
@@ -277,7 +277,7 @@ class FieldPermissionManagerType(PermissionManagerType):
             if not field_perm.allow_in_forms:
                 can_submit_values_exceptions.add(field_perm.field_id)
 
-            if field_perm.role == FieldPermissions.NOBDOY_ROLE_UID:
+            if field_perm.role == FieldPermissions.NOBODY_ROLE_UID:
                 can_write_values_exceptions.add(field_perm.field_id)
             elif field_perm.role == FieldPermissions.CUSTOM_ROLE_UID:
                 # TODO: implement the check here.

@@ -211,7 +211,7 @@ export default (context) => {
 
   if (app.$featureFlagIsEnabled(FF_FIELD_PERMISSIONS)) {
     app.$registry.register(
-      'updateFieldMenuItemType',
+      'fieldContextItemType',
       new FieldPermissionMenuItemType(context)
     )
   }

@@ -821,13 +821,12 @@ export class FieldType extends Registerable {
    * permission to write to the field.
    */
   canWriteFieldValues(field) {
-    const database = this.app.store.getters['field/getDatabase']
     return (
       !this.isReadOnlyField(field) &&
       this.app.$hasPermission(
         'database.table.field.write_values',
         field,
-        database.workspace.id
+        field.workspace_id
       )
     )
   }

@@ -74,12 +74,6 @@ class FieldPermissionsView(APIView):
 
         field = FieldHandler().get_field(field_id)
         workspace = field.table.database.workspace
-        CoreHandler().check_permissions(
-            request.user,
-            ReadFieldOperationType.type,
-            workspace=workspace,
-            context=field,
-        )
         LicenseHandler.raise_if_user_doesnt_have_feature(
             FIELD_LEVEL_PERMISSIONS, request.user, workspace
         )
@@ -114,7 +108,6 @@ class FieldPermissionsView(APIView):
             "Retrieve the permissions for writing field values and form visibility of a specific field."
             "\n\nThis is a **enterprise** feature."
         ),
-        request=UpdateFieldPermissionsRequestSerializer,
         responses={
             200: UpdateFieldPermissionsResponseSerializer,
             400: get_error_schema(

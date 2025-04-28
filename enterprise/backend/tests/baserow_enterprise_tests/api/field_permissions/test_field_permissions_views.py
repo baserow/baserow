@@ -106,18 +106,6 @@ def test_cannot_update_field_permissions(api_client, enterprise_data_fixture):
 
     assert rsp.status_code == HTTP_404_NOT_FOUND
 
-    # User not in workspace
-    rsp = api_client.patch(
-        reverse(
-            "api:enterprise:field_permissions:item",
-            kwargs={"field_id": field.id},
-        ),
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {ext_token}",
-        data={"role": "NOBODY"},
-    )
-    assert rsp.status_code == HTTP_400_BAD_REQUEST
-
     # Missing license
     rsp = api_client.patch(
         reverse(
@@ -132,6 +120,18 @@ def test_cannot_update_field_permissions(api_client, enterprise_data_fixture):
     assert rsp.status_code == HTTP_402_PAYMENT_REQUIRED
 
     enterprise_data_fixture.enable_enterprise()
+
+    # User not in workspace
+    rsp = api_client.patch(
+        reverse(
+            "api:enterprise:field_permissions:item",
+            kwargs={"field_id": field.id},
+        ),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {ext_token}",
+        data={"role": "NOBODY"},
+    )
+    assert rsp.status_code == HTTP_400_BAD_REQUEST
 
     # Editors and lower cannot get field permissions
     editor_role = Role.objects.get(uid="EDITOR")

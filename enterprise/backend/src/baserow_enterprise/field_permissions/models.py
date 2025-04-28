@@ -20,7 +20,7 @@ class FieldPermissions(CreatedAndUpdatedOnMixin):
     roles permit to add or update data to users with that role or higher.
     """
 
-    NOBDOY_ROLE_UID = "NOBODY"
+    NOBODY_ROLE_UID = "NOBODY"
     CUSTOM_ROLE_UID = "CUSTOM"
 
     field = models.OneToOneField(

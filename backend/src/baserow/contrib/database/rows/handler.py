@@ -703,9 +703,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             context=table,
         )
 
-        if model is None:
-            model = table.get_model()
-
         if not values:
             values = {}
 
@@ -1828,8 +1825,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         field_ids = self._extract_updated_field_ids(rows_values, model)
 
         fields = [
-            model.get_field_object_by_id(field_id, include_trash=True)["field"]
-            for field_id in field_ids
+            fo["field"]
+            for fo in model.get_field_objects(include_trash=True)
+            if fo["field"].id in field_ids
         ]
         table = model.baserow_table
         perm_checks = [
@@ -1839,7 +1837,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         results = CoreHandler().check_multiple_permissions(
             perm_checks, table.database.workspace
         )
-        unwritable_fields = [c.context for (c, res) in results.items() if not res]
+        unwritable_fields = [
+            c.context for (c, has_permissions) in results.items() if not has_permissions
+        ]
         if unwritable_fields and raise_if_not_permitted:
             raise PermissionDenied(
                 f"You don't have permission to update the following fields: {', '.join([f.name for f in unwritable_fields])}"
@@ -2193,11 +2193,14 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :return: A set of field ids that are updated.
         """
 
+        model_field_ids = set([field_id for field_id in model._field_objects.keys()])
+
         updated_field_ids = set()
-        for row_values in rows_values:
-            for field_id, field_obj in model._field_objects.items():
-                if field_id in row_values or field_obj["name"] in row_values:
-                    updated_field_ids.add(field_id)
+        for row in rows_values:
+            row_keys = self.extract_field_ids_from_dict(row)
+            row_field_ids = set(row_keys) & model_field_ids
+            updated_field_ids |= row_field_ids
+
         return updated_field_ids
 
     def get_rows(

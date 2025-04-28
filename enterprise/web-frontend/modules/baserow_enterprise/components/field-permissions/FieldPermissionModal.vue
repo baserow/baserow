@@ -28,9 +28,8 @@
           :description="r.desc"
         ></DropdownItem>
       </Dropdown>
-      <FormGroup class="margin-bottom-2 margin-top-3">
+      <FormGroup v-if="showAllowInForms" class="margin-bottom-2 margin-top-3">
         <SwitchInput
-          v-if="showAllowInForms"
           small
           :value="allowInForms"
           @input="toggleAllowInForms"
@@ -72,9 +71,9 @@ export default {
       allowInForms: false,
       roles: [
         {
-          uid: 'EDITOR',
-          title: this.$t('fieldPermissionModal.editorTitle'),
-          desc: this.$t('fieldPermissionModal.editorDescription'),
+          uid: 'ADMIN',
+          title: this.$t('fieldPermissionModal.adminTitle'),
+          desc: this.$t('fieldPermissionModal.adminDescription'),
         },
         {
           uid: 'BUILDER',
@@ -82,9 +81,9 @@ export default {
           desc: this.$t('fieldPermissionModal.builderDescription'),
         },
         {
-          uid: 'ADMIN',
-          title: this.$t('fieldPermissionModal.adminTitle'),
-          desc: this.$t('fieldPermissionModal.adminDescription'),
+          uid: 'EDITOR',
+          title: this.$t('fieldPermissionModal.editorTitle'),
+          desc: this.$t('fieldPermissionModal.editorDescription'),
         },
         {
           uid: 'NOBODY',

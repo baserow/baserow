@@ -54,42 +54,20 @@ export class RolePermissionManagerType extends PermissionManagerType {
   }
 }
 
-const writeOpName = 'database.table.field.write_values'
-const submitOpName = 'database.table.field.submit_anonymous_values'
+const WRITE_FIELD_VALUES_OPERATION_NAME = 'database.table.field.write_values'
+const SUBMIT_FORM_VALUES_OPERATION_NAME =
+  'database.table.field.submit_anonymous_values'
+
 export class WriteFieldValuesPermissionManagerType extends PermissionManagerType {
   static getType() {
     return 'write_field_values'
   }
 
-  getRolesTranslations() {
-    const { i18n } = this.app
-
-    return {
-      ADMIN: {
-        name: i18n.t('roles.admin.name'),
-        description: i18n.t('roles.admin.description'),
-      },
-      BUILDER: {
-        name: i18n.t('roles.builder.name'),
-        description: i18n.t('roles.builder.description'),
-      },
-      EDITOR: {
-        name: i18n.t('roles.editor.name'),
-        description: i18n.t('roles.editor.description'),
-      },
-      CUSTOM: {
-        name: i18n.t('fieldPermissionManager.customRole.name'),
-        description: i18n.t('fieldPermissionManager.customRole.description'),
-      },
-      NOBODY: {
-        name: i18n.t('fieldPermissionManager.nobody.name'),
-        description: i18n.t('fieldPermissionManager.nobody.description'),
-      },
-    }
-  }
-
   hasPermission(permissions, operation, context, workspaceId) {
-    const opNames = new Set([writeOpName, submitOpName])
+    const opNames = new Set([
+      WRITE_FIELD_VALUES_OPERATION_NAME,
+      SUBMIT_FORM_VALUES_OPERATION_NAME,
+    ])
     if (opNames.has(operation)) {
       return !permissions[operation].exceptions.includes(context.id)
     }
@@ -114,7 +92,7 @@ export class WriteFieldValuesPermissionManagerType extends PermissionManagerType
     const newPermissions = permissions.map((manager) => {
       if (manager.name !== this.getType()) return manager
 
-      const writePolicy = manager.permissions[writeOpName]
+      const writePolicy = manager.permissions[WRITE_FIELD_VALUES_OPERATION_NAME]
       let writeExc
       if (canWriteFieldValues) {
         writeExc = writePolicy.exceptions.filter((exc) => exc !== fieldId)
@@ -122,7 +100,8 @@ export class WriteFieldValuesPermissionManagerType extends PermissionManagerType
         writeExc = Array.from(new Set([...writePolicy.exceptions, fieldId]))
       }
 
-      const submitPolicy = manager.permissions[submitOpName]
+      const submitPolicy =
+        manager.permissions[SUBMIT_FORM_VALUES_OPERATION_NAME]
       let submitExc
       if (canSubmitAnonymousValues) {
         submitExc = submitPolicy.exceptions.filter((exc) => exc !== fieldId)
@@ -133,8 +112,14 @@ export class WriteFieldValuesPermissionManagerType extends PermissionManagerType
       return {
         ...manager,
         permissions: {
-          [writeOpName]: { ...writePolicy, exceptions: writeExc },
-          [submitOpName]: { ...submitPolicy, exceptions: submitExc },
+          [WRITE_FIELD_VALUES_OPERATION_NAME]: {
+            ...writePolicy,
+            exceptions: writeExc,
+          },
+          [SUBMIT_FORM_VALUES_OPERATION_NAME]: {
+            ...submitPolicy,
+            exceptions: submitExc,
+          },
         },
       }
     })
