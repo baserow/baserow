@@ -19,6 +19,7 @@ from django.db.models import QuerySet
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
     ElementNotInSamePage,
+    ElementTypeDeactivated,
 )
 from baserow.contrib.builder.elements.models import ContainerElement, Element
 from baserow.contrib.builder.elements.registries import (
@@ -337,6 +338,9 @@ class ElementHandler:
             recalculated in this case before calling this method again.
         :return: The created element.
         """
+
+        if element_type.is_deactivated(page.builder.workspace):
+            raise ElementTypeDeactivated()
 
         parent_element_id = kwargs.get("parent_element_id", None)
         place_in_container = kwargs.get("place_in_container", None)

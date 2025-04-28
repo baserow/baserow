@@ -8,6 +8,7 @@ from baserow.core.models import Workspace
 from baserow_enterprise.features import (
     ADVANCED_WEBHOOKS,
     AUDIT_LOG,
+    BUILDER_FILE_INPUT,
     BUILDER_NO_BRANDING,
     BUILDER_SSO,
     DATA_SYNC,
@@ -40,6 +41,7 @@ class EnterpriseWithoutSupportLicenseType(LicenseType):
         BUILDER_NO_BRANDING,
         ADVANCED_WEBHOOKS,
         FIELD_LEVEL_PERMISSIONS,
+        BUILDER_FILE_INPUT,
     ]
     instance_wide = True
     seats_manually_assigned = False

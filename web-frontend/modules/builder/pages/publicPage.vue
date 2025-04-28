@@ -296,6 +296,7 @@ export default {
     },
     applicationContext() {
       return {
+        workspace: this.workspace,
         builder: this.builder,
         pageParamsValue: this.params,
         mode: this.mode,

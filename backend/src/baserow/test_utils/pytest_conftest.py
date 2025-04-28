@@ -243,6 +243,15 @@ def mutable_webhook_event_type_registry():
 
 
 @pytest.fixture()
+def mutable_element_type_registry():
+    from baserow.contrib.builder.elements.registries import element_type_registry
+
+    before = element_type_registry.registry.copy()
+    yield element_type_registry
+    element_type_registry.registry = before
+
+
+@pytest.fixture()
 def stub_user_source_registry(data_fixture, mutable_user_source_registry, fake):
     from baserow.core.user_sources.registries import UserSourceType
 

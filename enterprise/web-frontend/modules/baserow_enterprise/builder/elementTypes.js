@@ -11,11 +11,15 @@ import {
   ensureArray,
   ensureString,
 } from '@baserow/modules/core/utils/validator'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { SSOPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 import { AfterLoginEvent } from '@baserow/modules/builder/eventTypes'
 
 import elementImageAuthForm from '@baserow_enterprise/assets/images/builder/element-auth_form.svg'
 import elementImageFileInput from '@baserow_enterprise/assets/images/builder/element-file_input.svg'
+
+import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 
 export class AuthFormElementType extends ElementType {
   static getType() {
@@ -210,5 +214,32 @@ export class FileInputElementType extends FormElementType {
     } catch {
       return element.multiple ? [] : null
     }
+  }
+
+  isDeactivatedReason({ workspace }) {
+    if (
+      !this.app.$hasFeature(
+        EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
+        workspace
+      )
+    ) {
+      return this.app.i18n.t('enterprise.deactivated')
+    }
+    return super.isDeactivatedReason({ workspace })
+  }
+
+  getDeactivatedClickModal({ workspace }) {
+    if (
+      !this.app.$hasFeature(
+        EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
+        workspace
+      )
+    ) {
+      return [
+        PaidFeaturesModal,
+        { 'initial-selected-type': SSOPaidFeature.getType() },
+      ]
+    }
+    return null
   }
 }

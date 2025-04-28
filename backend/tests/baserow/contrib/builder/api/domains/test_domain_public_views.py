@@ -444,6 +444,43 @@ def test_get_elements_of_public_builder(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_elements_of_public_builder_with_deactivated(api_client, data_fixture):
+    user = data_fixture.create_user()
+    builder_from = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(user=user, workspace=None)
+    page = data_fixture.create_builder_page(builder=builder_to, user=user)
+    element1 = data_fixture.create_builder_heading_element(page=page)
+    element2 = data_fixture.create_builder_heading_element(page=page)
+    element3 = data_fixture.create_builder_text_element(page=page)
+
+    element_type = element3.get_type()
+
+    prev_is_deactivated = element_type.is_deactivated
+    element_type.is_deactivated = lambda x: True
+
+    domain = data_fixture.create_builder_custom_domain(
+        domain_name="test.getbaserow.io",
+        published_to=page.builder,
+        builder=builder_from,
+    )
+
+    url = reverse(
+        "api:builder:domains:list_elements",
+        kwargs={"page_id": page.id},
+    )
+    response = api_client.get(
+        url,
+        format="json",
+    )
+    response_json = response.json()
+
+    element_type.is_deactivated = prev_is_deactivated
+
+    assert response.status_code == HTTP_200_OK
+    assert len(response_json) == 2
+
+
+@pytest.mark.django_db
 def test_get_elements_of_public_builder_permission_denied(api_client, data_fixture):
     user = data_fixture.create_user()
     builder_from = data_fixture.create_builder_application(user=user)

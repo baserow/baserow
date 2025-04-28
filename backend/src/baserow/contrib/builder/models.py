@@ -66,3 +66,12 @@ class Builder(Application):
         from baserow.contrib.builder.pages.handler import PageHandler
 
         return PageHandler().get_shared_page(self)
+
+    def get_workspace(self):
+        from baserow.contrib.builder.domains.handler import DomainHandler
+
+        if not self.workspace_id:
+            domain = DomainHandler().get_domain_for_builder(self)
+            return domain.builder.workspace
+        else:
+            return self.workspace
