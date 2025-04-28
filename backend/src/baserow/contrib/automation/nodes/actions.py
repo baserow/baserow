@@ -4,10 +4,7 @@ from typing import List
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
-from baserow.contrib.automation.action.scopes import (
-    NodeActionScopeType,
-    WorkflowActionScopeType,
-)
+from baserow.contrib.automation.action.scopes import WorkflowActionScopeType
 from baserow.contrib.automation.actions import (
     AUTOMATION_ACTION_CONTEXT,
     AUTOMATION_WORKFLOW_CONTEXT,
@@ -55,14 +52,14 @@ class CreateAutomationNodeActionType(UndoableActionType):
                 node.workflow.automation.name,
                 node.id,
             ),
-            scope=cls.scope(node.id),
+            scope=cls.scope(node.workflow.id),
             workspace=node.workflow.automation.workspace,
         )
         return node
 
     @classmethod
-    def scope(cls, node_id):
-        return NodeActionScopeType.value(node_id)
+    def scope(cls, workflow_id):
+        return WorkflowActionScopeType.value(workflow_id)
 
     @classmethod
     def undo(
@@ -121,14 +118,14 @@ class UpdateAutomationNodeActionType(UndoableActionType):
                 updated_node.original_values,
                 updated_node.new_values,
             ),
-            scope=cls.scope(node_id),
+            scope=cls.scope(updated_node.node.workflow.id),
             workspace=updated_node.node.workflow.automation.workspace,
         )
         return updated_node.node
 
     @classmethod
-    def scope(cls, node_id):
-        return NodeActionScopeType.value(node_id)
+    def scope(cls, workflow_id):
+        return WorkflowActionScopeType.value(workflow_id)
 
     @classmethod
     def undo(
@@ -178,13 +175,13 @@ class DeleteAutomationNodeActionType(UndoableActionType):
                 automation.name,
                 node_id,
             ),
-            scope=cls.scope(node_id),
+            scope=cls.scope(node.workflow.id),
             workspace=automation.workspace,
         )
 
     @classmethod
-    def scope(cls, node_id):
-        return NodeActionScopeType.value(node_id)
+    def scope(cls, workflow_id):
+        return WorkflowActionScopeType.value(workflow_id)
 
     @classmethod
     def undo(
@@ -304,14 +301,14 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
                 node_clone.id,
                 node_id,
             ),
-            scope=cls.scope(node_clone.id),
+            scope=cls.scope(node.workflow.id),
             workspace=node.workflow.automation.workspace,
         )
         return node_clone
 
     @classmethod
-    def scope(cls, node_id):
-        return NodeActionScopeType.value(node_id)
+    def scope(cls, workflow_id):
+        return WorkflowActionScopeType.value(workflow_id)
 
     @classmethod
     def undo(

@@ -7,10 +7,7 @@ class AutomationConfig(AppConfig):
     name = "baserow.contrib.automation"
 
     def ready(self):
-        from baserow.contrib.automation.action.scopes import (
-            NodeActionScopeType,
-            WorkflowActionScopeType,
-        )
+        from baserow.contrib.automation.action.scopes import WorkflowActionScopeType
         from baserow.contrib.automation.application_types import (
             AutomationApplicationType,
         )
@@ -125,7 +122,6 @@ class AutomationConfig(AppConfig):
             action_type_registry.register(OrderAutomationNodesActionType())
             action_type_registry.register(DuplicateAutomationNodeActionType())
 
-            action_scope_registry.register(NodeActionScopeType())
             action_scope_registry.register(WorkflowActionScopeType())
 
             automation_node_type_registry.register(CreateRowNodeType())
