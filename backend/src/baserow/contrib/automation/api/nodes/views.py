@@ -246,7 +246,7 @@ class OrderAutomationNodesView(APIView):
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
         tags=[AUTOMATION_NODES_TAG],
-        operation_id="order_automation_node",
+        operation_id="order_automation_nodes",
         description="Apply a new order to the nodes of a workflow.",
         request=OrderAutomationNodesSerializer,
         responses={
