@@ -13,6 +13,10 @@ import ABImage from '@baserow/modules/builder/components/elements/baseComponents
 import ABParagraph from '@baserow/modules/builder/components/elements/baseComponents/ABParagraph.vue'
 import ABTag from '@baserow/modules/builder/components/elements/baseComponents/ABTag.vue'
 import ABTable from '@baserow/modules/builder/components/elements/baseComponents/ABTable.vue'
+import ABFileInput from '@baserow/modules/builder/components/elements/baseComponents/ABFileInput'
+import ABAvatar from '@baserow/modules/builder/components/elements/baseComponents/ABAvatar'
+import ABPresentation from '@baserow/modules/builder/components/elements/baseComponents/ABPresentation'
+import ABIcon from '@baserow/modules/builder/components/elements/baseComponents/ABIcon'
 
 function setupVueForAB(Vue) {
   Vue.component('ABButton', ABButton)
@@ -28,6 +32,10 @@ function setupVueForAB(Vue) {
   Vue.component('ABParagraph', ABParagraph)
   Vue.component('ABTag', ABTag)
   Vue.component('ABTable', ABTable)
+  Vue.component('ABFileInput', ABFileInput)
+  Vue.component('ABAvatar', ABAvatar)
+  Vue.component('ABPresentation', ABPresentation)
+  Vue.component('ABIcon', ABIcon)
 }
 
 setupVueForAB(Vue)

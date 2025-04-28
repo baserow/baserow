@@ -9,7 +9,10 @@
     <div class="add-element-card__element-type">
       <div
         class="add-element-card__element-type-icon"
-        :class="`add-element-card__element-type-icon-${elementType.getType()}`"
+        :test="elementType.image"
+        :style="{
+          backgroundImage: `url(${elementType.image})`,
+        }"
       ></div>
     </div>
     <div v-if="loading" class="loading"></div>

@@ -180,12 +180,24 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
 
 export class WorkflowActionServiceType extends WorkflowActionType {
   execute({ workflowAction: { id }, applicationContext, resolveFormula }) {
+    const data = DataProviderType.getAllActionDispatchContext(
+      this.app.$registry.getAll('builderDataProvider'),
+      applicationContext
+    )
+    const files = {}
+    const result = Object.fromEntries(
+      Object.entries(data).map(([key, value]) => {
+        if (Array.isArray(value)) {
+          Object.assign(files, value[1])
+          return [key, value[0]]
+        }
+        return [key, value]
+      })
+    )
     return this.app.store.dispatch('workflowAction/dispatchAction', {
       workflowActionId: id,
-      data: DataProviderType.getAllActionDispatchContext(
-        this.app.$registry.getAll('builderDataProvider'),
-        applicationContext
-      ),
+      data: result,
+      files,
     })
   }
 

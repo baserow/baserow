@@ -1,3 +1,8 @@
+from unittest.mock import MagicMock
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test.utils import override_settings
+
 import pytest
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
@@ -16,9 +21,11 @@ from rest_framework.fields import (
 )
 from rest_framework.serializers import ListSerializer, Serializer
 
+from baserow.contrib.database.api.fields.serializers import FileFieldRequestSerializer
 from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
+    prepare_files_for_db,
 )
 from baserow.core.formula.validator import (
     ensure_array,
@@ -28,6 +35,9 @@ from baserow.core.formula.validator import (
     ensure_integer,
     ensure_string,
 )
+from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.user_files.handler import UserFileHandler
+from baserow.test_utils.helpers import AnyInt, AnyStr
 
 
 def test_guess_type_for_response_serialize_field_permutations():
@@ -119,4 +129,302 @@ def test_guess_type_for_response_serialize_field_permutations():
     ],
 )
 def test_guess_cast_function_from_response_serialize_field(serializer, expected):
-    assert guess_cast_function_from_response_serializer_field(serializer) == expected
+    assert (
+        guess_cast_function_from_response_serializer_field(serializer, None) == expected
+    )
+
+
+@pytest.mark.django_db
+def test_guess_cast_function_for_filefieldserializer(data_fixture, fake):
+    user = data_fixture.create_user()
+    service = MagicMock()
+    service.integration = MagicMock()
+    service.integration.authorized_user = user
+    prepare = guess_cast_function_from_response_serializer_field(
+        FileFieldRequestSerializer(), service
+    )
+
+    value = {
+        "__file__": True,
+        "name": "superfile",
+        "file": SimpleUploadedFile(
+            name="avatar.png", content=fake.image(), content_type="image/png"
+        ),
+    }
+
+    assert prepare(value) == [
+        {
+            "image_height": 256,
+            "image_width": 256,
+            "is_image": True,
+            "mime_type": "image/png",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+    ]
+
+
+@pytest.mark.parametrize(
+    "value,result",
+    [
+        (None, []),
+        ("", []),
+        ({}, [{}]),
+        ({"prop": 1}, [{"prop": 1}]),
+        ([{}], [{}]),
+        ([{"prop": 1}], [{"prop": 1}]),
+    ],
+)
+@pytest.mark.django_db
+def test_prepare_file_for_db(data_fixture, value, result):
+    user = data_fixture.create_user()
+
+    assert prepare_files_for_db(value, user) == result
+
+
+@pytest.mark.django_db
+def test_prepare_file_for_db_with_file(data_fixture, fake):
+    user = data_fixture.create_user()
+
+    image = fake.image()
+
+    value = {
+        "__file__": True,
+        "name": "superfile",
+        "file": SimpleUploadedFile(
+            name="avatar.png", content=image, content_type="image/png"
+        ),
+    }
+
+    assert prepare_files_for_db(value, user) == [
+        {
+            "image_height": 256,
+            "image_width": 256,
+            "is_image": True,
+            "mime_type": "image/png",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+    ]
+
+    value = [
+        {
+            "__file__": True,
+            "name": "superfile1",
+            "file": SimpleUploadedFile(
+                name="avatar.png", content=image, content_type="image/png"
+            ),
+        },
+        {
+            "__file__": True,
+            "name": "superfile2",
+            "file": SimpleUploadedFile(
+                name="avatar.png", content=image, content_type="image/png"
+            ),
+        },
+    ]
+
+    assert prepare_files_for_db(value, user) == [
+        {
+            "image_height": 256,
+            "image_width": 256,
+            "is_image": True,
+            "mime_type": "image/png",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+        {
+            "image_height": 256,
+            "image_width": 256,
+            "is_image": True,
+            "mime_type": "image/png",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+    ]
+
+
+@pytest.mark.django_db
+def test_prepare_file_for_db_with_url(data_fixture):
+    user = data_fixture.create_user()
+
+    value = {
+        "__file__": True,
+        "name": "filename",
+        "url": "https://picsum.photos/200/300",
+    }
+
+    assert prepare_files_for_db(value, user) == [
+        {
+            "image_height": 300,
+            "image_width": 200,
+            "is_image": True,
+            "mime_type": "image/jpeg",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+    ]
+
+    assert prepare_files_for_db([value, value], user) == [
+        {
+            "image_height": 300,
+            "image_width": 200,
+            "is_image": True,
+            "mime_type": "image/jpeg",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+        {
+            "image_height": 300,
+            "image_width": 200,
+            "is_image": True,
+            "mime_type": "image/jpeg",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+    ]
+
+
+@pytest.mark.django_db
+def test_prepare_file_for_db_with_unreachable_url(data_fixture):
+    user = data_fixture.create_user()
+
+    value = {
+        "__file__": True,
+        "name": "filename",
+        "url": "https://somenthing.doesnt.exist.com",
+    }
+
+    with pytest.raises(ServiceImproperlyConfigured):
+        prepare_files_for_db(value, user)
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB=1)
+def test_prepare_file_for_db_with_toolarge_url(data_fixture, fake):
+    user = data_fixture.create_user()
+    image = fake.image(size=(1000, 1000))
+
+    value = {
+        "__file__": True,
+        "name": "superfile",
+        "file": SimpleUploadedFile(
+            name="avatar.png", content=image, content_type="image/png"
+        ),
+    }
+
+    with pytest.raises(ServiceImproperlyConfigured):
+        prepare_files_for_db(value, user)
+
+
+@pytest.mark.django_db
+def test_prepare_file_for_db_with_existing_file(data_fixture):
+    user = data_fixture.create_user()
+    user_file = data_fixture.create_user_file(
+        original_name=f"a.txt",
+    )
+
+    value = {
+        "__file__": True,
+        "name": "filename",
+        "url": UserFileHandler().get_user_file_url(user_file),
+    }
+
+    assert prepare_files_for_db(value, user) == [
+        {
+            "image_height": None,
+            "image_width": None,
+            "is_image": False,
+            "mime_type": "text/plain",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+    ]
+
+    assert prepare_files_for_db([value, value], user) == [
+        {
+            "image_height": None,
+            "image_width": None,
+            "is_image": False,
+            "mime_type": "text/plain",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+        {
+            "image_height": None,
+            "image_width": None,
+            "is_image": False,
+            "mime_type": "text/plain",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+    ]
+
+
+@pytest.mark.django_db
+def test_prepare_file_for_db_with_mix(data_fixture, fake):
+    user = data_fixture.create_user()
+    user_file = data_fixture.create_user_file(
+        original_name=f"a.txt",
+    )
+    image = fake.image()
+
+    value = [
+        {
+            "__file__": True,
+            "name": "filename",
+            "url": UserFileHandler().get_user_file_url(user_file),
+        },
+        {
+            "__file__": True,
+            "name": "filename",
+            "url": "https://picsum.photos/300/200",
+        },
+        {
+            "__file__": True,
+            "name": "superfile",
+            "file": SimpleUploadedFile(
+                name="avatar.png", content=image, content_type="image/png"
+            ),
+        },
+    ]
+
+    assert prepare_files_for_db(value, user) == [
+        {
+            "image_height": None,
+            "image_width": None,
+            "is_image": False,
+            "mime_type": "text/plain",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+        {
+            "image_height": 200,
+            "image_width": 300,
+            "is_image": True,
+            "mime_type": "image/jpeg",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+        {
+            "image_height": 256,
+            "image_width": 256,
+            "is_image": True,
+            "mime_type": "image/png",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+        },
+    ]

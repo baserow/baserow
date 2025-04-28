@@ -17,6 +17,7 @@
 .presentation__title {
   font-size: 13px;
   margin-bottom: 3px;
+  line-height: 16px;
 
   @extend %ellipsis;
 }

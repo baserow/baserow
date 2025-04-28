@@ -33,7 +33,10 @@ import {
   SamlAppAuthProviderType,
   OpenIdConnectAppAuthProviderType,
 } from '@baserow_enterprise/integrations/appAuthProviderTypes'
-import { AuthFormElementType } from '@baserow_enterprise/builder/elementTypes'
+import {
+  AuthFormElementType,
+  FileInputElementType,
+} from '@baserow_enterprise/builder/elementTypes'
 import {
   EnterpriseAdminRoleType,
   EnterpriseMemberRoleType,
@@ -152,6 +155,7 @@ export default (context) => {
   app.$registry.register('roles', new NoRoleLowPriorityRoleType(context))
 
   app.$registry.register('element', new AuthFormElementType(context))
+  app.$registry.register('element', new FileInputElementType(context))
 
   app.$registry.register('dataSync', new LocalBaserowTableDataSyncType(context))
   app.$registry.register('dataSync', new JiraIssuesDataSyncType(context))

@@ -49,15 +49,14 @@ export default (client) => {
 
       return client.post(
         `builder/data-source/${dataSourceId}/dispatch/`,
-        dispatchContext,
+        { metadata: dispatchContext },
         config
       )
     },
     dispatchAll(pageId, params) {
-      return client.post(
-        `builder/page/${pageId}/dispatch-data-sources/`,
-        params
-      )
+      return client.post(`builder/page/${pageId}/dispatch-data-sources/`, {
+        metadata: params,
+      })
     },
     /**
      * Group multiple calls in one query to optimize perfs

@@ -107,6 +107,8 @@ export default {
             applicationContext: this.applicationContext,
           })
         } catch (e) {
+          // Let's log the error for now as we don's have specific messages.
+          console.log('Error during action', e)
           let toastTitle = this.$i18n.t(
             'dispatchWorkflowActionError.defaultTitle'
           )

@@ -655,7 +655,27 @@ export class FormDataProviderType extends DataProviderType {
   }
 
   getActionDispatchContext(applicationContext) {
-    return this.getDataContent(applicationContext)
+    const { page } = applicationContext
+    const dataContent = this.getDataContent(applicationContext)
+
+    const files = {}
+
+    const updatedValue = Object.fromEntries(
+      Object.entries(dataContent).map(([elementId, value]) => {
+        const element = this.app.store.getters['element/getElementById'](
+          page,
+          elementId
+        )
+        const elementType = this.app.$registry.get('element', element.type)
+
+        return [
+          elementId,
+          elementType.beforeActionDispatchContext(element, value, files),
+        ]
+      })
+    )
+
+    return [updatedValue, files]
   }
 
   /**

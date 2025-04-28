@@ -70,6 +70,29 @@ import RatingElement from '@baserow/modules/builder/components/elements/componen
 import RatingInputElement from '@baserow/modules/builder/components/elements/components/RatingInputElement.vue'
 import RatingInputElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingInputElementForm.vue'
 
+// Images for element modal
+import elementImageButton from '@baserow/modules/builder/assets/icons/element-button.svg'
+import elementImageChoice from '@baserow/modules/builder/assets/icons/element-choice.svg'
+import elementImageCheckbox from '@baserow/modules/builder/assets/icons/element-checkbox.svg'
+import elementImageColumn from '@baserow/modules/builder/assets/icons/element-column.svg'
+import elementImageDatetimePicker from '@baserow/modules/builder/assets/icons/element-datetime_picker.svg'
+import elementImageFooter from '@baserow/modules/builder/assets/icons/element-footer.svg'
+import elementImageFormContainer from '@baserow/modules/builder/assets/icons/element-form_container.svg'
+import elementImageHeader from '@baserow/modules/builder/assets/icons/element-header.svg'
+import elementImageHeading from '@baserow/modules/builder/assets/icons/element-heading.svg'
+import elementImageIFrame from '@baserow/modules/builder/assets/icons/element-iframe.svg'
+import elementImageImage from '@baserow/modules/builder/assets/icons/element-image.svg'
+import elementImageInputText from '@baserow/modules/builder/assets/icons/element-input_text.svg'
+import elementImageLink from '@baserow/modules/builder/assets/icons/element-link.svg'
+import elementImageMenu from '@baserow/modules/builder/assets/icons/element-menu.svg'
+import elementImageRatingInput from '@baserow/modules/builder/assets/icons/element-rating_input.svg'
+import elementImageRating from '@baserow/modules/builder/assets/icons/element-rating.svg'
+import elementImageRecordSelector from '@baserow/modules/builder/assets/icons/element-record_selector.svg'
+import elementImageRepeat from '@baserow/modules/builder/assets/icons/element-repeat.svg'
+import elementImageSimpleContainer from '@baserow/modules/builder/assets/icons/element-simple_container.svg'
+import elementImageTable from '@baserow/modules/builder/assets/icons/element-table.svg'
+import elementImageText from '@baserow/modules/builder/assets/icons/element-text.svg'
+
 export class ElementType extends Registerable {
   get name() {
     return null
@@ -85,6 +108,10 @@ export class ElementType extends Registerable {
 
   get iconClass() {
     return null
+  }
+
+  get image() {
+    throw new Error('image property must be implemented')
   }
 
   get component() {
@@ -725,6 +752,10 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     return 'iconoir-frame'
   }
 
+  get image() {
+    return elementImageFormContainer
+  }
+
   get component() {
     return FormContainerElement
   }
@@ -811,6 +842,10 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
     return 'iconoir-view-columns-3'
   }
 
+  get image() {
+    return elementImageColumn
+  }
+
   get component() {
     return ColumnElement
   }
@@ -887,6 +922,10 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
     return 'iconoir-square'
   }
 
+  get image() {
+    return elementImageSimpleContainer
+  }
+
   get component() {
     return SimpleContainerElement
   }
@@ -935,6 +974,10 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
 
   get iconClass() {
     return 'iconoir-table'
+  }
+
+  get image() {
+    return elementImageTable
   }
 
   get component() {
@@ -1007,6 +1050,10 @@ export class RepeatElementType extends CollectionElementTypeMixin(
 
   get iconClass() {
     return 'iconoir-repeat'
+  }
+
+  get image() {
+    return elementImageRepeat
   }
 
   get component() {
@@ -1098,6 +1145,17 @@ export class FormElementType extends ElementType {
       type: this.formDataType(element),
     }
   }
+
+  /**
+   * Hook to pre process actionDispatchContext before it's used.
+   * @param {Object} element the form element
+   * @param {*} value the value of the actionDispatchContext
+   * @param {Object} files a map that can be updated to add files to the payload of the
+   *   action.
+   */
+  beforeActionDispatchContext(element, value, files) {
+    return value
+  }
 }
 
 export class InputTextElementType extends FormElementType {
@@ -1130,6 +1188,10 @@ export class InputTextElementType extends FormElementType {
 
   get iconClass() {
     return 'iconoir-input-field'
+  }
+
+  get image() {
+    return elementImageInputText
   }
 
   get component() {
@@ -1190,6 +1252,10 @@ export class HeadingElementType extends ElementType {
     return 'iconoir-text'
   }
 
+  get image() {
+    return elementImageHeading
+  }
+
   get component() {
     return HeadingElement
   }
@@ -1237,6 +1303,10 @@ export class TextElementType extends ElementType {
     return 'iconoir-text-box'
   }
 
+  get image() {
+    return elementImageText
+  }
+
   get component() {
     return TextElement
   }
@@ -1282,6 +1352,10 @@ export class LinkElementType extends ElementType {
 
   get iconClass() {
     return 'iconoir-link'
+  }
+
+  get image() {
+    return elementImageLink
   }
 
   get component() {
@@ -1374,6 +1448,10 @@ export class ImageElementType extends ElementType {
     return 'iconoir-media-image'
   }
 
+  get image() {
+    return elementImageImage
+  }
+
   get component() {
     return ImageElement
   }
@@ -1428,6 +1506,10 @@ export class ButtonElementType extends ElementType {
 
   get iconClass() {
     return 'iconoir-square-cursor'
+  }
+
+  get image() {
+    return elementImageButton
   }
 
   get component() {
@@ -1488,6 +1570,10 @@ export class ChoiceElementType extends FormElementType {
 
   get iconClass() {
     return 'iconoir-list-select'
+  }
+
+  get image() {
+    return elementImageChoice
   }
 
   get component() {
@@ -1660,6 +1746,10 @@ export class CheckboxElementType extends FormElementType {
     return 'iconoir-check'
   }
 
+  get image() {
+    return elementImageCheckbox
+  }
+
   get component() {
     return CheckboxElement
   }
@@ -1701,6 +1791,10 @@ export class IFrameElementType extends ElementType {
 
   get iconClass() {
     return 'iconoir-app-window'
+  }
+
+  get image() {
+    return elementImageIFrame
   }
 
   get component() {
@@ -1760,6 +1854,10 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
 
   get iconClass() {
     return 'iconoir-select-window'
+  }
+
+  get image() {
+    return elementImageRecordSelector
   }
 
   get component() {
@@ -1867,6 +1965,10 @@ export class DateTimePickerElementType extends FormElementType {
     return 'iconoir-calendar'
   }
 
+  get image() {
+    return elementImageDatetimePicker
+  }
+
   get component() {
     return DateTimePickerElement
   }
@@ -1947,6 +2049,10 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
 
   get iconClass() {
     return 'iconoir-align-top-box'
+  }
+
+  get image() {
+    return elementImageHeader
   }
 
   get component() {
@@ -2039,6 +2145,10 @@ export class FooterElementType extends HeaderElementType {
     return 'iconoir-align-bottom-box'
   }
 
+  get image() {
+    return elementImageFooter
+  }
+
   get component() {
     return MultiPageContainerElement
   }
@@ -2101,6 +2211,10 @@ export class RatingInputElementType extends FormElementType {
     return 'iconoir-bubble-star'
   }
 
+  get image() {
+    return elementImageRatingInput
+  }
+
   get component() {
     return RatingInputElement
   }
@@ -2151,6 +2265,10 @@ export class RatingElementType extends ElementType {
     return 'iconoir-leaderboard-star'
   }
 
+  get image() {
+    return elementImageRating
+  }
+
   get component() {
     return RatingElement
   }
@@ -2196,6 +2314,10 @@ export class MenuElementType extends ElementType {
 
   get iconClass() {
     return 'iconoir-menu'
+  }
+
+  get image() {
+    return elementImageMenu
   }
 
   get component() {
