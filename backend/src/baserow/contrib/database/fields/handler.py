@@ -800,9 +800,8 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             [serialized_field.pop("name")],
         )
 
-        # Remove the properties that are not meant to be imported. If they're set, then
-        # they could be exports from a table that has a data sync table, but because the
-        # data sync is not imported these must be removed.
+        # Remove properties that are unqiue to the field and that must be persistent
+        # when copying.
         for key in [
             "id",
             "order",

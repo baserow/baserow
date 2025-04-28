@@ -1050,9 +1050,10 @@ class FieldType(
         # Remove the properties that are not meant to be imported. If they're set, then
         # they could be exports from a table that has a data sync table, but because the
         # data sync is not imported these must be removed.
-        field.read_only = False
-        field.immutable_type = False
-        field.immutable_properties = False
+        if not import_export_config.is_duplicate:
+            field.read_only = False
+            field.immutable_type = False
+            field.immutable_properties = False
 
         field.save()
 
