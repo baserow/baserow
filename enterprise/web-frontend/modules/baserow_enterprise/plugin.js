@@ -71,7 +71,6 @@ import {
   FieldLevelPermissionsPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionMenuItemType } from '@baserow_enterprise/components/field-permissions/updateFieldMenuItemTypes'
-import { FF_FIELD_PERMISSIONS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -209,10 +208,8 @@ export default (context) => {
     new MadeWithBaserowBuilderPageDecoratorType(context)
   )
 
-  if (app.$featureFlagIsEnabled(FF_FIELD_PERMISSIONS)) {
-    app.$registry.register(
-      'fieldContextItemType',
-      new FieldPermissionMenuItemType(context)
-    )
-  }
+  app.$registry.register(
+    'fieldContextItemType',
+    new FieldPermissionMenuItemType(context)
+  )
 }

@@ -15,7 +15,6 @@ from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIS
 from baserow.contrib.database.fields.handler import FieldDoesNotExist, FieldHandler
 from baserow.contrib.database.fields.operations import ReadFieldOperationType
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.feature_flags import FF_FIELD_PERMISSIONS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow_enterprise.features import FIELD_LEVEL_PERMISSIONS
 from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
@@ -69,8 +68,6 @@ class FieldPermissionsView(APIView):
         Update permissions for writing field values and form visibility for a specific
         field.
         """
-
-        feature_flag_is_enabled(FF_FIELD_PERMISSIONS, raise_if_disabled=True)
 
         field = FieldHandler().get_field(field_id)
         workspace = field.table.database.workspace
@@ -134,8 +131,6 @@ class FieldPermissionsView(APIView):
         Retrieve the permissions for writing field values and form visibility of a
         specific field.
         """
-
-        feature_flag_is_enabled(FF_FIELD_PERMISSIONS, raise_if_disabled=True)
 
         field = FieldHandler().get_field(field_id)
 

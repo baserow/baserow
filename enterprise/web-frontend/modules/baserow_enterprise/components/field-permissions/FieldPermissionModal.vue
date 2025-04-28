@@ -29,11 +29,7 @@
         ></DropdownItem>
       </Dropdown>
       <FormGroup v-if="showAllowInForms" class="margin-bottom-2 margin-top-3">
-        <SwitchInput
-          small
-          :value="allowInForms"
-          @input="toggleAllowInForms"
-        >
+        <SwitchInput small :value="allowInForms" @input="toggleAllowInForms">
           {{ $t('fieldPermissionModal.allowInForms') }}
         </SwitchInput>
       </FormGroup>
