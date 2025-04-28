@@ -144,7 +144,7 @@ class AutomationNodeService:
 
         return updated_node
 
-    def delete_node(self, user: AbstractUser, node_id: int) -> AutomationWorkflow:
+    def delete_node(self, user: AbstractUser, node_id: int) -> AutomationNode:
         """
         Deletes the specified automation node.
 
