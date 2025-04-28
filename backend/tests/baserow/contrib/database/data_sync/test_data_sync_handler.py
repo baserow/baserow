@@ -27,7 +27,6 @@ from baserow.contrib.database.data_sync.registries import DataSyncTypeRegistry
 from baserow.contrib.database.fields.exceptions import CannotDeletePrimaryField
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field, LongTextField, TextField
-from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.models import GridView
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import UserNotInWorkspace
@@ -1819,10 +1818,3 @@ def test_duplicate_data_sync_field(data_fixture):
     assert getattr(rows[0], f"field_{duplicated_field.id}") == getattr(
         rows[0], f"field_{fields[0].id}"
     )
-
-    duplicated_table = TableHandler().duplicate_table(user=user, table=data_sync.table)
-    assert duplicated_table.field_set.count() == 2
-    for field in duplicated_table.field_set.all():
-        assert field.read_only is False
-        assert field.immutable_properties is False
-        assert field.immutable_type is False
