@@ -156,7 +156,7 @@ export class FileInputElementType extends FormElementType {
    */
   beforeActionDispatchContext(element, value, files) {
     const withoutFiles = (element.multiple ? value : [value]).map((v) => {
-      if (typeof v === 'object' && v.__file__) {
+      if (v?.__file__) {
         const data = v.data
         const uid = uuid()
         // Add file to context

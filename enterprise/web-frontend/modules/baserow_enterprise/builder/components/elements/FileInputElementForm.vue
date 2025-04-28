@@ -31,27 +31,42 @@
     </FormGroup>
     <hr />
     <FormGroup
-      :label="$t('fileInputElementForm.defaultUrlTitle')"
+      :label="
+        $tc('fileInputElementForm.defaultUrlTitle', values.multiple ? 2 : 1)
+      "
       class="margin-bottom-2"
-      :helper-text="$t('fileInputElementForm.defaultUrlHelp')"
       required
       small-label
     >
       <InjectedFormulaInput
         v-model="v$.values.default_url.$model"
-        :placeholder="$t('fileInputElementForm.defaultUrlPlaceholder')"
+        :placeholder="
+          $tc(
+            'fileInputElementForm.defaultUrlPlaceholder',
+            values.multiple ? 2 : 1
+          )
+        "
       />
     </FormGroup>
     <FormGroup
-      :label="$t('fileInputElementForm.defaultNameTitle')"
+      :label="
+        $tc('fileInputElementForm.defaultNameTitle', values.multiple ? 2 : 1)
+      "
       class="margin-bottom-2"
-      :helper-text="$t('fileInputElementForm.defaultNameHelp')"
+      :helper-text="
+        values.multiple && $t('fileInputElementForm.defaultNameHelp')
+      "
       required
       small-label
     >
       <InjectedFormulaInput
         v-model="v$.values.default_name.$model"
-        :placeholder="$t('fileInputElementForm.defaultNamePlaceholder')"
+        :placeholder="
+          $tc(
+            'fileInputElementForm.defaultNamePlaceholder',
+            values.multiple ? 2 : 1
+          )
+        "
       />
     </FormGroup>
     <hr />
