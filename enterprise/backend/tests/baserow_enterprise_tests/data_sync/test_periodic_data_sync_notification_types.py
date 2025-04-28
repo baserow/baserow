@@ -13,7 +13,7 @@ from baserow_enterprise.data_sync.notification_types import (
 @override_settings(DEBUG=True)
 @pytest.mark.django_db(transaction=True)
 def test_webhook_deactivated_notification_can_be_render_as_email(
-    api_client, enterprise_data_fixture
+    api_client, enterprise_data_fixture, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 

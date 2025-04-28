@@ -1459,7 +1459,9 @@ class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
         kwargs.update(self.model_field_kwargs)
         return self.model_field_class(**kwargs)
 
-    def after_create(self, field, model, user, connection, before, field_kwargs):
+    def after_create(
+        self, field, model, user, connection, before, is_duplicate, field_kwargs
+    ):
         """
         Immediately after the field has been created, we need to populate the values
         with the already existing source_field_name column.
@@ -1581,7 +1583,9 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
             )
             table.refresh_from_db()
 
-    def after_create(self, field, model, user, connection, before, field_kwargs):
+    def after_create(
+        self, field, model, user, connection, before, is_duplicate, field_kwargs
+    ):
         """
         Immediately after the field has been created, we need to populate the values
         with the already existing source_field_name column.
@@ -1807,7 +1811,9 @@ class CreatedByFieldType(ReadOnlyFieldType):
             )
             table.refresh_from_db()
 
-    def after_create(self, field, model, user, connection, before, field_kwargs):
+    def after_create(
+        self, field, model, user, connection, before, is_duplicate, field_kwargs
+    ):
         """
         Immediately after the field has been created, we need to populate the values
         with the already existing source_field_name column.
@@ -3073,7 +3079,9 @@ class LinkRowFieldType(
             else:
                 field_kwargs["has_related_field"] = not self_referencing_link_row
 
-    def after_create(self, field, model, user, connection, before, field_kwargs):
+    def after_create(
+        self, field, model, user, connection, before, is_duplicate, field_kwargs
+    ):
         """
         When the field is created we have to add the related field to the related
         table so a reversed lookup can be done by the user.
@@ -3902,6 +3910,9 @@ class SelectOptionBaseFieldType(FieldType):
     _can_group_by = True
     _db_column_fields = []
 
+    def get_default_value(self, field: Field) -> Any:
+        return getattr(field, self.get_default_options_field_name(), None)
+
     def create_select_options(self, field, select_options):
         """
         Creates the select options for the field.
@@ -3960,6 +3971,11 @@ class SelectOptionBaseFieldType(FieldType):
 
         return None
 
+    def get_validated_default_value(
+        self, from_field, default_index, has_new_default_value, select_default_value
+    ):
+        return None
+
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
     ):
@@ -3968,7 +3984,9 @@ class SelectOptionBaseFieldType(FieldType):
         select_default_value = allowed_field_values.pop(default_value_field_name, None)
         return select_options, select_default_value
 
-    def after_create(self, field, model, user, connection, before, field_kwargs):
+    def after_create(
+        self, field, model, user, connection, before, is_duplicate, field_kwargs
+    ):
         select_options, select_default_value = before
 
         default_index = self.get_default_options_index(
@@ -4010,19 +4028,10 @@ class SelectOptionBaseFieldType(FieldType):
             default_index = self.get_default_options_index(
                 select_default_value, select_options
             )
-
-        if default_index is not None:
-            to_field_values[default_value_field_name] = self.get_options_by_index(
-                from_field, default_index
-            )
-        else:
-            if has_new_default_value and select_default_value is not None:
-                raise SelectOptionDoesNotBelongToField(
-                    select_default_value,
-                    field_id=from_field.id,
-                )
-            else:
-                to_field_values[default_value_field_name] = None
+        default_value = self.get_validated_default_value(
+            from_field, default_index, has_new_default_value, select_default_value
+        )
+        to_field_values[default_value_field_name] = default_value
 
     def should_backup_field_data_for_same_type_update(
         self, old_field: SingleSelectField, new_field_attrs: Dict[str, Any]
@@ -4105,6 +4114,18 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         ),
     }
 
+    def after_create(
+        self, field, model, user, connection, before, is_duplicate, field_kwargs
+    ):
+        super().after_create(
+            field, model, user, connection, before, is_duplicate, field_kwargs
+        )
+        # When field is created, we want to set default value for all existing rows
+        if not is_duplicate and field.single_select_default:
+            model.objects.all().update(
+                **{f"{field.db_column}_id": field.single_select_default}
+            )
+
     def get_default_options_index(self, default, select_options):
         if default is None:
             return None
@@ -4136,7 +4157,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                 field.save(update_fields=[field_name])
         return field
 
-    def get_single_select_default(self, instance, default_value):
+    def get_instance_default_value(self, instance, default_value):
         """
         Checks if the provided default value is a valid option and returns it.
         If the default value is not a valid option, it returns None.
@@ -4149,6 +4170,21 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         if instance.select_options.filter(id=default_value).exists():
             return default_value
 
+    def get_validated_default_value(
+        self, from_field, default_index, has_new_default_value, select_default_value
+    ):
+        if default_index is not None:
+            default_value = self.get_options_by_index(from_field, default_index)
+        else:
+            if has_new_default_value and select_default_value is not None:
+                raise SelectOptionDoesNotBelongToField(
+                    select_default_value,
+                    field_id=from_field.id,
+                )
+            else:
+                default_value = None
+        return default_value
+
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.pop("required", False)
 
@@ -4159,7 +4195,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         }
 
         if not required:
-            default_value = self.get_single_select_default(
+            default_value = self.get_instance_default_value(
                 instance, kwargs.get("single_select_default", None)
             )
             serializer_kwargs["default"] = default_value
@@ -4323,7 +4359,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         return value.value
 
     def get_model_field(self, instance, **kwargs):
-        default = self.get_single_select_default(
+        default = self.get_instance_default_value(
             instance, kwargs.get("single_select_default", None)
         )
 
@@ -4550,6 +4586,113 @@ class MultipleSelectFieldType(
     can_get_unique_values = False
     is_many_to_many_field = True
     _can_group_by = True
+    allowed_fields = ["select_options", "multiple_select_default"]
+    serializer_field_names = ["select_options", "multiple_select_default"]
+
+    serializer_field_overrides = {
+        "select_options": SelectOptionSerializer(many=True, required=False),
+        "multiple_select_default": serializers.ListField(
+            child=serializers.IntegerField(), required=False, allow_null=True
+        ),
+    }
+
+    def after_create(
+        self, field, model, user, connection, before, is_duplicate, field_kwargs
+    ):
+        super().after_create(
+            field, model, user, connection, before, is_duplicate, field_kwargs
+        )
+        # When field is created, we want to set default value for all existing rows
+        if not is_duplicate and field.multiple_select_default:
+            through_model = model._meta.get_field(field.db_column).remote_field.through
+            row_id_field = through_model._meta.fields[1].name
+            option_id_field = through_model._meta.fields[2].name
+            batch_size = 10000
+            row_id_iter = model.objects.values_list("id", flat=True).iterator(
+                chunk_size=batch_size
+            )
+            batch = []
+            for row_id in row_id_iter:
+                for option_id in field.multiple_select_default:
+                    batch.append(
+                        through_model(
+                            **{
+                                f"{row_id_field}_id": row_id,
+                                f"{option_id_field}_id": option_id,
+                            }
+                        )
+                    )
+                if len(batch) >= batch_size:
+                    through_model.objects.bulk_create(batch, ignore_conflicts=True)
+                    batch = []
+            if batch:
+                through_model.objects.bulk_create(batch, ignore_conflicts=True)
+
+    def get_default_options_index(self, default, select_options):
+        if default is None or default == []:
+            return []
+        return [
+            index
+            for index, option in enumerate(select_options)
+            if option["id"] in default
+        ]
+
+    def get_options_by_index(self, field, index):
+        if not index:
+            return None
+        all_option_ids = field.select_options.values_list("id", flat=True)
+        result = []
+        for i in index:
+            try:
+                result.append(all_option_ids[i])
+            except IndexError:
+                continue
+        return result
+
+    def after_create_select_options(
+        self, field, select_default, select_options, mapping
+    ):
+        if select_default:
+            mapped_default = [mapping[key] for key in select_default if key in mapping]
+            field_name = self.get_default_options_field_name()
+            if hasattr(field, field_name):
+                setattr(field, field_name, mapped_default)
+                field.save(update_fields=[field_name])
+        return field
+
+    def get_validated_default_value(
+        self, from_field, default_index, has_new_default_value, select_default_value
+    ):
+        default_value = self.get_options_by_index(from_field, default_index)
+        if not select_default_value:
+            return []
+        if len(select_default_value) == len(default_value):
+            return default_value
+        else:
+            missing_options = set(select_default_value) - set(default_value)
+            if has_new_default_value and missing_options:
+                raise SelectOptionDoesNotBelongToField(
+                    ", ".join(map(str, missing_options)),
+                    field_id=from_field.id,
+                )
+            else:
+                return default_value
+
+    def get_instance_default_value(self, instance, default_value):
+        """
+        Checks if the provided default value is a valid option and returns it.
+        If the default value is not a valid option, it returns None.
+        """
+
+        default_value = default_value or instance.multiple_select_default
+        if (
+            default_value == NOT_PROVIDED
+            or default_value == []
+            or default_value is None
+        ):
+            return []
+        existing_options = instance.select_options.filter(id__in=default_value)
+        return [option.id for option in existing_options]
 
     def to_baserow_formula_type(self, field) -> BaserowFormulaType:
         return BaserowFormulaMultipleSelectType(nullable=True)
@@ -4560,6 +4703,14 @@ class MultipleSelectFieldType(
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.pop("required", False)
         source = kwargs.pop("source", None)
+
+        if required is False:
+            default = self.get_instance_default_value(
+                instance, kwargs.get("multiple_select_default", None)
+            )
+            if default:
+                kwargs["default"] = default
+
         field_serializer = IntegerOrStringField(
             **{
                 "required": required,
@@ -4585,6 +4736,13 @@ class MultipleSelectFieldType(
 
     def get_response_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
+        if required is False:
+            default = self.get_instance_default_value(
+                instance, kwargs.get("multiple_select_default", None)
+            )
+            if default:
+                kwargs["default"] = default
+
         return SelectOptionSerializer(
             **{
                 "required": required,
@@ -4812,6 +4970,10 @@ class MultipleSelectFieldType(
             "db_table": instance.through_table_name,
             "db_constraint": False,
         }
+
+        default = self.get_instance_default_value(instance, None)
+        if default is not None:
+            shared_kwargs["default"] = default
 
         MultipleSelectManyToManyField(
             to=select_option_model, related_name=related_name, **shared_kwargs
@@ -5521,7 +5683,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             field, old_field, update_collector, field_cache, via_path_to_starting_table
         )
 
-    def after_create(self, field, model, user, connection, before, field_kwargs):
+    def after_create(
+        self, field, model, user, connection, before, is_duplicate, field_kwargs
+    ):
         """
         Immediately after the field has been created, we need to populate the values
         with the already existing source_field_name column.
@@ -6796,7 +6960,9 @@ class UUIDFieldType(ReadOnlyFieldType):
             **kwargs,
         )
 
-    def after_create(self, field, model, user, connection, before, field_kwargs):
+    def after_create(
+        self, field, model, user, connection, before, is_duplicate, field_kwargs
+    ):
         model.objects.all().update(**{f"{field.db_column}": RandomUUID()})
 
     def after_update(
@@ -6918,7 +7084,9 @@ class AutonumberFieldType(ReadOnlyFieldType):
     ):
         self._extract_view_from_field_kwargs(user, field_kwargs)
 
-    def after_create(self, field, model, user, connection, before, field_kwargs):
+    def after_create(
+        self, field, model, user, connection, before, is_duplicate, field_kwargs
+    ):
         self.create_field_sequence(field, model, connection)
         self.update_rows_with_field_sequence(field, field_kwargs.get("view", None))
 

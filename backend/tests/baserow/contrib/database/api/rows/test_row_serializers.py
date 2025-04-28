@@ -468,6 +468,18 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                         "value": "E",
                     },
                 ],
+                "multiple_select_with_default": [
+                    {
+                        "color": "pink",
+                        "id": SelectOption.objects.get(value="M-1").id,
+                        "value": "M-1",
+                    },
+                    {
+                        "color": "purple",
+                        "id": SelectOption.objects.get(value="M-2").id,
+                        "value": "M-2",
+                    },
+                ],
                 "text": "text",
                 "url": "https://www.google.com",
                 "formula_bool": True,

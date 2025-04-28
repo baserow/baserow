@@ -212,7 +212,16 @@ def construct_all_possible_field_kwargs(
                     {"id": 3, "value": "D", "color": "yellow"},
                     {"id": 4, "value": "E", "color": "green"},
                 ],
-            }
+            },
+            {
+                "name": "multiple_select_with_default",
+                "select_options": [
+                    {"id": 21, "value": "M-1", "color": "pink"},
+                    {"id": 22, "value": "M-2", "color": "purple"},
+                    {"id": 23, "value": "M-3", "color": "blue"},
+                ],
+                "multiple_select_default": [21, 22],
+            },
         ],
         "multiple_collaborators": [
             {

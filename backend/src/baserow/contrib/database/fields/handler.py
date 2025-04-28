@@ -278,6 +278,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         primary_key=None,
         skip_search_updates=False,
         description: Optional[str] = None,
+        is_duplicate=False,
         **kwargs,
     ) -> Union[Field, Tuple[Field, List[Field]]]:
         """
@@ -387,6 +388,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             user,
             connection,
             before,
+            is_duplicate,
             kwargs,
         )
 
@@ -819,6 +821,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             primary=False,
             name=new_name,
             return_updated_fields=True,
+            is_duplicate=True,
             **serialized_field,
         )
         progress.increment()

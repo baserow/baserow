@@ -323,3 +323,41 @@ def test_single_select_field_with_default_value(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     final_field = response.json()
     assert final_field["single_select_default"] is None
+
+
+@pytest.mark.django_db
+def test_add_single_select_field_with_default_sets_existing_rows(
+    api_client, data_fixture
+):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    model = table.get_model()
+
+    for _ in range(3):
+        model.objects.create()
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Single",
+            "type": "single_select",
+            "select_options": [
+                {"value": "A", "color": "blue", "id": -1},
+                {"value": "B", "color": "red", "id": -2},
+            ],
+            "single_select_default": -1,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    field_data = response.json()
+    field_id = field_data["id"]
+    select_option_id = field_data["select_options"][0]["id"]
+    assert field_data["single_select_default"] == select_option_id
+
+    model = table.get_model()
+    for row in model.objects.all():
+        value = getattr(row, f"field_{field_id}")
+        assert value is not None
+        assert value.id == select_option_id

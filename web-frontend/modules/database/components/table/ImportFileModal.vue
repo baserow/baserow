@@ -506,7 +506,7 @@ export default {
 
           // Template row with default values
           const defaultRow = this.writableFields.map((field) =>
-            this.fieldTypes[field.type].getDefaultValue(field)
+            this.fieldTypes[field.type].getDefaultValue(field, true)
           )
 
           // Precompute the prepare value function for each field

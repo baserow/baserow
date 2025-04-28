@@ -434,7 +434,9 @@ def test_skip_locked_data_syncs(enterprise_data_fixture):
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 @patch("baserow_enterprise.data_sync.handler.sync_periodic_data_sync")
-def test_skip_syncing_data_syncs(mock_sync_periodic_data_sync, enterprise_data_fixture):
+def test_skip_syncing_data_syncs(
+    mock_sync_periodic_data_sync, enterprise_data_fixture, synced_roles
+):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
 
@@ -620,6 +622,7 @@ def test_sync_periodic_data_sync_deactivated_max_failure(enterprise_data_fixture
 @responses.activate
 def test_sync_periodic_data_sync_deactivated_max_failure_notification_send(
     enterprise_data_fixture,
+    synced_roles,
 ):
     responses.add(
         responses.GET,

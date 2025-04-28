@@ -88,6 +88,9 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
     multiple_select_options = Field.objects.get(
         name="multiple_select"
     ).select_options.all()
+    multiple_select_with_default_options = Field.objects.get(
+        name="multiple_select_with_default"
+    ).select_options.all()
 
     actual_result_per_field_name = {}
 
@@ -219,6 +222,15 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
                     multiple_select_options[1].id,
                     multiple_select_options[0].id,
                     multiple_select_options[2].id,
+                ],
+            },
+        ],
+        "multiple_select_with_default": [
+            {
+                "count": 2,
+                "field_multiple_select_with_default": [
+                    multiple_select_with_default_options[0].id,
+                    multiple_select_with_default_options[1].id,
                 ],
             },
         ],

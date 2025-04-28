@@ -242,6 +242,10 @@
     "optionsLabel": "Options",
     "defaultOptionLabel": "Default option"
   },
+  "fieldMultipleSelectSubForm": {
+    "optionsLabel": "Options",
+    "defaultOptionsLabel": "Default options"
+  },
   "fieldSingleSelectDropdown": {
     "notFound": "Option not found"
   },

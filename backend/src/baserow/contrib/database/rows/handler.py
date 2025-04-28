@@ -267,9 +267,15 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         for index, row_value in enumerate(row_values):
             for field_id, field in fields.items():
                 field_name = field["name"]
+                field_type = field["type"]
                 field_ids[field_name] = field_id
                 if field_name in row_value:
                     prepared_values_by_field[field_name][index] = row_value[field_name]
+                elif (
+                    default_value := field_type.get_default_value(field["field"])
+                ) is not None:
+                    prepared_values_by_field[field_name][index] = default_value
+                    row_value[field_name] = default_value
 
         # bulk-prepare values per field
         for field_name, batch_values in prepared_values_by_field.items():

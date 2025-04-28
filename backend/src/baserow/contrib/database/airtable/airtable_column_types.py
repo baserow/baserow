@@ -29,7 +29,6 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils.duration import D_H, H_M_S_SSS
-from baserow.core.utils import get_value_at_path
 
 from .config import AirtableImportConfig
 from .constants import (
@@ -820,6 +819,7 @@ class SelectAirtableColumnType(AirtableColumnType):
 
 class MultiSelectAirtableColumnType(AirtableColumnType):
     type = "multiSelect"
+    default_value_field = "multiple_select_default"
 
     def to_baserow_export_serialized_value(
         self,
@@ -835,7 +835,7 @@ class MultiSelectAirtableColumnType(AirtableColumnType):
     ):
         # use field id and option id for uniqueness
         column_id = raw_airtable_column.get("id")
-        return [f"{column_id}_{val}" for val in value]
+        return [to_import_select_option_id(column_id, val) for val in value]
 
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
@@ -843,25 +843,36 @@ class MultiSelectAirtableColumnType(AirtableColumnType):
         id_value = raw_airtable_column.get("id", "")
         type_options = raw_airtable_column.get("typeOptions", {})
 
-        def get_default(default):
-            default = default or []
-            return ", ".join(
-                [
-                    get_value_at_path(type_options, f"choices.{v}.name", "")
-                    for v in default
-                ]
-            )
-
-        self.add_import_report_failed_if_default_is_provided(
-            raw_airtable_table,
-            raw_airtable_column,
-            import_report,
-            to_human_readable_default=get_default,
-        )
-
         field = MultipleSelectField()
         field = set_select_options_on_field(field, id_value, type_options)
+
+        default_value = raw_airtable_column.get("default", None)
+        if default_value:
+            default_options = [
+                to_import_select_option_id(id_value, val) for val in default_value
+            ]
+            field.multiple_select_default = [
+                option.id
+                for option in field._prefetched_objects_cache["select_options"]
+                if option.id in default_options
+            ]
         return field
+
+    def to_baserow_export_empty_value(
+        self,
+        row_id_mapping,
+        raw_airtable_table,
+        raw_airtable_row,
+        raw_airtable_column,
+        baserow_field,
+        files_to_download,
+        config,
+        import_report,
+    ):
+        if baserow_field.multiple_select_default is not None:
+            return []
+        else:
+            raise AirtableSkipCellValue
 
 
 class PhoneAirtableColumnType(AirtableColumnType):

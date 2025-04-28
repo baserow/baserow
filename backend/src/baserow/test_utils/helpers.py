@@ -194,6 +194,13 @@ def setup_interesting_test_table(
         .order_by("id")
         .values_list("id", flat=True)
     )
+    option_m_1, option_m_2, option_m_3 = (
+        SelectOption.objects.filter(
+            field_id=name_to_field_id["multiple_select_with_default"]
+        )
+        .order_by("id")
+        .values_list("id", flat=True)
+    )
 
     values = {
         "text": "text",
@@ -305,6 +312,7 @@ def setup_interesting_test_table(
             "duration_rollup_avg",
             "duration_rollup_sum",
             "multiple_collaborators_lookup",
+            "multiple_select_with_default",
         }
     )
     assert missing_fields == set(), (
