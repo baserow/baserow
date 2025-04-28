@@ -1046,6 +1046,12 @@ class FieldType(
             tsvector_column_created=should_create_tsvector_column,
             **serialized_copy,
         )
+
+        # Remove unique properties that cannot be shared with the source field.
+        field.read_only = False
+        field.immutable_type = False
+        field.immutable_properties = False
+
         field.save()
 
         id_mapping["database_fields"][field_id] = field.id

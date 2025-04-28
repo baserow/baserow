@@ -800,8 +800,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             [serialized_field.pop("name")],
         )
 
-        # Remove properties that are unqiue to the field and that must be persistent
-        # when copying.
+        # Remove unique properties that cannot be shared with the source field.
         for key in [
             "id",
             "order",
