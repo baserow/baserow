@@ -8,7 +8,7 @@ import baserow.core.fields
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_enterprise", "0044_migrate_app_labels"),
+        ("baserow_enterprise", "0045_fileinputelement_and_more"),
         ("database", "0187_booleanfield_boolean_default_and_more"),
     ]
 
