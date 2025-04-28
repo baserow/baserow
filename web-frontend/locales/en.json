@@ -427,7 +427,9 @@
     "cannotCreateRowsInTableTitle": "Can't create rows",
     "cannotCreateRowsInTableDescription": "It's not possible to create rows in this table.",
     "databaseDeadlockTitle": "Action failed",
-    "databaseDeadlockDescription": "The action couldn't be completed due to multiple conflicting operations on the data at the same time. Please try again."
+    "databaseDeadlockDescription": "The action couldn't be completed due to multiple conflicting operations on the data at the same time. Please try again.",
+    "databaseUniquePrimaryPropertyNotFoundTitle": "No unique primary property found",
+    "databaseUniquePrimaryPropertyNotFoundDescription": "This typically happens if the data sync source doesn't contain any property to get a unique row value from. In case of a table, it could be that there is no primary key."
   },
   "importerType": {
     "csv": "Import a CSV file",
