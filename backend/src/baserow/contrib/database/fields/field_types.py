@@ -3981,6 +3981,13 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     serializer_field_names = ["select_options", "single_select_default"]
     _can_order_by_types = [DEFAULT_SORT_TYPE_KEY, SINGLE_SELECT_SORT_BY_ORDER]
 
+    serializer_field_overrides = {
+        "select_options": SelectOptionSerializer(many=True, required=False),
+        # Allow passing negative value when new option is added and marked as default
+        # at the same time.
+        "single_select_default": serializers.IntegerField(required=False)
+    }
+
     def get_single_select_default(self, instance, default_value):
         """
         Checks if the provided default value is a valid option and returns it.

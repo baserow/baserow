@@ -34,6 +34,7 @@ import FieldLongTextSubForm from '@baserow/modules/database/components/field/Fie
 import FieldDateSubForm from '@baserow/modules/database/components/field/FieldDateSubForm'
 import FieldLinkRowSubForm from '@baserow/modules/database/components/field/FieldLinkRowSubForm'
 import FieldSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSelectOptionsSubForm'
+import FieldSingleSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSingleSelectOptionsSubForm'
 import FieldCollaboratorSubForm from '@baserow/modules/database/components/field/FieldCollaboratorSubForm'
 import FieldPasswordSubForm from '@baserow/modules/database/components/field/FieldPasswordSubForm'
 import FieldBooleanSubForm from '@baserow/modules/database/components/field/FieldBooleanSubForm'
@@ -3377,7 +3378,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getFormComponent() {
-    return FieldSelectOptionsSubForm
+    return FieldSingleSelectOptionsSubForm
   }
 
   getGridViewFieldComponent() {

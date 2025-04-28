@@ -1046,14 +1046,24 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         if to_delete:
             SelectOption.objects.filter(field=field, id__in=to_delete).delete()
 
+
+        default_value_field_name = f"{field_type.type}_default"
+        default_value = getattr(field, default_value_field_name, None) or []
+        single_value = False
+        if isinstance(default_value, int):
+            default_value = [default_value]
+            single_value = True
+        default_value_position = []
+
+
         instance_to_create = []
         for order, select_option in enumerate(select_options):
             upsert_id = select_option.pop(UPSERT_OPTION_DICT_KEY, None)
-            id = select_option.pop("id", upsert_id)
-            if id in existing_option_ids:
+            option_id = select_option.pop("id", upsert_id)
+            if option_id in existing_option_ids:
                 select_option.pop("order", None)
                 # Update existing options
-                field.select_options.filter(id=id).update(**select_option, order=order)
+                field.select_options.filter(id=option_id).update(**select_option, order=order)
             else:
                 # Create new instance
                 instance_to_create.append(
@@ -1065,9 +1075,21 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                         color=select_option["color"],
                     )
                 )
+                if option_id in default_value:
+                    default_value_position.append(order)
+
 
         if instance_to_create:
-            SelectOption.objects.bulk_create(instance_to_create)
+            new_options = SelectOption.objects.bulk_create(instance_to_create)
+
+            if default_value_position:
+                new_default = [item.id for item in new_options if item.order in default_value_position]
+                if single_value:
+                    new_default = new_default[0]
+                setattr(field, default_value_field_name, new_default)
+                field.save()
+
+
 
         # The model has changed when the select options have changed, so we need to
         # invalidate the model cache.
