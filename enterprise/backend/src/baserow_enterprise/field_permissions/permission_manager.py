@@ -112,16 +112,15 @@ class FieldPermissionManagerType(PermissionManagerType):
 
             # WriteFieldValuesOperationType
             required_role = field_perm.role
-            if required_role == FieldPermissions.NOBODY_ROLE_UID:
+            if required_role == FieldPermissionRoleEnum.NOBODY.value:
                 result[check] = PermissionDenied()
                 continue
-            elif required_role == FieldPermissions.CUSTOM_ROLE_UID:
+            elif required_role == FieldPermissionRoleEnum.CUSTOM.value:
                 continue  # TODO: implement the check here for CUSTOM_ROLE_UID
             else:
-                remaining_role_checks.append(
-                    check
-                )  # check actor role and permissions later
+                # check actor role and permissions later
 
+                remaining_role_checks.append(check)
         if not remaining_role_checks:  # All checks resolved
             return result
 
@@ -277,9 +276,9 @@ class FieldPermissionManagerType(PermissionManagerType):
             if not field_perm.allow_in_forms:
                 can_submit_values_exceptions.add(field_perm.field_id)
 
-            if field_perm.role == FieldPermissions.NOBODY_ROLE_UID:
+            if field_perm.role == FieldPermissionRoleEnum.NOBODY.value:
                 can_write_values_exceptions.add(field_perm.field_id)
-            elif field_perm.role == FieldPermissions.CUSTOM_ROLE_UID:
+            elif field_perm.role == FieldPermissionRoleEnum.CUSTOM.value:
                 # TODO: implement the check here.
                 continue
             else:
