@@ -37,12 +37,12 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeNotInWorkflow,
 )
+from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
 )
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
 AUTOMATION_NODES_TAG = "Automation nodes"
 
@@ -99,7 +99,7 @@ class AutomationNodesView(APIView):
     def post(self, request, data: Dict, workflow_id: int):
         type_name = data.pop("type")
         node_type = automation_node_type_registry.get(type_name)
-        workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+        workflow = AutomationWorkflowService().get_workflow(request.user, workflow_id)
 
         CreateAutomationNodeActionType.do(request.user, node_type, workflow, data)
 
@@ -137,7 +137,7 @@ class AutomationNodesView(APIView):
         }
     )
     def get(self, request, workflow_id: int):
-        workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+        workflow = AutomationWorkflowService().get_workflow(workflow_id)
 
         nodes = AutomationNodeService().get_nodes(request.user, workflow)
 
