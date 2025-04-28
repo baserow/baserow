@@ -101,9 +101,14 @@ class AutomationNodesView(APIView):
         node_type = automation_node_type_registry.get(type_name)
         workflow = AutomationWorkflowService().get_workflow(request.user, workflow_id)
 
-        CreateAutomationNodeActionType.do(request.user, node_type, workflow, data)
+        node = CreateAutomationNodeActionType.do(
+            request.user, node_type, workflow, data
+        )
 
-        return Response(status=204)
+        serializer = automation_node_type_registry.get_serializer(
+            node, AutomationNodeSerializer
+        )
+        return Response(serializer.data)
 
     @extend_schema(
         parameters=[
