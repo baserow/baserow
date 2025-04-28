@@ -92,6 +92,8 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
                     "read_only": False,
                     "table_id": table.id,
                     "type": "number",
+                    "database_id": table.database.id,
+                    "workspace_id": table.database.workspace.id,
                 },
             },
         },
