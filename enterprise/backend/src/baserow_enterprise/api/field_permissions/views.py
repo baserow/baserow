@@ -13,6 +13,7 @@ from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.schemas import get_error_schema
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
 from baserow.contrib.database.fields.handler import FieldDoesNotExist, FieldHandler
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import ReadFieldOperationType
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
@@ -69,7 +70,9 @@ class FieldPermissionsView(APIView):
         field.
         """
 
-        field = FieldHandler().get_field(field_id)
+        field = FieldHandler().get_field(
+            field_id, base_queryset=Field.objects.select_for_update(of=("self",))
+        )
         workspace = field.table.database.workspace
         LicenseHandler.raise_if_user_doesnt_have_feature(
             FIELD_LEVEL_PERMISSIONS, request.user, workspace
