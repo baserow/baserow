@@ -15,15 +15,8 @@ from baserow.contrib.automation.nodes.operations import (
     ReadAutomationNodeOperationType,
     UpdateAutomationNodeOperationType,
 )
-from baserow.contrib.automation.nodes.signals import (
-    automation_node_created,
-    automation_node_deleted,
-    automation_node_updated,
-    automation_nodes_reordered,
-)
 from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
 from baserow.core.handler import CoreHandler
-from baserow.core.trash.handler import TrashHandler
 
 
 class AutomationNodeService:
@@ -57,13 +50,7 @@ class AutomationNodeService:
         prepared_values = node_type.prepare_values(kwargs, user)
 
         new_node = self.handler.create_node(
-            node_type, workflow=workflow, **prepared_values
-        )
-
-        automation_node_created.send(
-            self,
-            node=new_node,
-            user=user,
+            user, node_type, workflow=workflow, **prepared_values
         )
 
         return new_node
@@ -139,8 +126,7 @@ class AutomationNodeService:
             context=node,
         )
 
-        updated_node = self.handler.update_node(node, **kwargs)
-        automation_node_updated.send(self, user=user, node=updated_node.node)
+        updated_node = self.handler.update_node(user, node, **kwargs)
 
         return updated_node
 
@@ -154,22 +140,14 @@ class AutomationNodeService:
 
         node = self.handler.get_node(node_id)
 
-        workspace = node.workflow.automation.workspace
         CoreHandler().check_permissions(
             user,
             DeleteAutomationNodeOperationType.type,
-            workspace=workspace,
+            workspace=node.workflow.automation.workspace,
             context=node,
         )
 
-        TrashHandler.trash(user, workspace, node.workflow.automation, node)
-
-        automation_node_deleted.send(
-            self,
-            workflow=node.workflow,
-            node_id=node_id,
-            user=user,
-        )
+        self.handler.delete_node(user, node)
 
         return node
 
@@ -204,13 +182,7 @@ class AutomationNodeService:
             workspace=automation.workspace,
         )
 
-        full_order = self.handler.order_nodes(workflow, order, user_nodes)
-
-        automation_nodes_reordered.send(
-            self, workflow=workflow, order=full_order, user=user
-        )
-
-        return full_order
+        return self.handler.order_nodes(user, workflow, order, user_nodes)
 
     def duplicate_node(
         self,
@@ -234,12 +206,4 @@ class AutomationNodeService:
             context=node,
         )
 
-        node_clone = self.handler.duplicate_node(node)
-
-        automation_node_created.send(
-            self,
-            node=node_clone,
-            user=user,
-        )
-
-        return node_clone
+        return self.handler.duplicate_node(user, node)

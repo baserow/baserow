@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
+from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 
 from baserow.contrib.automation.models import AutomationWorkflow
@@ -11,21 +12,31 @@ from baserow.contrib.automation.nodes.exceptions import (
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.nodes.signals import (
+    automation_node_created,
+    automation_node_deleted,
+    automation_node_updated,
+    automation_nodes_reordered,
+)
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
     UpdatedAutomationNode,
 )
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
     allowed_fields = ["previous_node_output"]
 
-    def create_node(self, node_type: AutomationNodeType, **kwargs) -> AutomationNode:
+    def create_node(
+        self, user: AbstractUser, node_type: AutomationNodeType, **kwargs
+    ) -> AutomationNode:
         """
         Create a new automation node.
 
+        :param user: The user trying to create the automation node.
         :param node_type: The automation node's type.
         :return: The newly created automation node instance.
         """
@@ -36,6 +47,12 @@ class AutomationNodeHandler:
 
         node = node_type.model_class(**allowed_prepared_values)
         node.save()
+
+        automation_node_created.send(
+            self,
+            node=node,
+            user=user,
+        )
 
         return node.specific
 
@@ -78,10 +95,13 @@ class AutomationNodeHandler:
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist()
 
-    def update_node(self, node: AutomationNode, **kwargs) -> UpdatedAutomationNode:
+    def update_node(
+        self, user: AbstractUser, node: AutomationNode, **kwargs
+    ) -> UpdatedAutomationNode:
         """
         Updates fields of the provided AutomationNode.
 
+        :param user: The user trying to update the automation node.
         :param node: The AutomationNode that should be updated.
         :param kwargs: The fields that should be updated with their
             corresponding values.
@@ -96,10 +116,14 @@ class AutomationNodeHandler:
             setattr(node, key, value)
 
         node.save()
-
         new_node_values = self.export_prepared_values(node)
+        updated_node = UpdatedAutomationNode(
+            node, original_node_values, new_node_values
+        )
 
-        return UpdatedAutomationNode(node, original_node_values, new_node_values)
+        automation_node_updated.send(self, user=user, node=updated_node.node)
+
+        return updated_node
 
     def export_prepared_values(self, node: AutomationNode) -> Dict[Any, Any]:
         """
@@ -114,14 +138,23 @@ class AutomationNodeHandler:
 
         return {key: getattr(node, key) for key in self.allowed_fields}
 
-    def delete_node(self, node: AutomationNode) -> None:
+    def delete_node(self, user: AbstractUser, node: AutomationNode) -> None:
         """
         Deletes the specified AutomationNode.
 
+        :param user: The user trying to delete the automation node.
         :param node: The AutomationNode that must be deleted.
         """
 
-        node.delete()
+        automation = node.workflow.automation
+        TrashHandler.trash(user, automation.workspace, automation, node)
+
+        automation_node_deleted.send(
+            self,
+            workflow=node.workflow,
+            node_id=node.id,
+            user=user,
+        )
 
     def get_nodes_order(self, workflow: AutomationWorkflow) -> List[int]:
         """
@@ -136,13 +169,18 @@ class AutomationNodeHandler:
         ]
 
     def order_nodes(
-        self, workflow: AutomationWorkflow, order: List[int], base_qs=None
+        self,
+        user: AbstractUser,
+        workflow: AutomationWorkflow,
+        order: List[int],
+        base_qs=None,
     ) -> List[int]:
         """
         Assigns a new order to the nodes in a workflow.
 
         A base_qs can be provided to pre-filter the nodes affected by this change.
 
+        :param user: The user trying to order the automation nodes.
         :param workflow: The workflow that the nodes belong to.
         :param order: The new order of the nodes.
         :param base_qs: A QS that can have filters already applied.
@@ -155,14 +193,23 @@ class AutomationNodeHandler:
             base_qs = AutomationNode.objects.filter(workflow=workflow)
 
         try:
-            return AutomationNode.order_objects(base_qs, order)
+            full_order = AutomationNode.order_objects(base_qs, order)
         except IdDoesNotExist as error:
             raise AutomationNodeNotInWorkflow(error.not_existing_id)
 
-    def duplicate_node(self, node: AutomationNode) -> AutomationNode:
+        automation_nodes_reordered.send(
+            self, workflow=workflow, order=full_order, user=user
+        )
+
+        return full_order
+
+    def duplicate_node(
+        self, user: AbstractUser, node: AutomationNode
+    ) -> AutomationNode:
         """
         Duplicates an existing AutomationNode instance.
 
+        :param user: The user trying to duplicate the automation node.
         :param node: The AutomationNode that is being duplicated.
         :raises ValueError: When the provided node is not an instance of
             AutomationNode.
@@ -180,6 +227,12 @@ class AutomationNodeHandler:
             node.workflow,
             exported_node,
             id_mapping=id_mapping,
+        )
+
+        automation_node_created.send(
+            self,
+            node=new_node_clone,
+            user=user,
         )
 
         return new_node_clone
