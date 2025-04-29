@@ -28,9 +28,3 @@ class AutomationWorkflowDoesNotExist(Exception):
     """When the workflow doesn't exist."""
 
     pass
-
-
-class AutomationNodeDoesNotExist(Exception):
-    """When the node doesn't exist."""
-
-    pass
