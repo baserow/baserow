@@ -23,6 +23,7 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.pages.models import Page
+from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -66,6 +67,13 @@ class ElementType(
     # By default, the priority is `0`, the lowest value. If this property is
     # not overridden, then the instance is imported last.
     import_element_priority = 0
+
+    def is_deactivated(self, workspace: Workspace) -> bool:
+        """
+        Returns whether this element type is deactivated for the given workspace.
+        """
+
+        return False
 
     def prepare_value_for_db(self, values: Dict, instance: Optional[Element] = None):
         """

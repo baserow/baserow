@@ -54,7 +54,7 @@
       "
       class="margin-bottom-2"
       :helper-text="
-        values.multiple && $t('fileInputElementForm.defaultNameHelp')
+        values.multiple ? $t('fileInputElementForm.defaultNameHelp') : ''
       "
       required
       small-label

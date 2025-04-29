@@ -247,9 +247,12 @@ class PublicElementsView(APIView):
 
         page = PageHandler().get_page(page_id)
         elements = ElementService().get_elements(user, page)
+        workspace = page.builder.get_workspace()
+
         return [
             element_type_registry.get_serializer(element, PublicElementSerializer).data
             for element in elements
+            if not element.get_type().is_deactivated(workspace)
         ]
 
 

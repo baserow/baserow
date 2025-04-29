@@ -12,3 +12,4 @@ FIELD_LEVEL_PERMISSIONS = "field_level_permissions"
 
 BUILDER_SSO = "application_user_sso"
 BUILDER_NO_BRANDING = "application_no_branding"
+BUILDER_FILE_INPUT = "builder_file_input"

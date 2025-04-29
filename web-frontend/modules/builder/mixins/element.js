@@ -38,6 +38,7 @@ export default {
     },
     elementIsInError() {
       return this.elementType.isInError({
+        workspace: this.workspace,
         page: this.elementPage,
         element: this.element,
         builder: this.builder,

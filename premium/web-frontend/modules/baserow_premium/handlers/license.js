@@ -104,8 +104,8 @@ export class LicenseHandler {
 
   hasFeature(feature, forSpecificWorkspace = null) {
     // Special case for public application without logged in user
-    if (Array.isArray(forSpecificWorkspace?.licences)) {
-      return forSpecificWorkspace.licences.some((license_type_name) => {
+    if (Array.isArray(forSpecificWorkspace?.licenses)) {
+      return forSpecificWorkspace.licenses.some((license_type_name) => {
         return this.app.$registry
           .get('license', license_type_name)
           .getFeatures()

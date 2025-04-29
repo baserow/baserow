@@ -86,8 +86,15 @@ export default {
       const existingMapping = this.value.some(
         ({ field_id: existingId }) => existingId === fieldId
       )
+      const existingFieldIds = this.fields.map(({ id }) => id)
+
+      // If the field has been removed in the meantime we want to ignore it
+      const filteredValue = this.value.filter(({ field_id: fieldId }) =>
+        existingFieldIds.includes(fieldId)
+      )
+
       if (existingMapping) {
-        const newMapping = this.value.map((fieldMapping) => {
+        const newMapping = filteredValue.map((fieldMapping) => {
           if (fieldMapping.field_id === fieldId) {
             return { ...fieldMapping, ...changes }
           }
@@ -95,7 +102,7 @@ export default {
         })
         this.$emit('input', newMapping)
       } else {
-        const newMapping = [...this.value]
+        const newMapping = filteredValue
         newMapping.push({
           enabled: true,
           field_id: fieldId,

@@ -39,10 +39,13 @@
                     :key="elementType.getType()"
                     :element-type="elementType"
                     :loading="addingElementType === elementType.getType()"
-                    :disabled="isElementTypeDisabled(elementType)"
-                    :disabled-message="
-                      getElementTypeDisabledMessage(elementType)
-                    "
+                    :workspace="workspace"
+                    :builder="builder"
+                    :page="page"
+                    :place-in-container="placeInContainer"
+                    :parent-element="parentElement"
+                    :before-element="beforeElement"
+                    :page-place="pagePlace"
                     @click="addElement(elementType)"
                   />
                 </div>
@@ -68,7 +71,7 @@ export default {
   name: 'AddElementModal',
   components: { AddElementCard, Expandable },
   mixins: [modal],
-  inject: ['builder', 'currentPage'],
+  inject: ['workspace', 'builder', 'currentPage'],
   props: {
     page: {
       type: Object,
@@ -144,24 +147,6 @@ export default {
     },
   },
   methods: {
-    getElementTypeDisabledMessage(elementType) {
-      if (elementType.getType() === this.addingElementType) {
-        // This type is disabled while we add it.
-        return this.$t('addElementModal.elementInProgress')
-      }
-
-      return elementType.isDisallowedReason({
-        builder: this.builder,
-        page: this.page,
-        placeInContainer: this.placeInContainer,
-        parentElement: this.parentElement,
-        beforeElement: this.beforeElement,
-        pagePlace: this.pagePlace,
-      })
-    },
-    isElementTypeDisabled(elementType) {
-      return !!this.getElementTypeDisabledMessage(elementType)
-    },
     ...mapActions({
       actionCreateElement: 'element/create',
     }),
@@ -182,9 +167,6 @@ export default {
     },
 
     async addElement(elementType) {
-      if (this.isElementTypeDisabled(elementType)) {
-        return false
-      }
       this.addingElementType = elementType.getType()
 
       let beforeId = this.beforeId
