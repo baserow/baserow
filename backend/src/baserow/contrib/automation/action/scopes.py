@@ -11,7 +11,7 @@ AUTOMATION_ACTION_CONTEXT = _(
 )
 
 NODE_ACTION_CONTEXT = _(
-    "in node (%(node_id)s) " 'of automation "%(automation_name)s" (%(automation_id)s).'
+    'of type (%(node_type)s) in automation "%(automation_name)s" (%(automation_id)s).'
 )
 
 

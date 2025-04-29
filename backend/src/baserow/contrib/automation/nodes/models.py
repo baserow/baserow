@@ -98,9 +98,6 @@ class AutomationNode(
         queryset = AutomationNode.objects.filter(workflow=workflow)
         return cls.get_highest_order_of_queryset(queryset)[0]
 
-    def __str__(self):
-        return f"{self.__class__.__name__} ID {self.id}"
-
 
 class AutomationServiceNode(AutomationNode):
     service = models.ForeignKey(

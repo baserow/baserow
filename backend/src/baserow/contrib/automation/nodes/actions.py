@@ -4,11 +4,11 @@ from typing import List
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
-from baserow.contrib.automation.action.scopes import WorkflowActionScopeType
-from baserow.contrib.automation.actions import (
-    AUTOMATION_ACTION_CONTEXT,
-    AUTOMATION_WORKFLOW_CONTEXT,
+from baserow.contrib.automation.action.scopes import (
+    NODE_ACTION_CONTEXT,
+    WorkflowActionScopeType,
 )
+from baserow.contrib.automation.actions import AUTOMATION_WORKFLOW_CONTEXT
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
@@ -25,8 +25,8 @@ class CreateAutomationNodeActionType(UndoableActionType):
     type = "create_automation_node"
     description = ActionTypeDescription(
         _("Create automation node"),
-        _('Node "%(node_id)s" created'),
-        AUTOMATION_ACTION_CONTEXT,
+        _("Node (%(node_id)s) created"),
+        NODE_ACTION_CONTEXT,
     )
 
     @dataclass
@@ -34,6 +34,7 @@ class CreateAutomationNodeActionType(UndoableActionType):
         automation_id: int
         automation_name: str
         node_id: int
+        node_type: str
 
     @classmethod
     def do(
@@ -51,6 +52,7 @@ class CreateAutomationNodeActionType(UndoableActionType):
                 node.workflow.automation.id,
                 node.workflow.automation.name,
                 node.id,
+                node.get_type().type,
             ),
             scope=cls.scope(node.workflow.id),
             workspace=node.workflow.automation.workspace,
@@ -88,8 +90,8 @@ class UpdateAutomationNodeActionType(UndoableActionType):
     type = "update_automation_node"
     description = ActionTypeDescription(
         _("Update automation node"),
-        _('Node "%(node_id)s" updated'),
-        AUTOMATION_ACTION_CONTEXT,
+        _("Node (%(node_id)s) updated"),
+        NODE_ACTION_CONTEXT,
     )
 
     @dataclass
@@ -97,6 +99,7 @@ class UpdateAutomationNodeActionType(UndoableActionType):
         automation_id: int
         automation_name: str
         node_id: int
+        node_type: str
         node_original_params: dict[str, any]
         node_new_params: dict[str, any]
 
@@ -115,6 +118,7 @@ class UpdateAutomationNodeActionType(UndoableActionType):
                 updated_node.node.workflow.automation.id,
                 updated_node.node.workflow.automation.name,
                 updated_node.node.id,
+                updated_node.node.get_type().type,
                 updated_node.original_values,
                 updated_node.new_values,
             ),
@@ -155,7 +159,7 @@ class DeleteAutomationNodeActionType(UndoableActionType):
     description = ActionTypeDescription(
         _("Delete automation node"),
         _("Node (%(node_id)s) deleted"),
-        AUTOMATION_ACTION_CONTEXT,
+        NODE_ACTION_CONTEXT,
     )
 
     @dataclass
@@ -163,6 +167,7 @@ class DeleteAutomationNodeActionType(UndoableActionType):
         automation_id: int
         automation_name: str
         node_id: int
+        node_type: str
 
     @classmethod
     def do(cls, user: AbstractUser, node_id: int) -> None:
@@ -174,6 +179,7 @@ class DeleteAutomationNodeActionType(UndoableActionType):
                 automation.id,
                 automation.name,
                 node_id,
+                node.get_type().type,
             ),
             scope=cls.scope(node.workflow.id),
             workspace=automation.workspace,
@@ -219,6 +225,8 @@ class OrderAutomationNodesActionType(UndoableActionType):
         workflow_id: int
         nodes_order: List[int]
         original_nodes_order: List[int]
+        automation_name: str
+        automation_id: int
 
     @classmethod
     def do(cls, user: AbstractUser, workflow_id: int, order: List[int]) -> None:
@@ -229,6 +237,8 @@ class OrderAutomationNodesActionType(UndoableActionType):
             workflow_id,
             order,
             original_nodes_order,
+            workflow.automation.name,
+            workflow.automation.id,
         )
 
         AutomationNodeService().order_nodes(user, workflow, order=order)
@@ -275,15 +285,18 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
     type = "duplicate_automation_node"
     description = ActionTypeDescription(
         _("Duplicate automation node"),
-        _("Node duplicated"),
-        AUTOMATION_WORKFLOW_CONTEXT,
+        _("Node (%(node_id)s) duplicated"),
+        NODE_ACTION_CONTEXT,
     )
 
     @dataclass
     class Params:
         workflow_id: int
         node_id: int
+        node_type: str
         original_node_id: int
+        automation_name: str
+        automation_id: int
 
     @classmethod
     def do(
@@ -299,7 +312,10 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
             params=cls.Params(
                 node_clone.workflow.id,
                 node_clone.id,
+                node.get_type().type,
                 node_id,
+                node.workflow.automation.name,
+                node.workflow.automation.id,
             ),
             scope=cls.scope(node.workflow.id),
             workspace=node.workflow.automation.workspace,
