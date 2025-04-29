@@ -517,7 +517,7 @@
     "allowInForms": "Allow this field to be set in rows created through forms",
     "linkRowWarning": "This is a 'Link to table' field. To ensure values cannot be changed from the linked table, please make ensure to set the right permissions on the linked table as well."
   },
-  "fieldPermissionMenuItem": {
+  "fieldPermissionsMenuItem": {
     "label": "Edit field permissions"
   }
 }

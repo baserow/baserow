@@ -70,7 +70,7 @@ import {
   SupportWebhooksPaidFeature,
   FieldLevelPermissionsPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
-import { FieldPermissionMenuItemType } from '@baserow_enterprise/components/field-permissions/updateFieldMenuItemTypes'
+import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -209,7 +209,7 @@ export default (context) => {
   )
 
   app.$registry.register(
-    'fieldContextItemType',
-    new FieldPermissionMenuItemType(context)
+    'fieldContextItem',
+    new FieldPermissionsContextItemType(context)
   )
 }

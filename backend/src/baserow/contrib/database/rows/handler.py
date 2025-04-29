@@ -1822,7 +1822,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             the values of the specified fields.
         """
 
-        field_ids = self._extract_updated_field_ids(rows_values, model)
+        field_ids = self._extract_field_ids_from_row_values(rows_values, model)
 
         fields = [
             fo["field"]
@@ -2180,7 +2180,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             generate_error_report=generate_error_report,
         )
 
-    def _extract_updated_field_ids(
+    def _extract_field_ids_from_row_values(
         self, rows_values: List[Dict[str, Any]], model: GeneratedTableModel
     ) -> Set[int]:
         """

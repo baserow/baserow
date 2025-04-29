@@ -154,7 +154,7 @@ export default {
     },
     updateFieldContextExtraItems() {
       const extraMenuItems = Object.values(
-        this.$registry.getAll('fieldContextItemType')
+        this.$registry.getAll('fieldContextItem')
       )
 
       return extraMenuItems

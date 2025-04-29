@@ -1,7 +1,7 @@
 <template>
   <li v-if="!isFieldReadOnly(field)" class="context__menu-item">
-    <FieldPermissionModal
-      ref="editFieldPermissionModal"
+    <FieldPermissionsModal
+      ref="editFieldPermissionsModal"
       :field="field"
       :workspace-id="database.workspace.id"
     />
@@ -12,7 +12,7 @@
     />
     <a class="context__menu-item-link" @click="onClick">
       <i class="context__menu-item-icon iconoir-lock"></i>
-      {{ $t('fieldPermissionMenuItem.label') }}
+      {{ $t('fieldPermissionsMenuItem.label') }}
       <div v-if="deactivated" class="deactivated-label">
         <i class="iconoir-lock"></i>
       </div>
@@ -21,15 +21,15 @@
 </template>
 
 <script>
-import FieldPermissionModal from '@baserow_enterprise/components/field-permissions/FieldPermissionModal'
+import FieldPermissionsModal from '@baserow_enterprise/components/fieldPermissions/FieldPermissionsModal'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import { FieldLevelPermissionsPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 export default {
-  name: 'FieldPermissionMenuItem',
+  name: 'FieldPermissionsContextItem',
   components: {
-    FieldPermissionModal,
+    FieldPermissionsModal,
     PaidFeaturesModal,
   },
   props: {
@@ -64,7 +64,7 @@ export default {
       if (this.deactivated) {
         this.$refs.paidFeaturesModal.show()
       } else {
-        this.$refs.editFieldPermissionModal.show()
+        this.$refs.editFieldPermissionsModal.show()
         this.$emit('hide-context')
       }
     },

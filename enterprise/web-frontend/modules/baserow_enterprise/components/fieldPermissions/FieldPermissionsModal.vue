@@ -47,7 +47,7 @@ import FieldPermissionService from '@baserow_enterprise/services/fieldPermission
 import { WriteFieldValuesPermissionManagerType } from '@baserow_enterprise/permissionManagerTypes'
 
 export default {
-  name: 'FieldPermissionModal',
+  name: 'FieldPermissionsModal',
   mixins: [modal],
   props: {
     field: {

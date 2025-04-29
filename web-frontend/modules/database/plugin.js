@@ -1084,5 +1084,5 @@ export default (context) => {
 
   registerRealtimeEvents(app.$realtime)
 
-  app.$registry.registerNamespace('fieldContextItemType')
+  app.$registry.registerNamespace('fieldContextItem')
 }
