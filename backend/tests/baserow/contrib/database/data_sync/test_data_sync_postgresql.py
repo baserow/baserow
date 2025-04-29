@@ -849,7 +849,7 @@ def test_create_data_sync_via_api_without_a_primary_property(
     with connection.cursor() as cursor:
         cursor.execute(
             f"""
-            CREATE TABLE {create_postgresql_test_table}_2 (id integer)
+            CREATE TABLE {create_postgresql_test_table}_3 (id integer)
             """
         )
 
@@ -865,7 +865,7 @@ def test_create_data_sync_via_api_without_a_primary_property(
             "postgresql_password": default_database["PASSWORD"],
             "postgresql_port": default_database["PORT"],
             "postgresql_database": default_database["NAME"],
-            "postgresql_table": create_postgresql_test_table + "_2",
+            "postgresql_table": create_postgresql_test_table + "_3",
             "postgresql_sslmode": default_database["OPTIONS"].get("sslmode", "prefer"),
         },
         format="json",
