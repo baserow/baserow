@@ -830,7 +830,8 @@
     },
     "duplicateTableJobType": {
         "duplicating": "Duplication",
-        "duplicatedTitle": "Table dupliquée"
+        "duplicatedTitle": "Table dupliquée",
+        "name": "Duplication d'une table"
     },
     "apiDocsUploadFile": {
         "description": "Envoi un fichier sur Baserow en envoyant directement le contenu du fichier. Un section multipart `file` contenant le contenu du fichier est attendu dans la requête. La réponse peut ensuite être utilisée pour [associer un fichier à une ligne]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row).",
