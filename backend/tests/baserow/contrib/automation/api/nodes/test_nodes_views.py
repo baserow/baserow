@@ -152,7 +152,7 @@ def test_get_node(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_get_node_invalid_workflow(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
+    _, token = data_fixture.create_user_and_token()
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": 999})
     response = api_client.get(url, **get_api_kwargs(token))
@@ -259,7 +259,7 @@ def test_delete_node(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_delete_node_invalid_node(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
+    _, token = data_fixture.create_user_and_token()
 
     api_kwargs = get_api_kwargs(token)
     delete_url = reverse(API_URL_ITEM, kwargs={"node_id": 100})
@@ -354,3 +354,72 @@ def test_duplicate_node_undo_redo(api_client, data_fixture):
     response = api_client.patch(reverse(API_URL_REDO), payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert workflow.automation_workflow_nodes.count() == 2
+
+
+@pytest.mark.django_db
+def test_update_node(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    assert node.previous_node_output == ""
+
+    api_kwargs = get_api_kwargs(token)
+    update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
+    payload = {"previous_node_output": "foo", "type": "row_created"}
+    response = api_client.patch(update_url, payload, **api_kwargs)
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "id": node.id,
+        "order": AnyStr(),
+        "previous_node_output": "foo",
+        "type": "row_created",
+        "workflow": workflow.id,
+    }
+
+
+@pytest.mark.django_db
+def test_update_node_invalid_node(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token()
+
+    api_kwargs = get_api_kwargs(token)
+    update_url = reverse(API_URL_ITEM, kwargs={"node_id": 100})
+    payload = {"previous_node_output": "foo", "type": "row_created"}
+    response = api_client.patch(update_url, payload, **api_kwargs)
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json() == {
+        "detail": "The requested node does not exist.",
+        "error": "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
+    }
+
+
+@pytest.mark.django_db
+def test_update_node_undo_redo(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    api_kwargs = get_api_kwargs(token)
+    update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
+    payload = {"previous_node_output": "foo", "type": "row_created"}
+    response = api_client.patch(update_url, payload, **api_kwargs)
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["previous_node_output"] == "foo"
+
+    payload = {
+        "scopes": {
+            "workspace": workflow.automation.workspace.id,
+            "application": workflow.automation.id,
+            "root": True,
+            "workflow": workflow.id,
+        },
+    }
+    response = api_client.patch(reverse(API_URL_UNDO), payload, **api_kwargs)
+    assert response.status_code == HTTP_200_OK
+    assert node.previous_node_output == ""
+
+    response = api_client.patch(reverse(API_URL_REDO), payload, **api_kwargs)
+    assert response.status_code == HTTP_200_OK
+    node.refresh_from_db()
+    assert node.previous_node_output == "foo"
