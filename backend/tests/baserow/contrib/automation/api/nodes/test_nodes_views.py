@@ -17,6 +17,13 @@ API_URL_ORDER = f"{API_URL_BASE}:order"
 API_URL_UNDO = "api:user:undo"
 API_URL_REDO = "api:user:redo"
 
+def get_api_kwargs(token):
+    return {
+        "format": "json",
+        "HTTP_AUTHORIZATION": f"JWT {token}",
+        "HTTP_CLIENTSESSIONID": "test",
+    }
+
 
 @pytest.mark.django_db
 def test_create_node(api_client, data_fixture):
@@ -28,8 +35,7 @@ def test_create_node(api_client, data_fixture):
     response = api_client.post(
         url,
         {"type": "row_created"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
+        **get_api_kwargs(token),
     )
 
     assert response.status_code == HTTP_200_OK
@@ -54,8 +60,7 @@ def test_create_node_invalid_body(api_client, data_fixture):
     response = api_client.post(
         url,
         {"foo": "bar"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
+        **get_api_kwargs(token),
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -82,8 +87,7 @@ def test_create_node_invalid_workflow(api_client, data_fixture):
     response = api_client.post(
         url,
         {"type": "row_created"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
+        **get_api_kwargs(token),
     )
 
     assert response.status_code == HTTP_404_NOT_FOUND
@@ -100,11 +104,7 @@ def test_create_node_undo_redo(api_client, data_fixture):
     assert workflow.automation_workflow_nodes.count() == 0
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
-    api_kwargs = {
-        "format": "json",
-        "HTTP_AUTHORIZATION": f"JWT {token}",
-        "HTTP_CLIENTSESSIONID": "test",
-    }
+    api_kwargs = get_api_kwargs(token)
     response = api_client.post(url, {"type": "row_created"}, **api_kwargs)
     assert response.status_code == HTTP_200_OK
 
@@ -125,7 +125,6 @@ def test_create_node_undo_redo(api_client, data_fixture):
     response = api_client.patch(reverse(API_URL_REDO), payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert workflow.automation_workflow_nodes.count() == 1
-    assert workflow.automation_workflow_nodes.first().id == workflow.id
 
 
 @pytest.mark.django_db
@@ -134,11 +133,7 @@ def test_get_node(api_client, data_fixture):
     node = data_fixture.create_automation_node(user=user)
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": node.workflow.id})
-    response = api_client.get(
-        url,
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    response = api_client.get(url, **get_api_kwargs(token))
 
     assert response.status_code == HTTP_200_OK
     assert response.json() == [
@@ -158,11 +153,7 @@ def test_get_node_invalid_workflow(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": 999})
-    response = api_client.get(
-        url,
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    response = api_client.get(url, **get_api_kwargs(token))
 
     assert response.status_code == HTTP_404_NOT_FOUND
 
@@ -175,10 +166,7 @@ def test_order_nodes(api_client, data_fixture):
     node_2 = data_fixture.create_automation_node(user=user, workflow=workflow)
 
     list_url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
-    api_kwargs = {
-        "format": "json",
-        "HTTP_AUTHORIZATION": f"JWT {token}",
-    }
+    api_kwargs = get_api_kwargs(token)
     response = api_client.get(list_url, **api_kwargs)
     assert [n["id"] for n in response.json()] == [node_1.id, node_2.id]
 
@@ -205,8 +193,7 @@ def test_order_nodes_invalid_node(api_client, data_fixture):
     response = api_client.post(
         order_url,
         payload,
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
+        **get_api_kwargs(token),
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
@@ -222,11 +209,7 @@ def test_order_nodes_undo_redo(api_client, data_fixture):
     node_1 = data_fixture.create_automation_node(user=user, workflow=workflow)
     node_2 = data_fixture.create_automation_node(user=user, workflow=workflow)
 
-    api_kwargs = {
-        "format": "json",
-        "HTTP_AUTHORIZATION": f"JWT {token}",
-        "HTTP_CLIENTSESSIONID": "test",
-    }
+    api_kwargs = get_api_kwargs(token)
 
     order_url = reverse(API_URL_ORDER, kwargs={"workflow_id": workflow.id})
     payload = {"node_ids": [node_2.id, node_1.id]}
