@@ -297,7 +297,9 @@
         "auditLogsContent": "Śledź wszystko, co się dzieje. Przeglądaj pełną historię akcji w całej instancji, albo w przestrzeni roboczej, filtruj po użytkownikach, akcjach i innych cechach.",
         "ssoContent": "Włącz bezpieczne i bezproblemowe logowanie za pomocą SAML, Google, Facebooka, GitHuba, GitLaba, albo OpenID Connect. Wspieramy wielu dostawców jednocześnie. Należy pamiętać, że zarówno Baserow jako narzędzie, a także kreator aplikacji wspierają SSO.",
         "coBrandingContent": "Dostosuj interfejs Baserow za pomocą swojego logo. Należy pamiętać, że będzie dodane \"powered by Baserow\".",
-        "advancedWebhooksContent": "Wyzwalaj webhooki kiedy wiersz pojawia się w danym widoku - znakomite do automatyzacji przepływu pracy opartego na filtrowaniu."
+        "advancedWebhooksContent": "Wyzwalaj webhooki kiedy wiersz pojawia się w danym widoku - znakomite do automatyzacji przepływu pracy opartego na filtrowaniu.",
+        "fieldLevelPermissions": "Uprawnienia na poziomie pola",
+        "fieldLevelPermissionsContent": "Kontroluj, kto może zmieniać dane pole w tabeli. Ustaw uprawnienia dla edytorów, twórców, administratorów, albo zupełnie zabroń modyfikacji wartości w polu."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Bezpośrednie wsparcie"
