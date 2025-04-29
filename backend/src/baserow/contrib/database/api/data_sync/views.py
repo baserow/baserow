@@ -31,6 +31,7 @@ from baserow.contrib.database.data_sync.exceptions import (
     DataSyncDoesNotExist,
     PropertyNotFound,
     SyncError,
+    UniquePrimaryPropertyNotFound,
 )
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.job_types import SyncDataSyncTableJobType
@@ -53,6 +54,7 @@ from .errors import (
     ERROR_DATA_SYNC_DOES_NOT_EXIST,
     ERROR_PROPERTY_NOT_FOUND,
     ERROR_SYNC_ERROR,
+    ERROR_UNIQUE_PRIMARY_PROPERTY_NOT_FOUND,
 )
 from .serializers import (
     CreateDataSyncSerializer,
@@ -114,6 +116,7 @@ class DataSyncsView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             PropertyNotFound: ERROR_PROPERTY_NOT_FOUND,
             SyncError: ERROR_SYNC_ERROR,
+            UniquePrimaryPropertyNotFound: ERROR_UNIQUE_PRIMARY_PROPERTY_NOT_FOUND,
         }
     )
     def post(
