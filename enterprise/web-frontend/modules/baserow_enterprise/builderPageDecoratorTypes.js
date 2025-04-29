@@ -55,7 +55,7 @@ export class MadeWithBaserowBuilderPageDecoratorType extends BuilderPageDecorato
   isDecorationAllowed(workspace) {
     return !this.app.$hasFeature(
       EnterpriseFeaturesObject.BUILDER_NO_BRANDING,
-      workspace
+      workspace.id
     )
   }
 }

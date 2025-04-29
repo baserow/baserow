@@ -79,6 +79,9 @@ export const mutations = {
     }
     _.mergeWith(state.additional, data, customizer)
   },
+  SET_ADDITIONAL_DATA(state, additional) {
+    state.additional = additional
+  },
   LOGOFF(state) {
     state.token = null
     state.refreshToken = null
@@ -289,6 +292,9 @@ export const actions = {
   },
   forceSetUserData({ commit }, data) {
     commit('SET_USER_DATA', data)
+  },
+  forceSetAdditionalData({ commit }, data) {
+    commit('SET_ADDITIONAL_DATA', data)
   },
   preventSetToken({ commit }) {
     commit('SET_PREVENT_SET_TOKEN', true)
