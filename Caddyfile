@@ -36,7 +36,7 @@
             }
             header @downloads Content-disposition "attachment; filename={query.dl}"
 
-            // Allow to call head from public url to get size
+            # Allow to call head from public url to get size
             header {
                 Access-Control-Allow-Origin {$PUBLIC_WEB_FRONTEND_URL:http://localhost:3000}
                 Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
