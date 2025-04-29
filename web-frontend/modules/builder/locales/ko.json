@@ -120,7 +120,12 @@
         "menu": "메뉴",
         "menuDescription": "메뉴 요소",
         "simpleContainer": "컨테이너",
-        "simpleContainerDescription": "다른 요소를 위한 컨테이너"
+        "simpleContainerDescription": "다른 요소를 위한 컨테이너",
+        "ratingInput": "평가 입력",
+        "rating": "평가",
+        "invalidElementValue": "잘못된 요소 값: {value}",
+        "ratingDescription": "평가 요소",
+        "ratingInputDescription": "평가 입력 요소"
     },
     "addElementButton": {
         "label": "요소"
@@ -192,13 +197,15 @@
     },
     "generalForm": {
         "labelTitle": "표시",
-        "labelPlaceholder": "표시명 입력 (선택 사항)",
-        "valueTitle": "기본값",
-        "valuePlaceholder": "기본값 입력 (선택 사항)",
+        "labelPlaceholder": "표시명 입력",
+        "valueTitle": "값",
+        "valuePlaceholder": "값 입력",
         "placeholderTitle": "플레이스홀더",
-        "placeholderPlaceholder": "플레이스홀더 입력 (선택 사항)",
+        "placeholderPlaceholder": "예시 문구 입력",
         "requiredTitle": "필수",
-        "validationTitle": "유효성 검사"
+        "validationTitle": "유효성 검사",
+        "defaultValueTitle": "기본값",
+        "defaultValuePlaceholder": "기본값 입력"
     },
     "inputTextElementForm": {
         "multilineTitle": "여러 줄",
@@ -698,7 +705,8 @@
         "text": "텍스트",
         "link": "링크",
         "tags": "태그",
-        "image": "이미지"
+        "image": "이미지",
+        "rating": "평가"
     },
     "textFieldForm": {
         "fieldValueLabel": "값",
@@ -996,5 +1004,25 @@
         "stroke": "윤곽선",
         "italic": "이탤릭",
         "uppercase": "대문자"
+    },
+    "ratingFieldForm": {
+        "style": "스타일",
+        "thumbsUp": "좋아요",
+        "maxValue": "최대값",
+        "value": "값",
+        "color": "색상",
+        "star": "별",
+        "heart": "하트",
+        "flag": "깃발"
+    },
+    "ratingElementForm": {
+        "heart": "하트",
+        "color": "색상",
+        "maxValue": "최대",
+        "ratingStyle": "스타일",
+        "star": "별",
+        "smile": "스마일",
+        "flag": "깃발",
+        "thumbsUp": "좋아요"
     }
 }

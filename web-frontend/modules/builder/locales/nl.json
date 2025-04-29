@@ -114,7 +114,9 @@
         "ratingDescription": "Een beoordelings element",
         "ratingInput": "Beoordeling invoer",
         "rating": "Beoordeling",
-        "ratingInputDescription": "Een beoordeling selement"
+        "ratingInputDescription": "Een beoordeling selement",
+        "fileInput": "Bestandsinvoer",
+        "fileInputDescription": "Een invoerveld om bestanden te uploaden"
     },
     "addElementButton": {
         "label": "Element"
@@ -127,7 +129,8 @@
     },
     "duplicatePageJobType": {
         "duplicating": "Dupliceren",
-        "duplicatedTitle": "Pagina gedupliceerd"
+        "duplicatedTitle": "Pagina gedupliceerd",
+        "name": "Dupliceer pagina"
     },
     "pageSidePanelType": {
         "general": "Algemeen",
@@ -1123,5 +1126,11 @@
         "label": "Gebruiker bron",
         "addUserSource": "Voeg nieuwe gebruikersbron toe",
         "noUserSources": "Geen gebruikersbronnen beschikbaar"
+    },
+    "abFileInput": {
+        "delete": "Verwijder"
+    },
+    "automationSettingsModal": {
+        "title": "Werkstroom"
     }
 }

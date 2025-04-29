@@ -107,7 +107,9 @@
         "invalidElementValue": "Valeur non valide : {value}",
         "ratingInput": "Champ de notation",
         "rating": "Notation",
-        "ratingInputDescription": "Un champ de notation"
+        "ratingInputDescription": "Un champ de notation",
+        "fileInputDescription": "Un champ de formulaire pour envoyer des fichiers",
+        "fileInput": "Champ fichier"
     },
     "elementMenu": {
         "moveDown": "Descendre",
@@ -127,7 +129,8 @@
     },
     "duplicatePageJobType": {
         "duplicating": "Duplication",
-        "duplicatedTitle": "Page dupliquée"
+        "duplicatedTitle": "Page dupliquée",
+        "name": "Duplication de page"
     },
     "pageSidePanelType": {
         "general": "Général",
@@ -360,7 +363,7 @@
         "validationTypeIntegerLabel": "Nombre",
         "validationTypeEmailLabel": "Courriel",
         "validationTypeEmailDescription": "N'autoriser que les courriels dans ce champ.",
-        "validationTypeIntegerDescription": "N'autoriser que les valeurs numériques dans ce champ.",
+        "validationTypeIntegerDescription": "N'autoriser que les valeurs numériques dans ce champ (accepte les entiers et les décimaux).",
         "inputTypeTextLabel": "Texte",
         "inputTypePasswordLabel": "Mot de passe",
         "inputType": "Type de l'entrée",
@@ -1125,5 +1128,11 @@
         "stroke": "Barrer",
         "italic": "Italique",
         "uppercase": "Majuscules"
+    },
+    "abFileInput": {
+        "delete": "Supprimer"
+    },
+    "automationSettingsModal": {
+        "title": "Scénario"
     }
 }

@@ -70,7 +70,11 @@
         "cantSelectTableTitle": "데이터베이스를 선택할 수 없습니다.",
         "cantSelectTableDescription": "데이터베이스에 테이블이 없어서 선택할 수 없습니다. 사이드바를 사용하여 하나를 생성하세요.",
         "cantSelectPageTitle": "애플리케이션을 선택할 수 없습니다.",
-        "cantSelectPageDescription": "애플리케이션 빌더에 페이지가 없어서 선택할 수 없습니다. 사이드바를 사용하여 하나를 생성하세요."
+        "cantSelectPageDescription": "애플리케이션 빌더에 페이지가 없어서 선택할 수 없습니다. 사이드바를 사용하여 하나를 생성하세요.",
+        "automations": "자동화",
+        "automationDefaultName": "제목 없는 자동화",
+        "automationDesc": "반복적인 작업과 워크플로우를 자동화하세요.",
+        "automation": "자동화"
     },
     "settingType": {
         "account": "계정",

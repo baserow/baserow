@@ -72,7 +72,8 @@
         "webhooks": "Webhooki",
         "lastSynced": "Ostatnia synchronizacja",
         "notSynced": "niezsynchronizowany",
-        "sync": "Tabela synchronizacji"
+        "sync": "Tabela synchronizacji",
+        "updateSyncConfig": "Zaktualizuj konfigurację synchronizacji"
     },
     "apiToken": {
         "create": "stwórz",
@@ -255,7 +256,16 @@
         "integer": "Liczba całkowita",
         "decimal": "Dziesiętny",
         "decimalPlacesLabel": "Miejsca dziesiętne",
-        "allowNegative": "Zezwalaj na negatywne"
+        "allowNegative": "Zezwalaj na negatywne",
+        "separatorLabel": "Separator tysięcy i dziesiętny",
+        "prefixPlaceholder": "Prefiks",
+        "suffixPlaceholder": "Sufiks",
+        "prefixAndSuffixLabel": "Prefiks / sufiks",
+        "spaceComma": "Spacja, przecinek (1 000 000,00)",
+        "spacePeriod": "Spacja, kropka (1 000 000.00)",
+        "commaPeriod": "Przecinek, kropka (1,000,000.00)",
+        "periodComma": "Kropka, przecinek (1.000.000,00)",
+        "noFormatting": "Bez formatowania"
     },
     "fieldContext": {
         "editField": "Edytuj pole",
@@ -290,13 +300,14 @@
         "style": "Styl"
     },
     "rowCreateModal": {
-        "addField": "dodaj pole"
+        "addField": "Dodaj pole"
     },
     "selectRowContent": {
-        "search": "Szukaj wierszy"
+        "search": "Szukaj wierszy",
+        "hideFields": "Ukryj pola"
     },
     "rowEditModal": {
-        "addField": "dodaj pole",
+        "addField": "Dodaj pole",
         "showHiddenFields": "Pokaż ukryte pola",
         "hideHiddenFields": "Ukryj ukryte pola"
     },
@@ -871,5 +882,17 @@
     },
     "viewGroupBy": {
         "groupBy": "Grupuj | Grupuj według 1 pól | Grupuj według {count} pól"
+    },
+    "createTableModal": {
+        "title": "Utwórz nową tabelę",
+        "defaultName": "Tabela",
+        "newTable": "Zacznij z nową tabelą",
+        "importLabel": "Czy chcesz zaimportować istniejące dane?"
+    },
+    "createTable": {
+        "preparing": "Przygotowywanie danych...",
+        "uploading": "Przesyłanie...",
+        "showTable": "pokaż tabelę",
+        "addButton": "Dodaj tabelę"
     }
 }

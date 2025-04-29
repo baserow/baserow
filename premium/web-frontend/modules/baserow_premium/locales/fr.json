@@ -193,15 +193,29 @@
     "premiumFeatures": {
         "kanbanView": "Vue Kanban",
         "rowComments": "Commentaires de ligne",
-        "exports": "Export JSON et XML",
+        "exports": "Export de table",
         "admin": "Administration avancée",
         "rowColoring": "Coloration des lignes",
         "surveyForm": "Formulaire de sondage",
         "publicLogoRemoval": "Suppression du logo public",
         "personalViews": "Vues privées",
         "calendarView": "Vue Calendrier",
-        "aiFeatures": "Champ IA",
-        "timelineView": "Vue chronologique"
+        "aiFeatures": "IA",
+        "timelineView": "Vue chronologique",
+        "timelineViewContent": "Affichez des lignes sur une ligne temporelle horizontale en utilisant des dates de début et de fin. Idéal pour la planification de projets et les feuilles de route.",
+        "rowColoringContent": "Mettez en évidence les lignes avec des couleurs basées sur un champ de sélection ou des conditions personnalisées. Il est ainsi plus facile de repérer les priorités.",
+        "rowNotifications": "Notifications de ligne",
+        "rowNotificationsContent": "Restez à jour grâce aux notifications personnalisables des commentaires. Choisissez de recevoir des alertes pour tous les commentaires ou uniquement lorsque vous êtes mentionné.",
+        "surveyFormContent": "Recueillez les réponses une question à la fois grâce au mode questionnaire. Une version simplifiée de l'affichage des formulaires, optimisée pour la concentration et la facilité d'utilisation.",
+        "chartWidget": "Graphique",
+        "chartWidgetContent": "Visualisez vos données à l'aide de graphiques sur des tableaux de bord. Utilisez n'importe quel tableau comme source de données, ajoutez plusieurs séries et groupez ou triez par champs avec de nombreuses options.",
+        "rowCommentsContent": "Collaborez directement dans votre table. Ajoutez des commentaires aux différentes lignes, mentionnez les membres de l'équipe et maintenez le context de la conversation.",
+        "aiFeaturesContent": "Utilisez l'IA pour automatiser et améliorer votre travail. Avec le champ de type IA, vous pouvez générer du texte, des résumés ou des informations directement dans les cellules sur la base d'une invite dynamique qui peut faire référence à d'autres champs. Vous pouvez également demander à l'IA de créer des formules pour vous.",
+        "calendarViewContent": "Affichez facilement vos données sur un calendrier, en utilisant le champ de date de votre choix. Parfait pour garder une trace des échéances, des événements et des calendriers en un coup d'œil.",
+        "exportsContent": "Exportez facilement vos données dans des formats supplémentaires tels qu'Excel, JSON et XML, ou téléchargez en masse tous les fichiers d'une table - idéal pour les sauvegardes, les rapports et le partage avec d'autres personnes.",
+        "personalViewsContent": "Créez des vues que seul l'auteur peut voir. Cela vous permet d'expérimenter, de filtrer et de trier les données sans affecter l'espace de travail des autres.",
+        "publicLogoRemovalContent": "Supprimez le logo Baserow des vues publiques pour donner à votre contenu partagé un aspect plus professionnel.",
+        "kanbanViewContent": "Organisez visuellement vos données sur un Kanban. Les cartes sont regroupées en colonnes sur la base d'un champ de sélection, et vous pouvez facilement les faire glisser et les déposer d'une colonne à l'autre."
     },
     "formViewModePreviewSurvey": {
         "deactivated": "Les sondages sont disponibles dans la version premium.",
@@ -361,5 +375,12 @@
     },
     "tableFileExporter": {
         "organizeFiles": "Grouper les fichiers par identifiant de ligne"
+    },
+    "kanbanView": {
+        "addStack": "Ajouter une colonne"
+    },
+    "paidFeaturesModal": {
+        "viewPricing": "Voir les prix",
+        "description": "Cette fonctionnalité est disponible avec un plan {plan}. Pour y accéder, veuillez mettre à niveau votre compte en vous abonnant. Cliquez sur le bouton ci-dessous pour consulter nos options tarifaires."
     }
 }

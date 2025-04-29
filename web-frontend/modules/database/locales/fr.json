@@ -234,7 +234,8 @@
         "selectTableLabel": "Sélectionnez une table",
         "hasRelatedFieldLabel": "Créer un champ rapporté",
         "limitToView": "Limiter la sélection à la vue",
-        "limitToViewDescription": "Notez que ceci n'est que visuel. Il est encore possible de faire des relations en dehors de la vue via la table ou l'API."
+        "limitToViewDescription": "Notez que ceci n'est que visuel. Il est encore possible de faire des relations en dehors de la vue via la table ou l'API.",
+        "allowMultipleRelations": "Autoriser les relations multiples"
     },
     "fieldSelectOptions": {
         "add": "Ajouter une option"
@@ -253,7 +254,9 @@
         "spacePeriod": "Espace, point (1 000 000.00)",
         "commaPeriod": "Virgule, point (1,000,000.00)",
         "periodComma": "Point, virgule (1.000.000,00)",
-        "noFormatting": "Pas de formatage"
+        "noFormatting": "Pas de formatage",
+        "defaultValuePlaceholder": "Saisir une valeur par défaut",
+        "defaultValueLabel": "Valeur par défaut"
     },
     "fieldContext": {
         "editField": "Modifier le champ",
@@ -314,7 +317,8 @@
         }
     },
     "rowEditFieldLinkRow": {
-        "addLink": "Choisir un lien"
+        "addLink": "Choisir un lien",
+        "keepOnlyOneValue": "Ne conserver qu'une seule valeur. Ce champ ne supporte qu'une seule relation. La valeur est sauvegardée s'il ne reste qu'une seule relation."
     },
     "tableCSVImporter": {
         "chooseFileLabel": "Choisissez un fichier CSV",
@@ -522,7 +526,8 @@
         "insertRight": "Insérer à droite",
         "insertLeft": "Insérer à gauche",
         "duplicate": "Dupliquer le champ",
-        "dataSyncField": "Le champ est en lecture seule et fait partie de la synchronisation des données de la table."
+        "dataSyncField": "Le champ est en lecture seule et fait partie de la synchronisation des données de la table.",
+        "noWriteValues": "Les modifications de ce champ sont limitées."
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "La ligne est filtrée",
@@ -552,7 +557,8 @@
         "copyCellsWithHeader": "Copier les cellules avec l'en-tête"
     },
     "gridViewFieldLinkRow": {
-        "unnamed": "Ligne sans nom {value}"
+        "unnamed": "Ligne sans nom {value}",
+        "keepOnlyOneValue": "Ne conserver qu'une seule valeur"
     },
     "gridViewIdentifierOptions": {
         "id": "Identifiant de ligne",
@@ -729,7 +735,8 @@
         "includeAllSelectOptionsHelper": "Choisissez les options qui doivent être incluses dans le formulaire à l'aide de cette liste déroulante",
         "noSelectOptions": "Il n'y a pas d'options disponibles.",
         "includeAllSelectOptions": "inclure toutes les options sélectionnées",
-        "noCollaboratorsAvailable": "Il n'y a pas de collaborateurs disponibles."
+        "noCollaboratorsAvailable": "Il n'y a pas de collaborateurs disponibles.",
+        "cannotSumitValues": "Ce champ est en lecture seule et ne sera pas affiché dans le formulaire."
     },
     "duplicateFieldContext": {
         "duplicate": "Dupliquer le champ",
@@ -782,7 +789,9 @@
         "noFields": "Ce formulaire ne comporte aucun champ. Cliquez sur un champ dans la barre latérale gauche pour en ajouter un.",
         "addLogo": "Ajouter un logo",
         "titlePlaceholder": "Titre",
-        "descriptionPlaceholder": "Description"
+        "descriptionPlaceholder": "Description",
+        "noFieldsContent": "Cliquez sur un champ dans la barre latérale gauche pour en ajouter un.",
+        "noFieldsTitle": "Ce formulaire n'a pas de champs"
     },
     "table": {
         "chooseView": "Choisir la vue",
@@ -830,7 +839,8 @@
     },
     "duplicateTableJobType": {
         "duplicating": "Duplication",
-        "duplicatedTitle": "Table dupliquée"
+        "duplicatedTitle": "Table dupliquée",
+        "name": "Duplication d'une table"
     },
     "apiDocsUploadFile": {
         "description": "Envoi un fichier sur Baserow en envoyant directement le contenu du fichier. Un section multipart `file` contenant le contenu du fichier est attendu dans la requête. La réponse peut ensuite être utilisée pour [associer un fichier à une ligne]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row).",
@@ -1132,5 +1142,8 @@
     "filterSortGroupGuidedTourStep": {
         "title": "Trouvez et organisez vos données",
         "content": "Localisez rapidement les informations en filtrant et en triant vos lignes. Regroupez instantanément les données par champ pour visualiser clairement les schémas et simplifier votre travail."
+    },
+    "fieldBooleanSubForm": {
+        "defaultValue": "Par défaut"
     }
 }

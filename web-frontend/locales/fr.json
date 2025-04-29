@@ -76,14 +76,17 @@
         "automations": "Automatisations",
         "automationDefaultName": "Automatisation sans nom",
         "automation": "Automatisation",
-        "automationDesc": "Automatiser les tâches répétitives et les processus."
+        "automationDesc": "Automatiser les tâches répétitives et les processus.",
+        "cantSelectAutomationWorkflowTitle": "Impossible de sélectionner l'automatisation.",
+        "cantSelectAutomationWorkflowDescription": "L'automatisation n'a pas pu être sélectionnée car elle n'a pas de scénario. Utilisez la barre latérale pour en créer un."
     },
     "settingType": {
         "account": "Informations personnelles",
         "password": "Mot de passe",
         "tokens": "Jetons d'accès à la base",
         "deleteAccount": "Supprimer le compte",
-        "emailNotifications": "Notifications par courriel"
+        "emailNotifications": "Notifications par courriel",
+        "mcpEndpoint": "Serveur MCP"
     },
     "userFileUploadType": {
         "file": "de mon appareil",
@@ -312,7 +315,8 @@
         "field": "champ",
         "row": "ligne",
         "view": "vue",
-        "rows": "lignes"
+        "rows": "lignes",
+        "automation_workflow": "Scénario"
     },
     "webhook": {
         "request": "Requête",
@@ -426,7 +430,9 @@
         "incompatiblePrimaryFieldTypeTitle": "Le champ n'est pas compatible",
         "incompatiblePrimaryFieldTypeDescription": "Le champ choisi ne peut pas être le champ primaire car il est incompatible.",
         "cannotCreateRowsInTableTitle": "Impossible de créer les lignes",
-        "cannotCreateRowsInTableDescription": "Impossible de créer les lignes dans cette table."
+        "cannotCreateRowsInTableDescription": "Impossible de créer les lignes dans cette table.",
+        "databaseDeadlockTitle": "L'action a échoué",
+        "databaseDeadlockDescription": "L'action n'a pas pu être achevée en raison de plusieurs opérations conflictuelles sur les données en même temps. Veuillez réessayer."
     },
     "importerType": {
         "csv": "Importer un fichier CSV",
@@ -462,7 +468,7 @@
         "uploadFileViaUrl": "Téléverser un fichier via une URL",
         "uploadFileDescription": "La section multipart `file` contenant le contenu du fichier.",
         "uploadFileViaUrlDescription": "Téléverse un fichier sur Baserow en le récupérant depuis l'URL fournie.",
-        "sendWebhookEventsDescription": "Un paramètre de requête qui déclenche des webhooks après l'opération, s'il vaut `y`, `yes`, `true`, `t`, `on`, `1`, `or` et s'il est vide. La valeur par défaut est `true`"
+        "sendWebhookEventsDescription": "Un paramètre de requête qui déclenche des webhooks après l'opération, s'il vaut `y`, `yes`, `true`, `t`, `on`, `1`, ou s'il est vide. La valeur par défaut est `true`"
     },
     "exporterType": {
         "csv": "Exporter vers CSV"

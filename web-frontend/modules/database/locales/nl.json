@@ -234,7 +234,8 @@
         "selectTableLabel": "Selecteer een tabel om naar te linken",
         "hasRelatedFieldLabel": "Maak gerelateerd veld",
         "limitToView": "Selectie beperken tot weergave",
-        "limitToViewDescription": "Merk op dat dit alleen visueel is. Het is nog steeds mogelijk om relaties te leggen buiten de weergave via de gerelateerde tabel of API."
+        "limitToViewDescription": "Merk op dat dit alleen visueel is. Het is nog steeds mogelijk om relaties te leggen buiten de weergave via de gerelateerde tabel of API.",
+        "allowMultipleRelations": "Meerdere relaties toestaan"
     },
     "fieldSelectOptions": {
         "add": "Een optie toevoegen"
@@ -253,7 +254,9 @@
         "commaPeriod": "Komma, punt (1,000,000.00)",
         "periodComma": "Punt, komma (1.000.000,00)",
         "prefixPlaceholder": "Voorvoegsel",
-        "noFormatting": "Geen opmaak"
+        "noFormatting": "Geen opmaak",
+        "defaultValueLabel": "Standaardwaarde",
+        "defaultValuePlaceholder": "Voer een standaardwaarde in"
     },
     "fieldContext": {
         "editField": "Veld bewerken",
@@ -314,7 +317,8 @@
         }
     },
     "rowEditFieldLinkRow": {
-        "addLink": "Nog een link toevoegen"
+        "addLink": "Nog een link toevoegen",
+        "keepOnlyOneValue": "Bewaar slechts één waarde. Dit veld ondersteunt slechts één relatie. De waarde wordt bewaard als er nog maar één relatie is."
     },
     "tableCSVImporter": {
         "chooseFileLabel": "Kies CSV-bestand",
@@ -522,7 +526,8 @@
         "insertLeft": "Links invoegen",
         "insertRight": "Rechts invoegen",
         "duplicate": "Dupliceer veld",
-        "dataSyncField": "Het veld is alleen-lezen en maakt deel uit van de data sync van de tabel."
+        "dataSyncField": "Het veld is alleen-lezen en maakt deel uit van de data sync van de tabel.",
+        "noWriteValues": "Wijzigingen in dit veld zijn beperkt."
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "Rij komt niet overeen met filters",
@@ -552,7 +557,8 @@
         "copyCellsWithHeader": "Cellen met koptekst kopiëren"
     },
     "gridViewFieldLinkRow": {
-        "unnamed": "onbenoemde rij {value}"
+        "unnamed": "onbenoemde rij {value}",
+        "keepOnlyOneValue": "Slechts één waarde behouden"
     },
     "gridViewIdentifierOptions": {
         "id": "Rij identificatie",
@@ -726,7 +732,8 @@
         "includeAllSelectOptionsHelper": "Kies de keuzes die in het formulier moeten worden opgenomen met behulp van deze dropdown",
         "noSelectOptions": "Er zijn geen keuzes beschikbaar.",
         "includeAllSelectOptions": "inclusief alle keuzes",
-        "noCollaboratorsAvailable": "Er zijn geen medewerkers beschikbaar."
+        "noCollaboratorsAvailable": "Er zijn geen medewerkers beschikbaar.",
+        "cannotSumitValues": "Dit veld is alleen-lezen en wordt niet weergegeven in het formulier."
     },
     "duplicateFieldContext": {
         "duplicate": "Dupliceer veld",
@@ -822,7 +829,9 @@
         "addLogo": "Logo toevoegen",
         "noFields": "Dit formulier heeft nog geen velden. Klik op een veld in de linker zijbalk om er een toe te voegen.",
         "descriptionPlaceholder": "Beschrijving",
-        "titlePlaceholder": "Titel"
+        "titlePlaceholder": "Titel",
+        "noFieldsTitle": "Dit formulier heeft geen velden",
+        "noFieldsContent": "Klik op een veld in de linkerzijbalk om er een toe te voegen."
     },
     "gridViewFieldFile": {
         "dropHere": "Laat hier los",
@@ -838,7 +847,8 @@
     },
     "duplicateTableJobType": {
         "duplicatedTitle": "Tabel dupliceerd",
-        "duplicating": "Dupliceren"
+        "duplicating": "Dupliceren",
+        "name": "Dupliceer tabel"
     },
     "fileField": {
         "errorEmptyFileNameMessage": "U kunt geen lege naam voor een bestand instellen.",
@@ -1132,5 +1142,8 @@
     "viewOptionsGuidedTourStep": {
         "title": "Weergave opties",
         "content": "Klik op de drie puntjes naast de weergave om een webhook te exporteren, importeren, dupliceren en configureren."
+    },
+    "fieldBooleanSubForm": {
+        "defaultValue": "Standaard"
     }
 }
