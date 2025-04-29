@@ -6,13 +6,14 @@
 export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent(
     'permissions_updated',
-    ({ store }, { workspace_id: workspaceId }) => {
-      if (
-        store.getters['workspace/haveWorkspacePermissionsBeenLoaded'](
-          workspaceId
-        )
-      ) {
-        store.dispatch('toast/setPermissionsUpdated', true)
+    async ({ store }, { workspace_id: workspaceId }) => {
+      const workspace = store.getters['workspace/get'](workspaceId)
+      if (workspace) {
+        try {
+          await store.dispatch('workspace/forceFetchPermissions', workspace)
+        } catch (e) {
+          await store.dispatch('toast/setPermissionsUpdated', true)
+        }
       }
     }
   )

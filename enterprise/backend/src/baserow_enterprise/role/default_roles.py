@@ -250,6 +250,10 @@ from baserow.core.user_sources.operations import (
 from baserow_enterprise.audit_log.operations import (
     ListWorkspaceAuditLogEntriesOperationType,
 )
+from baserow_enterprise.field_permissions.operations import (
+    AssignFieldPermissionsOperationType,
+    ReadFieldPermissionsOperationType,
+)
 from baserow_enterprise.role.constants import (
     ADMIN_ROLE_UID,
     BUILDER_ROLE_UID,
@@ -499,6 +503,8 @@ default_roles[BUILDER_ROLE_UID].extend(
         UpdateAutomationWorkflowOperationType,
         ReadAutomationWorkflowOperationType,
         DuplicateAutomationWorkflowOperationType,
+        AssignFieldPermissionsOperationType,
+        ReadFieldPermissionsOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(

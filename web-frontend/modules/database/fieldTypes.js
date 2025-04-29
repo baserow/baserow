@@ -595,6 +595,14 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * This hook is called just before a row is duplicated, and the create request is
+   * made. It allows to modify the value if needed.
+   */
+  prepareValueForDuplicate(field, value) {
+    return value
+  }
+
+  /**
    * Optionally the value can be prepared just before the update API call is being
    * made. The new value is not going to saved in the store it is just for preparing
    * the value such that it fits the requirements of the API endpoint.
@@ -812,6 +820,39 @@ export class FieldType extends Registerable {
    */
   isReadOnlyField(field) {
     return Boolean(field.read_only)
+  }
+
+  /**
+   * Determines if it is possible to write values to the field. This is used to
+   * determine if the field values are editable in the UI. To be able to write
+   * values, the field type must not be read-only and the user must have
+   * permission to write to the field.
+   */
+  canWriteFieldValues(field) {
+    return (
+      !this.isReadOnlyField(field) &&
+      this.app.$hasPermission(
+        'database.table.field.write_values',
+        field,
+        field.workspace_id
+      )
+    )
+  }
+
+  /**
+   * Determines if it is possible to submit anonymous values to the field. This is used
+   * to determine if the field will be shown in form views.
+   */
+  canSubmitAnonymousValues(field) {
+    const database = this.app.store.getters['field/getDatabase']
+    return (
+      !this.isReadOnlyField(field) &&
+      this.app.$hasPermission(
+        'database.table.field.submit_anonymous_values',
+        field,
+        database.workspace.id
+      )
+    )
   }
 
   /**
@@ -1210,10 +1251,14 @@ export class LinkRowFieldType extends FieldType {
     )
     components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].component =
       FormViewFieldLinkRow
-    components.multiple = {
-      name: i18n.t('fieldType.linkRowMultiple'),
-      component: FormViewFieldMultipleLinkRow,
-      properties: {},
+    // No need to offer the multiple variant if the field type is configured to only
+    // select one relation.
+    if (field.link_row_multiple_relationships) {
+      components.multiple = {
+        name: i18n.t('fieldType.linkRowMultiple'),
+        component: FormViewFieldMultipleLinkRow,
+        properties: {},
+      }
     }
     return components
   }
@@ -1411,17 +1456,36 @@ export class LinkRowFieldType extends FieldType {
       if (richClipboardData === null) {
         return []
       }
-      return richClipboardData.value
+      let value = richClipboardData.value
+      // Strip the remaining relationships because the backend will fail when trying
+      // to add them and the field doesn't allow it.
+      if (!field.link_row_multiple_relationships) {
+        value = value.slice(0, 1)
+      }
+      return value
     } else {
       // Fallback to text version
       try {
-        const data = this.app.$papa.stringToArray(clipboardData)
-
+        let data = this.app.$papa.stringToArray(clipboardData)
+        // Strip the remaining relationships because the backend will fail when trying
+        // to add them and the field doesn't allow it.
+        if (!field.link_row_multiple_relationships) {
+          data = data.slice(0, 1)
+        }
         return data.map((name) => ({ id: null, value: name }))
       } catch (e) {
         return []
       }
     }
+  }
+
+  prepareValueForDuplicate(field, value) {
+    // Strip the remaining values because the backend will fail when trying to add
+    // them and the field doesn't allow it.
+    if (!field.link_row_multiple_relationships) {
+      value = value.slice(0, 1)
+    }
+    return value
   }
 
   toHumanReadableString(field, value) {
@@ -1569,6 +1633,14 @@ export class NumberFieldType extends FieldType {
 
   getSortIndicator() {
     return ['text', '1', '9']
+  }
+
+  getDefaultValue(field) {
+    if (field.number_default === null || field.number_default === undefined) {
+      return null
+    }
+    const decimalPlaces = field.number_decimal_places || 0
+    return Number(field.number_default).toFixed(decimalPlaces)
   }
 
   canUpsert() {

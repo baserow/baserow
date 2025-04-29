@@ -1,9 +1,12 @@
 <template>
-  <div class="grid-view__cell grid-field-many-to-many__cell active">
+  <div
+    class="grid-view__cell grid-field-many-to-many__cell active"
+    :class="{ invalid: removingRelationships }"
+  >
     <div class="grid-field-many-to-many__list">
       <component
         :is="publicGrid || !canAccessLinkedTable ? 'span' : 'a'"
-        v-for="item in value"
+        v-for="item in visibleValues"
         :key="item.id"
         class="grid-field-many-to-many__item"
         @click.prevent="showForeignRowModal(item)"
@@ -33,12 +36,18 @@
         </a>
       </component>
       <a
-        v-if="canAccessLinkedTable"
+        v-if="canAccessLinkedTable && canAddValue"
         class="grid-field-many-to-many__item grid-field-many-to-many__item--link"
         @click.prevent="showModal()"
       >
         <i class="iconoir-plus"></i>
       </a>
+    </div>
+    <div
+      v-show="removingRelationships"
+      class="grid-view__cell-error align-right"
+    >
+      {{ $t('gridViewFieldLinkRow.keepOnlyOneValue') }}
     </div>
     <SelectRowModal
       v-if="canAccessLinkedTable"
@@ -47,7 +56,7 @@
       :new-row-presets="presetsForNewRowInLinkedTable"
       :view-id="field.link_row_limit_selection_view_id"
       :value="value"
-      :multiple="true"
+      :multiple="field.link_row_multiple_relationships"
       :persistent-field-options-key="getPersistentFieldOptionsKey(field.id)"
       @selected="addValue(value, $event)"
       @unselected="removeValue({}, value, $event.row.id)"
@@ -217,7 +226,7 @@ export default {
       return linkRowField.methods.removeValue.call(this, event, value, id)
     },
     showModal() {
-      if (!this.canAccessLinkedTable) {
+      if (!this.canAccessLinkedTable || !this.canAddValue) {
         return
       }
 

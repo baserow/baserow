@@ -68,7 +68,7 @@ function populateRows({
     fieldsInOrder.forEach((field, fieldIndex) => {
       const fieldType = registry.get('field', field.type)
       // We can't pre-filter because we need the correct filter index.
-      if (fieldType.isReadOnlyField(field)) {
+      if (fieldType.canWriteFieldValues(field)) {
         return
       }
 
@@ -1924,8 +1924,23 @@ export const actions = {
         ? getters.getBufferEndIndex
         : getters.getAllRows.findIndex((r) => r.id === before.id)
 
+    const fieldPermissionsMap = fields.reduce((map, field) => {
+      const fieldType = this.$registry.get('field', field._.type.type)
+      map[`field_${field.id}`] = fieldType.canWriteFieldValues(field)
+      return map
+    }, {})
     const rowsPopulated = rows.map((row) => {
-      row = { ...clone(fieldNewRowValueMap), ...row }
+      // Exclude fields where the user does not have the permission to edit
+      const permittedValues = Object.entries(row).reduce(
+        (map, [key, value]) => {
+          if (fieldPermissionsMap[key] === true) {
+            map[key] = value
+          }
+          return map
+        },
+        {}
+      )
+      row = { ...clone(fieldNewRowValueMap), ...permittedValues }
       row = populateRow(row)
       row.id = uuid()
       row.order = order
@@ -2602,8 +2617,8 @@ export const actions = {
     // Check if there are fields that can be updated. If there aren't any fields,
     // maybe because the provided index is outside of the available fields or
     // because there are only read only fields, we don't want to do anything.
-    const writeFields = fieldsInOrder.filter(
-      (field) => !this.$registry.get('field', field.type).isReadOnlyField(field)
+    const writeFields = fieldsInOrder.filter((field) =>
+      this.$registry.get('field', field.type).canWriteFieldValues(field)
     )
     if (writeFields.length === 0) {
       return

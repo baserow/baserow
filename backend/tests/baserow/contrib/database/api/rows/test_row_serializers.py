@@ -34,6 +34,12 @@ def test_get_table_serializer(data_fixture):
         number_negative=True,
         number_decimal_places=2,
     )
+    data_fixture.create_number_field(
+        table=table,
+        order=6,
+        name="Stock",
+        number_default=100,
+    )
 
     model = table.get_model(attribute_names=True)
     serializer_class = get_row_serializer_class(model=model)
@@ -47,6 +53,7 @@ def test_get_table_serializer(data_fixture):
         "for_sale": False,
         "available": True,
         "price": None,
+        "stock": "100",
     }
 
     # text field
@@ -144,6 +151,25 @@ def test_get_table_serializer(data_fixture):
     assert serializer_instance.is_valid()
     assert serializer_instance.data["price"] is None
 
+    # number field with default
+    serializer_instance = serializer_class(data={"stock": 50})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["stock"] == "50"
+
+    # Test that omitting the field uses the default value
+    serializer_instance = serializer_class(data={})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["stock"] == "100"
+
+    # Test that explicitly setting None returns None
+    serializer_instance = serializer_class(data={"stock": None})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["stock"] is None
+
+    serializer_instance = serializer_class(data={"stock": "abc"})
+    assert not serializer_instance.is_valid()
+    assert len(serializer_instance.errors["stock"]) == 1
+
     # not existing value
     serializer_instance = serializer_class(data={"NOT_EXISTING": True})
     assert serializer_instance.is_valid()
@@ -153,6 +179,7 @@ def test_get_table_serializer(data_fixture):
         "for_sale": False,
         "available": True,
         "price": None,
+        "stock": "100",
     }
 
     # all fields
@@ -163,6 +190,7 @@ def test_get_table_serializer(data_fixture):
             "for_sale": True,
             "available": False,
             "price": 120.22,
+            "stock": 75,
         }
     )
     assert serializer_instance.is_valid()
@@ -172,6 +200,7 @@ def test_get_table_serializer(data_fixture):
         "for_sale": True,
         "available": False,
         "price": "120.22",
+        "stock": "75",
     }
 
     # adding an extra field and only use that one.

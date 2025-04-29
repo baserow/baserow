@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from django.apps.registry import apps
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import connection, connections
 from django.db.models import F
 from django.shortcuts import reverse
@@ -2985,3 +2986,299 @@ def test_get_group_by_metadata_in_rows_link_row_field(data_fixture):
             ]
         ),
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.field_link_row
+def test_create_link_row_field_type_multiple_relationships(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="password", first_name="Test1"
+    )
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    table = data_fixture.create_database_table(name="Example", database=database)
+    customers_table = data_fixture.create_database_table(
+        name="Customers", database=database
+    )
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Link 1",
+            "type": "link_row",
+            "link_row_table": customers_table.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response_json["link_row_multiple_relationships"] is True
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Link 2",
+            "type": "link_row",
+            "link_row_table": customers_table.id,
+            "link_row_multiple_relationships": True,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response_json["link_row_multiple_relationships"] is True
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Link 3",
+            "type": "link_row",
+            "link_row_table": customers_table.id,
+            "link_row_multiple_relationships": False,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response_json["link_row_multiple_relationships"] is False
+
+
+@pytest.mark.django_db
+@pytest.mark.field_link_row
+def test_update_link_row_field_type_multiple_relationships(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="password", first_name="Test1"
+    )
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    table = data_fixture.create_database_table(name="Example", database=database)
+    other_table = data_fixture.create_database_table(name="Example", database=database)
+    customers_table = data_fixture.create_database_table(
+        name="Customers", database=database
+    )
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {"name": "Link 1", "type": "link_row", "link_row_table": customers_table.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    field_id = response_json["id"]
+
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_id}),
+        {"link_row_multiple_relationships": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response_json["link_row_multiple_relationships"] is True
+
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_id}),
+        {"name": "Link 2"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response_json["link_row_multiple_relationships"] is True
+
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_id}),
+        {"link_row_multiple_relationships": False},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response_json["link_row_multiple_relationships"] is False
+
+
+@pytest.mark.django_db
+@pytest.mark.field_link_row
+def test_link_row_field_type_create_row_no_multiple_relationships(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    example_table = data_fixture.create_database_table(
+        name="Example", database=database
+    )
+    customers_table = data_fixture.create_database_table(
+        name="Customers", database=database
+    )
+    data_fixture.create_text_field(name="Name", table=example_table, primary=True)
+    customers_primary = data_fixture.create_text_field(
+        name="Customer name", table=customers_table, primary=True
+    )
+
+    field_handler = FieldHandler()
+    row_handler = RowHandler()
+
+    link_row_field = field_handler.create_field(
+        user=user,
+        table=example_table,
+        name="Link Row",
+        type_name="link_row",
+        link_row_table=customers_table,
+        link_row_multiple_relationships=False,
+    )
+
+    customers_row_1 = row_handler.create_row(
+        user=user,
+        table=customers_table,
+        values={f"field_{customers_primary.id}": "John Doe"},
+    )
+    customers_row_2 = row_handler.create_row(
+        user=user,
+        table=customers_table,
+        values={f"field_{customers_primary.id}": "Jane Doe"},
+    )
+
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": example_table.id}),
+        {
+            f"field_{link_row_field.id}": [customers_row_1.id, customers_row_2.id],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            f"field_{link_row_field.id}": [
+                {
+                    "error": "Ensure this field has no more than 1 elements.",
+                    "code": "max_length",
+                }
+            ]
+        },
+    }
+
+    with pytest.raises(ValidationError):
+        row_handler.create_row(
+            user=user,
+            table=example_table,
+            values={
+                f"field_{link_row_field.id}": [customers_row_1.id, customers_row_2.id]
+            },
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.field_link_row
+def test_link_row_field_type_update_row_no_multiple_relationships(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    example_table = data_fixture.create_database_table(
+        name="Example", database=database
+    )
+    customers_table = data_fixture.create_database_table(
+        name="Customers", database=database
+    )
+    data_fixture.create_text_field(name="Name", table=example_table, primary=True)
+    customers_primary = data_fixture.create_text_field(
+        name="Customer name", table=customers_table, primary=True
+    )
+
+    field_handler = FieldHandler()
+    row_handler = RowHandler()
+
+    link_row_field = field_handler.create_field(
+        user=user,
+        table=example_table,
+        name="Link Row",
+        type_name="link_row",
+        link_row_table=customers_table,
+        link_row_multiple_relationships=False,
+    )
+
+    customers_row_1 = row_handler.create_row(
+        user=user,
+        table=customers_table,
+        values={f"field_{customers_primary.id}": "John Doe"},
+    )
+    customers_row_2 = row_handler.create_row(
+        user=user,
+        table=customers_table,
+        values={f"field_{customers_primary.id}": "Jane Doe"},
+    )
+
+    row = row_handler.create_row(
+        user=user,
+        table=example_table,
+        values={f"field_{link_row_field.id}": []},
+    )
+
+    url = reverse(
+        "api:database:rows:item",
+        kwargs={"table_id": example_table.id, "row_id": row.id},
+    )
+    response = api_client.patch(
+        url,
+        {
+            f"field_{link_row_field.id}": [customers_row_1.id, customers_row_2.id],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            f"field_{link_row_field.id}": [
+                {
+                    "error": "Ensure this field has no more than 1 elements.",
+                    "code": "max_length",
+                }
+            ]
+        },
+    }
+
+    with pytest.raises(ValidationError):
+        row_handler.update_row(
+            user=user,
+            table=example_table,
+            row=row,
+            values={
+                f"field_{link_row_field.id}": [customers_row_1.id, customers_row_2.id]
+            },
+        )
+
+
+@pytest.mark.django_db
+def test_duplicate_link_row_no_multiple_relationships(data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    example_table = data_fixture.create_database_table(
+        name="Example", database=database
+    )
+    customers_table = data_fixture.create_database_table(
+        name="Customers", database=database
+    )
+    data_fixture.create_text_field(name="Name", table=example_table, primary=True)
+    customers_primary = data_fixture.create_text_field(
+        name="Customer name", table=customers_table, primary=True
+    )
+
+    field_handler = FieldHandler()
+    row_handler = RowHandler()
+
+    link_row_field = field_handler.create_field(
+        user=user,
+        table=example_table,
+        name="Link Row",
+        type_name="link_row",
+        link_row_table=customers_table,
+        link_row_multiple_relationships=False,
+    )
+
+    dup_field, _ = field_handler.duplicate_field(
+        field=link_row_field, user=user, duplicate_data=True
+    )
+    assert dup_field.link_row_multiple_relationships is False

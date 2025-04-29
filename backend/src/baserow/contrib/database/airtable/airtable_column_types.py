@@ -157,10 +157,7 @@ class NumberAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
-        self.add_import_report_failed_if_default_is_provided(
-            raw_airtable_table, raw_airtable_column, import_report
-        )
-
+        default_value = raw_airtable_column.get("default")
         type_options = raw_airtable_column.get("typeOptions", {})
         options_format = type_options.get("format", "")
 
@@ -169,9 +166,14 @@ class NumberAirtableColumnType(AirtableColumnType):
                 raw_airtable_table, raw_airtable_column, config, import_report
             )
         else:
-            return self.to_number_field(
+            field = self.to_number_field(
                 raw_airtable_table, raw_airtable_column, config, import_report
             )
+            if default_value is not None:
+                if "percent" in options_format:
+                    default_value = default_value * 100
+                field.number_default = default_value
+            return field
 
     def to_duration_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
@@ -223,6 +225,7 @@ class NumberAirtableColumnType(AirtableColumnType):
                 f"The field was imported, but the separator format "
                 f"{separator_format} was dropped because it doesn't exist in Baserow.",
             )
+        default_value = raw_airtable_column.get("default", "") or None
 
         return NumberField(
             number_decimal_places=decimal_places,
@@ -230,6 +233,7 @@ class NumberAirtableColumnType(AirtableColumnType):
             number_prefix=prefix,
             number_suffix=suffix,
             number_separator=number_separator,
+            number_default=default_value,
         )
 
     def to_baserow_export_serialized_value(
@@ -300,6 +304,31 @@ class NumberAirtableColumnType(AirtableColumnType):
             return None
 
         return str(value)
+
+    def to_baserow_export_empty_value(
+        self,
+        row_id_mapping,
+        raw_airtable_table,
+        raw_airtable_row,
+        raw_airtable_column,
+        baserow_field,
+        files_to_download,
+        config,
+        import_report,
+    ):
+        # If the field has a default value, we need to explicitly return None
+        # to ensure that empty values in Airtable are properly imported as empty in
+        # Baserow. Otherwise, the value would be omitted in the export, resulting in
+        # the default value automatically being set, while it's actually empty in
+        # Airtable.
+        # Default value can be set only on NumberField
+        if (
+            isinstance(baserow_field, NumberField)
+            and baserow_field.number_default is not None
+        ):
+            return None
+        else:
+            raise AirtableSkipCellValue
 
 
 class RatingAirtableColumnType(AirtableColumnType):

@@ -466,6 +466,7 @@ def test_meta_submit_form_view(api_client, data_fixture):
             "name": number_field.name,
             "type": "number",
             "number_decimal_places": 0,
+            "number_default": None,
             "number_negative": False,
             "number_prefix": "",
             "number_separator": "",

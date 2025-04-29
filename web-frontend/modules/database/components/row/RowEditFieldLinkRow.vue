@@ -1,7 +1,11 @@
 <template>
   <div class="control__elements">
     <ul class="field-link-row__items">
-      <li v-for="item in value" :key="item.id" class="field-link-row__item">
+      <li
+        v-for="item in visibleValues"
+        :key="item.id"
+        class="field-link-row__item"
+      >
         <component
           :is="readOnly || isInForeignRowEditModal ? 'span' : 'a'"
           class="field-link-row__name"
@@ -26,10 +30,17 @@
         </a>
       </li>
     </ul>
-    <a v-if="!readOnly" class="add" @click.prevent="$refs.selectModal.show()">
+    <a
+      v-if="!readOnly && canAddValue"
+      class="add"
+      @click.prevent="$refs.selectModal.show()"
+    >
       <i class="iconoir-plus add__icon"></i>
       {{ $t('rowEditFieldLinkRow.addLink') }}
     </a>
+    <div v-show="removingRelationships" class="error">
+      {{ $t('rowEditFieldLinkRow.keepOnlyOneValue') }}
+    </div>
     <div v-show="touched && !valid" class="error">
       {{ error }}
     </div>
@@ -39,7 +50,7 @@
       :table-id="field.link_row_table_id"
       :view-id="field.link_row_limit_selection_view_id"
       :value="value"
-      :multiple="true"
+      :multiple="field.link_row_multiple_relationships"
       :new-row-presets="presetsForNewRowInLinkedTable"
       :persistent-field-options-key="getPersistentFieldOptionsKey(field.id)"
       @selected="addValue(value, $event)"

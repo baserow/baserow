@@ -494,6 +494,13 @@ class LinkRowField(Field):
         blank=True,
         null=True,
     )
+    link_row_multiple_relationships = models.BooleanField(
+        default=True,
+        db_default=True,
+        help_text="Indicates whether it's allowed set multiple relationships per row. "
+        "If disabled, it doesn't guarantee single relationships because they could "
+        "have already existed or created through reversed relationship.",
+    )
 
     @property
     def through_table_name(self):

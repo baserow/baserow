@@ -12,7 +12,7 @@ export function prepareRowForRequest(row, fields, registry) {
     const name = `field_${field.id}`
     const fieldType = registry.get('field', field.type)
 
-    if (fieldType.isReadOnlyField(field)) {
+    if (!fieldType.canWriteFieldValues(field)) {
       return preparedRow
     }
 

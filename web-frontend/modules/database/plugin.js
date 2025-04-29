@@ -1083,4 +1083,6 @@ export default (context) => {
   app.$registry.register('guidedTour', new DatabaseGuidedTourType(context))
 
   registerRealtimeEvents(app.$realtime)
+
+  app.$registry.registerNamespace('fieldContextItem')
 }

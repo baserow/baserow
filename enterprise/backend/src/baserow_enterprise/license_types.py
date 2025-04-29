@@ -12,6 +12,7 @@ from baserow_enterprise.features import (
     BUILDER_SSO,
     DATA_SYNC,
     ENTERPRISE_SETTINGS,
+    FIELD_LEVEL_PERMISSIONS,
     RBAC,
     SECURE_FILE_SERVE,
     SSO,
@@ -38,6 +39,7 @@ class EnterpriseWithoutSupportLicenseType(LicenseType):
         BUILDER_SSO,
         BUILDER_NO_BRANDING,
         ADVANCED_WEBHOOKS,
+        FIELD_LEVEL_PERMISSIONS,
     ]
     instance_wide = True
     seats_manually_assigned = False
