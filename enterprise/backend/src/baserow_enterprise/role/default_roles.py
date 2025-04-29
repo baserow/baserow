@@ -31,21 +31,6 @@ from baserow.contrib.automation.workflows.operations import (
     RestoreAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
 )
-from baserow.contrib.automation.nodes.operations import (
-    CreateAutomationNodeOperationType,
-    DeleteAutomationNodeOperationType,
-    DuplicateAutomationNodeOperationType,
-    ListAutomationNodeOperationType,
-    OrderAutomationNodeOperationType,
-    ReadAutomationNodeOperationType,
-    RestoreAutomationNodeOperationType,
-    UpdateAutomationNodeOperationType,
-    DeleteAutomationNodeOperationType,
-    OrderAutomationNodeOperationType,
-    RestoreAutomationNodeOperationType,
-    ReadAutomationNodeOperationType,
-    DuplicateAutomationNodeOperationType,
-)
 from baserow.contrib.builder.data_sources.operations import (
     CreateDataSourceOperationType,
     DeleteDataSourceOperationType,
