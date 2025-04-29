@@ -2152,6 +2152,7 @@ class LinkRowFieldType(
         "link_row_relation_id",
         "link_row_limit_selection_view_id",
         "link_row_limit_selection_view",
+        "link_row_multiple_relationships",
     ]
     serializer_field_names = [
         "link_row_table_id",
@@ -2160,6 +2161,7 @@ class LinkRowFieldType(
         "link_row_related_field",
         "link_row_limit_selection_view_id",
         "link_row_table_primary_field",
+        "link_row_multiple_relationships",
     ]
     serializer_mixins = [LinkRowFieldSerializerMixin]
     serializer_field_overrides = {
@@ -2195,6 +2197,7 @@ class LinkRowFieldType(
         "link_row_table",
         "has_related_field",
         "link_row_limit_selection_view_id",
+        "link_row_multiple_relationships",
     ]
     request_serializer_field_overrides = {
         "has_related_field": serializers.BooleanField(required=False),
@@ -2219,6 +2222,12 @@ class LinkRowFieldType(
             default=-1,
             help_text="The ID of the view in the related table where row selection "
             "must be limited to.",
+        ),
+        "link_row_multiple_relationships": serializers.BooleanField(
+            required=False,
+            help_text="Indicates whether it's allowed set multiple relationships per "
+            "row. If disabled, it doesn't guarantee single relationships because they "
+            "could have already existed or created through reversed relationship.",
         ),
     }
 
@@ -2491,6 +2500,20 @@ class LinkRowFieldType(
             return val.strip() if isinstance(val, str) else val
 
         for row_index, values in values_by_row.items():
+            if (
+                instance.link_row_multiple_relationships is False
+                and isinstance(values, list)
+                and len(values) > 1
+            ):
+                error = ValidationError(
+                    f"This link row field only accept one relationship.",
+                    code="invalid_value",
+                )
+                if continue_on_error:
+                    for row_index in invalid_values:
+                        values_by_row[row_index] = error
+                else:
+                    raise error
             values_by_row[row_index] = [preprocess_value(val) for val in values]
 
         for row_index, values in values_by_row.items():
@@ -2750,6 +2773,8 @@ class LinkRowFieldType(
         """
 
         required = kwargs.pop("required", False)
+        if instance.link_row_multiple_relationships is False:
+            kwargs["max_length"] = 1
         return LinkRowRequestSerializer(required=required, **kwargs)
 
     def get_response_serializer_field(self, instance, **kwargs):
@@ -3256,6 +3281,9 @@ class LinkRowFieldType(
             "link_row_limit_selection_view_id"
         ] = field.link_row_limit_selection_view_id
         serialized["has_related_field"] = field.link_row_table_has_related_field
+        serialized[
+            "link_row_multiple_relationships"
+        ] = field.link_row_multiple_relationships
         return serialized
 
     def import_serialized(

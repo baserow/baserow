@@ -263,7 +263,8 @@
     "selectTableLabel": "Select a table to link to",
     "hasRelatedFieldLabel": "Create related field in linked table",
     "limitToView": "Limit selection to view",
-    "limitToViewDescription": "Note that this is only visual. It's still possible to make relationships outside of the view via the related table or API."
+    "limitToViewDescription": "Note that this is only visual. It's still possible to make relationships outside of the view via the related table or API.",
+    "allowMultipleRelations": "Allow multiple relationships"
   },
   "fieldBooleanSubForm": {
     "defaultValue": "Default"
@@ -360,7 +361,8 @@
     }
   },
   "rowEditFieldLinkRow": {
-    "addLink": "Choose a link"
+    "addLink": "Choose a link",
+    "keepOnlyOneValue": "Keep only one value. This field only supports one relationship. The value is saved if there is only one relationship left."
   },
   "tableCSVImporter": {
     "chooseFileLabel": "Choose CSV file",
@@ -672,7 +674,8 @@
     "dropFileHere": "Drop files here"
   },
   "gridViewFieldLinkRow": {
-    "unnamed": "unnamed row {value}"
+    "unnamed": "unnamed row {value}",
+    "keepOnlyOneValue": "Keep only one value"
   },
   "gridViewIdentifierOptions": {
     "id": "Row identifier",
