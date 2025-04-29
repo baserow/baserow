@@ -428,6 +428,11 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                     "id": SelectOption.objects.get(value="A").id,
                     "value": "A",
                 },
+                "single_select_with_default": {
+                    "color": "blue",
+                    "id": SelectOption.objects.get(value="BB").id,
+                    "value": "BB",
+                },
                 "multiple_collaborators": [
                     {"id": context["user2"].id, "name": context["user2"].first_name},
                     {"id": context["user3"].id, "name": context["user3"].first_name},

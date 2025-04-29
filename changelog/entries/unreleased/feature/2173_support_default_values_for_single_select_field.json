@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Support default values for single select field",
+    "domain": "database",
+    "issue_number": 2173,
+    "bullet_points": [],
+    "created_at": "2025-05-07"
+}

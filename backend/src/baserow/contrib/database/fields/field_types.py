@@ -3885,27 +3885,113 @@ class SelectOptionBaseFieldType(FieldType):
     allowed_fields = ["select_options"]
     serializer_field_names = ["select_options"]
     serializer_field_overrides = {
-        "select_options": SelectOptionSerializer(many=True, required=False)
+        "select_options": SelectOptionSerializer(many=True, required=False),
     }
     _can_group_by = True
     _db_column_fields = []
 
+    def create_select_options(self, field, select_options):
+        """
+        Creates the select options for the field.
+
+        :param field: The field instance.
+        :param select_options: List of select options to create.
+        :return: Mapping of select option ids before creation to
+            their ids after creation
+        """
+
+        mapping = {}
+        for select_option in select_options:
+            select_option_copy = select_option.copy()
+            select_option_id = select_option_copy.pop("id")
+            select_option_object = SelectOption.objects.create(
+                field=field, **select_option_copy
+            )
+            mapping[select_option_id] = select_option_object.id
+        return mapping
+
+    def after_create_select_options(
+        self, field, select_default, select_options, mapping
+    ):
+        """
+        Called after creating the select options.
+        Can be used i.e. to set default options for field
+
+        :param field: The field instance.
+        :param select_default: The default value to set.
+        :param select_options: List of select options to search through.
+        :param mapping: Mapping of select option ids before creation to
+            their ids after creation
+        """
+
+        return field
+
+    def get_default_options_index(self, default, select_options):
+        """
+        Returns the index of the default option in the select_options list.
+
+        :param default: The id of the default option to find.
+        :param select_options: List of select options to search through.
+
+        """
+
+        return None
+
+    def get_options_by_index(self, field, index):
+        """
+        Returns the option at the given index in the select_options list.
+
+        :param field: The field instance.
+        :param index: The index of the option to retrieve.
+
+        """
+
+        return None
+
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
     ):
-        if "select_options" in allowed_field_values:
-            return allowed_field_values.pop("select_options")
+        select_options = allowed_field_values.pop("select_options", [])
+        default_value_field_name = f"{self.type}_default"
+        select_default_value = allowed_field_values.pop(default_value_field_name, None)
+        return select_options, select_default_value
 
     def after_create(self, field, model, user, connection, before, field_kwargs):
-        if before and len(before) > 0:
-            FieldHandler().update_field_select_options(user, field, before)
+        select_options, select_default_value = before
+
+        default_index = self.get_default_options_index(
+            select_default_value, select_options
+        )
+
+        if select_options and len(select_options) > 0:
+            FieldHandler().update_field_select_options(user, field, select_options)
+
+            default_value = self.get_options_by_index(field, default_index)
+            if default_value is not None:
+                default_value_field_name = self.get_default_options_field_name()
+                if hasattr(field, default_value_field_name):
+                    setattr(field, default_value_field_name, default_value)
+                    field.save(update_fields=[default_value_field_name])
 
     def before_update(self, from_field, to_field_values, user, kwargs):
         if "select_options" in to_field_values:
-            FieldHandler().update_field_select_options(
-                user, from_field, to_field_values["select_options"]
+            default_value_field_name = self.get_default_options_field_name()
+            select_options = to_field_values["select_options"]
+
+            select_default_value = to_field_values.get(default_value_field_name, None)
+            default_index = self.get_default_options_index(
+                select_default_value, select_options
             )
+
+            FieldHandler().update_field_select_options(user, from_field, select_options)
             to_field_values.pop("select_options")
+
+            if default_index is not None:
+                to_field_values[default_value_field_name] = self.get_options_by_index(
+                    from_field, default_index
+                )
+            else:
+                to_field_values[default_value_field_name] = None
 
     def should_backup_field_data_for_same_type_update(
         self, old_field: SingleSelectField, new_field_attrs: Dict[str, Any]
@@ -3983,10 +4069,41 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
     serializer_field_overrides = {
         "select_options": SelectOptionSerializer(many=True, required=False),
-        # Allow passing negative value when new option is added and marked as default
-        # at the same time.
-        "single_select_default": serializers.IntegerField(required=False)
+        "single_select_default": serializers.IntegerField(
+            required=False, allow_null=True
+        ),
     }
+
+    def get_default_options_index(self, default, select_options):
+        if default is None:
+            return None
+        return next(
+            (
+                index
+                for index, option in enumerate(select_options)
+                if option["id"] == default
+            ),
+            None,
+        )
+
+    def get_options_by_index(self, field, index):
+        if index is None:
+            return None
+        try:
+            return field.select_options.all()[index].id
+        except IndexError:
+            return None
+
+    def after_create_select_options(
+        self, field, select_default, select_options, mapping
+    ):
+        if select_default is not None:
+            mapped_default = mapping.get(select_default, None)
+            field_name = self.get_default_options_field_name()
+            if hasattr(field, field_name):
+                setattr(field, field_name, mapped_default)
+                field.save(update_fields=[field_name])
+        return field
 
     def get_single_select_default(self, instance, default_value):
         """
@@ -4069,8 +4186,10 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         invalid_values_by_index = {}
 
         for row_index, value in values_by_row.items():
-            # Ignore empty and select values
-            if value is None or isinstance(value, SelectOption):
+            if value is None:
+                continue
+
+            if isinstance(value, SelectOption):
                 continue
             elif isinstance(value, int):
                 unique_ids.add(value)
@@ -4116,16 +4235,8 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
         # Replace original values by real option object if possible
         for row_index, value in values_by_row.items():
-            # Handle default value for None
-            if value is None:
-                if instance.single_select_default is not None:
-                    default_option = option_map.get(instance.single_select_default)
-                    if default_option is not None:
-                        values_by_row[row_index] = default_option
-                continue
-
-            # Ignore select values
-            if isinstance(value, SelectOption):
+            # Ignore empty and select values
+            if value is None or isinstance(value, SelectOption):
                 continue
 
             if continue_on_error and value not in option_map:

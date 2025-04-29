@@ -17,7 +17,11 @@
         small-label
         :label="$t('fieldSingleSelectSubForm.defaultOptionLabel')"
       >
-        <Dropdown v-model="v$.values.single_select_default.$model">
+        <Dropdown
+          v-model="v$.values.single_select_default.$model"
+          :fixed-items="true"
+        >
+          <DropdownItem key="empty-option" name="" :value="null" />
           <DropdownItem
             v-for="option in values.select_options"
             :key="option.id"

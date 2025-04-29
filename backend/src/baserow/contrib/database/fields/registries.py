@@ -74,7 +74,7 @@ from .exceptions import (
     ReadOnlyFieldHasNoInternalDbValueError,
 )
 from .fields import DurationFieldUsingPostgresFormatting
-from .models import Field, LinkRowField, SelectOption
+from .models import Field, LinkRowField
 from .utils import DeferredForeignKeyUpdater
 
 if TYPE_CHECKING:
@@ -215,6 +215,13 @@ class FieldType(
     A field of this type may be used to calculate a match value during import, that
     allows to update existing rows with imported data instead of adding them.
     """
+
+    def get_default_options_field_name(self):
+        """
+        Returns the name of the field that stores the default value for the field type.
+        """
+
+        return f"{self.type}_default"
 
     @property
     def db_column_fields(self) -> Set[str]:
@@ -1037,10 +1044,12 @@ class FieldType(
             if self.can_have_select_options
             else []
         )
+
         select_default = None
-        select_default_field_name = f"{self.type}_default"
-        if select_default_field_name:
-            select_default = serialized_copy.pop(select_default_field_name, None)
+        if self.can_have_select_options:
+            select_default_field_name = self.get_default_options_field_name()
+            if select_default_field_name:
+                select_default = serialized_copy.pop(select_default_field_name, None)
 
         should_create_tsvector_column = (
             not import_export_config.reduce_disk_space_usage
@@ -1060,29 +1069,11 @@ class FieldType(
         id_mapping["database_field_names"][table.id][field.name] = field
 
         if self.can_have_select_options:
-            for select_option in select_options:
-                select_option_copy = select_option.copy()
-                select_option_id = select_option_copy.pop("id")
-                select_option_object = SelectOption.objects.create(
-                    field=field, **select_option_copy
-                )
-                id_mapping["database_field_select_options"][
-                    select_option_id
-                ] = select_option_object.id
-
-            if select_default is not None:
-                if isinstance(select_default, int):
-                    mapped_default = id_mapping[
-                        "database_field_select_options"
-                    ][select_default]
-                elif isinstance(select_default, list):
-                    mapped_default = [
-                        id_mapping["database_field_select_options"][option_id] 
-                        for option_id in select_default 
-                        if option_id in id_mapping["database_field_select_options"]
-                    ]
-                setattr(field, select_default_field_name, mapped_default)
-                field.save()
+            select_options_mapping = self.create_select_options(field, select_options)
+            field = self.after_create_select_options(
+                field, select_default, select_options, select_options_mapping
+            )
+            id_mapping["database_field_select_options"].update(select_options_mapping)
 
         return field
 

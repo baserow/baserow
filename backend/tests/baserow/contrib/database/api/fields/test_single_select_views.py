@@ -153,3 +153,79 @@ def test_cannot_pass_internal_force_create_option(api_client, data_fixture):
     assert created_option.id != 9999
     assert created_option.value == "Option 1"
     assert created_option.color == "blue"
+
+
+@pytest.mark.django_db
+def test_single_select_field_with_default_value(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    # New field with new option as default
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Single",
+            "type": "single_select",
+            "select_options": [
+                {"value": "Option 1", "color": "blue", "id": -1},
+                {"value": "Option 2", "color": "red", "id": -2},
+            ],
+            "single_select_default": -1,  # Set first option as default
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    field_data = response.json()
+    assert len(field_data["select_options"]) == 2
+    assert field_data["single_select_default"] == field_data["select_options"][0]["id"]
+
+    # Update the field to use existing option as default
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_data["id"]}),
+        {"single_select_default": 2},  # Second option's ID
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    updated_field = response.json()
+    assert updated_field["single_select_default"] == 2
+
+    # Add new option and set it as default in the same update
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_data["id"]}),
+        {
+            "select_options": [
+                {"value": "Option 1", "color": "blue", "id": 1},
+                {"value": "Option 2", "color": "red", "id": 2},
+                {"value": "Option 3", "color": "green", "id": -1},
+            ],
+            "single_select_default": -1,  # New option's temporary ID
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    final_field = response.json()
+    assert len(final_field["select_options"]) == 3
+    assert (
+        final_field["single_select_default"] == final_field["select_options"][2]["id"]
+    )
+
+    # Delete option that is set as default and verify default is set to None
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_data["id"]}),
+        {
+            "select_options": [
+                {"value": "Option 1", "color": "blue", "id": 1},
+                {"value": "Option 2", "color": "red", "id": 2},
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    deleted_field = response.json()
+    assert len(deleted_field["select_options"]) == 2
+    assert deleted_field["single_select_default"] is None

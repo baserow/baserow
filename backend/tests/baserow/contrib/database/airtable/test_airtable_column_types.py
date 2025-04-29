@@ -2501,13 +2501,11 @@ def test_airtable_import_select_column_with_default_value(
     assert isinstance(baserow_field, SingleSelectField)
     assert isinstance(airtable_column_type, SelectAirtableColumnType)
 
-    baserow_field.table_id = table.id
-    baserow_field.order = 999
-    baserow_field.save()
+    assert (
+        baserow_field.single_select_default == "fldRd2Vkzgsf6X4z6B4_selbh6rEWaaiyQvWyfg"
+    )
 
-    with django_assert_num_queries(0):
-        select_options = list(baserow_field.select_options.all())
-
+    select_options = list(baserow_field._prefetched_objects_cache["select_options"])
     assert len(select_options) == 2
     assert select_options[0].id == "fldRd2Vkzgsf6X4z6B4_selbh6rEWaaiyQvWyfg"
     assert select_options[0].value == "Option A"
@@ -2517,12 +2515,6 @@ def test_airtable_import_select_column_with_default_value(
     assert select_options[1].value == "Option B"
     assert select_options[1].color == "light-cyan"
     assert select_options[1].order == 1
-
-    # Verify the default value is set correctly
-    assert (
-        baserow_field.single_select_default_id
-        == "fldRd2Vkzgsf6X4z6B4_selbh6rEWaaiyQvWyfg"
-    )
 
 
 @pytest.mark.django_db

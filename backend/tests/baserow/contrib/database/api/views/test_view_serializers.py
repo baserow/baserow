@@ -82,6 +82,9 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
     ]
 
     single_select_options = Field.objects.get(name="single_select").select_options.all()
+    single_select_with_default_options = Field.objects.get(
+        name="single_select_with_default"
+    ).select_options.all()
     multiple_select_options = Field.objects.get(
         name="multiple_select"
     ).select_options.all()
@@ -193,6 +196,14 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
         "single_select": [
             {"count": 1, "field_single_select": single_select_options[0].id},
             {"count": 1, "field_single_select": None},
+        ],
+        "single_select_with_default": [
+            {
+                "count": 2,
+                "field_single_select_with_default": single_select_with_default_options[
+                    1
+                ].id,
+            },
         ],
         "multiple_select": [
             {"count": 1, "field_multiple_select": []},

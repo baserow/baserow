@@ -558,6 +558,21 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 "color": {"title": "color", "type": "string"},
             },
         },
+        field_db_column_by_name["single_select_with_default"]: {
+            "title": "single_select_with_default",
+            "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
+            "original_type": "single_select",
+            "metadata": {},
+            "type": "object",
+            "properties": {
+                "id": {"title": "id", "type": "number"},
+                "value": {"title": "value", "type": "string"},
+                "color": {"title": "color", "type": "string"},
+            },
+        },
         field_db_column_by_name["multiple_select"]: {
             "title": "multiple_select",
             "default": None,

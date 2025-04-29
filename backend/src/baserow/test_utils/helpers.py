@@ -257,6 +257,7 @@ def setup_interesting_test_table(
         "single_select": SelectOption.objects.get(
             value="A", field_id=name_to_field_id["single_select"]
         ).id,
+        "single_select_with_default": None,
         "multiple_select": [option_d, option_c, option_e],
         "multiple_collaborators": [
             {"id": user2.id, "name": user2.first_name},
