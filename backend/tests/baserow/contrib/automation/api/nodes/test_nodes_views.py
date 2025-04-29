@@ -14,6 +14,8 @@ API_URL_BASE = "api:automation:nodes"
 API_URL_LIST = f"{API_URL_BASE}:list"
 API_URL_ITEM = f"{API_URL_BASE}:item"
 API_URL_ORDER = f"{API_URL_BASE}:order"
+API_URL_UNDO = "api:user:undo"
+API_URL_REDO = "api:user:redo"
 
 
 @pytest.mark.django_db
@@ -89,6 +91,41 @@ def test_create_node_invalid_workflow(api_client, data_fixture):
         "detail": "The requested workflow does not exist.",
         "error": "ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST",
     }
+
+
+@pytest.mark.django_db
+def test_create_node_undo_redo(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user, name="test")
+    assert workflow.automation_workflow_nodes.count() == 0
+
+    url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
+    api_kwargs = {
+        "format": "json",
+        "HTTP_AUTHORIZATION": f"JWT {token}",
+        "HTTP_CLIENTSESSIONID": "test",
+    }
+    response = api_client.post(url, {"type": "row_created"}, **api_kwargs)
+    assert response.status_code == HTTP_200_OK
+
+    assert workflow.automation_workflow_nodes.count() == 1
+
+    payload = {
+        "scopes": {
+            "workspace": workflow.automation.workspace.id,
+            "application": workflow.automation.id,
+            "root": True,
+            "workflow": workflow.id,
+        },
+    }
+    response = api_client.patch(reverse(API_URL_UNDO), payload, **api_kwargs)
+    assert response.status_code == HTTP_200_OK
+    assert workflow.automation_workflow_nodes.count() == 0
+
+    response = api_client.patch(reverse(API_URL_REDO), payload, **api_kwargs)
+    assert response.status_code == HTTP_200_OK
+    assert workflow.automation_workflow_nodes.count() == 1
+    assert workflow.automation_workflow_nodes.first().id == workflow.id
 
 
 @pytest.mark.django_db
