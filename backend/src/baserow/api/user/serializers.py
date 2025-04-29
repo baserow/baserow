@@ -85,6 +85,14 @@ class UserSerializer(serializers.ModelSerializer):
         source="profile.completed_onboarding",
         help_text="Indicates whether the onboarding has been completed.",
     )
+    completed_guided_tours = serializers.ListSerializer(
+        source="profile.completed_guided_tours",
+        child=serializers.CharField(
+            required=True,
+        ),
+        required=False,
+        help_text="Indicates which guided tour types have been completed.",
+    )
 
     class Meta:
         model = User
@@ -98,6 +106,7 @@ class UserSerializer(serializers.ModelSerializer):
             "email_notification_frequency",
             "email_verified",
             "completed_onboarding",
+            "completed_guided_tours",
         )
         extra_kwargs = {
             "password": {"write_only": True},
@@ -105,6 +114,7 @@ class UserSerializer(serializers.ModelSerializer):
             "id": {"read_only": True},
             "email_verified": {"read_only": True},
             "completed_onboarding": {"read_only": True},
+            "completed_guided_tours": {"read_only": True},
         }
 
 
@@ -185,12 +195,21 @@ class AccountSerializer(serializers.Serializer):
         required=False,
         help_text="Indicates whether the user has completed the onboarding.",
     )
+    completed_guided_tours = serializers.ListSerializer(
+        source="profile.completed_guided_tours",
+        child=serializers.CharField(
+            required=True,
+        ),
+        required=False,
+        help_text="Indicates which guided tour types have been completed.",
+    )
 
     def validate(self, data):
         profile_fields = [
             "language",
             "email_notification_frequency",
             "completed_onboarding",
+            "completed_guided_tours",
         ]
         profile_data = data.get("profile", {})
         if "first_name" not in data and not any(

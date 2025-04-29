@@ -14,7 +14,9 @@ import TableElementForm from '@baserow/modules/builder/components/elements/compo
 import {
   ensureArray,
   ensureBoolean,
+  ensureNumeric,
   ensureInteger,
+  ensurePositiveInteger,
   ensureString,
   ensureStringOrInteger,
 } from '@baserow/modules/core/utils/validator'
@@ -63,6 +65,33 @@ import {
 } from '@baserow/modules/builder/elementTypeMixins'
 import { isNumeric, isValidEmail } from '@baserow/modules/core/utils/string'
 import { FormattedDate, FormattedDateTime } from '@baserow/modules/builder/date'
+import RatingElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingElementForm'
+import RatingElement from '@baserow/modules/builder/components/elements/components/RatingElement.vue'
+import RatingInputElement from '@baserow/modules/builder/components/elements/components/RatingInputElement.vue'
+import RatingInputElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingInputElementForm.vue'
+
+// Images for element modal
+import elementImageButton from '@baserow/modules/builder/assets/icons/element-button.svg'
+import elementImageChoice from '@baserow/modules/builder/assets/icons/element-choice.svg'
+import elementImageCheckbox from '@baserow/modules/builder/assets/icons/element-checkbox.svg'
+import elementImageColumn from '@baserow/modules/builder/assets/icons/element-column.svg'
+import elementImageDatetimePicker from '@baserow/modules/builder/assets/icons/element-datetime_picker.svg'
+import elementImageFooter from '@baserow/modules/builder/assets/icons/element-footer.svg'
+import elementImageFormContainer from '@baserow/modules/builder/assets/icons/element-form_container.svg'
+import elementImageHeader from '@baserow/modules/builder/assets/icons/element-header.svg'
+import elementImageHeading from '@baserow/modules/builder/assets/icons/element-heading.svg'
+import elementImageIFrame from '@baserow/modules/builder/assets/icons/element-iframe.svg'
+import elementImageImage from '@baserow/modules/builder/assets/icons/element-image.svg'
+import elementImageInputText from '@baserow/modules/builder/assets/icons/element-input_text.svg'
+import elementImageLink from '@baserow/modules/builder/assets/icons/element-link.svg'
+import elementImageMenu from '@baserow/modules/builder/assets/icons/element-menu.svg'
+import elementImageRatingInput from '@baserow/modules/builder/assets/icons/element-rating_input.svg'
+import elementImageRating from '@baserow/modules/builder/assets/icons/element-rating.svg'
+import elementImageRecordSelector from '@baserow/modules/builder/assets/icons/element-record_selector.svg'
+import elementImageRepeat from '@baserow/modules/builder/assets/icons/element-repeat.svg'
+import elementImageSimpleContainer from '@baserow/modules/builder/assets/icons/element-simple_container.svg'
+import elementImageTable from '@baserow/modules/builder/assets/icons/element-table.svg'
+import elementImageText from '@baserow/modules/builder/assets/icons/element-text.svg'
 
 export class ElementType extends Registerable {
   get name() {
@@ -79,6 +108,10 @@ export class ElementType extends Registerable {
 
   get iconClass() {
     return null
+  }
+
+  get image() {
+    throw new Error('image property must be implemented')
   }
 
   get component() {
@@ -146,6 +179,7 @@ export class ElementType extends Registerable {
    *   the element type is not allowed at the given location.
    */
   isDisallowedReason({
+    workspace,
     builder,
     page: destinationPage,
     parentElement,
@@ -153,6 +187,9 @@ export class ElementType extends Registerable {
     placeInContainer,
     pagePlace,
   }) {
+    if (this.isDeactivatedReason({ workspace }) !== null) {
+      return this.isDeactivatedReason({ workspace })
+    }
     if (!parentElement) {
       const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
 
@@ -184,6 +221,18 @@ export class ElementType extends Registerable {
         }
       }
     }
+    return null
+  }
+
+  isDeactivatedReason({ workspace }) {
+    return null
+  }
+
+  isDeactivated({ workspace }) {
+    return !!this.isDeactivatedReason({ workspace })
+  }
+
+  getDeactivatedClickModal({ workspace }) {
     return null
   }
 
@@ -247,10 +296,15 @@ export class ElementType extends Registerable {
    * @param {object} param An object containing the page, element, and builder
    * @returns true if the element is in error
    */
-  isInError({ page, element, builder }) {
+  isInError({ workspace, page, element, builder }) {
+    if (this.isDeactivatedReason({ workspace }) !== null) {
+      return true
+    }
+
     if (this.getEvents(element).length > 0) {
       return this.workflowActionsInError({ page, element, builder })
     }
+
     return false
   }
 
@@ -719,6 +773,10 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     return 'iconoir-frame'
   }
 
+  get image() {
+    return elementImageFormContainer
+  }
+
   get component() {
     return FormContainerElement
   }
@@ -735,6 +793,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
    * This element is not allowed in another form container.
    */
   isDisallowedReason({
+    workspace,
     builder,
     page,
     parentElement,
@@ -754,6 +813,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
       }
     }
     return super.isDisallowedReason({
+      workspace,
       builder,
       page,
       parentElement,
@@ -771,7 +831,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
    * A form container is invalid if it has no workflow actions, or it has no
    * children.
    */
-  isInError({ page, element, builder }) {
+  isInError({ workspace, page, element, builder }) {
     const workflowActions = this.app.store.getters[
       'workflowAction/getElementWorkflowActions'
     ](page, element.id)
@@ -780,7 +840,12 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
       return true
     }
 
-    return super.isInError({ page, element, builder })
+    return super.isInError({
+      workspace,
+      page,
+      element,
+      builder,
+    })
   }
 }
 
@@ -805,6 +870,10 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
     return 'iconoir-view-columns-3'
   }
 
+  get image() {
+    return elementImageColumn
+  }
+
   get component() {
     return ColumnElement
   }
@@ -821,6 +890,7 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
    * This element is not allowed in another column container.
    */
   isDisallowedReason({
+    workspace,
     builder,
     page,
     parentElement,
@@ -840,6 +910,7 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
       }
     }
     return super.isDisallowedReason({
+      workspace,
       builder,
       page,
       parentElement,
@@ -879,6 +950,10 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
 
   get iconClass() {
     return 'iconoir-square'
+  }
+
+  get image() {
+    return elementImageSimpleContainer
   }
 
   get component() {
@@ -931,6 +1006,10 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
     return 'iconoir-table'
   }
 
+  get image() {
+    return elementImageTable
+  }
+
   get component() {
     return TableElement
   }
@@ -963,9 +1042,14 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
    * The table is in error if the configuration is invalid (see collection element
    * mixin) or if one of the fields are in error.
    */
-  isInError({ page, element, builder }) {
+  isInError({ workspace, page, element, builder }) {
     return (
-      super.isInError({ page, element, builder }) ||
+      super.isInError({
+        workspace,
+        page,
+        element,
+        builder,
+      }) ||
       element.fields.some((collectionField) => {
         const collectionFieldType = this.app.$registry.get(
           'collectionField',
@@ -1001,6 +1085,10 @@ export class RepeatElementType extends CollectionElementTypeMixin(
 
   get iconClass() {
     return 'iconoir-repeat'
+  }
+
+  get image() {
+    return elementImageRepeat
   }
 
   get component() {
@@ -1092,6 +1180,17 @@ export class FormElementType extends ElementType {
       type: this.formDataType(element),
     }
   }
+
+  /**
+   * Hook to pre process actionDispatchContext before it's used.
+   * @param {Object} element the form element
+   * @param {*} value the value of the actionDispatchContext
+   * @param {Object} files a map that can be updated to add files to the payload of the
+   *   action.
+   */
+  beforeActionDispatchContext(element, value, files) {
+    return value
+  }
 }
 
 export class InputTextElementType extends FormElementType {
@@ -1126,6 +1225,10 @@ export class InputTextElementType extends FormElementType {
     return 'iconoir-input-field'
   }
 
+  get image() {
+    return elementImageInputText
+  }
+
   get component() {
     return InputTextElement
   }
@@ -1135,7 +1238,7 @@ export class InputTextElementType extends FormElementType {
   }
 
   formDataType(element) {
-    return 'string'
+    return element.validation_type === 'integer' ? 'number' : 'string'
   }
 
   getDisplayName(element, applicationContext) {
@@ -1153,12 +1256,16 @@ export class InputTextElementType extends FormElementType {
 
   getInitialFormDataValue(element, applicationContext) {
     try {
-      return this.resolveFormula(element.default_value, {
+      const value = this.resolveFormula(element.default_value, {
         element,
         ...applicationContext,
       })
+
+      return element.validation_type === 'integer'
+        ? ensureNumeric(value, { allowNull: true })
+        : ensureString(value)
     } catch {
-      return ''
+      return null
     }
   }
 }
@@ -1180,6 +1287,10 @@ export class HeadingElementType extends ElementType {
     return 'iconoir-text'
   }
 
+  get image() {
+    return elementImageHeading
+  }
+
   get component() {
     return HeadingElement
   }
@@ -1192,11 +1303,16 @@ export class HeadingElementType extends ElementType {
    * A value is mandatory for the Heading element. Return true if the value
    * is empty to indicate an error, otherwise return false.
    */
-  isInError({ page, element, builder }) {
+  isInError({ workspace, page, element, builder }) {
     if (element.value.length === 0) {
       return true
     }
-    return super.isInError({ page, element, builder })
+    return super.isInError({
+      workspace,
+      page,
+      element,
+      builder,
+    })
   }
 
   getDisplayName(element, applicationContext) {
@@ -1227,6 +1343,10 @@ export class TextElementType extends ElementType {
     return 'iconoir-text-box'
   }
 
+  get image() {
+    return elementImageText
+  }
+
   get component() {
     return TextElement
   }
@@ -1239,11 +1359,16 @@ export class TextElementType extends ElementType {
    * A value is mandatory for the Text element. Return true if the value
    * is empty to indicate an error, otherwise return false.
    */
-  isInError({ page, element, builder }) {
+  isInError({ workspace, page, element, builder }) {
     if (element.value.length === 0) {
       return true
     }
-    return super.isInError({ page, element, builder })
+    return super.isInError({
+      workspace,
+      page,
+      element,
+      builder,
+    })
   }
 
   getDisplayName(element, applicationContext) {
@@ -1274,6 +1399,10 @@ export class LinkElementType extends ElementType {
     return 'iconoir-link'
   }
 
+  get image() {
+    return elementImageLink
+  }
+
   get component() {
     return LinkElement
   }
@@ -1292,7 +1421,7 @@ export class LinkElementType extends ElementType {
    * When the Navigate To is a Custom URL, a Destination URL value must be
    * provided.
    */
-  isInError({ page, element, builder }) {
+  isInError({ workspace, page, element, builder }) {
     // A Link without any text isn't usable
     if (!element.value) {
       return true
@@ -1309,7 +1438,12 @@ export class LinkElementType extends ElementType {
     } else if (element.navigation_type === 'custom') {
       return Boolean(!element.navigate_to_url)
     }
-    return super.isInError({ page, element, builder })
+    return super.isInError({
+      workspace,
+      page,
+      element,
+      builder,
+    })
   }
 
   getDisplayName(element, applicationContext) {
@@ -1364,6 +1498,10 @@ export class ImageElementType extends ElementType {
     return 'iconoir-media-image'
   }
 
+  get image() {
+    return elementImageImage
+  }
+
   get component() {
     return ImageElement
   }
@@ -1377,7 +1515,7 @@ export class ImageElementType extends ElementType {
    * to indicate an error when an image source doesn't exist, otherwise
    * return false.
    */
-  isInError({ page, element, builder }) {
+  isInError({ workspace, page, element, builder }) {
     if (
       element.image_source_type === IMAGE_SOURCE_TYPES.UPLOAD &&
       !element.image_file?.url
@@ -1389,7 +1527,12 @@ export class ImageElementType extends ElementType {
     ) {
       return true
     }
-    return super.isInError({ page, element, builder })
+    return super.isInError({
+      workspace,
+      page,
+      element,
+      builder,
+    })
   }
 
   getDisplayName(element, applicationContext) {
@@ -1420,6 +1563,10 @@ export class ButtonElementType extends ElementType {
     return 'iconoir-square-cursor'
   }
 
+  get image() {
+    return elementImageButton
+  }
+
   get component() {
     return ButtonElement
   }
@@ -1436,7 +1583,7 @@ export class ButtonElementType extends ElementType {
    * A Button element must have a Workflow Action to be considered valid. Return
    * true if there are no Workflow Actions, otherwise return false.
    */
-  isInError({ page, element, builder }) {
+  isInError({ workspace, page, element, builder }) {
     // If Button without any label should be considered invalid
     if (!element.value) {
       return true
@@ -1449,7 +1596,12 @@ export class ButtonElementType extends ElementType {
     if (!workflowActions.length) {
       return true
     }
-    return super.isInError({ page, element, builder })
+    return super.isInError({
+      workspace,
+      page,
+      element,
+      builder,
+    })
   }
 
   getDisplayName(element, applicationContext) {
@@ -1480,6 +1632,10 @@ export class ChoiceElementType extends FormElementType {
     return 'iconoir-list-select'
   }
 
+  get image() {
+    return elementImageChoice
+  }
+
   get component() {
     return ChoiceElement
   }
@@ -1492,17 +1648,45 @@ export class ChoiceElementType extends FormElementType {
     return element.multiple ? 'array' : 'string'
   }
 
+  /**
+   * Returns the first option for this element.
+   * @param {Object} element the element we want the option for.
+   * @returns the first option value.
+   */
+  _getFirstOptionValue(element) {
+    switch (element.option_type) {
+      case CHOICE_OPTION_TYPES.MANUAL:
+        return element.options.find(({ value }) => value)
+      case CHOICE_OPTION_TYPES.FORMULAS: {
+        const formulaValues = ensureArray(
+          this.resolveFormula(this.element.formula_value)
+        )
+        if (formulaValues.length === 0) {
+          return null
+        }
+        return ensureStringOrInteger(formulaValues[0])
+      }
+      default:
+        return []
+    }
+  }
+
   getInitialFormDataValue(element, applicationContext) {
     try {
+      const firstValue = this._getFirstOptionValue(element)
+      let converter = ensureStringOrInteger
+      if (firstValue ?? Number.isInteger(firstValue)) {
+        converter = (v) => ensurePositiveInteger(v, { allowNull: true })
+      }
       if (element.multiple) {
         return ensureArray(
           this.resolveFormula(element.default_value, {
             element,
             ...applicationContext,
           })
-        ).map(ensureStringOrInteger)
+        ).map(converter)
       } else {
-        return ensureStringOrInteger(
+        return converter(
           this.resolveFormula(element.default_value, {
             element,
             ...applicationContext,
@@ -1575,7 +1759,7 @@ export class ChoiceElementType extends FormElementType {
     return !(element.required && !validOption)
   }
 
-  isInError({ page, element, builder }) {
+  isInError({ workspace, page, element, builder }) {
     if (element.option_type === CHOICE_OPTION_TYPES.MANUAL) {
       if (element.options.length === 0) {
         return true
@@ -1585,7 +1769,12 @@ export class ChoiceElementType extends FormElementType {
         return true
       }
     }
-    return super.isInError({ page, element, builder })
+    return super.isInError({
+      workspace,
+      page,
+      element,
+      builder,
+    })
   }
 
   getDataSchema(element) {
@@ -1620,6 +1809,10 @@ export class CheckboxElementType extends FormElementType {
 
   get iconClass() {
     return 'iconoir-check'
+  }
+
+  get image() {
+    return elementImageCheckbox
   }
 
   get component() {
@@ -1665,6 +1858,10 @@ export class IFrameElementType extends ElementType {
     return 'iconoir-app-window'
   }
 
+  get image() {
+    return elementImageIFrame
+  }
+
   get component() {
     return IFrameElement
   }
@@ -1678,7 +1875,7 @@ export class IFrameElementType extends ElementType {
    * source_type. If the value doesn't exist, return true to indicate an error,
    * otherwise return false.
    */
-  isInError({ page, element, builder }) {
+  isInError({ workspace, page, element, builder }) {
     if (element.source_type === IFRAME_SOURCE_TYPES.URL && !element.url) {
       return true
     } else if (
@@ -1687,7 +1884,12 @@ export class IFrameElementType extends ElementType {
     ) {
       return true
     }
-    return super.isInError({ page, element, builder })
+    return super.isInError({
+      workspace,
+      page,
+      element,
+      builder,
+    })
   }
 
   getDisplayName(element, applicationContext) {
@@ -1722,6 +1924,10 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
 
   get iconClass() {
     return 'iconoir-select-window'
+  }
+
+  get image() {
+    return elementImageRecordSelector
   }
 
   get component() {
@@ -1788,11 +1994,16 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
    * @param {Object} element the element to check the error
    * @returns
    */
-  isInError({ page, element, builder }) {
+  isInError({ workspace, page, element, builder }) {
     if (!element.data_source_id) {
       return true
     }
-    return super.isInError({ page, element, builder })
+    return super.isInError({
+      workspace,
+      page,
+      element,
+      builder,
+    })
   }
 
   getDataSchema(element) {
@@ -1827,6 +2038,10 @@ export class DateTimePickerElementType extends FormElementType {
 
   get iconClass() {
     return 'iconoir-calendar'
+  }
+
+  get image() {
+    return elementImageDatetimePicker
   }
 
   get component() {
@@ -1911,6 +2126,10 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     return 'iconoir-align-top-box'
   }
 
+  get image() {
+    return elementImageHeader
+  }
+
   get component() {
     return MultiPageContainerElement
   }
@@ -1941,6 +2160,7 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
    * We can add id before the first element though.
    */
   isDisallowedReason({
+    workspace,
     builder,
     page,
     parentElement,
@@ -2001,6 +2221,10 @@ export class FooterElementType extends HeaderElementType {
     return 'iconoir-align-bottom-box'
   }
 
+  get image() {
+    return elementImageFooter
+  }
+
   get component() {
     return MultiPageContainerElement
   }
@@ -2014,6 +2238,7 @@ export class FooterElementType extends HeaderElementType {
    * We can add id after the element of the page though.
    */
   isDisallowedReason({
+    workspace,
     builder,
     page,
     parentElement,
@@ -2046,6 +2271,111 @@ export class FooterElementType extends HeaderElementType {
   }
 }
 
+export class RatingInputElementType extends FormElementType {
+  static getType() {
+    return 'rating_input'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.ratingInput')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.ratingInputDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-bubble-star'
+  }
+
+  get image() {
+    return elementImageRatingInput
+  }
+
+  get component() {
+    return RatingInputElement
+  }
+
+  get generalFormComponent() {
+    return RatingInputElementForm
+  }
+
+  formDataType(element) {
+    return 'number'
+  }
+
+  getInitialFormDataValue(element, applicationContext) {
+    try {
+      return ensurePositiveInteger(
+        this.resolveFormula(element.value, {
+          element,
+          ...applicationContext,
+        })
+      )
+    } catch {
+      return 0
+    }
+  }
+
+  isValid(element, value) {
+    if (element.required && (value === null || value === undefined)) {
+      return false
+    }
+    return value >= 0 && value <= element.max_value
+  }
+}
+
+export class RatingElementType extends ElementType {
+  static getType() {
+    return 'rating'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.rating')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.ratingDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-leaderboard-star'
+  }
+
+  get image() {
+    return elementImageRating
+  }
+
+  get component() {
+    return RatingElement
+  }
+
+  get generalFormComponent() {
+    return RatingElementForm
+  }
+
+  formDataType(element) {
+    return 'number'
+  }
+
+  getInitialFormDataValue(element, applicationContext) {
+    try {
+      return ensurePositiveInteger(
+        this.resolveFormula(element.value, {
+          element,
+          ...applicationContext,
+        })
+      )
+    } catch {
+      return 0
+    }
+  }
+
+  isValid(element, value) {
+    return value >= 0 && value <= element.max_value
+  }
+}
+
 export class MenuElementType extends ElementType {
   static getType() {
     return 'menu'
@@ -2061,6 +2391,10 @@ export class MenuElementType extends ElementType {
 
   get iconClass() {
     return 'iconoir-menu'
+  }
+
+  get image() {
+    return elementImageMenu
   }
 
   get component() {
@@ -2094,7 +2428,7 @@ export class MenuElementType extends ElementType {
       .flat()
   }
 
-  isInError({ page, element, builder }) {
+  isInError({ workspace, page, element, builder }) {
     // There must be at least one menu item
     if (!element.menu_items?.length) {
       return true
@@ -2114,7 +2448,15 @@ export class MenuElementType extends ElementType {
       }
     })
 
-    return hasInvalidMenuItem || super.isInError({ page, element, builder })
+    return (
+      hasInvalidMenuItem ||
+      super.isInError({
+        workspace,
+        page,
+        element,
+        builder,
+      })
+    )
   }
 
   menuItemIsInError(element, builder, workflowActions) {

@@ -1,63 +1,45 @@
 <template>
   <div>
     <div class="modal-sidebar__head">
-      <div class="modal-sidebar__head-icon-and-name">
-        <i class="modal-sidebar__head-icon-and-name-icon iconoir-bin"></i>
-        {{ $t('trashSidebar.title') }}
-      </div>
-    </div>
-    <ul class="trash-sidebar__workspaces">
-      <li
-        v-for="workspace in workspaces"
-        :key="'trash-workspace-' + workspace.id"
-        class="trash-sidebar__workspace"
-        :class="{
-          'trash-sidebar__workspace--active':
-            isSelectedTrashWorkspace(workspace),
-          'trash-sidebar__workspace--open':
-            isSelectedTrashWorkspaceApplication(workspace),
-          'trash-sidebar__workspace--trashed': workspace.trashed,
-        }"
+      <Dropdown
+        :value="selectedTrashWorkspace"
+        :fixed-items="true"
+        class="max-width-100"
+        @input="emitIfNotAlreadySelectedTrashWorkspace($event)"
       >
-        <a
-          class="trash-sidebar__workspace-link"
-          @click="emitIfNotAlreadySelectedTrashWorkspace(workspace)"
-        >
-          <i
-            class="trash-sidebar__workspace-link-caret-right iconoir-nav-arrow-right"
-          ></i>
-          <i
-            class="trash-sidebar__workspace-link-caret-down iconoir-nav-arrow-down"
-          ></i>
-          {{
-            workspace.name ||
-            $t('trashSidebar.unnamedWorkspace', { id: workspace.id })
-          }}
-        </a>
-        <ul class="trash-sidebar__applications">
-          <li
-            v-for="application in workspace.applications"
-            :key="'trash-application-' + application.id"
-            class="trash-sidebar__application"
+        <DropdownItem
+          v-for="workspace in workspaces"
+          :key="workspace.id"
+          :value="workspace"
+          :name="workspace.name"
+          :icon="workspace.trashed ? 'iconoir-bin' : null"
+        ></DropdownItem>
+      </Dropdown>
+    </div>
+
+    <template v-for="group in groupedApplicationsForSelectedWorkspace">
+      <div :key="group.type" class="modal-sidebar__title">{{ group.name }}</div>
+      <ul :key="group.type" class="modal-sidebar__nav">
+        <li v-for="application in group.applications" :key="application.id">
+          <a
+            class="modal-sidebar__nav-link"
             :class="{
-              'trash-sidebar__application--active': isSelectedApp(application),
-              'trash-sidebar__application--trashed':
-                workspace.trashed || application.trashed,
+              active: isSelectedApp(application),
+              'text-decoration-line-through': application.trashed,
             }"
+            @click="
+              emitIfNotAlreadySelectedTrashApplication(
+                selectedTrashWorkspace,
+                application
+              )
+            "
           >
-            <a
-              class="trash-sidebar__application-link"
-              @click="
-                emitIfNotAlreadySelectedTrashApplication(workspace, application)
-              "
-              >{{
-                application.name || 'Unnamed application ' + application.id
-              }}</a
-            >
-          </li>
-        </ul>
-      </li>
-    </ul>
+            <i class="modal-sidebar__nav-icon" :class="group.iconClass"></i>
+            {{ application.name || 'Unnamed application ' + application.id }}
+          </a>
+        </li>
+      </ul>
+    </template>
   </div>
 </template>
 
@@ -80,18 +62,29 @@ export default {
       default: null,
     },
   },
+  computed: {
+    groupedApplicationsForSelectedWorkspace() {
+      const applicationTypes = Object.values(
+        this.$registry.getAll('application')
+      )
+        .map((applicationType) => {
+          const applications = this.selectedTrashWorkspace?.applications || []
+          return {
+            name: applicationType.getNamePlural(),
+            type: applicationType.getType(),
+            iconClass: applicationType.getIconClass(),
+            applications: applications
+              .filter((application) => {
+                return application.type === applicationType.getType()
+              })
+              .sort((a, b) => a.order - b.order),
+          }
+        })
+        .filter((group) => group.applications.length > 0)
+      return applicationTypes
+    },
+  },
   methods: {
-    isSelectedTrashWorkspace(workspace) {
-      return (
-        workspace.id === this.selectedTrashWorkspace.id &&
-        this.selectedTrashApplication === null
-      )
-    },
-    isSelectedTrashWorkspaceApplication(workspace) {
-      return workspace.applications.some((application) =>
-        this.isSelectedApp(application)
-      )
-    },
     isSelectedApp(app) {
       return (
         this.selectedTrashApplication !== null &&
@@ -99,7 +92,7 @@ export default {
       )
     },
     emitIfNotAlreadySelectedTrashWorkspace(workspace) {
-      if (!this.isSelectedTrashWorkspace(workspace)) {
+      if (!this.selectedTrashApplication !== null) {
         this.emitSelected({ workspace })
       }
     },

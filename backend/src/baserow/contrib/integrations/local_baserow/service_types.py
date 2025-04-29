@@ -15,11 +15,13 @@ from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
 
+from loguru import logger
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.data_providers.exceptions import (
     DataProviderChunkInvalidException,
+    FormDataProviderChunkInvalidException,
 )
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
 from baserow.contrib.database.api.rows.serializers import (
@@ -38,6 +40,7 @@ from baserow.contrib.database.fields.field_types import (
     MultipleCollaboratorsFieldType,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
 from baserow.contrib.database.fields.registries import (
     field_aggregation_registry,
     field_type_registry,
@@ -113,6 +116,7 @@ from baserow.core.services.types import (
     ServiceSortDictSubClass,
     ServiceSubClass,
 )
+from baserow.core.types import PermissionCheck
 from baserow.core.utils import atomic_if_not_already
 
 if TYPE_CHECKING:
@@ -2202,7 +2206,11 @@ class LocalBaserowUpsertRowServiceType(
             resolved_values, service, dispatch_context
         )
 
-        field_mappings = service.field_mappings.select_related("field").all()
+        field_mappings = (
+            service.field_mappings.select_related("field")
+            .exclude(field__trashed=True)
+            .all()
+        )
         for field_mapping in field_mappings:
             dispatch_context.reset_call_stack()
             try:
@@ -2211,6 +2219,8 @@ class LocalBaserowUpsertRowServiceType(
                     formula_runtime_function_registry,
                     dispatch_context,
                 )
+            except FormDataProviderChunkInvalidException as e:
+                raise ServiceImproperlyConfigured(str(e)) from e
             except DataProviderChunkInvalidException as e:
                 message = (
                     "Path error in formula for "
@@ -2218,6 +2228,9 @@ class LocalBaserowUpsertRowServiceType(
                 )
                 raise ServiceImproperlyConfigured(message) from e
             except Exception as e:
+                logger.exception(
+                    f"Unexpected error for field {field_mapping.field.name}"
+                )
                 message = (
                     "Unknown error in formula for "
                     f"field {field_mapping.field.name}({field_mapping.field.id}): {repr(e)} - {str(e)}"
@@ -2246,15 +2259,42 @@ class LocalBaserowUpsertRowServiceType(
         table = resolved_values["table"]
         used_field_names = self.get_used_field_names(service, dispatch_context)
 
-        integration = service.integration.specific
+        service.integration = service.integration.specific
         row_id: Optional[int] = resolved_values.get("row_id", None)
 
         row_values = {}
-        field_mappings = service.field_mappings.select_related("field").filter(
-            enabled=True
+        field_mappings = (
+            service.field_mappings.select_related("field")
+            .filter(enabled=True)
+            .exclude(field__trashed=True)
         )
 
-        for field_mapping in field_mappings:
+        # Track the field<->mapping relationship.
+        context_map = {fm.field: fm for fm in field_mappings}
+
+        # Perform a bulk permission check on each field-mapping field.
+        permission_check_results = CoreHandler().check_multiple_permissions(
+            [
+                PermissionCheck(
+                    service.integration.authorized_user,
+                    WriteFieldValuesOperationType.type,
+                    fm.field,
+                )
+                for fm in field_mappings
+            ],
+            workspace=service.integration.application.workspace,
+        )
+
+        # Only iterate over field mappings which we know our authorized user is
+        # allowed to write values to. Writable doesn't refer to the field type being
+        # writable, but rather if the authorized user has the correct permission.
+        authorized_user_writable_field_mappings = [
+            context_map[check.context]
+            for check, check_result in permission_check_results.items()
+            if check_result
+        ]
+
+        for field_mapping in authorized_user_writable_field_mappings:
             if field_mapping.id not in resolved_values:
                 continue
 
@@ -2275,14 +2315,15 @@ class LocalBaserowUpsertRowServiceType(
             try:
                 # Automatically cast the resolved value to the serializer field type
                 cast_function = guess_cast_function_from_response_serializer_field(
-                    serializer_field
+                    serializer_field, service
                 )
+
                 if cast_function:
                     resolved_value = cast_function(resolved_value)
                 resolved_value = serializer_field.run_validation(resolved_value)
             except (ValidationError, DRFValidationError) as exc:
                 raise ServiceImproperlyConfigured(
-                    "The result value of the formula is not valid for the "
+                    f"The result value '{str(resolved_value)}' of the formula is not valid for the "
                     f"field `{field.name} ({field.db_column})`: {str(exc)}"
                 ) from exc
 
@@ -2301,7 +2342,7 @@ class LocalBaserowUpsertRowServiceType(
         if row_id:
             try:
                 (row,) = UpdateRowsActionType.do(
-                    integration.authorized_user,
+                    service.integration.authorized_user,
                     table,
                     rows_values=[{**row_values, "id": row_id}],
                     model=model,
@@ -2313,7 +2354,7 @@ class LocalBaserowUpsertRowServiceType(
         else:
             try:
                 (row,) = CreateRowsActionType.do(
-                    user=integration.authorized_user,
+                    user=service.integration.authorized_user,
                     table=table,
                     rows_values=[row_values],
                     model=model,

@@ -20,6 +20,7 @@ __all__ = [
     "ds_updated",
     "ds_deleted",
     "page_deleted",
+    "page_updated",
 ]
 
 # Elements
@@ -95,6 +96,11 @@ def ds_deleted(sender, data_source_id, page, user, **kwargs):
 @receiver(page_signals.page_deleted)
 def page_deleted(sender, builder, page_id, user, **kwargs):
     BuilderHandler().invalidate_builder_public_properties_cache(builder)
+
+
+@receiver(page_signals.page_updated)
+def page_updated(sender, page, user, **kwargs):
+    BuilderHandler().invalidate_builder_public_properties_cache(page.builder)
 
 
 # User sources

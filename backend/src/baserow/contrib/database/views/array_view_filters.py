@@ -1,6 +1,6 @@
 import zoneinfo
 from abc import ABC, abstractmethod
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.db.models import Q
 
@@ -505,10 +505,15 @@ class HasDateWithinViewFilterType(ArrayDateMultiStepViewFilterType):
         upper_bound: date | datetime,
         timezone: zoneinfo.ZoneInfo,
     ) -> OptionallyAnnotatedQ:
+        today = datetime.now(tz=timezone).date()
+        if today < upper_bound:
+            lower_bound = today
+        else:
+            upper_bound = today + timedelta(days=1)
         return get_jsonb_has_date_value_filter_expr(
             model_field,
             timezone,
-            gte_of=datetime.now(tz=timezone).date(),
+            gte_of=lower_bound,
             lt_of=upper_bound,
         )
 

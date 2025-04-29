@@ -53,7 +53,10 @@
           >
             <div
               class="grid-view__row-count"
-              :class="{ 'grid-view__row-count--small': rowIdentifier > 9999 }"
+              :class="{
+                'grid-view__row-count--small': rowIdentifier > 9999,
+                'grid-view__row-count--hide-on-hover': canDrag,
+              }"
               :title="rowIdentifier"
             >
               {{ rowIdentifier }}
@@ -94,7 +97,7 @@
         :all-fields-in-table="allFieldsInTable"
         :state="state"
         :multi-select-position="getMultiSelectPosition(row.id, field)"
-        :read-only="readOnly || field.read_only"
+        :read-only="readOnly || !canWriteFieldValues(field)"
         :store-prefix="storePrefix"
         :group-end="groupEnd"
         :style="{
@@ -416,6 +419,9 @@ export default {
       }
 
       return styling
+    },
+    canWriteFieldValues(field) {
+      return this.$registry.get('field', field.type).canWriteFieldValues(field)
     },
   },
 }

@@ -4,11 +4,11 @@
     ref="textarea"
     class="ab-input"
     style="resize: none"
-    :value="value"
+    :value="fromValue(value)"
     :placeholder="placeholder"
     :rows="rows"
     @blur="$emit('blur', $event)"
-    @input="$emit('input', $event.target.value)"
+    @input="$emit('input', toValue($event.target.value))"
     @focus="$emit('focus', $event)"
     @click="$emit('click', $event)"
   ></textarea>
@@ -17,10 +17,10 @@
     ref="input"
     :type="type"
     class="ab-input"
-    :value="value"
+    :value="fromValue(value)"
     :placeholder="placeholder"
     @blur="$emit('blur', $event)"
-    @input="$emit('input', $event.target.value)"
+    @input="$emit('input', toValue($event.target.value))"
     @focus="$emit('focus', $event)"
     @click="$emit('click', $event)"
   />
@@ -38,7 +38,7 @@ export default {
      * @type {string} - The value of the input.
      */
     value: {
-      type: String,
+      type: [String, Number],
       required: false,
       default: '',
     },
@@ -49,6 +49,22 @@ export default {
       type: String,
       required: false,
       default: null,
+    },
+    /**
+     * @type {Function} - The function to process user input before storing it.
+     */
+    toValue: {
+      type: Function,
+      required: false,
+      default: (value) => value,
+    },
+    /**
+     * @type {Function} - The function to process/convert the value to a string.
+     */
+    fromValue: {
+      type: Function,
+      required: false,
+      default: (value) => value,
     },
     /**
      * @type {boolean} - Whether the input is multiline.

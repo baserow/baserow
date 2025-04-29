@@ -33,11 +33,13 @@ class WidgetType(
     id_mapping_name = DASHBOARD_WIDGETS
     allowed_fields = ["title", "description"]
 
-    def before_create(self, dashboard: Dashboard):
+    def before_create(self, user, dashboard: Dashboard):
         """
         This function allows you to perform checks and operations
         before a widget is created.
 
+        :param user: The user on whos behalf the widget is being
+            created.
         :param dashboard: The dashboard where the widget should be
             created.
         """

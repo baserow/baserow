@@ -12,6 +12,6 @@ export const getUndoRedoActionRequestConfig = ({ undoRedoActionGroupId }) => {
     config.headers = {
       [UNDO_REDO_ACTION_GROUP_HEADER]: undoRedoActionGroupId,
     }
-    return config
   }
+  return config
 }

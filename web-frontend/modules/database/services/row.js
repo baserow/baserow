@@ -1,5 +1,6 @@
 import _ from 'lodash'
 import { callGrouper } from '@baserow/modules/core/utils/function'
+import { getUndoRedoActionRequestConfig } from '@baserow/modules/database/utils/action'
 
 const GRACE_DELAY = 50 // ms before querying the backend with a get query
 
@@ -80,8 +81,9 @@ export default (client) => {
 
       return client.post(`/database/rows/table/${tableId}/`, values, config)
     },
-    batchCreate(tableId, rows, beforeId = null) {
-      const config = { params: {} }
+    batchCreate(tableId, rows, beforeId = null, undoRedoActionGroupId = null) {
+      const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
+      config.params = {}
 
       if (beforeId !== null) {
         config.params.before = beforeId
@@ -96,8 +98,13 @@ export default (client) => {
     update(tableId, rowId, values) {
       return client.patch(`/database/rows/table/${tableId}/${rowId}/`, values)
     },
-    batchUpdate(tableId, items) {
-      return client.patch(`/database/rows/table/${tableId}/batch/`, { items })
+    batchUpdate(tableId, items, undoRedoActionGroupId = null) {
+      const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
+      return client.patch(
+        `/database/rows/table/${tableId}/batch/`,
+        { items },
+        config
+      )
     },
     /**
      * Moves the row to the position before the row related to the beforeRowId

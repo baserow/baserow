@@ -125,11 +125,18 @@
     "notAllowedUnlessFooter": "This element is allowed only inside the page footer",
     "notAllowedInsideContainer": "This element is not allowed inside a container",
     "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
+    "ratingInput": "Rating input",
+    "ratingInputDescription": "A rating input element",
+    "rating": "Rating",
+    "ratingDescription": "A rating element",
+    "invalidElementValue": "Invalid element value: {value}",
     "notAllowedLocation": "This element is not allowed at this location",
     "menu": "Menu",
     "menuDescription": "Menu element",
     "simpleContainer": "Container",
-    "simpleContainerDescription": "A container for other elements"
+    "simpleContainerDescription": "A container for other elements",
+    "fileInput": "File input",
+    "fileInputDescription": "An input to upload files"
   },
   "addElementButton": {
     "label": "Element"
@@ -153,6 +160,7 @@
     "selectParent": "Select parent"
   },
   "duplicatePageJobType": {
+    "name": "Duplicate page",
     "duplicating": "Duplicating",
     "duplicatedTitle": "Page duplicated"
   },
@@ -244,11 +252,13 @@
   },
   "generalForm": {
     "labelTitle": "Label",
-    "labelPlaceholder": "Enter a label (optional)",
-    "valueTitle": "Default value",
-    "valuePlaceholder": "Enter a default value (optional)",
+    "labelPlaceholder": "Enter label",
+    "valueTitle": "Value",
+    "defaultValueTitle": "Default value",
+    "defaultValuePlaceholder": "Enter default value",
+    "valuePlaceholder": "Enter value",
     "placeholderTitle": "Placeholder",
-    "placeholderPlaceholder": "Enter a placeholder (optional)",
+    "placeholderPlaceholder": "Enter a placeholder",
     "requiredTitle": "Required",
     "validationTitle": "Validation"
   },
@@ -259,7 +269,7 @@
     "validationTypeAnyLabel": "Any",
     "validationTypeAnyDescription": "Allow any value to be set in this input.",
     "validationTypeIntegerLabel": "Number",
-    "validationTypeIntegerDescription": "Enforce a number value in this input.",
+    "validationTypeIntegerDescription": "Enforce a numeric value in this input (accepts integers and decimals).",
     "validationTypeEmailLabel": "Email",
     "validationTypeEmailDescription": "Enforce an email address value in this input.",
     "inputType": "Input type",
@@ -595,10 +605,6 @@
     "size": "Font size",
     "weight": "Font weight"
   },
-  "linkDecorations": {
-    "normal": "Normal",
-    "plain": "Plain"
-  },
   "linkThemeConfigBlock": {
     "color": "Color",
     "link": "Link",
@@ -792,7 +798,8 @@
     "text": "Text",
     "link": "Link",
     "tags": "Tags",
-    "image": "Image"
+    "image": "Image",
+    "rating": "Rating"
   },
   "textFieldForm": {
     "fieldValueLabel": "Value",
@@ -988,5 +995,31 @@
     "stroke": "Stroke",
     "italic": "Italic",
     "uppercase": "Uppercase"
+  },
+  "ratingFieldForm": {
+    "maxValue": "Max value",
+    "color": "Color",
+    "style": "Style",
+    "star": "Star",
+    "heart": "Heart",
+    "thumbsUp": "Thumbs up",
+    "flag": "Flag",
+    "value": "Value"
+  },
+  "ratingElementForm": {
+    "maxValue": "Maximum",
+    "color": "Color",
+    "ratingStyle": "Style",
+    "star": "Star",
+    "heart": "Heart",
+    "smile": "Smile",
+    "thumbsUp": "Thumbs up",
+    "flag": "Flag"
+  },
+  "automationSettingsModal": {
+    "title": "Workflow"
+  },
+  "abFileInput": {
+    "delete": "Delete"
   }
 }

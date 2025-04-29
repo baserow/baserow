@@ -3,7 +3,10 @@
     <header
       ref="header"
       class="layout__col-2-1 header"
-      :class="{ 'header--overflow': headerOverflow }"
+      :class="[
+        { 'header--overflow': headerOverflow },
+        getViewHeaderClassNames(view),
+      ]"
     >
       <div v-show="tableLoading" class="header__loading"></div>
       <ul v-if="!tableLoading" class="header__filter">
@@ -13,17 +16,10 @@
         <li class="header__filter-item header__filter-item--grids">
           <a
             ref="viewsSelectToggle"
-            class="header__filter-link"
+            class="header__filter-link active"
             :class="{ 'header__filter-link--disabled': views === null }"
-            @click="
-              views !== null &&
-                $refs.viewsContext.toggle(
-                  $refs.viewsSelectToggle,
-                  'bottom',
-                  'left',
-                  4
-                )
-            "
+            data-highlight="views"
+            @click="views !== null && openTableViewsContext()"
           >
             <template v-if="hasSelectedView">
               <i
@@ -59,15 +55,10 @@
           class="header__filter-item header__filter-item--no-margin-left"
         >
           <a
+            ref="viewSelectToggle"
             class="header__filter-link"
-            @click="
-              $refs.viewContext.toggle(
-                $event.currentTarget,
-                'bottom',
-                'left',
-                4
-              )
-            "
+            data-highlight="view-options"
+            @click="openTableViewContext"
           >
             <i class="header__filter-icon baserow-icon-more-vertical"></i>
           </a>
@@ -108,6 +99,7 @@
               ))
           "
           class="header__filter-item"
+          data-highlight="view-filters"
         >
           <ViewFilter
             :view="view"
@@ -130,6 +122,7 @@
               ))
           "
           class="header__filter-item"
+          data-highlight="view-sorts"
         >
           <ViewSort
             :view="view"
@@ -151,6 +144,7 @@
               ))
           "
           class="header__filter-item"
+          data-highlight="view-group-by"
         >
           <ViewGroupBy
             :view="view"
@@ -458,6 +452,8 @@ export default {
   },
   beforeMount() {
     this.$bus.$on('table-refresh', this.refresh)
+    this.$bus.$on('open-table-views-context', this.openTableViewsContext)
+    this.$bus.$on('close-table-views-context', this.closeTableViewsContext)
   },
   mounted() {
     this.$el.resizeObserver = new ResizeObserver(this.checkHeaderOverflow)
@@ -466,6 +462,8 @@ export default {
   beforeDestroy() {
     this.$bus.$off('table-refresh', this.refresh)
     this.$el.resizeObserver.unobserve(this.$el)
+    this.$bus.$off('open-table-views-context', this.openTableViewsContext)
+    this.$bus.$off('close-table-views-context', this.closeTableViewsContext)
   },
   methods: {
     getViewComponent(view) {
@@ -475,6 +473,13 @@ export default {
     getViewHeaderComponent(view) {
       const type = this.$registry.get('view', view.type)
       return type.getHeaderComponent()
+    },
+    getViewHeaderClassNames(view) {
+      if (!this.hasSelectedView) {
+        return ''
+      }
+      const type = this.$registry.get('view', view.type)
+      return type.getHeaderClassNames(view)
     },
     getAdditionalTableHeaderComponents(view, isPublic) {
       const opts = Object.values(this.$registry.getAll('plugin'))
@@ -575,6 +580,25 @@ export default {
     someViewHasPermission(op) {
       return this.views.some((v) =>
         this.$hasPermission(op, v, this.database.workspace.id)
+      )
+    },
+    openTableViewsContext() {
+      this.$refs.viewsContext.toggle(
+        this.$refs.viewsSelectToggle,
+        'bottom',
+        'left',
+        4
+      )
+    },
+    closeTableViewsContext() {
+      this.$refs.viewsContext.hide()
+    },
+    openTableViewContext() {
+      this.$refs.viewContext.toggle(
+        this.$refs.viewSelectToggle,
+        'bottom',
+        'left',
+        4
       )
     },
   },

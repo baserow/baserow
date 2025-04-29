@@ -1,12 +1,13 @@
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.contrib.database.api.tables.serializers import TableSerializer
 from baserow.contrib.database.models import Database
-from baserow.contrib.database.operations import ListTablesDatabaseTableOperationType
-from baserow.core.handler import CoreHandler
+
+if TYPE_CHECKING:
+    from baserow.contrib.database.application_types import DatabaseApplicationType
 
 
 class DatabaseSerializer(serializers.ModelSerializer):
@@ -26,26 +27,24 @@ class DatabaseSerializer(serializers.ModelSerializer):
     @extend_schema_field(TableSerializer(many=True))
     def get_tables(self, instance: Database) -> List:
         """
-        Because the instance doesn't know at this point it is a Database we have to
-        select the related tables this way.
+        Serializes the database's tables. Uses pre-fetched tables attribute if
+        available; otherwise, retrieves them from the database using the appropriate
+        context and application type to avoid unnecessary queries when serializing
+        nested fields.
 
         :param instance: The database application instance.
         :return: A list of serialized tables that belong to this instance.
         """
 
-        tables = instance.table_set.all()
-        user = self.context.get("user")
-        request = self.context.get("request")
+        tables = getattr(instance, "tables", None)
+        if tables is None:
+            user = self.context.get("user")
+            request = self.context.get("request")
 
-        if user is None and hasattr(request, "user"):
-            user = request.user
+            if user is None and hasattr(request, "user"):
+                user = request.user
 
-        if user:
-            tables = CoreHandler().filter_queryset(
-                user,
-                ListTablesDatabaseTableOperationType.type,
-                tables,
-                workspace=instance.workspace,
-            )
+            database_type: "DatabaseApplicationType" = instance.get_type()
+            tables = database_type.fetch_tables_to_serialize(instance, user)
 
         return TableSerializer(tables, many=True).data

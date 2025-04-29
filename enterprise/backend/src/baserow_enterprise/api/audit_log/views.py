@@ -167,7 +167,6 @@ class AuditLogActionTypeFilterView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_PAGE_SIZE_LIMIT",
-                    "ERROR_INVALID_PAGE",
                     "ERROR_INVALID_SORT_DIRECTION",
                     "ERROR_INVALID_SORT_ATTRIBUTE",
                 ]

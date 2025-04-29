@@ -10,8 +10,8 @@ import TimelineView from '@baserow_premium/components/views/timeline/TimelineVie
 import KanbanViewHeader from '@baserow_premium/components/views/kanban/KanbanViewHeader'
 import CalendarViewHeader from '@baserow_premium/components/views/calendar/CalendarViewHeader'
 import TimelineViewHeader from '@baserow_premium/components/views/timeline/TimelineViewHeader'
-import PremiumModal from '@baserow_premium/components/PremiumModal'
 import PremiumFeatures from '@baserow_premium/features'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { isAdhocFiltering } from '@baserow/modules/database/utils/view'
 import CalendarCreateIcalSharedViewLink from '@baserow_premium/components/views/calendar/CalendarCreateIcalSharedViewLink'
 import CalendarSharingIcalSlugSection from '@baserow_premium/components/views/calendar/CalendarSharingIcalSlugSection'
@@ -19,6 +19,11 @@ import {
   getDateField,
   dateSettinsAreValid,
 } from '@baserow_premium/utils/timeline'
+import {
+  CalendarViewPaidFeature,
+  KanbanViewPaidFeature,
+  TimelineViewPaidFeature,
+} from '@baserow_premium/paidFeatures'
 
 class PremiumViewType extends ViewType {
   getDeactivatedText() {
@@ -26,7 +31,7 @@ class PremiumViewType extends ViewType {
   }
 
   getDeactivatedClickModal() {
-    return PremiumModal
+    return [PaidFeaturesModal, {}]
   }
 
   isDeactivated(workspaceId) {
@@ -41,6 +46,13 @@ class PremiumViewType extends ViewType {
 export class KanbanViewType extends PremiumViewType {
   static getType() {
     return 'kanban'
+  }
+
+  getDeactivatedClickModal() {
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': KanbanViewPaidFeature.getType() },
+    ]
   }
 
   getIconClass() {
@@ -210,7 +222,7 @@ export class KanbanViewType extends PremiumViewType {
     fieldType,
     storePrefix = ''
   ) {
-    const value = fieldType.getEmptyValue(field)
+    const value = fieldType.getDefaultValue(field)
     await dispatch(
       storePrefix + 'view/kanban/addField',
       { field, value },
@@ -252,6 +264,13 @@ export class KanbanViewType extends PremiumViewType {
 export class CalendarViewType extends PremiumViewType {
   static getType() {
     return 'calendar'
+  }
+
+  getDeactivatedClickModal() {
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': CalendarViewPaidFeature.getType() },
+    ]
   }
 
   getIconClass() {
@@ -417,7 +436,7 @@ export class CalendarViewType extends PremiumViewType {
     fieldType,
     storePrefix = ''
   ) {
-    const value = fieldType.getEmptyValue(field)
+    const value = fieldType.getDefaultValue(field)
     await dispatch(
       storePrefix + 'view/calendar/addField',
       { field, value },
@@ -517,6 +536,13 @@ export class TimelineViewType extends BaseBufferedRowViewTypeMixin(
 ) {
   static getType() {
     return 'timeline'
+  }
+
+  getDeactivatedClickModal() {
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': TimelineViewPaidFeature.getType() },
+    ]
   }
 
   canFetch({ app }, databse, view, fields) {

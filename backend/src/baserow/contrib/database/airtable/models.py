@@ -1,9 +1,20 @@
+from dataclasses import dataclass
+
 from django.db import models
 
 from baserow.contrib.database.models import Database
 from baserow.core.jobs.mixins import JobWithUserIpAddress
 from baserow.core.jobs.models import Job
 from baserow.core.models import Workspace
+
+
+@dataclass
+class DownloadFile:
+    url: str
+    row_id: str
+    column_id: str
+    attachment_id: str
+    type: str
 
 
 class AirtableImportJob(JobWithUserIpAddress, Job):

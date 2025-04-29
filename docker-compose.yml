@@ -202,7 +202,10 @@ x-backend-variables: &backend-variables
   BASEROW_USE_LOCAL_CACHE:
   BASEROW_WEBHOOKS_BATCH_LIMIT:
   BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE:
-  BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES:
+  BASEROW_DEADLOCK_INITIAL_BACKOFF:
+  BASEROW_DEADLOCK_MAX_RETRIES:
+  BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES:
+  BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS:
 
 services:
   # A caddy reverse proxy sitting in-front of all the services. Responsible for routing
@@ -229,7 +232,7 @@ services:
       local:
 
   backend:
-    image: baserow/backend:1.32.5
+    image: baserow/backend:1.33.0
     restart: unless-stopped
 
     environment:
@@ -243,7 +246,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:1.32.5
+    image: baserow/web-frontend:1.33.0
     restart: unless-stopped
     environment:
       BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
@@ -273,14 +276,15 @@ services:
       BASEROW_BUILDER_DOMAINS:
       BASEROW_FRONTEND_SAME_SITE_COOKIE:
       SENTRY_DSN:
-      BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES:
+      BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES:
+      BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS:
     depends_on:
       - backend
     networks:
       local:
 
   celery:
-    image: baserow/backend:1.32.5
+    image: baserow/backend:1.33.0
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -297,7 +301,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:1.32.5
+    image: baserow/backend:1.33.0
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -314,7 +318,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:1.32.5
+    image: baserow/backend:1.33.0
     restart: unless-stopped
     command: celery-beat
     environment:

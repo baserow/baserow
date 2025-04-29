@@ -577,9 +577,9 @@
     },
     "viewAggregationType": {
         "emptyCount": "Vuoto",
-        "notEmptyCount": "Riempito",
+        "notEmptyCount": "Non vuoto",
         "emptyPercentage": "Percentuale vuota",
-        "notEmptyPercentage": "Percentuale riempita",
+        "notEmptyPercentage": "Percentuale non vuoti",
         "checkedCount": "Selezionato",
         "notCheckedCount": "Non selezionato",
         "checkedPercentage": "Percentuale selezionata",
@@ -596,7 +596,8 @@
         "median": "Mediano",
         "stdDev": "Deviazione standard",
         "stdDevShort": "Dev std",
-        "variance": "Variazione"
+        "variance": "Variazione",
+        "count": "Conteggio"
     },
     "databaseForm": {
         "importLabel": "Vuoi importare i dati esistenti?",

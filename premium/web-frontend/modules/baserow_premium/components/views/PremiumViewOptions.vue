@@ -19,12 +19,12 @@
         <i v-if="!hasPremiumFeatures" class="deactivated-label iconoir-lock" />
       </SwitchInput>
 
-      <PremiumModal
+      <PaidFeaturesModal
         v-if="!hasPremiumFeatures"
-        ref="premiumModal"
+        ref="paidFeaturesModal"
         :workspace="workspace"
-        :name="$t('shareLinkOptions.baserowLogo.premiumModalName')"
-      ></PremiumModal>
+        initial-selected-type="public_logo_removal"
+      ></PaidFeaturesModal>
     </div>
     <div
       v-if="hasValidExporter"
@@ -53,13 +53,13 @@
 import { mapGetters } from 'vuex'
 import ViewPremiumService from '@baserow_premium/services/view'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import PremiumModal from '@baserow_premium/components/PremiumModal'
 import PremiumFeatures from '@baserow_premium/features'
 import viewTypeHasExporterTypes from '@baserow/modules/database/utils/viewTypeHasExporterTypes'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
   name: 'PremiumViewOptions',
-  components: { PremiumModal },
+  components: { PaidFeaturesModal },
 
   props: {
     view: {
@@ -105,7 +105,7 @@ export default {
     },
     click() {
       if (!this.hasPremiumFeatures) {
-        this.$refs.premiumModal.show()
+        this.$refs.paidFeaturesModal.show()
       }
     },
   },

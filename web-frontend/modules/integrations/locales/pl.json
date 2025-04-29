@@ -17,7 +17,8 @@
         "noTableChosenForSorting": "Wybierz tabelę, aby rozpocząć korzystanie z sortowania źródła danych.",
         "sortBy": "Sortuj według",
         "noSortTitle": "Nie utworzono jeszcze sortowania źródła danych",
-        "noSortText": "Sortowanie pozwala na sortowanie wierszy według pola."
+        "noSortText": "Sortowanie pozwala na sortowanie wierszy według pola.",
+        "sortMisconfigured": "Pole, z którym powiązane jest to sortowanie, zostało usunięte."
     },
     "localBaserowTableServiceConditionalForm": {
         "relatedFieldNotFound": "Powiązane pole nie zostało znalezione.",
@@ -32,8 +33,11 @@
         "useDefaultForValue": "Użyj domyślnego filtra dla tego pola"
     },
     "serviceType": {
-        "localBaserowGetRow": "Pobierz {singleRow}",
-        "localBaserowListRows": "Lista {multipleRows}"
+        "localBaserowGetRow": "Pobierz jeden wiersz",
+        "localBaserowListRows": "Pobierz wiele wierszy",
+        "localBaserowAggregateRows": "Pole podsumowania",
+        "misconfigured": "Nieprawidłowa konfiguracja",
+        "trashedField": "Pole usunięte"
     },
     "userSourceType": {
         "localBaserow": "Uwierzytelnianie tabeli bazowej Baserow"
@@ -46,7 +50,8 @@
         "databaseFieldLabel": "Baza danych",
         "viewFieldLabel": "Widok",
         "tableFieldLabel": "Tabela",
-        "chooseNoView": "Nie wybrano"
+        "chooseNoView": "Nie wybrano",
+        "dataSyncedTableDescription": "Tabela synchronizowanych danych"
     },
     "integrationType": {
         "localBaserow": "Lokalny Baserow",
@@ -72,5 +77,13 @@
         "localBaserowWarning": "Autoryzacja konta daje każdemu, kto ma uprawnienia do edycji aplikacji, pełny dostęp do danych, do których masz dostęp. Możliwe jest utworzenie drugiego użytkownika, nadanie mu odpowiednich uprawnień i korzystanie z niego.",
         "localBaserowSummary": "Lokalny Baserow - {name}, {username}",
         "localBaserowNoUser": "Lokalny Baserow - Nie skonfigurowany"
+    },
+    "localBaserowAggregateRowsForm": {
+        "filterTabTitle": "Filtry",
+        "searchTabTitle": "Wyszukaj",
+        "aggregationFieldLabel": "Pole",
+        "aggregationTypeLabel": "Agregacja",
+        "searchFieldPlaceHolder": "Wpisz wyszukiwany tekst...",
+        "noTableChosenForFiltering": "Wybierz tabelę, aby zacząć używać filtrów źródła danych."
     }
 }

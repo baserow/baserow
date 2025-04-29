@@ -63,6 +63,19 @@
           :table="table"
         ></ChangePrimaryFieldModal>
       </li>
+      <li
+        v-for="(
+          updateFieldContextComponent, index
+        ) in updateFieldContextExtraItems"
+        :key="'update-field-menu-item' + index"
+      >
+        <component
+          :is="updateFieldContextComponent"
+          :field="field"
+          :database="database"
+          @hide-context="$refs.context.hide()"
+        ></component>
+      </li>
       <slot></slot>
       <li
         v-if="
@@ -93,7 +106,7 @@
 import context from '@baserow/modules/core/mixins/context'
 import UpdateFieldContext from '@baserow/modules/database/components/field/UpdateFieldContext'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import ChangePrimaryFieldModal from '@baserow/modules/database/components/field/ChangePrimaryFieldModal.vue'
+import ChangePrimaryFieldModal from '@baserow/modules/database/components/field/ChangePrimaryFieldModal'
 
 export default {
   name: 'FieldContext',
@@ -139,6 +152,15 @@ export default {
         return p.field_id === this.field.id && p.unique_primary
       })
     },
+    updateFieldContextExtraItems() {
+      const extraMenuItems = Object.values(
+        this.$registry.getAll('fieldContextItem')
+      )
+
+      return extraMenuItems
+        .map((menuItemType) => menuItemType.getComponent())
+        .filter((component) => component !== null)
+    },
   },
   methods: {
     // Allows other components to toggle the `FieldContext`
@@ -150,6 +172,10 @@ export default {
         'bottom',
         'left'
       )
+    },
+    isFieldReadOnly(field) {
+      const fieldType = this.$registry.get('field', field.type)
+      return fieldType.isReadOnly || field.read_only
     },
     async deleteField() {
       this.deleteLoading = true

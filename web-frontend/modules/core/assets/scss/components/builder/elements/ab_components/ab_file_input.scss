@@ -1,0 +1,64 @@
+.ab-file-input {
+  font-size: var(--input-font-size, 13px);
+  font-weight: var(--input-font-weight, 400);
+  color: var(--input-text-color, $color-neutral-900);
+  font-family: var(--input-font-family, Inter);
+  background-color: var(--input-background-color, $white);
+  padding: var(--input-vertical-padding, 8px)
+    var(--input-horizontal-padding, 12px);
+  border: var(--input-border-size, 1px) solid var(--input-border-color, black);
+  border-radius: var(--input-border-radius, 0);
+
+  // Extra
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+
+  &:focus {
+    border-color: color-mix(
+      in srgb,
+      var(--input-border-color, $palette-neutral-500),
+      var(--input-border-color-complement, gray) 30%
+    );
+  }
+
+  &:hover,
+  &--drag-over {
+    background-color: color-mix(
+      in srgb,
+      var(--input-background-color, $palette-neutral-100),
+      var(--input-background-color-complement, white) 10%
+    );
+  }
+}
+
+.ab-file-input__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.ab-file-input__files {
+  list-style-type: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  margin-top: 16px;
+}
+
+.ab-file-input__file {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .ab-file-input__files &:last-child {
+    margin-bottom: 0;
+  }
+}

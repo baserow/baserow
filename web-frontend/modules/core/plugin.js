@@ -15,6 +15,7 @@ import {
   AccountSettingsType,
   PasswordSettingsType,
   EmailNotificationsSettingsType,
+  MCPEndpointSettingsType,
   DeleteAccountSettingsType,
 } from '@baserow/modules/core/settingsTypes'
 import { GenerativeAIWorkspaceSettingsType } from '@baserow/modules/core/workspaceSettingsTypes'
@@ -62,6 +63,7 @@ import {
   WorkspaceOnboardingType,
   InviteOnboardingType,
 } from '@baserow/modules/core/onboardingTypes'
+import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
 
 import settingsStore from '@baserow/modules/core/store/settings'
 import applicationStore from '@baserow/modules/core/store/application'
@@ -75,6 +77,7 @@ import integrationStore from '@baserow/modules/core/store/integration'
 import userSourceStore from '@baserow/modules/core/store/userSource'
 import notificationStore from '@baserow/modules/core/store/notification'
 import userSourceUserStore from '@baserow/modules/core/store/userSourceUser'
+import routeMounted from '@baserow/modules/core/store/routeMounted'
 
 import en from '@baserow/modules/core/locales/en.json'
 import fr from '@baserow/modules/core/locales/fr.json'
@@ -138,10 +141,12 @@ export default (context, inject) => {
   registry.registerNamespace('roles')
   registry.registerNamespace('generativeAIModel')
   registry.registerNamespace('onboarding')
+  registry.registerNamespace('guidedTour')
 
   registry.register('settings', new AccountSettingsType(context))
   registry.register('settings', new PasswordSettingsType(context))
   registry.register('settings', new EmailNotificationsSettingsType(context))
+  registry.register('settings', new MCPEndpointSettingsType(context))
   registry.register('settings', new DeleteAccountSettingsType(context))
 
   registry.register(
@@ -201,6 +206,7 @@ export default (context, inject) => {
   store.registerModule('userSource', userSourceStore)
   store.registerModule('notification', notificationStore)
   store.registerModule('userSourceUser', userSourceUserStore)
+  store.registerModule('routeMounted', routeMounted)
 
   registry.register('authProvider', new PasswordAuthProviderType(context))
   registry.register('job', new DuplicateApplicationJobType(context))
@@ -250,4 +256,6 @@ export default (context, inject) => {
   registry.register('onboarding', new MoreOnboardingType(context))
   registry.register('onboarding', new WorkspaceOnboardingType(context))
   registry.register('onboarding', new InviteOnboardingType(context))
+
+  registry.register('guidedTour', new SidebarGuidedTourType(context))
 }

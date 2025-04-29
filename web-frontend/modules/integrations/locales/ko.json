@@ -14,7 +14,9 @@
     "serviceType": {
         "localBaserowGetRow": "단일 행 가져오기",
         "localBaserowListRows": "다중 행 목록",
-        "localBaserowAggregateRows": "필드 요약"
+        "localBaserowAggregateRows": "필드 요약",
+        "misconfigured": "잘못 구성됨",
+        "trashedField": "휴지통으로 이동된 필드"
     },
     "userSourceType": {
         "localBaserow": "Baserow 테이블 인증"
@@ -68,7 +70,8 @@
         "sortBy": "정렬 기준",
         "thenBy": "다음 기준",
         "addSort": "추가 정렬 추가",
-        "noTableChosenForSorting": "데이터 소스 정렬을 사용하려면 테이블을 선택하세요."
+        "noTableChosenForSorting": "데이터 소스 정렬을 사용하려면 테이블을 선택하세요.",
+        "sortMisconfigured": "이 정렬과 관련된 필드는 삭제되었습니다."
     },
     "dataProviderType": {
         "dataSource": "데이터 소스",
@@ -78,6 +81,7 @@
         "viewFieldLabel": "보기",
         "tableFieldLabel": "테이블",
         "chooseNoView": "선택되지 않음",
-        "databaseFieldLabel": "데이터베이스"
+        "databaseFieldLabel": "데이터베이스",
+        "dataSyncedTableDescription": "데이터 동기화 테이블"
     }
 }

@@ -230,7 +230,6 @@ def test_create_form_view_with_webhooks(api_client, data_fixture):
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
         assert m.called
-        print("CALL ARGS", m.call_args)
 
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -467,6 +466,7 @@ def test_meta_submit_form_view(api_client, data_fixture):
             "name": number_field.name,
             "type": "number",
             "number_decimal_places": 0,
+            "number_default": None,
             "number_negative": False,
             "number_prefix": "",
             "number_separator": "",

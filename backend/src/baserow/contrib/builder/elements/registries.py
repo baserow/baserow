@@ -1,3 +1,4 @@
+import uuid
 from abc import ABC, abstractmethod
 from typing import (
     Any,
@@ -22,7 +23,7 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.database.db.functions import RandomUUID
+from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -66,6 +67,13 @@ class ElementType(
     # By default, the priority is `0`, the lowest value. If this property is
     # not overridden, then the instance is imported last.
     import_element_priority = 0
+
+    def is_deactivated(self, workspace: Workspace) -> bool:
+        """
+        Returns whether this element type is deactivated for the given workspace.
+        """
+
+        return False
 
     def prepare_value_for_db(self, values: Dict, instance: Optional[Element] = None):
         """
@@ -195,6 +203,11 @@ class ElementType(
         **kwargs,
     ) -> ElementSubClass:
         from baserow.contrib.builder.elements.handler import ElementHandler
+
+        # Add mapping for builder element event uids (for collection field or other
+        # elements that are using dynamic events.
+        if "builder_element_event_uids" not in id_mapping:
+            id_mapping["builder_element_event_uids"] = {}
 
         if cache is None:
             cache = {}
@@ -500,8 +513,19 @@ class CollectionFieldType(
                 **kwargs,
             )
 
+        # Generate a new `uid` for this collection field.
+        deserialized_uid = str(uuid.uuid4())
+
+        if "uid" in serialized_values:
+            # Map the old uid to the new uid. This ensures that any workflow
+            # actions with an `event` pointing to the old uid will have the
+            # pointer to the new uid.
+            id_mapping["builder_element_event_uids"][
+                serialized_values["uid"]
+            ] = deserialized_uid
+
         deserialized_values = {
-            "uid": serialized_values.get("uid", RandomUUID()),
+            "uid": deserialized_uid,
             "config": deserialized_config,
             "type": serialized_values["type"],
             "styles": serialized_values.get("styles", {}),

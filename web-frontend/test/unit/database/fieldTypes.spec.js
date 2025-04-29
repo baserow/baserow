@@ -485,7 +485,9 @@ const queryParametersForParsing = [
       value: 'a string',
       field: { field: { number_decimal_places: 1 } },
     },
-    output: new NumberFieldType().getEmptyValue(),
+    output: new NumberFieldType().getDefaultValue({
+      number_decimal_places: 1,
+    }),
   },
   {
     fieldType: new NumberFieldType(),
@@ -703,7 +705,7 @@ const queryParametersAsyncForParsing = [
       value: 'test',
       field: { field: { id: 20 }, field_component: 'multiple' },
     },
-    output: new LinkRowFieldType().getEmptyValue(),
+    output: new LinkRowFieldType().getDefaultValue(),
   },
 ]
 

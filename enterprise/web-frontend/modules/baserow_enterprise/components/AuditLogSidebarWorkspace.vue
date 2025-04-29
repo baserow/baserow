@@ -22,7 +22,7 @@
           v-if="deactivated"
           href="#"
           class="tree__link"
-          @click.prevent="$refs.enterpriseModal.show()"
+          @click.prevent="$refs.paidFeaturesModal.show()"
         >
           <i class="tree__icon iconoir-lock"></i>
           <span class="tree__link-text">{{
@@ -36,22 +36,22 @@
           }}</span>
         </a>
       </div>
-      <EnterpriseModal
-        ref="enterpriseModal"
+      <PaidFeaturesModal
+        ref="paidFeaturesModal"
         :workspace="workspace"
-        :name="$t('auditLogSidebarWorkspace.title')"
-      ></EnterpriseModal>
+        initial-selected-type="audit_log"
+      ></PaidFeaturesModal>
     </li>
   </nuxt-link>
 </template>
 
 <script>
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
   name: 'AuditLogSidebarWorkspace',
-  components: { EnterpriseModal },
+  components: { PaidFeaturesModal },
   props: {
     workspace: {
       type: Object,

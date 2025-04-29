@@ -149,7 +149,8 @@
     },
     "trashSidebar": {
         "title": "Prullenbak",
-        "unnamedWorkspace": "Naamloze werkruimte {id}"
+        "unnamedWorkspace": "Naamloze werkruimte {id}",
+        "workspaces": "Werkruimtes"
     },
     "trashContents": {
         "message": "Herstel items verwijderd in de afgelopen {duration}",
@@ -1025,5 +1026,44 @@
     },
     "colorPickerContext": {
         "pickColorPlaceholder": "Of kies een vooraf gedefinieerde kleur"
+    },
+    "guidedTourStep": {
+        "step": "{step} van {totalSteps}",
+        "gotIt": "Ik snap het",
+        "next": "Volgende",
+        "back": "Terug"
+    },
+    "welcomeGuidedTourStep": {
+        "title": "Welkom bij Baserow",
+        "content": "We geven je een korte rondleiding om je vertrouwd te maken met de basisprincipes. In slechts een paar klikken leer je hoe je je gegevens moeiteloos kunt organiseren en visualiseren",
+        "buttonText": "Start de rondleiding"
+    },
+    "createNewGuidedTourStep": {
+        "content": "Klik op \"Nieuw toevoegen...\" om een nieuwe database, applicatie of dashboard in te stellen voor je project, afdeling of team.",
+        "title": "Een nieuwe database of applicatie maken"
+    },
+    "controlCenterGuidedTourStep": {
+        "content": "In de linkerzijbalk kun je je werkruimte beheren:\n\n- Home - Toegang tot je hoofddashboard.\n- Meldingen - Blijf op de hoogte van wijzigingen en vermeldingen.\n- Nodig anderen uit - Werk samen door teamleden toe te voegen.\n- Prullenbak - Al je verwijderde items weergeven en herstellen.",
+        "title": "Jouw Baserow Controle Centrum"
+    },
+    "mcpEndpointSettings": {
+        "title": "MCP server",
+        "backToOverview": "Terug",
+        "noEndpointsMessage": "Er zijn geen MCP (Model Context Protocol) server eindpunten toegevoegd. Deze kunnen worden gebruikt om direct te integreren met een LLM zoals Claude, en de LLM direct acties te laten uitvoeren in Baserow. Maak een server eindpunt om te beginnen.",
+        "createEndpoint": "Eindpunt maken",
+        "createNewTitle": "MCP-server eindpunt maken"
+    },
+    "mcpEndpointForm": {
+        "workspaceLabel": "Werkruimte",
+        "nameLabel": "Naam"
+    },
+    "mcpEndpoint": {
+        "reveal": "Volledige URL weergeven",
+        "warning": "Behandel je MCP URL als een wachtwoord, omdat je hiermee gegevens in Baserow kunt wijzigen.",
+        "detailLabel": "Meer details",
+        "claudeInstructions": "Drie eenvoudige stappen om aan de slag te gaan met Claude Desktop en de Baserow MCP.\n\n1. Open de instellingen van Claude Desktop in de navigatiebalk (⌘+,)\n1. Ga naar het tabblad \"Ontwikkelen\" en klik op \"Edit Config\".\n1. Neem de volgende JSON-configuratie op in `claude_desktop_config.json`.",
+        "windsurfInstructions": "Twee eenvoudige stappen om MCP in te stellen met Cascase in Windsurf.\n\n1. Navigeer naar Windsurf - Settings -> Advanced Settings of Command Palette -> Open Windsurf settings page.\n1. Scroll naar beneden naar de Cascade sectie en je zult de optie vinden om een nieuwe server toe te voegen, bestaande servers te bekijken en een knop om het ruwe JSON config bestand `mcp_config.json` te bekijken. Voeg daar het volgende aan toe:",
+        "endpointURLIntro": "De MCP (Model Context Protocol) server URL kan worden toegevoegd aan elke client die MCP-servers ondersteunt. Het is een uniek eindpunt dat de LLM directe toegang geeft om namens jou acties uit te voeren in de werkruimte.",
+        "cursorInstructions": "Drie eenvoudige stappen om aan de slag te gaan met Cursor en het Baserow MCP.\n\n1. Cursorinstellingen openen (⇧+⌘+J)\n1. Navigeer naar het tabblad \"MCP\" en klik op \"Add MCP Server\" (MCP-server toevoegen)\n1. Voeg de volgende JSON-configuratie toe."
     }
 }

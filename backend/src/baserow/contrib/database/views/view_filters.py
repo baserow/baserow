@@ -1221,8 +1221,9 @@ class ManyToManyHasBaseViewFilter(ViewFilterType):
     def _get_filter(self, field_name, value, model_field, field):
         remote_field = model_field.remote_field
         remote_model = remote_field.model
+        filter_dict = {"id__in": value} if isinstance(value, list) else {"id": value}
         return Q(
-            id__in=remote_model.objects.filter(id=value).values(
+            id__in=remote_model.objects.filter(**filter_dict).values(
                 f"{remote_field.related_name}__id"
             )
         )
@@ -1256,6 +1257,14 @@ class LinkRowHasViewFilterType(ManyToManyHasBaseViewFilter):
 
     type = "link_row_has"
     compatible_field_types = [LinkRowFieldType.type]
+
+    def get_filter(self, field_name, value, model_field, field):
+        if not (option_ids := parse_ids_from_csv_string(value)):
+            return Q()
+
+        field_type = field_type_registry.get_by_model(field)
+        filter_function = self.filter_functions.get(field_type.type, self._get_filter)
+        return filter_function(field_name, option_ids, model_field, field)
 
     def get_preload_values(self, view_filter):
         """
@@ -2077,20 +2086,7 @@ class DateIsOnOrAfterMultiStepFilterType(DateMultiStepViewFilterType):
 class DateIsWithinMultiStepFilterType(DateMultiStepViewFilterType):
     type = "date_is_within"
 
-    incompatible_operators = [
-        DateFilterOperators.TODAY,
-        DateFilterOperators.YESTERDAY,
-        DateFilterOperators.ONE_WEEK_AGO,
-        DateFilterOperators.ONE_MONTH_AGO,
-        DateFilterOperators.ONE_YEAR_AGO,
-        DateFilterOperators.THIS_WEEK,
-        DateFilterOperators.THIS_MONTH,
-        DateFilterOperators.THIS_YEAR,
-        DateFilterOperators.NR_DAYS_AGO,
-        DateFilterOperators.NR_WEEKS_AGO,
-        DateFilterOperators.NR_MONTHS_AGO,
-        DateFilterOperators.NR_YEARS_AGO,
-    ]
+    incompatible_operators = [DateFilterOperators.TODAY]
 
     def get_filter_query_dict(
         self,
@@ -2099,7 +2095,12 @@ class DateIsWithinMultiStepFilterType(DateMultiStepViewFilterType):
         upper_bound: Union[date, datetime],
         timezone: datetime_module.tzinfo,
     ) -> Dict[str, Union[date, datetime]]:
+        today = datetime.now(tz=timezone).date()
+        if today < upper_bound:
+            lower_bound = today
+        else:
+            upper_bound = today + timedelta(days=1)
         return {
-            f"{field_name}__gte": datetime.now(tz=timezone).date(),
+            f"{field_name}__gte": lower_bound,
             f"{field_name}__lt": upper_bound,
         }

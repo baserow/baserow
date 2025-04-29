@@ -70,6 +70,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_WITH_FORMULA,
 )
 from baserow.contrib.database.api.fields.serializers import (
+    AvailableCollaboratorsSerializer,
     BaserowBooleanField,
     CollaboratorSerializer,
     DurationFieldSerializer,
@@ -555,6 +556,7 @@ class NumberFieldType(FieldType):
         "number_prefix",
         "number_suffix",
         "number_separator",
+        "number_default",
     ]
     serializer_field_names = [
         "number_decimal_places",
@@ -563,6 +565,7 @@ class NumberFieldType(FieldType):
         "number_prefix",
         "number_suffix",
         "number_separator",
+        "number_default",
     ]
     serializer_field_overrides = {
         "number_type": MustBeEmptyField(
@@ -611,18 +614,25 @@ class NumberFieldType(FieldType):
         return value
 
     def get_serializer_field(self, instance: NumberField, **kwargs):
-        required = kwargs.get("required", False)
+        required = kwargs.pop("required", False)
 
         kwargs["decimal_places"] = instance.number_decimal_places
 
         if not instance.number_negative:
             kwargs["min_value"] = Decimal("0")
 
+        default = instance.number_default
+        if default is not None:
+            required = False
+        else:
+            default = serializers.empty
+
         return serializers.DecimalField(
             **{
                 "max_digits": self.MAX_DIGITS + kwargs["decimal_places"],
                 "required": required,
                 "allow_null": not required,
+                "default": default,
                 **kwargs,
             }
         )
@@ -646,7 +656,10 @@ class NumberFieldType(FieldType):
             # precision we keep it as a string.
             instance = field_object["field"]
             if instance.number_decimal_places == 0:
-                return int(value)
+                try:
+                    return int(value)
+                except (ValueError, TypeError):
+                    pass
 
             # DRF's Decimal Serializer knows how to quantize and format the decimal
             # correctly so lets use it instead of trying to do it ourselves.
@@ -689,6 +702,9 @@ class NumberFieldType(FieldType):
 
     def get_model_field(self, instance, **kwargs):
         kwargs["decimal_places"] = instance.number_decimal_places
+        default = instance.number_default
+        if default is not None:
+            kwargs["default"] = default
 
         return models.DecimalField(
             max_digits=self.MAX_DIGITS + kwargs["decimal_places"],
@@ -941,6 +957,8 @@ class RatingFieldType(FieldType):
 class BooleanFieldType(FieldType):
     type = "boolean"
     model_class = BooleanField
+    allowed_fields = ["boolean_default"]
+    serializer_field_names = ["boolean_default"]
     _can_group_by = True
     can_upsert = True
 
@@ -961,10 +979,13 @@ class BooleanFieldType(FieldType):
         """
 
     def get_serializer_field(self, instance, **kwargs):
-        return BaserowBooleanField(**{"required": False, "default": False, **kwargs})
+        required = kwargs.get("required", False)
+        return BaserowBooleanField(
+            **{"required": required, "default": instance.boolean_default, **kwargs}
+        )
 
     def get_model_field(self, instance, **kwargs):
-        return models.BooleanField(default=False, **kwargs)
+        return models.BooleanField(default=instance.boolean_default, **kwargs)
 
     def random_value(self, instance, fake, cache):
         return fake.pybool()
@@ -1506,14 +1527,15 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
 
     source_field_name = "last_modified_by"
     model_field_kwargs = {"sync_with": "last_modified_by"}
+    request_serializer_field_names = []
+    request_serializer_field_overrides = {}
     serializer_field_names = ["available_collaborators"]
     serializer_field_overrides = {
-        "available_collaborators": serializers.ListField(
-            child=CollaboratorSerializer(),
-            read_only=True,
-            source="table.database.workspace.users.all",
-        ),
+        "available_collaborators": AvailableCollaboratorsSerializer(),
     }
+
+    def can_represent_collaborators(self, field):
+        return True
 
     def get_model_field(self, instance, **kwargs):
         kwargs["null"] = True
@@ -1731,14 +1753,15 @@ class CreatedByFieldType(ReadOnlyFieldType):
 
     source_field_name = "created_by"
     model_field_kwargs = {"sync_with_add": "created_by"}
+    request_serializer_field_names = []
+    request_serializer_field_overrides = {}
     serializer_field_names = ["available_collaborators"]
     serializer_field_overrides = {
-        "available_collaborators": serializers.ListField(
-            child=CollaboratorSerializer(),
-            read_only=True,
-            source="table.database.workspace.users.all",
-        ),
+        "available_collaborators": AvailableCollaboratorsSerializer(),
     }
+
+    def can_represent_collaborators(self, field):
+        return True
 
     def get_model_field(self, instance, **kwargs):
         kwargs["null"] = True
@@ -2129,6 +2152,7 @@ class LinkRowFieldType(
         "link_row_relation_id",
         "link_row_limit_selection_view_id",
         "link_row_limit_selection_view",
+        "link_row_multiple_relationships",
     ]
     serializer_field_names = [
         "link_row_table_id",
@@ -2137,6 +2161,7 @@ class LinkRowFieldType(
         "link_row_related_field",
         "link_row_limit_selection_view_id",
         "link_row_table_primary_field",
+        "link_row_multiple_relationships",
     ]
     serializer_mixins = [LinkRowFieldSerializerMixin]
     serializer_field_overrides = {
@@ -2172,6 +2197,7 @@ class LinkRowFieldType(
         "link_row_table",
         "has_related_field",
         "link_row_limit_selection_view_id",
+        "link_row_multiple_relationships",
     ]
     request_serializer_field_overrides = {
         "has_related_field": serializers.BooleanField(required=False),
@@ -2196,6 +2222,12 @@ class LinkRowFieldType(
             default=-1,
             help_text="The ID of the view in the related table where row selection "
             "must be limited to.",
+        ),
+        "link_row_multiple_relationships": serializers.BooleanField(
+            required=False,
+            help_text="Indicates whether it's allowed set multiple relationships per "
+            "row. If disabled, it doesn't guarantee single relationships because they "
+            "could have already existed or created through reversed relationship.",
         ),
     }
 
@@ -2468,6 +2500,20 @@ class LinkRowFieldType(
             return val.strip() if isinstance(val, str) else val
 
         for row_index, values in values_by_row.items():
+            if (
+                instance.link_row_multiple_relationships is False
+                and isinstance(values, list)
+                and len(values) > 1
+            ):
+                error = ValidationError(
+                    f"This link row field only accept one relationship.",
+                    code="invalid_value",
+                )
+                if continue_on_error:
+                    for row_index in invalid_values:
+                        values_by_row[row_index] = error
+                else:
+                    raise error
             values_by_row[row_index] = [preprocess_value(val) for val in values]
 
         for row_index, values in values_by_row.items():
@@ -2727,6 +2773,8 @@ class LinkRowFieldType(
         """
 
         required = kwargs.pop("required", False)
+        if instance.link_row_multiple_relationships is False:
+            kwargs["max_length"] = 1
         return LinkRowRequestSerializer(required=required, **kwargs)
 
     def get_response_serializer_field(self, instance, **kwargs):
@@ -3233,6 +3281,9 @@ class LinkRowFieldType(
             "link_row_limit_selection_view_id"
         ] = field.link_row_limit_selection_view_id
         serialized["has_related_field"] = field.link_row_table_has_related_field
+        serialized[
+            "link_row_multiple_relationships"
+        ] = field.link_row_multiple_relationships
         return serialized
 
     def import_serialized(
@@ -5085,6 +5136,8 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         field_cache: "Optional[FieldCache]" = None,
         via_path_to_starting_table: Optional[List[LinkRowField]] = None,
         already_updated_fields: Optional[List[Field]] = None,
+        skip_search_updates: bool = False,
+        database_id: Optional[int] = None,
     ):
         from baserow.contrib.database.fields.dependencies.update_collector import (
             FieldUpdateCollector,
@@ -5113,15 +5166,18 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
 
         for update_collector in update_collectors.values():
             updated_fields |= set(
-                update_collector.apply_updates_and_get_updated_fields(field_cache)
+                update_collector.apply_updates_and_get_updated_fields(
+                    field_cache, skip_search_updates=skip_search_updates
+                )
             )
 
-        all_dependent_fields_grouped_by_depth = FieldDependencyHandler.group_all_dependent_fields_by_level_from_fields(
-            fields,
-            field_cache,
-            associated_relations_changed=False,
-            # We can't provide the `database_id_prefilter` here because the fields
-            # can belong in different databases.
+        all_dependent_fields_grouped_by_depth = (
+            FieldDependencyHandler.group_all_dependent_fields_by_level_from_fields(
+                fields,
+                field_cache,
+                associated_relations_changed=False,
+                database_id_prefilter=database_id,
+            )
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
             for table_id, dependant_field in dependant_fields_group:
@@ -5136,7 +5192,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
                     via_path_to_starting_table,
                 )
             updated_fields |= set(
-                update_collector.apply_updates_and_get_updated_fields(field_cache)
+                update_collector.apply_updates_and_get_updated_fields(
+                    field_cache, skip_search_updates=skip_search_updates
+                )
             )
 
         update_collector.send_force_refresh_signals_for_all_updated_tables()
@@ -6101,17 +6159,23 @@ class MultipleCollaboratorsFieldType(
     model_class = MultipleCollaboratorsField
     can_get_unique_values = False
     allowed_fields = ["notify_user_when_added"]
-    serializer_field_names = ["available_collaborators", "notify_user_when_added"]
-    serializer_field_overrides = {
-        "available_collaborators": serializers.ListField(
-            child=CollaboratorSerializer(),
-            read_only=True,
-            source="table.database.workspace.users.all",
-        ),
+    request_serializer_field_names = ["notify_user_when_added"]
+    request_serializer_field_overrides = {
         "notify_user_when_added": serializers.BooleanField(required=False),
+    }
+    serializer_field_names = [
+        "available_collaborators",
+        *request_serializer_field_names,
+    ]
+    serializer_field_overrides = {
+        "available_collaborators": AvailableCollaboratorsSerializer(),
+        **request_serializer_field_overrides,
     }
     is_many_to_many_field = True
     _can_group_by = True
+
+    def can_represent_collaborators(self, field):
+        return True
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.pop("required", False)

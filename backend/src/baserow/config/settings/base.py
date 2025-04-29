@@ -23,6 +23,7 @@ from baserow.config.settings.utils import (
     read_file,
     set_settings_from_env_if_present,
     str_to_bool,
+    try_float,
     try_int,
 )
 from baserow.core.telemetry.utils import otel_is_enabled
@@ -62,7 +63,9 @@ if "SECRET_KEY" in os.environ:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("BASEROW_BACKEND_DEBUG", "off") == "on"
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+# The `testserver` is needed for the
+# `src/baserow/core/mcp/utils.py::internal_api_request`.
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 ALLOWED_HOSTS += os.getenv("BASEROW_EXTRA_ALLOWED_HOSTS", "").split(",")
 
 INSTALLED_APPS = [
@@ -91,6 +94,7 @@ INSTALLED_APPS = [
     "baserow.contrib.integrations",
     "baserow.contrib.builder",
     "baserow.contrib.dashboard",
+    "baserow.contrib.automation",
     *BASEROW_BUILT_IN_PLUGINS,
 ]
 
@@ -417,7 +421,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.32.5",
+    "VERSION": "1.33.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -892,7 +896,7 @@ APPLICATION_TEMPLATES_DIR = os.path.join(BASE_DIR, "../../../templates")
 # The template that must be selected when the user first opens the templates select
 # modal.
 # IF CHANGING KEEP IN SYNC WITH e2e-tests/wait-for-services.sh
-DEFAULT_APPLICATION_TEMPLATE = "project-tracker"
+DEFAULT_APPLICATION_TEMPLATES = ["project-tracker", "ab_ivory_theme"]
 BASEROW_SYNC_TEMPLATES_PATTERN = os.getenv("BASEROW_SYNC_TEMPLATES_PATTERN", None)
 
 MAX_FIELD_LIMIT = int(os.getenv("BASEROW_MAX_FIELD_LIMIT", 600))
@@ -1066,10 +1070,12 @@ PERMISSION_MANAGERS = [
     "element_visibility",
     "member",
     "token",
+    "write_field_values",
     "role",
     "basic",
 ]
 if "baserow_enterprise" not in INSTALLED_APPS:
+    PERMISSION_MANAGERS.remove("write_field_values")
     PERMISSION_MANAGERS.remove("role")
 if "baserow_premium" not in INSTALLED_APPS:
     PERMISSION_MANAGERS.remove("view_ownership")
@@ -1355,3 +1361,13 @@ if CACHALOT_ENABLED:
         "VERSION": VERSION,
     }
 # -- END CACHALOT SETTINGS --
+
+
+BASEROW_DEADLOCK_MAX_RETRIES = max(
+    try_int(os.getenv("BASEROW_DEADLOCK_MAX_RETRIES"), 1),
+    1,
+)
+BASEROW_DEADLOCK_INITIAL_BACKOFF = max(
+    try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 1),
+    0.1,
+)

@@ -6,9 +6,9 @@
         :key="actionType.getType()"
         class="header__filter-item header__filter-item--right"
       >
-        <a
+        <Button
           :ref="`button_${actionType.type}`"
-          class="header__filter-link"
+          v-bind="actionType.buttonProps"
           @click="
             actionType.onClick({
               component: $refs[`component_${actionType.type}`][0],
@@ -24,7 +24,7 @@
             :class="actionType.icon"
           ></i>
           <span class="header__filter-name">{{ actionType.label }}</span>
-        </a>
+        </Button>
         <component
           :is="actionType.component"
           :ref="`component_${actionType.type}`"

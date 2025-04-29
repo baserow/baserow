@@ -46,7 +46,7 @@
             )
           "
         >
-          <i class="baserow-icon-more-horizontal"></i>
+          <i class="iconoir-nav-arrow-down"></i>
         </a>
         <KanbanViewStackContext
           v-if="!readOnly && showStackContextMenu"
@@ -106,7 +106,7 @@
         </template>
       </InfiniteScroll>
       <div class="kanban-view__stack-foot">
-        <Button
+        <ButtonFloating
           v-if="
             !readOnly &&
             $hasPermission(
@@ -115,14 +115,12 @@
               database.workspace.id
             )
           "
-          type="secondary"
+          type="primary"
           icon="iconoir-plus"
           full-width
           :disabled="draggingRow !== null"
           @click="!readOnly && $emit('create-row', { option })"
-        >
-          {{ $t('kanbanViewStack.new') }}
-        </Button>
+        ></ButtonFloating>
       </div>
     </div>
     <!--
@@ -428,7 +426,8 @@ export default {
 
       // If the field is read_only, it's not possible to move between stacks because
       // they would change the read_only value.
-      if (this.singleSelectField.read_only) {
+      const fieldType = this.$registry.get('field', this.singleSelectField.type)
+      if (!fieldType.canWriteFieldValues(this.singleSelectField)) {
         const target = this.$store.getters[
           this.storePrefix + 'view/kanban/findStackIdAndIndex'
         ](row.id)

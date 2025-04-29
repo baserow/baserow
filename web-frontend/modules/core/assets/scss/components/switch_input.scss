@@ -72,6 +72,10 @@
       left: 6px;
     }
   }
+
+  .control--horizontal & {
+    align-self: end;
+  }
 }
 
 .switch--color-green {

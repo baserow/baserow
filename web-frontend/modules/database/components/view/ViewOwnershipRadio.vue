@@ -11,9 +11,10 @@
       <i class="iconoir-lock"></i>
     </div>
     <component
-      :is="viewOwnershipType.getDeactivatedModal()"
+      :is="viewOwnershipType.getDeactivatedModal()[0]"
       v-if="viewOwnershipType.getDeactivatedModal() !== null"
       ref="deactivatedClickModal"
+      v-bind="viewOwnershipType.getDeactivatedModal()[1]"
       :name="viewOwnershipType.getFeatureName()"
       :workspace="database.workspace"
     ></component>

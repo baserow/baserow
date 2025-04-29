@@ -282,13 +282,21 @@
   },
   "enterpriseFeatures": {
     "sso": "Single Sign On",
+    "ssoContent": "Enable secure and seamless logins with SAML, Google, Facebook, GitHub, GitLab, or OpenID Connect. Supports multiple providers at once. Note that both Baserow as a tool, and the application builder authentication system support SSO.",
     "rbac": "Role-based access control",
+    "rbacContent": "Manage permissions with precision. Assign roles like admin, builder,  editor, commenter, or viewer at the workspace, database, or table level. You can also manage access by team.",
     "auditLogs": "Audit logs",
+    "auditLogsContent": "Track everything that happens. View a full history of actions across your instance or workspace, filterable by user, action, and more.",
     "dataSync": "Data sync",
+    "dataSyncContent": "Automatically keep tables up to date by syncing with other Baserow tables, or external sources like Jira, GitHub, GitLab, or HubSpot.",
     "coBranding": "Co-branding logo replacement",
+    "coBrandingContent": "Customize the Baserow interface with your own logo. Note that \"powered by Baserow\" is added.",
     "support": "Direct support",
-    "chartWidget": "Chart widget",
-    "advancedWebhooks": "Advanced webhooks"
+    "supportContent": "Get help when you need it. Reach out to the Baserow team directly from within the platform.",
+    "advancedWebhooks": "Advanced webhooks",
+    "advancedWebhooksContent": "Trigger webhooks when a row enters a specific view — great for automating workflows based on filter conditions.",
+    "fieldLevelPermissions": "Field-level permissions",
+    "fieldLevelPermissionsContent": "Control who can edit specific fields in a table. Set permissions for editors, builders, admins, or completely disable modifications to field values."
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
@@ -345,13 +353,6 @@
     "coBrandingLogo": "Logo",
     "coBrandingLogoDescription": "Replaces the Baserow logo for a custom co-branded alternative (176x29). If set, it also removes the Baserow description in the footer of all emails.",
     "uploadFileButton": "Upload image"
-  },
-  "enterpriseModal": {
-    "title": "Upgrade to use the {name}",
-    "description": "Your account doesn’t have access to the advanced/enterprise features. Upgrade to the advanced/enterprise version to begin using {name}. You can upgrade your account by getting a license. Click on the button below to view the pricing.",
-    "viewPricing": "View pricing",
-    "premium": "Premium",
-    "enterprise": "Enterprise"
   },
   "authFormElementForm": {
     "userSource": "User source",
@@ -479,5 +480,44 @@
   "webhookForm": {
     "triggerWhenRowsEnterView": "Triggered when rows enter the view.",
     "helpTriggerWhenRowsEnterView": "Triggers only when `Rows enter view` is selected and rows that now match the filters enter the view."
+  },
+  "fileInputElementForm": {
+    "defaultNameTitle": "Initial file name|Initial file names",
+    "defaultNamePlaceholder": "Enter a file name...|Enter a file names...",
+    "defaultNameHelp": "The number of names must match the number of urls.",
+    "defaultUrlTitle": "Initial file URL|Initial file URLs",
+    "defaultUrlPlaceholder": "Enter a default URL...|Enter a default URLs..",
+    "helpTextTitle": "Help text",
+    "helpTextPlaceholder": "Keep empty for default...",
+    "multiple": "Multiple files?",
+    "required": "Required",
+    "fileTypes": "File types",
+    "fileTypesHelper": "Choose which file extensions are allowed (one per line) by the file input (e.g. jpg, png, svg, pdf). you can specify image/*, video/* or audio/* to allow all files of these types. Leave empty to permit all file types.",
+    "preview": "Preview images?",
+    "maxFileSize": "Maximum file size",
+    "maxFileSizePlaceholder": "Enter a number...",
+    "addFileType": "Add file type"
+  },
+  "fileInputElement": {
+    "defaultHelpText": "Drag and drop files here or click to select",
+    "fileSizeExceeded": "File too large. Max {max}MB."
+  },
+  "fieldPermissionModal": {
+    "title": "Edit field permissions",
+    "description": "Choose who can edit values in {fieldName}.",
+    "question": "Who can edit this field?",
+    "editorTitle": "Editors and higher (default)",
+    "editorDescription": "Users with Editor, Builder, and Admin roles",
+    "builderTitle": "Builders and higher",
+    "builderDescription": "Users with Builder and Admin roles",
+    "adminTitle": "Admins only",
+    "adminDescription": "Users with Admin roles",
+    "nobodyTitle": "Nobody",
+    "nobodyDescription": "No users",
+    "allowInForms": "Allow this field to be set in rows created through forms",
+    "linkRowWarning": "This is a 'Link to table' field. To ensure values cannot be changed from the linked table, please make ensure to set the right permissions on the linked table as well."
+  },
+  "fieldPermissionsMenuItem": {
+    "label": "Edit field permissions"
   }
 }

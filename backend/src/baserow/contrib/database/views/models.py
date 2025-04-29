@@ -3,7 +3,7 @@ import secrets
 from typing import Iterable, Optional, Union
 
 from django.contrib.auth.hashers import check_password, make_password
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AnonymousUser, User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
@@ -17,6 +17,9 @@ from baserow.contrib.database.fields.field_filters import (
     FILTER_TYPE_OR,
 )
 from baserow.contrib.database.fields.models import Field, SelectOption
+from baserow.contrib.database.fields.operations import (
+    SubmitAnonymousFieldValuesOperationType,
+)
 from baserow.contrib.database.views.registries import (
     form_view_mode_registry,
     view_filter_type_registry,
@@ -397,8 +400,7 @@ class ViewFilter(HierarchicalModelMixin, models.Model):
         "value. The filter is always in this order `field` `type` `value` "
         "(example: `field_1` `contains` `Test`).",
     )
-    value = models.CharField(
-        max_length=255,
+    value = models.TextField(
         blank=True,
         help_text="The filter value that must be compared to the field's value.",
     )
@@ -781,9 +783,19 @@ class FormView(View):
 
     @property
     def active_field_options(self):
+        from baserow.contrib.database.views.handler import CoreHandler
+
+        # Filter out fields that cannot be used in the form view due to permissions.
+        field_qs = CoreHandler().filter_queryset(
+            AnonymousUser(),
+            SubmitAnonymousFieldValuesOperationType.type,
+            Field.objects.all(),
+            self.table.database.workspace,
+        )
+
         return (
             FormViewFieldOptions.objects.filter(
-                form_view=self, enabled=True, field__read_only=False
+                form_view=self, enabled=True, field__read_only=False, field__in=field_qs
             )
             .prefetch_related(
                 "conditions",
@@ -937,8 +949,7 @@ class FormViewFieldOptionsCondition(HierarchicalModelMixin, models.Model):
         "value. The filter is always in this order `field` `type` `value` "
         "(example: `field_1` `contains` `Test`).",
     )
-    value = models.CharField(
-        max_length=255,
+    value = models.TextField(
         blank=True,
         help_text="The filter value that must be compared to the field's value.",
     )

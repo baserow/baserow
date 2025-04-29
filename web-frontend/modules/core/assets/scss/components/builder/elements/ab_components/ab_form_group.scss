@@ -20,7 +20,7 @@
   font-weight: var(--label-font-weight, 500);
   color: var(--label-text-color, $color-neutral-900);
   font-family: var(--label-font-family, Inter);
-  margin-bottom: 0.33em;
+  margin-bottom: 0.75em;
 
   @include flex-align-items(3px);
 

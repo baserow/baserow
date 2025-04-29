@@ -277,7 +277,10 @@ export default {
         return
       }
       const fieldType = this.$registry.get('field', dateField.type)
-      if (event?.day?.date != null && dateField && !fieldType.getIsReadOnly()) {
+      if (
+        event?.day?.date != null &&
+        fieldType.canWriteFieldValues(dateField)
+      ) {
         const name = `field_${dateField.id}`
         if (dateField.date_include_time) {
           defaults[name] = event.day.date.toISOString()

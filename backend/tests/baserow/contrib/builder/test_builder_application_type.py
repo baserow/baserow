@@ -817,6 +817,7 @@ IMPORT_REFERENCE = {
                     "order": 1,
                     "page_id": 999,
                     "element_id": 998,
+                    "event": "click",
                     "type": "notification",
                     "description": "'hello'",
                     "title": "'there'",
@@ -1276,7 +1277,7 @@ def test_builder_application_imports_page_with_default_visibility(
 ):
     """
     Ensure that the importer sets default values for Page Visibility when the
-    Page Visiblity related values are missing in the exported data.
+    Page Visibility related values are missing in the exported data.
     """
 
     user = data_fixture.create_user(email="test@baserow.io")

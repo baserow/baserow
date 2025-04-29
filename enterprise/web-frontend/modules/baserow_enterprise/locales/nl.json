@@ -257,7 +257,16 @@
         "support": "Directe ondersteuning",
         "dataSync": "Data sync",
         "chartWidget": "Grafiek widget",
-        "advancedWebhooks": "Geavanceerde webhooks"
+        "advancedWebhooks": "Geavanceerde webhooks",
+        "ssoContent": "Maak veilig en naadloos inloggen mogelijk met SAML, Google, Facebook, GitHub, GitLab of OpenID Connect. Ondersteunt meerdere providers tegelijk. Merk op dat zowel Baserow als tool en het authenticatiesysteem van de applicatiebouwer SSO ondersteunen.",
+        "rbacContent": "Beheer machtigingen met precisie. Wijs rollen toe zoals admin, builder, editor, commentator of viewer op werkruimte-, database- of tabelniveau. Je kunt de toegang ook per team beheren.",
+        "dataSyncContent": "Houd tabellen automatisch up-to-date door te synchroniseren met andere Baserow-tabellen of externe bronnen zoals Jira, GitHub, GitLab of HubSpot.",
+        "coBrandingContent": "Pas de Baserow-interface aan met je eigen logo. Let op dat \"powered by Baserow\" is toegevoegd.",
+        "supportContent": "Krijg hulp wanneer je die nodig hebt. Neem rechtstreeks vanuit het platform contact op met het Baserow-team.",
+        "advancedWebhooksContent": "Trigger webhooks wanneer een rij een specifieke weergave binnenkomt - geweldig voor het automatiseren van workflows op basis van filtervoorwaarden.",
+        "fieldLevelPermissions": "Machtigingen op veldniveau",
+        "auditLogsContent": "Volg alles wat er gebeurt. Bekijk een volledige geschiedenis van acties in je instantie of werkruimte, filterbaar op gebruiker, actie en meer.",
+        "fieldLevelPermissionsContent": "Bepaal wie specifieke velden in een tabel kan bewerken. Stel rechten in voor editors, builders, admins of schakel wijzigingen aan veldwaarden volledig uit."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Directe ondersteuning"
@@ -490,5 +499,44 @@
     },
     "chartWidget": {
         "name": "Grafiek"
+    },
+    "fileInputElementForm": {
+        "helpTextTitle": "Help-tekst",
+        "defaultNameTitle": "Oorspronkelijke bestandsnaam|Oorspronkelijke bestandsnamen",
+        "defaultNameHelp": "Het aantal namen moet overeenkomen met het aantal urls.",
+        "defaultUrlTitle": "Initieel bestands URL|Initieel bestand URLs",
+        "helpTextPlaceholder": "Leeg houden voor standaard...",
+        "multiple": "Meerdere bestanden?",
+        "fileTypes": "Bestandstypen",
+        "fileTypesHelper": "Kies welke bestandsextensies zijn toegestaan (één per regel) door de bestandsinvoer (bijv. jpg, png, svg, pdf). Je kunt afbeelding/*, video/* of audio/* opgeven om alle bestanden van deze typen toe te staan. Laat leeg om alle bestandstypen toe te staan.",
+        "preview": "Afbeeldingen bekijken?",
+        "maxFileSize": "Maximale bestandsgrootte",
+        "maxFileSizePlaceholder": "Voer een nummer in...",
+        "addFileType": "Bestandstype toevoegen",
+        "required": "Verplicht",
+        "defaultNamePlaceholder": "Voer een bestandsnaam in...|Voer bestandsnamen in...",
+        "defaultUrlPlaceholder": "Standaard URL invoeren...|Standaard URL's invoeren..."
+    },
+    "fileInputElement": {
+        "defaultHelpText": "Sleep bestanden hierheen of klik om te selecteren",
+        "fileSizeExceeded": "Bestand te groot. Max {max}MB."
+    },
+    "fieldPermissionModal": {
+        "title": "Veldmachtigingen bewerken",
+        "question": "Wie kan dit veld bewerken?",
+        "editorTitle": "Editors en hoger (standaard)",
+        "editorDescription": "Gebruikers met de rollen Editor, Builder en Admin",
+        "builderTitle": "Builders en hoger",
+        "builderDescription": "Gebruikers met de rollen Builder en Admin",
+        "adminTitle": "Alleen admins",
+        "adminDescription": "Gebruikers met admin rollen",
+        "allowInForms": "Sta toe dat dit veld wordt ingesteld in rijen die zijn gemaakt via formulieren",
+        "nobodyTitle": "Niemand",
+        "description": "Kies wie waarden in {fieldName} kan bewerken.",
+        "nobodyDescription": "Geen gebruikers",
+        "linkRowWarning": "Dit is een 'Link naar tabel' veld. Om ervoor te zorgen dat waarden niet kunnen worden gewijzigd vanuit de gekoppelde tabel, moet je ervoor zorgen dat je ook de juiste rechten instelt op de gekoppelde tabel."
+    },
+    "fieldPermissionsMenuItem": {
+        "label": "Veldmachtigingen bewerken"
     }
 }

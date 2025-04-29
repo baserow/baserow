@@ -1,6 +1,8 @@
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
+from django.core.files.uploadedfile import SimpleUploadedFile
+
 import pytest
 from rest_framework.exceptions import ValidationError
 
@@ -20,7 +22,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
-from baserow.test_utils.helpers import AnyStr
+from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
@@ -64,6 +66,68 @@ def test_local_baserow_upsert_row_service_dispatch_data_without_row_id(
     assert getattr(dispatch_data["data"], ingredient.db_column) == str(
         formula_context["page_parameter"]["id"]
     )
+
+
+@pytest.mark.django_db
+def test_local_baserow_upsert_row_service_dispatch_data_without_row_id_with_file(
+    data_fixture, fake
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[
+            ("File", "file", {}),
+        ],
+    )
+    file_field = table.field_set.get(name="File")
+
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration,
+        table=table,
+    )
+    service_type = service.get_type()
+    service.field_mappings.create(field=file_field, value='get("form.file")')
+
+    image = fake.image()
+
+    formula_context = {
+        "form": {
+            "file": {
+                "__file__": True,
+                "name": "superfile",
+                "file": SimpleUploadedFile(
+                    name="avatar.png", content=image, content_type="image/png"
+                ),
+            }
+        }
+    }
+    dispatch_context = FakeDispatchContext(context=formula_context)
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+    assert getattr(dispatch_data["data"], file_field.db_column) == [
+        {
+            "image_height": 256,
+            "image_width": 256,
+            "is_image": True,
+            "mime_type": "image/png",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+            "visible_name": "superfile",
+        },
+    ]
 
 
 @pytest.mark.django_db

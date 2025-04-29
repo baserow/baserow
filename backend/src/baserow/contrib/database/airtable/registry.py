@@ -26,6 +26,7 @@ from baserow.contrib.database.airtable.import_report import (
     SCOPE_VIEW_SORT,
     AirtableImportReport,
 )
+from baserow.contrib.database.airtable.models import DownloadFile
 from baserow.contrib.database.airtable.utils import (
     get_airtable_column_name,
     unknown_value_to_human_readable,
@@ -100,7 +101,7 @@ class AirtableColumnType(Instance):
         raw_airtable_column: dict,
         baserow_field: Field,
         value: Any,
-        files_to_download: Dict[str, str],
+        files_to_download: Dict[str, DownloadFile],
         config: AirtableImportConfig,
         import_report: AirtableImportReport,
     ):
@@ -135,7 +136,7 @@ class AirtableColumnType(Instance):
         raw_airtable_row: dict,
         raw_airtable_column: dict,
         baserow_field: Field,
-        files_to_download: Dict[str, str],
+        files_to_download: Dict[str, DownloadFile],
         config: AirtableImportConfig,
         import_report: AirtableImportReport,
     ):

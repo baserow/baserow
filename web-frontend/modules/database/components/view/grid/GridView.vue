@@ -210,7 +210,7 @@
         </li>
       </ul>
       <ul v-show="!isMultiSelectActive" class="context__menu">
-        <li>
+        <li class="context__menu-item">
           <a
             class="context__menu-item-link"
             @click=";[selectRow($event, selectedRow), $refs.rowContext.hide()]"
@@ -310,7 +310,7 @@
               database.workspace.id
             )
           "
-          class="context__menu-item"
+          class="context__menu-item context__menu-item--with-separator"
         >
           <a class="context__menu-item-link" @click="deleteRow(selectedRow)">
             <i class="context__menu-item-icon iconoir-bin"></i>
@@ -376,9 +376,9 @@ import GridViewRowDragging from '@baserow/modules/database/components/view/grid/
 import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import {
-  sortFieldsByOrderAndIdFunction,
-  filterVisibleFieldsFunction,
   filterHiddenFieldsFunction,
+  filterVisibleFieldsFunction,
+  sortFieldsByOrderAndIdFunction,
 } from '@baserow/modules/database/utils/view'
 import viewHelpers from '@baserow/modules/database/mixins/viewHelpers'
 import { isElement } from '@baserow/modules/core/utils/dom'
@@ -701,7 +701,18 @@ export default {
     },
     duplicateSelectedRow(event, selectedRow) {
       event.preventFieldCellUnselect = true
-      this.addRowAfter(selectedRow, selectedRow)
+      const duplicatedRow = clone(selectedRow)
+      this.fields.forEach((field) => {
+        const fieldType = this.$registry.get('field', field.type)
+        const fieldKey = `field_${field.id}`
+        if (Object.prototype.hasOwnProperty.call(duplicatedRow, fieldKey)) {
+          duplicatedRow[fieldKey] = fieldType.prepareValueForDuplicate(
+            field,
+            duplicatedRow[fieldKey]
+          )
+        }
+      })
+      this.addRowAfter(selectedRow, duplicatedRow)
       this.$refs.rowContext.hide()
     },
     copyLinkToSelectedRow(event, selectedRow) {

@@ -1,13 +1,15 @@
 <template>
   <div>
     <Toasts></Toasts>
-    <PageContent
-      v-if="canViewPage"
-      :path="path"
-      :params="params"
-      :elements="elements"
-      :shared-elements="sharedElements"
-    />
+    <RecursiveWrapper :components="builderPageDecorators">
+      <PageContent
+        v-if="canViewPage"
+        :path="path"
+        :params="params"
+        :elements="elements"
+        :shared-elements="sharedElements"
+      />
+    </RecursiveWrapper>
   </div>
 </template>
 
@@ -27,7 +29,8 @@ import {
   userSourceCookieTokenName,
   setToken,
 } from '@baserow/modules/core/utils/auth'
-import { QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS } from '@baserow/modules/builder/enums'
+import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
+import RecursiveWrapper from '@baserow/modules/database/components/RecursiveWrapper'
 
 const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
   await store.dispatch('userSourceUser/logoff', {
@@ -41,7 +44,8 @@ const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
 }
 
 export default {
-  components: { PageContent, Toasts },
+  name: 'PublicPage',
+  components: { RecursiveWrapper, PageContent, Toasts },
   provide() {
     return {
       workspace: this.workspace,
@@ -259,6 +263,7 @@ export default {
     })
 
     return {
+      workspace: builder.workspace,
       builder,
       currentPage: page,
       path,
@@ -280,8 +285,18 @@ export default {
     elements() {
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
+    builderPageDecorators() {
+      // Get available page decorators from registry
+      return Object.values(this.$registry.getAll('builderPageDecorator') || {})
+        .filter((decorator) => decorator.isDecorationAllowed(this.workspace))
+        .map((decorator) => ({
+          component: decorator.component,
+          props: decorator.getProps(),
+        }))
+    },
     applicationContext() {
       return {
+        workspace: this.workspace,
         builder: this.builder,
         pageParamsValue: this.params,
         mode: this.mode,
@@ -350,12 +365,11 @@ export default {
         // update the page's query parameters in the store
         Promise.all(
           this.currentPage.query_params.map(({ name, type }) => {
-            if (!newQuery[name]) return null
             let value
             try {
-              value = QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS[type](
-                newQuery[name]
-              )
+              if (newQuery[name]) {
+                value = QUERY_PARAM_TYPE_HANDLER_FUNCTIONS[type](newQuery[name])
+              }
             } catch {
               // Skip setting the parameter if the user-provided value
               // doesn't pass our parameter `type` validation.

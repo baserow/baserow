@@ -286,7 +286,16 @@
         "support": "Assistance en ligne",
         "dataSync": "Synchronisation de données",
         "chartWidget": "Graphique",
-        "advancedWebhooks": "Webhooks avancés"
+        "advancedWebhooks": "Webhooks avancés",
+        "rbacContent": "Gérer les permissions avec précision. Assigner des rôles comme administrateur, architecte, éditeur, commentateur ou spectateur à l'espace de travail, base de données ou niveau de table. Vous pouvez également gérer l'accès par équipe.",
+        "auditLogsContent": "Suivez tout ce qui se passe. Affichez un historique complet des actions dans votre instance ou votre Projet, filtrable par utilisateur, par action, etc.",
+        "coBrandingContent": "Personnalisez l'interface de Baserow avec votre propre logo. Notez que la mention \"Propulsé par Baserow\" est ajoutée.",
+        "supportContent": "Obtenez de l'aide quand vous en avez besoin. Contactez l'équipe de Baserow directement depuis la plateforme.",
+        "fieldLevelPermissions": "Autorisations par colonne",
+        "ssoContent": "Permet des connexions sécurisées et transparentes avec SAML, Google, Facebook, GitHub, GitLab ou OpenID Connect. Supporte plusieurs fournisseurs à la fois. Notez que Baserow, en tant qu'outil, et le système d'authentification du constructeur d'applications prennent tous deux en charge le SSO.",
+        "dataSyncContent": "Maintenez automatiquement les tables à jour en les synchronisant avec d'autres tables Baserow ou des sources externes comme Jira, GitHub, GitLab ou HubSpot.",
+        "fieldLevelPermissionsContent": "Contrôlez qui peut modifier des champs spécifiques d'une table. Définissez des autorisations pour les Éditeurs, les Architectes, les Administrateurs, ou désactivez complètement les modifications des valeurs de ces champs.",
+        "advancedWebhooksContent": "Déclencher des webhooks lorsqu'une ligne entre dans une vue spécifique - idéal pour l'automatisation des scénarios basés sur des conditions complexes."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Assistance"
@@ -490,5 +499,44 @@
     },
     "chartWidget": {
         "name": "Graphique"
+    },
+    "fieldPermissionModal": {
+        "description": "Choisissez qui peut modifier les valeurs de {fieldName}.",
+        "linkRowWarning": "Il s'agit d'un champ \"lien vers une table\". Pour s'assurer que les valeurs ne peuvent pas être modifiées à partir de la table liée, veillez à définir les autorisations adéquates sur la table liée également.",
+        "question": "Qui peut modifier ce champ ?",
+        "editorTitle": "Éditeurs et plus (par défaut)",
+        "editorDescription": "Utilisateurs ayant le rôle d'Éditeur, d'Architecte et d'Admin",
+        "builderDescription": "Utilisateurs ayant le rôle d'Architecte et d'Admin",
+        "adminDescription": "Utilisateurs ayant un rôle d'administrateur",
+        "nobodyDescription": "Aucun utilisateur",
+        "title": "Modifier les droits d'accès",
+        "allowInForms": "Permettre à ce champ d'être défini pour les lignes créées à l'aide de formulaires",
+        "adminTitle": "Administrateurs uniquement",
+        "nobodyTitle": "Personne",
+        "builderTitle": "Architectes et plus"
+    },
+    "fileInputElementForm": {
+        "addFileType": "Ajouter un type de fichier",
+        "fileTypesHelper": "Choisissez les extensions de fichier autorisées (une par ligne) par le champ fichier (par exemple, jpg, png, svg, pdf). Vous pouvez spécifier image/*, vidéo/* ou audio/* pour autoriser tous les fichiers de ces types. Laissez le champ vide pour autoriser tous les types de fichiers.",
+        "defaultNameTitle": "Nom de fichier initial|Noms de fichiers initiaux",
+        "defaultNamePlaceholder": "Saisir un nom de fichier...|Saisir des noms de fichiers...",
+        "defaultNameHelp": "Le nombre de noms doit correspondre au nombre d'urls.",
+        "defaultUrlTitle": "URL initial du fichier| URLs initiales des fichiers",
+        "defaultUrlPlaceholder": "Saisir une URL par défaut...|Saisir les URLs par défaut...",
+        "helpTextPlaceholder": "Vide pour valeur par défaut...",
+        "required": "Obligatoire",
+        "fileTypes": "Types de fichiers",
+        "preview": "Prévisualiser les images ?",
+        "maxFileSize": "Taille maximale par fichier",
+        "maxFileSizePlaceholder": "Entrez un nombre...",
+        "multiple": "Plusieurs fichiers ?",
+        "helpTextTitle": "Texte d'aide"
+    },
+    "fileInputElement": {
+        "defaultHelpText": "Glissez-déposez les fichiers ici ou cliquez pour les sélectionner",
+        "fileSizeExceeded": "Fichier trop volumineux. Max {max}Mo."
+    },
+    "fieldPermissionsMenuItem": {
+        "label": "Modifier les droits d'accès"
     }
 }

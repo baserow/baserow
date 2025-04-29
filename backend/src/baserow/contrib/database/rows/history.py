@@ -5,7 +5,7 @@ from itertools import groupby
 from typing import Any, Dict, List, NamedTuple, NewType, Optional
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 from django.dispatch import receiver
 
@@ -56,7 +56,7 @@ class RowHistoryHandler:
     @classmethod
     def _construct_entry_from_action_and_diff(
         cls,
-        user: AbstractBaseUser,
+        user: AbstractUser,
         action: ActionData,
         fields_metadata: Dict[str, Any],
         row_diff: RowChangeDiff,
@@ -223,7 +223,7 @@ class RowHistoryHandler:
     def _construct_related_rows_entries(
         cls,
         related_rows_diff: RelatedRowsDiff,
-        user: AbstractBaseUser,
+        user: AbstractUser,
         action: ActionData,
     ) -> List[RowHistory]:
         """
@@ -274,7 +274,7 @@ class RowHistoryHandler:
     @baserow_trace(tracer)
     def record_history_from_update_rows_action(
         cls,
-        user: AbstractBaseUser,
+        user: AbstractUser,
         action: ActionData,
     ):
         params = UpdateRowsActionType.serialized_to_params(action.params)

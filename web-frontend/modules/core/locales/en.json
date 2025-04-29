@@ -279,8 +279,8 @@
     "use": "Use this template"
   },
   "trashSidebar": {
-    "title": "Trash",
-    "unnamedWorkspace": "Unnamed workspace {id}"
+    "unnamedWorkspace": "Unnamed workspace {id}",
+    "workspaces": "Workspaces"
   },
   "trashContents": {
     "message": "Restore deleted items from the past {duration}",
@@ -923,5 +923,44 @@
   },
   "userSourceType": {
     "userCountSummary": "{count} users ({lastUpdated})"
+  },
+  "guidedTourStep": {
+    "step": "{step} of {totalSteps}",
+    "gotIt": "Got it",
+    "next": "Next",
+    "back": "Back"
+  },
+  "welcomeGuidedTourStep": {
+    "title": "Welcome to Baserow",
+    "content": "Let’s take a quick tour to get you familiar with the basics. In just a few clicks, you’ll learn how to organize and visualize your data effortlessly",
+    "buttonText": "Start the tour"
+  },
+  "controlCenterGuidedTourStep": {
+    "title": "Your Baserow Control Center",
+    "content": "The left sidebar helps you manage your workspace:\n\n- Home – Access your main dashboard.\n- Notifications – Stay updated on changes and mentions.\n- Invite Members – Collaborate by adding team members.\n- Trash – List and recover all your deleted items."
+  },
+  "createNewGuidedTourStep": {
+    "title": "Create a new database or application",
+    "content": "Click “Add new…” to set up a new database, application or dashboard for your project, department, or team."
+  },
+  "mcpEndpointSettings": {
+    "title": "MCP server",
+    "createEndpoint": "Create endpoint",
+    "createNewTitle": "Create MCP server endpoint",
+    "backToOverview": "Back",
+    "noEndpointsMessage": "No MCP (Model Context Protocol) server endpoints have been added. These can be used to directly integrate with an LLM like Claude, and let the LLM perform actions directly in Baserow. Create a server endpoint to get started."
+  },
+  "mcpEndpointForm": {
+    "nameLabel": "Name",
+    "workspaceLabel": "Workspace"
+  },
+  "mcpEndpoint": {
+    "detailLabel": "More details",
+    "endpointURLIntro": "The MCP (Model Context Protocol) server URL can be added to any client that supports MCP servers. It's a unique endpoint that gives the LLM direct access to perform actions in the workspace on your behalf.",
+    "reveal": "Reveal full URL",
+    "warning": "Treat your MCP URL like a password, as it has the ability to modify data in Baserow.",
+    "claudeInstructions": "Three simple steps to get started with Claude Desktop and the Baserow MCP.\n\n1. Open the Claude Desktop settings from the navigation bar. (⌘+,)\n1. Go to the \"Develop\" tab, and click on \"Edit Config\".\n1. Include the following JSON configuration in `claude_desktop_config.json`.",
+    "cursorInstructions": "Three simple steps to get started with Cursor and the Baserow MCP.\n\n1. Open Cursor settings (⇧+⌘+J)\n1. Navigate to the \"MCP\" tab and click \"Add MCP Server\"\n1. Add the following JSON configuration.",
+    "windsurfInstructions": "Two easy steps to set up MCP with Cascase in Windsurf.\n\n1. Navigate to Windsurf - Settings -> Advanced Settings or Command Palette -> Open Windsurf settings page.\n1. Scroll down to the Cascade section and you will find the option to add a new server, view existing servers, and a button to view the raw JSON config file at `mcp_config.json`. Add the following to it:"
   }
 }

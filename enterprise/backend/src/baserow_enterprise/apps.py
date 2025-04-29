@@ -27,7 +27,6 @@ class BaserowEnterpriseConfig(AppConfig):
             operation_type_registry,
             plugin_registry,
         )
-        from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
         from baserow_enterprise.api.member_data_types import (
             EnterpriseMemberTeamsDataType,
@@ -60,6 +59,11 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.trash_types import TeamTrashableItemType
 
         from .emails_context_types import EnterpriseEmailContextType
+        from .field_permissions.actions import UpdateFieldPermissionsActionType
+        from .field_permissions.operations import (
+            ReadFieldPermissionsOperationType,
+            UpdateFieldPermissionsOperationType,
+        )
         from .plugins import EnterprisePlugin
         from .role.member_data_types import EnterpriseRolesDataType
         from .role.operations import (
@@ -82,6 +86,7 @@ class BaserowEnterpriseConfig(AppConfig):
         action_type_registry.register(CreateTeamSubjectActionType())
         action_type_registry.register(DeleteTeamSubjectActionType())
         action_type_registry.register(BatchAssignRoleActionType())
+        action_type_registry.register(UpdateFieldPermissionsActionType())
 
         trash_item_type_registry.register(TeamTrashableItemType())
 
@@ -110,76 +115,8 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(ReadRoleTableOperationType())
         operation_type_registry.register(UpdateRoleTableOperationType())
         operation_type_registry.register(ListWorkspaceAuditLogEntriesOperationType())
-
-        from baserow.contrib.database.fields.field_aggregations import (
-            AverageFieldAggregationType,
-            CheckedFieldAggregationType,
-            CheckedPercentageFieldAggregationType,
-            CountFieldAggregationType,
-            EmptyCountFieldAggregationType,
-            EmptyPercentageFieldAggregationType,
-            MaxFieldAggregationType,
-            MedianFieldAggregationType,
-            MinFieldAggregationType,
-            NotCheckedFieldAggregationType,
-            NotCheckedPercentageFieldAggregationType,
-            NotEmptyCountFieldAggregationType,
-            NotEmptyPercentageFieldAggregationType,
-            StdDevFieldAggregationType,
-            SumFieldAggregationType,
-            UniqueCountFieldAggregationType,
-            VarianceFieldAggregationType,
-        )
-        from baserow_enterprise.integrations.registries import (
-            grouped_aggregation_registry,
-        )
-
-        grouped_aggregation_registry.register(CountFieldAggregationType())
-        grouped_aggregation_registry.register(EmptyCountFieldAggregationType())
-        grouped_aggregation_registry.register(NotEmptyCountFieldAggregationType())
-        grouped_aggregation_registry.register(CheckedFieldAggregationType())
-        grouped_aggregation_registry.register(NotCheckedFieldAggregationType())
-        grouped_aggregation_registry.register(EmptyPercentageFieldAggregationType())
-        grouped_aggregation_registry.register(NotEmptyPercentageFieldAggregationType())
-        grouped_aggregation_registry.register(CheckedPercentageFieldAggregationType())
-        grouped_aggregation_registry.register(
-            NotCheckedPercentageFieldAggregationType()
-        )
-        grouped_aggregation_registry.register(UniqueCountFieldAggregationType())
-        grouped_aggregation_registry.register(MinFieldAggregationType())
-        grouped_aggregation_registry.register(MaxFieldAggregationType())
-        grouped_aggregation_registry.register(SumFieldAggregationType())
-        grouped_aggregation_registry.register(AverageFieldAggregationType())
-        grouped_aggregation_registry.register(StdDevFieldAggregationType())
-        grouped_aggregation_registry.register(VarianceFieldAggregationType())
-        grouped_aggregation_registry.register(MedianFieldAggregationType())
-
-        from baserow.contrib.database.fields.field_types import (
-            AutonumberFieldType,
-            BooleanFieldType,
-            EmailFieldType,
-            LongTextFieldType,
-            NumberFieldType,
-            PhoneNumberFieldType,
-            RatingFieldType,
-            SingleSelectFieldType,
-            TextFieldType,
-            URLFieldType,
-        )
-        from baserow_enterprise.integrations.registries import (
-            grouped_aggregation_group_by_registry,
-        )
-
-        grouped_aggregation_group_by_registry.register(TextFieldType())
-        grouped_aggregation_group_by_registry.register(LongTextFieldType())
-        grouped_aggregation_group_by_registry.register(URLFieldType())
-        grouped_aggregation_group_by_registry.register(EmailFieldType())
-        grouped_aggregation_group_by_registry.register(NumberFieldType())
-        grouped_aggregation_group_by_registry.register(RatingFieldType())
-        grouped_aggregation_group_by_registry.register(BooleanFieldType())
-        grouped_aggregation_group_by_registry.register(PhoneNumberFieldType())
-        grouped_aggregation_group_by_registry.register(AutonumberFieldType())
-        grouped_aggregation_group_by_registry.register(SingleSelectFieldType())
+        operation_type_registry.register(UpdateFieldPermissionsOperationType())
+        operation_type_registry.register(ReadFieldPermissionsOperationType())
 
         from baserow.core.registries import subject_type_registry
 
@@ -187,8 +124,10 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.registries import permission_manager_type_registry
 
+        from .field_permissions.permission_manager import FieldPermissionManagerType
         from .role.permission_manager import RolePermissionManagerType
 
+        permission_manager_type_registry.register(FieldPermissionManagerType())
         permission_manager_type_registry.register(RolePermissionManagerType())
 
         from baserow_premium.license.registries import license_type_registry
@@ -255,23 +194,14 @@ class BaserowEnterpriseConfig(AppConfig):
         app_auth_provider_type_registry.register(SamlAppAuthProviderType())
         app_auth_provider_type_registry.register(OpenIdConnectAppAuthProviderType())
 
-        from baserow.contrib.dashboard.widgets.registries import widget_type_registry
-        from baserow_enterprise.dashboard.widgets.widget_types import ChartWidgetType
-        from baserow_enterprise.integrations.local_baserow.service_types import (
-            LocalBaserowGroupedAggregateRowsUserServiceType,
-        )
-
-        service_type_registry.register(
-            LocalBaserowGroupedAggregateRowsUserServiceType()
-        )
-        widget_type_registry.register(ChartWidgetType())
-
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
             AuthFormElementType,
+            FileInputElementType,
         )
 
         element_type_registry.register(AuthFormElementType())
+        element_type_registry.register(FileInputElementType())
 
         from baserow.contrib.database.data_sync.registries import (
             data_sync_type_registry,

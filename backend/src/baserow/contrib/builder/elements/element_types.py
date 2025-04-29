@@ -1,5 +1,7 @@
 import abc
+import uuid
 from datetime import datetime
+from decimal import InvalidOperation
 from typing import (
     Any,
     Callable,
@@ -9,6 +11,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
     TypedDict,
     Union,
 )
@@ -59,6 +62,8 @@ from baserow.contrib.builder.elements.models import (
     MenuElement,
     MenuItemElement,
     NavigationElementMixin,
+    RatingElement,
+    RatingInputElement,
     RecordSelectorElement,
     RepeatElement,
     SimpleContainerElement,
@@ -97,6 +102,7 @@ from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
     ensure_integer,
+    ensure_numeric,
     ensure_string_or_integer,
 )
 from baserow.core.registry import Instance, T
@@ -809,17 +815,24 @@ class NavigationElementManager:
         overrides = {
             "navigation_type": serializers.ChoiceField(
                 choices=NavigationElementMixin.NAVIGATION_TYPES.choices,
-                help_text=LinkElement._meta.get_field("navigation_type").help_text,
+                default=NavigationElementMixin.NAVIGATION_TYPES.PAGE,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "navigation_type"
+                ).help_text,
                 required=False,
             ),
             "navigate_to_page_id": serializers.IntegerField(
                 allow_null=True,
                 default=None,
-                help_text=LinkElement._meta.get_field("navigate_to_page").help_text,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "navigate_to_page"
+                ).help_text,
                 required=False,
             ),
             "navigate_to_url": FormulaSerializerField(
-                help_text=LinkElement._meta.get_field("navigate_to_url").help_text,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "navigate_to_url"
+                ).help_text,
                 default="",
                 allow_blank=True,
                 required=False,
@@ -827,18 +840,23 @@ class NavigationElementManager:
             "page_parameters": PageParameterValueSerializer(
                 many=True,
                 default=[],
-                help_text=LinkElement._meta.get_field("page_parameters").help_text,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "page_parameters"
+                ).help_text,
                 required=False,
             ),
             "query_parameters": PageParameterValueSerializer(
                 many=True,
                 default=[],
-                help_text=LinkElement._meta.get_field("query_parameters").help_text,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "query_parameters"
+                ).help_text,
                 required=False,
             ),
             "target": serializers.ChoiceField(
                 choices=NavigationElementMixin.TARGETS.choices,
-                help_text=LinkElement._meta.get_field("target").help_text,
+                default=NavigationElementMixin.TARGETS.SELF,
+                help_text=NavigationElementMixin._meta.get_field("target").help_text,
                 required=False,
             ),
         }
@@ -910,7 +928,7 @@ class NavigationElementManager:
 
             if page_parameter_type is None:
                 raise DRFValidationError(
-                    f"Page path parameter {page_parameter} does not exist."
+                    f"Page path parameter {page_parameter['name']} does not exist."
                 )
 
 
@@ -1208,6 +1226,136 @@ class InputElementType(FormElementTypeMixin, ElementType, abc.ABC):
     pass
 
 
+class RatingElementType(ElementType):
+    type = "rating"
+    model_class = RatingElement
+    allowed_fields = [
+        "max_value",
+        "color",
+        "rating_style",
+        "value",
+    ]
+    serializer_field_names = [
+        "max_value",
+        "color",
+        "rating_style",
+        "value",
+    ]
+    simple_formula_fields = ["value"]
+
+    class SerializedDict(ElementDict):
+        value: BaserowFormula
+        max_value: str
+        color: str
+        rating_style: str
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "max_value": 5,
+            "value": "5",
+            "color": "dark-orange",
+            "rating_style": "star",
+        }
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "value": FormulaSerializerField(
+                help_text=RatingElement._meta.get_field("value").help_text,
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+        }
+
+
+class RatingInputElementType(InputElementType):
+    type = "rating_input"
+    model_class = RatingInputElement
+    allowed_fields = [
+        "max_value",
+        "color",
+        "rating_style",
+        "value",
+        "required",
+        "label",
+    ]
+    serializer_field_names = [
+        "max_value",
+        "color",
+        "rating_style",
+        "value",
+        "required",
+        "label",
+    ]
+    simple_formula_fields = ["value", "label"]
+
+    class SerializedDict(ElementDict):
+        label: BaserowFormula
+        required: bool
+        value: BaserowFormula
+        max_value: str
+        color: str
+        rating_style: str
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "max_value": 5,
+            "value": "5",
+            "color": "dark-orange",
+            "rating_style": "star",
+            "label": "",
+            "required": False,
+        }
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return super().serializer_field_overrides | {
+            "label": FormulaSerializerField(
+                help_text=RatingInputElement._meta.get_field("label").help_text,
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+            "required": serializers.BooleanField(
+                help_text=RatingInputElement._meta.get_field("required").help_text,
+                default=False,
+                required=False,
+            ),
+            "value": FormulaSerializerField(
+                help_text=RatingInputElement._meta.get_field("value").help_text,
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+        }
+
+    def is_valid(
+        self,
+        element: Type[RatingInputElement],
+        value: Any,
+        dispatch_context: DispatchContext,
+    ) -> bool:
+        """
+        :param element: The element we're trying to use form data in.
+        :param value: The form data value, which may be invalid.
+        :return: Whether the value is valid or not for this element.
+
+        """
+
+        if (element.required and value is None) or not (
+            value is None or 0 <= value <= element.max_value
+        ):
+            raise FormDataProviderChunkInvalidException(
+                "The value is required for this element."
+            )
+        return value
+
+
 class InputTextElementType(InputElementType):
     type = "input_text"
     model_class = InputTextElement
@@ -1318,7 +1466,7 @@ class InputTextElementType(InputElementType):
 
     def is_valid(
         self, element: InputTextElement, value: Any, dispatch_context: DispatchContext
-    ) -> bool:
+    ) -> Any:
         """
         :param element: The element we're trying to use form data in.
         :param value: The form data value, which may be invalid.
@@ -1331,10 +1479,10 @@ class InputTextElementType(InputElementType):
 
         elif element.validation_type == "integer":
             try:
-                value = ensure_integer(value)
-            except ValidationError as exc:
+                return ensure_numeric(value)
+            except (ValueError, TypeError, InvalidOperation, ValidationError) as exc:
                 raise FormDataProviderChunkInvalidException(
-                    f"{value} must be a valid integer."
+                    f"{value} must be a valid number."
                 ) from exc
 
         elif element.validation_type == "email":
@@ -2247,17 +2395,31 @@ class MenuElementType(ElementType):
         menu_items_to_create = []
         child_uids_parent_uids = {}
 
+        # Generate new uids to prevent conflicts
+        updated_uids = {i["uid"]: str(uuid.uuid4()) for i in menu_items}
+
         ids_uids = {i["id"]: i["uid"] for i in menu_items}
         keys_to_remove = ["id", "menu_item_order", "children"]
+
         for index, item in enumerate(menu_items):
             for key in keys_to_remove:
                 item.pop(key, None)
 
+            old_uid = item.pop("uid")
+            new_uid = updated_uids[old_uid]
+
             # Keep track of child-parent relationship via the uid
             if parent_id := item.pop("parent_menu_item", None):
-                child_uids_parent_uids[item["uid"]] = ids_uids[parent_id]
+                child_uids_parent_uids[new_uid] = updated_uids[ids_uids[parent_id]]
 
-            menu_items_to_create.append(MenuItemElement(**item, menu_item_order=index))
+            # Map the old uid to the new uid. This ensures that any workflow
+            # actions with an `event` pointing to the old uid will have the
+            # pointer to the new uid.
+            id_mapping["builder_element_event_uids"][old_uid] = new_uid
+
+            menu_items_to_create.append(
+                MenuItemElement(**item, uid=new_uid, menu_item_order=index)
+            )
 
         created_menu_items = MenuItemElement.objects.bulk_create(menu_items_to_create)
         instance.menu_items.add(*created_menu_items)

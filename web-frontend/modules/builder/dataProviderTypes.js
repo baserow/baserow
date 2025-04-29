@@ -6,7 +6,7 @@ import { defaultValueForParameterType } from '@baserow/modules/builder/utils/par
 import { DEFAULT_USER_ROLE_PREFIX } from '@baserow/modules/builder/constants'
 import {
   PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS,
-  QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS,
+  QUERY_PARAM_TYPE_HANDLER_FUNCTIONS,
 } from '@baserow/modules/builder/enums'
 import { extractSubSchema } from '@baserow/modules/core/utils/schema'
 
@@ -311,7 +311,7 @@ export class PageParameterDataProviderType extends DataProviderType {
       await Promise.all(
         pageParams.map(({ name, type }) => {
           const validators = queryParamNames.includes(name)
-            ? QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS
+            ? QUERY_PARAM_TYPE_HANDLER_FUNCTIONS
             : PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS
           let value
           try {
@@ -655,7 +655,38 @@ export class FormDataProviderType extends DataProviderType {
   }
 
   getActionDispatchContext(applicationContext) {
-    return this.getDataContent(applicationContext)
+    const { page } = applicationContext
+    const dataContent = this.getDataContent(applicationContext)
+
+    const files = {}
+
+    const updatedValue = Object.fromEntries(
+      Object.entries(dataContent)
+        .filter(([elementId, value]) => {
+          const element = this.app.store.getters['element/getElementById'](
+            page,
+            elementId
+          )
+          const elementType = this.app.$registry.get('element', element.type)
+          return !elementType.isDeactivated({
+            workspace: applicationContext.workspace,
+          })
+        })
+        .map(([elementId, value]) => {
+          const element = this.app.store.getters['element/getElementById'](
+            page,
+            elementId
+          )
+          const elementType = this.app.$registry.get('element', element.type)
+
+          return [
+            elementId,
+            elementType.beforeActionDispatchContext(element, value, files),
+          ]
+        })
+    )
+
+    return [updatedValue, files]
   }
 
   /**

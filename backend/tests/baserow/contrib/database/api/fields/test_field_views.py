@@ -1302,11 +1302,15 @@ def test_change_primary_field_field_with_primary(api_client, data_fixture):
                 "text_default": "",
                 "immutable_properties": False,
                 "immutable_type": False,
+                "database_id": field_1.table.database.id,
+                "workspace_id": field_1.table.database.workspace.id,
             }
         ],
         "text_default": "",
         "immutable_properties": False,
         "immutable_type": False,
+        "database_id": table_a.database.id,
+        "workspace_id": table_a.database.workspace.id,
     }
 
 

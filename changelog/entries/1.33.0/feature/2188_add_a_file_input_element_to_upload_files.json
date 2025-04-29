@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Add a file input element to upload files",
+    "domain": "builder",
+    "issue_number": 2188,
+    "bullet_points": [],
+    "created_at": "2025-04-10"
+}

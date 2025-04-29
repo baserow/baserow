@@ -1,0 +1,8 @@
+{
+  "type": "bug",
+  "message": "Fixed bug where the backend fails hard if the filter value exceeds 255 characters.",
+  "domain": "database",
+  "issue_number": null,
+  "bullet_points": [],
+  "created_at": "2025-03-27"
+}

@@ -78,6 +78,12 @@ from baserow.core.services.registries import service_type_registry
 class DataSourcesView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+
+        return super().get_permissions()
+
     @extend_schema(
         parameters=[
             OpenApiParameter(
@@ -491,19 +497,9 @@ class DispatchDataSourceView(APIView):
 
         data_source = DataSourceHandler().get_data_source(data_source_id)
 
-        serializer = DispatchDataSourceRequestSerializer(
-            data=request.data, context={"data_source": data_source}
-        )
-        serializer.is_valid(raise_exception=True)
-
-        # If we've been provided with an element, we need to pass it to the dispatch
-        # context. This could be a collection element. If it is, it will be used for
-        # adhoc filtering and sorting if we have any filters in the querystring.
-        element = serializer.validated_data.get("data_source").get("element")
         dispatch_context = BuilderDispatchContext(
             request,
             data_source.page,
-            element=element,
             only_expose_public_allowed_properties=False,
         )
 
@@ -530,6 +526,7 @@ class DispatchDataSourcesView(APIView):
         tags=["Builder data sources"],
         operation_id="dispatch_builder_page_data_sources",
         description="Dispatches the service of the related page data_sources",
+        request=DispatchDataSourceRequestSerializer,
         responses={
             404: get_error_schema(
                 [

@@ -71,6 +71,7 @@
     "updateSyncConfig": "Update sync configuration"
   },
   "duplicateTableJobType": {
+    "name": "Duplicate table",
     "duplicating": "Duplicating",
     "duplicatedTitle": "Table duplicated"
   },
@@ -262,7 +263,11 @@
     "selectTableLabel": "Select a table to link to",
     "hasRelatedFieldLabel": "Create related field in linked table",
     "limitToView": "Limit selection to view",
-    "limitToViewDescription": "Note that this is only visual. It's still possible to make relationships outside of the view via the related table or API."
+    "limitToViewDescription": "Note that this is only visual. It's still possible to make relationships outside of the view via the related table or API.",
+    "allowMultipleRelations": "Allow multiple relationships"
+  },
+  "fieldBooleanSubForm": {
+    "defaultValue": "Default"
   },
   "fieldSelectOptions": {
     "add": "Add an option"
@@ -281,7 +286,9 @@
     "spacePeriod": "Space, period (1 000 000.00)",
     "commaPeriod": "Comma, period (1,000,000.00)",
     "periodComma": "Period, comma (1.000.000,00)",
-    "noFormatting": "No formatting"
+    "noFormatting": "No formatting",
+    "defaultValueLabel": "Default value",
+    "defaultValuePlaceholder": "Enter a default value"
   },
   "fieldDurationSubForm": {
     "durationFormatLabel": "Duration format"
@@ -354,7 +361,8 @@
     }
   },
   "rowEditFieldLinkRow": {
-    "addLink": "Choose a link"
+    "addLink": "Choose a link",
+    "keepOnlyOneValue": "Keep only one value. This field only supports one relationship. The value is saved if there is only one relationship left."
   },
   "tableCSVImporter": {
     "chooseFileLabel": "Choose CSV file",
@@ -631,7 +639,8 @@
     "duplicate": "Duplicate field",
     "sortField": "Sort",
     "hideField": "Hide field",
-    "dataSyncField": "The field is read only and part of the table's data sync."
+    "dataSyncField": "The field is read only and part of the table's data sync.",
+    "noWriteValues": "Changes to this field are restricted."
   },
   "gridViewRow": {
     "rowNotMatchingFilters": "Row does not match filters",
@@ -665,7 +674,8 @@
     "dropFileHere": "Drop files here"
   },
   "gridViewFieldLinkRow": {
-    "unnamed": "unnamed row {value}"
+    "unnamed": "unnamed row {value}",
+    "keepOnlyOneValue": "Keep only one value"
   },
   "gridViewIdentifierOptions": {
     "id": "Row identifier",
@@ -731,7 +741,6 @@
   },
   "viewAggregationType": {
     "count": "Count",
-    "emptyCount": "Empty",
     "notEmptyCount": "Filled",
     "emptyPercentage": "Percent empty",
     "notEmptyPercentage": "Percent filled",
@@ -763,7 +772,7 @@
   },
   "importFromAirtable": {
     "airtableShareLinkTitle": "Share a link to your Base",
-    "airtableShareLinkDescription": "To import your Airtable base, you need to have a shared link to your entire base. In Airtable, click on the share button in the top right corner after opening your base. After that you must choose the \"Share via link\" option. In the share modal you can click on the \"Share publicly\" tab and then on “Enabl;e shared base link”. Copy the public link and paste it in the input below.",
+    "airtableShareLinkDescription": "To import your Airtable base, you need to have a shared link to your entire base. In Airtable, click on the share button in the top right corner after opening your base. After that you must choose the \"Share via link\" option. In the share modal you can click on the \"Share publicly\" tab and then on “Enable shared base link”. Copy the public link and paste it in the input below.",
     "airtableShareLinkBeta": "This functionality will import most of the data, but there are incompatibilities. A table named \"Airtable import report\" will therefore be added containing a list of things that were not or partially imported.",
     "airtableShareLinkPaste": "Paste the link here",
     "importButtonLabel": "Import from Airtable",
@@ -809,7 +818,8 @@
     "addConditionGroup": "Add condition group",
     "showFieldAs": "Show field as",
     "noSelectOptions": "There are no select options available.",
-    "noCollaboratorsAvailable": "There are no collaborators available."
+    "noCollaboratorsAvailable": "There are no collaborators available.",
+    "cannotSumitValues": "This field is read-only and won't be displayed in the form."
   },
   "duplicateFieldContext": {
     "duplicate": "Duplicate field",
@@ -864,7 +874,8 @@
     "addLogo": "Add a logo",
     "titlePlaceholder": "Title",
     "descriptionPlaceholder": "Description",
-    "noFields": "This form doesn't have any fields. Click on a field in the left sidebar to add one."
+    "noFieldsTitle": "This form doesn't have any fields",
+    "noFieldsContent": "Click on a field in the left sidebar to add one."
   },
   "table": {
     "adjacentRow": {
@@ -1001,11 +1012,12 @@
   },
   "databaseStep": {
     "title": "Create your first database",
-    "description": "Let us know what you're working on.",
+    "description": "Select what where you'd like to start from:",
     "databaseNameLabel": "Database name",
-    "scratch": "From scratch",
-    "import": "From file",
-    "airtable": "From Airtable"
+    "scratch": "Scratch",
+    "import": "File",
+    "airtable": "Airtable",
+    "template": "Template"
   },
   "ViewFilterTypeDateUpgradeToMultiStep": {
     "migrateButtonText": "Migrate to multi-step date filter",
@@ -1068,5 +1080,29 @@
   },
   "webhookPayloadTooLargeNotification": {
     "body": "The payload for the {name} webhook with event ID {event_id} was too large. The content has been split into multiple batches, but data above the batch limit of {batch_limit} was discarded."
+  },
+  "tablesGuidedTourStep": {
+    "title": "Setup tables",
+    "content": "Tables store your information neatly. Create a new table within your database to start structuring your data."
+  },
+  "filterSortGroupGuidedTourStep": {
+    "title": "Find and Organize Your Data",
+    "content": "Quickly locate information by filtering and sorting on your rows. Instantly group by any of the fields to clearly visualize patterns and simplify your workflows."
+  },
+  "addFieldGuidedTourStep": {
+    "title": "Customize Your Data",
+    "content": "Click “+” to add new fields (columns). Choose from various field types to capture exactly what matters most to your project."
+  },
+  "createViewGuidedTourStep": {
+    "title": "Personalize Your Views",
+    "content": "Create custom views like grid, calendar, kanban, or gallery to visualize your data exactly how you want it."
+  },
+  "createFormViewGuidedTourStep": {
+    "title": "Create a Form",
+    "content": "Quickly build forms from your tables to collect responses directly into your table, streamlining data collection."
+  },
+  "viewOptionsGuidedTourStep": {
+    "title": "View Options",
+    "content": "Click on the three dots next to the view to export, import, duplicate, and configure a webhook."
   }
 }

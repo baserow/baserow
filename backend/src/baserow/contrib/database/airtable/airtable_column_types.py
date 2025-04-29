@@ -33,6 +33,7 @@ from baserow.core.utils import get_value_at_path
 
 from .config import AirtableImportConfig
 from .constants import (
+    AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH,
     AIRTABLE_DURATION_FIELD_DURATION_FORMAT_MAPPING,
     AIRTABLE_MAX_DURATION_VALUE,
     AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING,
@@ -48,6 +49,7 @@ from .import_report import (
     SCOPE_FIELD,
     AirtableImportReport,
 )
+from .models import DownloadFile
 from .registry import AirtableColumnType
 from .utils import get_airtable_row_primary_value, quill_to_markdown
 
@@ -155,10 +157,7 @@ class NumberAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
-        self.add_import_report_failed_if_default_is_provided(
-            raw_airtable_table, raw_airtable_column, import_report
-        )
-
+        default_value = raw_airtable_column.get("default")
         type_options = raw_airtable_column.get("typeOptions", {})
         options_format = type_options.get("format", "")
 
@@ -167,9 +166,14 @@ class NumberAirtableColumnType(AirtableColumnType):
                 raw_airtable_table, raw_airtable_column, config, import_report
             )
         else:
-            return self.to_number_field(
+            field = self.to_number_field(
                 raw_airtable_table, raw_airtable_column, config, import_report
             )
+            if default_value is not None:
+                if "percent" in options_format:
+                    default_value = default_value * 100
+                field.number_default = default_value
+            return field
 
     def to_duration_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
@@ -221,6 +225,7 @@ class NumberAirtableColumnType(AirtableColumnType):
                 f"The field was imported, but the separator format "
                 f"{separator_format} was dropped because it doesn't exist in Baserow.",
             )
+        default_value = raw_airtable_column.get("default", "") or None
 
         return NumberField(
             number_decimal_places=decimal_places,
@@ -228,6 +233,7 @@ class NumberAirtableColumnType(AirtableColumnType):
             number_prefix=prefix,
             number_suffix=suffix,
             number_separator=number_separator,
+            number_default=default_value,
         )
 
     def to_baserow_export_serialized_value(
@@ -299,6 +305,31 @@ class NumberAirtableColumnType(AirtableColumnType):
 
         return str(value)
 
+    def to_baserow_export_empty_value(
+        self,
+        row_id_mapping,
+        raw_airtable_table,
+        raw_airtable_row,
+        raw_airtable_column,
+        baserow_field,
+        files_to_download,
+        config,
+        import_report,
+    ):
+        # If the field has a default value, we need to explicitly return None
+        # to ensure that empty values in Airtable are properly imported as empty in
+        # Baserow. Otherwise, the value would be omitted in the export, resulting in
+        # the default value automatically being set, while it's actually empty in
+        # Airtable.
+        # Default value can be set only on NumberField
+        if (
+            isinstance(baserow_field, NumberField)
+            and baserow_field.number_default is not None
+        ):
+            return None
+        else:
+            raise AirtableSkipCellValue
+
 
 class RatingAirtableColumnType(AirtableColumnType):
     type = "rating"
@@ -348,10 +379,6 @@ class CheckboxAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
-        self.add_import_report_failed_if_default_is_provided(
-            raw_airtable_table, raw_airtable_column, import_report
-        )
-
         type_options = raw_airtable_column.get("typeOptions", {})
         airtable_icon = type_options.get("icon", "check")
         airtable_color = type_options.get("color", "green")
@@ -374,7 +401,8 @@ class CheckboxAirtableColumnType(AirtableColumnType):
                 f"The field was imported, but the color {airtable_color} is not supported.",
             )
 
-        return BooleanField()
+        default = raw_airtable_column.get("default", None) or False
+        return BooleanField(boolean_default=default)
 
     def to_baserow_export_serialized_value(
         self,
@@ -389,6 +417,27 @@ class CheckboxAirtableColumnType(AirtableColumnType):
         import_report,
     ):
         return "true" if value else "false"
+
+    def to_baserow_export_empty_value(
+        self,
+        row_id_mapping,
+        raw_airtable_table,
+        raw_airtable_row,
+        raw_airtable_column,
+        baserow_field,
+        files_to_download,
+        config,
+        import_report,
+    ):
+        # If the field has a default value of True, we need to explicitly return "false"
+        # to ensure that empty values in Airtable are properly imported as False in
+        # Baserow. Otherwise, the value would be omitted in the export, resulting in
+        # the default value automatically being set, while it's actually empty in
+        # Airtable.
+        if baserow_field.boolean_default:
+            return "false"
+        else:
+            raise AirtableSkipCellValue
 
 
 class DateAirtableColumnType(AirtableColumnType):
@@ -688,6 +737,13 @@ class MultipleAttachmentAirtableColumnType(AirtableColumnType):
         for file in value:
             file_name = "_".join(file["url"].split("/")[-3:])
             files_to_download[file_name] = file["url"]
+            files_to_download[file_name] = DownloadFile(
+                url=file["url"],
+                row_id=raw_airtable_row["airtable_record_id"],
+                column_id=raw_airtable_column["id"],
+                attachment_id=file["id"],
+                type=AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH,
+            )
             new_value.append(
                 DatabaseExportSerializedStructure.file_field_value(
                     name=file_name,
@@ -710,7 +766,7 @@ class SelectAirtableColumnType(AirtableColumnType):
         raw_airtable_column: dict,
         baserow_field: Field,
         value: Any,
-        files_to_download: Dict[str, str],
+        files_to_download: Dict[str, DownloadFile],
         config: AirtableImportConfig,
         import_report: AirtableImportReport,
     ):
@@ -749,7 +805,7 @@ class MultiSelectAirtableColumnType(AirtableColumnType):
         raw_airtable_column: dict,
         baserow_field: Field,
         value: Any,
-        files_to_download: Dict[str, str],
+        files_to_download: Dict[str, DownloadFile],
         config: AirtableImportConfig,
         import_report: AirtableImportReport,
     ):

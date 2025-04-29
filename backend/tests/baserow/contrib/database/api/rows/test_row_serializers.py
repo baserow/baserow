@@ -24,12 +24,21 @@ def test_get_table_serializer(data_fixture):
     )
     data_fixture.create_number_field(table=table, order=1, name="Horsepower")
     data_fixture.create_boolean_field(table=table, order=3, name="For sale")
+    data_fixture.create_boolean_field(
+        table=table, order=4, name="Available", boolean_default=True
+    )
     data_fixture.create_number_field(
         table=table,
-        order=4,
+        order=5,
         name="Price",
         number_negative=True,
         number_decimal_places=2,
+    )
+    data_fixture.create_number_field(
+        table=table,
+        order=6,
+        name="Stock",
+        number_default=100,
     )
 
     model = table.get_model(attribute_names=True)
@@ -42,7 +51,9 @@ def test_get_table_serializer(data_fixture):
         "color": "white",
         "horsepower": None,
         "for_sale": False,
+        "available": True,
         "price": None,
+        "stock": "100",
     }
 
     # text field
@@ -106,6 +117,23 @@ def test_get_table_serializer(data_fixture):
     assert not serializer_instance.is_valid()
     assert len(serializer_instance.errors["for_sale"]) == 1
 
+    # boolean field with default=True
+    serializer_instance = serializer_class(data={"available": True})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["available"] is True
+
+    serializer_instance = serializer_class(data={"available": False})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["available"] is False
+
+    serializer_instance = serializer_class(data={"available": None})
+    assert not serializer_instance.is_valid()
+    assert len(serializer_instance.errors["available"]) == 1
+
+    serializer_instance = serializer_class(data={"available": "abc"})
+    assert not serializer_instance.is_valid()
+    assert len(serializer_instance.errors["available"]) == 1
+
     # price field
     serializer_instance = serializer_class(data={"price": 120})
     assert serializer_instance.is_valid()
@@ -123,6 +151,25 @@ def test_get_table_serializer(data_fixture):
     assert serializer_instance.is_valid()
     assert serializer_instance.data["price"] is None
 
+    # number field with default
+    serializer_instance = serializer_class(data={"stock": 50})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["stock"] == "50"
+
+    # Test that omitting the field uses the default value
+    serializer_instance = serializer_class(data={})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["stock"] == "100"
+
+    # Test that explicitly setting None returns None
+    serializer_instance = serializer_class(data={"stock": None})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["stock"] is None
+
+    serializer_instance = serializer_class(data={"stock": "abc"})
+    assert not serializer_instance.is_valid()
+    assert len(serializer_instance.errors["stock"]) == 1
+
     # not existing value
     serializer_instance = serializer_class(data={"NOT_EXISTING": True})
     assert serializer_instance.is_valid()
@@ -130,19 +177,30 @@ def test_get_table_serializer(data_fixture):
         "color": "white",
         "horsepower": None,
         "for_sale": False,
+        "available": True,
         "price": None,
+        "stock": "100",
     }
 
     # all fields
     serializer_instance = serializer_class(
-        data={"color": "green", "horsepower": 120, "for_sale": True, "price": 120.22}
+        data={
+            "color": "green",
+            "horsepower": 120,
+            "for_sale": True,
+            "available": False,
+            "price": 120.22,
+            "stock": 75,
+        }
     )
     assert serializer_instance.is_valid()
     assert serializer_instance.data == {
         "color": "green",
         "horsepower": "120",
         "for_sale": True,
+        "available": False,
         "price": "120.22",
+        "stock": "75",
     }
 
     # adding an extra field and only use that one.

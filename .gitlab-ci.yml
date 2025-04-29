@@ -516,14 +516,17 @@ e2e-tests:
   extends:
     - .docker-image-test-stage
     - .requires-lint
+  except:
+    variables:
+      - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
+      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
   script:
     - cd e2e-tests
     - E2E_TEST_YARN_RUN_CMD=test-ci docker compose up --no-build --exit-code-from e2e-tests
   artifacts:
     paths:
       # Save the HTML report as an artifact for download or visualization
-      - e2e-tests/playwright-report/
-  allow_failure: true
+      - e2e-tests/test-results/
 
 # ================================== ALL IN ONES ======================================
 # If pipeline not triggered by tag:

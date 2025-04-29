@@ -21,6 +21,7 @@ from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.core.exceptions import PermissionException
+from baserow.core.models import Workspace
 from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
@@ -131,7 +132,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
     assert builder_to.page_set.filter(shared=True).count() == 1
 
     shared_page = builder_to.shared_page
-
+    workspace = Workspace.objects.get()
     assert response_json == {
         "favicon_file": UserFileSerializer(builder_to.favicon_file).data,
         "id": builder_to.id,
@@ -174,6 +175,12 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
         ],
         "type": "builder",
         "user_sources": [],
+        "workspace": {
+            "generative_ai_models_enabled": {},
+            "id": workspace.id,
+            "name": workspace.name,
+            "licenses": [],
+        },
     }
 
     # Even if I'm authenticated I should be able to see it.
@@ -303,6 +310,12 @@ def test_get_public_builder_by_id(api_client, data_fixture):
         ],
         "type": "builder",
         "user_sources": [],
+        "workspace": {
+            "generative_ai_models_enabled": {},
+            "id": page.builder.workspace.id,
+            "name": page.builder.workspace.name,
+            "licenses": [],
+        },
     }
 
 
@@ -428,6 +441,43 @@ def test_get_elements_of_public_builder(api_client, data_fixture):
     assert len(response_json) == 3
     # Test the structure of the first item to ensure the expected keys exist
     assert response_json[0] == expected_item
+
+
+@pytest.mark.django_db
+def test_get_elements_of_public_builder_with_deactivated(api_client, data_fixture):
+    user = data_fixture.create_user()
+    builder_from = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(user=user, workspace=None)
+    page = data_fixture.create_builder_page(builder=builder_to, user=user)
+    element1 = data_fixture.create_builder_heading_element(page=page)
+    element2 = data_fixture.create_builder_heading_element(page=page)
+    element3 = data_fixture.create_builder_text_element(page=page)
+
+    element_type = element3.get_type()
+
+    prev_is_deactivated = element_type.is_deactivated
+    element_type.is_deactivated = lambda x: True
+
+    domain = data_fixture.create_builder_custom_domain(
+        domain_name="test.getbaserow.io",
+        published_to=page.builder,
+        builder=builder_from,
+    )
+
+    url = reverse(
+        "api:builder:domains:list_elements",
+        kwargs={"page_id": page.id},
+    )
+    response = api_client.get(
+        url,
+        format="json",
+    )
+    response_json = response.json()
+
+    element_type.is_deactivated = prev_is_deactivated
+
+    assert response.status_code == HTTP_200_OK
+    assert len(response_json) == 2
 
 
 @pytest.mark.django_db
@@ -613,7 +663,6 @@ def test_public_dispatch_data_source_view(
     mock_builder_dispatch_context.assert_called_once_with(
         ANY,
         mock_data_source.page,
-        element=None,
         only_expose_public_allowed_properties=True,
     )
     mock_dispatch_data_source.assert_called_once_with(

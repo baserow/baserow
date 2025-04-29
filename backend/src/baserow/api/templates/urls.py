@@ -1,6 +1,11 @@
 from django.urls import re_path
 
-from .views import AsyncInstallTemplateView, InstallTemplateView, TemplatesView
+from .views import (
+    AsyncInstallTemplateView,
+    InstallTemplateView,
+    TemplatesView,
+    TemplateView,
+)
 
 app_name = "baserow.api.templates"
 
@@ -16,5 +21,6 @@ urlpatterns = [
         AsyncInstallTemplateView.as_view(),
         name="install_async",
     ),
+    re_path(r"(?P<slug>[\w-]+)/$", TemplateView.as_view(), name="item"),
     re_path(r"$", TemplatesView.as_view(), name="list"),
 ]

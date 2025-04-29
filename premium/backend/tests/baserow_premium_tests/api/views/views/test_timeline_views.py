@@ -1113,6 +1113,8 @@ def test_get_public_timeline_view(api_client, premium_data_fixture):
                     "description": None,
                     "immutable_properties": False,
                     "immutable_type": False,
+                    "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                    "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                 },
                 {
                     "id": start_date_field.id,
@@ -1130,6 +1132,8 @@ def test_get_public_timeline_view(api_client, premium_data_fixture):
                     "description": None,
                     "immutable_properties": False,
                     "immutable_type": False,
+                    "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                    "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                 },
                 {
                     "id": end_date_field.id,
@@ -1147,6 +1151,8 @@ def test_get_public_timeline_view(api_client, premium_data_fixture):
                     "description": None,
                     "immutable_properties": False,
                     "immutable_type": False,
+                    "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                    "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                 },
             ]
         ),

@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.db import transaction
@@ -11,9 +12,6 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.contrib.builder.data_providers.exceptions import (
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
@@ -682,9 +680,12 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
             "all": {workflow_action.service.id: [index.db_column]},
             "external": {workflow_action.service.id: [index.db_column]},
         }
+        payload = {
+            "metadata": json.dumps({"current_record": {"index": 123, "record_id": 123}})
+        }
         response = api_client.post(
             url,
-            {"current_record": {"index": 123, "record_id": 123}},
+            payload,
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
@@ -786,28 +787,41 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
         }
         model = table.get_model()
 
+        payload = {
+            "metadata": json.dumps(
+                {
+                    "current_record": {"index": 0, "record_id": rows[2].id},
+                    "data_source": {"element": table_element.id},
+                }
+            )
+        }
+
         # Dispatch at index=0 but row 3 id, this will be "Complex Construction Design".
         response = api_client.post(
             url,
-            {
-                "current_record": {"index": 0, "record_id": rows[2].id},
-                "data_source": {"element": table_element.id},
-            },
+            payload,
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
+
         assert response.status_code == HTTP_200_OK
         row3 = model.objects.get(pk=rows[2].id)
         assert getattr(row3, f"field_{field.id}") == f"Updated row {rows[2].id}"
+
+        payload = {
+            "metadata": json.dumps(
+                {
+                    "current_record": {"index": 0, "record_id": rows[3].id},
+                    "data_source": {"element": table_element.id},
+                }
+            )
+        }
 
         # Dispatch at index=0 but row 4 id,
         # this will now be "Simple Construction Design".
         response = api_client.post(
             url,
-            {
-                "current_record": {"index": 0, "record_id": rows[3].id},
-                "data_source": {"element": table_element.id},
-            },
+            payload,
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
@@ -948,42 +962,35 @@ def test_dispatch_local_baserow_update_row_workflow_action_using_formula_with_da
 
 
 @pytest.mark.django_db
-@patch(
-    "baserow.contrib.builder.data_providers.data_provider_types.FormDataProviderType.validate_data_chunk",
-    side_effect=FormDataProviderChunkInvalidException,
-)
-def test_dispatch_workflow_action_with_invalid_form_data(
-    mock_validate, api_client, data_fixture
-):
+def test_dispatch_workflow_action_with_invalid_form_data(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     builder = data_fixture.create_builder_application(user=user)
     database = data_fixture.create_database_application(workspace=builder.workspace)
     table = data_fixture.create_database_table(database=database)
     field = data_fixture.create_text_field(table=table)
     page = data_fixture.create_builder_page(user=user, builder=builder)
-    element = data_fixture.create_builder_button_element(page=page)
+    button_element = data_fixture.create_builder_button_element(page=page)
+    input_text_element = data_fixture.create_builder_input_text_element(
+        page=page, required=True
+    )
     workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
-        page=page, element=element, event=EventTypes.CLICK, user=user
+        page=page, element=button_element, event=EventTypes.CLICK, user=user
     )
     service = workflow_action.service.specific
     service.table = table
     service.save()
-    field_mapping = service.field_mappings.create(
-        field=field, value="get('form_data.17')"
+    service.field_mappings.create(
+        field=field, value=f"get('form_data.{input_text_element.id}')"
     )
 
     url = reverse(
         "api:builder:workflow_action:dispatch",
         kwargs={"workflow_action_id": workflow_action.id},
     )
-
+    payload = {"metadata": json.dumps({"form_data": {input_text_element.id: ""}})}
     response = api_client.post(
         url,
-        {
-            "form_data": {
-                "17": {"value": "", "type": "string", "isValid": False},
-            },
-        },
+        payload,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -992,7 +999,8 @@ def test_dispatch_workflow_action_with_invalid_form_data(
     assert response.json() == {
         "error": "ERROR_WORKFLOW_ACTION_IMPROPERLY_CONFIGURED",
         "detail": "The workflow_action configuration is incorrect: "
-        f"Path error in formula for field {field.name}({field.id})",
+        f"Provided value for form element with ID {input_text_element.id} of type "
+        "input_text is invalid. The value is required.",
     }
 
 
@@ -1289,9 +1297,13 @@ def test_create_row_action_can_access_the_field_of_previous_action(
         kwargs={"workflow_action_id": action_1.id},
     )
     payload = {
-        "previous_action": {
-            "current_dispatch_id": mock_dispatch_id,
-        },
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": mock_dispatch_id,
+                }
+            }
+        )
     }
     response = api_client.post(
         url,
@@ -1307,7 +1319,16 @@ def test_create_row_action_can_access_the_field_of_previous_action(
     assert action_2.service.table.get_model().objects.all().count() == 0
 
     # Now dispatch the 2nd Workflow Action
-    payload["previous_action"][action_1.id] = {}
+    payload = {
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": mock_dispatch_id,
+                    action_1.id: {},
+                },
+            }
+        )
+    }
     url = reverse(
         "api:builder:workflow_action:dispatch",
         kwargs={"workflow_action_id": action_2.id},

@@ -5,7 +5,7 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
-from baserow.contrib.builder.elements.models import LinkElement
+from baserow.contrib.builder.elements.models import LinkElement, NavigationElementMixin
 
 
 @pytest.mark.django_db
@@ -101,6 +101,7 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
             "name": "Color",
             "type": "link",
             "navigate_to_page_id": None,
+            "navigation_type": NavigationElementMixin.NAVIGATION_TYPES.PAGE,
             "navigate_to_url": "get('test2')",
             "link_name": "get('test3')",
             "target": "self",

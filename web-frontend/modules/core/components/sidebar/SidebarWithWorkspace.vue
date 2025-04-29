@@ -76,6 +76,7 @@
       :class="{
         'sidebar__new-wrapper--separator': hasItems,
       }"
+      data-highlight="create-new"
     >
       <a
         ref="createApplicationContextLink"

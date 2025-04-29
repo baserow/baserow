@@ -1,5 +1,6 @@
 from django.apps import AppConfig
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist
 from django.db import ProgrammingError
 from django.db.models.signals import post_migrate, pre_migrate
@@ -783,7 +784,9 @@ class DatabaseConfig(AppConfig):
             ListFieldsOperationType,
             ReadFieldOperationType,
             RestoreFieldOperationType,
+            SubmitAnonymousFieldValuesOperationType,
             UpdateFieldOperationType,
+            WriteFieldValuesOperationType,
         )
         from .formula import TypeFormulaOperationType
         from .operations import (
@@ -894,6 +897,8 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(DeleteRelatedLinkRowFieldOperationType())
         operation_type_registry.register(DuplicateFieldOperationType())
         operation_type_registry.register(UpdateViewFieldOptionsOperationType())
+        operation_type_registry.register(WriteFieldValuesOperationType())
+        operation_type_registry.register(SubmitAnonymousFieldValuesOperationType())
         operation_type_registry.register(DeleteViewSortOperationType())
         operation_type_registry.register(DeleteViewGroupByOperationType())
         operation_type_registry.register(UpdateViewSlugOperationType())
@@ -1012,6 +1017,21 @@ class DatabaseConfig(AppConfig):
         notification_type_registry.register(WebhookDeactivatedNotificationType())
         notification_type_registry.register(WebhookPayloadTooLargeNotificationType())
 
+        from baserow.contrib.database.mcp.rows.tools import (
+            CreateRowMcpTool,
+            DeleteRowMcpTool,
+            ListRowsMcpTool,
+            UpdateRowMcpTool,
+        )
+        from baserow.contrib.database.mcp.table.tools import ListTablesMcpTool
+        from baserow.core.mcp.registries import mcp_tool_registry
+
+        mcp_tool_registry.register(ListTablesMcpTool())
+        mcp_tool_registry.register(ListRowsMcpTool())
+        mcp_tool_registry.register(CreateRowMcpTool())
+        mcp_tool_registry.register(UpdateRowMcpTool())
+        mcp_tool_registry.register(DeleteRowMcpTool())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.database.data_sync.signals  # noqa: F403, F401
@@ -1029,6 +1049,13 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.table.receivers  # noqa: F401
         import baserow.contrib.database.views.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
+
+        # Make sure that from now on, no model can make the User cache to expire,
+        # because that can be a problem if some other thread tries to access the related
+        # profile while the cache is being cleared.
+        # NOTE: Make sure all FK or M2M fields to User are created with
+        # `related_name="+"` because the relation won't be created on the user side.
+        get_user_model()._meta._expire_cache = lambda *a, **kw: None
 
 
 # noinspection PyPep8Naming

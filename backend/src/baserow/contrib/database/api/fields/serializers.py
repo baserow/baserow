@@ -32,6 +32,16 @@ class FieldSerializer(serializers.ModelSerializer):
         help_text="Indicates whether the field is a read only field. If true, "
         "it's not possible to update the cell value."
     )
+    database_id = serializers.IntegerField(
+        source="table.database_id",
+        help_text="The ID of the database this field belongs to.",
+        read_only=True,
+    )
+    workspace_id = serializers.IntegerField(
+        source="table.database.workspace_id",
+        help_text="The ID of the workspace this field belongs to.",
+        read_only=True,
+    )
 
     class Meta:
         model = Field
@@ -46,6 +56,8 @@ class FieldSerializer(serializers.ModelSerializer):
             "immutable_type",
             "immutable_properties",
             "description",
+            "database_id",
+            "workspace_id",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -337,6 +349,37 @@ class UniqueRowValuesSerializer(serializers.Serializer):
 class CollaboratorSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField(source="first_name", read_only=True)
+
+
+class AvailableCollaboratorsSerializer(serializers.ListField):
+    def __init__(self, **kwargs):
+        kwargs["child"] = CollaboratorSerializer()
+        kwargs["read_only"] = True
+        kwargs["source"] = "*"
+        kwargs["help_text"] = "A list of all the available collaborators."
+
+        super().__init__(**kwargs)
+
+    def get_attribute(self, instance):
+        return super().get_attribute(instance)
+
+    def to_representation(self, instance):
+        field_type = instance.get_type()
+        if not field_type.can_represent_collaborators(instance):
+            return []
+
+        workspace = instance.table.database.workspace
+        if not hasattr(workspace, "available_collaborators"):
+            setattr(
+                workspace,
+                "available_collaborators",
+                workspace.users.order_by("first_name"),
+            )
+
+        return [
+            CollaboratorSerializer(user).data
+            for user in workspace.available_collaborators
+        ]
 
 
 class DuplicateFieldParamsSerializer(serializers.Serializer):

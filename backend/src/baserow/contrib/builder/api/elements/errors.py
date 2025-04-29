@@ -6,6 +6,12 @@ ERROR_ELEMENT_DOES_NOT_EXIST = (
     "The requested element does not exist.",
 )
 
+ERROR_ELEMENT_TYPE_DEACTIVATED = (
+    "ERROR_ELEMENT_TYPE_DEACTIVATED",
+    HTTP_400_BAD_REQUEST,
+    "The element type is deactivated.",
+)
+
 ERROR_ELEMENT_NOT_IN_SAME_PAGE = (
     "ERROR_ELEMENT_NOT_IN_SAME_PAGE",
     HTTP_400_BAD_REQUEST,

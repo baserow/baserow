@@ -96,21 +96,21 @@ export default {
       })
     },
     disabledFields() {
-      return this.sortedFields.filter((field) => {
-        return (
-          !this.getFieldOption(field.id, 'enabled', false) || field.read_only
-        )
-      })
+      return this.sortedFields.filter((field) => !this.isFieldEnabled(field))
     },
     enabledFields() {
-      return this.sortedFields.filter((field) => {
-        return (
-          this.getFieldOption(field.id, 'enabled', false) && !field.read_only
-        )
-      })
+      return this.sortedFields.filter((field) => this.isFieldEnabled(field))
     },
   },
   methods: {
+    /* Returns true if the field is enabled and not read-only. */
+    isFieldEnabled(field) {
+      const fieldType = this.$registry.get('field', field.type)
+      return (
+        this.getFieldOption(field.id, 'enabled', false) &&
+        !fieldType.isReadOnlyField(field)
+      )
+    },
     getFieldOption(fieldId, value, fallback) {
       return this.fieldOptions[fieldId]
         ? this.fieldOptions[fieldId][value]

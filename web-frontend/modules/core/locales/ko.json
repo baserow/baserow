@@ -138,8 +138,8 @@
         "importingState": "가져오는 중",
         "noExports": "이 작업공간에는 아직 내보낸 내용이 없습니다.",
         "created": "생성됨",
-        "exportingState": "내보내는 중",
-        "exportingTableState": "테이블 내보내기: {table}",
+        "exportingState": "내보내는 중...",
+        "exportingTableState": "내보내기: {table}",
         "exportingCreateArchiveState": "아카이브 생성"
     },
     "exportWorkspaceForm": {
@@ -170,7 +170,9 @@
         "invalidResourceMessage": "제공된 파일은 유효한 Baserow 내보내기가 아닙니다.",
         "untrustedPublicKeyTitle": "신뢰할 수 없는 서명",
         "untrustedPublicKeyMessage": "제공된 파일은 신뢰할 수 없는 공개 키로 서명되었습니다. 관리자에게 공개 키를 신뢰할 수 있는 키 목록에 추가하거나 서명 확인을 비활성화하여 이 파일을 가져올 수 있도록 요청하세요.",
-        "importingState": "불러오기"
+        "importingState": "불러오기...",
+        "importingTableStructure": "생성 중: {table}",
+        "importingTableData": "데이터 가져오기: {table}"
     },
     "dashboardWorkspace": {
         "createApplication": "새로 만들기"
@@ -925,5 +927,24 @@
     },
     "colorPickerContext": {
         "pickColorPlaceholder": "또는 미리 정의된 색상을 선택"
+    },
+    "guidedTourStep": {
+        "step": "{totalSteps}단계 중 {step}단계",
+        "gotIt": "알겠습니다",
+        "next": "다음",
+        "back": "뒤로"
+    },
+    "welcomeGuidedTourStep": {
+        "title": "Baserow에 오신 것을 환영합니다",
+        "content": "간단한 둘러보기를 통해 기본적인 사용법을 익혀보세요. 몇 번의 클릭만으로 데이터를 손쉽게 정리하고 시각화하는 방법을 배울 수 있습니다",
+        "buttonText": "둘러보기 시작"
+    },
+    "controlCenterGuidedTourStep": {
+        "title": "당신의 Baserow 제어 센터",
+        "content": "왼쪽 사이드바를 통해 워크스페이스를 관리할 수 있습니다:\n\n- 홈 – 메인 대시보드에 접근합니다.\n- 알림 – 변경 사항 및 멘션을 실시간으로 확인합니다.\n- 멤버 초대 – 팀원을 추가하여 함께 협업하세요.\n- 휴지통 – 삭제된 항목을 확인하고 복구할 수 있습니다."
+    },
+    "createNewGuidedTourStep": {
+        "title": "새 데이터베이스 또는 애플리케이션 만들기",
+        "content": "“새로 추가…”를 클릭하여 프로젝트, 부서 또는 팀을 위한 새 데이터베이스, 애플리케이션, 또는 대시보드를 설정하세요."
     }
 }

@@ -169,6 +169,7 @@ export default {
   computed: {
     applicationContext() {
       return {
+        workspace: this.workspace,
         builder: this.builder,
         mode,
       }

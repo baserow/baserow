@@ -11,6 +11,7 @@ from baserow.contrib.database.api.rows.serializers import RowSerializer
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.models import SORT_ORDER_ASC, SORT_ORDER_DESC
+from baserow.contrib.database.views.view_filters import MultipleSelectHasViewFilterType
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowListRows
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowListRowsUserServiceType,
@@ -1162,3 +1163,63 @@ def test_extract_properties(path, expected):
     result = service_type.extract_properties(path)
 
     assert result == expected
+
+
+@pytest.mark.django_db(transaction=True)
+def test_search_on_multiple_select_with_list(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    page = data_fixture.create_builder_page(
+        user=user, path="/page/", query_params=[{"name": "foobar", "type": "numeric"}]
+    )
+
+    service_type = service_type_registry.get("local_baserow_list_rows")
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(user, table=table)
+    option_field = data_fixture.create_multiple_select_field(
+        table=table, name="option_field", order=1, primary=True
+    )
+    options = [
+        data_fixture.create_select_option(
+            field=option_field, value="A", color="AAA", order=0
+        ),
+        data_fixture.create_select_option(
+            field=option_field, value="B", color="BBB", order=0
+        ),
+        data_fixture.create_select_option(
+            field=option_field, value="C", color="CCC", order=0
+        ),
+    ]
+    table_rows = data_fixture.create_rows_in_table(
+        table=table,
+        rows=[[(options[0].id,)], [(options[1].id,)], [(options[1].id,)]],
+        fields=[option_field],
+    )
+
+    service = data_fixture.create_local_baserow_list_rows_service(
+        integration=integration,
+        view=view,
+        table=view.table,
+        search_query="",
+        filter_type="OR",
+    )
+
+    data_fixture.create_local_baserow_table_service_filter(
+        service=service,
+        field=option_field,
+        value="get('foobar')",
+        order=0,
+        type=MultipleSelectHasViewFilterType.type,
+        value_is_formula=True,
+    )
+
+    dispatch_context = FakeDispatchContext(context={"foobar": [options[0].id]})
+    dispatch_data = service_type.dispatch_data(
+        service, {"table": table}, dispatch_context
+    )
+    assert len(dispatch_data["results"]) == 1
+    assert dispatch_data["results"][0]._primary_field_id == options[0].field_id

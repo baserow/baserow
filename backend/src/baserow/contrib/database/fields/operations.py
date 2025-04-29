@@ -39,3 +39,11 @@ class RestoreFieldOperationType(FieldOperationType):
 
 class DuplicateFieldOperationType(FieldOperationType):
     type = "database.table.field.duplicate"
+
+
+class WriteFieldValuesOperationType(FieldOperationType):
+    type = "database.table.field.write_values"
+
+
+class SubmitAnonymousFieldValuesOperationType(FieldOperationType):
+    type = "database.table.field.submit_anonymous_values"

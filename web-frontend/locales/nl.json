@@ -72,14 +72,21 @@
         "dashboard": "Dashboard",
         "dashboards": "Dashboards",
         "dashboardDefaultName": "Dashboard zonder titel",
-        "dashboardDesc": "Visualiseer je data en statistieken met grafieken, tabellen of diagrammen."
+        "dashboardDesc": "Visualiseer je data en statistieken met grafieken, tabellen of diagrammen.",
+        "automation": "Automatisering",
+        "automationDefaultName": "Automatisering zonder titel",
+        "automationDesc": "Automatiseer terugkerende taken en workflows.",
+        "automations": "Automatiseringen",
+        "cantSelectAutomationWorkflowDescription": "De automatisering kon niet worden geselecteerd omdat deze geen workflows heeft. Gebruik de zijbalk om er een te maken.",
+        "cantSelectAutomationWorkflowTitle": "Kan de automatisering niet selecteren."
     },
     "settingType": {
         "account": "Account",
         "password": "Wachtwoord",
         "tokens": "API-tokens",
         "deleteAccount": "Account verwijderen",
-        "emailNotifications": "E-mail notificaties"
+        "emailNotifications": "E-mail notificaties",
+        "mcpEndpoint": "MCP server"
     },
     "userFileUploadType": {
         "file": "mijn apparaat",
@@ -308,7 +315,8 @@
         "field": "veld",
         "row": "rij",
         "view": "weergave",
-        "rows": "rijen"
+        "rows": "rijen",
+        "automation_workflow": "automatiseringWorkflow"
     },
     "webhook": {
         "request": "Verzoek",
@@ -422,7 +430,11 @@
         "fieldIsAlreadyPrimaryTitle": "Veld is al primair",
         "incompatiblePrimaryFieldTypeTitle": "Veld is niet compatibel",
         "cannotCreateRowsInTableTitle": "Kan geen rijen maken",
-        "cannotCreateRowsInTableDescription": "Het is niet mogelijk om rijen te maken in deze tabel."
+        "cannotCreateRowsInTableDescription": "Het is niet mogelijk om rijen te maken in deze tabel.",
+        "databaseDeadlockTitle": "Actie mislukt",
+        "databaseDeadlockDescription": "De actie kon niet worden voltooid vanwege meerdere conflicterende bewerkingen op de gegevens op hetzelfde moment. Probeer het opnieuw.",
+        "databaseUniquePrimaryPropertyNotFoundDescription": "Dit gebeurt meestal als de gegevenssynchronisatiebron geen eigenschap bevat om een unieke rijwaarde uit te halen. In het geval van een tabel kan het zijn dat er geen primaire sleutel is.",
+        "databaseUniquePrimaryPropertyNotFoundTitle": "Geen unieke primaire eigenschap gevonden"
     },
     "importerType": {
         "csv": "Een CSV-bestand importeren",

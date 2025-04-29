@@ -25,20 +25,31 @@ class Command(BaseCommand):
             action="store_true",
             help="If set templates will be synced based on BASEROW_SYNC_TEMPLATES_PATTERN var",
         )
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="If set force template sync even if the templates didn't change",
+        )
 
     def handle(self, *args, **options):
         from_env = options.get("from_env", False)
+        force = options.get("force", False)
+
         if from_env:
             CoreHandler().sync_templates(
-                pattern=settings.BASEROW_SYNC_TEMPLATES_PATTERN
+                pattern=settings.BASEROW_SYNC_TEMPLATES_PATTERN, force=force
             )
         elif options.get("only", None):
             try:
                 templates = options["only"][0]
-                CoreHandler().sync_templates(pattern=templates)
             except (KeyError, IndexError):
+                from loguru import logger
+
+                logger.exception("Error while importing template")
                 self.stdout.write(
                     self.style.ERROR("Provide a pattern to match templates")
                 )
+
+            CoreHandler().sync_templates(pattern=templates, force=force)
         else:
-            CoreHandler().sync_templates()
+            CoreHandler().sync_templates(force=force)

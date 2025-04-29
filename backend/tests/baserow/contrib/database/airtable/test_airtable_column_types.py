@@ -203,10 +203,23 @@ def test_airtable_import_checkbox_column_with_default_value(data_fixture, api_cl
         AirtableImportConfig(),
         import_report,
     )
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "Checkbox"
-    assert import_report.items[0].scope == SCOPE_FIELD
-    assert import_report.items[0].table == ""
+    assert baserow_field.boolean_default is True
+    assert len(import_report.items) == 0
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            "2022-01-03T14:51:00.000Z",
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == "true"
+    )
 
 
 @pytest.mark.django_db
@@ -825,7 +838,10 @@ def test_airtable_import_multiple_attachment_column(data_fixture, api_client):
     assert airtable_column_type.to_baserow_export_serialized_value(
         {},
         {"name": "Test"},
-        {"id": "row1"},
+        {
+            "id": "row1",
+            "airtable_record_id": "row1",
+        },
         airtable_field,
         baserow_field,
         [
@@ -867,10 +883,25 @@ def test_airtable_import_multiple_attachment_column(data_fixture, api_client):
             "original_name": "file-sample_500kB.doc",
         },
     ]
-    assert files_to_download == {
-        "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample.txt": "https://dl.airtable.com/.attachments/70e50b90fb83997d25e64937979b6b5b/f3f62d23/file-sample.txt",
-        "e93dc201ce27080d9ad9df5775527d09_93e85b28_file-sample_500kB.doc": "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
-    }
+    assert len(files_to_download) == 2
+    file1 = files_to_download[
+        "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample.txt"
+    ]
+    assert file1.url == (
+        "https://dl.airtable.com/.attachments/70e50b90fb83997d25e64937979b6b5b/f3f62d23/file-sample.txt"
+    )
+    assert file1.row_id == "row1"
+    assert file1.column_id == "fldwdy4qWUvC5PmW5yd"
+    assert file1.attachment_id == "attecVDNr3x7oE8Bj"
+    assert file1.type == "fetch"
+
+    file2 = files_to_download[
+        "e93dc201ce27080d9ad9df5775527d09_93e85b28_file-sample_500kB.doc"
+    ]
+    assert (
+        file2.url
+        == "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc"
+    )
 
 
 @pytest.mark.django_db
@@ -1966,7 +1997,11 @@ def test_airtable_import_number_column_default_value(data_fixture, api_client):
         "name": "Number",
         "type": "number",
         "default": 1,
-        "typeOptions": {},
+        "typeOptions": {
+            "format": "integer",
+            "negative": False,
+            "validatorName": "positive",
+        },
     }
     import_report = AirtableImportReport()
     (
@@ -1978,10 +2013,60 @@ def test_airtable_import_number_column_default_value(data_fixture, api_client):
         AirtableImportConfig(),
         import_report,
     )
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "Number"
-    assert import_report.items[0].scope == SCOPE_FIELD
-    assert import_report.items[0].table == ""
+    assert isinstance(baserow_field, NumberField)
+    assert baserow_field.number_default == 1
+    assert len(import_report.items) == 0
+
+    # Test percentage default value
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Number",
+        "type": "number",
+        "default": 0.5,
+        "typeOptions": {
+            "format": "percentage",
+            "negative": False,
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert isinstance(baserow_field, NumberField)
+    assert baserow_field.number_default == 50.0
+    assert len(import_report.items) == 0
+
+    # Test decimal default value
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Number",
+        "type": "number",
+        "default": 1.23,
+        "typeOptions": {
+            "format": "decimal",
+            "precision": 2,
+            "negative": True,
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert isinstance(baserow_field, NumberField)
+    assert baserow_field.number_default == 1.23
+    assert len(import_report.items) == 0
 
 
 @pytest.mark.django_db
@@ -2556,3 +2641,73 @@ def test_airtable_import_autonumber_column(data_fixture, api_client):
         == 1
     )
     assert len(import_report.items) == 0
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_checkbox_column_empty_value_with_default(
+    data_fixture, api_client
+):
+    airtable_field = {
+        "id": "fldp1IFu0zdgRy70RoX",
+        "name": "Checkbox",
+        "type": "checkbox",
+        "typeOptions": {"color": "green", "icon": "check"},
+        "default": True,
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert baserow_field.boolean_default is True
+    assert len(import_report.items) == 0
+
+    assert (
+        airtable_column_type.to_baserow_export_empty_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == "false"
+    )
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            True,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == "true"
+    )
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            False,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == "false"
+    )

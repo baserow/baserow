@@ -5,6 +5,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import gettext as _
 
+from rest_framework import serializers
+
 from baserow.contrib.builder.data_providers.exceptions import (
     DataProviderChunkInvalidException,
     FormDataProviderChunkInvalidException,
@@ -39,7 +41,18 @@ from baserow.core.workflow_actions.models import WorkflowAction
 RE_DEFAULT_ROLE = re.compile(rf"{DEFAULT_USER_ROLE_PREFIX}(\d+)")
 
 
-class PageParameterDataProviderType(DataProviderType):
+class BuilderDataProviderType(DataProviderType):
+    def get_request_serializer(self):
+        """
+        Returns the serializer used to parse data for this data provider.
+        """
+
+        return serializers.DictField(
+            help_text="Data for this provider.", required=False, allow_null=True
+        )
+
+
+class PageParameterDataProviderType(BuilderDataProviderType):
     """
     This data provider reads page parameter information from the data sent by the
     frontend during the dispatch. The data are then available for the formulas.
@@ -60,12 +73,12 @@ class PageParameterDataProviderType(DataProviderType):
 
         first_part = path[0]
 
-        return dispatch_context.request.data.get("page_parameter", {}).get(
+        return dispatch_context.request_data.get("page_parameter", {}).get(
             first_part, None
         )
 
 
-class FormDataProviderType(DataProviderType):
+class FormDataProviderType(BuilderDataProviderType):
     type = "form_data"
 
     def validate_data_chunk(
@@ -86,7 +99,7 @@ class FormDataProviderType(DataProviderType):
             raise FormDataProviderChunkInvalidException(
                 f"Provided value for form element with ID {element.id} of "
                 f"type {element_type.type} is invalid. {str(exc)}"
-            )
+            ) from exc
 
     def get_data_chunk(self, dispatch_context: DispatchContext, path: List[str]):
         # The path can come in two lengths:
@@ -100,7 +113,7 @@ class FormDataProviderType(DataProviderType):
 
         element_id = path[0]
         data_chunk = get_value_at_path(
-            dispatch_context.request.data.get("form_data", {}), path
+            dispatch_context.request_data.get("form_data", {}), path
         )
 
         return self.validate_data_chunk(int(element_id), data_chunk, dispatch_context)
@@ -124,12 +137,24 @@ class FormDataProviderType(DataProviderType):
         return [str(form_element_id), *rest]
 
 
-class DataSourceDataProviderType(DataProviderType):
+class DataSourceDataProviderType(BuilderDataProviderType):
     """
     The data source provider can read data from registered page data sources.
     """
 
     type = "data_source"
+
+    def get_request_serializer(self):
+        from baserow.contrib.builder.api.data_providers.serializers import (
+            DispatchDataSourceDataSourceContextSerializer,
+        )
+
+        return DispatchDataSourceDataSourceContextSerializer(
+            required=False,
+            default={},
+            allow_null=True,
+            help_text="The data source dispatch data.",
+        )
 
     def get_data_chunk(self, dispatch_context: BuilderDispatchContext, path: List[str]):
         """Load a data chunk from a datasource of the page in context."""
@@ -212,7 +237,7 @@ class DataSourceDataProviderType(DataProviderType):
         return {data_source.service_id: service_type.extract_properties(rest, **kwargs)}
 
 
-class DataSourceContextDataProviderType(DataProviderType):
+class DataSourceContextDataProviderType(BuilderDataProviderType):
     """
     The data source context provider provides extra metadata related to the data source.
     """
@@ -285,7 +310,7 @@ class DataSourceContextDataProviderType(DataProviderType):
         return {data_source.service_id: service_type.extract_properties(rest, **kwargs)}
 
 
-class CurrentRecordDataProviderType(DataProviderType):
+class CurrentRecordDataProviderType(BuilderDataProviderType):
     """
     The frontend data provider to get the current row content
     """
@@ -302,7 +327,7 @@ class CurrentRecordDataProviderType(DataProviderType):
         """
 
         try:
-            current_record_data = dispatch_context.request.data["current_record"]
+            current_record_data = dispatch_context.request_data["current_record"]
             current_record = current_record_data["index"]
             current_record_id = current_record_data["record_id"]
         except KeyError:
@@ -407,7 +432,7 @@ class CurrentRecordDataProviderType(DataProviderType):
         return {data_source.service_id: service_type.extract_properties(path, **kwargs)}
 
 
-class PreviousActionProviderType(DataProviderType):
+class PreviousActionProviderType(BuilderDataProviderType):
     """
     The previous action provider can read data from registered page workflow actions.
     """
@@ -425,7 +450,7 @@ class PreviousActionProviderType(DataProviderType):
     def get_data_chunk(self, dispatch_context: DispatchContext, path: List[str]):
         previous_action_id, *rest = path
 
-        previous_action_results = dispatch_context.request.data.get(
+        previous_action_results = dispatch_context.request_data.get(
             "previous_action", {}
         )
 
@@ -470,7 +495,7 @@ class PreviousActionProviderType(DataProviderType):
         the cache.
         """
 
-        if dispatch_id := dispatch_context.request.data.get("previous_action", {}).get(
+        if dispatch_id := dispatch_context.request_data.get("previous_action", {}).get(
             "current_dispatch_id"
         ):
             cache_key = self.get_dispatch_action_cache_key(
@@ -541,7 +566,7 @@ class PreviousActionProviderType(DataProviderType):
         }
 
 
-class UserDataProviderType(DataProviderType):
+class UserDataProviderType(BuilderDataProviderType):
     """
     This data provider user the user in `request.user_source_user` to resolve formula
     paths. This property is injected into the request by the
@@ -549,6 +574,15 @@ class UserDataProviderType(DataProviderType):
     """
 
     type = "user"
+
+    def get_request_serializer(self):
+        """
+        Returns the serializer used to parse data for this data provider.
+        """
+
+        return serializers.IntegerField(
+            help_text="Current user id.", required=False, allow_null=True
+        )
 
     def translate_default_user_role(self, user: UserSourceUser) -> str:
         """

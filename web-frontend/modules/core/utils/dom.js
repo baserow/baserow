@@ -64,7 +64,9 @@ export const getParentMatchingPredicate = (element, predicate) => {
 export const findScrollableParent = (element) => {
   return getParentMatchingPredicate(
     element,
-    (element) => element.scrollHeight > element.clientHeight
+    (element) =>
+      element.scrollHeight > element.clientHeight ||
+      element.scrollWidth > element.clientWidth
   )
 }
 
@@ -173,4 +175,28 @@ export const checkIntermediateElements = (ancestor, descendant, predicate) => {
     }
   }
   return false
+}
+
+/**
+ * Calculates the outer most bounding rect of multiple elements provided. This can be
+ * used to show a specific area, highlighting multiple elements.
+ */
+export const getCombinedBoundingClientRect = (elements) => {
+  if (!elements.length) return null
+
+  const rects = elements.map((el) => el.getBoundingClientRect())
+
+  const top = Math.min(...rects.map((r) => r.top))
+  const left = Math.min(...rects.map((r) => r.left))
+  const bottom = Math.max(...rects.map((r) => r.bottom))
+  const right = Math.max(...rects.map((r) => r.right))
+
+  return {
+    top,
+    left,
+    bottom,
+    right,
+    width: right - left,
+    height: bottom - top,
+  }
 }

@@ -1,15 +1,21 @@
 from dataclasses import Field
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Type, Union
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Type
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db.models.query import QuerySet
 
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from baserow.api.pagination import PageNumberPagination
+from baserow.api.pagination import (
+    LimitOffsetPagination,
+    LimitOffsetPaginationWithoutCount,
+    Pageable,
+    PageNumberPagination,
+    PageNumberPaginationWithoutCount,
+)
+from baserow.contrib.database.api.constants import EXCLUDE_COUNT_API_PARAM
 from baserow.contrib.database.api.rows.serializers import (
     RowSerializer,
     get_row_serializer_class,
@@ -142,7 +148,28 @@ def get_public_view_filtered_queryset(
 class PaginatedData(NamedTuple):
     response: Response
     page: QuerySet
-    paginator: Union[LimitOffsetPagination, PageNumberPagination]
+    paginator: Pageable
+
+
+def _get_paginator(request: Request) -> Pageable:
+    """
+    Returns the paginator to use based on the request query parameters.
+
+    :param request: The request containing the pagination query parameters.
+    :return: The paginator to use.
+    """
+
+    if EXCLUDE_COUNT_API_PARAM.name in request.GET:
+        if LimitOffsetPagination.limit_query_param in request.GET:
+            paginator = LimitOffsetPaginationWithoutCount()
+        else:
+            paginator = PageNumberPaginationWithoutCount()
+    else:
+        if LimitOffsetPagination.limit_query_param in request.GET:
+            paginator = LimitOffsetPagination()
+        else:
+            paginator = PageNumberPagination()
+    return paginator
 
 
 def paginate_and_serialize_queryset(
@@ -160,11 +187,7 @@ def paginate_and_serialize_queryset(
         response containing the serialized data.
     """
 
-    if LimitOffsetPagination.limit_query_param in request.GET:
-        paginator = LimitOffsetPagination()
-    else:
-        paginator = PageNumberPagination()
-
+    paginator = _get_paginator(request)
     page = paginator.paginate_queryset(queryset, request)
     serializer_class = get_row_serializer_class(
         queryset.model,

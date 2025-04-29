@@ -3,9 +3,9 @@ import json
 import os
 import re
 from dataclasses import dataclass
-from io import BytesIO
+from io import BufferedReader, BytesIO
 from pathlib import Path
-from typing import IO, Any, Dict, List, NewType, Optional, Tuple, Union, cast
+from typing import IO, Any, Callable, Dict, List, NewType, Optional, Tuple, Union, cast
 from urllib.parse import urljoin, urlparse
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -14,7 +14,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.core.files.storage import Storage
 from django.db import OperationalError, transaction
-from django.db.models import Count, Prefetch, Q, QuerySet
+from django.db.models import Count, Model, Prefetch, Q, QuerySet
 from django.utils import translation
 from django.utils.translation import gettext as _
 
@@ -24,7 +24,7 @@ from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
 
-from baserow.core.db import specific_iterator
+from baserow.core.db import specific_queryset
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 
@@ -227,14 +227,17 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         is permitted, False operation is disallowed and return `None` if it can't take
         a definitive answer.
 
-        If None of the permission manager replied with a final answer for a check,
+        If None of the permission managers replied with a final answer for a check,
         the operation is denied by default for this check.
 
-        :param checks: The list of check to do. Each check is a triplet of
+        :param checks: The list of checks to do. Each check is a triplet of
             (actor, permission_name, scope).
         :param workspace: The optional workspace in which the operations take place.
-        :param include_trash: If true then also checks if the given workspace has been
+        :param include_trash: If true, then also checks if the given workspace has been
             trashed instead of raising a DoesNotExist exception.
+        :param return_permissions_exceptions: Raise an exception when the permission is
+            disallowed when `True`. Return `False` instead when `False`.
+            `False` by default.
         :return: A dictionary with one entry for each check of the parameter as key and
             whether the operation is allowed or not as value.
         """
@@ -521,6 +524,41 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             ),
         )
 
+    def list_user_workspaces(
+        self, user: AbstractUser, base_queryset: QuerySet[Workspace] = None
+    ) -> QuerySet[Workspace]:
+        """
+        Returns a queryset of all workspaces the user is in.
+
+        :param user: The user for which to get the workspaces.
+        :param base_queryset: The base queryset from where to select the workspaces
+            object. This can for example be used to do a `prefetch_related`.
+        :return: A queryset of all workspaces the user is in.
+        """
+
+        workspace_qs = self.get_enhanced_workspace_queryset(base_queryset)
+        return workspace_qs.filter(workspaceuser__user=user)
+
+    def get_enhanced_workspace_queryset(
+        self, queryset: QuerySet[Workspace] | None = None
+    ) -> QuerySet[Workspace]:
+        """
+        Enhances the workspace queryset with additional prefetches and filters based on
+        the plugins registered in the plugin registry.
+
+        :param queryset: The Workspace queryset to enhance.
+        :return: The enhanced queryset.
+        """
+
+        if queryset is None:
+            queryset = Workspace.objects.all()
+
+        queryset = queryset.prefetch_related("workspaceuser_set", "template_set")
+
+        for plugin in plugin_registry.registry.values():
+            queryset = plugin.enhance_workspace_queryset(queryset)
+        return queryset
+
     def get_workspace(
         self, workspace_id: int, base_queryset: QuerySet = None
     ) -> Workspace:
@@ -535,11 +573,10 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :return: The requested workspace instance of the provided id.
         """
 
-        if base_queryset is None:
-            base_queryset = Workspace.objects
+        workspace_qs = self.get_enhanced_workspace_queryset(base_queryset)
 
         try:
-            workspace = base_queryset.get(id=workspace_id)
+            workspace = workspace_qs.get(id=workspace_id)
         except Workspace.DoesNotExist:
             raise WorkspaceDoesNotExist(
                 f"The workspace with id {workspace_id} does not exist."
@@ -1294,39 +1331,10 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             for workspace_user in workspace_users
         }
 
-    def get_user_application(
-        self,
-        user: AbstractUser,
-        application_id: int,
-        base_queryset: Optional[QuerySet] = None,
-    ) -> Application:
-        """
-        Returns the application with the given id if the user has the right permissions.
-        :param user: The user on whose behalf the application is requested.
-        :param application_id: The identifier of the application that must be returned.
-        :param base_queryset: The base queryset from where to select the application
-            object. This can for example be used to do a `select_related`.
-        :raises UserNotInWorkspace: If the user does not belong to the workspace of the
-            application.
-        :return: The requested application instance of the provided id.
-        """
-
-        application = self.get_application(application_id, base_queryset=base_queryset)
-
-        CoreHandler().check_permissions(
-            user,
-            ReadApplicationOperationType.type,
-            workspace=application.workspace,
-            context=application,
-        )
-
-        return application
-
     def get_application(
         self,
         application_id: int,
         base_queryset: Optional[QuerySet] = None,
-        specific: bool = True,
     ) -> Application:
         """
         Selects an application with a given id from the database.
@@ -1334,7 +1342,6 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :param application_id: The identifier of the application that must be returned.
         :param base_queryset: The base queryset from where to select the application
             object. This can for example be used to do a `select_related`.
-        :param specific: Determines whether we want the specific application or not.
         :raises ApplicationDoesNotExist: When the application with the provided id
             does not exist.
         :return: The requested application instance of the provided id.
@@ -1343,29 +1350,16 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         if base_queryset is None:
             base_queryset = Application.objects
 
-        queryset = base_queryset.select_related("workspace").filter(id=application_id)
-
         try:
-            if specific:
-                application = specific_iterator(
-                    queryset.select_related("content_type"),
-                    per_content_type_queryset_hook=(
-                        lambda model, queryset: application_type_registry.get_by_model(
-                            model
-                        ).enhance_queryset(queryset)
-                    ),
-                )[0]
-            else:
-                application = queryset.get()
-        except (IndexError, Application.DoesNotExist) as e:
+            application = (
+                base_queryset.select_related("workspace")
+                .exclude(workspace__trashed=True)
+                .get(id=application_id)
+            )
+        except Application.DoesNotExist as e:
             raise ApplicationDoesNotExist(
                 f"The application with id {application_id} does not exist."
             ) from e
-
-        if TrashHandler.item_has_a_trashed_parent(application):
-            raise ApplicationDoesNotExist(
-                f"The application with id {application_id} does not exist."
-            )
 
         return application
 
@@ -1383,8 +1377,10 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         return None
 
     def list_applications_in_workspace(
-        self, workspace_id: int, base_queryset: Optional[QuerySet] = None
-    ) -> QuerySet:
+        self,
+        workspace: Workspace,
+        base_queryset: Optional[QuerySet] = None,
+    ) -> QuerySet[Application]:
         """
         Return a list of applications in a workspace.
 
@@ -1396,7 +1392,26 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         if base_queryset is None:
             base_queryset = Application.objects
 
-        return base_queryset.filter(workspace_id=workspace_id, workspace__trashed=False)
+        return (
+            base_queryset.filter(workspace=workspace, workspace__trashed=False)
+            .select_related("workspace")
+            .order_by("order", "id")
+        )
+
+    def filter_specific_applications(
+        self,
+        queryset: QuerySet[Application],
+        per_content_type_queryset_hook: Optional[
+            Callable[[Model, QuerySet], QuerySet]
+        ] = None,
+    ) -> QuerySet[Application]:
+        if per_content_type_queryset_hook is None:
+            per_content_type_queryset_hook = (
+                lambda model, qs: application_type_registry.get_by_model(
+                    model
+                ).enhance_queryset(qs)
+            )
+        return specific_queryset(queryset, per_content_type_queryset_hook)
 
     def create_application(
         self,
@@ -1448,8 +1463,8 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :return: A unique name to use.
         """
 
-        existing_applications_names = self.list_applications_in_workspace(
-            workspace_id
+        existing_applications_names = Application.objects.filter(
+            workspace_id=workspace_id, workspace__trashed=False
         ).values_list("name", flat=True)
         return find_unused_name(
             [proposed_name], existing_applications_names, max_length=255
@@ -1762,7 +1777,16 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             exported_applications, key=application_priority_sort, reverse=True
         )
 
-        with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+        # If files_buffer is a bytes object, decompress it. Otherwise, use it directly
+        # as a file-like object. This can be used when files are not saved in a zip
+        # file, but the object provides a way to download and used them on the fly.
+        if isinstance(
+            files_buffer, (bytes, bytearray, memoryview, BytesIO, BufferedReader)
+        ):
+            files_zip = ZipFile(files_buffer, "a", ZIP_DEFLATED, False)
+        else:
+            files_zip = files_buffer
+        try:
             id_mapping: Dict[str, Any] = {}
             imported_applications = []
             next_application_order_value = Application.get_last_order(workspace)
@@ -1783,6 +1807,8 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
                 next_application_order_value += 1
                 imported_applications.append(imported_application)
             Application.objects.bulk_update(imported_applications, ["order"])
+        finally:
+            files_zip.close()
 
         return imported_applications, id_mapping
 
@@ -1817,7 +1843,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
     # is slow, and so we disable instrumenting it to save significant resources in
     # telemetry platforms receiving the instrumentation.
     @disable_instrumentation
-    def sync_templates(self, storage=None, pattern: str | None = None):
+    def sync_templates(
+        self, storage=None, pattern: str | None = None, force: bool = False
+    ):
         """
         Synchronizes the JSON template files with the templates stored in the database.
         We need to have a copy in the database so that the user can live preview a
@@ -1833,6 +1861,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :param storage: Storage to use to get the files.
         :param pattern: A regular expression to match names to sync. If None then
             all found templates will be synced.
+        :param force: Force template sync even if they already exist.
         """
 
         clean_templates = False
@@ -1874,6 +1903,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
                     installed_templates,
                     installed_categories,
                     storage,
+                    force=force,
                 )
 
         if clean_templates:
@@ -1906,6 +1936,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         installed_templates,
         installed_categories,
         storage,
+        force: bool = False,
     ):
         """
         Sync a specific template to the database.
@@ -1920,6 +1951,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :type installed_categories: List[TemplateCategory]
         :param storage: The storage where the files can be loaded from.
         :type storage: Storage or None
+        :param force: Force template sync even if they already exist.
         :return: None
         """
 
@@ -1930,6 +1962,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             return
 
         slug = ".".join(template_file_path.name.split(".")[:-1])
+
+        logger.info(f"Importing template {slug}")
+
         installed_template = next(
             (t for t in installed_templates if t.slug == slug), None
         )
@@ -1945,7 +1980,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         if (
             installed_template
             and installed_template.workspace
-            and installed_template.export_hash != export_hash
+            and (installed_template.export_hash != export_hash or force)
         ):
             TrashHandler.permanently_delete(installed_template.workspace)
 
@@ -1954,7 +1989,11 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         # create a new workspace and import the exported applications into that
         # workspace.
         imported_id_mapping = None
-        if not installed_template or installed_template.export_hash != export_hash:
+        if (
+            not installed_template
+            or installed_template.export_hash != export_hash
+            or force
+        ):
             # It is optionally possible for a template to have additional files.
             # They are stored in a ZIP file and are generated when the template
             # is exported. They for example contain file field files.

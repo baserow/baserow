@@ -11,10 +11,22 @@
   user-select: none;
   pointer-events: none;
 
+  & .rating__star {
+    color: transparent;
+  }
+
+  &.rating--show-unselected .rating__star {
+    color: $color-neutral-200;
+  }
+
   @include flex-align-items(2px);
 
   & > .rating__star:first-child {
     padding-left: 0;
+  }
+
+  & .rating__star.rating__star--selected {
+    color: var(--rating-color, inherit);
   }
 
   &.editing {
@@ -26,13 +38,13 @@
     // If we hover the rating, all stars should be colored and semi-transparent
     // by default
     &:hover > .rating__star {
-      color: inherit;
+      color: var(--rating-color, inherit);
       opacity: 0.6;
     }
 
     // but selected stars should have full opacity.
     & > .rating__star.rating__star--selected {
-      color: inherit;
+      color: var(--rating-color, inherit);
       opacity: 1;
     }
 
@@ -45,7 +57,7 @@
     // selected star after the hovered star should be colored and be
     // semi-transparent
     & > .rating__star:hover ~ .rating__star.rating__star--selected {
-      color: inherit;
+      color: var(--rating-color, inherit);
       opacity: 0.6;
     }
   }

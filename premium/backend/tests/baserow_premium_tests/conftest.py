@@ -28,9 +28,10 @@ def mock_periodic_field_update_handler_redis_client():
 
 @pytest.fixture
 def premium_data_fixture(fake, data_fixture):
+    from .dashboard.dashboard_fixtures import DashboardFixture
     from .fixtures import PremiumFixtures
 
-    class PremiumFixtures(PremiumFixtures, data_fixture.__class__):
+    class PremiumFixtures(DashboardFixture, PremiumFixtures, data_fixture.__class__):
         pass
 
     return PremiumFixtures(fake)

@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.conf import settings
 from django.db import connection
 from django.shortcuts import reverse
+from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 
 import pytest
@@ -14,12 +15,14 @@ from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
+    HTTP_503_SERVICE_UNAVAILABLE,
 )
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.test_utils.helpers import AnyStr, is_dict_subset
+from tests.baserow.contrib.database.utils import get_deadlock_error
 
 # Create
 
@@ -235,8 +238,14 @@ def test_batch_create_rows(api_client, data_fixture):
     number_field = data_fixture.create_number_field(
         table=table, order=1, name="Horsepower"
     )
+    number_field_2 = data_fixture.create_number_field(
+        table=table, order=2, name="Price", number_default=1000
+    )
     boolean_field = data_fixture.create_boolean_field(
-        table=table, order=2, name="For sale"
+        table=table, order=3, name="For sale"
+    )
+    boolean_field_2 = data_fixture.create_boolean_field(
+        table=table, order=4, name="Available", boolean_default=True
     )
     model = table.get_model()
     url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
@@ -245,12 +254,16 @@ def test_batch_create_rows(api_client, data_fixture):
             {
                 f"field_{text_field.id}": "green",
                 f"field_{number_field.id}": 120,
+                f"field_{number_field_2.id}": 2000,
                 f"field_{boolean_field.id}": True,
+                f"field_{boolean_field_2.id}": False,
             },
             {
                 f"field_{text_field.id}": "yellow",
                 f"field_{number_field.id}": 240,
                 f"field_{boolean_field.id}": False,
+                # Not providing number_field_2 should use the default 1000 value
+                # Not providing boolean_field_2 should use the default True value
             },
         ]
     }
@@ -260,14 +273,18 @@ def test_batch_create_rows(api_client, data_fixture):
                 "id": 1,
                 f"field_{text_field.id}": "green",
                 f"field_{number_field.id}": "120",
+                f"field_{number_field_2.id}": "2000",
                 f"field_{boolean_field.id}": True,
+                f"field_{boolean_field_2.id}": False,
                 "order": "1.00000000000000000000",
             },
             {
                 "id": 2,
                 f"field_{text_field.id}": "yellow",
                 f"field_{number_field.id}": "240",
+                f"field_{number_field_2.id}": "1000",
                 f"field_{boolean_field.id}": False,
+                f"field_{boolean_field_2.id}": True,
                 "order": "2.00000000000000000000",
             },
         ]
@@ -286,8 +303,105 @@ def test_batch_create_rows(api_client, data_fixture):
     row_2 = model.objects.get(pk=2)
     assert getattr(row_1, f"field_{text_field.id}") == "green"
     assert getattr(row_2, f"field_{text_field.id}") == "yellow"
+    assert getattr(row_1, f"field_{number_field.id}") == 120
+    assert getattr(row_2, f"field_{number_field.id}") == 240
+    assert getattr(row_1, f"field_{number_field_2.id}") == 2000
+    assert getattr(row_2, f"field_{number_field_2.id}") == 1000
+    assert getattr(row_1, f"field_{boolean_field.id}") is True
+    assert getattr(row_2, f"field_{boolean_field.id}") is False
+    assert getattr(row_1, f"field_{boolean_field_2.id}") is False
+    assert getattr(row_2, f"field_{boolean_field_2.id}") is True
     assert row_1.needs_background_update
     assert row_2.needs_background_update
+
+    # Test creating rows without providing any values
+    request_body_empty = {
+        "items": [
+            {},  # Empty values should use defaults
+            {},
+        ]
+    }
+    expected_response_body_empty = {
+        "items": [
+            {
+                "id": 3,
+                f"field_{text_field.id}": "white",  # text_default
+                f"field_{number_field.id}": None,
+                f"field_{number_field_2.id}": "1000",  # number_default=1000
+                f"field_{boolean_field.id}": False,  # default without boolean_default
+                f"field_{boolean_field_2.id}": True,  # boolean_default=True
+                "order": "3.00000000000000000000",
+            },
+            {
+                "id": 4,
+                f"field_{text_field.id}": "white",
+                f"field_{number_field.id}": None,
+                f"field_{number_field_2.id}": "1000",
+                f"field_{boolean_field.id}": False,
+                f"field_{boolean_field_2.id}": True,
+                "order": "4.00000000000000000000",
+            },
+        ]
+    }
+
+    response = api_client.post(
+        url,
+        request_body_empty,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == expected_response_body_empty
+    row_3 = model.objects.get(pk=3)
+    row_4 = model.objects.get(pk=4)
+    assert getattr(row_3, f"field_{number_field.id}") is None
+    assert getattr(row_4, f"field_{number_field.id}") is None
+    assert getattr(row_3, f"field_{number_field_2.id}") == 1000
+    assert getattr(row_4, f"field_{number_field_2.id}") == 1000
+    assert getattr(row_3, f"field_{boolean_field.id}") is False
+    assert getattr(row_4, f"field_{boolean_field.id}") is False
+    assert getattr(row_3, f"field_{boolean_field_2.id}") is True
+    assert getattr(row_4, f"field_{boolean_field_2.id}") is True
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
+@override_settings(BASEROW_DEADLOCK_INITIAL_BACKOFF=0.01)
+@override_settings(BASEROW_DEADLOCK_MAX_RETRIES=1)
+def test_batch_create_rows_deadlock(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    request_body = {
+        "items": [
+            {
+                f"field_{text_field.id}": "green",
+            },
+            {
+                f"field_{text_field.id}": "yellow",
+            },
+        ]
+    }
+
+    with patch(
+        "baserow.contrib.database.rows.handler.RowHandler.force_create_rows"
+    ) as mock_force_create_rows:
+        # Create a proper OperationalError with a pgcode that indicates a deadlock
+
+        mock_force_create_rows.side_effect = get_deadlock_error()
+        response = api_client.post(
+            url,
+            request_body,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+
+    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1232,8 +1346,52 @@ def test_batch_update_rows(api_client, data_fixture):
     row_2.refresh_from_db()
     assert getattr(row_1, f"field_{text_field.id}") == "green"
     assert getattr(row_2, f"field_{text_field.id}") == "yellow"
+    assert getattr(row_1, f"field_{boolean_field.id}") is True
+    assert getattr(row_2, f"field_{boolean_field.id}") is False
     assert row_1.needs_background_update
     assert row_2.needs_background_update
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
+@override_settings(BASEROW_DEADLOCK_INITIAL_BACKOFF=0.01)
+@override_settings(BASEROW_DEADLOCK_MAX_RETRIES=1)
+def test_batch_update_rows_deadlock(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+    model = table.get_model()
+    row_1 = model.objects.create()
+    row_2 = model.objects.create()
+    model.objects.update(needs_background_update=False)
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    request_body = {
+        "items": [
+            {
+                "id": row_1.id,
+                f"field_{text_field.id}": "green",
+            },
+            {
+                "id": row_2.id,
+                f"field_{text_field.id}": "yellow",
+            },
+        ]
+    }
+    with patch(
+        "baserow.contrib.database.rows.handler.RowHandler.force_update_rows"
+    ) as mock_force_update_rows:
+        mock_force_update_rows.side_effect = get_deadlock_error()
+
+        response = api_client.patch(
+            url,
+            request_body,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2161,6 +2319,33 @@ def test_batch_delete_rows_trash_them(api_client, data_fixture):
     assert getattr(row_1, "trashed") is True
     assert getattr(row_2, "trashed") is True
     assert getattr(row_3, "trashed") is False
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
+@override_settings(BASEROW_DEADLOCK_INITIAL_BACKOFF=0.01)
+@override_settings(BASEROW_DEADLOCK_MAX_RETRIES=1)
+def test_batch_delete_rows_deadlock(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    model = table.get_model()
+    row_1 = model.objects.create()
+    row_2 = model.objects.create()
+    url = reverse("api:database:rows:batch-delete", kwargs={"table_id": table.id})
+    request_body = {"items": [row_1.id, row_2.id]}
+
+    with patch(
+        "baserow.contrib.database.rows.handler.RowHandler.delete_rows"
+    ) as mock_delete_rows:
+        mock_delete_rows.side_effect = get_deadlock_error()
+        response = api_client.post(
+            url,
+            request_body,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
 @pytest.mark.django_db

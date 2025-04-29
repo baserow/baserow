@@ -172,7 +172,7 @@ class LocalBaserowTableServiceFilterableMixin:
 
             if service_filter.value_is_formula:
                 try:
-                    resolved_value = str(
+                    resolved_value = ensure_string(
                         resolve_formula(
                             service_filter.value,
                             formula_runtime_function_registry,
@@ -538,19 +538,19 @@ class LocalBaserowTableServiceSpecificRowMixin:
                     dispatch_context,
                 )
             )
-        except ValidationError:
+        except ValidationError as exc:
             raise ServiceImproperlyConfigured(
                 "The result of the `row_id` formula must be an integer or convertible "
                 "to an integer."
-            )
+            ) from exc
         except DataProviderChunkInvalidException as e:
             message = f"Formula for row {service.row_id} could not be resolved."
             raise ServiceImproperlyConfigured(message) from e
         except ServiceImproperlyConfigured:
             raise
-        except Exception as e:
+        except Exception as exc:
             raise ServiceImproperlyConfigured(
-                f"The `row_id` formula can't be resolved: {e}"
-            )
+                f"The `row_id` formula can't be resolved: {exc}"
+            ) from exc
 
         return resolved_values

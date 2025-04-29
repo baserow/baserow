@@ -18,6 +18,7 @@ export const getCardHeight = (fields, coverImageField, registry) => {
     (coverImageField === null ? 0 : 160) + // height of card.scss.card__cover
     16 + // padding-top of card.scss.card
     16 - // padding-bottom of card.scss.card
-    fieldMarginBottom
+    fieldMarginBottom +
+    2 // border of card.scss.card
   )
 }

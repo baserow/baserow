@@ -131,15 +131,15 @@ CoreHandler().check_permission(
     # CreateRowDatabaseTable is an `OperationType` class and `.type` is its name.
     CreateRowDatabaseTable.type,  
     context=table, 
-    group=group
+    workspace=workspace
 )
 ```
 
 If the permission request is allowed then this method will return `True` if not,
 it will raise a `PermissionException`.
 
-The workspace (formerly group) is optionnal if the operation is a core operation
-outside of any group.
+The workspace (formerly known as a group) is optional if the operation is a core 
+operation that does not belong to any specific workspace.
 
 ### Filter a Django Queryset
 
@@ -154,7 +154,7 @@ CoreHandler().filter_queryset(
     # CreateRowDatabaseTable is an `OperationType` class and `.type` is its name.
     ListTablesDatabaseTableOperationType.type,  
     queryset,
-    group=group
+    workspace=workspace
 )
 ```
 
@@ -218,10 +218,10 @@ class OwnedTablePermissionManagerType(PermissionManagerType):
     def check_multiple_permissions(self, check, workspace=None, include_trash=False):
         ...
 
-    def get_permissions_object(self, actor, group=None):
+    def get_permissions_object(self, actor, workspace=None):
         ...
 
-    def filter_queryset(self, actor, operation_name, queryset, group=None)
+    def filter_queryset(self, actor, operation_name, queryset, workspace=None)
         ...
 ```
 
@@ -283,8 +283,8 @@ available on the Vue instance:
 
 ```js
 // Inside a Vue component
-// this.$hasPermission(<operationName>, <contextObject>, <curentGroupId>)
-this.$hasPermission("database.create_table", database, group.id);
+// this.$hasPermission(<operationName>, <contextObject>, <currentWorkspaceId>)
+this.$hasPermission("database.create_table", database, workspace.id);
 ```
 
 This call returns `true` if the operation is granted `false` otherwise.
@@ -292,7 +292,7 @@ This call returns `true` if the operation is granted `false` otherwise.
 ### The permissions object
 
 The frontend permissions are calculated with the permission object sent by the
-backend at login for each group the user has access to. Check the
+backend at login for each workspace the user has access to. Check the
 `.get_permissions_object` method from each backend permission manager.
 
 The permission object looks like this:
@@ -302,7 +302,7 @@ The permission object looks like this:
   {
     "name": "core",
     "permissions": [
-      "list_groups"
+      "list_workspaces"
     ]
   },
   {
@@ -318,9 +318,9 @@ The permission object looks like this:
     "name": "basic",
     "permissions": {
       "admin_only_operations": [
-        "group.list_invitations",
+        "workspace.list_invitations",
         "...",
-        "group_user.delete"
+        "workspace.delete"
       ],
       "is_admin": true
     }
@@ -346,9 +346,9 @@ method will be called with the following object:
 ```json
 {
     "admin_only_operations": [
-    "group.list_invitations",
+    "workspace.list_invitations",
     "...",
-    "group_user.delete"
+    "workspace_user.delete"
     ],
     "is_admin": true
 }
@@ -419,12 +419,12 @@ That may explain some of the decisions that has been made.
 
 **More technically**:
 
-- The parent of a `Database` is not the group has we could imagine first but the
+- The parent of a `Database` is not the workspace has we could imagine first but the
   "more generic" type which is the `Application`. It solves a lot of issues (but
   also creates some if we don't pay attention).
 - For a `User` Actor, the Basic permission manager has two "roles", `ADMIN` and
   `MEMBER` which is compatible with the previous permission system. The Role
-  name is stored in the `GroupUser.permissions` field. The idea is to make the
+  name is stored in the `WorkspaceUser.permissions` field. The idea is to make the
   other Role based system using this field to make them compatible and avoid
   duplication of data or synchronisation when switching from one system to
   another. For the `BasicPermissionManagerType`, The `ADMIN` value in this

@@ -67,17 +67,24 @@
     "dashboards": "Dashboards",
     "dashboardDefaultName": "Untitled Dashboard",
     "dashboardDesc": "Visualize your data and metrics with charts, tables or graphs.",
+    "automation": "Automation",
+    "automations": "Automations",
+    "automationDesc": "Automate repetitive tasks and workflows.",
+    "automationDefaultName": "Untitled Automation",
     "cantSelectTableTitle": "Couldn't select the database.",
     "cantSelectTableDescription": "The database couldn't be selected because it doesn't have any tables. Use the sidebar to create one.",
     "cantSelectPageTitle": "Couldn't select the application.",
-    "cantSelectPageDescription": "The application builder couldn't be selected because it doesn't have any pages. Use the sidebar to create one."
+    "cantSelectPageDescription": "The application builder couldn't be selected because it doesn't have any pages. Use the sidebar to create one.",
+    "cantSelectAutomationWorkflowTitle": "Couldn't select the automation.",
+    "cantSelectAutomationWorkflowDescription": "The automation couldn't be selected because it doesn't have any workflows. Use the sidebar to create one."
   },
   "settingType": {
     "account": "Account",
     "password": "Password",
     "emailNotifications": "Email notifications",
     "tokens": "Database tokens",
-    "deleteAccount": "Delete account"
+    "deleteAccount": "Delete account",
+    "mcpEndpoint": "MCP server"
   },
   "userFileUploadType": {
     "file": "my device",
@@ -299,6 +306,7 @@
   "trashType": {
     "workspace": "workspace",
     "application": "application",
+    "automation_workflow": "automationWorkflow",
     "table": "table",
     "field": "field",
     "row": "row",
@@ -417,7 +425,11 @@
     "incompatiblePrimaryFieldTypeTitle": "Field is not compatible",
     "incompatiblePrimaryFieldTypeDescription": "The chosen field can't be the primary field because it's incompatible.",
     "cannotCreateRowsInTableTitle": "Can't create rows",
-    "cannotCreateRowsInTableDescription": "It's not possible to create rows in this table."
+    "cannotCreateRowsInTableDescription": "It's not possible to create rows in this table.",
+    "databaseDeadlockTitle": "Action failed",
+    "databaseDeadlockDescription": "The action couldn't be completed due to multiple conflicting operations on the data at the same time. Please try again.",
+    "databaseUniquePrimaryPropertyNotFoundTitle": "No unique primary property found",
+    "databaseUniquePrimaryPropertyNotFoundDescription": "This typically happens if the data sync source doesn't contain any property to get a unique row value from. In case of a table, it could be that there is no primary key."
   },
   "importerType": {
     "csv": "Import a CSV file",
@@ -450,7 +462,7 @@
     "pathParameters": "Path parameters",
     "requestBodySchema": "Request body schema",
     "userFieldNamesDescription": "When the `user_field_names` GET parameter is provided and its value is one of the following: `y`, `yes`, `true`, `t`, `on`, `1`, or empty string, the field names returned by this endpoint will be the actual names of the fields.\n\nIf the `user_field_names` GET parameter is not provided, or if it does not match any of the above values, then all returned field names will be `field_` followed by the id of the field. For example `field_1` refers to the field with an id of `1`.",
-    "sendWebhookEventsDescription": "A flag query parameter that triggers webhooks after the operation, if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. Defaults to `true`",
+    "sendWebhookEventsDescription": "A flag query parameter that triggers webhooks after the operation, if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. Defaults to `true`",
     "singleRow": "Single",
     "batchRows": "Batch",
     "fileUploads": "File uploads"
@@ -472,7 +484,7 @@
   },
   "formulaFunctions": {
     "upperDescription": "Returns its argument in upper case.",
-    "lowerDescription": "Returns its argument in lower case.", 
+    "lowerDescription": "Returns its argument in lower case.",
     "splitPartDescription": "Extracts a segment from a delimited string based on a delimiter and index (numeric indicator indicating which element from string should be returned)",
     "concatDescription": "Returns its arguments joined together as a single piece of text.",
     "addDescription": "Returns its two arguments added together.",

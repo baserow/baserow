@@ -149,7 +149,8 @@
     },
     "trashSidebar": {
         "title": "Corbeille",
-        "unnamedWorkspace": "Projet sans nom {id}"
+        "unnamedWorkspace": "Projet sans nom {id}",
+        "workspaces": "Projets"
     },
     "trashContents": {
         "message": "Restaurer les éléments supprimés durant les {duration} derniers",
@@ -1024,5 +1025,44 @@
     },
     "colorPickerContext": {
         "pickColorPlaceholder": "Ou choisir une couleur prédéfinie"
+    },
+    "guidedTourStep": {
+        "step": "{step} sur {totalSteps}",
+        "gotIt": "Compris",
+        "next": "Suivant",
+        "back": "Retour"
+    },
+    "welcomeGuidedTourStep": {
+        "title": "Bienvenue sur Baserow",
+        "buttonText": "Démarrer la visite",
+        "content": "Faisons une visite rapide pour vous familiariser avec les principes de base. En quelques clics, vous apprendrez à organiser et à visualiser vos données sans effort"
+    },
+    "controlCenterGuidedTourStep": {
+        "title": "Votre centre de contrôle Baserow",
+        "content": "La barre latérale gauche vous aide à gérer votre Projet :\n\n- Accueil - Accédez à votre tableau de bord principal.\n- Notifications - Restez informé des modifications et des mentions.\n- Inviter des membres - Collaborez en ajoutant des membres à votre équipe.\n- Corbeille - Listez et récupérez tous vos éléments supprimés."
+    },
+    "createNewGuidedTourStep": {
+        "title": "Créer une nouvelle base de données ou une nouvelle application",
+        "content": "Cliquez sur \"Ajouter...\" pour créer une nouvelle base de données, une nouvelle application ou un nouveau tableau de bord pour votre projet, votre service ou votre équipe."
+    },
+    "mcpEndpointSettings": {
+        "title": "Serveur MCP",
+        "createNewTitle": "Créer un endpoint pour serveur MCP",
+        "backToOverview": "Retour",
+        "createEndpoint": "Créer un endpoint",
+        "noEndpointsMessage": "Aucun endpoint pour serveur MCP (Model Context Protocol) n'a été ajouté. Ceux-ci peuvent être utilisés pour intégrer directement un LLM comme Claude, et permettre au LLM d'effectuer des actions directement dans Baserow. Créez un endpoint de serveur pour commencer."
+    },
+    "mcpEndpointForm": {
+        "nameLabel": "Nom",
+        "workspaceLabel": "Projet"
+    },
+    "mcpEndpoint": {
+        "detailLabel": "Plus d'informations",
+        "reveal": "Révéler l'URL complète",
+        "warning": "Considérez votre URL MCP comme un mot de passe, car il permet de modifier les données dans Baserow.",
+        "claudeInstructions": "Trois étapes simples pour démarrer avec Claude Desktop et le MCP de Baserow.\n\n1. Ouvrez les paramètres de Claude Desktop à partir de la barre de navigation (⌘+,).\n1. Allez dans l'onglet \"Develop\", et cliquez sur \"Edit Config\".\n1. Inclure la configuration JSON suivante dans `claude_desktop_config.json`.",
+        "endpointURLIntro": "L'URL du serveur MCP (Model Context Protocol) peut être ajoutée à tout client qui prend en charge les serveurs MCP. Il s'agit d'un endpoint unique qui donne au LLM un accès direct pour effectuer des actions dans l'espace de travail en votre nom.",
+        "cursorInstructions": "Trois étapes simples pour démarrer avec Cursor et le MCP de Baserow.\n\n1. Ouvrir les paramètres de Cursor (⇧+⌘+J)\n1. Naviguez vers l'onglet \"MCP\" et cliquez sur \"Add MCP Server\"\n1. Ajouter la configuration JSON suivante.",
+        "windsurfInstructions": "Deux étapes faciles pour configurer MCP avec Cascase en Windsurf.\n\n1. Naviguez vers Windsurf - Settings -> Advanced Settings ou Command Palette -> Open Windsurf settings page.\n1. Descendez jusqu'à la section Cascade et vous trouverez l'option pour ajouter un nouveau serveur, pour voir les serveurs existants, et un bouton pour voir le fichier de configuration JSON brut `mcp_config.json`. Ajoutez-y ce qui suit :"
     }
 }

@@ -139,6 +139,7 @@ class UpdateUserActionType(ActionType):
         language: Optional[str] = None,
         email_notification_frequency: Optional[str] = None,
         completed_onboarding: Optional[bool] = None,
+        completed_guided_tours: Optional[str] = None,
         **kwargs: Any,
     ) -> AbstractUser:
         """
@@ -151,6 +152,8 @@ class UpdateUserActionType(ActionType):
             receive email notifications.
         :param completed_onboarding: Indicates whether the user has already completed
             the onboarding.
+        :param completed_guided_tours: List containing the guided tour types that
+            have been completed.
         :return: The updated user.
         """
 
@@ -160,6 +163,7 @@ class UpdateUserActionType(ActionType):
             language=language,
             email_notification_frequency=email_notification_frequency,
             completed_onboarding=completed_onboarding,
+            completed_guided_tours=completed_guided_tours,
         )
 
         cls.register_action(

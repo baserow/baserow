@@ -1,10 +1,10 @@
 import json
 import re
 from collections import defaultdict
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from io import BytesIO, IOBase
 from typing import Dict, List, Optional, Tuple, Union
-from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
@@ -16,6 +16,8 @@ from requests import Response
 from baserow.contrib.database.airtable.constants import (
     AIRTABLE_API_BASE_URL,
     AIRTABLE_BASE_URL,
+    AIRTABLE_DOWNLOAD_FILE_TYPE_ATTACHMENT_ENDPOINT,
+    AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH,
     AIRTABLE_EXPORT_JOB_CONVERTING,
     AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE,
     AIRTABLE_EXPORT_JOB_DOWNLOADING_FILES,
@@ -56,6 +58,7 @@ from .import_report import (
     SCOPE_VIEW,
     AirtableImportReport,
 )
+from .models import DownloadFile
 from .utils import parse_json_and_remove_invalid_surrogate_characters
 
 User = get_user_model()
@@ -73,6 +76,53 @@ BASE_HEADERS = {
     "Pragma": "no-cache",
     "Cache-Control": "no-cache",
 }
+
+
+class AirtableFileImport:
+    """
+    A file-like object (we only need open and close methods) that facilitates on-demand
+    file downloads from Airtable for re-uploading to Baserow. This avoids downloading
+    all files at once, enabling efficient, one-by-one downloads as needed during the
+    import process.
+    """
+
+    def __init__(self, init_data, request_id, cookies, headers=BASE_HEADERS):
+        self.files_to_download = {}
+        self.init_data = init_data
+        self.request_id = request_id
+        self.cookies = cookies
+        self.headers = headers
+
+    def add_files(self, files_to_download):
+        self.files_to_download.update(files_to_download)
+
+    @contextmanager
+    def open(self, name):
+        download_file = self.files_to_download.get(name)
+        if download_file is None:
+            raise ValueError(f"No file with name {name} found.")
+
+        if download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH:
+            response = requests.get(
+                download_file.url, headers=BASE_HEADERS
+            )  # nosec B113
+        elif download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_ATTACHMENT_ENDPOINT:
+            response = AirtableHandler.fetch_attachment(
+                row_id=download_file.row_id,
+                column_id=download_file.column_id,
+                attachment_id=download_file.attachment_id,
+                init_data=self.init_data,
+                request_id=self.request_id,
+                cookies=self.cookies,
+            )
+        stream = BytesIO(response.content)
+        try:
+            yield stream
+        finally:
+            stream.close()
+
+    def close(self):
+        pass
 
 
 class AirtableHandler:
@@ -257,6 +307,51 @@ class AirtableHandler:
         return response
 
     @staticmethod
+    def fetch_attachment(
+        row_id: str,
+        column_id: str,
+        attachment_id: str,
+        init_data: dict,
+        request_id: str,
+        cookies: dict,
+        stream=True,
+    ) -> Response:
+        """
+        :param row_id: The Airtable row id of the attachment that must be fetched.
+            The id starts with `rec`.
+        :param column_id: The Airtable column id of the attachment that must be
+            fetched. The id starts with `rec`.
+        :param attachment_id: The Airtable attachment id that must be fetched. The id
+            starts with `rec`.
+        :param init_data: The init_data returned by the initially requested shared base.
+        :param request_id: The request_id returned by the initially requested shared
+            base.
+        :param cookies: The cookies dict returned by the initially requested shared
+            base.
+        :param stream: Indicates whether the request should be streamed. This could be
+            useful if we want to show a progress bar. It will directly be passed into
+            the `requests` request.
+        :return: The `requests` response containing the result.
+        """
+
+        stringified_object_params = {
+            "columnId": column_id,
+            "attachmentId": attachment_id,
+        }
+        url = f"{AIRTABLE_API_BASE_URL}/row/{row_id}/downloadAttachment"
+
+        response = AirtableHandler.make_airtable_request(
+            init_data,
+            request_id,
+            url=url,
+            stream=stream,
+            params={"stringifiedObjectParams": json.dumps(stringified_object_params)},
+            cookies=cookies,
+            allow_redirects=True,
+        )
+        return response
+
+    @staticmethod
     def extract_schema(exports: List[dict]) -> Tuple[dict, dict]:
         """
         Loops over the provided exports and finds the export containing the application
@@ -344,7 +439,7 @@ class AirtableHandler:
         column_mapping: Dict[str, dict],
         row: dict,
         index: int,
-        files_to_download: Dict[str, str],
+        files_to_download: Dict[str, DownloadFile],
         config: AirtableImportConfig,
         import_report: AirtableImportReport,
     ) -> dict:
@@ -429,18 +524,28 @@ class AirtableHandler:
 
     @staticmethod
     def download_files_as_zip(
-        files_to_download: Dict[str, str],
+        files_to_download: Dict[str, DownloadFile],
+        init_data: dict,
+        request_id: str,
+        cookies: dict,
         config: AirtableImportConfig,
         progress_builder: Optional[ChildProgressBuilder] = None,
         files_buffer: Union[None, IOBase] = None,
     ) -> BytesIO:
         """
-        Downloads all the user files in the provided dict and adds them to a zip file.
-        The key of the dict will be the file name in the zip file.
+        This method was used to download the files, but now it only collects
+        them to be downloaded later so we can upload files to our storage one by one
+        so that the memory needed is less.
+        #TODO: Clean this up, rename the method properly and remove the old code.
 
         :param files_to_download: A dict that contains all the user file URLs that must
             be downloaded. The key is the file name and the value the URL. Additional
             files can be added to this dict.
+        :param init_data: The init_data returned by the initially requested shared base.
+        :param request_id: The request_id returned by the initially requested shared
+            base.
+        :param cookies: The cookies dict returned by the initially requested shared
+            base.
         :param config: Additional configuration related to the import.
         :param progress_builder: If provided will be used to build a child progress bar
             and report on this methods progress to the parent of the progress_builder.
@@ -449,12 +554,7 @@ class AirtableHandler:
         :return: An in memory buffer as zip file containing all the user files.
         """
 
-        if files_buffer is None:
-            files_buffer = BytesIO()
-
-        progress = ChildProgressBuilder.build(
-            progress_builder, child_total=len(files_to_download.keys())
-        )
+        progress = ChildProgressBuilder.build(progress_builder, child_total=1)
 
         # Prevent downloading any file if desired. This can cause the import to fail,
         # but that's intentional because that way it can easily be discovered that the
@@ -467,13 +567,16 @@ class AirtableHandler:
                     "code, accidentally adding files to the `files_to_download`."
                 )
 
-        with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
-            for index, (file_name, url) in enumerate(files_to_download.items()):
-                response = requests.get(url, headers=BASE_HEADERS)  # nosec B113
-                files_zip.writestr(file_name, response.content)
-                progress.increment(state=AIRTABLE_EXPORT_JOB_DOWNLOADING_FILES)
+        file_archive = AirtableFileImport(
+            init_data=init_data,
+            request_id=request_id,
+            cookies=cookies,
+            headers=BASE_HEADERS,
+        )
+        file_archive.add_files(files_to_download)
+        progress.increment(state=AIRTABLE_EXPORT_JOB_DOWNLOADING_FILES)
 
-        return files_buffer
+        return file_archive
 
     @classmethod
     def _parse_table_fields(
@@ -701,14 +804,24 @@ class AirtableHandler:
             exported_tables.append(exported_table)
             converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
 
-            # Airtable has a mapping of signed URLs for the uploaded files. The
+            # Airtable can have a mapping of signed URLs for the uploaded files. The
             # mapping is provided in the table payload, and if it exists, we need
-            # that URL for download instead of the one originally provided.
-            signed_user_content_urls = tables[table["id"]]["signedUserContentUrls"]
-            for file_name, url in files_to_download_for_table.items():
-                if url in signed_user_content_urls:
-                    url = signed_user_content_urls[url]
-                files_to_download[file_name] = url
+            # that URL for download instead of the one originally provided. If it
+            # doesn't exist, we must use the fetch attachment endpoint.
+            signed_user_content_urls = tables[table["id"]].get(
+                "signedUserContentUrls", None
+            )
+            for file_name, download_file in files_to_download_for_table.items():
+                url = download_file.url
+                if (
+                    signed_user_content_urls is not None
+                    and url in signed_user_content_urls
+                ):
+                    download_file.url = signed_user_content_urls[url]
+                elif signed_user_content_urls is None:
+                    download_file.type = AIRTABLE_DOWNLOAD_FILE_TYPE_ATTACHMENT_ENDPOINT
+
+                files_to_download[file_name] = download_file
 
         return exported_tables, files_to_download
 
@@ -716,6 +829,8 @@ class AirtableHandler:
     def to_baserow_database_export(
         cls,
         init_data: dict,
+        request_id: str,
+        cookies: dict,
         schema: dict,
         tables: list,
         config: AirtableImportConfig,
@@ -728,6 +843,10 @@ class AirtableHandler:
 
         :param init_data: The init_data, extracted from the initial page related to the
             shared base.
+        :param request_id: The request_id returned by the initially requested shared
+            base.
+        :param cookies: The cookies dict returned by the initially requested shared
+            base.
         :param schema: An object containing the schema of the Airtable base.
         :param tables: a list containing the table data.
         :param config: Additional configuration related to the import.
@@ -775,6 +894,7 @@ class AirtableHandler:
             for row_index, row in enumerate(tables[table["id"]]["rows"]):
                 new_id = row_index + 1
                 row_id_mapping[table["id"]][row["id"]] = new_id
+                row["airtable_record_id"] = row["id"]
                 row["id"] = new_id
                 converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
 
@@ -830,6 +950,9 @@ class AirtableHandler:
         # done last.
         user_files_zip = cls.download_files_as_zip(
             files_to_download,
+            init_data,
+            request_id,
+            cookies,
             config,
             progress.create_child_builder(represents_progress=500),
             download_files_buffer,
@@ -929,7 +1052,7 @@ class AirtableHandler:
             )
             tables[table_id]["viewDatas"].append(json_decoded_content["data"])
 
-        return init_data, schema, tables
+        return init_data, request_id, cookies, schema, tables
 
     @classmethod
     def import_from_airtable_to_workspace(
@@ -962,7 +1085,13 @@ class AirtableHandler:
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=1000)
 
-        init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
+        (
+            init_data,
+            request_id,
+            cookies,
+            schema,
+            tables,
+        ) = AirtableHandler.fetch_and_combine_airtable_data(
             share_id,
             config,
             progress.create_child_builder(represents_progress=100),
@@ -972,6 +1101,8 @@ class AirtableHandler:
         # later.
         baserow_database_export, files_buffer = cls.to_baserow_database_export(
             init_data,
+            request_id,
+            cookies,
             schema,
             tables,
             config,

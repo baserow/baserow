@@ -10,7 +10,10 @@
         :data-item-type="itemType.type"
         class="header__filter-link"
         :class="{
-          'active--error': itemType.isInError({ builder, page: currentPage }),
+          'active active--error': itemType.isInError({
+            builder,
+            page: currentPage,
+          }),
         }"
         @click="
           itemType.onClick(

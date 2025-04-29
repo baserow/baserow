@@ -36,7 +36,7 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             class="kanban-view__options"
           >
             <i
-              class="baserow-icon-more-horizontal"
+              class="iconoir-nav-arrow-down"
             />
           </a>
            
@@ -46,18 +46,18 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
           class="infinite-scroll kanban-view__stack-cards"
         >
           <div
-            style="min-height: 136px;"
+            style="min-height: 138px;"
           >
             <div
               class="card kanban-view__stack-card"
               style="transform: translateY(0px);"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -106,14 +106,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -162,14 +162,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -218,14 +218,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -274,14 +274,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -330,14 +330,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -386,14 +386,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -442,14 +442,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -498,14 +498,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -554,14 +554,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -610,14 +610,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -666,14 +666,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -722,14 +722,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -778,14 +778,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -834,14 +834,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -890,14 +890,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -946,14 +946,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1002,14 +1002,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1058,14 +1058,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1114,14 +1114,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1170,14 +1170,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1226,14 +1226,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1282,14 +1282,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1338,14 +1338,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1394,14 +1394,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1450,14 +1450,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1506,14 +1506,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1562,14 +1562,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1618,14 +1618,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1674,14 +1674,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1730,14 +1730,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1786,14 +1786,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1842,14 +1842,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1898,14 +1898,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -1954,14 +1954,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2010,14 +2010,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2066,14 +2066,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2122,14 +2122,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2178,14 +2178,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2250,21 +2250,12 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
           class="kanban-view__stack-foot"
         >
           <button
-            class="button button--regular button--secondary button--full-width"
+            class="button-floating button-floating--primary button-floating--regular"
+            full-width=""
           >
             <i
-              class="button__icon iconoir-plus"
+              class="button-floating__icon iconoir-plus"
             />
-             
-            <span
-              class="button__label"
-            >
-              
-        kanbanViewStack.new
-      
-            </span>
-             
-            <!---->
           </button>
         </div>
       </div>
@@ -2303,7 +2294,7 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             class="kanban-view__options"
           >
             <i
-              class="baserow-icon-more-horizontal"
+              class="iconoir-nav-arrow-down"
             />
           </a>
            
@@ -2313,18 +2304,18 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
           class="infinite-scroll kanban-view__stack-cards"
         >
           <div
-            style="min-height: 408px;"
+            style="min-height: 414px;"
           >
             <div
               class="card kanban-view__stack-card"
               style="transform: translateY(0px);"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2379,14 +2370,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(136px);"
+              style="transform: translateY(138px);"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2441,14 +2432,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(272px);"
+              style="transform: translateY(276px);"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2503,14 +2494,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2559,14 +2550,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2615,14 +2606,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2671,14 +2662,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2727,14 +2718,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2783,14 +2774,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2839,14 +2830,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2895,14 +2886,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -2951,14 +2942,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3007,14 +2998,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3063,14 +3054,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3119,14 +3110,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3175,14 +3166,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3231,14 +3222,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3287,14 +3278,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3343,14 +3334,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3399,14 +3390,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3455,14 +3446,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3511,14 +3502,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3567,14 +3558,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3623,14 +3614,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3679,14 +3670,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3735,14 +3726,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3791,14 +3782,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3847,14 +3838,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3903,14 +3894,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -3959,14 +3950,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -4015,14 +4006,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -4071,14 +4062,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -4127,14 +4118,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -4183,14 +4174,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -4239,14 +4230,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -4295,14 +4286,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -4351,14 +4342,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -4407,14 +4398,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -4463,14 +4454,14 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             </div>
             <div
               class="card kanban-view__stack-card"
-              style="transform: translateY(-136px); display: none;"
+              style="transform: translateY(-138px); display: none;"
             >
+               
               <!---->
                
               <div
                 class="card__content"
               >
-                 
                 <div
                   class="card__fields"
                 >
@@ -4535,6 +4526,27 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
           class="kanban-view__stack-foot"
         >
           <button
+            class="button-floating button-floating--primary button-floating--regular"
+            full-width=""
+          >
+            <i
+              class="button-floating__icon iconoir-plus"
+            />
+          </button>
+        </div>
+      </div>
+    </div>
+     
+    <div
+      class="kanban-view__stack-wrapper"
+    >
+      <div
+        class="kanban-view__stack"
+      >
+        <div
+          class="kanban-view__stack-head"
+        >
+          <a
             class="button button--regular button--secondary button--full-width"
           >
             <i
@@ -4544,25 +4556,15 @@ exports[`KanbanView component KanbanView allows deleting row with context menu 1
             <span
               class="button__label"
             >
-              
-        kanbanViewStack.new
-      
+              kanbanView.addStack
             </span>
              
             <!---->
-          </button>
+          </a>
+           
         </div>
       </div>
     </div>
-     
-    <a
-      class="kanban-view__add-stack"
-    >
-      <i
-        class="iconoir-plus"
-      />
-    </a>
-     
   </div>
    
    

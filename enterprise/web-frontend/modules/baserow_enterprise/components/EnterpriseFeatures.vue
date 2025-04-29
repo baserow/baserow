@@ -43,18 +43,20 @@
       {{ $t('enterpriseFeatures.advancedWebhooks') }}
     </li>
     <li
+      v-if="
+        !hiddenFeatures.includes(enterpriseFeatures.FIELD_LEVEL_PERMISSIONS)
+      "
+      class="premium-features__feature"
+    >
+      <i class="iconoir-check premium-features__feature-icon"></i>
+      {{ $t('enterpriseFeatures.fieldLevelPermissions') }}
+    </li>
+    <li
       v-if="!hiddenFeatures.includes(enterpriseFeatures.SUPPORT)"
       class="premium-features__feature"
     >
       <i class="iconoir-check premium-features__feature-icon"></i>
       {{ $t('enterpriseFeatures.support') }}
-    </li>
-    <li
-      v-if="!hiddenFeatures.includes(enterpriseFeatures.CHART_WIDGET)"
-      class="premium-features__feature"
-    >
-      <i class="iconoir-check premium-features__feature-icon"></i>
-      {{ $t('enterpriseFeatures.chartWidget') }}
     </li>
   </ul>
 </template>

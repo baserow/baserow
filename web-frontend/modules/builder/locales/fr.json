@@ -102,7 +102,14 @@
         "menu": "Menu",
         "simpleContainerDescription": "Un conteneur pour grouper des éléments",
         "simpleContainer": "Conteneur",
-        "menuDescription": "Un élément de menu"
+        "menuDescription": "Un élément de menu",
+        "ratingDescription": "Affichage d'une notation",
+        "invalidElementValue": "Valeur non valide : {value}",
+        "ratingInput": "Champ de notation",
+        "rating": "Notation",
+        "ratingInputDescription": "Un champ de notation",
+        "fileInputDescription": "Un champ de formulaire pour envoyer des fichiers",
+        "fileInput": "Champ fichier"
     },
     "elementMenu": {
         "moveDown": "Descendre",
@@ -122,7 +129,8 @@
     },
     "duplicatePageJobType": {
         "duplicating": "Duplication",
-        "duplicatedTitle": "Page dupliquée"
+        "duplicatedTitle": "Page dupliquée",
+        "name": "Duplication de page"
     },
     "pageSidePanelType": {
         "general": "Général",
@@ -355,7 +363,7 @@
         "validationTypeIntegerLabel": "Nombre",
         "validationTypeEmailLabel": "Courriel",
         "validationTypeEmailDescription": "N'autoriser que les courriels dans ce champ.",
-        "validationTypeIntegerDescription": "N'autoriser que les valeurs numériques dans ce champ.",
+        "validationTypeIntegerDescription": "N'autoriser que les valeurs numériques dans ce champ (accepte les entiers et les décimaux).",
         "inputTypeTextLabel": "Texte",
         "inputTypePasswordLabel": "Mot de passe",
         "inputType": "Type de l'entrée",
@@ -541,7 +549,8 @@
         "boolean": "Booléen",
         "tags": "Étiquettes",
         "button": "Bouton",
-        "image": "Image"
+        "image": "Image",
+        "rating": "Notation"
     },
     "createUserSourceForm": {
         "userSourceName": "Nom",
@@ -575,14 +584,16 @@
         "details": "Détails"
     },
     "generalForm": {
-        "labelPlaceholder": "Saisir un label (facultatif)",
-        "valuePlaceholder": "Saisir une valeur par défaut (facultatif)",
+        "labelPlaceholder": "Saisir un label",
+        "valuePlaceholder": "Saisir une valeur",
         "requiredTitle": "Obligatoire",
         "labelTitle": "Label",
-        "valueTitle": "Valeur par défaut",
+        "valueTitle": "Valeur",
         "placeholderTitle": "Texte provisoire",
-        "placeholderPlaceholder": "Saisir un texte provisoire (facultatif)",
-        "validationTitle": "Validation"
+        "placeholderPlaceholder": "Saisir un texte provisoire",
+        "validationTitle": "Validation",
+        "defaultValueTitle": "Valeur par défaut",
+        "defaultValuePlaceholder": "Saisir la valeur par défaut"
     },
     "iframeElementForm": {
         "urlPlaceholder": "Lien vers la ressource externe à intégrer",
@@ -747,7 +758,7 @@
         "transparent": "Transparent",
         "customColors": "Couleurs personnalisées",
         "addCustomColor": "Ajouter une couleur personnalisée",
-        "customColorPrefix": "Couleur"
+        "customColorPrefix": "Ma couleur"
     },
     "pageThemeConfigBlock": {
         "backgroundColor": "Couleur d'arrière-plan",
@@ -771,7 +782,8 @@
         "bodyLabel": "Corps",
         "fontFamily": "Police",
         "headingLabel": "Titre {i} (h{i})",
-        "weight": "Graisse"
+        "weight": "Graisse",
+        "decoration": "Décoration"
     },
     "buttonThemeConfigBlock": {
         "backgroundColor": "Couleur d'arrière-plan",
@@ -800,7 +812,8 @@
         "fontFamily": "Police",
         "size": "Taille de la police",
         "weight": "Graisse de la police",
-        "activeState": "État actif"
+        "activeState": "État actif",
+        "decoration": "Décoration"
     },
     "imageThemeConfigBlock": {
         "alignment": "Alignement",
@@ -1080,5 +1093,46 @@
     },
     "simpleContainerElementForm": {
         "noConfigurationOptions": "L'élément conteneur n'a pas de configuration."
+    },
+    "ratingFieldForm": {
+        "style": "Style",
+        "star": "Étoile",
+        "thumbsUp": "Pouce en l'air",
+        "value": "Valeur",
+        "heart": "Cœur",
+        "maxValue": "Valeur maximale",
+        "flag": "Drapeau",
+        "color": "Couleur"
+    },
+    "ratingElementForm": {
+        "flag": "Drapeau",
+        "ratingStyle": "Style",
+        "star": "Étoile",
+        "thumbsUp": "Pouce en l'air",
+        "maxValue": "Maximum",
+        "heart": "Cœur",
+        "color": "Couleur",
+        "smile": "Sourire"
+    },
+    "linkDecorations": {
+        "normal": "Normal",
+        "plain": "Normal"
+    },
+    "userSourceDropdown": {
+        "addUserSource": "Ajouter une nouvelle source d'utilisateurs",
+        "noUserSources": "Aucune source d'utilisateur disponible",
+        "label": "Source d'utilisateur"
+    },
+    "textDecorationSelector": {
+        "underline": "Souligner",
+        "stroke": "Barrer",
+        "italic": "Italique",
+        "uppercase": "Majuscules"
+    },
+    "abFileInput": {
+        "delete": "Supprimer"
+    },
+    "automationSettingsModal": {
+        "title": "Scénario"
     }
 }

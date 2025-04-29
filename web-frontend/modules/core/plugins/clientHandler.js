@@ -184,6 +184,16 @@ export class ClientErrorMap {
         app.i18n.t('clientHandler.cannotCreateRowsInTableTitle'),
         app.i18n.t('clientHandler.cannotCreateRowsInTableDescription')
       ),
+      ERROR_DATABASE_DEADLOCK: new ResponseErrorMessage(
+        app.i18n.t('clientHandler.databaseDeadlockTitle'),
+        app.i18n.t('clientHandler.databaseDeadlockDescription')
+      ),
+      ERROR_UNIQUE_PRIMARY_PROPERTY_NOT_FOUND: new ResponseErrorMessage(
+        app.i18n.t('clientHandler.databaseUniquePrimaryPropertyNotFoundTitle'),
+        app.i18n.t(
+          'clientHandler.databaseUniquePrimaryPropertyNotFoundDescription'
+        )
+      ),
     }
   }
 

@@ -569,12 +569,10 @@ def test_assign_role_batch_subject_not_in_workspace(data_fixture):
                 actor.save()
 
             values = [
-                (
-                    NewRoleAssignment(
-                        actor,
-                        admin_role,
-                        database.application_ptr,
-                    )
+                NewRoleAssignment(
+                    actor,
+                    admin_role,
+                    database.application_ptr,
                 )
             ]
 

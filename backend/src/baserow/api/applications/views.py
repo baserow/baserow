@@ -31,7 +31,6 @@ from baserow.core.actions import (
     OrderApplicationsActionType,
     UpdateApplicationActionType,
 )
-from baserow.core.db import specific_iterator
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
@@ -44,12 +43,9 @@ from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
-from baserow.core.models import Application, Workspace
-from baserow.core.operations import (
-    CreateApplicationsWorkspaceOperationType,
-    ListApplicationsWorkspaceOperationType,
-)
-from baserow.core.registries import application_type_registry
+from baserow.core.models import Application
+from baserow.core.operations import CreateApplicationsWorkspaceOperationType
+from baserow.core.service import CoreService
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
 
 from .serializers import (
@@ -67,8 +63,8 @@ class AllApplicationsView(APIView):
         tags=["Applications"],
         operation_id="list_all_applications",
         description=(
-            "Lists all the applications that the authorized user has access to. The "
-            "properties that belong to the application can differ per type. An "
+            "Lists all the applications that the user has access to. "
+            "The properties that belong to the application can differ per type. An "
             "application always belongs to a single workspace. All the applications of the "
             "workspaces that the user has access to are going to be listed here."
         ),
@@ -85,42 +81,22 @@ class AllApplicationsView(APIView):
         returned.
         """
 
-        workspaces = Workspace.objects.filter(users=request.user).prefetch_related(
-            "workspaceuser_set", "template_set"
-        )
+        workspaces = CoreService().list_workspaces(request.user)
 
-        # Compute list of readable application ids
-        all_applications_qs = Application.objects.none()
+        applications_qs = Application.objects.none()
         for workspace in workspaces:
-            applications = Application.objects.filter(
-                workspace=workspace, workspace__trashed=False
-            ).select_related("content_type")
-            applications_qs = CoreHandler().filter_queryset(
-                request.user,
-                ListApplicationsWorkspaceOperationType.type,
-                applications,
-                workspace=workspace,
+            workspace_applications_qs = CoreService().list_applications_in_workspace(
+                request.user, workspace
             )
-            all_applications_qs = all_applications_qs.union(applications_qs)
-
-        # Then filter with these ids
-        applications = specific_iterator(
-            Application.objects.select_related("content_type", "workspace")
-            .prefetch_related("workspace__template_set")
-            .filter(id__in=all_applications_qs.values("id"))
-            .order_by("workspace_id", "order", "id"),
-            per_content_type_queryset_hook=(
-                lambda model, queryset: application_type_registry.get_by_model(
-                    model
-                ).enhance_queryset(queryset)
-            ),
-        )
+            applications_qs = applications_qs.union(
+                workspace_applications_qs.order_by(), all=True
+            )
 
         data = [
             PolymorphicApplicationResponseSerializer(
                 application, context={"request": request}
             ).data
-            for application in applications
+            for application in applications_qs.order_by("workspace_id", "order", "id")
         ]
 
         return Response(data)
@@ -173,35 +149,9 @@ class ApplicationsView(APIView):
         returned.
         """
 
-        workspace = CoreHandler().get_workspace(workspace_id)
-
-        CoreHandler().check_permissions(
-            request.user,
-            ListApplicationsWorkspaceOperationType.type,
-            workspace=workspace,
-            context=workspace,
-        )
-
-        applications = (
-            Application.objects.select_related("content_type", "workspace")
-            .prefetch_related("workspace__template_set")
-            .filter(workspace=workspace)
-        )
-
-        applications = CoreHandler().filter_queryset(
-            request.user,
-            ListApplicationsWorkspaceOperationType.type,
-            applications,
-            workspace=workspace,
-        )
-
-        applications = specific_iterator(
-            applications,
-            per_content_type_queryset_hook=(
-                lambda model, queryset: application_type_registry.get_by_model(
-                    model
-                ).enhance_queryset(queryset)
-            ),
+        workspace = CoreService().get_workspace(request.user, workspace_id)
+        applications = CoreService().list_applications_in_workspace(
+            request.user, workspace
         )
 
         data = [
@@ -313,9 +263,7 @@ class ApplicationView(APIView):
     def get(self, request, application_id):
         """Selects a single application and responds with a serialized version."""
 
-        application = (
-            CoreHandler().get_user_application(request.user, application_id).specific
-        )
+        application = CoreService().get_application(request.user, application_id)
 
         return Response(
             PolymorphicApplicationResponseSerializer(
