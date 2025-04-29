@@ -7,7 +7,9 @@ from tqdm import tqdm
 
 from baserow.contrib.database.fields.operations import (
     ReadFieldOperationType,
+    SubmitAnonymousFieldValuesOperationType,
     UpdateFieldOperationType,
+    WriteFieldValuesOperationType,
 )
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import (
@@ -1434,6 +1436,8 @@ def test_all_operations_are_in_at_least_one_default_role(data_fixture):
         ClearNotificationsOperationType.type,
         ListNotificationsOperationType.type,
         MarkNotificationAsReadOperationType.type,
+        WriteFieldValuesOperationType.type,
+        SubmitAnonymousFieldValuesOperationType.type,
     ]
 
     all_ops_in_roles = set()

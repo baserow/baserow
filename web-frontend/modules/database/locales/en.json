@@ -637,7 +637,8 @@
     "duplicate": "Duplicate field",
     "sortField": "Sort",
     "hideField": "Hide field",
-    "dataSyncField": "The field is read only and part of the table's data sync."
+    "dataSyncField": "The field is read only and part of the table's data sync.",
+    "noWriteValues": "Changes to this field are restricted."
   },
   "gridViewRow": {
     "rowNotMatchingFilters": "Row does not match filters",
@@ -814,7 +815,8 @@
     "addConditionGroup": "Add condition group",
     "showFieldAs": "Show field as",
     "noSelectOptions": "There are no select options available.",
-    "noCollaboratorsAvailable": "There are no collaborators available."
+    "noCollaboratorsAvailable": "There are no collaborators available.",
+    "cannotSumitValues": "This field is read-only and won't be displayed in the form."
   },
   "duplicateFieldContext": {
     "duplicate": "Duplicate field",

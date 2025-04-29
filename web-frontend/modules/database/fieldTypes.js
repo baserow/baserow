@@ -815,6 +815,39 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Determines if it is possible to write values to the field. This is used to
+   * determine if the field values are editable in the UI. To be able to write
+   * values, the field type must not be read-only and the user must have
+   * permission to write to the field.
+   */
+  canWriteFieldValues(field) {
+    return (
+      !this.isReadOnlyField(field) &&
+      this.app.$hasPermission(
+        'database.table.field.write_values',
+        field,
+        field.workspace_id
+      )
+    )
+  }
+
+  /**
+   * Determines if it is possible to submit anonymous values to the field. This is used
+   * to determine if the field will be shown in form views.
+   */
+  canSubmitAnonymousValues(field) {
+    const database = this.app.store.getters['field/getDatabase']
+    return (
+      !this.isReadOnlyField(field) &&
+      this.app.$hasPermission(
+        'database.table.field.submit_anonymous_values',
+        field,
+        database.workspace.id
+      )
+    )
+  }
+
+  /**
    * Override and return true if the field type can be referenced by a formula field.
    * @return {boolean}
    */

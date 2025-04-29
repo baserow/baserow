@@ -68,8 +68,13 @@
             <i class="form-view__edit-icon iconoir-edit-pencil"></i
           ></a>
         </div>
+        <p v-if="cannotSubmitValues" class="error form-view__field-read-only">
+          <i class="iconoir-warning-triangle"></i>
+          {{ $t('formViewField.cannotSumitValues') }}
+        </p>
         <component
           :is="selectedFieldComponent.component"
+          v-else
           ref="field"
           :slug="view.slug"
           :workspace-id="database.workspace.id"
@@ -265,6 +270,11 @@ export default {
       }
 
       return options
+    },
+    cannotSubmitValues() {
+      return !this.$registry
+        .get('field', this.field.type)
+        .canSubmitAnonymousValues(this.field)
     },
   },
   watch: {

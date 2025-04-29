@@ -3277,6 +3277,8 @@ def test_get_public_grid_view(api_client, data_fixture):
                 "description": None,
                 "immutable_properties": False,
                 "immutable_type": False,
+                "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
             }
         ],
         "view": {

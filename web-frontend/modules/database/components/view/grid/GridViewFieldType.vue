@@ -23,7 +23,12 @@
         <i
           v-if="synced"
           v-tooltip="$t('gridViewFieldType.dataSyncField')"
-          class="grid-view__description-icon-synced iconoir-data-transfer-down"
+          class="grid-view__description-extra-icon iconoir-data-transfer-down"
+        ></i>
+        <i
+          v-else-if="!canWriteFieldValues"
+          v-tooltip="$t('gridViewFieldType.noWriteValues')"
+          class="grid-view__description-extra-icon iconoir-lock"
         ></i>
       </div>
 
@@ -386,6 +391,11 @@ export default {
       return this.table.data_sync.synced_properties.some((p) => {
         return p.field_id === this.field.id
       })
+    },
+    canWriteFieldValues() {
+      return this.$registry
+        .get('field', this.field.type)
+        .canWriteFieldValues(this.field)
     },
   },
   beforeCreate() {

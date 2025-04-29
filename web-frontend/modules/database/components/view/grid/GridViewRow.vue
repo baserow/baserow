@@ -97,7 +97,7 @@
         :all-fields-in-table="allFieldsInTable"
         :state="state"
         :multi-select-position="getMultiSelectPosition(row.id, field)"
-        :read-only="readOnly || isReadonlyField(field)"
+        :read-only="readOnly || !canWriteFieldValues(field)"
         :store-prefix="storePrefix"
         :group-end="groupEnd"
         :style="{
@@ -287,9 +287,6 @@ export default {
     },
   },
   methods: {
-    isReadonlyField(field) {
-      return this.$registry.get('field', field.type).isReadOnlyField(field)
-    },
     isCellSelected(fieldId) {
       return this.row._.selected && this.row._.selectedFieldId === fieldId
     },
@@ -422,6 +419,9 @@ export default {
       }
 
       return styling
+    },
+    canWriteFieldValues(field) {
+      return this.$registry.get('field', field.type).canWriteFieldValues(field)
     },
   },
 }

@@ -1,5 +1,8 @@
 import { registerRealtimeEvents } from '@baserow_enterprise/realtime'
-import { RolePermissionManagerType } from '@baserow_enterprise/permissionManagerTypes'
+import {
+  RolePermissionManagerType,
+  WriteFieldValuesPermissionManagerType,
+} from '@baserow_enterprise/permissionManagerTypes'
 import { AuthProvidersType, AuditLogType } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
@@ -65,7 +68,9 @@ import {
   RBACPaidFeature,
   SSOPaidFeature,
   SupportWebhooksPaidFeature,
+  FieldLevelPermissionsPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
+import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -87,6 +92,10 @@ export default (context) => {
   app.$registry.register(
     'permissionManager',
     new RolePermissionManagerType(context)
+  )
+  app.$registry.register(
+    'permissionManager',
+    new WriteFieldValuesPermissionManagerType(context)
   )
 
   store.registerModule('authProviderAdmin', authProviderAdminStore)
@@ -187,11 +196,20 @@ export default (context) => {
     'paidFeature',
     new AdvancedWebhooksPaidFeature(context)
   )
+  app.$registry.register(
+    'paidFeature',
+    new FieldLevelPermissionsPaidFeature(context)
+  )
   app.$registry.register('paidFeature', new SupportWebhooksPaidFeature(context))
   // Register builder page decorator namespace and types
   app.$registry.registerNamespace('builderPageDecorator')
   app.$registry.register(
     'builderPageDecorator',
     new MadeWithBaserowBuilderPageDecoratorType(context)
+  )
+
+  app.$registry.register(
+    'fieldContextItem',
+    new FieldPermissionsContextItemType(context)
   )
 }

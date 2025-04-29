@@ -428,7 +428,7 @@ export default {
      * Returns true if the field is read only.
      */
     isReadOnlyField(field) {
-      return this.$registry.get('field', field.type).isReadOnlyField(field)
+      return !this.$registry.get('field', field.type).canWriteFieldValues(field)
     },
     /**
      * Generates the 'upload file via URL' URI.

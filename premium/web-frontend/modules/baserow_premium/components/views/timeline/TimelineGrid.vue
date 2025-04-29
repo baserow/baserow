@@ -230,10 +230,13 @@ export default {
     },
   },
   methods: {
-    /* Returns true if the given field is read only. */
+    /*
+     * Returns true if the given field is read only or the user doesn't have the
+     * permissions to update values.
+     */
     isReadOnlyField(field) {
       const fieldType = this.$registry.get('field', field.type)
-      return fieldType.isReadOnlyField(field)
+      return !fieldType.canWriteFieldValues(field)
     },
     /*
      * Returns the left offset of the given date in the timeline grid.

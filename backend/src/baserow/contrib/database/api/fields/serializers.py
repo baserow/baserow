@@ -32,6 +32,16 @@ class FieldSerializer(serializers.ModelSerializer):
         help_text="Indicates whether the field is a read only field. If true, "
         "it's not possible to update the cell value."
     )
+    database_id = serializers.IntegerField(
+        source="table.database_id",
+        help_text="The ID of the database this field belongs to.",
+        read_only=True,
+    )
+    workspace_id = serializers.IntegerField(
+        source="table.database.workspace_id",
+        help_text="The ID of the workspace this field belongs to.",
+        read_only=True,
+    )
 
     class Meta:
         model = Field
@@ -46,6 +56,8 @@ class FieldSerializer(serializers.ModelSerializer):
             "immutable_type",
             "immutable_properties",
             "description",
+            "database_id",
+            "workspace_id",
         )
         extra_kwargs = {
             "id": {"read_only": True},

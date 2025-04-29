@@ -636,9 +636,19 @@ class PublicViewSerializer(serializers.ModelSerializer):
 
 class PublicFieldSerializer(FieldSerializer):
     table_id = serializers.SerializerMethodField()
+    database_id = serializers.SerializerMethodField()
+    workspace_id = serializers.SerializerMethodField()
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_table_id(self, instance):
+        return PUBLIC_PLACEHOLDER_ENTITY_ID
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_database_id(self, instance):
+        return PUBLIC_PLACEHOLDER_ENTITY_ID
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_workspace_id(self, instance):
         return PUBLIC_PLACEHOLDER_ENTITY_ID
 
 

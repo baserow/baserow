@@ -329,20 +329,22 @@ export const actions = {
 
     commit('DELETE_ITEM', workspace.id)
   },
-  async fetchPermissions({ commit, getters }, workspace) {
+  async forceFetchPermissions({ commit }, workspace) {
+    const { data } = await PermissionsService(this.$client).get(workspace)
+    commit('SET_PERMISSIONS', {
+      workspaceId: workspace.id,
+      permissions: data,
+    })
+  },
+  async fetchPermissions({ commit, dispatch }, workspace) {
     // The permissions only have to be loaded once.
     if (workspace._.permissionsLoaded) {
       return
     }
 
     commit('SET_ITEM_ADDITIONAL_LOADING', { workspace, value: true })
-
     try {
-      const { data } = await PermissionsService(this.$client).get(workspace)
-      commit('SET_PERMISSIONS', {
-        workspaceId: workspace.id,
-        permissions: data,
-      })
+      await dispatch('forceFetchPermissions', workspace)
     } finally {
       commit('SET_ITEM_ADDITIONAL_LOADING', { workspace, value: false })
     }
@@ -573,6 +575,13 @@ export const getters = {
   },
   haveWorkspacePermissionsBeenLoaded: (state, getters) => (workspaceId) => {
     return getters.get(workspaceId)._.permissionsLoaded
+  },
+  getAllPermissions: (state, getters) => (workspaceId) => {
+    const workspace = getters.get(workspaceId)
+    if (!workspace) {
+      return null
+    }
+    return workspace._.permissions
   },
 }
 

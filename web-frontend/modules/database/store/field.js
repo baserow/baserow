@@ -16,11 +16,12 @@ export const state = () => ({
   loading: false,
   loaded: false,
   items: [],
+  database: {},
 })
 
 export const mutations = {
-  SET_ITEMS(state, applications) {
-    state.items = applications
+  SET_ITEMS(state, fields) {
+    state.items = fields
   },
   SET_LOADING(state, value) {
     state.loading = value
@@ -58,6 +59,9 @@ export const mutations = {
     })
     state.selected = {}
   },
+  SET_DATABASE(state, database) {
+    state.database = database
+  },
 }
 
 export const actions = {
@@ -87,12 +91,16 @@ export const actions = {
     }
     return getters.getAll
   },
-  forceSetFields({ commit }, { fields }) {
+  forceSetFields({ commit, rootGetters }, { fields }) {
     fields.forEach((part, index) => {
       populateField(fields[index], this.$registry)
     })
 
     commit('SET_ITEMS', fields)
+
+    const database = rootGetters['table/getDatabase'](fields[0].table_id)
+    commit('SET_DATABASE', database)
+
     commit('SET_LOADING', false)
     commit('SET_LOADED', true)
 
@@ -354,6 +362,9 @@ export const getters = {
   },
   getAll(state) {
     return state.items
+  },
+  getDatabase(state) {
+    return state.database
   },
 }
 

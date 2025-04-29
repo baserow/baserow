@@ -294,7 +294,9 @@
     "support": "Direct support",
     "supportContent": "Get help when you need it. Reach out to the Baserow team directly from within the platform.",
     "advancedWebhooks": "Advanced webhooks",
-    "advancedWebhooksContent": "Trigger webhooks when a row enters a specific view — great for automating workflows based on filter conditions."
+    "advancedWebhooksContent": "Trigger webhooks when a row enters a specific view — great for automating workflows based on filter conditions.",
+    "fieldLevelPermissions": "Field-level permissions",
+    "fieldLevelPermissionsContent": "Control who can edit specific fields in a table. Set permissions for editors, builders, admins, or completely disable modifications to field values."
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
@@ -499,5 +501,23 @@
   "fileInputElement": {
     "defaultHelpText": "Drag and drop files here or click to select",
     "fileSizeExceeded": "File too large. Max {max}MB."
+  },
+  "fieldPermissionModal": {
+    "title": "Edit field permissions",
+    "description": "Choose who can edit values in {fieldName}.",
+    "question": "Who can edit this field?",
+    "editorTitle": "Editors and higher (default)",
+    "editorDescription": "Users with Editor, Builder, and Admin roles",
+    "builderTitle": "Builders and higher",
+    "builderDescription": "Users with Builder and Admin roles",
+    "adminTitle": "Admins only",
+    "adminDescription": "Users with Admin roles",
+    "nobodyTitle": "Nobody",
+    "nobodyDescription": "No users",
+    "allowInForms": "Allow this field to be set in rows created through forms",
+    "linkRowWarning": "This is a 'Link to table' field. To ensure values cannot be changed from the linked table, please make ensure to set the right permissions on the linked table as well."
+  },
+  "fieldPermissionsMenuItem": {
+    "label": "Edit field permissions"
   }
 }

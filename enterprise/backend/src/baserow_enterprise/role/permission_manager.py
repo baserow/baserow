@@ -82,47 +82,44 @@ class RolePermissionManagerType(PermissionManagerType):
 
         # Workspace actor by subject_type
         actors_by_subject_type = defaultdict(set)
-        for actor, _, _ in checks:
+        checks_by_actor_and_context = defaultdict(lambda: defaultdict(list))
+        for check in checks:
+            actor, _, context = check
             s_type = subject_type_registry.get_by_model(actor)
             actors_by_subject_type[s_type].add(actor)
+            checks_by_actor_and_context[actor][context].append(check)
 
         result = {}
-        scope_includes_cache = {}
+        roles_per_scope_by_actor = {}
         for actor_subject_type, actors in actors_by_subject_type.items():
-            computed_role_cache = {}
-            roles_per_scope_by_actor = (
+            roles_per_scope_by_actor.update(
                 RoleAssignmentHandler().get_roles_per_scope_for_actors(
                     workspace, actor_subject_type, actors, include_trash=include_trash
                 )
             )
 
-            for check in checks:
-                actor, operation_name, context = check
-                cache_key = (
-                    actor.id,
-                    f"{type(context).__name__}__{context.id}",
+        scope_includes_cache = {}
+        for actor, context_and_checks in checks_by_actor_and_context.items():
+            for context, checks in context_and_checks.items():
+                computed_roles = RoleAssignmentHandler().get_computed_roles(
+                    roles_per_scope_by_actor[actor], context, scope_includes_cache
                 )
-                if cache_key not in computed_role_cache:
-                    # Compute the actual role for this check
-                    computed_role_cache[
-                        cache_key
-                    ] = RoleAssignmentHandler().get_computed_roles(
-                        roles_per_scope_by_actor[actor],
-                        context,
-                        scope_includes_cache,
-                    )
-
-                computed_roles = computed_role_cache[cache_key]
-
-                if any(
+                permitted_operations = set(
                     [
-                        operation_name in self.get_role_operations(r)
+                        operation_name
                         for r in computed_roles
+                        for operation_name in self.get_role_operations(r)
                     ]
-                ):
-                    result[check] = True
-                else:
-                    result[check] = PermissionDenied()
+                )
+                check_results = {
+                    check: (
+                        True
+                        if check.operation_name in permitted_operations
+                        else PermissionDenied()
+                    )
+                    for check in checks
+                }
+                result.update(check_results)
 
         return result
 

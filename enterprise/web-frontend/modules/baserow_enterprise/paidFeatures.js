@@ -156,6 +156,32 @@ export class AdvancedWebhooksPaidFeature extends PaidFeature {
   }
 }
 
+export class FieldLevelPermissionsPaidFeature extends PaidFeature {
+  static getType() {
+    return 'field_level_permissions'
+  }
+
+  getPlan() {
+    return 'Enterprise'
+  }
+
+  getIconClass() {
+    return 'iconoir-lock'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.fieldLevelPermissions')
+  }
+
+  getImage() {
+    return '/img/features/field_level_permissions.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.fieldLevelPermissionsContent')
+  }
+}
+
 export class SupportWebhooksPaidFeature extends PaidFeature {
   static getType() {
     return 'support'
