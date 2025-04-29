@@ -36,9 +36,6 @@
                             "description": null,
                             "order": 1,
                             "primary": true,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "text_default": ""
                         },
                         {
@@ -47,10 +44,7 @@
                             "name": "Email",
                             "description": null,
                             "order": 2,
-                            "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true
+                            "primary": false
                         },
                         {
                             "id": 53862,
@@ -58,10 +52,7 @@
                             "name": "Phone",
                             "description": null,
                             "order": 3,
-                            "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true
+                            "primary": false
                         },
                         {
                             "id": 53863,
@@ -69,10 +60,7 @@
                             "name": "Picture",
                             "description": null,
                             "order": 4,
-                            "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true
+                            "primary": false
                         },
                         {
                             "id": 53864,
@@ -81,9 +69,6 @@
                             "description": null,
                             "order": 5,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "text_default": ""
                         },
                         {
@@ -1269,9 +1254,6 @@
                             "description": null,
                             "order": 1,
                             "primary": true,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "text_default": ""
                         },
                         {
@@ -1281,9 +1263,6 @@
                             "description": null,
                             "order": 2,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "text_default": ""
                         },
                         {
@@ -1293,9 +1272,6 @@
                             "description": null,
                             "order": 3,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "date_format": "ISO",
                             "date_include_time": false,
                             "date_time_format": "24",
@@ -1309,9 +1285,6 @@
                             "description": null,
                             "order": 4,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "date_format": "ISO",
                             "date_include_time": false,
                             "date_time_format": "24",
@@ -1325,9 +1298,6 @@
                             "description": null,
                             "order": 5,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "select_options": [
                                 {
                                     "id": 19147,
@@ -1613,9 +1583,6 @@
                             "description": null,
                             "order": 9,
                             "primary": true,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "text_default": ""
                         },
                         {
@@ -1625,9 +1592,6 @@
                             "description": null,
                             "order": 2,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "text_default": ""
                         },
                         {
@@ -1637,9 +1601,6 @@
                             "description": null,
                             "order": 3,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "number_decimal_places": 0,
                             "number_negative": false,
                             "number_prefix": "",
@@ -1653,9 +1614,6 @@
                             "description": null,
                             "order": 4,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "number_decimal_places": 0,
                             "number_negative": false,
                             "number_prefix": "",
@@ -1669,9 +1627,6 @@
                             "description": null,
                             "order": 5,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "select_options": [
                                 {
                                     "id": 19151,
@@ -1721,9 +1676,6 @@
                             "description": null,
                             "order": 7,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "date_format": "ISO",
                             "date_include_time": false,
                             "date_time_format": "24",
@@ -1737,9 +1689,6 @@
                             "description": null,
                             "order": 8,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "date_format": "ISO",
                             "date_include_time": false,
                             "date_time_format": "24",
