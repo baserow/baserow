@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Support default values for Boolean field",
+    "message": "Support default values for Boolean and Number fields",
     "domain": "database",
     "issue_number": 2173,
     "bullet_points": [],

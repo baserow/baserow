@@ -556,6 +556,7 @@ class NumberFieldType(FieldType):
         "number_prefix",
         "number_suffix",
         "number_separator",
+        "number_default",
     ]
     serializer_field_names = [
         "number_decimal_places",
@@ -564,6 +565,7 @@ class NumberFieldType(FieldType):
         "number_prefix",
         "number_suffix",
         "number_separator",
+        "number_default",
     ]
     serializer_field_overrides = {
         "number_type": MustBeEmptyField(
@@ -612,18 +614,25 @@ class NumberFieldType(FieldType):
         return value
 
     def get_serializer_field(self, instance: NumberField, **kwargs):
-        required = kwargs.get("required", False)
+        required = kwargs.pop("required", False)
 
         kwargs["decimal_places"] = instance.number_decimal_places
 
         if not instance.number_negative:
             kwargs["min_value"] = Decimal("0")
 
+        default = instance.number_default
+        if default is not None:
+            required = False
+        else:
+            default = serializers.empty
+
         return serializers.DecimalField(
             **{
                 "max_digits": self.MAX_DIGITS + kwargs["decimal_places"],
                 "required": required,
                 "allow_null": not required,
+                "default": default,
                 **kwargs,
             }
         )
@@ -693,6 +702,9 @@ class NumberFieldType(FieldType):
 
     def get_model_field(self, instance, **kwargs):
         kwargs["decimal_places"] = instance.number_decimal_places
+        default = instance.number_default
+        if default is not None:
+            kwargs["default"] = default
 
         return models.DecimalField(
             max_digits=self.MAX_DIGITS + kwargs["decimal_places"],

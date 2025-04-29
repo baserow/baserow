@@ -1571,6 +1571,14 @@ export class NumberFieldType extends FieldType {
     return ['text', '1', '9']
   }
 
+  getDefaultValue(field) {
+    if (field.number_default === null || field.number_default === undefined) {
+      return null
+    }
+    const decimalPlaces = field.number_decimal_places || 0
+    return Number(field.number_default).toFixed(decimalPlaces)
+  }
+
   canUpsert() {
     return true
   }
