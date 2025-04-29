@@ -143,6 +143,10 @@ export default {
         value: format.value,
       }))
     },
+    /**
+     * Map the values to the field property, so that they work with in combination
+     * with the helper methods in the `numberField` mixin.
+     */
     field() {
       return {
         number_decimal_places: this.values.number_decimal_places,
@@ -154,13 +158,6 @@ export default {
     },
   },
   watch: {
-    'values.number_default': {
-      handler(newVal) {
-        if (!this.focused) {
-          this.updateFormattedValue(this.field, newVal)
-        }
-      },
-    },
     'values.number_negative': {
       handler(newVal) {
         if (!newVal && this.values.number_default < 0) {
@@ -170,19 +167,11 @@ export default {
       },
       immediate: true,
     },
-    'values.number_decimal_places': {
+    values: {
       handler() {
-        if (!this.focused) {
-          this.updateFormattedValue(this.field, this.values.number_default)
-        }
+        this.updateFormattedValueIfNotFocussed()
       },
-    },
-    'values.number_separator': {
-      handler() {
-        if (!this.focused) {
-          this.updateFormattedValue(this.field, this.values.number_default)
-        }
-      },
+      deep: true,
     },
   },
   validations() {
@@ -218,6 +207,11 @@ export default {
       }
       this.values.number_default = parsedValue === null ? '' : parsedValue
       this.updateFormattedValue(this.field, this.values.number_default)
+    },
+    updateFormattedValueIfNotFocussed() {
+      if (!this.focused) {
+        this.updateFormattedValue(this.field, this.values.number_default)
+      }
     },
     updateFormattedValue(field, value) {
       const numberValue = new BigNumber(value)
