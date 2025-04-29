@@ -24,7 +24,7 @@ class UpdateFieldPermissionsActionType(UndoableActionType):
     description = ActionTypeDescription(
         _("Update field permissions"),
         _(
-            'Field "%(field_name)s" (%(field_id)s) permissions updated to role "%(role)s"'
+            'Field "%(field_name)s" (%(field_id)s): permissions updated to role "%(role)s" and "allow in forms" set to "%(allow_in_forms)s"'
         ),
         TABLE_ACTION_CONTEXT,
     )

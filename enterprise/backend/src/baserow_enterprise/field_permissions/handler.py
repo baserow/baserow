@@ -35,7 +35,7 @@ class FieldPermissionsHandler:
     def _check_valid_role_value_or_raise(cls, role: str):
         """
         Validates the provided role and returns the corresponding
-        FieldPermissionRoleEnum.
+        FieldPermissionsRoleEnum.
 
         :param role: The role to validate.
         :raises ValueError if the role is not valid.
@@ -68,7 +68,7 @@ class FieldPermissionsHandler:
             wether the user can write values to the field, which requires computing the
             roles on the field.
         :raises: ValueError if the role provided as string is not a valid
-            FieldPermissionRoleEnum.
+            FieldPermissionsRoleEnum.
         """
 
         if isinstance(role, FieldPermissionsRoleEnum):

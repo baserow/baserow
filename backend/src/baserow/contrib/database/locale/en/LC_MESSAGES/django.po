@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-22 11:57+0000\n"
+"POT-Creation-Date: 2025-04-29 15:29+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -149,7 +149,7 @@ msgid ""
 msgstr ""
 
 #: src/baserow/contrib/database/fields/models.py:466
-#: src/baserow/contrib/database/fields/models.py:671
+#: src/baserow/contrib/database/fields/models.py:678
 msgid "The format of the duration."
 msgstr ""
 
