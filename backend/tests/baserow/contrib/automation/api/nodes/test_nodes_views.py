@@ -1,12 +1,7 @@
 from django.urls import reverse
 
 import pytest
-from rest_framework.status import (
-    HTTP_200_OK,
-    HTTP_204_NO_CONTENT,
-    HTTP_400_BAD_REQUEST,
-    HTTP_404_NOT_FOUND,
-)
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
 from baserow.test_utils.helpers import AnyInt, AnyStr
 
@@ -29,7 +24,15 @@ def test_create_node(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_204_NO_CONTENT
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "id": 1,
+        "order": AnyStr(),
+        "previous_node_output": "",
+        "service": AnyInt(),
+        "type": "row_created",
+        "workflow": AnyInt(),
+    }
     assert workflow.automation_workflow_nodes.count() == 1
 
 
