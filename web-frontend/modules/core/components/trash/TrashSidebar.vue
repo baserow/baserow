@@ -68,11 +68,12 @@ export default {
         this.$registry.getAll('application')
       )
         .map((applicationType) => {
+          const applications = this.selectedTrashWorkspace?.applications || []
           return {
             name: applicationType.getNamePlural(),
             type: applicationType.getType(),
             iconClass: applicationType.getIconClass(),
-            applications: this.selectedTrashWorkspace.applications
+            applications: applications
               .filter((application) => {
                 return application.type === applicationType.getType()
               })
