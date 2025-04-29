@@ -10,7 +10,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.core.management.color import no_style
 from django.db import connection, models
-from django.db.models import Prefetch, Q, QuerySet
+from django.db.models import Prefetch, QuerySet
 from django.db.transaction import Atomic
 from django.urls import include, path
 from django.utils import translation
@@ -587,25 +587,15 @@ class DatabaseApplicationType(ApplicationType):
                 )
 
     def _import_data_sync(self, serialized_tables, id_mapping, import_export_config):
-        tables_without_data_sync = []
         for serialized_table in serialized_tables:
-            table = serialized_table["_object"]
             if not serialized_table.get("data_sync", None):
-                tables_without_data_sync.append(table.id)
                 continue
+            table = serialized_table["_object"]
             serialized_data_sync = serialized_table["data_sync"]
             data_sync_type = data_sync_type_registry.get(serialized_data_sync["type"])
-            data_sync = data_sync_type.import_serialized(
+            data_sync_type.import_serialized(
                 table, serialized_data_sync, id_mapping, import_export_config
             )
-            if data_sync is None:
-                tables_without_data_sync.append(table.id)
-
-        # Ensure fields without a valid data sync does not have immutable properties set
-        Field.objects.filter(
-            Q(read_only=True) | Q(immutable_type=True) | Q(immutable_properties=True),
-            table_id__in=tables_without_data_sync,
-        ).update(read_only=False, immutable_type=False, immutable_properties=False)
 
     def _import_table_rows(
         self,

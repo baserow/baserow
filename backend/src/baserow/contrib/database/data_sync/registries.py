@@ -196,16 +196,9 @@ class DataSyncType(
         serialized_values,
         id_mapping,
         import_export_config: ImportExportConfig,
-    ) -> Optional["DataSync"]:
+    ):
         """
         Imports the data sync properties and the `allowed_fields`.
-
-        :param table: The table where the data sync must be created.
-        :param serialized_values: The serialized values that must be imported.
-        :param id_mapping: The mapping of the IDs that were imported.
-        :param import_export_config: The import export config that was used to
-            import the data sync.
-        :return: The imported data sync instance if it was created, otherwise None.
         """
 
         if "database_table_data_sync" not in id_mapping:
