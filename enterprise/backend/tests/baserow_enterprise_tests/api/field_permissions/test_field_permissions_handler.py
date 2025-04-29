@@ -4,7 +4,6 @@ from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
-from baserow_enterprise.field_permissions.models import FieldPermissionRoleEnum
 from baserow_premium.license.models import License
 from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK
