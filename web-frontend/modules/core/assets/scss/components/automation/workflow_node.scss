@@ -12,3 +12,18 @@
   /* Static/Elevation/Containers/Low */
   box-shadow: 0px 1px 2px 0px rgba(7, 8, 16, 0.1);
 }
+
+.workflow__add-node-button {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  padding: 8px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 24px;
+  border: 1px solid var(--Static-Divider-Standard, #ededed);
+  background: var(--Static-Background-Standard, #fff);
+  /* Interactive/Elevation/Low */
+  box-shadow: 0px 1px 2px 0px rgba(7, 8, 16, 0.1);
+}

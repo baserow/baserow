@@ -254,6 +254,43 @@ const EdgeWrapper = defineComponent({
       edge.value.targetX = targetX
       edge.value.targetY = targetY
 
+      // Extraction des propriétés des edges dans un objet pour transmission au slot
+      const edgeData = {
+        id: props.id,
+        sourceNode,
+        targetNode,
+        source: edge.value.source,
+        target: edge.value.target,
+        type: edge.value.type,
+        updatable: isUpdatable.value,
+        selected: edge.value.selected,
+        animated: edge.value.animated,
+        label: edge.value.label,
+        labelStyle: edge.value.labelStyle,
+        labelShowBg: edge.value.labelShowBg,
+        labelBgStyle: edge.value.labelBgStyle,
+        labelBgPadding: edge.value.labelBgPadding,
+        labelBgBorderRadius: edge.value.labelBgBorderRadius,
+        data: edge.value.data,
+        events: { ...edge.value.events, ...on },
+        style: edgeStyle.value,
+        markerStart: `url('#${getMarkerId(
+          edge.value.markerStart,
+          vueFlowId
+        )}')`,
+        markerEnd: `url('#${getMarkerId(edge.value.markerEnd, vueFlowId)}')`,
+        sourcePosition,
+        targetPosition,
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+        sourceHandleId: edge.value.sourceHandle,
+        targetHandleId: edge.value.targetHandle,
+        interactionWidth: edge.value.interactionWidth,
+        ...pathOptions,
+      }
+
       return h(
         'g',
         {
@@ -300,49 +337,14 @@ const EdgeWrapper = defineComponent({
         [
           updating.value
             ? null
+            : slots?.[`edge-${edge.value.type || 'default'}`]
+            ? slots[`edge-${edge.value.type || 'default'}`](edgeData)
             : h(
                 edgeCmp.value === false
                   ? getEdgeTypes.value.default
                   : edgeCmp.value,
                 {
-                  props: {
-                    id: props.id,
-                    sourceNode,
-                    targetNode,
-                    source: edge.value.source,
-                    target: edge.value.target,
-                    type: edge.value.type,
-                    updatable: isUpdatable.value,
-                    selected: edge.value.selected,
-                    animated: edge.value.animated,
-                    label: edge.value.label,
-                    labelStyle: edge.value.labelStyle,
-                    labelShowBg: edge.value.labelShowBg,
-                    labelBgStyle: edge.value.labelBgStyle,
-                    labelBgPadding: edge.value.labelBgPadding,
-                    labelBgBorderRadius: edge.value.labelBgBorderRadius,
-                    data: edge.value.data,
-                    events: { ...edge.value.events, ...on },
-                    style: edgeStyle.value,
-                    markerStart: `url('#${getMarkerId(
-                      edge.value.markerStart,
-                      vueFlowId
-                    )}')`,
-                    markerEnd: `url('#${getMarkerId(
-                      edge.value.markerEnd,
-                      vueFlowId
-                    )}')`,
-                    sourcePosition,
-                    targetPosition,
-                    sourceX,
-                    sourceY,
-                    targetX,
-                    targetY,
-                    sourceHandleId: edge.value.sourceHandle,
-                    targetHandleId: edge.value.targetHandle,
-                    interactionWidth: edge.value.interactionWidth,
-                    ...pathOptions,
-                  },
+                  props: edgeData,
                 }
               ),
           [

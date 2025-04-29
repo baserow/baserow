@@ -150,6 +150,7 @@
     "storybook-addon-pseudo-states": "1.15.5",
     "stylelint": "^16.3.1",
     "stylelint-config-standard-scss": "^13.1.0",
-    "stylelint-selector-bem-pattern": "^4.0.0"
+    "stylelint-selector-bem-pattern": "^4.0.0",
+    "@nuxtjs/composition-api": "^0.34.0"
   }
 }

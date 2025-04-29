@@ -1,34 +1,24 @@
 <template>
-  <div class="baserow-node">{{ nodeLabel }}</div>
+  <div class="baserow-node">{{ label }} {{ id }}</div>
 </template>
 
-<script>
-import { onMounted, computed } from 'vue'
-
-export default {
-  props: {
-    label: {
-      type: String,
-      default: null,
-    },
-    data: {
-      type: Object,
-      default: null,
-    },
+<script setup>
+defineProps({
+  id: {
+    type: String,
+    default: null,
   },
-  setup(props) {
-    // Support both formats: {label: 'text'} and {data: {label: 'text'}}
-    const nodeLabel = computed(() => {
-      return props.label || (props.data && props.data.label) || 'No Label'
-    })
-
-    onMounted(() => {
-      console.log('Node label:', nodeLabel.value)
-    })
-
-    return {
-      nodeLabel,
-    }
+  label: {
+    type: String,
+    default: null,
   },
-}
+  selected: {
+    type: Boolean,
+    default: false,
+  },
+  dragging: {
+    type: Boolean,
+    default: false,
+  },
+})
 </script>
