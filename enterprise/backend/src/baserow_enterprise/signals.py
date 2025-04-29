@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.dispatch import Signal, receiver
 
+from baserow.contrib.database.fields.models import Field
 from baserow.core.models import Workspace
 from baserow.core.registries import object_scope_type_registry, subject_type_registry
 from baserow.core.signals import workspace_user_updated
@@ -121,7 +122,13 @@ def send_unsubscribe_subject_from_table(
 
 @receiver(field_permissions_updated)
 def notify_users_about_updated_field_permissions(
-    sender, user: AbstractUser, workspace: Workspace, **kwargs
+    sender,
+    user: AbstractUser,
+    workspace: Workspace,
+    field: Field,
+    role: str,
+    allow_in_forms: bool,
+    **kwargs,
 ):
     workspace_user_ids = workspace.workspaceuser_set.values_list("user_id", flat=True)
 
@@ -129,8 +136,11 @@ def notify_users_about_updated_field_permissions(
         lambda: broadcast_to_users.delay(
             list(workspace_user_ids),
             {
-                "type": "permissions_updated",
+                "type": "field_permissions_updated",
                 "workspace_id": workspace.id,
+                "field_id": field.id,
+                "role": role,
+                "allow_in_forms": allow_in_forms,
             },
             getattr(user, "web_socket_id", None),
         )

@@ -8,12 +8,12 @@ from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import permission_manager_type_registry
 from baserow_enterprise.field_permissions.models import (
-    FieldPermissionRoleEnum,
     FieldPermissions,
+    FieldPermissionsRoleEnum,
 )
 from baserow_enterprise.field_permissions.operations import (
-    AssignFieldPermissionsOperationType,
     ReadFieldPermissionsOperationType,
+    UpdateFieldPermissionsOperationType,
 )
 from baserow_enterprise.field_permissions.permission_manager import (
     FieldPermissionManagerType,
@@ -35,17 +35,17 @@ class FieldPermissionsHandler:
     def _check_valid_role_value_or_raise(cls, role: str):
         """
         Validates the provided role and returns the corresponding
-        FieldPermissionRoleEnum.
+        FieldPermissionsRoleEnum.
 
         :param role: The role to validate.
         :raises ValueError if the role is not valid.
         """
 
         try:
-            FieldPermissionRoleEnum(role)
+            FieldPermissionsRoleEnum(role)
         except ValueError:
             raise ValueError(
-                f"Invalid role '{role}'. Must be one of {list(FieldPermissionRoleEnum.__members__.keys())}."
+                f"Invalid role '{role}'. Must be one of {list(FieldPermissionsRoleEnum.__members__.keys())}."
             )
 
     @classmethod
@@ -53,7 +53,7 @@ class FieldPermissionsHandler:
         cls,
         user: AbstractUser,
         field: Field,
-        role: FieldPermissionRoleEnum | str,
+        role: FieldPermissionsRoleEnum | str,
         allow_in_forms: bool = False,
     ) -> FieldPermissionUpdated:
         """
@@ -68,30 +68,28 @@ class FieldPermissionsHandler:
             wether the user can write values to the field, which requires computing the
             roles on the field.
         :raises: ValueError if the role provided as string is not a valid
-            FieldPermissionRoleEnum.
+            FieldPermissionsRoleEnum.
         """
 
-        if isinstance(role, FieldPermissionRoleEnum):
+        if isinstance(role, FieldPermissionsRoleEnum):
             role = role.value
         else:
             cls._check_valid_role_value_or_raise(role)
 
         CoreHandler().check_permissions(
             user,
-            AssignFieldPermissionsOperationType.type,
+            UpdateFieldPermissionsOperationType.type,
             workspace=field.table.database.workspace,
             context=field,
         )
 
-        if role == FieldPermissionRoleEnum.EDITOR.value:
+        if role == FieldPermissionsRoleEnum.EDITOR.value:
             # The default, meaning we can remove any existing permission for this field.
             FieldPermissions.objects.filter(field=field).delete()
             allow_in_forms = True
         else:
-            FieldPermissions.objects.update_or_create(
-                field=field,
-                defaults={"role": role, "allow_in_forms": allow_in_forms},
-            )
+            defaults = {"role": role, "allow_in_forms": allow_in_forms}
+            FieldPermissions.objects.update_or_create(field=field, defaults=defaults)
 
         manager = permission_manager_type_registry.get(FieldPermissionManagerType.type)
         local_cache.clear()
@@ -102,7 +100,12 @@ class FieldPermissionsHandler:
         user_can_write_values = field.id not in can_write_values_policy["exceptions"]
 
         field_permissions_updated.send(
-            cls, user=user, workspace=field.table.database.workspace
+            cls,
+            user=user,
+            workspace=field.table.database.workspace,
+            field=field,
+            role=role,
+            allow_in_forms=allow_in_forms,
         )
 
         return FieldPermissionUpdated(
@@ -114,7 +117,7 @@ class FieldPermissionsHandler:
         )
 
     @classmethod
-    def get_field_permissions(cls, user, field: Field) -> FieldPermissions:
+    def _get_field_permissions(cls, field: Field) -> FieldPermissions:
         """
         Retrieves the permissions for a given field. If none exist, default
         permissions are returned, allowing EDITOR role and enabling the field
@@ -129,6 +132,28 @@ class FieldPermissionsHandler:
         regardless of other permissions. Useful for fields editable in forms
         but not in table views.
 
+        :param field: The field for which permissions are retrieved.
+        :return: The field's permissions.
+        """
+
+        try:
+            field_permissions = FieldPermissions.objects.get(field=field)
+        except FieldPermissions.DoesNotExist:
+            # Default permissions if none exist
+            field_permissions = FieldPermissions(
+                field=field,
+                role=FieldPermissionsRoleEnum.EDITOR.value,
+                allow_in_forms=True,
+            )
+
+        return field_permissions
+
+    @classmethod
+    def get_field_permissions(cls, user, field: Field) -> FieldPermissions:
+        """
+        Check permissions for the user and retrieves the field permissions.
+        See _get_field_permissions for more details.
+
         :param user: The user requesting the field permissions.
         :param field: The field for which permissions are retrieved.
         :return: The field's permissions.
@@ -141,14 +166,4 @@ class FieldPermissionsHandler:
             context=field,
         )
 
-        try:
-            field_permissions = FieldPermissions.objects.get(field=field)
-        except FieldPermissions.DoesNotExist:
-            # Default permissions if none exist
-            field_permissions = FieldPermissions(
-                field=field,
-                role=FieldPermissionRoleEnum.EDITOR.value,
-                allow_in_forms=True,
-            )
-
-        return field_permissions
+        return cls._get_field_permissions(field)

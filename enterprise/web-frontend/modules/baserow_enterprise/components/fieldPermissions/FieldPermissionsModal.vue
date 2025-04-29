@@ -90,11 +90,6 @@ export default {
     }
   },
   computed: {
-    workspacePermissions() {
-      return this.$store.getters['workspace/getAllPermissions'](
-        this.workspaceId
-      )
-    },
     isLinkRowFieldType() {
       return this.field.type === 'link_row'
     },
@@ -108,6 +103,12 @@ export default {
         this.init()
       },
     },
+  },
+  mounted() {
+    this.$bus.$on('field-permissions-updated', this.forceUpdate)
+  },
+  beforeDestroy() {
+    this.$bus.$off('field-permissions-updated', this.forceUpdate)
   },
   methods: {
     /*
@@ -170,6 +171,17 @@ export default {
     /* Update the allow_in_forms property. */
     async toggleAllowInForms(allowInForms) {
       await this.update({ role: this.role, allowInForms })
+    },
+    /*
+     * Forcefully refresh the field permission data. This is triggered when updates
+     * are received via websockets to ensure real-time synchronization.
+     */
+    forceUpdate({ fieldId, role, allowInForms }) {
+      if (fieldId !== this.field.id) {
+        return
+      }
+      this.role = role
+      this.allowInForms = allowInForms
     },
   },
 }

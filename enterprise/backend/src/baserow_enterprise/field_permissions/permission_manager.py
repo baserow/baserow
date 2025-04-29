@@ -1,6 +1,6 @@
 from collections import defaultdict
 from functools import partial
-from typing import Dict, List, Optional, TypedDict
+from typing import Dict, List, Literal, Optional, TypedDict
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Exists, OuterRef, QuerySet
@@ -28,17 +28,16 @@ from baserow_enterprise.role.constants import (
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
-from .models import FieldPermissionRoleEnum, FieldPermissions
+from .models import FieldPermissions, FieldPermissionsRoleEnum
 
 ALLOWED_ROLES_MAP = {
-    FieldPermissionRoleEnum.EDITOR.value: {
+    FieldPermissionsRoleEnum.ADMIN.value: {ADMIN_ROLE_UID},
+    FieldPermissionsRoleEnum.BUILDER.value: {BUILDER_ROLE_UID, ADMIN_ROLE_UID},
+    FieldPermissionsRoleEnum.EDITOR.value: {
         EDITOR_ROLE_UID,
         BUILDER_ROLE_UID,
         ADMIN_ROLE_UID,
     },
-    FieldPermissionRoleEnum.BUILDER.value: {BUILDER_ROLE_UID, ADMIN_ROLE_UID},
-    FieldPermissionRoleEnum.ADMIN.value: {ADMIN_ROLE_UID},
-    FieldPermissionRoleEnum.NOBODY.value: set(),
 }
 
 
@@ -112,10 +111,10 @@ class FieldPermissionManagerType(PermissionManagerType):
 
             # WriteFieldValuesOperationType
             required_role = field_perm.role
-            if required_role == FieldPermissionRoleEnum.NOBODY.value:
+            if required_role == FieldPermissionsRoleEnum.NOBODY.value:
                 result[check] = PermissionDenied()
                 continue
-            elif required_role == FieldPermissionRoleEnum.CUSTOM.value:
+            elif required_role == FieldPermissionsRoleEnum.CUSTOM.value:
                 continue  # TODO: implement the check here for CUSTOM_ROLE_UID
             else:
                 # check actor role and permissions later
@@ -185,13 +184,15 @@ class FieldPermissionManagerType(PermissionManagerType):
         return result
 
     def _is_operation_allowed(
-        self, computed_roles: List[Role], required_role: FieldPermissionRoleEnum
+        self,
+        computed_roles: List[Role],
+        required_role: Literal["ADMIN", "BUILDER", "EDITOR"],
     ) -> bool:
         """
         Given a required role for the operation and a list of computed roles for an
         actor, verify the actor have the required permissions to perform the operation.
 
-        :param computed_roles: The list of computed roles for the actor.
+        :param computed_roles: The list of computed RBAC roles for the actor.
         :param required_role: The required role for the operation.
         :return: True if the actor has the required permissions, False otherwise.
         """
@@ -276,9 +277,9 @@ class FieldPermissionManagerType(PermissionManagerType):
             if not field_perm.allow_in_forms:
                 can_submit_values_exceptions.add(field_perm.field_id)
 
-            if field_perm.role == FieldPermissionRoleEnum.NOBODY.value:
+            if field_perm.role == FieldPermissionsRoleEnum.NOBODY.value:
                 can_write_values_exceptions.add(field_perm.field_id)
-            elif field_perm.role == FieldPermissionRoleEnum.CUSTOM.value:
+            elif field_perm.role == FieldPermissionsRoleEnum.CUSTOM.value:
                 # TODO: implement the check here.
                 continue
             else:

@@ -1,8 +1,8 @@
 from baserow.contrib.database.fields.operations import FieldOperationType
 
 
-class AssignFieldPermissionsOperationType(FieldOperationType):
-    type = "database.table.field.assign_permissions"
+class UpdateFieldPermissionsOperationType(FieldOperationType):
+    type = "database.table.field.update_permissions"
 
 
 class ReadFieldPermissionsOperationType(FieldOperationType):
