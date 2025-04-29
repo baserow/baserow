@@ -76,7 +76,9 @@
         "automations": "Automatisations",
         "automationDefaultName": "Automatisation sans nom",
         "automation": "Automatisation",
-        "automationDesc": "Automatiser les tâches répétitives et les processus."
+        "automationDesc": "Automatiser les tâches répétitives et les processus.",
+        "cantSelectAutomationWorkflowTitle": "Impossible de sélectionner l'automatisation.",
+        "cantSelectAutomationWorkflowDescription": "L'automatisation n'a pas pu être sélectionnée car elle n'a pas de scénario. Utilisez la barre latérale pour en créer un."
     },
     "settingType": {
         "account": "Informations personnelles",
