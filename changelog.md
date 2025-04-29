@@ -1,5 +1,64 @@
 # Changelog
 
+## Released 1.33.0
+
+### New features
+* [Database] Handle UniquePrimaryPropertyNotFound gracefully. [#3430](https://gitlab.com/baserow/baserow/-/issues/3430)
+* [Database] Add support for list filtering on link_row_has filter type. [#3478](https://gitlab.com/baserow/baserow/-/issues/3478)
+* [Database] Support default values for Boolean and Number fields [#2173](https://gitlab.com/baserow/baserow/-/issues/2173)
+* [Builder] Add a file input element to upload files [#2188](https://gitlab.com/baserow/baserow/-/issues/2188)
+* [Database] Install template during onboarding [#2638](https://gitlab.com/baserow/baserow/-/issues/2638)
+* [Builder] Add rating element, collection rating field and rating input field. [#2765](https://gitlab.com/baserow/baserow/-/issues/2765)
+* [Database] Add field level permisions. [#3189](https://gitlab.com/baserow/baserow/-/issues/3189)
+* [Database] Trigger webhooks when linked row values change in related tables. [#3267](https://gitlab.com/baserow/baserow/-/issues/3267)
+* [Builder] Add support for list type values for query parameters. [#3433](https://gitlab.com/baserow/baserow/-/issues/3433)
+* [Builder] Add "Made with Baserow" label to bottom of the pages. [#3464](https://gitlab.com/baserow/baserow/-/issues/3464)
+* [Database] Introduced MCP server. [#3556](https://gitlab.com/baserow/baserow/-/issues/3556)
+* [Database] Introduce `exclude_count` API param to avoid counting rows when paginating data [#3560](https://gitlab.com/baserow/baserow/-/issues/3560)
+* [Database] Optionally limit the number of relationships of a link to table field. [#403](https://gitlab.com/baserow/baserow/-/issues/403)
+* [Core] Introduced step-by-step guided tour after creating an account.
+
+### Bug fixes
+* [Database] When grid is sorted, pasting values at the end of the grid will populate new rows instead of changing existing ones. [#1788](https://gitlab.com/baserow/baserow/-/issues/1788)
+* [Database] Allow import GBs of data from Airtable. [#2712](https://gitlab.com/baserow/baserow/-/issues/2712)
+* fixed asgi race condition when accessing auth.User.profile - do not expire model's Meta cache [#3346](https://gitlab.com/baserow/baserow/-/issues/3346)
+* [Database] Fix date_is_within for dates in the past and adds more operators [#3366](https://gitlab.com/baserow/baserow/-/issues/3366)
+* [Builder] Fix "number" validation for handling of decimal numbers with using comma or dot as decimal separator [#3408](https://gitlab.com/baserow/baserow/-/issues/3408)
+* [Builder] Resolved an issue which caused table element actions to disappear when it was duplicated. [#3521](https://gitlab.com/baserow/baserow/-/issues/3521)
+* [Database] Reduce deadlocks on rows endpoints [#3545](https://gitlab.com/baserow/baserow/-/issues/3545)
+* [Builder] Resolved an issue which prevented pages with incomplete table element fields from being published properly. [#3547](https://gitlab.com/baserow/baserow/-/issues/3547)
+* [Database] Fix an issue when converting from Quill to Markdown during Airtable import. [#3561](https://gitlab.com/baserow/baserow/-/issues/3561)
+* [Database] Set empty value on cell(s) clear for text field with default value [#3568](https://gitlab.com/baserow/baserow/-/issues/3568)
+* [Database] Fix export crash caused by formula fields with Invalid number and 0 decimal precision [#3573](https://gitlab.com/baserow/baserow/-/issues/3573)
+* [Builder] Add `thisCalendarMonth` and `thisCalendarWeek` Airtable import filters.
+* [Builder] Fixes the Airtable file import if not signed urls are in the payload.
+* [Builder] Fix bug when deleting a duplicated menu element was deleting the initial actions
+* [Database] Fix bug where it was not possible to create a row in an empty table with a group.
+* [Database] Fix bug where the error page of a table not found page fails hard.
+* [Database] Fixes validation error when a select option is added.
+* [Database] Fixed bug where the backend fails hard if the filter value exceeds 255 characters.
+* [Dashboard] Fix form validation issue when table changes
+* [Database] Fix read_only field attributes for imported fields.
+* [Builder] Resolved an issue which prevented logged-out users from previewing certain application templates
+* [Builder] Resolved a create row workflow action error which presented itself when an invalid value was provided to a date field.
+
+### Refactors
+* [Dashboard] Move chart widget with its service to premium tier [#3544](https://gitlab.com/baserow/baserow/-/issues/3544)
+* [Core] Implemented small styling changes for the collapsing of the left sidebar.
+* [Core] Improve paid features modal by listing all the features.
+* [Core] Redesigned the left sidebar of the modal.
+* [Core] Reduce number of queries when fetching applications with RBAC.
+* [Database] Updated form view styling.
+* [Database] Updated gallery view styling.
+* [Database] Updated grid view styling.
+* [Database] Updated kanban view styling.
+* [Database] Updated the header styling to match the latest Figma designs.
+* [Core] Workspace template IDs query performance improvement.
+
+### Breaking API changes
+* [Database] Pagination now returns an empty list instead of "ERROR_INVALID_PAGE" when the page exceeds the maximum. [#3560](https://gitlab.com/baserow/baserow/-/issues/3560)
+
+
 ## Released 1.32.5
 
 ### Bug fixes
