@@ -227,14 +227,17 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         is permitted, False operation is disallowed and return `None` if it can't take
         a definitive answer.
 
-        If None of the permission manager replied with a final answer for a check,
+        If None of the permission managers replied with a final answer for a check,
         the operation is denied by default for this check.
 
-        :param checks: The list of check to do. Each check is a triplet of
+        :param checks: The list of checks to do. Each check is a triplet of
             (actor, permission_name, scope).
         :param workspace: The optional workspace in which the operations take place.
-        :param include_trash: If true then also checks if the given workspace has been
+        :param include_trash: If true, then also checks if the given workspace has been
             trashed instead of raising a DoesNotExist exception.
+        :param return_permissions_exceptions: Raise an exception when the permission is
+            disallowed when `True`. Return `False` instead when `False`.
+            `False` by default.
         :return: A dictionary with one entry for each check of the parameter as key and
             whether the operation is allowed or not as value.
         """

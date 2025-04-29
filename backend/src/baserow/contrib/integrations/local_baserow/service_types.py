@@ -116,6 +116,7 @@ from baserow.core.services.types import (
     ServiceSortDictSubClass,
     ServiceSubClass,
 )
+from baserow.core.types import PermissionCheck
 from baserow.core.utils import atomic_if_not_already
 
 if TYPE_CHECKING:
@@ -2262,22 +2263,32 @@ class LocalBaserowUpsertRowServiceType(
             enabled=True
         )
 
+        # Track the field<->mapping relationship.
+        context_map = {fm.field: fm for fm in field_mappings}
+
+        # Perform a bulk permission check on each field-mapping field.
+        permission_check_results = CoreHandler().check_multiple_permissions(
+            [
+                PermissionCheck(
+                    service.integration.authorized_user,
+                    WriteFieldValuesOperationType.type,
+                    fm.field,
+                )
+                for fm in field_mappings
+            ],
+            workspace=service.integration.application.workspace,
+        )
+
         # Only iterate over field mappings which we know our authorized user is
         # allowed to write values to. Writable doesn't refer to the field type being
         # writable, but rather if the authorized user has the correct permission.
-        writable_field_mappings = [
-            field_mapping
-            for field_mapping in field_mappings
-            if CoreHandler().check_permissions(
-                service.integration.authorized_user,
-                WriteFieldValuesOperationType.type,
-                workspace=service.integration.application.workspace,
-                context=field_mapping.field,
-                raise_permission_exceptions=False,
-            )
+        authorized_user_writable_field_mappings = [
+            context_map[check.context]
+            for check, check_result in permission_check_results.items()
+            if check_result
         ]
 
-        for field_mapping in writable_field_mappings:
+        for field_mapping in authorized_user_writable_field_mappings:
             if field_mapping.id not in resolved_values:
                 continue
 
