@@ -1,7 +1,7 @@
 <template>
   <div class="automation-app">
     <AutomationHeader :automation="automation" />
-    <div class="layout__col-2-2 automation-app__content">
+    <div class="layout__col-2-2 automation-workflow__content">
       <client-only>
         <VueFlow
           :nodes="nodes"
@@ -13,7 +13,8 @@
           :pan-on-scroll="panOnScroll"
           :zoom-on-double-click="zoomOnDoubleClick"
         >
-          <template #node-baserow="slotProps">
+          <Background pattern-color="#ededed" size="3" gap="15" />
+          <template #node-baserow-node="slotProps">
             <BaserowNode
               :id="slotProps.id"
               :label="slotProps.label"
@@ -23,8 +24,8 @@
             />
           </template>
 
-          <template #node-add="slotProps">
-            <BaserowAddNode
+          <template #node-add-button="slotProps">
+            <BaserowAddButtonNode
               :id="slotProps.id"
               :label="slotProps.label"
               :selected="slotProps.selected"
@@ -34,7 +35,7 @@
             />
           </template>
 
-          <template #edge-baserow="slotProps">
+          <template #edge-baserow-edge="slotProps">
             <BaserowEdge
               :id="slotProps.id"
               :source-x="slotProps.sourceX"
@@ -52,14 +53,15 @@
 <script>
 import AutomationHeader from '@baserow/modules/automation/components/AutomationHeader'
 import BaserowNode from '@baserow/modules/automation/components/workflow/BaserowNode.vue'
-import BaserowAddNode from '@baserow/modules/automation/components/workflow/BaserowAddNode.vue'
+import BaserowAddButtonNode from '@baserow/modules/automation/components/workflow/BaserowAddButtonNode.vue'
 import BaserowEdge from '@baserow/modules/automation/components/workflow/BaserowEdge.vue'
 import { ref } from 'vue'
-import { initialEdges, initialNodes } from './initial-elements.js'
+import { initialEdges, initialNodes } from './initial-nodes-edges.js'
 import {
   VueFlow,
   useVueFlow,
 } from '@baserow/modules/automation/components/workflow/@vue-flow/core'
+import { Background } from '@baserow/modules/automation/components/workflow/@vue-flow/background'
 
 export default {
   name: 'AutomationWorkflow',
@@ -68,7 +70,8 @@ export default {
     VueFlow,
     BaserowNode,
     BaserowEdge,
-    BaserowAddNode,
+    BaserowAddButtonNode,
+    Background,
   },
   provide() {
     return {
@@ -89,7 +92,7 @@ export default {
     const zoomOnDoubleClick = ref(false)
 
     onInit((vueFlowInstance) => {
-      vueFlowInstance.fitView({ maxZoom: 1, minZoom: 1 })
+      vueFlowInstance.fitView({ maxZoom: 1, minZoom: 0.5 })
     })
 
     onConnect((connection) => {
@@ -122,7 +125,7 @@ export default {
       const newNode = {
         id: newNodeId,
         label: 'New node',
-        type: 'baserow',
+        type: 'baserow-node',
         position: { x: 0, y: newNodeY },
       }
 
@@ -131,7 +134,7 @@ export default {
       const newAddNode = {
         id: newAddNodeId,
         label: '',
-        type: 'add',
+        type: 'add-button',
         position: { x: 190, y: newNodeY + 92 },
       }
 
@@ -152,14 +155,14 @@ export default {
           id: `e${addNodeId}-${newNodeId}`,
           source: addNodeId,
           target: newNodeId,
-          type: 'baserow',
+          type: 'baserow-edge',
         },
         // Edge from new baserow node to new add node
         {
           id: `e${newNodeId}-${newAddNodeId}`,
           source: newNodeId,
           target: newAddNodeId,
-          type: 'baserow',
+          type: 'baserow-edge',
         },
       ]
 
@@ -174,7 +177,7 @@ export default {
           id: `e${newAddNodeId}-${nextNodeId}`,
           source: newAddNodeId,
           target: nextNodeId,
-          type: 'baserow',
+          type: 'baserow-edge',
         })
 
         // Remove the original edge between clicked add node and next node

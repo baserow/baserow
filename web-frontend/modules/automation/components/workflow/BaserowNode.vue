@@ -1,5 +1,5 @@
 <template>
-  <div class="baserow-node">{{ label }} {{ id }}</div>
+  <div class="baserow-node">{{ label }} ID: {{ id }}</div>
 </template>
 
 <script setup>

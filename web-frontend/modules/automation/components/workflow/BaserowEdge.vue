@@ -36,7 +36,7 @@
 
 <script setup>
 import { getBezierPath } from '@baserow/modules/automation/components/workflow/@vue-flow/core/components/Edges/utils'
-import { onMounted, computed } from 'vue'
+import { computed } from 'vue'
 
 const Position = {
   Top: 'top',
@@ -83,12 +83,5 @@ const path = computed(() => {
     targetPosition: props.targetPosition || Position.Top,
   })
   return pathValue
-})
-
-onMounted(() => {
-  console.log('sourceX', props.sourceX)
-  console.log('sourceY', props.sourceY)
-  console.log('targetX', props.targetX)
-  console.log('targetY', props.targetY)
 })
 </script>
