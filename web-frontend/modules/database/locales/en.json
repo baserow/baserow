@@ -635,7 +635,8 @@
     "duplicate": "Duplicate field",
     "sortField": "Sort",
     "hideField": "Hide field",
-    "dataSyncField": "The field is read only and part of the table's data sync."
+    "dataSyncField": "The field is read only and part of the table's data sync.",
+    "noWriteValues": "Changes to this field are restricted."
   },
   "gridViewRow": {
     "rowNotMatchingFilters": "Row does not match filters",
