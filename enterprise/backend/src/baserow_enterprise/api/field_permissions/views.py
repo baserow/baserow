@@ -13,11 +13,14 @@ from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.schemas import get_error_schema
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
 from baserow.contrib.database.fields.handler import FieldDoesNotExist, FieldHandler
-from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import ReadFieldOperationType
+from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow_enterprise.features import FIELD_LEVEL_PERMISSIONS
+from baserow_enterprise.field_permissions.actions import (
+    UpdateFieldPermissionsActionType,
+)
 from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
 
 from .serializers import (
@@ -70,9 +73,8 @@ class FieldPermissionsView(APIView):
         field.
         """
 
-        field = FieldHandler().get_field(
-            field_id, base_queryset=Field.objects.select_for_update(of=("self",))
-        )
+        action_type = action_type_registry.get_by_type(UpdateFieldPermissionsActionType)
+        field = action_type.get_field_for_update(field_id)
         workspace = field.table.database.workspace
         LicenseHandler.raise_if_user_doesnt_have_feature(
             FIELD_LEVEL_PERMISSIONS, request.user, workspace
@@ -80,9 +82,7 @@ class FieldPermissionsView(APIView):
 
         role = data["role"]
         allow_in_forms = data.get("allow_in_forms", False)
-        updated_permissions = FieldPermissionsHandler.update_field_permissions(
-            request.user, field, role, allow_in_forms
-        )
+        updated_permissions = action_type.do(request.user, field, role, allow_in_forms)
         serializer = UpdateFieldPermissionsResponseSerializer(
             {
                 "field_id": field.id,

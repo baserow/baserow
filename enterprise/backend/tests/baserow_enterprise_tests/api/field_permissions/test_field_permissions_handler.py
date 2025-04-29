@@ -12,7 +12,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
-from baserow_enterprise.field_permissions.models import FieldPermissionRoleEnum
+from baserow_enterprise.field_permissions.models import FieldPermissionsRoleEnum
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -114,11 +114,21 @@ def test_update_field_permissions_send_permissions_updated_signal(
         assert mocked_signal.call_count == 1
         assert mocked_signal.call_args[1]["user"] == user
         assert mocked_signal.call_args[1]["workspace"] == database.workspace
+        assert mocked_signal.call_args[1]["field"] == field
+        assert mocked_signal.call_args[1]["role"] == "ADMIN"
+        assert mocked_signal.call_args[1]["allow_in_forms"] is True
 
     with patch("baserow.ws.tasks.broadcast_to_users.delay") as mocked_task:
         FieldPermissionsHandler.update_field_permissions(user, field, "NOBODY", True)
         assert mocked_task.call_count == 1
         assert mocked_task.call_args[0][0] == unordered([user.id, test_user.id])
+        assert mocked_task.call_args[0][1] == {
+            "type": "field_permissions_updated",
+            "workspace_id": database.workspace.id,
+            "field_id": field.id,
+            "role": "NOBODY",
+            "allow_in_forms": True,
+        }
 
 
 @pytest.mark.django_db
@@ -192,7 +202,7 @@ def test_cannot_create_or_update_rows_without_proper_permisisons(
 
     # BUILDER and up can edit the field
     FieldPermissionsHandler.update_field_permissions(
-        user, text_field, FieldPermissionRoleEnum.BUILDER
+        user, text_field, FieldPermissionsRoleEnum.BUILDER
     )
 
     # cannot edit/create rows with the text_field

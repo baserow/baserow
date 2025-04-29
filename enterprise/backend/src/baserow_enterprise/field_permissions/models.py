@@ -5,7 +5,7 @@ from django.db import models
 from baserow.core.mixins import CreatedAndUpdatedOnMixin
 
 
-class FieldPermissionRoleEnum(Enum):
+class FieldPermissionsRoleEnum(Enum):
     EDITOR = "EDITOR"
     BUILDER = "BUILDER"
     ADMIN = "ADMIN"
@@ -34,10 +34,10 @@ class FieldPermissions(CreatedAndUpdatedOnMixin):
             "will be set to EDITOR. "
         ),
         choices=[
-            (FieldPermissionRoleEnum.BUILDER.value, "Builder"),
-            (FieldPermissionRoleEnum.ADMIN.value, "Admin"),
-            (FieldPermissionRoleEnum.CUSTOM.value, "Custom"),
-            (FieldPermissionRoleEnum.NOBODY.value, "Nobody"),
+            (FieldPermissionsRoleEnum.BUILDER.value, "Builder"),
+            (FieldPermissionsRoleEnum.ADMIN.value, "Admin"),
+            (FieldPermissionsRoleEnum.CUSTOM.value, "Custom"),
+            (FieldPermissionsRoleEnum.NOBODY.value, "Nobody"),
         ],
     )
     allow_in_forms = models.BooleanField(
