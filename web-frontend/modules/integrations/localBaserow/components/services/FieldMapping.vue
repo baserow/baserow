@@ -17,10 +17,6 @@ export default {
       type: Object,
       required: true,
     },
-    canWriteFieldValues: {
-      type: Boolean,
-      required: true,
-    },
   },
   computed: {
     fieldValue: {
@@ -28,7 +24,7 @@ export default {
         return this.fieldMapping.value
       },
       set(value) {
-        this.$emit('change', { value: this.canWriteFieldValues ? value : '' })
+        this.$emit('change', { value })
       },
     },
   },

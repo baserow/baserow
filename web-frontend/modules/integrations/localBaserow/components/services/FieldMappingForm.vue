@@ -4,22 +4,16 @@
       v-for="field in filteredFields"
       :key="field.id"
       small-label
-      :error-message="
-        protectedFieldMappingHasValue(field)
-          ? $t('upsertRowWorkflowActionForm.fieldMappingFieldProtected')
-          : ''
-      "
       :label="field.name"
       required
       class="margin-bottom-2"
     >
       <FieldMapping
         :field-mapping="field.mapping"
-        :can-write-field-values="field.canWriteValues"
         :placeholder="$t('upsertRowWorkflowActionForm.fieldMappingPlaceholder')"
         @change="updateFieldMapping(field.id, $event)"
       />
-      <template v-if="field.canWriteValues" #after-input>
+      <template #after-input>
         <div :ref="`editFieldMappingOpener-${field.id}`">
           <ButtonIcon
             type="secondary"
@@ -61,14 +55,8 @@ export default {
         .map((field) => ({
           ...field,
           mapping: this.getFieldMapping(field.id),
-          canWriteValues: this.canWriteFieldValues(field),
         }))
-        .filter((field) => {
-          return (
-            this.canWriteFieldValues(field) ||
-            this.protectedFieldMappingHasValue(field)
-          )
-        })
+        .filter((field) => this.canWriteFieldValues(field))
     },
   },
   methods: {
@@ -86,9 +74,6 @@ export default {
         field,
         this.workspace.id
       )
-    },
-    protectedFieldMappingHasValue(field) {
-      return !this.canWriteFieldValues(field) && field.mapping.value.length > 0
     },
     getFieldMapping(fieldId) {
       return (
