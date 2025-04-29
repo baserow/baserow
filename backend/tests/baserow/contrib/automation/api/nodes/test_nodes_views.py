@@ -14,6 +14,7 @@ API_URL_BASE = "api:automation:nodes"
 API_URL_LIST = f"{API_URL_BASE}:list"
 API_URL_ITEM = f"{API_URL_BASE}:item"
 API_URL_ORDER = f"{API_URL_BASE}:order"
+API_URL_DUPLICATE = f"{API_URL_BASE}:duplicate"
 API_URL_UNDO = "api:user:undo"
 API_URL_REDO = "api:user:redo"
 
@@ -292,3 +293,64 @@ def test_delete_node_undo_redo(api_client, data_fixture):
     response = api_client.patch(reverse(API_URL_REDO), payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert workflow.automation_workflow_nodes.count() == 0
+
+
+@pytest.mark.django_db
+def test_duplicate_node(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    assert workflow.automation_workflow_nodes.count() == 1
+
+    api_kwargs = get_api_kwargs(token)
+    duplicate_url = reverse(API_URL_DUPLICATE, kwargs={"node_id": node.id})
+    response = api_client.post(duplicate_url, **api_kwargs)
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    assert workflow.automation_workflow_nodes.count() == 2
+
+
+@pytest.mark.django_db
+def test_duplicate_node_invalid_node(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+
+    api_kwargs = get_api_kwargs(token)
+    duplicate_url = reverse(API_URL_DUPLICATE, kwargs={"node_id": 100})
+    response = api_client.post(duplicate_url, **api_kwargs)
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json() == {
+        "detail": "The requested node does not exist.",
+        "error": "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
+    }
+
+
+@pytest.mark.django_db
+def test_duplicate_node_undo_redo(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    api_kwargs = get_api_kwargs(token)
+    duplicate_url = reverse(API_URL_DUPLICATE, kwargs={"node_id": node.id})
+    response = api_client.post(duplicate_url, **api_kwargs)
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    assert workflow.automation_workflow_nodes.count() == 2
+
+    payload = {
+        "scopes": {
+            "workspace": workflow.automation.workspace.id,
+            "application": workflow.automation.id,
+            "root": True,
+            "workflow": workflow.id,
+        },
+    }
+    response = api_client.patch(reverse(API_URL_UNDO), payload, **api_kwargs)
+    assert response.status_code == HTTP_200_OK
+    assert workflow.automation_workflow_nodes.count() == 1
+
+    response = api_client.patch(reverse(API_URL_REDO), payload, **api_kwargs)
+    assert response.status_code == HTTP_200_OK
+    assert workflow.automation_workflow_nodes.count() == 2
