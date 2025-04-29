@@ -3269,6 +3269,9 @@ class LinkRowFieldType(
             "link_row_limit_selection_view_id"
         ] = field.link_row_limit_selection_view_id
         serialized["has_related_field"] = field.link_row_table_has_related_field
+        serialized[
+            "link_row_multiple_relationships"
+        ] = field.link_row_multiple_relationships
         return serialized
 
     def import_serialized(

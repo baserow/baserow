@@ -3249,3 +3249,36 @@ def test_link_row_field_type_update_row_no_multiple_relationships(
                 f"field_{link_row_field.id}": [customers_row_1.id, customers_row_2.id]
             },
         )
+
+
+@pytest.mark.django_db
+def test_duplicate_link_row_no_multiple_relationships(data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    example_table = data_fixture.create_database_table(
+        name="Example", database=database
+    )
+    customers_table = data_fixture.create_database_table(
+        name="Customers", database=database
+    )
+    data_fixture.create_text_field(name="Name", table=example_table, primary=True)
+    customers_primary = data_fixture.create_text_field(
+        name="Customer name", table=customers_table, primary=True
+    )
+
+    field_handler = FieldHandler()
+    row_handler = RowHandler()
+
+    link_row_field = field_handler.create_field(
+        user=user,
+        table=example_table,
+        name="Link Row",
+        type_name="link_row",
+        link_row_table=customers_table,
+        link_row_multiple_relationships=False,
+    )
+
+    dup_field, _ = field_handler.duplicate_field(
+        field=link_row_field, user=user, duplicate_data=True
+    )
+    assert dup_field.link_row_multiple_relationships is False
