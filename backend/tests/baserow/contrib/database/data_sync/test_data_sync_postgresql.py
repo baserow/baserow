@@ -8,7 +8,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 import pytest
-from rest_framework.status import HTTP_200_OK
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
@@ -836,3 +836,41 @@ def test_update_data_sync_table_changing_table_with_different_primary_key(
     assert getattr(rows[0], f"field_{fields[0].id}") == Decimal("1")
     assert getattr(rows[1], f"field_{fields[0].id}") == Decimal("2")
     assert getattr(rows[2], f"field_{fields[0].id}") == Decimal("3")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_data_sync_via_api_without_a_primary_property(
+    data_fixture, api_client, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            CREATE TABLE {create_postgresql_test_table}_3 (id integer)
+            """
+        )
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "postgresql",
+            "synced_properties": ["id"],
+            "postgresql_host": default_database["HOST"],
+            "postgresql_username": default_database["USER"],
+            "postgresql_password": default_database["PASSWORD"],
+            "postgresql_port": default_database["PORT"],
+            "postgresql_database": default_database["NAME"],
+            "postgresql_table": create_postgresql_test_table + "_3",
+            "postgresql_sslmode": default_database["OPTIONS"].get("sslmode", "prefer"),
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_UNIQUE_PRIMARY_PROPERTY_NOT_FOUND"

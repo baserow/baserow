@@ -47,7 +47,7 @@ import { mapGetters } from 'vuex'
 export default {
   name: 'PageElement',
   mixins: [applicationContextMixin],
-  inject: ['builder', 'mode', 'currentPage'],
+  inject: ['workspace', 'builder', 'mode', 'currentPage'],
   provide() {
     return { mode: this.elementMode, elementPage: this.elementPage }
   },
@@ -105,6 +105,7 @@ export default {
     isVisible() {
       const elementType = this.$registry.get('element', this.element.type)
       const isInError = elementType.isInError({
+        workspace: this.workspace,
         page: this.elementPage,
         element: this.element,
         builder: this.builder,

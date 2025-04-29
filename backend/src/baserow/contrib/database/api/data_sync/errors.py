@@ -20,3 +20,9 @@ ERROR_SYNC_ERROR = (
     HTTP_400_BAD_REQUEST,
     "{e}",
 )
+ERROR_UNIQUE_PRIMARY_PROPERTY_NOT_FOUND = (
+    "ERROR_UNIQUE_PRIMARY_PROPERTY_NOT_FOUND",
+    HTTP_400_BAD_REQUEST,
+    "The configured data sync does not have a unique primary column to identify the "
+    "row.",
+)

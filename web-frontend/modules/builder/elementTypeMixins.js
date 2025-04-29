@@ -35,7 +35,7 @@ export const ContainerElementTypeMixin = (Base) =>
      * A Container element without any child elements is invalid. Return true
      * if there are no children, otherwise return false.
      */
-    isInError({ page, element, builder }) {
+    isInError({ workspace, page, element, builder }) {
       const children = this.app.store.getters['element/getChildren'](
         page,
         element
@@ -46,7 +46,12 @@ export const ContainerElementTypeMixin = (Base) =>
         return true
       }
 
-      return super.isInError({ page, element, builder })
+      return super.isInError({
+        workspace,
+        page,
+        element,
+        builder,
+      })
     }
   }
 
@@ -292,7 +297,7 @@ export const CollectionElementTypeMixin = (Base) =>
      * @param {Object} builder - The builder
      * @returns {Boolean} - Whether the element is in error.
      */
-    isInError({ page, element, builder }) {
+    isInError({ workspace, page, element, builder }) {
       // We get all parents with a valid data_source_id
       const collectionAncestorsWithDataSource = this.app.store.getters[
         'element/getAncestors'
@@ -336,7 +341,12 @@ export const CollectionElementTypeMixin = (Base) =>
         return true
       }
 
-      return super.isInError({ page, element, builder })
+      return super.isInError({
+        workspace,
+        page,
+        element,
+        builder,
+      })
     }
   }
 

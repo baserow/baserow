@@ -31,6 +31,9 @@ def test_create_element(element_created_mock, data_fixture, element_type):
     if element_type.is_multi_page_element:
         page = shared_page
 
+    prev_is_deactivated = element_type.is_deactivated
+    element_type.is_deactivated = lambda x: False
+
     element1 = data_fixture.create_builder_heading_element(page=page, order="1.0000")
     element3 = data_fixture.create_builder_heading_element(page=page, order="2.0000")
 
@@ -39,6 +42,8 @@ def test_create_element(element_created_mock, data_fixture, element_type):
     element = ElementService().create_element(
         user, element_type, page=page, **pytest_params
     )
+
+    element_type.is_deactivated = prev_is_deactivated
 
     last_element = Element.objects.last()
 

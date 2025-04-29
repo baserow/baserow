@@ -2206,7 +2206,11 @@ class LocalBaserowUpsertRowServiceType(
             resolved_values, service, dispatch_context
         )
 
-        field_mappings = service.field_mappings.select_related("field").all()
+        field_mappings = (
+            service.field_mappings.select_related("field")
+            .exclude(field__trashed=True)
+            .all()
+        )
         for field_mapping in field_mappings:
             dispatch_context.reset_call_stack()
             try:
@@ -2259,8 +2263,10 @@ class LocalBaserowUpsertRowServiceType(
         row_id: Optional[int] = resolved_values.get("row_id", None)
 
         row_values = {}
-        field_mappings = service.field_mappings.select_related("field").filter(
-            enabled=True
+        field_mappings = (
+            service.field_mappings.select_related("field")
+            .filter(enabled=True)
+            .exclude(field__trashed=True)
         )
 
         # Track the field<->mapping relationship.
@@ -2317,7 +2323,7 @@ class LocalBaserowUpsertRowServiceType(
                 resolved_value = serializer_field.run_validation(resolved_value)
             except (ValidationError, DRFValidationError) as exc:
                 raise ServiceImproperlyConfigured(
-                    "The result value of the formula is not valid for the "
+                    f"The result value '{str(resolved_value)}' of the formula is not valid for the "
                     f"field `{field.name} ({field.db_column})`: {str(exc)}"
                 ) from exc
 

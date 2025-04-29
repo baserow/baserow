@@ -1,6 +1,7 @@
 import mimetypes
 from typing import Any, Dict, Optional
 
+from baserow_premium.license.handler import LicenseHandler
 from rest_framework import serializers
 
 from baserow.api.exceptions import RequestBodyValidationException
@@ -15,6 +16,7 @@ from baserow.core.formula.types import BaserowFormula
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow_enterprise.builder.elements.models import AuthFormElement, FileInputElement
+from baserow_enterprise.features import BUILDER_FILE_INPUT
 
 
 class AuthFormElementType(ElementType):
@@ -229,6 +231,9 @@ class FileInputElementType(InputElementType):
         }
 
         return overrides
+
+    def is_deactivated(self, workspace) -> bool:
+        return not LicenseHandler.workspace_has_feature(BUILDER_FILE_INPUT, workspace)
 
     def get_pytest_params(self, pytest_data_fixture):
         return {

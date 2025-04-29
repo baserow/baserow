@@ -10,6 +10,7 @@ from baserow.contrib.builder.elements.element_types import (
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
     ElementNotInSamePage,
+    ElementTypeDeactivated,
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element, HeadingElement, TextElement
@@ -35,7 +36,12 @@ def test_create_element(data_fixture, element_type):
     if element_type.is_multi_page_element:
         page = shared_page
 
+    prev_is_deactivated = element_type.is_deactivated
+    element_type.is_deactivated = lambda x: False
+
     element = ElementHandler().create_element(element_type, page=page, **pytest_params)
+
+    element_type.is_deactivated = prev_is_deactivated
 
     assert element.page.id == page.id
 
@@ -72,6 +78,30 @@ def test_create_element_and_shared_page(data_fixture):
             page=page,
             **regular_element_type.get_pytest_params(data_fixture),
         )
+
+
+@pytest.mark.django_db
+def test_create_element_deactivated_type(data_fixture, mutable_element_type_registry):
+    page = data_fixture.create_builder_page()
+
+    regular_element_type = next(
+        filter(
+            lambda t: not t.is_multi_page_element,
+            mutable_element_type_registry.get_all(),
+        )
+    )
+
+    prev_is_deactivated = regular_element_type.is_deactivated
+    regular_element_type.is_deactivated = lambda x: True
+
+    with pytest.raises(ElementTypeDeactivated):
+        ElementHandler().create_element(
+            regular_element_type,
+            page=page,
+            **regular_element_type.get_pytest_params(data_fixture),
+        )
+
+    regular_element_type.is_deactivated = prev_is_deactivated
 
 
 @pytest.mark.django_db

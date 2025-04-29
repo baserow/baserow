@@ -22,7 +22,6 @@ from baserow.contrib.builder.api.theme.serializers import (
 )
 from baserow.contrib.builder.api.validators import image_file_validation
 from baserow.contrib.builder.data_sources.models import DataSource
-from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.domains.models import Domain
 from baserow.contrib.builder.domains.registries import domain_type_registry
 from baserow.contrib.builder.elements.models import Element
@@ -350,13 +349,7 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
         return None
 
     def get_workspace(self, obj):
-        if not obj.workspace_id:
-            domain = DomainHandler().get_domain_for_builder(obj)
-            workspace = domain.builder.workspace
-        else:
-            workspace = obj.workspace
-
-        return PublicWorkspaceSerializer(workspace).data
+        return PublicWorkspaceSerializer(obj.get_workspace()).data
 
 
 class PublicDataSourceSerializer(PublicServiceSerializer):
