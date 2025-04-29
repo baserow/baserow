@@ -196,7 +196,21 @@
         "personalViews": "Persoonlijke weergave",
         "calendarView": "Kalenderweergave",
         "aiFeatures": "AI veld",
-        "timelineView": "Tijdlijn weergave"
+        "timelineView": "Tijdlijn weergave",
+        "calendarViewContent": "Bekijk je rijen eenvoudig op een kalender met een datumveld naar keuze. Perfect om deadlines, evenementen en planningen in één oogopslag bij te houden.",
+        "timelineViewContent": "Geef rijen weer langs een horizontale tijdlijn met begin- en einddatum. Ideaal voor projectplanning en stappenplannen.",
+        "rowNotifications": "Rij meldingen",
+        "personalViewsContent": "Maak weergaven die alleen de auteur kan zien. Dit geeft je de ruimte om te experimenteren, filteren en gegevens te sorteren zonder de werkruimte voor anderen te beïnvloeden.",
+        "chartWidget": "Grafiek widget",
+        "rowCommentsContent": "Werk direct samen in je tabel. Voeg opmerkingen toe aan individuele rijen, noem teamleden en houd het gesprek in context.",
+        "surveyFormContent": "Verzamel reacties één vraag per keer met de enquêtemodus. Een vereenvoudigde versie van de formulierweergave, geoptimaliseerd voor focus en gebruiksgemak.",
+        "chartWidgetContent": "Visualiseer je gegevens met grafieken op dashboards. Gebruik elke tabel als gegevensbron, voeg meerdere reeksen toe en groepeer of sorteer op velden met uitgebreide samenvattingsopties.",
+        "publicLogoRemovalContent": "Verwijder het Baserow-logo uit openbare weergaven om je gedeelde inhoud een schoner, meer merkachtig uiterlijk te geven.",
+        "rowNotificationsContent": "Blijf op de hoogte met aanpasbare meldingen voor reacties op rijen. Kies tussen het ontvangen van meldingen voor alle opmerkingen of alleen wanneer je wordt genoemd.",
+        "rowColoringContent": "Markeer rijen met kleuren op basis van een enkel selectieveld of aangepaste voorwaarden. Dit maakt het gemakkelijker om patronen en prioriteiten te herkennen.",
+        "kanbanViewContent": "Organiseer je gegevens visueel op een Kanban-bord. Kaarten worden gegroepeerd in stapels op basis van een enkel selectieveld en je kunt ze gemakkelijk slepen en neerzetten tussen stapels.",
+        "aiFeaturesContent": "Gebruik AI om je workflows te automatiseren en te verbeteren. Met het veldtype AI prompt kun je tekst, samenvattingen of inzichten rechtstreeks in cellen genereren op basis van dynamische prompts die naar andere velden kunnen verwijzen. Los daarvan kun je AI ook vragen om formules voor je te maken.",
+        "exportsContent": "Exporteer je gegevens eenvoudig in extra formaten zoals Excel, JSON en XML, of bulk-download alle bestanden van een tabel - perfect voor back-ups, rapporten en delen met anderen."
     },
     "premiumModal": {
         "title": "Upgrade om de {name} te gebruiken",
@@ -361,5 +375,12 @@
     },
     "tableFileExporter": {
         "organizeFiles": "Groepeer bestanden bij rij ID"
+    },
+    "paidFeaturesModal": {
+        "viewPricing": "Prijzen bekijken",
+        "description": "Deze functie is beschikbaar met een {plan} abonnement. Om toegang te krijgen, moet je je account upgraden door je te abonneren. Klik op de knop hieronder om onze prijsopties te bekijken."
+    },
+    "kanbanView": {
+        "addStack": "Stapel toevoegen"
     }
 }
