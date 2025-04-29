@@ -3,7 +3,10 @@
     <header
       ref="header"
       class="layout__col-2-1 header"
-      :class="{ 'header--overflow': headerOverflow }"
+      :class="[
+        { 'header--overflow': headerOverflow },
+        getViewHeaderClassNames(view),
+      ]"
     >
       <div v-show="tableLoading" class="header__loading"></div>
       <ul v-if="!tableLoading" class="header__filter">
@@ -13,7 +16,7 @@
         <li class="header__filter-item header__filter-item--grids">
           <a
             ref="viewsSelectToggle"
-            class="header__filter-link"
+            class="header__filter-link active"
             :class="{ 'header__filter-link--disabled': views === null }"
             data-highlight="views"
             @click="views !== null && openTableViewsContext()"
@@ -470,6 +473,13 @@ export default {
     getViewHeaderComponent(view) {
       const type = this.$registry.get('view', view.type)
       return type.getHeaderComponent()
+    },
+    getViewHeaderClassNames(view) {
+      if (!this.hasSelectedView) {
+        return ''
+      }
+      const type = this.$registry.get('view', view.type)
+      return type.getHeaderClassNames(view)
     },
     getAdditionalTableHeaderComponents(view, isPublic) {
       const opts = Object.values(this.$registry.getAll('plugin'))

@@ -35,6 +35,7 @@ export const DATA_TYPE_TO_ICON_MAP = {
   date: 'iconoir-calendar',
   datetime: 'iconoir-calendar',
   array: 'iconoir-list',
+  file: 'iconoir-attachment',
 }
 
 export const UNKNOWN_DATA_TYPE_ICON = 'iconoir-question-mark'

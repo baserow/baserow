@@ -11,7 +11,7 @@
         v-if="deactivated"
         href="#"
         class="tree__link"
-        @click.prevent="$refs.enterpriseModal.show()"
+        @click.prevent="$refs.paidFeaturesModal.show()"
       >
         <i class="tree__icon iconoir-lock"></i>
         <span class="tree__link-text">{{
@@ -25,17 +25,17 @@
         }}</span>
       </a>
     </div>
-    <EnterpriseModal
-      ref="enterpriseModal"
+    <PaidFeaturesModal
+      ref="paidFeaturesModal"
       :workspace="workspace"
-      :name="$t('chatwootSupportSidebarWorkspace.directSupport')"
-    ></EnterpriseModal>
+      initial-selected-type="support"
+    ></PaidFeaturesModal>
   </li>
 </template>
 
 <script>
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 /**
  * The Chatwoot docs can be found here:
@@ -43,7 +43,7 @@ import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
  */
 export default {
   name: 'ChatwootSupportSidebarWorkspace',
-  components: { EnterpriseModal },
+  components: { PaidFeaturesModal },
   props: {
     workspace: {
       type: Object,

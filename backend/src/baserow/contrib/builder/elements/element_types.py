@@ -1,6 +1,7 @@
 import abc
 import uuid
 from datetime import datetime
+from decimal import InvalidOperation
 from typing import (
     Any,
     Callable,
@@ -101,6 +102,7 @@ from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
     ensure_integer,
+    ensure_numeric,
     ensure_string_or_integer,
 )
 from baserow.core.registry import Instance, T
@@ -813,17 +815,24 @@ class NavigationElementManager:
         overrides = {
             "navigation_type": serializers.ChoiceField(
                 choices=NavigationElementMixin.NAVIGATION_TYPES.choices,
-                help_text=LinkElement._meta.get_field("navigation_type").help_text,
+                default=NavigationElementMixin.NAVIGATION_TYPES.PAGE,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "navigation_type"
+                ).help_text,
                 required=False,
             ),
             "navigate_to_page_id": serializers.IntegerField(
                 allow_null=True,
                 default=None,
-                help_text=LinkElement._meta.get_field("navigate_to_page").help_text,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "navigate_to_page"
+                ).help_text,
                 required=False,
             ),
             "navigate_to_url": FormulaSerializerField(
-                help_text=LinkElement._meta.get_field("navigate_to_url").help_text,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "navigate_to_url"
+                ).help_text,
                 default="",
                 allow_blank=True,
                 required=False,
@@ -831,18 +840,23 @@ class NavigationElementManager:
             "page_parameters": PageParameterValueSerializer(
                 many=True,
                 default=[],
-                help_text=LinkElement._meta.get_field("page_parameters").help_text,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "page_parameters"
+                ).help_text,
                 required=False,
             ),
             "query_parameters": PageParameterValueSerializer(
                 many=True,
                 default=[],
-                help_text=LinkElement._meta.get_field("query_parameters").help_text,
+                help_text=NavigationElementMixin._meta.get_field(
+                    "query_parameters"
+                ).help_text,
                 required=False,
             ),
             "target": serializers.ChoiceField(
                 choices=NavigationElementMixin.TARGETS.choices,
-                help_text=LinkElement._meta.get_field("target").help_text,
+                default=NavigationElementMixin.TARGETS.SELF,
+                help_text=NavigationElementMixin._meta.get_field("target").help_text,
                 required=False,
             ),
         }
@@ -914,7 +928,7 @@ class NavigationElementManager:
 
             if page_parameter_type is None:
                 raise DRFValidationError(
-                    f"Page path parameter {page_parameter} does not exist."
+                    f"Page path parameter {page_parameter['name']} does not exist."
                 )
 
 
@@ -1452,7 +1466,7 @@ class InputTextElementType(InputElementType):
 
     def is_valid(
         self, element: InputTextElement, value: Any, dispatch_context: DispatchContext
-    ) -> bool:
+    ) -> Any:
         """
         :param element: The element we're trying to use form data in.
         :param value: The form data value, which may be invalid.
@@ -1465,10 +1479,10 @@ class InputTextElementType(InputElementType):
 
         elif element.validation_type == "integer":
             try:
-                value = ensure_integer(value)
-            except ValidationError as exc:
+                return ensure_numeric(value)
+            except (ValueError, TypeError, InvalidOperation, ValidationError) as exc:
                 raise FormDataProviderChunkInvalidException(
-                    f"{value} must be a valid integer."
+                    f"{value} must be a valid number."
                 ) from exc
 
         elif element.validation_type == "email":

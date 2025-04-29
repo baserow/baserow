@@ -99,9 +99,14 @@ AIRTABLE_DATE_FILTER_VALUE_MAP = {
     "pastNumberOfDays": "{timeZone}?{numberOfDays}?nr_days_ago",
     "pastWeek": "{timeZone}?1?nr_weeks_ago",
     "pastYear": "{timeZone}?1?nr_years_ago",
-    "thisCalendarYear": "{timeZone}?0?nr_years_ago",
+    "thisCalendarYear": "{timeZone}??this_year",
+    "thisCalendarMonth": "{timeZone}??this_month",
+    "thisCalendarWeek": "{timeZone}??this_week",
     "today": "{timeZone}??today",
     "tomorrow": "{timeZone}??tomorrow",
     "yesterday": "{timeZone}??yesterday",
 }
 AIRTABLE_GALLERY_VIEW_COVER_CROP_TYPE = "crop"
+
+AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH = "fetch"
+AIRTABLE_DOWNLOAD_FILE_TYPE_ATTACHMENT_ENDPOINT = "attachment_endpoint"

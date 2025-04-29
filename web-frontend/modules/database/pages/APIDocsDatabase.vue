@@ -233,10 +233,7 @@ export default {
     withoutReadOnly() {
       return Object.fromEntries(
         Object.entries(this.fields).map(([key, fields]) => {
-          return [
-            key,
-            fields.filter((field) => !field._.isReadOnly && !field.read_only),
-          ]
+          return [key, fields.filter((field) => !this.isReadOnlyField(field))]
         })
       )
     },
@@ -281,9 +278,8 @@ export default {
         responseExample: fieldType.getDocsResponseExample(field),
         fieldResponseExample: fieldType.getDocsFieldResponseExample(
           field,
-          fieldType.isReadOnly
+          fieldType.isReadOnlyField(field)
         ),
-        isReadOnly: fieldType.isReadOnly,
       }
       return field
     },
@@ -324,7 +320,7 @@ export default {
       let fieldsToLoopOver = this.fields[table.id]
       if (!response) {
         fieldsToLoopOver = fieldsToLoopOver.filter(
-          (field) => !field._.isReadOnly
+          (field) => !this.isReadOnlyField(field)
         )
       }
 
@@ -427,6 +423,12 @@ export default {
       return {
         url: 'https://baserow.io/assets/photo.png',
       }
+    },
+    /**
+     * Returns true if the field is read only.
+     */
+    isReadOnlyField(field) {
+      return this.$registry.get('field', field.type).isReadOnlyField(field)
     },
     /**
      * Generates the 'upload file via URL' URI.

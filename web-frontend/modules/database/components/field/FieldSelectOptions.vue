@@ -27,9 +27,9 @@
         <FormInput
           ref="inputs"
           v-model="item.value"
-          :error="v$.options.$each.$response?.$data[index].value.$error"
+          :error="v$.options[index].$error"
           @input="$emit('input', value)"
-          @blur="v$.options.$touch"
+          @blur="v$.options[index].$touch()"
         />
         <ButtonIcon
           tag="a"
@@ -50,7 +50,7 @@
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
-import { helpers, required } from '@vuelidate/validators'
+import { required } from '@vuelidate/validators'
 import ColorSelectContext from '@baserow/modules/core/components/ColorSelectContext'
 import { randomColor } from '@baserow/modules/core/utils/colors'
 
@@ -135,13 +135,13 @@ export default {
     },
   },
   validations() {
-    return {
-      options: {
-        $each: helpers.forEach({
-          value: { required },
-        }),
-      },
-    }
+    const validations = { options: [] }
+    this.options.forEach((option, index) => {
+      validations.options[index] = {
+        value: { required },
+      }
+    })
+    return validations
   },
 }
 </script>

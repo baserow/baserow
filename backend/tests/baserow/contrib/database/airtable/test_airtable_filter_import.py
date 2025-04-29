@@ -565,7 +565,27 @@ ALL_AIRTABLE_FILTERS_PER_TYPE = {
                 "shouldUseCorrectTimeZoneForFormulaicColumn": True,
             },
             "baserow_filter_type": "date_is_within",
-            "baserow_value": "Europe/Amsterdam?0?nr_years_ago",
+            "baserow_value": "Europe/Amsterdam??this_year",
+        },
+        {
+            "operator": "isWithin",
+            "value": {
+                "mode": "thisCalendarMonth",
+                "timeZone": "Europe/Amsterdam",
+                "shouldUseCorrectTimeZoneForFormulaicColumn": True,
+            },
+            "baserow_filter_type": "date_is_within",
+            "baserow_value": "Europe/Amsterdam??this_month",
+        },
+        {
+            "operator": "isWithin",
+            "value": {
+                "mode": "thisCalendarWeek",
+                "timeZone": "Europe/Amsterdam",
+                "shouldUseCorrectTimeZoneForFormulaicColumn": True,
+            },
+            "baserow_filter_type": "date_is_within",
+            "baserow_value": "Europe/Amsterdam??this_week",
         },
         {
             "operator": "isWithin",

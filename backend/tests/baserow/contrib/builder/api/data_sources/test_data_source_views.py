@@ -1002,7 +1002,7 @@ def test_dispatch_data_source_with_adhoc_filters(api_client, data_fixture):
 
     response = api_client.post(
         f"{url}?filters={json.dumps(advanced_filters)}",
-        {"data_source": {"element": element.id}},
+        {"metadata": {"data_source": {"element": element.id}}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1036,7 +1036,7 @@ def test_dispatch_data_source_with_adhoc_filters(api_client, data_fixture):
 
     response = api_client.post(
         f"{url}?filters={json.dumps(advanced_filters)}",
-        {"data_source": {"element": element.id}},
+        {"metadata": {"data_source": {"element": element.id}}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1101,7 +1101,7 @@ def test_dispatch_data_source_with_adhoc_sortings(api_client, data_fixture):
 
     response = api_client.post(
         f"{url}?filters={json.dumps(advanced_filters)}&order_by=-{sortable_field.db_column}",
-        {"data_source": {"element": element.id}},
+        {"metadata": {"data_source": {"element": element.id}}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1139,7 +1139,7 @@ def test_dispatch_data_source_with_adhoc_sortings(api_client, data_fixture):
 
     response = api_client.post(
         f"{url}?filters={json.dumps(advanced_filters)}&order_by=-{private_field.db_column}",
-        {"data_source": {"element": element.id}},
+        {"metadata": {"data_source": {"element": element.id}}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1200,7 +1200,7 @@ def test_dispatch_data_source_with_adhoc_search(api_client, data_fixture):
 
     response = api_client.post(
         f"{url}?search_query=Peter",
-        {"data_source": {"element": element.id}},
+        {"metadata": {"data_source": {"element": element.id}}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1220,7 +1220,7 @@ def test_dispatch_data_source_with_adhoc_search(api_client, data_fixture):
 
     response = api_client.post(
         f"{url}?search_query=111",
-        {"data_source": {"element": element.id}},
+        {"metadata": {"data_source": {"element": element.id}}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1237,7 +1237,7 @@ def test_dispatch_data_source_with_adhoc_search(api_client, data_fixture):
 
     response = api_client.post(
         f"{url}?search_query=Peter",
-        {"data_source": {"element": element.id}},
+        {"metadata": {"data_source": {"element": element.id}}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1266,12 +1266,12 @@ def test_dispatch_data_source_with_element_from_different_page(
     )
     response = api_client.post(
         url,
-        {"data_source": {"element": element.id}},
+        {"metadata": {"data_source": {"element": element.id}}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == [
+    assert response.json()["data_source"]["non_field_errors"] == [
         "The data source is not available for the dispatched element."
     ]
 
@@ -1311,7 +1311,7 @@ def test_dispatch_data_source_with_element_from_shared_page(api_client, data_fix
     )
     response = api_client.post(
         url,
-        {"data_source": {"element": element.id}},
+        {"metadata": {"data_source": {"element": element.id}}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1341,7 +1341,7 @@ def test_dispatch_data_source_with_non_collection_element(api_client, data_fixtu
     )
     response = api_client.post(
         url,
-        {"data_source": {"element": element.id}},
+        {"metadata": {"data_source": {"element": element.id}}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1427,13 +1427,18 @@ def test_dispatch_data_source_using_formula(api_client, data_fixture):
         "api:builder:data_source:dispatch", kwargs={"data_source_id": data_source.id}
     )
 
+    payload = {
+        "metadata": json.dumps(
+            {"page_parameter": {"id": 2}, "data_source": {"page_id": page.id}}
+        )
+    }
+
     response = api_client.post(
         url,
-        {"page_parameter": {"id": 2}, "data_source": {"page_id": page.id}},
+        payload,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": 2,
@@ -1508,12 +1513,18 @@ def test_dispatch_data_source_improperly_configured(api_client, data_fixture):
         "api:builder:data_source:dispatch", kwargs={"data_source_id": data_source1.id}
     )
 
+    payload = {
+        "metadata": json.dumps(
+            {
+                "page_parameter": {"id": 2},
+            }
+        )
+    }
+
     # The given dispatch query context is wrong
     response = api_client.post(
         url,
-        {
-            "page_parameter": {"id": 2},
-        },
+        payload,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1532,9 +1543,7 @@ def test_dispatch_data_source_improperly_configured(api_client, data_fixture):
     # The given dispatch query context is wrong
     response = api_client.post(
         url,
-        {
-            "page_parameter": {"id": 2},
-        },
+        payload,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1549,13 +1558,17 @@ def test_dispatch_data_source_improperly_configured(api_client, data_fixture):
     url = reverse(
         "api:builder:data_source:dispatch", kwargs={"data_source_id": data_source3.id}
     )
-
+    payload = {
+        "metadata": json.dumps(
+            {
+                "page_parameter": {"id": "test"},
+            }
+        )
+    }
     # The given dispatch query context is wrong
     response = api_client.post(
         url,
-        {
-            "page_parameter": {"id": "test"},
-        },
+        payload,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1566,10 +1579,6 @@ def test_dispatch_data_source_improperly_configured(api_client, data_fixture):
         response.json()["detail"] == "The data_source configuration is incorrect: "
         "The result of the `row_id` formula must be an integer or "
         "convertible to an integer."
-    )
-
-    url = reverse(
-        "api:builder:data_source:dispatch", kwargs={"data_source_id": data_source4.id}
     )
 
 
@@ -1729,13 +1738,17 @@ def test_dispatch_data_sources_with_formula_using_datasource_calling_an_other(
     )
 
     url = reverse("api:builder:data_source:dispatch-all", kwargs={"page_id": page.id})
-
+    payload = {
+        "metadata": json.dumps(
+            {
+                "data_source": {},
+                "page_parameter": {},
+            }
+        )
+    }
     response = api_client.post(
         url,
-        {
-            "data_source": {},
-            "page_parameter": {},
-        },
+        payload,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1815,13 +1828,17 @@ def test_dispatch_data_sources_with_formula_using_datasource_calling_a_shared_da
     )
 
     url = reverse("api:builder:data_source:dispatch-all", kwargs={"page_id": page.id})
-
+    payload = {
+        "metadata": json.dumps(
+            {
+                "data_source": {},
+                "page_parameter": {},
+            }
+        )
+    }
     response = api_client.post(
         url,
-        {
-            "data_source": {},
-            "page_parameter": {},
-        },
+        payload,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1871,12 +1888,16 @@ def test_dispatch_only_shared_data_sources(data_fixture, api_client):
     )
 
     url = reverse("api:builder:data_source:dispatch-all", kwargs={"page_id": page.id})
-
+    payload = {
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
+    }
     response = api_client.post(
         url,
-        {
-            "page_parameter": {},
-        },
+        payload,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1889,9 +1910,7 @@ def test_dispatch_only_shared_data_sources(data_fixture, api_client):
 
     response = api_client.post(
         url,
-        {
-            "page_parameter": {},
-        },
+        payload,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -2278,7 +2297,6 @@ def test_dispatch_data_source_view(
     mock_builder_dispatch_context.assert_called_once_with(
         ANY,
         mock_data_source.page,
-        element=None,
         only_expose_public_allowed_properties=False,
     )
     mock_dispatch_data_source.assert_called_once_with(

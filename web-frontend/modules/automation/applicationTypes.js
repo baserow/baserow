@@ -2,6 +2,7 @@ import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import ApplicationContext from '@baserow/modules/automation/components/application/ApplicationContext'
 import AutomationForm from '@baserow/modules/automation/components/form/AutomationForm'
 import SidebarComponentAutomation from '@baserow/modules/automation/components/sidebar/SidebarComponentAutomation'
+import { populateAutomationWorkflow } from '@baserow/modules/automation/store/automationWorkflow'
 
 export class AutomationApplicationType extends ApplicationType {
   static getType() {
@@ -52,19 +53,47 @@ export class AutomationApplicationType extends ApplicationType {
     $router.push({ name: 'dashboard' })
   }
 
-  async select(application, { $router }) {
-    try {
-      await $router.push({
-        name: 'automation-application',
+  populate(application) {
+    const values = super.populate(application)
+    values.workflows = values.workflows.map(populateAutomationWorkflow)
+    return values
+  }
+
+  async select(application) {
+    const { router, store, i18n } = this.app
+
+    const workflows =
+      store.getters['automationWorkflow/getWorkflows'](application)
+
+    if (workflows.length > 0) {
+      await router.push({
+        name: 'automation-workflow',
         params: {
           automationId: application.id,
+          workflowId: workflows[0].id,
         },
       })
-    } catch (error) {
-      if (error.name !== 'NavigationDuplicated') {
-        throw error
-      }
+      return true
+    } else {
+      store.dispatch('toast/error', {
+        title: i18n.t('applicationType.cantSelectAutomationWorkflowTitle'),
+        message: i18n.t(
+          'applicationType.cantSelectAutomationWorkflowDescription'
+        ),
+      })
     }
+
+    return true
+  }
+
+  isVisible(application) {
+    // Don't show an automation application when the user doesn't
+    // have permissions to list workflows.
+    return this.app.$hasPermission(
+      'automation.list_workflows',
+      application,
+      application.workspace.id
+    )
   }
 
   isBeta() {

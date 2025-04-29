@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 from unittest.mock import MagicMock, Mock, patch
 
@@ -70,7 +71,7 @@ def test_page_parameter_data_provider_get_data_chunk():
     page_parameter_provider = PageParameterDataProviderType()
 
     fake_request = MagicMock()
-    fake_request.data = {"page_parameter": {"id": 42}}
+    fake_request.data = {"metadata": json.dumps({"page_parameter": {"id": 42}})}
 
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
@@ -89,7 +90,9 @@ def test_form_data_provider_get_data_chunk(mock_validate):
     form_data_provider = FormDataProviderType()
 
     fake_request = MagicMock()
-    fake_request.data = {"form_data": {"1": "hello", "2": ["a", "b"]}}
+    fake_request.data = {
+        "metadata": json.dumps({"form_data": {"1": "hello", "2": ["a", "b"]}})
+    }
 
     dispatch_context = BuilderDispatchContext(fake_request, None)
     mock_validate.side_effect = lambda x, y, z: y
@@ -213,8 +216,12 @@ def test_data_source_data_provider_get_data_chunk_with_formula(data_fixture):
 
     fake_request = HttpRequest()
     fake_request.data = {
-        "data_source": {"page_id": page.id},
-        "page_parameter": {"id": 2},
+        "metadata": json.dumps(
+            {
+                "data_source": {"page_id": page.id},
+                "page_parameter": {"id": 2},
+            }
+        )
     }
 
     dispatch_context = BuilderDispatchContext(
@@ -290,8 +297,12 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_datasource(
 
     fake_request = HttpRequest()
     fake_request.data = {
-        "data_source": {"page_id": page.id},
-        "page_parameter": {"id": 2},
+        "metadata": json.dumps(
+            {
+                "data_source": {"page_id": page.id},
+                "page_parameter": {"id": 2},
+            }
+        )
     }
 
     dispatch_context = BuilderDispatchContext(
@@ -365,8 +376,12 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_list_dataso
 
     fake_request = HttpRequest()
     fake_request.data = {
-        "data_source": {"page_id": page.id},
-        "page_parameter": {"id": 2},
+        "metadata": json.dumps(
+            {
+                "data_source": {"page_id": page.id},
+                "page_parameter": {"id": 2},
+            }
+        )
     }
     fake_request.GET = {"count": 20}
 
@@ -433,7 +448,11 @@ def test_data_source_data_provider_get_data_chunk_with_formula_to_missing_dataso
 
     fake_request = HttpRequest()
     fake_request.data = {
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
     }
 
     dispatch_context = BuilderDispatchContext(fake_request, page)
@@ -500,8 +519,12 @@ def test_data_source_data_provider_get_data_chunk_with_formula_recursion(
 
     fake_request = HttpRequest()
     fake_request.data = {
-        "data_source": {"page_id": page.id},
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "data_source": {"page_id": page.id},
+                "page_parameter": {},
+            }
+        )
     }
 
     dispatch_context = BuilderDispatchContext(
@@ -649,7 +672,11 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_datasource_
 
     fake_request = HttpRequest()
     fake_request.data = {
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
     }
 
     dispatch_context = BuilderDispatchContext(
@@ -779,7 +806,11 @@ def test_data_source_context_data_provider_get_data_chunk(data_fixture):
 
     fake_request = MagicMock()
     fake_request.data = {
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
     }
     dispatch_context = BuilderDispatchContext(
         fake_request, page, only_expose_public_allowed_properties=False
@@ -899,7 +930,9 @@ def test_previous_action_data_provider_get_data_chunk(data_fixture):
 
     fake_request = MagicMock()
     fake_request.data = {
-        "previous_action": {str(workflow_action.id): {"path": {"to": 100}}}
+        "metadata": json.dumps(
+            {"previous_action": {str(workflow_action.id): {"path": {"to": 100}}}}
+        )
     }
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
@@ -908,7 +941,17 @@ def test_previous_action_data_provider_get_data_chunk(data_fixture):
             dispatch_context, [str(workflow_action.id), "path", "to"]
         )
 
-    fake_request.data["previous_action"]["current_dispatch_id"] = "something"
+    fake_request.data = {
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": "something",
+                    str(workflow_action.id): {"path": {"to": 100}},
+                }
+            }
+        )
+    }
+    dispatch_context = BuilderDispatchContext(fake_request, None)
 
     assert (
         previous_action_data_provider.get_data_chunk(
@@ -942,10 +985,14 @@ def test_previous_action_data_provider_get_data_chunk_returns_cached_result(
 
     fake_request = MagicMock()
     fake_request.data = {
-        "previous_action": {
-            "current_dispatch_id": "abc123",
-            str(workflow_action.id): {},
-        }
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": "abc123",
+                    str(workflow_action.id): {},
+                }
+            }
+        )
     }
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
@@ -974,9 +1021,13 @@ def test_previous_action_data_provider_post_dispatch_caches_result():
 
     fake_request = MagicMock()
     fake_request.data = {
-        "previous_action": {
-            "current_dispatch_id": "foo-bar-123",
-        }
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": "foo-bar-123",
+                }
+            }
+        )
     }
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
@@ -1016,9 +1067,13 @@ def test_previous_action_data_provider_post_dispatch_with_empty_response_cache_r
 
     fake_request = MagicMock()
     fake_request.data = {
-        "previous_action": {
-            "current_dispatch_id": "foo-bar-123",
-        }
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": "foo-bar-123",
+                }
+            }
+        )
     }
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
@@ -1096,7 +1151,11 @@ def test_user_data_provider_get_data_chunk(data_fixture):
 
     fake_request = MagicMock()
     fake_request.data = {
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
     }
     fake_request.user_source_user = AnonymousUser()
 
@@ -1139,7 +1198,11 @@ def test_translate_default_user_role_returns_same_role(data_fixture):
 
     fake_request = MagicMock()
     fake_request.data = {
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
     }
     fake_request.user_source_user = AnonymousUser()
 
@@ -1172,7 +1235,11 @@ def test_translate_default_user_role_returns_translated_role(data_fixture):
 
     fake_request = MagicMock()
     fake_request.data = {
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
     }
 
     dispatch_context = BuilderDispatchContext(fake_request, page)
@@ -1193,7 +1260,7 @@ def test_current_record_provider_get_data_chunk_without_record_index(data_fixtur
     user, token = data_fixture.create_user_and_token()
 
     fake_request = HttpRequest()
-    fake_request.data = {}
+    fake_request.data = {"metadata": json.dumps({})}
 
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(user=user, builder=builder)
@@ -1208,7 +1275,9 @@ def test_current_record_provider_get_data_chunk_without_record_index(data_fixtur
 def test_current_record_provider_get_data_chunk_for_idx():
     current_record_provider = CurrentRecordDataProviderType()
     fake_request = HttpRequest()
-    fake_request.data = {"current_record": {"index": 123, "record_id": 123}}
+    fake_request.data = {
+        "metadata": json.dumps({"current_record": {"index": 123, "record_id": 123}})
+    }
     dispatch_context = BuilderDispatchContext(fake_request, None)
     assert current_record_provider.get_data_chunk(dispatch_context, ["__idx__"]) == 123
 
@@ -1248,7 +1317,11 @@ def test_current_record_provider_get_data_chunk(data_fixture):
 
     fake_request = HttpRequest()
     fake_request.user = user
-    fake_request.data = {"current_record": {"index": 0, "record_id": rows[0].id}}
+    fake_request.data = {
+        "metadata": json.dumps(
+            {"current_record": {"index": 0, "record_id": rows[0].id}}
+        )
+    }
 
     dispatch_context = BuilderDispatchContext(
         fake_request, page, workflow_action, only_expose_public_allowed_properties=False

@@ -6,10 +6,16 @@ import es from '@baserow/modules/automation/locales/es.json'
 import it from '@baserow/modules/automation/locales/it.json'
 import pl from '@baserow/modules/automation/locales/pl.json'
 import ko from '@baserow/modules/automation/locales/ko.json'
+import {
+  GeneralAutomationSettingsType,
+  IntegrationsAutomationSettingsType,
+} from '@baserow/modules/automation/automationSettingTypes'
 
 import { registerRealtimeEvents } from '@baserow/modules/automation/realtime'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import automationApplicationStore from '@baserow/modules/automation/store/automationApplication'
+import automationWorkflowStore from '@baserow/modules/automation/store/automationWorkflow'
+import { DuplicateAutomationWorkflowJobType } from '@baserow/modules/automation/jobTypes'
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
@@ -31,6 +37,7 @@ export default (context) => {
   registerRealtimeEvents(app.$realtime)
 
   store.registerModule('automationApplication', automationApplicationStore)
+  store.registerModule('automationWorkflow', automationWorkflowStore)
   store.registerModule(
     'template/automationApplication',
     automationApplicationStore
@@ -40,6 +47,20 @@ export default (context) => {
     app.$registry.register(
       'application',
       new AutomationApplicationType(context)
+    )
+    app.$registry.register(
+      'job',
+      new DuplicateAutomationWorkflowJobType(context)
+    )
+
+    app.$registry.registerNamespace('automationSettings')
+    app.$registry.register(
+      'automationSettings',
+      new GeneralAutomationSettingsType(context)
+    )
+    app.$registry.register(
+      'automationSettings',
+      new IntegrationsAutomationSettingsType(context)
     )
   }
 }

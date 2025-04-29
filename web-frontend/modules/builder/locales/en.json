@@ -134,7 +134,9 @@
     "menu": "Menu",
     "menuDescription": "Menu element",
     "simpleContainer": "Container",
-    "simpleContainerDescription": "A container for other elements"
+    "simpleContainerDescription": "A container for other elements",
+    "fileInput": "File input",
+    "fileInputDescription": "An input to upload files"
   },
   "addElementButton": {
     "label": "Element"
@@ -158,6 +160,7 @@
     "selectParent": "Select parent"
   },
   "duplicatePageJobType": {
+    "name": "Duplicate page",
     "duplicating": "Duplicating",
     "duplicatedTitle": "Page duplicated"
   },
@@ -266,7 +269,7 @@
     "validationTypeAnyLabel": "Any",
     "validationTypeAnyDescription": "Allow any value to be set in this input.",
     "validationTypeIntegerLabel": "Number",
-    "validationTypeIntegerDescription": "Enforce a number value in this input.",
+    "validationTypeIntegerDescription": "Enforce a numeric value in this input (accepts integers and decimals).",
     "validationTypeEmailLabel": "Email",
     "validationTypeEmailDescription": "Enforce an email address value in this input.",
     "inputType": "Input type",
@@ -601,10 +604,6 @@
     "fontFamily": "Font",
     "size": "Font size",
     "weight": "Font weight"
-  },
-  "linkDecorations": {
-    "normal": "Normal",
-    "plain": "Plain"
   },
   "linkThemeConfigBlock": {
     "color": "Color",
@@ -1014,7 +1013,13 @@
     "star": "Star",
     "heart": "Heart",
     "smile": "Smile",
-    "thumbsUp": "Thumbs Up",
+    "thumbsUp": "Thumbs up",
     "flag": "Flag"
+  },
+  "automationSettingsModal": {
+    "title": "Workflow"
+  },
+  "abFileInput": {
+    "delete": "Delete"
   }
 }

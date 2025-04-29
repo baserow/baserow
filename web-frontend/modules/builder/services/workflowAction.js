@@ -33,10 +33,22 @@ export default (client) => {
         payload
       )
     },
-    dispatch(workflowActionId, data) {
+    dispatch(workflowActionId, data, files) {
+      const formData = new FormData()
+
+      Object.entries(files).forEach(([key, file]) => {
+        formData.append(key, file)
+      })
+      formData.append('metadata', JSON.stringify(data))
+
       return client.post(
         `builder/workflow_action/${workflowActionId}/dispatch/`,
-        data
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
       )
     },
   }

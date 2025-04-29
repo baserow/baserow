@@ -5,11 +5,15 @@ import { BuilderPagePage } from "../pages/builder/builderPagePage";
 import { createWorkspace } from "../fixtures/workspace";
 import { createBuilderPage } from "../fixtures/builder/builderPage";
 import { createBuilder } from "../fixtures/builder/builder";
+import { createAutomation } from "../fixtures/automation/automation";
+import { createAutomationWorkflow } from "../fixtures/automation/automationWorkflow";
+import { AutomationWorkflowPage } from "../pages/automation/automationWorkflowPage";
 
 // Declare the types of your fixtures.
 type BaserowFixtures = {
   workspacePage: WorkspacePage;
   builderPagePage: BuilderPagePage;
+  automationWorkflowPage: AutomationWorkflowPage;
 };
 
 /**
@@ -43,6 +47,19 @@ export const test = base.extend<BaserowFixtures>({
     await use(builderPagePage);
 
     await builderPagePage.removeAll();
+  },
+  automationWorkflowPage: async ({ page, workspacePage }, use) => {
+    const automation = await createAutomation(
+      "Test automation",
+      workspacePage.workspace
+    );
+    const automationWorkflow = await createAutomationWorkflow(
+      "Default workflow",
+      automation
+    );
+    const automationWorkflowPage = new AutomationWorkflowPage(page, automation, automationWorkflow);
+
+    await use(automationWorkflowPage);
   },
 });
 export { expect } from "@playwright/test";

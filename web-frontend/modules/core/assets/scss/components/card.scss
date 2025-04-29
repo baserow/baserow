@@ -17,9 +17,10 @@
 .card {
   position: relative;
   background-color: $white;
+  border: solid 1px $palette-neutral-200;
 
   @include elevation($elevation-low);
-  @include rounded($rounded);
+  @include rounded($rounded-md);
 
   &--loading {
     overflow: hidden;
@@ -41,6 +42,16 @@
 
       @include absolute(0, 0, 0, 50%);
     }
+  }
+
+  .left-border-decorator {
+    @include absolute(0, 0, auto, 0);
+
+    height: 3px;
+    width: auto;
+    margin: 0;
+    z-index: 2;
+    border-radius: $rounded-md + 1px $rounded-md + 1px 0 0;
   }
 }
 
@@ -93,10 +104,11 @@
 .card__field-name {
   @extend %ellipsis;
 
-  font-size: 12px;
+  font-size: 11px;
   line-height: 18px;
-  font-weight: 600;
+  font-weight: 500;
   margin-bottom: 6px;
+  color: $palette-neutral-900;
 
   .card--loading & {
     color: $color-neutral-100;

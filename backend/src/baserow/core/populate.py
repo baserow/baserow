@@ -25,6 +25,12 @@ def load_test_data():
         admin.is_staff = True
         admin.save()
 
+        user_handler.update_user(
+            admin,
+            completed_onboarding=True,
+            completed_guided_tours=["sidebar", "database", "builder"],
+        )
+
         try:
             workspace = Workspace.objects.get(
                 name=f"Acme Corp ({i +1})" if i > 0 else "Acme Corp"

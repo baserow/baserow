@@ -7,7 +7,8 @@ export class DuplicatePageJobType extends JobType {
   }
 
   getName() {
-    return 'duplicatePage'
+    const { i18n } = this.app
+    return i18n.t('duplicatePageJobType.name')
   }
 
   getSidebarText(job) {

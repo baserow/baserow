@@ -149,8 +149,15 @@ export class ViewType extends Registerable {
    * view is selected. Extra options like filters and sorting could be added
    * here.
    */
-  getHeaderComponent() {
+  getHeaderComponent(view) {
     return null
+  }
+
+  /**
+   * Optionally add additional class names to the header element.
+   */
+  getHeaderClassNames() {
+    return ''
   }
 
   /**
@@ -519,6 +526,10 @@ export class GridViewType extends ViewType {
     return GridViewHeader
   }
 
+  getHeaderClassNames() {
+    return 'header--dark-border'
+  }
+
   getComponent() {
     return GridView
   }
@@ -635,7 +646,7 @@ export class GridViewType extends ViewType {
     fieldType,
     storePrefix = ''
   ) {
-    const value = fieldType.getEmptyValue(field)
+    const value = fieldType.getDefaultValue(field)
     await dispatch(
       storePrefix + 'view/grid/addField',
       { field, value },
@@ -931,7 +942,7 @@ export const BaseBufferedRowViewTypeMixin = (Base) =>
       fieldType,
       storePrefix = ''
     ) {
-      const value = fieldType.getEmptyValue(field)
+      const value = fieldType.getDefaultValue(field)
       await dispatch(
         storePrefix + 'view/' + this.getType() + '/addField',
         { field, value },

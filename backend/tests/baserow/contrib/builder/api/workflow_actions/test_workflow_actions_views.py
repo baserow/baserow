@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.db import transaction
@@ -679,9 +680,12 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
             "all": {workflow_action.service.id: [index.db_column]},
             "external": {workflow_action.service.id: [index.db_column]},
         }
+        payload = {
+            "metadata": json.dumps({"current_record": {"index": 123, "record_id": 123}})
+        }
         response = api_client.post(
             url,
-            {"current_record": {"index": 123, "record_id": 123}},
+            payload,
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
@@ -783,28 +787,41 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
         }
         model = table.get_model()
 
+        payload = {
+            "metadata": json.dumps(
+                {
+                    "current_record": {"index": 0, "record_id": rows[2].id},
+                    "data_source": {"element": table_element.id},
+                }
+            )
+        }
+
         # Dispatch at index=0 but row 3 id, this will be "Complex Construction Design".
         response = api_client.post(
             url,
-            {
-                "current_record": {"index": 0, "record_id": rows[2].id},
-                "data_source": {"element": table_element.id},
-            },
+            payload,
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
+
         assert response.status_code == HTTP_200_OK
         row3 = model.objects.get(pk=rows[2].id)
         assert getattr(row3, f"field_{field.id}") == f"Updated row {rows[2].id}"
+
+        payload = {
+            "metadata": json.dumps(
+                {
+                    "current_record": {"index": 0, "record_id": rows[3].id},
+                    "data_source": {"element": table_element.id},
+                }
+            )
+        }
 
         # Dispatch at index=0 but row 4 id,
         # this will now be "Simple Construction Design".
         response = api_client.post(
             url,
-            {
-                "current_record": {"index": 0, "record_id": rows[3].id},
-                "data_source": {"element": table_element.id},
-            },
+            payload,
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
@@ -970,10 +987,10 @@ def test_dispatch_workflow_action_with_invalid_form_data(api_client, data_fixtur
         "api:builder:workflow_action:dispatch",
         kwargs={"workflow_action_id": workflow_action.id},
     )
-
+    payload = {"metadata": json.dumps({"form_data": {input_text_element.id: ""}})}
     response = api_client.post(
         url,
-        {"form_data": {input_text_element.id: ""}},
+        payload,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1280,9 +1297,13 @@ def test_create_row_action_can_access_the_field_of_previous_action(
         kwargs={"workflow_action_id": action_1.id},
     )
     payload = {
-        "previous_action": {
-            "current_dispatch_id": mock_dispatch_id,
-        },
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": mock_dispatch_id,
+                }
+            }
+        )
     }
     response = api_client.post(
         url,
@@ -1298,7 +1319,16 @@ def test_create_row_action_can_access_the_field_of_previous_action(
     assert action_2.service.table.get_model().objects.all().count() == 0
 
     # Now dispatch the 2nd Workflow Action
-    payload["previous_action"][action_1.id] = {}
+    payload = {
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": mock_dispatch_id,
+                    action_1.id: {},
+                },
+            }
+        )
+    }
     url = reverse(
         "api:builder:workflow_action:dispatch",
         kwargs={"workflow_action_id": action_2.id},

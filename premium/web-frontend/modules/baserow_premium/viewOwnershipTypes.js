@@ -1,7 +1,8 @@
 import { ViewOwnershipType } from '@baserow/modules/database/viewOwnershipTypes'
 import PremiumFeatures from '@baserow_premium/features'
-import PremiumModal from '@baserow_premium/components/PremiumModal'
 import ViewOwnershipMenuLink from '@baserow_premium/components/views/ViewOwnershipMenuLink'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { PersonalViewsPaidFeature } from '@baserow_premium/paidFeatures'
 
 export class PersonalViewOwnershipType extends ViewOwnershipType {
   static getType() {
@@ -31,7 +32,10 @@ export class PersonalViewOwnershipType extends ViewOwnershipType {
   }
 
   getDeactivatedModal() {
-    return PremiumModal
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': PersonalViewsPaidFeature.getType() },
+    ]
   }
 
   getListViewTypeSort() {

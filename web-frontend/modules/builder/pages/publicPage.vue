@@ -1,13 +1,15 @@
 <template>
   <div>
     <Toasts></Toasts>
-    <PageContent
-      v-if="canViewPage"
-      :path="path"
-      :params="params"
-      :elements="elements"
-      :shared-elements="sharedElements"
-    />
+    <RecursiveWrapper :components="builderPageDecorators">
+      <PageContent
+        v-if="canViewPage"
+        :path="path"
+        :params="params"
+        :elements="elements"
+        :shared-elements="sharedElements"
+      />
+    </RecursiveWrapper>
   </div>
 </template>
 
@@ -28,6 +30,7 @@ import {
   setToken,
 } from '@baserow/modules/core/utils/auth'
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
+import RecursiveWrapper from '@baserow/modules/database/components/RecursiveWrapper'
 
 const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
   await store.dispatch('userSourceUser/logoff', {
@@ -42,7 +45,7 @@ const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
 
 export default {
   name: 'PublicPage',
-  components: { PageContent, Toasts },
+  components: { RecursiveWrapper, PageContent, Toasts },
   provide() {
     return {
       workspace: this.workspace,
@@ -260,6 +263,7 @@ export default {
     })
 
     return {
+      workspace: builder.workspace,
       builder,
       currentPage: page,
       path,
@@ -280,6 +284,15 @@ export default {
   computed: {
     elements() {
       return this.$store.getters['element/getRootElements'](this.currentPage)
+    },
+    builderPageDecorators() {
+      // Get available page decorators from registry
+      return Object.values(this.$registry.getAll('builderPageDecorator') || {})
+        .filter((decorator) => decorator.isDecorationAllowed(this.workspace))
+        .map((decorator) => ({
+          component: decorator.component,
+          props: decorator.getProps(),
+        }))
     },
     applicationContext() {
       return {

@@ -15,6 +15,7 @@ from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
 
+from loguru import logger
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -2221,6 +2222,9 @@ class LocalBaserowUpsertRowServiceType(
                 )
                 raise ServiceImproperlyConfigured(message) from e
             except Exception as e:
+                logger.exception(
+                    f"Unexpected error for field {field_mapping.field.name}"
+                )
                 message = (
                     "Unknown error in formula for "
                     f"field {field_mapping.field.name}({field_mapping.field.id}): {repr(e)} - {str(e)}"
@@ -2249,7 +2253,7 @@ class LocalBaserowUpsertRowServiceType(
         table = resolved_values["table"]
         used_field_names = self.get_used_field_names(service, dispatch_context)
 
-        integration = service.integration.specific
+        service.integration = service.integration.specific
         row_id: Optional[int] = resolved_values.get("row_id", None)
 
         row_values = {}
@@ -2278,8 +2282,9 @@ class LocalBaserowUpsertRowServiceType(
             try:
                 # Automatically cast the resolved value to the serializer field type
                 cast_function = guess_cast_function_from_response_serializer_field(
-                    serializer_field
+                    serializer_field, service
                 )
+
                 if cast_function:
                     resolved_value = cast_function(resolved_value)
                 resolved_value = serializer_field.run_validation(resolved_value)
@@ -2304,7 +2309,7 @@ class LocalBaserowUpsertRowServiceType(
         if row_id:
             try:
                 (row,) = UpdateRowsActionType.do(
-                    integration.authorized_user,
+                    service.integration.authorized_user,
                     table,
                     rows_values=[{**row_values, "id": row_id}],
                     model=model,
@@ -2316,7 +2321,7 @@ class LocalBaserowUpsertRowServiceType(
         else:
             try:
                 (row,) = CreateRowsActionType.do(
-                    user=integration.authorized_user,
+                    user=service.integration.authorized_user,
                     table=table,
                     rows_values=[row_values],
                     model=model,

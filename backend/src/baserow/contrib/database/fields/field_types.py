@@ -647,7 +647,10 @@ class NumberFieldType(FieldType):
             # precision we keep it as a string.
             instance = field_object["field"]
             if instance.number_decimal_places == 0:
-                return int(value)
+                try:
+                    return int(value)
+                except (ValueError, TypeError):
+                    pass
 
             # DRF's Decimal Serializer knows how to quantize and format the decimal
             # correctly so lets use it instead of trying to do it ourselves.
@@ -942,6 +945,8 @@ class RatingFieldType(FieldType):
 class BooleanFieldType(FieldType):
     type = "boolean"
     model_class = BooleanField
+    allowed_fields = ["boolean_default"]
+    serializer_field_names = ["boolean_default"]
     _can_group_by = True
     can_upsert = True
 
@@ -962,10 +967,13 @@ class BooleanFieldType(FieldType):
         """
 
     def get_serializer_field(self, instance, **kwargs):
-        return BaserowBooleanField(**{"required": False, "default": False, **kwargs})
+        required = kwargs.get("required", False)
+        return BaserowBooleanField(
+            **{"required": required, "default": instance.boolean_default, **kwargs}
+        )
 
     def get_model_field(self, instance, **kwargs):
-        return models.BooleanField(default=False, **kwargs)
+        return models.BooleanField(default=instance.boolean_default, **kwargs)
 
     def random_value(self, instance, fake, cache):
         return fake.pybool()

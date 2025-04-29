@@ -2,7 +2,7 @@ import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
 import MockPremiumServer from '@baserow_premium_test/fixtures/mockPremiumServer'
 import ShareViewLink from '@baserow/modules/database/components/view/ShareViewLink'
 import Context from '@baserow/modules/core/components/Context'
-import PremiumModal from '@baserow_premium/components/PremiumModal'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 async function openShareViewLinkContext(testApp, view) {
   const shareViewLinkComponent = await testApp.mount(ShareViewLink, {
@@ -56,7 +56,9 @@ describe('Premium Share View Link Tests', () => {
       .filter((el) => el.text().includes('shareLinkOptions.baserowLogo.label'))
       .at(0)
     await logoSharingOption.find('.switch').trigger('click')
-    expect(shareViewLinkContext.findAllComponents(PremiumModal)).toHaveLength(1)
+    expect(
+      shareViewLinkContext.findAllComponents(PaidFeaturesModal)
+    ).toHaveLength(1)
   })
 
   test('User with global premium can toggle off the Baserow logo', async () => {
@@ -90,6 +92,8 @@ describe('Premium Share View Link Tests', () => {
       .filter((el) => el.text().includes('shareLinkOptions.baserowLogo.label'))
       .at(0)
     await logoSharingOption.find('.switch').trigger('click')
-    expect(shareViewLinkContext.findAllComponents(PremiumModal)).toHaveLength(0)
+    expect(
+      shareViewLinkContext.findAllComponents(PaidFeaturesModal)
+    ).toHaveLength(0)
   })
 })

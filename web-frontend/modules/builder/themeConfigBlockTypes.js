@@ -281,6 +281,7 @@ export class TypographyThemeConfigBlockType extends ThemeConfigBlockType {
         `--heading-h${level}-color`,
         (v) => resolveColor(v, colorVariables)
       )
+
       style.addIfExists(
         theme,
         `heading_${level}_text_alignment`,
@@ -329,6 +330,11 @@ export class TypographyThemeConfigBlockType extends ThemeConfigBlockType {
     })
     style.addPixelValueIfExists(theme, `body_font_size`)
     style.addColorIfExists(theme, `body_text_color`)
+    style.addColorRecommendationIfExists(
+      theme,
+      'body_text_color',
+      '--body-text-color-complement'
+    )
     style.addIfExists(theme, `body_text_alignment`)
     style.addFontFamilyIfExists(theme, `body_font_family`)
     style.addFontWeightIfExists(theme, `body_font_weight`)

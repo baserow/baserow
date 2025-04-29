@@ -45,7 +45,10 @@
             <i class="form-view__edit-icon iconoir-edit-pencil"></i>
           </a>
         </div>
-        <div class="form-view__field-description">
+        <div
+          v-show="selected || fieldOptions.description"
+          class="form-view__field-description"
+        >
           <Editable
             ref="description"
             :value="fieldOptions.description"
@@ -307,7 +310,7 @@ export default {
       return this.$registry.get('field', this.field.type)
     },
     resetValue() {
-      this.value = this.getFieldType().getEmptyValue(this.field)
+      this.value = this.getFieldType().getDefaultValue(this.field)
     },
     createConditionGroup(parentGroupId) {
       return {

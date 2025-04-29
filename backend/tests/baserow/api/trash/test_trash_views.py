@@ -299,7 +299,12 @@ def test_can_get_trash_structure(api_client, data_fixture):
                 "trashed": True,
                 "name": workspace_to_delete.name,
                 "applications": [
-                    {"id": application.id, "name": application.name, "trashed": False}
+                    {
+                        "id": application.id,
+                        "name": application.name,
+                        "trashed": False,
+                        "type": "database",
+                    }
                 ],
             },
             {
@@ -311,6 +316,7 @@ def test_can_get_trash_structure(api_client, data_fixture):
                         "id": trashed_application.id,
                         "name": trashed_application.name,
                         "trashed": True,
+                        "type": "database",
                     }
                 ],
             },

@@ -52,27 +52,42 @@
         @refresh="$emit('refresh', $event)"
         @row-context="showRowContext($event.event, $event.row)"
       ></KanbanViewStack>
-      <a
-        v-if="
-          !readOnly &&
-          !singleSelectField.immutable_properties &&
-          $hasPermission(
-            'database.table.field.update',
-            table,
-            database.workspace.id
-          )
-        "
-        ref="addOptionContextLink"
-        class="kanban-view__add-stack"
-        @click="$refs.addOptionContext.toggle($refs.addOptionContextLink)"
-      >
-        <i class="iconoir-plus"></i>
-      </a>
-      <KanbanViewCreateStackContext
-        ref="addOptionContext"
-        :fields="fields"
-        :store-prefix="storePrefix"
-      ></KanbanViewCreateStackContext>
+      <div class="kanban-view__stack-wrapper">
+        <div class="kanban-view__stack">
+          <div class="kanban-view__stack-head">
+            <Button
+              v-if="
+                !readOnly &&
+                !singleSelectField.immutable_properties &&
+                $hasPermission(
+                  'database.table.field.update',
+                  table,
+                  database.workspace.id
+                )
+              "
+              ref="addOptionContextLink"
+              tag="a"
+              type="secondary"
+              size="regular"
+              icon="iconoir-plus"
+              :full-width="true"
+              @click="
+                $refs.addOptionContext.toggle(
+                  $refs.addOptionContextLink.$el,
+                  'bottom',
+                  'right'
+                )
+              "
+              >{{ $t('kanbanView.addStack') }}</Button
+            >
+            <KanbanViewCreateStackContext
+              ref="addOptionContext"
+              :fields="fields"
+              :store-prefix="storePrefix"
+            ></KanbanViewCreateStackContext>
+          </div>
+        </div>
+      </div>
     </div>
     <RowCreateModal
       ref="rowCreateModal"

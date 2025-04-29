@@ -478,19 +478,9 @@ class PublicDispatchDataSourceView(APIView):
 
         data_source = DataSourceHandler().get_data_source(data_source_id)
 
-        serializer = DispatchDataSourceRequestSerializer(
-            data=request.data, context={"data_source": data_source}
-        )
-        serializer.is_valid(raise_exception=True)
-
-        # An `element` will be provided if we're dispatching a collection
-        # element's data source with adhoc refinements.
-        element = serializer.validated_data.get("data_source").get("element")
-
         dispatch_context = BuilderDispatchContext(
             request,
             data_source.page,
-            element=element,
             only_expose_public_allowed_properties=True,
         )
         response = DataSourceService().dispatch_data_source(

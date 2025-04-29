@@ -2,7 +2,6 @@ import json
 import os
 from pathlib import Path
 from unittest.mock import patch
-from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
@@ -16,7 +15,10 @@ from baserow.contrib.database.airtable.exceptions import (
     AirtableBaseRequiresAuthentication,
     AirtableShareIsNotABase,
 )
-from baserow.contrib.database.airtable.handler import AirtableHandler
+from baserow.contrib.database.airtable.handler import (
+    AirtableFileImport,
+    AirtableHandler,
+)
 from baserow.contrib.database.airtable.job_types import AirtableImportJobType
 from baserow.contrib.database.airtable.models import AirtableImportJob
 from baserow.contrib.database.fields.models import TextField
@@ -261,21 +263,25 @@ def test_to_baserow_database_export():
             body=file_handler.read(),
         )
 
-    init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
+    (
+        init_data,
+        request_id,
+        cookies,
+        schema,
+        tables,
+    ) = AirtableHandler.fetch_and_combine_airtable_data(
         "appZkaH3aWX3ZjT3b", AirtableImportConfig()
     )
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
-        init_data, schema, tables, AirtableImportConfig()
+        init_data, request_id, cookies, schema, tables, AirtableImportConfig()
     )
 
-    with ZipFile(files_buffer, "r", ZIP_DEFLATED, False) as zip_file:
-        assert len(zip_file.infolist()) == 3
-        assert (
-            zip_file.read(
-                "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample" ".txt"
-            )
-            == b"test\n"
-        )
+    assert isinstance(files_buffer, AirtableFileImport)
+    assert len(files_buffer.files_to_download) == 3
+    with files_buffer.open(
+        "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample.txt"
+    ) as file_handler:
+        assert file_handler.read() == b"test\n"
 
     assert baserow_database_export["id"] == 1
     assert baserow_database_export["name"] == "Test"
@@ -426,6 +432,115 @@ def test_to_baserow_database_export():
 
 @pytest.mark.django_db
 @responses.activate
+def test_download_files_via_endpoint():
+    base_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/airtable_responses/basic"
+    )
+
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/row/recAAA5JwFXBk4swkfB/downloadAttachment",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/appZkaH3aWX3ZjT3b",
+            status=200,
+            body=file_handler.read(),
+            headers={"Set-Cookie": "brw=test;"},
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
+        body = file_handler.read()
+        # Rename the `signedUserContentUrls`, so that it's not provided during the
+        # import. It would then use the fetch attachment endpoint instead.
+        body = body.replace(b"signedUserContentUrls", b"signedUserContentUrls_UNKNOWN")
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
+            status=200,
+            body=body,
+        )
+
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file_handler:
+        body = file_handler.read()
+        # Rename the `signedUserContentUrls`, so that it's not provided during the
+        # import. It would then use the fetch attachment endpoint instead.
+        body = body.replace(b"signedUserContentUrls", b"signedUserContentUrls_UNKNOWN")
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
+            status=200,
+            body=body,
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    (
+        init_data,
+        request_id,
+        cookies,
+        schema,
+        tables,
+    ) = AirtableHandler.fetch_and_combine_airtable_data(
+        "appZkaH3aWX3ZjT3b", AirtableImportConfig()
+    )
+    baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
+        init_data, request_id, cookies, schema, tables, AirtableImportConfig()
+    )
+
+    assert isinstance(files_buffer, AirtableFileImport)
+    assert len(files_buffer.files_to_download) == 3
+    with files_buffer.open(
+        "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample.txt"
+    ) as file_handler:
+        assert file_handler.read() == b"test\n"
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_config_skip_files(tmpdir, data_fixture):
     base_path = os.path.join(
         settings.BASE_DIR, "../../../tests/airtable_responses/basic"
@@ -504,15 +619,26 @@ def test_config_skip_files(tmpdir, data_fixture):
             body=file_handler.read(),
         )
 
-    init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
+    (
+        init_data,
+        request_id,
+        cookies,
+        schema,
+        tables,
+    ) = AirtableHandler.fetch_and_combine_airtable_data(
         "appZkaH3aWX3ZjT3b", AirtableImportConfig()
     )
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
-        init_data, schema, tables, AirtableImportConfig(skip_files=True)
+        init_data,
+        request_id,
+        cookies,
+        schema,
+        tables,
+        AirtableImportConfig(skip_files=True),
     )
 
-    with ZipFile(files_buffer, "r", ZIP_DEFLATED, False) as zip_file:
-        assert len(zip_file.infolist()) == 0
+    assert isinstance(files_buffer, AirtableFileImport)
+    assert len(files_buffer.files_to_download) == 0
 
 
 @pytest.mark.django_db
@@ -595,7 +721,13 @@ def test_to_baserow_database_export_without_primary_value():
             body=file_handler.read(),
         )
 
-    init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
+    (
+        init_data,
+        request_id,
+        cookies,
+        schema,
+        tables,
+    ) = AirtableHandler.fetch_and_combine_airtable_data(
         "appZkaH3aWX3ZjT3b", AirtableImportConfig()
     )
 
@@ -603,7 +735,12 @@ def test_to_baserow_database_export_without_primary_value():
     schema["tableSchemas"][0]["primaryColumnId"] = "fldG9y88Zw7q7u4Z7i4_unknown"
 
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
-        init_data, schema, tables, AirtableImportConfig(skip_files=True)
+        init_data,
+        request_id,
+        cookies,
+        schema,
+        tables,
+        AirtableImportConfig(skip_files=True),
     )
     assert baserow_database_export["tables"][0]["fields"][0]["primary"] is True
     assert baserow_database_export["tables"][2]["rows"][0] == {
@@ -620,7 +757,12 @@ def test_to_baserow_database_export_without_primary_value():
 
     schema["tableSchemas"][0]["columns"] = []
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
-        init_data, schema, tables, AirtableImportConfig(skip_files=True)
+        init_data,
+        request_id,
+        cookies,
+        schema,
+        tables,
+        AirtableImportConfig(skip_files=True),
     )
     assert baserow_database_export["tables"][0]["fields"] == [
         {

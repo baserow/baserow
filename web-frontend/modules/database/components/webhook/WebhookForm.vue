@@ -202,11 +202,11 @@
             />
           </div>
           <component
-            :is="webhookEvent.getDeactivatedClickModal()"
+            :is="webhookEvent.getDeactivatedClickModal()[0]"
             v-if="webhookEvent.isDeactivated(database.workspace.id)"
             :ref="`${webhookEvent.getName()}DeactivatedClickModal`"
             :workspace="database.workspace"
-            :name="webhookEvent.getFeatureName()"
+            v-bind="webhookEvent.getDeactivatedClickModal()[1]"
           ></component>
         </div>
       </div>
@@ -426,7 +426,7 @@ export default {
       }
       this.fields.forEach((field) => {
         const fieldType = this.$registry.get('field', field.type)
-        const empty = fieldType.getEmptyValue(field)
+        const empty = fieldType.getDefaultValue(field)
         rowExample[
           this.values.use_user_field_names ? field.name : `field_${field.id}`
         ] = empty
@@ -468,7 +468,7 @@ export default {
       if (eventConfig === undefined) {
         return []
       }
-      return eventConfig.fields
+      return eventConfig.fields ?? []
     },
     setEventFields(event, fields) {
       const eventConfig = this.values.event_config.find(

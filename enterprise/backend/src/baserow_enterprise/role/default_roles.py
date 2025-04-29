@@ -9,6 +9,18 @@ from baserow_premium.row_comments.operations import (
     UpdateRowCommentsOperationType,
 )
 
+from baserow.contrib.automation.operations import (
+    ListAutomationWorkflowsOperationType,
+    OrderAutomationWorkflowsOperationType,
+)
+from baserow.contrib.automation.workflows.operations import (
+    CreateAutomationWorkflowOperationType,
+    DeleteAutomationWorkflowOperationType,
+    DuplicateAutomationWorkflowOperationType,
+    ReadAutomationWorkflowOperationType,
+    RestoreAutomationWorkflowOperationType,
+    UpdateAutomationWorkflowOperationType,
+)
 from baserow.contrib.builder.data_sources.operations import (
     CreateDataSourceOperationType,
     DeleteDataSourceOperationType,
@@ -185,6 +197,12 @@ from baserow.core.integrations.operations import (
     ReadIntegrationOperationType,
     UpdateIntegrationOperationType,
 )
+from baserow.core.mcp.operations import (
+    CreateMCPEndpointOperationType,
+    DeleteMCPEndpointOperationType,
+    ReadMCPEndpointOperationType,
+    UpdateMCPEndpointOperationType,
+)
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
     CreateInvitationsWorkspaceOperationType,
@@ -322,6 +340,10 @@ default_roles[VIEWER_ROLE_UID].extend(
         ListDashboardDataSourcesOperationType,
         ReadDashboardDataSourceOperationType,
         DispatchDashboardDataSourceOperationType,
+        ReadMCPEndpointOperationType,
+        CreateMCPEndpointOperationType,
+        UpdateMCPEndpointOperationType,
+        DeleteMCPEndpointOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(
@@ -469,6 +491,14 @@ default_roles[BUILDER_ROLE_UID].extend(
         CreateDashboardDataSourceOperationType,
         DeleteDashboardDataSourceOperationType,
         UpdateDashboardDataSourceOperationType,
+        ListAutomationWorkflowsOperationType,
+        OrderAutomationWorkflowsOperationType,
+        CreateAutomationWorkflowOperationType,
+        RestoreAutomationWorkflowOperationType,
+        DeleteAutomationWorkflowOperationType,
+        UpdateAutomationWorkflowOperationType,
+        ReadAutomationWorkflowOperationType,
+        DuplicateAutomationWorkflowOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(

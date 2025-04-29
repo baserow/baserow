@@ -54,7 +54,7 @@
       :workspace-id="database.workspace.id"
       :field="field"
       :value="row['field_' + field.id]"
-      :read-only="readOnly || field.read_only"
+      :read-only="readOnly || isReadOnlyField(field)"
       :row-is-created="!!row.id"
       :row="row"
       :all-fields-in-table="allFieldsInTable"
@@ -126,6 +126,9 @@ export default {
     },
   },
   methods: {
+    isReadOnlyField(field) {
+      return this.$registry.get('field', field.type).isReadOnlyField(field)
+    },
     getFieldComponent(type) {
       return this.$registry
         .get('field', type)

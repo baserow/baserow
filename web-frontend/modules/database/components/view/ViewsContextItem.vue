@@ -27,9 +27,10 @@
       class="select__item-active-icon iconoir-check"
     ></i>
     <component
-      :is="deactivatedClickModal"
+      :is="deactivatedClickModal[0]"
       v-if="deactivatedClickModal !== null"
       ref="deactivatedClickModal"
+      v-bind="deactivatedClickModal[1]"
       :name="viewType.getName()"
       :workspace="database.workspace"
     ></component>

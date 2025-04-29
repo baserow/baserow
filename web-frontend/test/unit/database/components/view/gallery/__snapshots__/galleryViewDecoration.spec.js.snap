@@ -17,24 +17,24 @@ exports[`GalleryView component with decoration Default component with first_cell
   >
     <div
       class="gallery-view__cards"
-      style="height: 434px;"
+      style="height: 438px;"
     >
       <div
         class="card gallery-view__card"
         style="width: -60px; transform: translateX(30px) translateY(30px);"
       >
+        <div>
+          fake_decoration: fake_value
+        </div>
+        <div>
+          fake_decoration: fake_value
+        </div>
+         
         <!---->
          
         <div
           class="card__content"
         >
-          <div>
-            fake_decoration: fake_value
-          </div>
-          <div>
-            fake_decoration: fake_value
-          </div>
-           
           <div
             class="card__fields"
           >
@@ -128,12 +128,13 @@ exports[`GalleryView component with decoration Default component with row wrappe
   >
     <div
       class="gallery-view__cards"
-      style="height: 434px;"
+      style="height: 438px;"
     >
       <div
         class="card gallery-view__card"
         style="width: -60px; transform: translateX(30px) translateY(30px);"
       >
+         
         <div
           class="test-wrapper"
         />
@@ -162,18 +163,18 @@ exports[`GalleryView component with decoration Default component with unavailabl
   >
     <div
       class="gallery-view__cards"
-      style="height: 434px;"
+      style="height: 438px;"
     >
       <div
         class="card gallery-view__card"
         style="width: -60px; transform: translateX(30px) translateY(30px);"
       >
+         
         <!---->
          
         <div
           class="card__content"
         >
-           
           <div
             class="card__fields"
           >

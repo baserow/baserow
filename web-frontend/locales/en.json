@@ -74,14 +74,17 @@
     "cantSelectTableTitle": "Couldn't select the database.",
     "cantSelectTableDescription": "The database couldn't be selected because it doesn't have any tables. Use the sidebar to create one.",
     "cantSelectPageTitle": "Couldn't select the application.",
-    "cantSelectPageDescription": "The application builder couldn't be selected because it doesn't have any pages. Use the sidebar to create one."
+    "cantSelectPageDescription": "The application builder couldn't be selected because it doesn't have any pages. Use the sidebar to create one.",
+    "cantSelectAutomationWorkflowTitle": "Couldn't select the automation.",
+    "cantSelectAutomationWorkflowDescription": "The automation couldn't be selected because it doesn't have any workflows. Use the sidebar to create one."
   },
   "settingType": {
     "account": "Account",
     "password": "Password",
     "emailNotifications": "Email notifications",
     "tokens": "Database tokens",
-    "deleteAccount": "Delete account"
+    "deleteAccount": "Delete account",
+    "mcpEndpoint": "MCP server"
   },
   "userFileUploadType": {
     "file": "my device",
@@ -303,6 +306,7 @@
   "trashType": {
     "workspace": "workspace",
     "application": "application",
+    "automation_workflow": "automationWorkflow",
     "table": "table",
     "field": "field",
     "row": "row",
@@ -421,7 +425,9 @@
     "incompatiblePrimaryFieldTypeTitle": "Field is not compatible",
     "incompatiblePrimaryFieldTypeDescription": "The chosen field can't be the primary field because it's incompatible.",
     "cannotCreateRowsInTableTitle": "Can't create rows",
-    "cannotCreateRowsInTableDescription": "It's not possible to create rows in this table."
+    "cannotCreateRowsInTableDescription": "It's not possible to create rows in this table.",
+    "databaseDeadlockTitle": "Action failed",
+    "databaseDeadlockDescription": "The action couldn't be completed due to multiple conflicting operations on the data at the same time. Please try again."
   },
   "importerType": {
     "csv": "Import a CSV file",
@@ -454,7 +460,7 @@
     "pathParameters": "Path parameters",
     "requestBodySchema": "Request body schema",
     "userFieldNamesDescription": "When the `user_field_names` GET parameter is provided and its value is one of the following: `y`, `yes`, `true`, `t`, `on`, `1`, or empty string, the field names returned by this endpoint will be the actual names of the fields.\n\nIf the `user_field_names` GET parameter is not provided, or if it does not match any of the above values, then all returned field names will be `field_` followed by the id of the field. For example `field_1` refers to the field with an id of `1`.",
-    "sendWebhookEventsDescription": "A flag query parameter that triggers webhooks after the operation, if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. Defaults to `true`",
+    "sendWebhookEventsDescription": "A flag query parameter that triggers webhooks after the operation, if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. Defaults to `true`",
     "singleRow": "Single",
     "batchRows": "Batch",
     "fileUploads": "File uploads"

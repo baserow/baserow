@@ -234,6 +234,14 @@
   display: inline-block;
 }
 
+.text-decoration-line-through {
+  text-decoration: line-through;
+}
+
+.max-width-100 {
+  max-width: 100%;
+}
+
 @keyframes spin {
   0% {
     transform: rotate(0);

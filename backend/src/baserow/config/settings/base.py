@@ -23,6 +23,7 @@ from baserow.config.settings.utils import (
     read_file,
     set_settings_from_env_if_present,
     str_to_bool,
+    try_float,
     try_int,
 )
 from baserow.core.telemetry.utils import otel_is_enabled
@@ -62,7 +63,9 @@ if "SECRET_KEY" in os.environ:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("BASEROW_BACKEND_DEBUG", "off") == "on"
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+# The `testserver` is needed for the
+# `src/baserow/core/mcp/utils.py::internal_api_request`.
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 ALLOWED_HOSTS += os.getenv("BASEROW_EXTRA_ALLOWED_HOSTS", "").split(",")
 
 INSTALLED_APPS = [
@@ -1356,3 +1359,13 @@ if CACHALOT_ENABLED:
         "VERSION": VERSION,
     }
 # -- END CACHALOT SETTINGS --
+
+
+BASEROW_DEADLOCK_MAX_RETRIES = max(
+    try_int(os.getenv("BASEROW_DEADLOCK_MAX_RETRIES"), 1),
+    1,
+)
+BASEROW_DEADLOCK_INITIAL_BACKOFF = max(
+    try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 1),
+    0.1,
+)

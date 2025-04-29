@@ -2086,20 +2086,7 @@ class DateIsOnOrAfterMultiStepFilterType(DateMultiStepViewFilterType):
 class DateIsWithinMultiStepFilterType(DateMultiStepViewFilterType):
     type = "date_is_within"
 
-    incompatible_operators = [
-        DateFilterOperators.TODAY,
-        DateFilterOperators.YESTERDAY,
-        DateFilterOperators.ONE_WEEK_AGO,
-        DateFilterOperators.ONE_MONTH_AGO,
-        DateFilterOperators.ONE_YEAR_AGO,
-        DateFilterOperators.THIS_WEEK,
-        DateFilterOperators.THIS_MONTH,
-        DateFilterOperators.THIS_YEAR,
-        DateFilterOperators.NR_DAYS_AGO,
-        DateFilterOperators.NR_WEEKS_AGO,
-        DateFilterOperators.NR_MONTHS_AGO,
-        DateFilterOperators.NR_YEARS_AGO,
-    ]
+    incompatible_operators = [DateFilterOperators.TODAY]
 
     def get_filter_query_dict(
         self,
@@ -2108,7 +2095,12 @@ class DateIsWithinMultiStepFilterType(DateMultiStepViewFilterType):
         upper_bound: Union[date, datetime],
         timezone: datetime_module.tzinfo,
     ) -> Dict[str, Union[date, datetime]]:
+        today = datetime.now(tz=timezone).date()
+        if today < upper_bound:
+            lower_bound = today
+        else:
+            upper_bound = today + timedelta(days=1)
         return {
-            f"{field_name}__gte": datetime.now(tz=timezone).date(),
+            f"{field_name}__gte": lower_bound,
             f"{field_name}__lt": upper_bound,
         }

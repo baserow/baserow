@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Reduce deadlocks on rows endpoints",
+    "domain": "database",
+    "issue_number": 3545,
+    "bullet_points": [],
+    "created_at": "2025-04-03"
+}

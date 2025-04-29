@@ -1,7 +1,9 @@
 import contextlib
+import random
+import time
 from collections import defaultdict
 from decimal import Decimal
-from functools import cache
+from functools import cache, wraps
 from math import ceil
 from typing import (
     Any,
@@ -18,7 +20,7 @@ from typing import (
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.db import DEFAULT_DB_ALIAS, connection, transaction
+from django.db import DEFAULT_DB_ALIAS, OperationalError, connection, transaction
 from django.db.models import ForeignKey, ManyToManyField, Max, Model, Prefetch, QuerySet
 from django.db.models.functions import Collate
 from django.db.models.query import ModelIterable
@@ -27,7 +29,8 @@ from django.db.transaction import Atomic, get_connection
 
 from loguru import logger
 
-from baserow.core.psycopg import sql
+from baserow.contrib.database.exceptions import DeadlockException
+from baserow.core.psycopg import is_deadlock_error, sql
 
 from .utils import find_intermediate_order
 
@@ -802,3 +805,54 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                 row_id_to_field_name_to_target_ids[result[0]][result[1]] = result[2]
 
         return row_id_to_field_name_to_target_ids
+
+
+def atomic_with_retry_on_deadlock(
+    max_retries: Optional[int] = None,
+    initial_backoff: Optional[float] = None,
+    jitter: Optional[float] = 1.0,
+):
+    """
+    Decorator that wraps a function in a transaction.atomic block and retries
+    when deadlock occurswith exponential backoff.
+
+    The decorated function must be idempotent - it should be safe to retry multiple
+    times without changing behavior. Avoid modifying request.data or other mutable
+    state that could cause retries to behave differently from the original attempt.
+
+    :param max_retries: Maximum number of retry attempts
+    :param initial_backoff: Initial backoff time in seconds
+    :param jitter: Jitter factor to randomize the backoff time
+    """
+
+    if max_retries is None:
+        max_retries = settings.BASEROW_DEADLOCK_MAX_RETRIES
+    if initial_backoff is None:
+        initial_backoff = settings.BASEROW_DEADLOCK_INITIAL_BACKOFF
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            retries = 0
+            backoff = initial_backoff + random.uniform(0, jitter)  # nosec: B311
+
+            while retries <= max_retries:
+                try:
+                    with transaction.atomic():
+                        return func(*args, **kwargs)
+                except OperationalError as exc:
+                    if not is_deadlock_error(exc):
+                        raise exc
+
+                    if retries == max_retries:
+                        logger.exception(
+                            "Deadlock detected while committing transaction",
+                        )
+                        raise DeadlockException() from exc
+                    time.sleep(backoff)
+                    backoff *= 1.5 + random.uniform(0, jitter)  # nosec: B311
+                retries += 1
+
+        return wrapper
+
+    return decorator

@@ -111,7 +111,9 @@ describe('ensureNumeric', () => {
   // Test null handling
   test('handles null values based on allowNull option', () => {
     expect(() => ensureNumeric(null)).toThrow()
+    expect(() => ensureNumeric(undefined)).toThrow()
     expect(ensureNumeric(null, { allowNull: true })).toBeNull()
+    expect(ensureNumeric(undefined, { allowNull: true })).toBeNull()
   })
 
   // Test empty string handling
@@ -143,7 +145,6 @@ describe('ensureNumeric', () => {
 
   test('throws error for undefined', () => {
     expect(() => ensureNumeric(undefined)).toThrow()
-    expect(() => ensureNumeric(undefined, { allowNull: true })).toThrow()
   })
 
   // Test error message

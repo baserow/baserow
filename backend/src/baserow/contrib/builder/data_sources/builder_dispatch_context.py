@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import TYPE_CHECKING, Dict, List, Optional, Type
 
 from django.contrib.auth import get_user_model
@@ -32,7 +33,6 @@ class BuilderDispatchContext(DispatchContext):
         "request",
         "page",
         "workflow_action",
-        "element",
         "offset",
         "count",
         "only_record_id",
@@ -44,7 +44,6 @@ class BuilderDispatchContext(DispatchContext):
         request: HttpRequest,
         page: Page,
         workflow_action: Optional["WorkflowAction"] = None,
-        element: Optional["Element"] = None,
         offset: Optional[int] = None,
         count: Optional[int] = None,
         only_record_id: Optional[int | str] = None,
@@ -56,7 +55,6 @@ class BuilderDispatchContext(DispatchContext):
         :param request: The HTTP request from the view.
         :param page: The page related to the dispatch.
         :param workflow_action: The workflow action being executed, if any.
-        :param element: An optional element that triggered the dispatch.
         :param offset: When we dispatch a list service, starts by that offset.
         :param count: When we dispatch a list service returns that max amount of record.
         :param record_id: If we want to narrow down the results of a list service to
@@ -68,7 +66,6 @@ class BuilderDispatchContext(DispatchContext):
         self.request = request
         self.page = page
         self.workflow_action = workflow_action
-        self.element = element
         self.only_record_id = only_record_id
 
         # Overrides the `request` GET offset/count values.
@@ -79,6 +76,35 @@ class BuilderDispatchContext(DispatchContext):
         )
 
         super().__init__()
+
+        # Early call to quickly trigger a validation error
+        self.request_data
+
+    @cached_property
+    def element(self) -> "Element":
+        """
+        The element associated with the request if any.
+        """
+
+        return self.request_data.get("data_source", {}).get("element")
+
+    @cached_property
+    def request_data(self) -> Dict:
+        """
+        Returns the request data potentially deserialized if the query was a multipart.
+        """
+
+        from baserow.contrib.builder.api.data_sources.serializers import (
+            DynamicMetadataSerializer,
+        )
+
+        serializer = DynamicMetadataSerializer(
+            data=getattr(self.request, "data", {}).get("metadata", {}),
+            context={"page": self.page},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        return serializer.validated_data
 
     @property
     def data_provider_registry(self):

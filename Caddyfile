@@ -26,11 +26,23 @@
             reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
         }
 
+        handle /mcp/* {
+            reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
+        }
+
         handle_path /media/* {
             @downloads {
                 query dl=*
             }
             header @downloads Content-disposition "attachment; filename={query.dl}"
+
+            // Allow to call head from public url to get size
+            header {
+                Access-Control-Allow-Origin {$PUBLIC_WEB_FRONTEND_URL:http://localhost:3000}
+                Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+                Access-Control-Allow-Headers "*"
+                Access-Control-Expose-Headers "Content-Length, Content-Type"
+            }
 
             file_server {
                 root {$MEDIA_ROOT:/baserow/media/}

@@ -1,10 +1,14 @@
 import { AdminType } from '@baserow/modules/core/adminTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import {
+  AuditLogPaidFeature,
+  SSOPaidFeature,
+} from '@baserow_enterprise/paidFeatures'
 
 class EnterpriseAdminType extends AdminType {
   getDeactivatedModal() {
-    return EnterpriseModal
+    return [PaidFeaturesModal, {}]
   }
 }
 
@@ -33,6 +37,13 @@ export class AuthProvidersType extends EnterpriseAdminType {
   isDeactivated() {
     return !this.app.$hasFeature(EnterpriseFeatures.SSO)
   }
+
+  getDeactivatedModal() {
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': SSOPaidFeature.getType() },
+    ]
+  }
 }
 
 export class AuditLogType extends EnterpriseAdminType {
@@ -59,5 +70,12 @@ export class AuditLogType extends EnterpriseAdminType {
 
   isDeactivated() {
     return !this.app.$hasFeature(EnterpriseFeatures.AUDIT_LOG)
+  }
+
+  getDeactivatedModal() {
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': AuditLogPaidFeature.getType() },
+    ]
   }
 }

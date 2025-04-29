@@ -1,7 +1,21 @@
-import { ElementType } from '@baserow/modules/builder/elementTypes'
+import {
+  ElementType,
+  FormElementType,
+} from '@baserow/modules/builder/elementTypes'
 import AuthFormElement from '@baserow_enterprise/builder/components/elements/AuthFormElement'
 import AuthFormElementForm from '@baserow_enterprise/builder/components/elements/AuthFormElementForm'
+import FileInputElement from '@baserow_enterprise/builder/components/elements/FileInputElement'
+import FileInputElementForm from '@baserow_enterprise/builder/components/elements/FileInputElementForm'
+import { uuid } from '@baserow/modules/core/utils/string'
+import {
+  ensureArray,
+  ensureString,
+} from '@baserow/modules/core/utils/validator'
+
 import { AfterLoginEvent } from '@baserow/modules/builder/eventTypes'
+
+import elementImageAuthForm from '@baserow_enterprise/assets/images/builder/element-auth_form.svg'
+import elementImageFileInput from '@baserow_enterprise/assets/images/builder/element-file_input.svg'
 
 export class AuthFormElementType extends ElementType {
   static getType() {
@@ -18,6 +32,10 @@ export class AuthFormElementType extends ElementType {
 
   get iconClass() {
     return 'iconoir-log-in'
+  }
+
+  get image() {
+    return elementImageAuthForm
   }
 
   get component() {
@@ -47,5 +65,150 @@ export class AuthFormElementType extends ElementType {
     const loginOptions = userSourceType.getLoginOptions(userSource)
 
     return Object.keys(loginOptions).length === 0
+  }
+}
+
+export class FileInputElementType extends FormElementType {
+  static getType() {
+    return 'input_file'
+  }
+
+  static getError(element, value, applicationContext) {
+    const arrayValue = element.multiple ? value : value ? [value] : []
+
+    if (element.required && arrayValue.length === 0) {
+      return 'required'
+    }
+
+    if (
+      arrayValue.some(({ size }) => {
+        return (
+          typeof size === 'number' &&
+          size / (1024 * 1024) >= element.max_filesize
+        )
+      })
+    ) {
+      return 'fileSize'
+    }
+
+    return null
+  }
+
+  isValid(element, value, applicationContext) {
+    return (
+      FileInputElementType.getError(element, value, applicationContext) === null
+    )
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.fileInput')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.fileInputDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-input-field'
+  }
+
+  get image() {
+    return elementImageFileInput
+  }
+
+  get component() {
+    return FileInputElement
+  }
+
+  get generalFormComponent() {
+    return FileInputElementForm
+  }
+
+  formDataType(element) {
+    if (element.multiple) {
+      return 'array'
+    }
+    return 'file'
+  }
+
+  getDataSchema(element) {
+    const type = this.formDataType(element)
+    if (type === 'file') {
+      return {
+        type: 'file',
+      }
+    } else if (type === 'array') {
+      return {
+        type: 'array',
+        items: {
+          type: 'file',
+        },
+      }
+    }
+  }
+
+  /**
+   * We extract the files from the file input element to the context.
+   * @param {*} element
+   * @param {*} value
+   * @param {*} files
+   * @returns
+   */
+  beforeActionDispatchContext(element, value, files) {
+    const withoutFiles = (element.multiple ? value : [value]).map((v) => {
+      if (v?.__file__) {
+        const data = v.data
+        const uid = uuid()
+        // Add file to context
+        files[uid] = data
+        return { ...v, file: uid, data: undefined }
+      } else {
+        return v
+      }
+    })
+
+    return element.multiple ? withoutFiles : withoutFiles[0]
+  }
+
+  _getName(name, url) {
+    if (!name) {
+      try {
+        const parsedUrl = new URL(url)
+        const segments = parsedUrl.pathname.split('/').filter(Boolean) // Remove empty segments
+        return segments.at(-1)
+      } catch {
+        return name
+      }
+    } else {
+      return name
+    }
+  }
+
+  getInitialFormDataValue(element, applicationContext) {
+    try {
+      const resolvedNames = this.resolveFormula(element.default_name, {
+        element,
+        ...applicationContext,
+      })
+      const resolvedUrls = this.resolveFormula(element.default_url, {
+        element,
+        ...applicationContext,
+      })
+      if (element.multiple) {
+        const names = ensureArray(resolvedNames).map(ensureString)
+        const urls = ensureArray(resolvedUrls).map(ensureString)
+        return urls.map((url, index) => {
+          return { __file__: true, name: this._getName(names[index], url), url }
+        })
+      } else {
+        const name = ensureString(resolvedNames)
+        const url = ensureString(resolvedUrls)
+        if (url) {
+          return { __file__: true, name: this._getName(name, url), url }
+        }
+      }
+    } catch {
+      return element.multiple ? [] : null
+    }
   }
 }
