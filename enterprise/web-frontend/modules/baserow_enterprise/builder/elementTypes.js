@@ -12,7 +12,7 @@ import {
   ensureString,
 } from '@baserow/modules/core/utils/validator'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
-import { SSOPaidFeature } from '@baserow_enterprise/paidFeatures'
+import { AuditLogPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 import { AfterLoginEvent } from '@baserow/modules/builder/eventTypes'
 
@@ -220,7 +220,7 @@ export class FileInputElementType extends FormElementType {
     if (
       !this.app.$hasFeature(
         EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
-        workspace
+        workspace.id
       )
     ) {
       return this.app.i18n.t('enterprise.deactivated')
@@ -232,12 +232,12 @@ export class FileInputElementType extends FormElementType {
     if (
       !this.app.$hasFeature(
         EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
-        workspace
+        workspace.id
       )
     ) {
       return [
         PaidFeaturesModal,
-        { 'initial-selected-type': SSOPaidFeature.getType() },
+        { 'initial-selected-type': AuditLogPaidFeature.getType() },
       ]
     }
     return null
