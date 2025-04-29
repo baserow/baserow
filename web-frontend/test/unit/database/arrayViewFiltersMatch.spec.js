@@ -2064,7 +2064,7 @@ describe('Empty / not Empty array view filters', () => {
         },
         {
           cellValue: [{ value: '' }],
-          expected: false,
+          expected: true,
         },
       ],
     },

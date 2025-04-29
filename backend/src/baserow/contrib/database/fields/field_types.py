@@ -4897,6 +4897,13 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             **get_baserow_formula_type_serializer_field_overrides(),
         }
 
+    def empty_query(self, field_name, model_field, field) -> Q:
+        (
+            field_instance,
+            field_type,
+        ) = self.get_field_instance_and_type_from_formula_field(field)
+        return field_type.empty_query(field_name, model_field, field_instance)
+
     @staticmethod
     def _stack_error_mapper(e):
         return (

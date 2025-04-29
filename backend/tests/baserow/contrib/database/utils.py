@@ -120,9 +120,12 @@ def autonumber_field_factory(data_fixture, table, user, **kwargs):
 
 
 def single_select_field_factory(data_fixture, table, user):
-    return data_fixture.create_single_select_field(
+    field = data_fixture.create_single_select_field(
         name="target", user=user, table=table
     )
+    data_fixture.create_select_option(field=field, value="1")
+    data_fixture.create_select_option(field=field, value="2")
+    return field
 
 
 def single_select_field_value_factory(data_fixture, target_field, value=None):
@@ -134,9 +137,12 @@ def single_select_field_value_factory(data_fixture, target_field, value=None):
 
 
 def multiple_select_field_factory(data_fixture, table, user):
-    return data_fixture.create_multiple_select_field(
+    field = data_fixture.create_multiple_select_field(
         name="target", user=user, table=table
     )
+    data_fixture.create_select_option(field=field, value="1")
+    data_fixture.create_select_option(field=field, value="2")
+    return field
 
 
 def multiple_select_field_value_factory(data_fixture, target_field, value=None):
@@ -144,6 +150,14 @@ def multiple_select_field_value_factory(data_fixture, target_field, value=None):
         return []
     option = data_fixture.create_select_option(field=target_field, value=value)
     return [option.id]
+
+
+def multiple_collaborators_field_factory(data_fixture, table, user):
+    data_fixture.create_user(workspace=table.database.workspace)
+    data_fixture.create_user(workspace=table.database.workspace)
+    return data_fixture.create_multiple_collaborators_field(
+        name="target", user=user, table=table
+    )
 
 
 def duration_field_factory(

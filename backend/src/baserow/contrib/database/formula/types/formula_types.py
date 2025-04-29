@@ -182,6 +182,9 @@ class BaserowFormulaTextType(
             )
         )
 
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        return [None, ""]
+
 
 class BaserowFormulaURLType(BaserowFormulaTextType, BaserowFormulaValidType):
     type = "url"
@@ -498,6 +501,7 @@ class BaserowFormulaNumberType(
 
 
 class BaserowFormulaBooleanType(
+    HasValueEmptyFilterSupport,
     HasAllValuesEqualFilterSupport,
     HasValueEqualFilterSupport,
     BaserowFormulaTypeHasEmptyBaserowExpression,
@@ -507,6 +511,9 @@ class BaserowFormulaBooleanType(
     baserow_field_type = "boolean"
     can_order_by_in_array = True
     can_group_by = True
+
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        return None
 
     @property
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
@@ -698,6 +705,7 @@ class BaserowFormulaDurationType(
     BaserowFormulaTypeHasEmptyBaserowExpression,
     BaserowFormulaValidType,
     BaserowFormulaDateIntervalTypeMixin,
+    HasValueEmptyFilterSupport,
 ):
     type = "duration"
     baserow_field_type = "duration"
@@ -708,6 +716,9 @@ class BaserowFormulaDurationType(
     def __init__(self, duration_format: str = D_H_M_S, **kwargs):
         super().__init__(**kwargs)
         self.duration_format = duration_format
+
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        return None
 
     @property
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
@@ -1641,12 +1652,40 @@ class BaserowFormulaMultipleSelectType(
         return get_jsonb_contains_word_filter_expr(model_field, value)
 
 
-class BaserowFormulaMultipleCollaboratorsType(BaserowJSONBObjectBaseType):
+class BaserowFormulaMultipleCollaboratorsType(
+    HasValueEmptyFilterSupport, BaserowJSONBObjectBaseType
+):
     type = "multiple_collaborators"
     baserow_field_type = "multiple_collaborators"
     can_order_by = False
     can_order_by_in_array = False
     can_group_by = False
+
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        return None
+
+    def get_in_array_all_empty_query(
+        self, field_name: str, model_field: Field, field
+    ) -> OptionallyAnnotatedQ:
+        empty_value = self.get_in_array_empty_value(field)
+        all_empty = get_jsonb_has_any_in_value_filter_expr(
+            model_field,
+            empty_value,
+            query_path="$[*].value.first_name",
+            comparison_operator="!=",
+            join_operator="&&",
+        )
+        all_empty.q |= Q(**{f"{field_name}": Value([], JSONField())})
+        return all_empty
+
+    def get_in_array_empty_query(
+        self, field_name, model_field, field
+    ) -> OptionallyAnnotatedQ:
+        # Use get_jsonb_has_any_in_value_filter_expr with size() to check if the array
+        # is empty.
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, [0], query_path="$[*].value.size()"
+        )
 
     @property
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:

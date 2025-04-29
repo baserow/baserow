@@ -26,7 +26,7 @@ class SingleSelectFormulaTypeFilterSupport(
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
 ):
-    def get_in_array_empty_value(self, field: "Field"):
+    def get_in_array_empty_value(self, field: "Field") -> any:
         return None
 
     def get_in_array_is_query(

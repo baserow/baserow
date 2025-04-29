@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, List
 
-from django.db.models import Field
+from django.db.models import Field, JSONField, Q, Value
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 
@@ -25,6 +25,23 @@ class MultipleSelectFormulaTypeFilterSupport(
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
 ):
+    def get_in_array_empty_value(self, field: "Field") -> any:
+        return None
+
+    def get_in_array_all_empty_query(
+        self, field_name: str, model_field: Field, field: "BaserowField"
+    ) -> OptionallyAnnotatedQ:
+        empty_value = self.get_in_array_empty_value(field)
+        all_empty = get_jsonb_has_any_in_value_filter_expr(
+            model_field,
+            empty_value,
+            query_path="$[*].value.value",
+            comparison_operator="!=",
+            join_operator="&&",
+        )
+        all_empty.q |= Q(**{f"{field_name}": Value([], JSONField())})
+        return all_empty
+
     def get_in_array_empty_query(
         self, field_name, model_field, field: "BaserowField"
     ) -> OptionallyAnnotatedQ:
