@@ -18,7 +18,7 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         return trashed_item.workflow
 
     def get_name(self, trashed_item: AutomationNode) -> str:
-        return str(trashed_item)
+        return f"{trashed_item.specific.get_type().type} ({trashed_item.id})"
 
     def trash(
         self,

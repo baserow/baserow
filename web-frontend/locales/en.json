@@ -306,7 +306,8 @@
   "trashType": {
     "workspace": "workspace",
     "application": "application",
-    "automation_workflow": "automationWorkflow",
+    "automation_workflow": "automation workflow",
+    "automation_node": "automation node",
     "table": "table",
     "field": "field",
     "row": "row",
