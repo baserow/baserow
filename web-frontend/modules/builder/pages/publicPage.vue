@@ -262,6 +262,20 @@ export default {
       pageId: pageFound.id,
     })
 
+    if (!store.getters['auth/isAuthenticated']) {
+      // It means that we are visiting a published website
+      // We need to populate additional data for the user for license check later
+      store.dispatch('auth/forceSetAdditionalData', {
+        active_licenses: {
+          per_workspace: {
+            [builder.workspace.id]: Object.fromEntries(
+              builder.workspace.licenses.map((license) => [license, true])
+            ),
+          },
+        },
+      })
+    }
+
     return {
       workspace: builder.workspace,
       builder,

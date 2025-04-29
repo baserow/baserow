@@ -83,6 +83,7 @@ export class LicenseHandler {
     const perWorkspaceLicenses =
       this.getters['auth/getAdditionalUserData']?.active_licenses
         ?.per_workspace || {}
+
     return Object.entries(perWorkspaceLicenses[workspaceId] || {})
       .filter(
         ([key, enabled]) => enabled && this.$registry.exists('license', key)
@@ -103,16 +104,6 @@ export class LicenseHandler {
   }
 
   hasFeature(feature, forSpecificWorkspace = null) {
-    // Special case for public application without logged in user
-    if (Array.isArray(forSpecificWorkspace?.licenses)) {
-      return forSpecificWorkspace.licenses.some((license_type_name) => {
-        return this.app.$registry
-          .get('license', license_type_name)
-          .getFeatures()
-          .includes(feature)
-      })
-    }
-
     return (
       this.userHasFeatureEnabledInstanceWide(feature) ||
       (forSpecificWorkspace
