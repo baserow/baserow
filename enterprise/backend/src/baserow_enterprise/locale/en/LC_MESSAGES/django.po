@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-05 11:01+0000\n"
+"POT-Creation-Date: 2025-04-29 15:40+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -81,6 +81,17 @@ msgstr ""
 msgid ""
 "The periodic data sync failed more than %(max_failures)s consecutive "
 "timesand was therefore deactivated."
+msgstr ""
+
+#: src/baserow_enterprise/field_permissions/actions.py:25
+msgid "Update field permissions"
+msgstr ""
+
+#: src/baserow_enterprise/field_permissions/actions.py:27
+#, python-format
+msgid ""
+"Field \"%(field_name)s\" (%(field_id)s): permissions updated to role "
+"\"%(role)s\" and \"allow in forms\" set to \"%(allow_in_forms)s\""
 msgstr ""
 
 #: src/baserow_enterprise/role/actions.py:28

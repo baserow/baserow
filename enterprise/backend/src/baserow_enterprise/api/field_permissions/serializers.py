@@ -1,15 +1,15 @@
 from rest_framework import serializers
 
-from baserow_enterprise.field_permissions.models import FieldPermissionRoleEnum
+from baserow_enterprise.field_permissions.models import FieldPermissionsRoleEnum
 
 
 class UpdateFieldPermissionsRequestSerializer(serializers.Serializer):
     role = serializers.ChoiceField(
         choices=[
-            (FieldPermissionRoleEnum.EDITOR.value, "Editor"),  # default
-            (FieldPermissionRoleEnum.BUILDER.value, "Builder"),
-            (FieldPermissionRoleEnum.ADMIN.value, "Admin"),
-            (FieldPermissionRoleEnum.NOBODY.value, "Nobody"),
+            (FieldPermissionsRoleEnum.ADMIN.value, "Admin"),
+            (FieldPermissionsRoleEnum.BUILDER.value, "Builder"),
+            (FieldPermissionsRoleEnum.EDITOR.value, "Editor"),  # default
+            (FieldPermissionsRoleEnum.NOBODY.value, "Nobody"),
         ],
         help_text="The role required to update the data for this field.",
     )
