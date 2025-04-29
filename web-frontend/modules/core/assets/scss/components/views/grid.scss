@@ -211,7 +211,7 @@
 .grid-view__placeholder-column {
   @include absolute(0, auto, 0, auto);
 
-  border-right: 1px solid $color-neutral-200;
+  border-right: 1px solid $palette-neutral-200;
 
   &.grid-view__placeholder-column--no-border-right,
   .grid-view__left & {
@@ -423,7 +423,8 @@
 
   line-height: $grid-view-row-height-small;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
+  color: $palette-neutral-900;
 }
 
 .grid-view__group-value {
