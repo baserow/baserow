@@ -80,7 +80,7 @@
         :placeholder="$t('fieldNumberSubForm.defaultValuePlaceholder')"
         @focus="onDefaultValueFocus"
         @blur="onDefaultValueBlur"
-        @keypress="onDefaultValueKeyPress"
+        @keypress="onKeyPress"
       ></FormInput>
     </FormGroup>
   </div>
@@ -89,7 +89,7 @@
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import { required, maxLength } from '@vuelidate/validators'
-
+import BigNumber from 'bignumber.js'
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import numberField from '@baserow/modules/database/mixins/numberField'
@@ -203,10 +203,7 @@ export default {
   methods: {
     onDefaultValueFocus() {
       this.focused = true
-      this.formattedDefaultValue = this.formatNumberValueForEdit(
-        this.field,
-        this.values.number_default
-      )
+      this.updateFormattedValue(this.field, this.values.number_default)
     },
     onDefaultValueBlur() {
       this.focused = false
@@ -222,13 +219,13 @@ export default {
       this.values.number_default = parsedValue === null ? '' : parsedValue
       this.updateFormattedValue(this.field, this.values.number_default)
     },
-    onDefaultValueKeyPress(event) {
-      if (!this.values.number_negative && event.key === '-') {
-        event.preventDefault()
-      }
-    },
     updateFormattedValue(field, value) {
-      this.formattedDefaultValue = this.formatNumberValue(field, value)
+      const numberValue = new BigNumber(value)
+      if (numberValue.isNaN()) {
+        this.formattedDefaultValue = ''
+        return
+      }
+      this.formattedDefaultValue = this.formatNumberValue(field, numberValue)
     },
   },
 }
