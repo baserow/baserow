@@ -93,7 +93,7 @@ class AutomationNodeHandler:
                 id=node_id
             )
         except AutomationNode.DoesNotExist:
-            raise AutomationNodeDoesNotExist()
+            raise AutomationNodeDoesNotExist(node_id)
 
     def update_node(
         self, user: AbstractUser, node: AutomationNode, **kwargs

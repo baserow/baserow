@@ -1,0 +1,252 @@
+import pytest
+
+from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.automation.nodes.models import LocalBaserowRowCreatedTriggerNode
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
+from baserow.core.exceptions import UserNotInWorkspace
+
+
+@pytest.mark.django_db
+def test_create_node(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node_type = automation_node_type_registry.get("row_created")
+
+    node = AutomationNodeService().create_node(user, node_type, workflow)
+
+    assert isinstance(node, LocalBaserowRowCreatedTriggerNode)
+
+
+@pytest.mark.django_db
+def test_create_node_permission_error(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node_type = automation_node_type_registry.get("row_created")
+
+    another_user, _ = data_fixture.create_user_and_token()
+
+    with pytest.raises(UserNotInWorkspace) as e:
+        AutomationNodeService().create_node(another_user, node_type, workflow)
+
+    assert str(e.value) == (
+        f"User {another_user.email} doesn't belong to workspace "
+        f"{workflow.automation.workspace}."
+    )
+
+
+@pytest.mark.django_db
+def test_get_node(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    node_instance = AutomationNodeService().get_node(user, node.id)
+
+    assert node_instance.specific == node
+
+
+@pytest.mark.django_db
+def test_get_node_invalid_node_id(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+
+    with pytest.raises(AutomationNodeDoesNotExist) as e:
+        AutomationNodeService().get_node(user, 100)
+
+    assert str(e.value) == "The node 100 does not exist."
+
+
+@pytest.mark.django_db
+def test_get_node_permission_error(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    another_user, _ = data_fixture.create_user_and_token()
+    node = data_fixture.create_automation_node(user=user)
+
+    with pytest.raises(UserNotInWorkspace) as e:
+        AutomationNodeService().get_node(another_user, node.id)
+
+    assert str(e.value) == (
+        f"User {another_user.email} doesn't belong to "
+        f"workspace {node.workflow.automation.workspace}."
+    )
+
+
+@pytest.mark.django_db
+def test_get_nodes(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    nodes = AutomationNodeService().get_nodes(user, workflow)
+
+    assert nodes[0].specific == node
+
+
+@pytest.mark.django_db
+def test_get_nodes_permission_error(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    another_user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    with pytest.raises(UserNotInWorkspace) as e:
+        AutomationNodeService().get_nodes(another_user, workflow)
+
+    assert str(e.value) == (
+        f"User {another_user.email} doesn't belong to "
+        f"workspace {workflow.automation.workspace}."
+    )
+
+
+@pytest.mark.django_db
+def test_update_node(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+    assert node.previous_node_output == ""
+
+    updated_node = AutomationNodeService().update_node(
+        user, node.id, previous_node_output="foo"
+    )
+
+    assert updated_node == UpdatedAutomationNode(
+        node=node.all_parents_and_self()[0],
+        original_values={"previous_node_output": ""},
+        new_values={"previous_node_output": "foo"},
+    )
+    node.refresh_from_db()
+    assert node.previous_node_output == "foo"
+
+
+@pytest.mark.django_db
+def test_update_node_invalid_node_id(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+
+    with pytest.raises(AutomationNodeDoesNotExist) as e:
+        AutomationNodeService().update_node(user, 100, previous_node_output="foo")
+
+    assert str(e.value) == "The node 100 does not exist."
+
+
+@pytest.mark.django_db
+def test_update_node_permission_error(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    another_user, _ = data_fixture.create_user_and_token()
+    node = data_fixture.create_automation_node(user=user)
+
+    with pytest.raises(UserNotInWorkspace) as e:
+        AutomationNodeService().update_node(
+            another_user, node.id, previous_node_output="foo"
+        )
+
+    assert str(e.value) == (
+        f"User {another_user.email} doesn't belong to "
+        f"workspace {node.workflow.automation.workspace}."
+    )
+
+
+@pytest.mark.django_db
+def test_delete_node(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    assert workflow.automation_workflow_nodes.count() == 1
+
+    AutomationNodeService().delete_node(user, node.id)
+
+    assert workflow.automation_workflow_nodes.count() == 0
+
+
+@pytest.mark.django_db
+def test_delete_node_invalid_node_id(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+
+    with pytest.raises(AutomationNodeDoesNotExist) as e:
+        AutomationNodeService().delete_node(user, 100)
+
+    assert str(e.value) == "The node 100 does not exist."
+
+
+@pytest.mark.django_db
+def test_delete_node_permission_error(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    another_user, _ = data_fixture.create_user_and_token()
+    node = data_fixture.create_automation_node(user=user)
+
+    with pytest.raises(UserNotInWorkspace) as e:
+        AutomationNodeService().delete_node(another_user, node.id)
+
+    assert str(e.value) == (
+        f"User {another_user.email} doesn't belong to "
+        f"workspace {node.workflow.automation.workspace}."
+    )
+
+
+@pytest.mark.django_db
+def test_order_nodes(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node_1 = data_fixture.create_automation_node(user=user, workflow=workflow)
+    node_2 = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    node_order = AutomationNodeHandler().get_nodes_order(workflow)
+    assert node_order == [node_1.id, node_2.id]
+
+    new_order = AutomationNodeService().order_nodes(
+        user, workflow, [node_2.id, node_1.id]
+    )
+    assert new_order == [node_2.id, node_1.id]
+
+    node_order = AutomationNodeHandler().get_nodes_order(workflow)
+    assert node_order == [node_2.id, node_1.id]
+
+
+@pytest.mark.django_db
+def test_order_nodes_permission_error(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    another_user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node_1 = data_fixture.create_automation_node(user=user, workflow=workflow)
+    node_2 = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    with pytest.raises(UserNotInWorkspace) as e:
+        AutomationNodeService().order_nodes(
+            another_user, workflow, [node_2.id, node_1.id]
+        )
+
+    assert str(e.value) == (
+        f"User {another_user.email} doesn't belong to "
+        f"workspace {workflow.automation.workspace}."
+    )
+
+
+@pytest.mark.django_db
+def test_duplicate_node(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    assert workflow.automation_workflow_nodes.count() == 1
+
+    duplicated_node = AutomationNodeService().duplicate_node(user, node)
+
+    assert workflow.automation_workflow_nodes.count() == 2
+    assert duplicated_node == workflow.automation_workflow_nodes.all()[1].specific
+
+
+@pytest.mark.django_db
+def test_duplicate_node_permission_error(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    another_user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    with pytest.raises(UserNotInWorkspace) as e:
+        AutomationNodeService().duplicate_node(another_user, node)
+
+    assert str(e.value) == (
+        f"User {another_user.email} doesn't belong to "
+        f"workspace {workflow.automation.workspace}."
+    )
