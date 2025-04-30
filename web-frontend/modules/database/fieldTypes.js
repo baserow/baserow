@@ -1451,6 +1451,7 @@ export class LinkRowFieldType extends FieldType {
   prepareValueForPaste(field, clipboardData, richClipboardData) {
     if (
       this.checkRichValueIsCompatible(richClipboardData) &&
+      richClipboardData &&
       field.link_row_table_id === richClipboardData.tableId
     ) {
       if (richClipboardData === null) {
