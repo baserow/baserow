@@ -432,7 +432,9 @@
         "cannotCreateRowsInTableTitle": "Impossible de créer les lignes",
         "cannotCreateRowsInTableDescription": "Impossible de créer les lignes dans cette table.",
         "databaseDeadlockTitle": "L'action a échoué",
-        "databaseDeadlockDescription": "L'action n'a pas pu être achevée en raison de plusieurs opérations conflictuelles sur les données en même temps. Veuillez réessayer."
+        "databaseDeadlockDescription": "L'action n'a pas pu être achevée en raison de plusieurs opérations conflictuelles sur les données en même temps. Veuillez réessayer.",
+        "databaseUniquePrimaryPropertyNotFoundDescription": "Cela se produit généralement lorsque la source de synchronisation des données ne contient aucune propriété permettant d'obtenir un identifiant de ligne unique. Dans le cas d'une table, il se peut qu'il n'y ait pas de clé primaire.",
+        "databaseUniquePrimaryPropertyNotFoundTitle": "Aucune propriété primaire unique n'a été trouvée"
     },
     "importerType": {
         "csv": "Importer un fichier CSV",
