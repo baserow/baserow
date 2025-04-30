@@ -712,23 +712,7 @@ class DeleteRowActionType(UndoableActionType):
             after_values={},
         )
 
-        if action.command_type == ActionCommandType.DO:
-            row_diff = (
-                extract_row_diff(
-                    table_id,
-                    row_id,
-                    fields_metadata,
-                    before,
-                    after,
-                    are_equal=are_equal_on_create,
-                )
-                or row_diff
-            )
-        changed_fields_metadata = {
-            k: v
-            for k, v in fields_metadata.items()
-            if k in row_diff.changed_field_names
-        }
+        changed_fields_metadata = {}
 
         entry = construct_entry_from_action_and_diff(
             user,
@@ -911,23 +895,7 @@ class DeleteRowsActionType(UndoableActionType):
                 after_values={},
             )
 
-            if action.command_type == ActionCommandType.DO:
-                row_diff = (
-                    extract_row_diff(
-                        table_id,
-                        row_id,
-                        fields_metadata,
-                        before,
-                        after,
-                        are_equal=are_equal_on_create,
-                    )
-                    or row_diff
-                )
-            changed_fields_metadata = {
-                k: v
-                for k, v in fields_metadata.items()
-                if k in row_diff.changed_field_names
-            }
+            changed_fields_metadata = {}
 
             entry = construct_entry_from_action_and_diff(
                 user,

@@ -1201,14 +1201,9 @@ def test_delete_rows_action_row_history_with_undo_redo(
             "action_timestamp": freezed_timestamp,
             "action_type": action_type_name,
             "action_command_type": "DO",
-            "after_values": {f"field_{name_field.id}": None},
-            "before_values": {f"field_{name_field.id}": "New 1"},
-            "fields_metadata": {
-                f"field_{name_field.id}": {
-                    "type": "text",
-                    "id": name_field.id,
-                }
-            },
+            "after_values": {},
+            "before_values": {},
+            "fields_metadata": {},
         },
     ]
 
@@ -1242,14 +1237,9 @@ def test_delete_rows_action_row_history_with_undo_redo(
             "action_timestamp": freezed_timestamp,
             "action_type": action_type_name,
             "action_command_type": "DO",
-            "after_values": {f"field_{name_field.id}": None},
-            "before_values": {f"field_{name_field.id}": "New 1"},
-            "fields_metadata": {
-                f"field_{name_field.id}": {
-                    "type": "text",
-                    "id": name_field.id,
-                }
-            },
+            "after_values": {},
+            "before_values": {},
+            "fields_metadata": {},
         },
         {
             "user_id": user.id,
@@ -1295,14 +1285,9 @@ def test_delete_rows_action_row_history_with_undo_redo(
             "action_timestamp": freezed_timestamp,
             "action_type": action_type_name,
             "action_command_type": "DO",
-            "after_values": {f"field_{name_field.id}": None},
-            "before_values": {f"field_{name_field.id}": "New 1"},
-            "fields_metadata": {
-                f"field_{name_field.id}": {
-                    "type": "text",
-                    "id": name_field.id,
-                }
-            },
+            "after_values": {},
+            "before_values": {},
+            "fields_metadata": {},
         },
         {
             "user_id": user.id,
