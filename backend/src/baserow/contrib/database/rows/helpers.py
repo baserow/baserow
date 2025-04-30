@@ -55,7 +55,7 @@ def extract_row_diff(
 
     if not are_equal:
 
-        def are_equal(field_identifier, before_value, after_value) -> bool:
+        def are_equal(field_identifier, after_value, before_value) -> bool:
             field_type = fields_metadata[field_identifier]["type"]
             field_type = field_type_registry.get(field_type)
             return field_type.are_row_values_equal(before_value, after_value)

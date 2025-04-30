@@ -117,11 +117,6 @@ export default {
         )
       })
 
-      console.log('entries', {
-        fields: this.fields,
-        entries: this.entries,
-        entriesToRender,
-      })
       return entriesToRender
     },
   },

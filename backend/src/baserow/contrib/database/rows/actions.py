@@ -1,6 +1,6 @@
 import dataclasses
 from collections import defaultdict
-from copy import deepcopy
+from copy import copy, deepcopy
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type
 
@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from baserow.contrib.database.rows.history import ActionData
 
 
-def are_equal_on_create(field_identifier, before_value, after_value) -> bool:
+def are_equal_on_create(field_identifier, after_value, before_value) -> bool:
     """
     Dummy equal check for created row.
 
@@ -65,11 +65,21 @@ def are_equal_on_create(field_identifier, before_value, after_value) -> bool:
     :return:
     """
 
-    # both fields are empty, but they may
-    # be empty in a different way ('' vs None)
+    # Both field values are empty, but they may be empty in a different way. Initially,
+    # we set an empty string for all values, regardless the field type. `after_value`
+    # was processed by field type logic and ORM layer, so it can be of a different type,
+    # but still an empty value, i.e. `None`.
     if not before_value and not after_value:
         return True
     return before_value == after_value
+
+
+def get_row_values(row, fields) -> dict[str, Any]:
+    rh = RowHandler()
+    field_ids = [f["field"].id for f in fields if not f["type"].read_only]
+    out = rh.get_internal_values_for_fields(row, field_ids)
+    out["id"] = row.id
+    return out
 
 
 class CreateRowActionType(UndoableActionType):
@@ -142,34 +152,25 @@ class CreateRowActionType(UndoableActionType):
         )
         tmodel = table.get_model()
         fields = tmodel.get_field_objects()
-        cache = {}
-
-        def _row_values(row, fields):
-            out = {}
-            for field in fields:
-                out[field["name"]] = field["type"].get_export_serialized_value(
-                    row, field["name"], files_zip=None, cache=cache, storage=None
-                )
-            return out
 
         workspace = table.database.workspace
-
+        fields_metadata = rh.get_fields_metadata_for_rows(
+            [row],
+            [
+                f["field"]
+                for f in fields
+                if f["name"] != "id" and not f["type"].read_only
+            ],
+        )[row.id]
+        row_values = get_row_values(row, fields)
         params = cls.Params(
             table.id,
             table.name,
             table.database.id,
             table.database.name,
             row.id,
-            fields_metadata=rh.get_fields_metadata_for_rows(
-                [row],
-                [
-                    f["field"]
-                    for f in fields
-                    if f["name"] != "id" and not f["type"].read_only
-                ],
-            )[row.id],
-            # we need row id + fields here
-            row_values={"id": row.id, **_row_values(row, fields)},
+            fields_metadata=fields_metadata,
+            row_values=row_values,
         )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=workspace
@@ -216,11 +217,11 @@ class CreateRowActionType(UndoableActionType):
         # values that were changed. We need to populate with empty values, so a diff
         # can be properly detected.
         before = {
-            **{field_name: "" for field_name in fields_metadata.keys()},
+            **{field_name: None for field_name in fields_metadata.keys()},
             **before,
         }
         after = {
-            **{field_name: "" for field_name in fields_metadata.keys()},
+            **{field_name: None for field_name in fields_metadata.keys()},
             **after,
         }
 
@@ -279,9 +280,10 @@ class CreateRowActionType(UndoableActionType):
         update_related_tables_entries(
             related_rows_diff, related_metadata, related_row_diff
         )
-
+        related_action = copy(action)
+        related_action.type = UpdateRowsActionType.type
         related_entries = construct_related_rows_entries(
-            related_rows_diff, user, action
+            related_rows_diff, user, related_action
         )
         row_history_entries.extend(related_entries)
         return row_history_entries
@@ -355,15 +357,16 @@ class CreateRowsActionType(UndoableActionType):
         workspace = table.database.workspace
         tmodel = table.get_model()
         fields = tmodel.get_field_objects()
-        cache = {}
 
-        def _row_values(row, fields):
-            out = {}
-            for field in fields:
-                out[field["name"]] = field["type"].get_export_serialized_value(
-                    row, field["name"], cache=cache, files_zip=None, storage=None
-                )
-            return out
+        fields_metadata = rh.get_fields_metadata_for_rows(
+            rows,
+            [
+                f["field"]
+                for f in fields
+                if f["name"] != "id" and not f["type"].read_only
+            ],
+        )
+        values = [get_row_values(row, fields) for row in rows]
 
         params = cls.Params(
             table.id,
@@ -371,16 +374,8 @@ class CreateRowsActionType(UndoableActionType):
             table.database.id,
             table.database.name,
             row_ids=[row.id for row in rows],
-            fields_metadata=rh.get_fields_metadata_for_rows(
-                rows,
-                [
-                    f["field"]
-                    for f in fields
-                    if f["name"] != "id" and not f["type"].read_only
-                ],
-            ),
-            # we need row id + fields here
-            rows_values=[{"id": row.id, **_row_values(row, fields)} for row in rows],
+            fields_metadata=fields_metadata,
+            rows_values=values,
         )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=workspace
@@ -433,11 +428,11 @@ class CreateRowsActionType(UndoableActionType):
             before = before_values[i]
 
             before = {
-                **{field_name: "" for field_name in fields_metadata.keys()},
+                **{field_name: None for field_name in fields_metadata.keys()},
                 **before,
             }
             after = {
-                **{field_name: "" for field_name in fields_metadata.keys()},
+                **{field_name: None for field_name in fields_metadata.keys()},
                 **after,
             }
             row_diff = RowChangeDiff(
@@ -494,8 +489,10 @@ class CreateRowsActionType(UndoableActionType):
                 related_rows_diff, related_metadata, related_row_diff
             )
 
+            related_action = copy(action)
+            related_action.type = UpdateRowsActionType.type
             related_entries = construct_related_rows_entries(
-                related_rows_diff, user, action
+                related_rows_diff, user, related_action
             )
             row_history_entries.extend(related_entries)
 
@@ -652,26 +649,18 @@ class DeleteRowActionType(UndoableActionType):
         database = table.database
         tmodel = table.get_model()
         fields = tmodel.get_field_objects()
-        cache = {}
 
-        def _row_values(row, fields):
-            out = {}
-            for field in fields:
-                out[field["name"]] = field["type"].get_export_serialized_value(
-                    row, field["name"], cache=cache, files_zip=None, storage=None
-                )
-            return out
-
+        fields_metadata = rh.get_fields_metadata_for_rows(
+            [row], [f["field"] for f in fields]
+        )[row.id]
         params = cls.Params(
             table.id,
             table.name,
             database.id,
             database.name,
             row_id,
-            values=_row_values(row, fields),
-            fields_metadata=rh.get_fields_metadata_for_rows(
-                [row], [f["field"] for f in fields]
-            )[row.id],
+            values=get_row_values(row, fields),
+            fields_metadata=fields_metadata,
         )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=database.workspace
@@ -708,11 +697,11 @@ class DeleteRowActionType(UndoableActionType):
         after = {"id": row_id}
 
         before = {
-            **{field_name: "" for field_name in fields_metadata.keys()},
+            **{field_name: None for field_name in fields_metadata.keys()},
             **before,
         }
         after = {
-            **{field_name: "" for field_name in fields_metadata.keys()},
+            **{field_name: None for field_name in fields_metadata.keys()},
             **after,
         }
         row_diff = RowChangeDiff(
@@ -766,9 +755,10 @@ class DeleteRowActionType(UndoableActionType):
         update_related_tables_entries(
             related_rows_diff, related_metadata, related_row_diff
         )
-
+        related_action = copy(action)
+        related_action.type = UpdateRowsActionType.type
         related_entries = construct_related_rows_entries(
-            related_rows_diff, user, action
+            related_rows_diff, user, related_action
         )
         row_history_entries.extend(related_entries)
 
@@ -835,16 +825,11 @@ class DeleteRowsActionType(UndoableActionType):
         workspace = table.database.workspace
         tmodel = table.get_model()
         fields = tmodel.get_field_objects()
-        cache = {}
 
-        def _row_values(row, fields):
-            out = {}
-            for field in fields:
-                out[field["name"]] = field["type"].get_export_serialized_value(
-                    row, field["name"], cache=cache, files_zip=None, storage=None
-                )
-            return out
-
+        fields_metadata = rh.get_fields_metadata_for_rows(
+            trashed_rows_entry.rows, [f["field"] for f in fields]
+        )
+        rows_values = [get_row_values(row, fields) for row in trashed_rows_entry.rows]
         params = cls.Params(
             table.id,
             table.name,
@@ -852,13 +837,8 @@ class DeleteRowsActionType(UndoableActionType):
             table.database.name,
             row_ids,
             trashed_rows_entry_id=trashed_rows_entry.id,
-            fields_metadata=rh.get_fields_metadata_for_rows(
-                trashed_rows_entry.rows, [f["field"] for f in fields]
-            ),
-            rows_values=[
-                {"id": row.id, **_row_values(row, fields)}
-                for row in trashed_rows_entry.rows
-            ],
+            fields_metadata=fields_metadata,
+            rows_values=rows_values,
         )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=workspace
@@ -895,7 +875,7 @@ class DeleteRowsActionType(UndoableActionType):
             {
                 "id": r,
                 **{
-                    field_name: ""
+                    field_name: None
                     for field_name in params.fields_metadata[str(r)]
                     if field_name != "id"
                 },
@@ -916,11 +896,11 @@ class DeleteRowsActionType(UndoableActionType):
             fields_metadata = params.fields_metadata[str(row_id)]
             before = before_values[i]
             before = {
-                **{field_name: "" for field_name in fields_metadata.keys()},
+                **{field_name: None for field_name in fields_metadata.keys()},
                 **before,
             }
             after = {
-                **{field_name: "" for field_name in fields_metadata.keys()},
+                **{field_name: None for field_name in fields_metadata.keys()},
                 **after,
             }
             row_diff = RowChangeDiff(
@@ -976,9 +956,10 @@ class DeleteRowsActionType(UndoableActionType):
             update_related_tables_entries(
                 related_rows_diff, related_metadata, related_row_diff
             )
-
+            related_action = copy(action)
+            related_action.type = UpdateRowsActionType.type
             related_entries = construct_related_rows_entries(
-                related_rows_diff, user, action
+                related_rows_diff, user, related_action
             )
             row_history_entries.extend(related_entries)
         return row_history_entries
@@ -1287,7 +1268,7 @@ class UpdateRowsActionType(UndoableActionType):
         database_id: int
         database_name: str
         row_ids: List[int]
-        rows_values: List[Dict[str, Any]]  # TODO: rename to rows_values
+        rows_values: List[Dict[str, Any]]
         original_rows_values_by_id: Dict[int, Dict[str, Any]]
         updated_fields_metadata_by_row_id: Dict[int, Dict[str, Any]]
 
@@ -1434,20 +1415,3 @@ class UpdateRowsActionType(UndoableActionType):
         )
         row_history_entries.extend(related_entries)
         return row_history_entries
-
-    @classmethod
-    def get_before_values(cls, params: Params) -> list[dict]:
-        after_values = params.rows_values
-        before_values = [
-            params.original_rows_values_by_id[r["id"]] for r in after_values
-        ]
-        return before_values
-
-    @classmethod
-    def get_after_values(cls, params: Params) -> list[dict]:
-        return params.rows_values
-
-    @classmethod
-    def get_fields_metadata(cls, params: Params, row_id) -> dict:
-        fields_metadata = params.updated_fields_metadata_by_row_id[row_id]
-        return fields_metadata
