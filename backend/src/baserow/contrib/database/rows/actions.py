@@ -1268,7 +1268,10 @@ class UpdateRowsActionType(UndoableActionType):
         database_id: int
         database_name: str
         row_ids: List[int]
-        rows_values: List[Dict[str, Any]]
+        # Note: while `row_values` is a typo, we should not change it, because
+        # .Params are used in audit log as well. If this changes, we will need
+        # to support both versions of the structure.
+        row_values: List[Dict[str, Any]]
         original_rows_values_by_id: Dict[int, Dict[str, Any]]
         updated_fields_metadata_by_row_id: Dict[int, Dict[str, Any]]
 
@@ -1369,7 +1372,7 @@ class UpdateRowsActionType(UndoableActionType):
     def get_row_change_history(cls, user, action: "ActionData") -> list[RowHistory]:
         params = cls.serialized_to_params(action.params)
         table_id = params.table_id
-        after_values = params.rows_values
+        after_values = params.row_values
         before_values = [
             params.original_rows_values_by_id[r["id"]] for r in after_values
         ]
