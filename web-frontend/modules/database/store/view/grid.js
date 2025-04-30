@@ -68,7 +68,7 @@ function populateRows({
     fieldsInOrder.forEach((field, fieldIndex) => {
       const fieldType = registry.get('field', field.type)
       // We can't pre-filter because we need the correct filter index.
-      if (fieldType.canWriteFieldValues(field)) {
+      if (!fieldType.canWriteFieldValues(field)) {
         return
       }
 
