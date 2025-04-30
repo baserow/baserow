@@ -139,9 +139,9 @@ in-tool file download button to work correctly. An example rule is provided belo
 ```
 cors_rule {
 allowed_headers = ["*"]
-allowed_methods = ["GET"]
-allowed_origins = ["REPLACE_WITH_YOUR_BASEROW_PUBLIC)URL"]
-expose_headers  = ["ETag"]
+allowed_methods = ["GET", "HEAD", "OPTIONS"]
+allowed_origins = ["REPLACE_WITH_YOUR_BASEROW_PUBLIC_URL"]
+expose_headers  = ["ETag", "Content-Length", "Content-Type"]
 max_age_seconds = 3000
 }
 ```

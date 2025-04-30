@@ -111,8 +111,8 @@ environment variable `BASEROW_TRIGGER_SYNC_TEMPLATES_AFTER_MIGRATION` to `true`.
 In order for the download button to work in Baserow you would need to configure the CORS
 settings in spaces. Navigate to the created space, go to the `Settings` tab, click on
 `Add` next to the CORS  Configurations, and add the URL of the newly created
-application without a trailing slash, so it must not end with a `/`. Select the `GET` method,
-and click `Save CORS Configuration`.
+application without a trailing slash, so it must not end with a `/`. Select the `GET`,
+`HEAD` and `OPTIONS` method, and click `Save CORS Configuration`.
 
 ## Finish
 
