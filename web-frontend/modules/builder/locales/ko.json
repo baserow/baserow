@@ -125,7 +125,9 @@
         "rating": "평가",
         "invalidElementValue": "잘못된 요소 값: {value}",
         "ratingDescription": "평가 요소",
-        "ratingInputDescription": "평가 입력 요소"
+        "ratingInputDescription": "평가 입력 요소",
+        "fileInput": "파일 선택",
+        "fileInputDescription": "파일을 업로드하기 위한 입력란"
     },
     "addElementButton": {
         "label": "요소"
@@ -145,7 +147,8 @@
     },
     "duplicatePageJobType": {
         "duplicating": "복제 중",
-        "duplicatedTitle": "페이지 복제됨"
+        "duplicatedTitle": "페이지 복제됨",
+        "name": "페이지 복제"
     },
     "pageSidePanelType": {
         "general": "일반",
@@ -214,7 +217,7 @@
         "validationTypeAnyLabel": "무엇이든",
         "validationTypeAnyDescription": "이 입력에 어떤 값이든 설정할 수 있도록 허용합니다.",
         "validationTypeIntegerLabel": "숫자",
-        "validationTypeIntegerDescription": "이 입력에 숫자 값을 적용합니다.",
+        "validationTypeIntegerDescription": "이 입력란에는 숫자만 입력할 수 있도록 제한합니다(정수와 소수 모두 허용).",
         "validationTypeEmailLabel": "이메일",
         "validationTypeEmailDescription": "이 입력에 이메일 주소 값을 적용합니다.",
         "inputType": "입력 유형",
@@ -1024,5 +1027,11 @@
         "smile": "스마일",
         "flag": "깃발",
         "thumbsUp": "좋아요"
+    },
+    "automationSettingsModal": {
+        "title": "워크플로우"
+    },
+    "abFileInput": {
+        "delete": "제거"
     }
 }
