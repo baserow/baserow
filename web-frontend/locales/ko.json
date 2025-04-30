@@ -74,14 +74,17 @@
         "automations": "자동화",
         "automationDefaultName": "제목 없는 자동화",
         "automationDesc": "반복적인 작업과 워크플로우를 자동화하세요.",
-        "automation": "자동화"
+        "automation": "자동화",
+        "cantSelectAutomationWorkflowTitle": "자동화를 선택할 수 없습니다.",
+        "cantSelectAutomationWorkflowDescription": "이 자동화에는 워크플로가 없어 선택할 수 없습니다. 사이드바를 사용해 워크플로를 생성하세요."
     },
     "settingType": {
         "account": "계정",
         "password": "비밀번호",
         "emailNotifications": "이메일 알림",
         "tokens": "데이터베이스 토큰",
-        "deleteAccount": "계정 삭제"
+        "deleteAccount": "계정 삭제",
+        "mcpEndpoint": "MCP 서버"
     },
     "userFileUploadType": {
         "file": "내 기기",
@@ -307,7 +310,8 @@
         "field": "필드",
         "row": "행",
         "rows": "행",
-        "view": "뷰"
+        "view": "뷰",
+        "automation_workflow": "자동화 워크플로"
     },
     "webhook": {
         "request": "요청",
@@ -421,7 +425,11 @@
         "incompatiblePrimaryFieldTypeTitle": "필드가 호환되지 않습니다",
         "incompatiblePrimaryFieldTypeDescription": "선택한 필드는 호환되지 않아 기본 필드가 될 수 없습니다.",
         "cannotCreateRowsInTableTitle": "행을 생성할 수 없습니다",
-        "cannotCreateRowsInTableDescription": "이 테이블에서 행을 생성할 수 없습니다."
+        "cannotCreateRowsInTableDescription": "이 테이블에서 행을 생성할 수 없습니다.",
+        "databaseDeadlockDescription": "여러 개의 충돌하는 작업이 동시에 데이터에 수행되어 작업을 완료할 수 없습니다. 다시 시도해 주세요.",
+        "databaseUniquePrimaryPropertyNotFoundTitle": "고유한 기본 속성이 없습니다",
+        "databaseUniquePrimaryPropertyNotFoundDescription": "이 문제는 보통 데이터 동기화 소스에 고유한 행 값을 가져올 수 있는 속성이 없을 때 발생합니다. 테이블의 경우, 기본 키가 없을 때 이런 문제가 발생할 수 있습니다.",
+        "databaseDeadlockTitle": "작업 실패"
     },
     "importerType": {
         "csv": "CSV 파일 가져오기",
@@ -454,7 +462,7 @@
         "pathParameters": "경로 매개변수",
         "requestBodySchema": "요청 본문 스키마",
         "userFieldNamesDescription": "`user_field_names` GET 매개변수가 제공되고 그 값이 다음 중 하나인 경우: `y`, `yes`, `true`, `t`, `on`, `1`, 또는 빈 문자열, 이 엔드포인트에서 반환되는 필드 이름은 실제 필드 이름이 됩니다.\n\n`user_field_names` GET 매개변수가 제공되지 않거나 위의 값과 일치하지 않는 경우, 반환되는 모든 필드 이름은 `field_` 다음에 필드의 ID가 붙습니다. 예를 들어 `field_1`은 ID가 `1`인 필드를 나타냅니다.",
-        "sendWebhookEventsDescription": "`y`, `yes`, `true`, `t`, `on`, `1`, 또는 빈 문자열로 설정된 경우 작업 후에 웹훅을 트리거하는 플래그 쿼리 매개변수입니다. 기본값은 `true`입니다",
+        "sendWebhookEventsDescription": "`y`, `yes`, `true`, `t`, `on`, `1`로 설정하거나 비워 두면 작업 후 웹훅을 트리거하는 플래그 쿼리 매개변수입니다. 기본값은 `true`입니다",
         "singleRow": "단일",
         "batchRows": "배치",
         "fileUploads": "파일 업로드"
