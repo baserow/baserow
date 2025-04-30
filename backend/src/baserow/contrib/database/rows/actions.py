@@ -1334,7 +1334,7 @@ class UpdateRowsActionType(UndoableActionType):
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
         table = TableHandler().get_table(params.table_id)
-        RowHandler().update_rows(user, table, params.rows_values)
+        RowHandler().update_rows(user, table, params.row_values)
 
     @classmethod
     def get_row_change_history(cls, user, action: "ActionData") -> list[RowHistory]:
