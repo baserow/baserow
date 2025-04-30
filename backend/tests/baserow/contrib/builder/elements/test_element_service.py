@@ -50,7 +50,7 @@ def test_create_element(element_created_mock, data_fixture, element_type):
     assert last_element.id == element.id
 
     element_created_mock.send.assert_called_once_with(
-        service, element=element, user=user
+        service, element=element, before_id=None, user=user
     )
 
 
