@@ -1,8 +1,6 @@
 {
 	on_demand_tls {
         ask {$PRIVATE_BACKEND_URL:localhost:8000}/api/builder/domains/ask-public-domain-exists/
-        interval 2m
-        burst 5
     }
 
     {$BASEROW_CADDY_GLOBAL_CONF}
@@ -38,7 +36,7 @@
 
             # Allow to call head from public url to get size
             header {
-                Access-Control-Allow-Origin {$PUBLIC_WEB_FRONTEND_URL:http://localhost:3000}
+                Access-Control-Allow-Origin {$BASEROW_PUBLIC_URL:http://localhost}
                 Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
                 Access-Control-Allow-Headers "*"
                 Access-Control-Expose-Headers "Content-Length, Content-Type"
