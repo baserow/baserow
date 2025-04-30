@@ -273,7 +273,7 @@ class AutomationNodeHandler:
     ) -> AutomationNode:
         """
         Creates an instance of AutomationNode using the serialized version
-        previously exported with `.export_workflow'.
+        previously exported with `.export_node'.
 
         :param workflow: The workflow instance the new node should
             belong to.

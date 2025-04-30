@@ -19,4 +19,7 @@ class AutomationNodeDict(TypedDict):
     id: int
     order: int
     type: str
+    workflow_id: int
+    previous_node_id: int
     parent_node_id: int
+    previous_node_output: str
