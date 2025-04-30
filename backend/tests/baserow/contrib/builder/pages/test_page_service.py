@@ -14,9 +14,10 @@ def test_page_created_signal_sent(page_created_mock, data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
 
-    page = PageService().create_page(user, builder, "test", "/test")
+    page_service = PageService()
+    page = page_service.create_page(user, builder, "test", "/test")
 
-    assert page_created_mock.called_with(page=page, user=user)
+    page_created_mock.send.assert_called_once_with(page_service, page=page, user=user)
 
 
 @pytest.mark.django_db
@@ -34,10 +35,14 @@ def test_page_deleted_signal_sent(page_deleted_mock, data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(builder=builder)
+    page_id = page.id
 
-    PageService().delete_page(user, page)
+    page_service = PageService()
+    page_service.delete_page(user, page)
 
-    assert page_deleted_mock.called_with(builder=builder, page_id=page.id, user=user)
+    page_deleted_mock.send.assert_called_once_with(
+        page_service, builder=builder, page_id=page_id, user=user
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -73,9 +78,10 @@ def test_page_updated_signal_sent(page_updated_mock, data_fixture):
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(builder=builder)
 
-    PageService().update_page(user, page, name="new")
+    page_service = PageService()
+    page_service.update_page(user, page, name="new")
 
-    assert page_updated_mock.called_with(page=page, user=user)
+    page_updated_mock.send.assert_called_once_with(page_service, page=page, user=user)
 
 
 @pytest.mark.django_db
@@ -107,10 +113,11 @@ def test_pages_reordered_signal_sent(pages_reordered_mock, data_fixture):
     page_one = data_fixture.create_builder_page(builder=builder, order=1)
     page_two = data_fixture.create_builder_page(builder=builder, order=2)
 
-    full_order = PageService().order_pages(user, builder, [page_two.id, page_one.id])
+    page_service = PageService()
+    full_order = page_service.order_pages(user, builder, [page_two.id, page_one.id])
 
-    assert pages_reordered_mock.called_with(
-        builder=builder, order=full_order, user=user
+    pages_reordered_mock.send.assert_called_once_with(
+        page_service, builder=builder, order=full_order, user=user
     )
 
 
