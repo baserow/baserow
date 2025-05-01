@@ -11,7 +11,7 @@ app_name = "baserow.contrib.automation.api.nodes"
 
 urlpatterns = [
     re_path(
-        r"workflow/(?P<workflow_id>[0-9]+)/node/$",
+        r"workflow/(?P<workflow_id>[0-9]+)/nodes/$",
         AutomationNodesView.as_view(),
         name="list",
     ),
