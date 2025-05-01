@@ -7,7 +7,8 @@ from baserow.contrib.database.rows.signals import rows_created, rows_updated
 def trigger_on_rows_created(sender, rows, before, user, table, **kwargs):
     """
     To be implemented. We'll probably want to:
-        - Check if the table matches any linked LocalBaserowRowCreatedNodeType instances.
+        - Check if the table matches any linked LocalBaserowRowCreatedNodeType
+            instances.
         - Enqueue a task to dispatch the appropriate action.
     """
 
