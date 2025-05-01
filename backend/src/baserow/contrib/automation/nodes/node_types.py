@@ -97,7 +97,7 @@ class AutomationServiceNodeTriggerType(AutomationNodeType):
         return super().prepare_values(values, user, instance)
 
 
-class UpsertRowNodeType(AutomationServiceNodeActionType):
+class LocalBaserowUpsertRowNodeType(AutomationServiceNodeActionType):
     type = "upsert_row"
     service_type = LocalBaserowUpsertRowServiceType.type
 
@@ -106,12 +106,12 @@ class UpsertRowNodeType(AutomationServiceNodeActionType):
         return {"service": service}
 
 
-class CreateRowNodeType(UpsertRowNodeType):
+class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
     type = "create_row"
     model_class = LocalBaserowCreateRowActionNode
 
 
-class RowCreatedNodeType(AutomationServiceNodeTriggerType):
+class LocalBaserowRowCreatedNodeType(AutomationServiceNodeTriggerType):
     type = "row_created"
     model_class = LocalBaserowRowCreatedTriggerNode
     service_type = LocalBaserowRowCreatedTriggerServiceType.type

@@ -1,7 +1,7 @@
 import pytest
 
 from baserow.contrib.automation.nodes.node_types import (
-    CreateRowNodeType,
+    LocalBaserowCreateRowNodeType,
     service_backed_automation_nodes,
 )
 
@@ -10,4 +10,4 @@ from baserow.contrib.automation.nodes.node_types import (
 def test_service_backed_automation_nodes():
     result = service_backed_automation_nodes()
 
-    assert isinstance(result[0], CreateRowNodeType)
+    assert isinstance(result[0], LocalBaserowCreateRowNodeType)
