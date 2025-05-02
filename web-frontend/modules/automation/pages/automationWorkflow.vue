@@ -57,11 +57,8 @@ import BaserowAddButtonNode from '@baserow/modules/automation/components/workflo
 import BaserowEdge from '@baserow/modules/automation/components/workflow/BaserowEdge.vue'
 import { ref } from 'vue'
 import { initialEdges, initialNodes } from './initial-nodes-edges.js'
-import {
-  VueFlow,
-  useVueFlow,
-} from '@baserow/modules/automation/components/workflow/@vue-flow/core'
-import { Background } from '@baserow/modules/automation/components/workflow/@vue-flow/background'
+import { VueFlow, useVueFlow } from '@vue2-flow/core'
+import { Background } from '@vue2-flow/background'
 
 export default {
   name: 'AutomationWorkflow',

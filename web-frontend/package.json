@@ -67,6 +67,8 @@
     "@tiptap/pm": "2.2.3",
     "@tiptap/suggestion": "2.2.3",
     "@tiptap/vue-2": "2.2.3",
+    "@vue2-flow/background": "^0.0.1",
+    "@vue2-flow/core": "^0.0.1",
     "@vuelidate/core": "^2.0.3",
     "@vuelidate/validators": "^2.0.4",
     "@vueuse/core": "^10.5.0",
@@ -113,6 +115,7 @@
     "@babel/core": "7.23.6",
     "@babel/eslint-parser": "7.23.3",
     "@babel/preset-env": "7.23.6",
+    "@nuxtjs/composition-api": "^0.34.0",
     "@nuxtjs/eslint-config": "12.0.0",
     "@nuxtjs/storybook": "^4.3.2",
     "@nuxtjs/stylelint-module": "^4.2.2",
@@ -150,7 +153,7 @@
     "storybook-addon-pseudo-states": "1.15.5",
     "stylelint": "^16.3.1",
     "stylelint-config-standard-scss": "^13.1.0",
-    "stylelint-selector-bem-pattern": "^4.0.0",
-    "@nuxtjs/composition-api": "^0.34.0"
-  }
+    "stylelint-selector-bem-pattern": "^4.0.0"
+  },
+  "packageManager": "yarn@4.9.1"
 }

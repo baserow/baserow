@@ -1,4 +1,4 @@
 @import 'side_bar';
-@import '~@baserow/modules/automation/components/workflow/@vue-flow/core/style.css';
-@import '~@baserow/modules/automation/components/workflow/@vue-flow/core/theme-default.css';
+@import '@vue2-flow/core/dist/style.css';
+@import '@vue2-flow/core/dist/theme-default.css';
 @import 'workflow_editor';
