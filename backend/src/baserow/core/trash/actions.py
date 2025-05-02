@@ -106,6 +106,7 @@ class RestoreFromTrashActionType(ActionType):
         item_type: str
         workspace_id: int
         workspace_name: str
+        parent_item_id: int | None = None
 
     @classmethod
     def do(
@@ -125,7 +126,13 @@ class RestoreFromTrashActionType(ActionType):
 
         cls.register_action(
             user,
-            cls.Params(trash_item_id, trash_item_type, workspace.id, workspace.name),
+            cls.Params(
+                trash_item_id,
+                trash_item_type,
+                workspace.id,
+                workspace.name,
+                parent_item_id=parent_trash_item_id,
+            ),
             cls.scope(workspace.id),
             workspace,
         )
