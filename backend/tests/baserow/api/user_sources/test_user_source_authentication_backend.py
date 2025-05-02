@@ -1,9 +1,12 @@
+from unittest import mock
+
 from django.urls import reverse
 
 import pytest
 from rest_framework.exceptions import AuthenticationFailed
 
 from baserow.api.user_sources.authentication import UserSourceJSONWebTokenAuthentication
+from baserow.core.models import Application
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.constants import USER_SOURCE_CLAIM
 from baserow.core.user_sources.user_source_user import UserSourceUser
@@ -103,11 +106,6 @@ def test_user_source_dont_authenticate_with_unpublished_user_source(
     auth = UserSourceJSONWebTokenAuthentication()
     with pytest.raises(AuthenticationFailed), stub_user_source_registry():
         auth.authenticate(fake_request)
-
-
-from unittest import mock
-
-from baserow.core.models import Application
 
 
 @pytest.mark.django_db
