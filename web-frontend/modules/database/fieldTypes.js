@@ -1275,6 +1275,10 @@ export class LinkRowFieldType extends FieldType {
     return []
   }
 
+  getEmptyValue(field) {
+    return []
+  }
+
   getCanGroupByInView(field) {
     const relatedField = field.link_row_table_primary_field
     const relatedFieldType = this.app.$registry.get('field', relatedField.type)
@@ -1859,6 +1863,10 @@ export class RatingFieldType extends FieldType {
   }
 
   getDefaultValue(field) {
+    return 0
+  }
+
+  getEmptyValue(field) {
     return 0
   }
 
