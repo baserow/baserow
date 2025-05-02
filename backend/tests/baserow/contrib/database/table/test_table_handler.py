@@ -7,7 +7,7 @@ from unittest.mock import patch
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.core.files.storage import FileSystemStorage
-from django.db import connection
+from django.db import connection, transaction
 from django.test.utils import override_settings
 
 import pytest
@@ -37,6 +37,7 @@ from baserow.contrib.database.table.exceptions import (
     InvalidInitialTableData,
     TableDoesNotExist,
     TableNotInDatabase,
+    TableUsageUpdateLocked,
 )
 from baserow.contrib.database.table.handler import TableHandler, TableUsageHandler
 from baserow.contrib.database.table.models import Table, TableUsage, TableUsageUpdate
@@ -852,6 +853,22 @@ def test_table_usage_handler_mark_table_for_usage_update_row_count_default_zero(
 @pytest.mark.django_db(transaction=True)
 def test_table_usage_handler_mark_table_for_usage_update_table_doesnt_exist():
     TableUsageHandler.mark_table_for_usage_update(table_id=999, row_count=1)
+
+
+@pytest.mark.django_db(transaction=True, databases=["default", "default-copy"])
+def test_table_usage_handler_mark_table_for_usage_update_locked_update(data_fixture):
+    table = data_fixture.create_database_table()
+
+    TableUsageHandler.mark_table_for_usage_update(table_id=table.id, row_count=1)
+
+    with transaction.atomic(using="default-copy"):
+        list(TableUsageUpdate.objects.using("default-copy").select_for_update().all())
+
+        with transaction.atomic(using="default"):
+            with pytest.raises(TableUsageUpdateLocked):
+                TableUsageHandler.mark_table_for_usage_update(
+                    table_id=table.id, row_count=1
+                )
 
 
 @pytest.mark.django_db

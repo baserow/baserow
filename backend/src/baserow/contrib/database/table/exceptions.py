@@ -50,3 +50,9 @@ class FailedToLockTableDueToConflict(LockConflict):
     Raised when the table is in use by some concurrent operation and the lock cannot
     be obtained immediately.
     """
+
+
+class TableUsageUpdateLocked(Exception):
+    """
+    Raised when the related `database_tableusageupdate` is locked.
+    """

@@ -60,6 +60,7 @@ from .exceptions import (
     InvalidInitialTableData,
     TableDoesNotExist,
     TableNotInDatabase,
+    TableUsageUpdateLocked,
 )
 from .models import (
     Table,
@@ -103,11 +104,16 @@ class TableUsageHandler:
         try:
             query = sql.SQL(
                 """
-            INSERT INTO {table_usage_update_table} (table_id, row_count, timestamp)
-            VALUES ({table_id}, {row_count}, {timestamp})
-            ON CONFLICT ON CONSTRAINT {table_usage_key} DO UPDATE
-            SET row_count = COALESCE({table_usage_update_table}.row_count, 0)
-            + COALESCE(EXCLUDED.row_count, 0), timestamp = EXCLUDED.timestamp;
+                DO $$
+                BEGIN
+                    SET LOCAL lock_timeout = '100ms';
+                    INSERT INTO {table_usage_update_table} (table_id, row_count, timestamp)
+                    VALUES ({table_id}, {row_count}, {timestamp})
+                    ON CONFLICT ON CONSTRAINT {table_usage_key} DO UPDATE
+                    SET row_count = COALESCE({table_usage_update_table}.row_count, 0)
+                    + COALESCE(EXCLUDED.row_count, 0), timestamp = EXCLUDED.timestamp;
+                END
+                $$;
             """
             ).format(
                 table_usage_update_table=sql.Identifier(
@@ -129,6 +135,11 @@ class TableUsageHandler:
                 # we can safely ignore the exception and don't try to
                 # update usage for non existing tables
                 pass
+        except DatabaseError as db_exc:
+            if "lock timeout" in str(db_exc):
+                raise TableUsageUpdateLocked()
+            else:
+                raise
 
     @classmethod
     def create_tables_usage_for_new_database(cls, database_id: int):
@@ -180,7 +191,9 @@ class TableUsageHandler:
         if len(table_usage_updates) > 0:
             updated = cls._update_tables_usage(
                 table_usage_updates,
-                chunk_size,
+                # Even though a size of 1 create more individual queries, it keeps
+                # the time the TableUsageUpdate entry being locked to a minimum.
+                1,
                 progress.create_child_builder(
                     represents_progress=len(table_usage_updates)
                 ),
