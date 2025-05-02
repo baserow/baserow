@@ -55,12 +55,14 @@ export default {
   },
   methods: {
     selectOptionValue(id) {
-      return this.entry.fields_metadata[this.fieldIdentifier].select_options[id]
-        ?.value
+      return this.entry.fields_metadata[this.fieldIdentifier]?.select_options[
+        id
+      ]?.value
     },
     selectOptionColor(id) {
-      return this.entry.fields_metadata[this.fieldIdentifier].select_options[id]
-        ?.color
+      return this.entry.fields_metadata[this.fieldIdentifier]?.select_options[
+        id
+      ]?.color
     },
   },
 }

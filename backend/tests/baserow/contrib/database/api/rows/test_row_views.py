@@ -3726,6 +3726,7 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "DO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -3747,6 +3748,7 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "DO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -3796,6 +3798,7 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "DO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -3964,6 +3967,7 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "DO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -4207,6 +4211,7 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "UNDO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -4228,6 +4233,7 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "DO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -4273,6 +4279,7 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "REDO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -4294,6 +4301,7 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "UNDO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -4315,6 +4323,7 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "DO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -4435,6 +4444,7 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "DO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -4456,6 +4466,7 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "DO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -4496,6 +4507,7 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "DO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -4517,6 +4529,7 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
             {
                 "id": AnyInt(),
                 "action_type": "update_rows",
+                "action_command_type": "DO",
                 "user": {
                     "id": user.id,
                     "name": user.first_name,
@@ -4626,7 +4639,6 @@ def test_link_row_field_validate_input_data_for_read_only_primary_fields(
 
     (row_b1,) = RowHandler().create_rows(user, table_b, [{}]).created_rows
     row_b1_pk = str(getattr(row_b1, pk_field.db_column))
-
     # using a valid value as reference to the row should work
     response = api_client.post(
         reverse("api:database:rows:batch", kwargs={"table_id": table_a.id}),

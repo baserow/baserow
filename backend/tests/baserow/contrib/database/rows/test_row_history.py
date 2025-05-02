@@ -1,10 +1,19 @@
 from datetime import datetime, timezone
+from typing import Callable
 from unittest.mock import patch
 
 import pytest
 from freezegun import freeze_time
 
-from baserow.contrib.database.rows.actions import UpdateRowsActionType
+from baserow.api.sessions import get_untrusted_client_session_id
+from baserow.contrib.database.action.scopes import TableActionScopeType
+from baserow.contrib.database.rows.actions import (
+    CreateRowActionType,
+    CreateRowsActionType,
+    DeleteRowActionType,
+    DeleteRowsActionType,
+    UpdateRowsActionType,
+)
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.history import RowHistoryHandler
 from baserow.contrib.database.rows.models import RowHistory
@@ -12,7 +21,8 @@ from baserow.contrib.database.rows.registries import (
     ChangeRowHistoryType,
     change_row_history_registry,
 )
-from baserow.core.action.registries import action_type_registry
+from baserow.core.action.handler import ActionHandler
+from baserow.core.action.registries import ActionType, action_type_registry
 
 
 @pytest.mark.django_db
@@ -400,6 +410,7 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
         "table_id",
         "row_id",
         "action_timestamp",
+        "action_command_type",
         "action_type",
         "before_values",
         "after_values",
@@ -414,6 +425,7 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
             "action_type": "update_rows",
+            "action_command_type": "DO",
             "before_values": {link_a_to_b.db_column: []},
             "after_values": {link_a_to_b.db_column: [1, 2]},
             "fields_metadata": {
@@ -434,6 +446,7 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
             "action_type": "update_rows",
+            "action_command_type": "DO",
             "before_values": {link_b_to_a.db_column: []},
             "after_values": {link_b_to_a.db_column: [1]},
             "fields_metadata": {
@@ -451,6 +464,7 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
             "row_id": 2,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
             "action_type": "update_rows",
+            "action_command_type": "DO",
             "before_values": {link_b_to_a.db_column: []},
             "after_values": {link_b_to_a.db_column: [1]},
             "fields_metadata": {
@@ -485,6 +499,7 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
         "row_id",
         "action_timestamp",
         "action_type",
+        "action_command_type",
         "before_values",
         "after_values",
         "fields_metadata",
@@ -500,6 +515,7 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 30, tzinfo=timezone.utc),
             "action_type": "update_rows",
+            "action_command_type": "DO",
             "before_values": {link_a_to_b.db_column: [1, 2]},
             "after_values": {link_a_to_b.db_column: [2]},
             "fields_metadata": {
@@ -520,6 +536,7 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 30, tzinfo=timezone.utc),
             "action_type": "update_rows",
+            "action_command_type": "DO",
             "before_values": {link_b_to_a.db_column: [1]},
             "after_values": {link_b_to_a.db_column: []},
             "fields_metadata": {
@@ -572,6 +589,7 @@ def test_update_rows_dont_insert_entries_in_linked_rows_history_without_related_
         "row_id",
         "action_timestamp",
         "action_type",
+        "action_command_type",
         "before_values",
         "after_values",
         "fields_metadata",
@@ -585,6 +603,7 @@ def test_update_rows_dont_insert_entries_in_linked_rows_history_without_related_
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
             "action_type": "update_rows",
+            "action_command_type": "DO",
             "before_values": {link_a_to_b.db_column: []},
             "after_values": {link_a_to_b.db_column: [1, 2]},
             "fields_metadata": {
@@ -662,6 +681,7 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
         "row_id",
         "action_timestamp",
         "action_type",
+        "action_command_type",
         "before_values",
         "after_values",
         "fields_metadata",
@@ -700,6 +720,7 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
             "action_type": "update_rows",
+            "action_command_type": "DO",
             "before_values": {link_a_to_b.db_column: [], link_a_to_c.db_column: []},
             "after_values": {
                 link_a_to_b.db_column: [1, 2],
@@ -731,6 +752,7 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
             "row_id": 2,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
             "action_type": "update_rows",
+            "action_command_type": "DO",
             "before_values": {link_a_to_b.db_column: [], link_a_to_c.db_column: []},
             "after_values": {
                 link_a_to_b.db_column: [1, 2],
@@ -762,6 +784,7 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
             "action_type": "update_rows",
+            "action_command_type": "DO",
             "before_values": {link_b_to_a.db_column: []},
             "after_values": {link_b_to_a.db_column: [1, 2]},
             "fields_metadata": {
@@ -779,6 +802,7 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
             "row_id": 2,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
             "action_type": "update_rows",
+            "action_command_type": "DO",
             "before_values": {link_b_to_a.db_column: []},
             "after_values": {link_b_to_a.db_column: [1, 2]},
             "fields_metadata": {
@@ -796,6 +820,7 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
             "action_type": "update_rows",
+            "action_command_type": "DO",
             "before_values": {link_c_to_a.db_column: []},
             "after_values": {link_c_to_a.db_column: [1, 2]},
             "fields_metadata": {
@@ -813,6 +838,7 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
             "row_id": 2,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
             "action_type": "update_rows",
+            "action_command_type": "DO",
             "before_values": {link_c_to_a.db_column: []},
             "after_values": {link_c_to_a.db_column: [1, 2]},
             "fields_metadata": {
@@ -927,3 +953,364 @@ def test_update_rows_insert_entries_in_linked_rows_history_with_values(data_fixt
     ]
 
     assert list(history_entries) == expected_entries
+
+
+@pytest.mark.parametrize(
+    "action_type,input_values",
+    [
+        (CreateRowActionType, lambda f: {"values": {f.db_column: "New 1"}}),
+        (
+            CreateRowsActionType,
+            lambda f: {"rows_values": [{f.db_column: "New 1"}]},
+        ),
+    ],
+)
+@pytest.mark.django_db
+@pytest.mark.row_history
+def test_create_rows_action_row_history_with_undo_redo(
+    data_fixture, action_type: "ActionType", input_values: Callable
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(
+        name="Test", user=user, database=database
+    )
+    name_field = data_fixture.create_text_field(
+        table=table, name="Name", text_default="Test"
+    )
+    freezed_timestamp = datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc)
+    action_type_name = action_type.type
+    action = action_type_registry.get(action_type.type)
+    with freeze_time(freezed_timestamp):
+        row = action.do(user=user, table=table, **input_values(name_field))
+        if isinstance(row, list):
+            row = row[0]
+
+    assert RowHistory.objects.count() == 1
+
+    history_entries = RowHistory.objects.order_by("row_id").values(
+        "user_id",
+        "user_name",
+        "table_id",
+        "row_id",
+        "action_timestamp",
+        "action_type",
+        "action_command_type",
+        "before_values",
+        "after_values",
+        "fields_metadata",
+    )
+
+    assert list(history_entries) == [
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table.id,
+            "row_id": row.id,
+            "action_timestamp": freezed_timestamp,
+            "action_type": action_type_name,
+            "action_command_type": "DO",
+            "before_values": {f"field_{name_field.id}": None},
+            "after_values": {f"field_{name_field.id}": "New 1"},
+            "fields_metadata": {
+                f"field_{name_field.id}": {
+                    "type": "text",
+                    "id": name_field.id,
+                }
+            },
+        },
+    ]
+
+    with freeze_time(freezed_timestamp):
+        undone = ActionHandler.undo(
+            user,
+            [TableActionScopeType.value(table_id=table.id)],
+            session=get_untrusted_client_session_id(user),
+        )
+        assert undone
+
+    history_entries = RowHistory.objects.order_by("row_id").values(
+        "user_id",
+        "user_name",
+        "table_id",
+        "row_id",
+        "action_timestamp",
+        "action_type",
+        "action_command_type",
+        "before_values",
+        "after_values",
+        "fields_metadata",
+    )
+
+    assert list(history_entries) == [
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table.id,
+            "row_id": row.id,
+            "action_timestamp": freezed_timestamp,
+            "action_type": action_type_name,
+            "action_command_type": "DO",
+            "before_values": {f"field_{name_field.id}": None},
+            "after_values": {f"field_{name_field.id}": "New 1"},
+            "fields_metadata": {
+                f"field_{name_field.id}": {
+                    "type": "text",
+                    "id": name_field.id,
+                }
+            },
+        },
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table.id,
+            "row_id": row.id,
+            "action_timestamp": freezed_timestamp,
+            "action_type": action_type_name,
+            "action_command_type": "UNDO",
+            "after_values": {},
+            "before_values": {},
+            "fields_metadata": {},
+        },
+    ]
+
+    with freeze_time(freezed_timestamp):
+        redone = ActionHandler.redo(
+            user,
+            [TableActionScopeType.value(table_id=table.id)],
+            session=get_untrusted_client_session_id(user),
+        )
+        assert redone
+
+    history_entries = RowHistory.objects.order_by("row_id").values(
+        "user_id",
+        "user_name",
+        "table_id",
+        "row_id",
+        "action_timestamp",
+        "action_type",
+        "action_command_type",
+        "before_values",
+        "after_values",
+        "fields_metadata",
+    )
+
+    assert list(history_entries) == [
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table.id,
+            "row_id": row.id,
+            "action_timestamp": freezed_timestamp,
+            "action_type": action_type_name,
+            "action_command_type": "DO",
+            "before_values": {f"field_{name_field.id}": None},
+            "after_values": {f"field_{name_field.id}": "New 1"},
+            "fields_metadata": {
+                f"field_{name_field.id}": {
+                    "type": "text",
+                    "id": name_field.id,
+                }
+            },
+        },
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table.id,
+            "row_id": row.id,
+            "action_timestamp": freezed_timestamp,
+            "action_type": action_type_name,
+            "action_command_type": "UNDO",
+            "after_values": {},
+            "before_values": {},
+            "fields_metadata": {},
+        },
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table.id,
+            "row_id": row.id,
+            "action_timestamp": freezed_timestamp,
+            "action_type": action_type_name,
+            "action_command_type": "REDO",
+            "before_values": {},
+            "after_values": {},
+            "fields_metadata": {},
+        },
+    ]
+
+
+@pytest.mark.parametrize(
+    "action_type,input_values",
+    [
+        (
+            DeleteRowActionType,
+            lambda row: {"row_id": row.id},
+        ),
+        (
+            DeleteRowsActionType,
+            lambda row: {"row_ids": [row.id]},
+        ),
+    ],
+)
+@pytest.mark.django_db
+@pytest.mark.row_history
+def test_delete_rows_action_row_history_with_undo_redo(
+    data_fixture, action_type: "ActionType", input_values: Callable
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(
+        name="Test", user=user, database=database
+    )
+    name_field = data_fixture.create_text_field(
+        table=table, name="Name", text_default="Test"
+    )
+    freezed_timestamp = datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc)
+    action_type_name = action_type.type
+    action = action_type_registry.get(action_type.type)
+    with freeze_time(freezed_timestamp):
+        row = RowHandler().create_row(
+            user=user, table=table, values={name_field.db_column: "New 1"}
+        )
+        action.do(user=user, table=table, **input_values(row))
+        if isinstance(row, list):
+            row = row[0]
+
+    assert RowHistory.objects.count() == 1
+
+    history_entries = RowHistory.objects.order_by("row_id").values(
+        "user_id",
+        "user_name",
+        "table_id",
+        "row_id",
+        "action_timestamp",
+        "action_type",
+        "action_command_type",
+        "before_values",
+        "after_values",
+        "fields_metadata",
+    )
+
+    assert list(history_entries) == [
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table.id,
+            "row_id": row.id,
+            "action_timestamp": freezed_timestamp,
+            "action_type": action_type_name,
+            "action_command_type": "DO",
+            "after_values": {},
+            "before_values": {},
+            "fields_metadata": {},
+        },
+    ]
+
+    with freeze_time(freezed_timestamp):
+        undone = ActionHandler.undo(
+            user,
+            [TableActionScopeType.value(table_id=table.id)],
+            session=get_untrusted_client_session_id(user),
+        )
+        assert undone
+
+    history_entries = RowHistory.objects.order_by("row_id").values(
+        "user_id",
+        "user_name",
+        "table_id",
+        "row_id",
+        "action_timestamp",
+        "action_type",
+        "action_command_type",
+        "before_values",
+        "after_values",
+        "fields_metadata",
+    )
+
+    assert list(history_entries) == [
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table.id,
+            "row_id": row.id,
+            "action_timestamp": freezed_timestamp,
+            "action_type": action_type_name,
+            "action_command_type": "DO",
+            "after_values": {},
+            "before_values": {},
+            "fields_metadata": {},
+        },
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table.id,
+            "row_id": row.id,
+            "action_timestamp": freezed_timestamp,
+            "action_type": action_type_name,
+            "action_command_type": "UNDO",
+            "after_values": {},
+            "before_values": {},
+            "fields_metadata": {},
+        },
+    ]
+
+    with freeze_time(freezed_timestamp):
+        redone = ActionHandler.redo(
+            user,
+            [TableActionScopeType.value(table_id=table.id)],
+            session=get_untrusted_client_session_id(user),
+        )
+        assert redone
+
+    history_entries = RowHistory.objects.order_by("row_id").values(
+        "user_id",
+        "user_name",
+        "table_id",
+        "row_id",
+        "action_timestamp",
+        "action_type",
+        "action_command_type",
+        "before_values",
+        "after_values",
+        "fields_metadata",
+    )
+
+    assert list(history_entries) == [
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table.id,
+            "row_id": row.id,
+            "action_timestamp": freezed_timestamp,
+            "action_type": action_type_name,
+            "action_command_type": "DO",
+            "after_values": {},
+            "before_values": {},
+            "fields_metadata": {},
+        },
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table.id,
+            "row_id": row.id,
+            "action_timestamp": freezed_timestamp,
+            "action_type": action_type_name,
+            "action_command_type": "UNDO",
+            "after_values": {},
+            "before_values": {},
+            "fields_metadata": {},
+        },
+        {
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "table_id": table.id,
+            "row_id": row.id,
+            "action_timestamp": freezed_timestamp,
+            "action_type": action_type_name,
+            "action_command_type": "REDO",
+            "before_values": {},
+            "after_values": {},
+            "fields_metadata": {},
+        },
+    ]
