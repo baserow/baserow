@@ -13,6 +13,7 @@ from rest_framework_simplejwt.tokens import Token
 
 from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Application
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.constants import USER_SOURCE_CLAIM
 from baserow.core.user_sources.exceptions import UserSourceDoesNotExist
@@ -125,6 +126,14 @@ class UserSourceJSONWebTokenAuthentication(JWTAuthentication):
                 },
                 code="user_source_not_allowed",
             ) from exc
+        except Application.DoesNotExist as exc:
+            raise exceptions.AuthenticationFailed(
+                detail={
+                    "detail": "The builder application was not found",
+                    "error": "application_not_found",
+                },
+                code="application_not_found",
+            ) from exc
 
         try:
             user = user_source.get_type().get_user(user_source, user_id=user_id)
@@ -152,6 +161,14 @@ class UserSourceJSONWebTokenAuthentication(JWTAuthentication):
                         "error": "user_source_not_allowed",
                     },
                     code="user_source_not_allowed",
+                ) from exc
+            except Application.DoesNotExist as exc:
+                raise exceptions.AuthenticationFailed(
+                    detail={
+                        "detail": "The builder application was not found",
+                        "error": "application_not_found",
+                    },
+                    code="application_not_found",
                 ) from exc
 
         return (
