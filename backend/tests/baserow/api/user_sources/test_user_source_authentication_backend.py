@@ -110,17 +110,17 @@ def test_user_source_dont_authenticate_with_unpublished_user_source(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "user_user_source_auth_header",
+    "use_user_source_auth_header",
     [
         True,
         False,
     ],
 )
-def test_user_source_handles_deleted_application(
+def test_user_source_authentication_handles_deleted_application(
     data_fixture,
     api_request_factory,
     stub_user_source_registry,
-    user_user_source_auth_header,
+    use_user_source_auth_header,
 ):
     """
     Ensure that an appropriate error is returned if the application doesn't
@@ -135,7 +135,7 @@ def test_user_source_handles_deleted_application(
         user_source=user_source,
     ).get_refresh_token()
 
-    if user_user_source_auth_header:
+    if use_user_source_auth_header:
         auth_header = {
             "HTTP_USERSOURCEAUTHORIZATION": f"JWT {us_token.access_token}",
         }
@@ -155,7 +155,7 @@ def test_user_source_handles_deleted_application(
     fake_request.user = user
 
     auth = UserSourceJSONWebTokenAuthentication(
-        use_user_source_authentication_header=user_user_source_auth_header
+        use_user_source_authentication_header=use_user_source_auth_header
     )
 
     with mock.patch(
