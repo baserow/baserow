@@ -27,7 +27,7 @@ services:
       - $PWD/web-frontend:/baserow/web-frontend
       # Override the above mounts for node_modules so we use the node_modules built
       # directly into the image instead of whatever is on your local filesystem.
-      - /baserow/web-frontend/node_modules
+      # - /baserow/web-frontend/node_modules
       - $PWD/premium/web-frontend/:/baserow/premium/web-frontend
       - $PWD/enterprise/web-frontend/:/baserow/enterprise/web-frontend
 
