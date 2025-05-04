@@ -3,6 +3,9 @@
     "cannotDisableAllAuthProvidersTitle": "Last enabled provider",
     "cannotDisableAllAuthProvidersDescription": "It is not possible to disable or delete last enabled provider."
   },
+  "advanced": {
+    "license": "Advanced"
+  },
   "enterprise": {
     "license": "Enterprise",
     "sidebarTooltip": "Your account has access to the enterprise features globally",

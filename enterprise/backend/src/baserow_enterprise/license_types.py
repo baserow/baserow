@@ -25,17 +25,22 @@ from baserow_enterprise.role.seat_usage_calculator import (
 )
 
 
-class EnterpriseWithoutSupportLicenseType(LicenseType):
-    type = "enterprise_without_support"
-    order = 100
+class AdvancedLicenseType(LicenseType):
+    """
+    The advanced plan is similar to the enterprise plan. The main difference is that it
+    doesn't allow branding and secure file serving. Other than that it includes all
+    enterprise features. The seat limit is also enforced because it can be bought self
+    served.
+    """
+
+    type = "advanced"
+    order = 75
     features = [
         PREMIUM,
         RBAC,
         SSO,
         TEAMS,
         AUDIT_LOG,
-        SECURE_FILE_SERVE,
-        ENTERPRISE_SETTINGS,
         DATA_SYNC,
         BUILDER_SSO,
         BUILDER_NO_BRANDING,
@@ -59,17 +64,36 @@ class EnterpriseWithoutSupportLicenseType(LicenseType):
         )
 
     def handle_seat_overflow(self, seats_taken: int, license_object: License):
+        # @TODO prevent the instance from inviting more users when over limit for a
+        #  certain amount of time.
+        pass
+
+    def handle_application_user_overflow(
+        self, application_users_taken: int, license_object: License
+    ):
+        # We don't have to do anything because the application user limit is a soft
+        # limit.
+        pass
+
+
+class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
+    type = "enterprise_without_support"
+    order = 100
+    features = AdvancedLicenseType.features + [SECURE_FILE_SERVE, ENTERPRISE_SETTINGS]
+
+    def handle_seat_overflow(self, seats_taken: int, license_object: License):
         # We don't have to do anything because the seat limit is a soft limit.
         pass
 
     def handle_application_user_overflow(
         self, application_users_taken: int, license_object: License
     ):
-        # We don't have to do anything because the application user limit
-        # is a soft limit?
+        # We don't have to do anything because the application user limit is a soft
+        # limit.
         pass
 
 
 class EnterpriseLicenseType(EnterpriseWithoutSupportLicenseType):
     type = "enterprise"
+    order = 101
     features = EnterpriseWithoutSupportLicenseType.features + [SUPPORT]

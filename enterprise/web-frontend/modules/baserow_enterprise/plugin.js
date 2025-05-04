@@ -26,6 +26,7 @@ import es from '@baserow_enterprise/locales/es.json'
 import it from '@baserow_enterprise/locales/it.json'
 import ko from '@baserow_enterprise/locales/ko.json'
 import {
+  AdvancedLicenseType,
   EnterpriseWithoutSupportLicenseType,
   EnterpriseLicenseType,
 } from '@baserow_enterprise/licenseTypes'
@@ -131,11 +132,11 @@ export default (context) => {
     new TeamsWorkspaceSettingsPageType(context)
   )
 
+  app.$registry.register('license', new AdvancedLicenseType(context))
   app.$registry.register(
     'license',
     new EnterpriseWithoutSupportLicenseType(context)
   )
-
   app.$registry.register('license', new EnterpriseLicenseType(context))
 
   app.$registry.register('userSource', new LocalBaserowUserSourceType(context))
