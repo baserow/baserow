@@ -5,6 +5,7 @@ from django.db import transaction
 from loguru import logger
 
 from baserow.config.celery import app
+from baserow.contrib.database.table.exceptions import TableUsageUpdateLocked
 from baserow.contrib.database.table.object_scopes import DatabaseTableObjectScopeType
 from baserow.contrib.database.table.operations import (
     ListenToAllDatabaseTableEventsOperationType,
@@ -173,11 +174,23 @@ def setup_created_by_and_last_modified_by_column(self, table_id: int):
         TableHandler().create_created_by_and_last_modified_by_fields(table)
 
 
-@app.task(bind=True)
+@app.task(
+    bind=True,
+    # It's okay to stop trying at some point because eventually the real row count will
+    # be updated when doing a full count.
+    max_retries=10,
+)
 def update_table_usage(self, table_id: int, row_count: int = 0):
     from baserow.contrib.database.table.handler import TableUsageHandler
 
-    TableUsageHandler.mark_table_for_usage_update(table_id, row_count)
+    try:
+        TableUsageHandler.mark_table_for_usage_update(table_id, row_count)
+    except TableUsageUpdateLocked:
+        countdown = 2**self.request.retries
+        raise self.retry(
+            countdown=countdown,
+            exc=TableUsageUpdateLocked(),
+        )
 
 
 @app.task(bind=True)
