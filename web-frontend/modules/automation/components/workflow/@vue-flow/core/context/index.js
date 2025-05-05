@@ -1,6 +1,0 @@
-export const VueFlow = Symbol('vueFlow')
-export const NodeId = Symbol('nodeId')
-export const NodeRef = Symbol('nodeRef')
-export const EdgeId = Symbol('edgeId')
-export const EdgeRef = Symbol('edgeRef')
-export const Slots = Symbol('slots')
