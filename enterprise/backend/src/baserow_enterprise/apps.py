@@ -133,10 +133,12 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_premium.license.registries import license_type_registry
 
         from baserow_enterprise.license_types import (
+            AdvancedLicenseType,
             EnterpriseLicenseType,
             EnterpriseWithoutSupportLicenseType,
         )
 
+        license_type_registry.register(AdvancedLicenseType())
         license_type_registry.register(EnterpriseWithoutSupportLicenseType())
         license_type_registry.register(EnterpriseLicenseType())
 

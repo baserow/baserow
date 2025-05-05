@@ -26,6 +26,7 @@ import es from '@baserow_enterprise/locales/es.json'
 import it from '@baserow_enterprise/locales/it.json'
 import ko from '@baserow_enterprise/locales/ko.json'
 import {
+  AdvancedLicenseType,
   EnterpriseWithoutSupportLicenseType,
   EnterpriseLicenseType,
 } from '@baserow_enterprise/licenseTypes'
@@ -67,7 +68,7 @@ import {
   DataSyncPaidFeature,
   RBACPaidFeature,
   SSOPaidFeature,
-  SupportWebhooksPaidFeature,
+  SupportPaidFeature,
   FieldLevelPermissionsPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
@@ -131,11 +132,11 @@ export default (context) => {
     new TeamsWorkspaceSettingsPageType(context)
   )
 
+  app.$registry.register('license', new AdvancedLicenseType(context))
   app.$registry.register(
     'license',
     new EnterpriseWithoutSupportLicenseType(context)
   )
-
   app.$registry.register('license', new EnterpriseLicenseType(context))
 
   app.$registry.register('userSource', new LocalBaserowUserSourceType(context))
@@ -200,7 +201,7 @@ export default (context) => {
     'paidFeature',
     new FieldLevelPermissionsPaidFeature(context)
   )
-  app.$registry.register('paidFeature', new SupportWebhooksPaidFeature(context))
+  app.$registry.register('paidFeature', new SupportPaidFeature(context))
   // Register builder page decorator namespace and types
   app.$registry.registerNamespace('builderPageDecorator')
   app.$registry.register(
