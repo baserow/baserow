@@ -15,13 +15,11 @@ from baserow.contrib.automation.workflows.operations import (
 )
 from baserow.contrib.automation.workflows.signals import (
     automation_workflow_created,
-    automation_workflow_deleted,
     automation_workflow_updated,
     automation_workflows_reordered,
 )
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.handler import CoreHandler
-from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -98,13 +96,7 @@ class AutomationWorkflowService:
             context=workflow,
         )
 
-        TrashHandler.trash(
-            user, workflow.automation.workspace, workflow.automation, workflow
-        )
-
-        automation_workflow_deleted.send(
-            self, automation=workflow.automation, workflow_id=workflow_id, user=user
-        )
+        self.handler.delete_workflow(user, workflow)
 
         return workflow
 

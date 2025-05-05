@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 from zipfile import ZipFile
 
+from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import IntegrityError
 from django.db.models import QuerySet
@@ -18,8 +19,10 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowNotInAutomation,
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.automation.workflows.signals import automation_workflow_deleted
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
     ChildProgressBuilder,
     MirrorDict,
@@ -96,14 +99,20 @@ class AutomationWorkflowHandler:
 
         return workflow
 
-    def delete_workflow(self, workflow: AutomationWorkflow) -> None:
+    def delete_workflow(self, user: AbstractUser, workflow: AutomationWorkflow) -> None:
         """
         Deletes the specified AutomationWorkflow.
 
         :param workflow: The AutomationWorkflow that must be deleted.
         """
 
-        workflow.delete()
+        TrashHandler.trash(
+            user, workflow.automation.workspace, workflow.automation, workflow
+        )
+
+        automation_workflow_deleted.send(
+            self, automation=workflow.automation, workflow_id=workflow.id, user=user
+        )
 
     def export_prepared_values(self, workflow: AutomationWorkflow) -> Dict[Any, Any]:
         """

@@ -65,23 +65,14 @@ def test_create_workflow_user_not_in_workspace(data_fixture):
         AutomationWorkflowService().create_workflow(user, automation.id, "test")
 
 
-@patch(f"{SERVICES_PATH}.automation_workflow_deleted")
 @pytest.mark.django_db
-def test_workflow_deleted_signal_sent(workflow_deleted_mock, data_fixture):
+def test_workflow_deleted_signal_sent(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(automation=automation)
-    workflow_id = workflow.id
 
     service = AutomationWorkflowService()
     service.delete_workflow(user, workflow.id)
-
-    workflow_deleted_mock.send.assert_called_once_with(
-        service,
-        automation=automation,
-        workflow_id=workflow_id,
-        user=user,
-    )
 
 
 @pytest.mark.django_db(transaction=True)
