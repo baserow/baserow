@@ -44,8 +44,9 @@ from baserow.contrib.database.views.models import GridView, GridViewFieldOptions
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
-from baserow.core.models import TrashEntry
+from baserow.core.models import TrashEntry, Workspace
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.usage.handler import UsageHandler
 from baserow.core.usage.registries import USAGE_UNIT_MB
 from baserow.test_utils.helpers import setup_interesting_test_table
 
@@ -1055,3 +1056,50 @@ def test_get_database_table_storage_usage(data_fixture):
     )
 
     assert TableUsageHandler.calculate_table_storage_usage(table.id) == 10
+
+
+@pytest.mark.django_db
+def test_usage_is_calculated_correctly_when_rows_are_deleted(data_fixture):
+    database = data_fixture.create_database_application()
+    table = data_fixture.create_database_table(database=database)
+
+    TableUsage.objects.create(table_id=table.id, row_count=7)
+    TableUsageUpdate.objects.create(table_id=table.id, row_count=3)
+    TableUsageUpdate.objects.create(table_id=table.id, row_count=-5)
+
+    subq = UsageHandler.get_workspace_row_count_annotation()
+    workspace = (
+        Workspace.objects.filter(id=table.database.workspace_id)
+        .annotate(row_count=subq)
+        .get()
+    )
+
+    assert workspace.row_count == 5
+
+    table2 = data_fixture.create_database_table(database=database)
+    TableUsage.objects.create(table_id=table2.id, row_count=17)
+    TableUsageUpdate.objects.create(table_id=table2.id, row_count=1)
+    TableUsageUpdate.objects.create(table_id=table2.id, row_count=-2)
+    TableUsageUpdate.objects.create(table_id=table2.id, row_count=-6)
+
+    workspace = (
+        Workspace.objects.filter(id=table.database.workspace_id)
+        .annotate(row_count=subq)
+        .get()
+    )
+
+    assert workspace.row_count == 5 + 10
+
+    table3 = data_fixture.create_database_table()
+    TableUsage.objects.create(table_id=table3.id, row_count=5)
+    TableUsageUpdate.objects.create(table_id=table3.id, row_count=-1)
+    TableUsageUpdate.objects.create(table_id=table3.id, row_count=-1)
+
+    assert list(
+        Workspace.objects.order_by("id")
+        .annotate(row_count=subq)
+        .values("id", "row_count")
+    ) == [
+        {"row_count": 15, "id": database.workspace_id},
+        {"row_count": 3, "id": table3.database.workspace_id},
+    ]
