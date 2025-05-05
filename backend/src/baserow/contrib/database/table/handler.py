@@ -127,7 +127,9 @@ class TableUsageHandler:
         tables_in_database = TableHandler.get_tables().filter(database_id=database_id)
 
         entries = [
-            TableUsageUpdate(table_id=table.id, row_count=0)
+            TableUsageUpdate(
+                table_id=table.id, row_count=BaserowTableRowCount(table.id)
+            )
             for table in tables_in_database
         ]
         TableUsageUpdate.objects.bulk_create(entries, ignore_conflicts=True)
