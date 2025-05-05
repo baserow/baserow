@@ -64,7 +64,7 @@ export class AdvancedLicenseType extends LicenseType {
   }
 
   getOrder() {
-    return 50
+    return 75
   }
 
   getSeatsManuallyAssigned() {
