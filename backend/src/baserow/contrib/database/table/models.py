@@ -868,7 +868,7 @@ class TableUsageUpdate(models.Model):
     file field references a newly uploaded file or not.
     """
 
-    table = models.OneToOneField(
+    table = models.ForeignKey(
         "database.Table", on_delete=models.CASCADE, related_name="usage_update"
     )
     row_count = models.IntegerField(

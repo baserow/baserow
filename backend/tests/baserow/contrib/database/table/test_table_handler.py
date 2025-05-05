@@ -1,6 +1,5 @@
 import os
 import random
-from datetime import datetime, timezone
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -8,6 +7,7 @@ from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.core.files.storage import FileSystemStorage
 from django.db import connection
+from django.db.models import Sum
 from django.test.utils import override_settings
 
 import pytest
@@ -851,7 +851,9 @@ def test_table_usage_handler_mark_table_for_usage_update_row_count_default_zero(
 
 @pytest.mark.django_db(transaction=True)
 def test_table_usage_handler_mark_table_for_usage_update_table_doesnt_exist():
-    TableUsageHandler.mark_table_for_usage_update(table_id=999, row_count=1)
+    assert (
+        TableUsageHandler.mark_table_for_usage_update(table_id=999, row_count=1) is None
+    )
 
 
 @pytest.mark.django_db
@@ -877,51 +879,58 @@ def test_table_usage_handler_mark_table_for_usage_update(data_fixture):
     with freeze_time("2020-02-01 01:23"):
         TableUsageHandler.mark_table_for_usage_update(table.id, 10)
 
+    def _get_sum(table_id):
+        return (
+            TableUsageUpdate.objects.filter(table_id=table_id).aggregate(
+                total=Sum("row_count")
+            )["total"]
+            or 0
+        )
+
     assert TableUsageUpdate.objects.all().count() == 1
-    usage_entry = TableUsageUpdate.objects.get(table_id=table.id)
-    assert usage_entry.row_count == 10
-    assert usage_entry.timestamp == datetime(2020, 2, 1, 1, 23, tzinfo=timezone.utc)
+    assert _get_sum(table.id) == 10
 
     # A second update on the same table should update the previous value
     with freeze_time("2020-02-01 01:24"):
         TableUsageHandler.mark_table_for_usage_update(table.id, -3)
 
-    assert TableUsageUpdate.objects.all().count() == 1
-    usage_entry = TableUsageUpdate.objects.get(table_id=table.id)
-    assert usage_entry.row_count == 7
-    assert usage_entry.timestamp == datetime(2020, 2, 1, 1, 24, tzinfo=timezone.utc)
+    assert TableUsageUpdate.objects.all().count() == 2
+    assert _get_sum(table.id) == 7
 
     # If row_count is 0, then row_count is not changed
     with freeze_time("2020-02-01 01:25"):
         TableUsageHandler.mark_table_for_usage_update(table.id, 0)
 
-    assert TableUsageUpdate.objects.all().count() == 1
-    usage_entry = TableUsageUpdate.objects.get(table_id=table.id)
-    assert usage_entry.row_count == 7
-    assert usage_entry.timestamp == datetime(2020, 2, 1, 1, 25, tzinfo=timezone.utc)
+    assert TableUsageUpdate.objects.all().count() == 3
+    assert _get_sum(table.id) == 7
 
     # An update to a second table, should create a second entry
     with freeze_time("2020-02-01 01:26"):
         TableUsageHandler.mark_table_for_usage_update(table_2.id, 10)
 
-    assert TableUsageUpdate.objects.all().count() == 2
-    usage_entry_2 = TableUsageUpdate.objects.get(table_id=table_2.id)
-    assert usage_entry_2.row_count == 10
-    assert usage_entry_2.timestamp == datetime(2020, 2, 1, 1, 26, tzinfo=timezone.utc)
+    assert TableUsageUpdate.objects.all().count() == 4
+    assert _get_sum(table_2.id) == 10
 
-    # A call to `update_tables_usage` should merge the updates into the TableUsage table
+    # Let's create 1 row in table and 2 rows in table_2 to verify the row_count is
+    # updated correctly
+    table.get_model().objects.create()
+
+    table_2.get_model().objects.create()
+    table_2.get_model().objects.create()
+
+    # Re-count rows in tables
     with freeze_time("2020-02-01 01:30"):
         TableUsageHandler.update_tables_usage()
 
     assert TableUsageUpdate.objects.count() == 0
-    # no matter what the row_count was in the updates, the row in the table is
-    # zero and the method will properly recount table rows
+    # no matter what the row_count was in the updates, `update_tables_usage` will
+    # re-count rows for all tables
     assert list(
         TableUsage.objects.values("table_id", "row_count", "storage_usage")
     ) == unordered(
         [
-            {"table_id": table.id, "row_count": 0, "storage_usage": 0},
-            {"table_id": table_2.id, "row_count": 0, "storage_usage": 0},
+            {"table_id": table.id, "row_count": 1, "storage_usage": 0},
+            {"table_id": table_2.id, "row_count": 2, "storage_usage": 0},
         ]
     )
 
@@ -942,12 +951,10 @@ def test_table_usage_handler_should_clear_updates_correctly(data_fixture):
         TableUsageHandler.mark_table_for_usage_update(table_2.id, 20)
 
     assert TableUsageUpdate.objects.count() == 2
-    table_usage_updates = TableUsageUpdate.objects.filter(table=table)
 
-    TableUsageHandler._update_tables_usage(table_usage_updates)
+    TableUsageHandler._update_existing_tables_usage(TableUsageUpdate.objects.all())
 
-    assert TableUsageUpdate.objects.count() == 1
-    assert TableUsageUpdate.objects.get(table=table_2) is not None
+    assert TableUsageUpdate.objects.count() == 0
 
 
 @pytest.mark.django_db

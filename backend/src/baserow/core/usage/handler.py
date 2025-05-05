@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from django.db.models import F, OuterRef, PositiveIntegerField, Subquery, Sum
+from django.db.models import OuterRef, PositiveIntegerField, Subquery, Sum
 from django.db.models.functions import Coalesce
 
 from baserow.contrib.database.table.models import Table
@@ -61,7 +61,9 @@ class UsageHandler:
 
         # FIXME: Move this to baserow.contrib.database
 
-        row_count = F("usage__row_count") + Coalesce(F("usage_update__row_count"), 0)
+        row_count = Coalesce(Sum("usage__row_count"), 0) + Coalesce(
+            Sum("usage_update__row_count"), 0
+        )
 
         return Coalesce(
             Subquery(
@@ -69,10 +71,9 @@ class UsageHandler:
                     database__workspace_id=OuterRef(outer_ref_name),
                     database__trashed=False,
                 )
-                .annotate(row_count=row_count)
                 .values("database__workspace_id")
-                .annotate(row_count_total=Sum("row_count"))
-                .values("row_count_total"),
+                .annotate(row_count=row_count)
+                .values("row_count"),
                 output_field=PositiveIntegerField(),
             ),
             0,

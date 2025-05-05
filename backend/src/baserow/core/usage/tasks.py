@@ -1,10 +1,16 @@
 from django.conf import settings
 
+from celery_singleton import Singleton
+
 from baserow.config.celery import app
 from baserow.core.handler import CoreHandler
 
 
-@app.task(queue=settings.BASEROW_GROUP_STORAGE_USAGE_QUEUE)
+@app.task(
+    base=Singleton,
+    queue=settings.BASEROW_GROUP_STORAGE_USAGE_QUEUE,
+    raise_on_duplicate=False,
+)
 def run_calculate_storage():
     """
     Runs the calculate storage job to keep track of how many mb of memory has been used
