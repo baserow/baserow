@@ -182,7 +182,7 @@ export class CoBrandingPaidFeature extends PaidFeature {
   }
 }
 
-export class SupportWebhooksPaidFeature extends PaidFeature {
+export class SupportPaidFeature extends PaidFeature {
   static getType() {
     return 'support'
   }

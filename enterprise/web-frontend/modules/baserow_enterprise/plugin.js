@@ -68,7 +68,7 @@ import {
   DataSyncPaidFeature,
   RBACPaidFeature,
   SSOPaidFeature,
-  SupportWebhooksPaidFeature,
+  SupportPaidFeature,
   FieldLevelPermissionsPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
@@ -201,7 +201,7 @@ export default (context) => {
     'paidFeature',
     new FieldLevelPermissionsPaidFeature(context)
   )
-  app.$registry.register('paidFeature', new SupportWebhooksPaidFeature(context))
+  app.$registry.register('paidFeature', new SupportPaidFeature(context))
   // Register builder page decorator namespace and types
   app.$registry.registerNamespace('builderPageDecorator')
   app.$registry.register(
