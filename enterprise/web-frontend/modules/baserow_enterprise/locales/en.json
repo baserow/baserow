@@ -278,6 +278,16 @@
     "baseUrlPlaceholder": "Provider's base URL",
     "duplicateBaseUrl": "The entered URL already exists in another provider",
     "invalidBaseUrl": "The entered URL is not a valid provider URL",
+    "useIdToken": "Use id token to get user information",
+    "responseSettings": "OIDC Response Attributes",
+    "defaultAttrs": "Default",
+    "customAttrs": "Custom",
+    "emailAttrKey": "Email",
+    "emailAttrKeyHelper": "The email address that will be used as username for the user. ",
+    "firstNameAttrKey": "First name",
+    "lastNameAttrKey": "Last Name",
+    "firstNameAttrKeyHelper": "The first name of the user or the full name if 'Last name' is not provided.",
+    "lastNameAttrKeyHelper": "Last name of the user (optional). Clear this value to provide the full name via 'First name'.",
     "callbackUrl": "Callback URL"
   },
   "loginButton": {

@@ -98,6 +98,107 @@
         {{ v$.values.secret.$errors[0]?.$message }}
       </template>
     </FormGroup>
+
+    <FormGroup
+      :label="$t('oauthSettingsForm.useIdToken')"
+      small-label
+      required
+      class="margin-bottom-2"
+    >
+      <Checkbox v-model="v$.values.use_id_token.$model"></Checkbox>
+    </FormGroup>
+
+    <Expandable card class="margin-bottom-2">
+      <template #header="{ toggle, expanded }">
+        <div class="flex flex-100 justify-content-space-between">
+          <div>
+            <div>
+              <a @click="toggle">
+                {{ $t('oauthSettingsForm.responseSettings') }}
+                <i
+                  :class="
+                    expanded
+                      ? 'iconoir-nav-arrow-down'
+                      : 'iconoir-nav-arrow-right'
+                  "
+                ></i>
+              </a>
+            </div>
+          </div>
+          <div>
+            {{
+              usingDefaultAttrs
+                ? $t('oauthSettingsForm.defaultAttrs')
+                : $t('oauthSettingsForm.customAttrs')
+            }}
+          </div>
+        </div>
+      </template>
+      <template #default>
+        <FormGroup
+          small-label
+          required
+          :error="fieldHasErrors('email_attr_key')"
+          :label="$t('oauthSettingsForm.emailAttrKey')"
+          class="margin-bottom-2"
+        >
+          <FormInput
+            ref="email_attr_key"
+            v-model="v$.values.email_attr_key.$model"
+            :error="fieldHasErrors('email_attr_key')"
+            :placeholder="defaultAttrs.email_attr_key"
+          ></FormInput>
+          <template #helper>
+            {{ $t('oauthSettingsForm.emailAttrKeyHelper') }}
+          </template>
+          <template #error>
+            {{ v$.values.email_attr_key.$errors[0]?.$message }}
+          </template>
+        </FormGroup>
+        <FormGroup
+          small-label
+          required
+          :error="fieldHasErrors('first_name_attr_key')"
+          :label="$t('oauthSettingsForm.firstNameAttrKey')"
+          class="margin-bottom-2"
+        >
+          <FormInput
+            ref="firstNameAttrKey"
+            v-model="v$.values.first_name_attr_key.$model"
+            :error="fieldHasErrors('first_name_attr_key')"
+            :placeholder="defaultAttrs.first_name_attr_key"
+          ></FormInput>
+          <template #helper>
+            {{ $t('oauthSettingsForm.firstNameAttrKeyHelper') }}
+          </template>
+
+          <template #error>
+            {{ v$.values.first_name_attr_key.$errors[0]?.$message }}
+          </template>
+        </FormGroup>
+        <FormGroup
+          small-label
+          required
+          :error="fieldHasErrors('last_name_attr_key')"
+          :label="$t('oauthSettingsForm.lastNameAttrKey')"
+          class="margin-bottom-2"
+        >
+          <FormInput
+            ref="lastNameAttrKey"
+            v-model="v$.values.last_name_attr_key.$model"
+            :error="fieldHasErrors('last_name_attr_key')"
+            :placeholder="defaultAttrs.last_name_attr_key"
+          ></FormInput>
+          <template #helper>
+            {{ $t('oauthSettingsForm.lastNameAttrKeyHelper') }}
+          </template>
+
+          <template #error>
+            {{ v$.values.last_name_attr_key.$errors[0]?.$message }}
+          </template>
+        </FormGroup>
+      </template>
+    </Expandable>
     <slot name="config">
       <FormGroup
         small-label
@@ -114,7 +215,9 @@
 <script>
 import authProviderForm from '@baserow/modules/core/mixins/authProviderForm'
 import { useVuelidate } from '@vuelidate/core'
-import { required, url, helpers } from '@vuelidate/validators'
+import { required, url, helpers, maxLength } from '@vuelidate/validators'
+
+const alphanumericDotDashUnderscore = helpers.regex(/^[a-zA-Z0-9._-]*$/)
 
 export default {
   name: 'OpenIdConnectSettingsForm',
@@ -124,18 +227,46 @@ export default {
   },
   data() {
     return {
-      allowedValues: ['name', 'base_url', 'client_id', 'secret'],
+      allowedValues: [
+        'name',
+        'base_url',
+        'client_id',
+        'secret',
+        'email_attr_key',
+        'first_name_attr_key',
+        'last_name_attr_key',
+        'use_id_token',
+      ],
       values: {
         name: '',
         base_url: '',
         client_id: '',
         secret: '',
+        email_attr_key: 'email',
+        first_name_attr_key: 'name',
+        last_name_attr_key: '',
+        use_id_token: false,
       },
     }
   },
   computed: {
     callbackUrl() {
       return this.authProviderType.getCallbackUrl(this.authProvider)
+    },
+    defaultAttrs() {
+      return {
+        email_attr_key: 'email',
+        last_name_attr_key: '',
+        first_name_attr_key: 'name',
+      }
+    },
+    usingDefaultAttrs() {
+      return (
+        this.values.email_attr_key === this.defaultAttrs.email_attr_key &&
+        this.values.first_name_attr_key ===
+          this.defaultAttrs.first_name_attr_key &&
+        this.values.last_name_attr_key === this.defaultAttrs.last_name_attr_key
+      )
     },
   },
   validations() {
@@ -161,6 +292,45 @@ export default {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             required
+          ),
+        },
+        use_id_token: {},
+        email_attr_key: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 32 }),
+            maxLength(32)
+          ),
+          invalid: helpers.withMessage(
+            this.$t('error.invalidCharacters'),
+            alphanumericDotDashUnderscore
+          ),
+        },
+        first_name_attr_key: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 32 }),
+            maxLength(32)
+          ),
+          invalid: helpers.withMessage(
+            this.$t('error.invalidCharacters'),
+            alphanumericDotDashUnderscore
+          ),
+        },
+        last_name_attr_key: {
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 32 }),
+            maxLength(32)
+          ),
+          invalid: helpers.withMessage(
+            this.$t('error.invalidCharacters'),
+            alphanumericDotDashUnderscore
           ),
         },
       },
