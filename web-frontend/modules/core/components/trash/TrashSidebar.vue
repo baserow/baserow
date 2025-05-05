@@ -18,8 +18,10 @@
     </div>
 
     <template v-for="group in groupedApplicationsForSelectedWorkspace">
-      <div :key="group.type" class="modal-sidebar__title">{{ group.name }}</div>
-      <ul class="modal-sidebar__nav">
+      <div :key="'title-' + group.type" class="modal-sidebar__title">
+        {{ group.name }}
+      </div>
+      <ul :key="group.type" class="modal-sidebar__nav">
         <li v-for="application in group.applications" :key="application.id">
           <a
             class="modal-sidebar__nav-link"
