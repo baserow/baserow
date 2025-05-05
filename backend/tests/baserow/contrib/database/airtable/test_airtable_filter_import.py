@@ -349,10 +349,22 @@ ALL_AIRTABLE_FILTERS_PER_TYPE = {
             "baserow_value": "fldWmh0gNFmvYHLwy_selTvmx6xRumPDwa7,fldWmh0gNFmvYHLwy_selTvmx6xRumPDwa8",
         },
         {
+            "operator": "isAnyOf",
+            "value": None,
+            "baserow_filter_type": "single_select_is_any_of",
+            "baserow_value": "",
+        },
+        {
             "operator": "isNoneOf",
             "value": ["selTvmx6xRumPDwa7", "selTvmx6xRumPDwa8"],
             "baserow_filter_type": "single_select_is_none_of",
             "baserow_value": "fldWmh0gNFmvYHLwy_selTvmx6xRumPDwa7,fldWmh0gNFmvYHLwy_selTvmx6xRumPDwa8",
+        },
+        {
+            "operator": "isNoneOf",
+            "value": None,
+            "baserow_filter_type": "single_select_is_none_of",
+            "baserow_value": "",
         },
         {
             "operator": "isEmpty",
