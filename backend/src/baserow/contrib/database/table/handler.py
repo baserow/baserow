@@ -118,10 +118,8 @@ class TableUsageHandler:
     @classmethod
     def create_tables_usage_for_new_database(cls, database_id: int):
         """
-        Creates a TableUsageUpdate entry for each table in the database. This will
-        provide the exact row_count as it's usually faster to calculate, but it will
-        require `update_tables_usage` to be called afterwards to update the storage
-        usage.
+        Creates a TableUsageUpdate entry for each table in the database so that the
+        usage can be tracked and updated.
 
         :param database_id: The id of the database that needs to be updated.
         """
@@ -129,9 +127,7 @@ class TableUsageHandler:
         tables_in_database = TableHandler.get_tables().filter(database_id=database_id)
 
         entries = [
-            TableUsageUpdate(
-                table_id=table.id, row_count=BaserowTableRowCount(table.id)
-            )
+            TableUsageUpdate(table_id=table.id, row_count=0)
             for table in tables_in_database
         ]
         TableUsageUpdate.objects.bulk_create(entries, ignore_conflicts=True)
