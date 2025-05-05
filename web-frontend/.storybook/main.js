@@ -5,10 +5,6 @@ module.exports = nuxifyStorybook({
     config.node = { fs: 'empty' }
     config.resolve = {
       ...config.resolve,
-      alias: {
-        ...config.resolve.alias,
-        '@vueuse/core': require.resolve('@vueuse/core'),
-      },
     }
     return config
   },
