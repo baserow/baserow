@@ -35,7 +35,7 @@
 </template>
 
 <script setup>
-import { getBezierPath } from '@baserow/modules/automation/components/workflow/@vue-flow/core/components/Edges/utils'
+import { getBezierPath } from '@vue2-flow/core'
 import { computed } from 'vue'
 
 const Position = {
