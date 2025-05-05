@@ -2,6 +2,24 @@ import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 import PremiumFeaturesObject from '@baserow_premium/features'
 import { LicenseType } from '@baserow_premium/licenseTypes'
 
+const commonAdvancedFeatures = [
+  // core
+  PremiumFeaturesObject.PREMIUM,
+  EnterpriseFeaturesObject.RBAC,
+  EnterpriseFeaturesObject.TEAMS,
+  EnterpriseFeaturesObject.AUDIT_LOG,
+  // database
+  EnterpriseFeaturesObject.DATA_SYNC,
+  EnterpriseFeaturesObject.ADVANCED_WEBHOOKS,
+  EnterpriseFeaturesObject.FIELD_LEVEL_PERMISSIONS,
+  // application builder
+  EnterpriseFeaturesObject.BUILDER_SSO,
+  EnterpriseFeaturesObject.BUILDER_NO_BRANDING,
+  EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
+  // Only self-hosted
+  EnterpriseFeaturesObject.SSO,
+]
+
 export class AdvancedLicenseType extends LicenseType {
   static getType() {
     return 'advanced'
@@ -39,19 +57,7 @@ export class AdvancedLicenseType extends LicenseType {
   }
 
   getFeatures() {
-    return [
-      PremiumFeaturesObject.PREMIUM,
-      EnterpriseFeaturesObject.RBAC,
-      EnterpriseFeaturesObject.SSO,
-      EnterpriseFeaturesObject.TEAMS,
-      EnterpriseFeaturesObject.AUDIT_LOG,
-      EnterpriseFeaturesObject.DATA_SYNC,
-      EnterpriseFeaturesObject.BUILDER_SSO,
-      EnterpriseFeaturesObject.BUILDER_NO_BRANDING,
-      EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
-      EnterpriseFeaturesObject.ADVANCED_WEBHOOKS,
-      EnterpriseFeaturesObject.FIELD_LEVEL_PERMISSIONS,
-    ]
+    return [...commonAdvancedFeatures, EnterpriseFeaturesObject.SUPPORT]
   }
 
   getTopSidebarTooltip() {
@@ -93,9 +99,10 @@ export class EnterpriseWithoutSupportLicenseType extends AdvancedLicenseType {
   }
 
   getFeatures() {
-    return super.getFeatures().concat(
-      EnterpriseFeaturesObject.ENTERPRISE_SETTINGS
-    )
+    return [
+      ...commonAdvancedFeatures,
+      EnterpriseFeaturesObject.ENTERPRISE_SETTINGS,
+    ]
   }
 
   getFeaturesDescription() {

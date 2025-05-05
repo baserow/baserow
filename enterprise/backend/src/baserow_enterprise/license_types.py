@@ -24,6 +24,24 @@ from baserow_enterprise.role.seat_usage_calculator import (
     RoleBasedSeatUsageSummaryCalculator,
 )
 
+COMMON_ADVANCED_FEATURES = [
+    # core
+    PREMIUM,
+    RBAC,
+    TEAMS,
+    AUDIT_LOG,
+    # database
+    DATA_SYNC,
+    ADVANCED_WEBHOOKS,
+    FIELD_LEVEL_PERMISSIONS,
+    # application builder
+    BUILDER_SSO,
+    BUILDER_NO_BRANDING,
+    BUILDER_FILE_INPUT,
+    # only self-hosted
+    SSO,
+]
+
 
 class AdvancedLicenseType(LicenseType):
     """
@@ -36,17 +54,8 @@ class AdvancedLicenseType(LicenseType):
     type = "advanced"
     order = 75
     features = [
-        PREMIUM,
-        RBAC,
-        SSO,
-        TEAMS,
-        AUDIT_LOG,
-        DATA_SYNC,
-        BUILDER_SSO,
-        BUILDER_NO_BRANDING,
-        ADVANCED_WEBHOOKS,
-        FIELD_LEVEL_PERMISSIONS,
-        BUILDER_FILE_INPUT,
+        *COMMON_ADVANCED_FEATURES,
+        SUPPORT,
     ]
     instance_wide = True
     seats_manually_assigned = False
@@ -79,7 +88,11 @@ class AdvancedLicenseType(LicenseType):
 class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
     type = "enterprise_without_support"
     order = 100
-    features = AdvancedLicenseType.features + [SECURE_FILE_SERVE, ENTERPRISE_SETTINGS]
+    features = [
+        *COMMON_ADVANCED_FEATURES,
+        ENTERPRISE_SETTINGS,
+        SECURE_FILE_SERVE,
+    ]
 
     def handle_seat_overflow(self, seats_taken: int, license_object: License):
         # We don't have to do anything because the seat limit is a soft limit.

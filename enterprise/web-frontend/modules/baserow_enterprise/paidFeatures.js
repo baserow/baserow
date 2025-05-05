@@ -188,7 +188,7 @@ export class SupportPaidFeature extends PaidFeature {
   }
 
   getPlan() {
-    return 'Enterprise'
+    return 'Advanced'
   }
 
   getIconClass() {
