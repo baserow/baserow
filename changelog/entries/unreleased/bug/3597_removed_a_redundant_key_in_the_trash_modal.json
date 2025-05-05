@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Removed a redundant key in the Trash modal.",
+    "message": "Fixed a duplicate key in the Trash modal.",
     "domain": "core",
     "issue_number": 3597,
     "bullet_points": [],
