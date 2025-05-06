@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Made the login error handling slightly more robust.",
+    "domain": "builder",
+    "issue_number": 3592,
+    "bullet_points": [],
+    "created_at": "2025-05-01"
+}
