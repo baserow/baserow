@@ -51,18 +51,24 @@ export default {
       return this.removedItems.concat(this.addedItems)
     },
     removedItems() {
+      if (!this.entry.before[this.fieldIdentifier]) {
+        return []
+      }
       return this.entry.before[this.fieldIdentifier].filter((before) => {
         return (
-          this.entry.after[this.fieldIdentifier].findIndex(
+          (this.entry.after[this.fieldIdentifier] || []).findIndex(
             (item) => item.id === before.id
           ) === -1
         )
       })
     },
     addedItems() {
+      if (!this.entry.after[this.fieldIdentifier]) {
+        return []
+      }
       return this.entry.after[this.fieldIdentifier].filter((after) => {
         return (
-          this.entry.before[this.fieldIdentifier].findIndex(
+          (this.entry.before[this.fieldIdentifier] || []).findIndex(
             (item) => item.id === after.id
           ) === -1
         )

@@ -245,6 +245,7 @@
     "contactSalesMoreSeats": "Contact Sales for more seats",
     "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} paid seats and {free_users_count} free seats in use",
     "premiumFeatureName": "Premium",
+    "advancedFeatureName": "Advanced",
     "enterpriseFeatureName": "Enterprise",
     "supportFeatureName": "Support"
   },

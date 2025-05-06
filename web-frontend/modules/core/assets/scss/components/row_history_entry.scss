@@ -10,24 +10,10 @@
 
 .row-history-entry__header {
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  flex-flow: row nowrap;
+  align-items: flex-start;
+  justify-content: space-between;
   margin-bottom: 8px;
-}
-
-.row-history-entry__content {
-  padding: 10px 14px 0;
-  border: 1px solid #d9dbde;
-  border-radius: 3px;
-  background-color: #f0f0f0;
-}
-
-.row-history-entry__name {
-  font-size: 12px;
-  height: 14px;
-  margin-left: 8px;
-  color: $palette-neutral-900;
-  font-weight: 400;
 }
 
 .row-history-entry__initials {
@@ -41,17 +27,34 @@
   @include center-text(24px, 12px);
 }
 
-.row-history-entry__timestamp {
-  @extend %ellipsis;
+.row-history-entry__name {
+  font-size: 12px;
+  margin-left: 8px;
+  color: $palette-neutral-900;
+  font-weight: 400;
+  flex: 1 1 auto;
+  overflow-wrap: break-word;
+  margin-top: 3px;
+  line-height: 17px;
+}
 
+.row-history-entry__timestamp {
   font-size: 12px;
   font-weight: 400;
   color: $color-neutral-400;
-
-  // Prevent long characters like 'g' in the time display being cut off
-  // partway down.
   height: 14px;
   margin-left: 6px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: 5px;
+}
+
+.row-history-entry__content {
+  padding: 10px 14px 0;
+  border: 1px solid #d9dbde;
+  border-radius: 3px;
+  background-color: #f0f0f0;
 }
 
 .row-history-entry__field {

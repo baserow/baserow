@@ -34,10 +34,14 @@ from tests.baserow.contrib.database.utils import (
     boolean_field_factory,
     date_field_factory,
     datetime_field_factory,
+    duration_field_factory,
     email_field_factory,
+    file_field_factory,
     long_text_field_factory,
+    multiple_collaborators_field_factory,
     multiple_select_field_factory,
     multiple_select_field_value_factory,
+    number_field_factory,
     phone_number_field_factory,
     setup_linked_table_and_lookup,
     single_select_field_factory,
@@ -140,6 +144,131 @@ def boolean_lookup_filter_proc(
     q = test_setup.view_handler.get_queryset(test_setup.grid_view)
     assert len(q) == len(selected)
     assert set([r.id for r in q]) == set([r.id for r in selected])
+
+
+@pytest.mark.parametrize(
+    "field_factory",
+    [
+        text_field_factory,
+        long_text_field_factory,
+        email_field_factory,
+        phone_number_field_factory,
+        url_field_factory,
+        number_field_factory,
+        single_select_field_factory,
+        multiple_select_field_factory,
+        date_field_factory,
+        datetime_field_factory,
+        duration_field_factory,
+        multiple_collaborators_field_factory,
+        file_field_factory,
+    ],
+)
+@pytest.mark.django_db
+def test_empty_not_empty_array_filter(field_factory, data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+    target_field = field_factory(data_fixture, table_b, user)
+    lookup_field = data_fixture.create_lookup_field(
+        name="lookup",
+        table=table_a,
+        through_field=link_a_to_b,
+        target_field=target_field,
+        through_field_name=link_a_to_b.name,
+        target_field_name=target_field.name,
+    )
+    view = data_fixture.create_grid_view(user=user, table=table_a)
+    view_filter = data_fixture.create_view_filter(
+        view=view, field=lookup_field, type="empty"
+    )
+
+    row_handler = RowHandler()
+    row_empty_b1, row_empty_b2 = row_handler.force_create_rows(
+        user, table_b, [{}, {}]
+    ).created_rows
+    field_type = target_field.get_type()
+    random_value = field_type.random_value(target_field, data_fixture.fake, {})
+
+    b3_value = field_type.random_to_input_value(target_field, random_value)
+    assert b3_value  # Ensure we're not getting empty value
+
+    row_b3 = row_handler.force_create_row(
+        user, table_b, {target_field.db_column: b3_value}
+    )
+
+    model_a = table_a.get_model()
+    row_a1, row_a2, row_a3, row_a4, row_a5, row_a6 = row_handler.force_create_rows(
+        user,
+        table_a,
+        [
+            {},
+            {link_a_to_b.db_column: [row_empty_b1.id]},
+            {link_a_to_b.db_column: [row_empty_b2.id]},
+            {link_a_to_b.db_column: [row_empty_b1.id, row_empty_b2.id]},
+            {link_a_to_b.db_column: [row_b3.id, row_empty_b2.id]},
+            {link_a_to_b.db_column: [row_b3.id]},
+        ],
+        model=model_a,
+    ).created_rows
+
+    handler = ViewHandler()
+    ids = [r.id for r in handler.apply_filters(view, model_a.objects.all()).all()]
+    assert ids == [row_a1.id, row_a2.id, row_a3.id, row_a4.id]
+
+    view_filter.type = "not_empty"
+    view_filter.save()
+
+    ids = [r.id for r in handler.apply_filters(view, model_a.objects.all()).all()]
+    assert ids == [row_a5.id, row_a6.id]
+
+
+@pytest.mark.parametrize(
+    "fixture_method_name",
+    [
+        "create_last_modified_field",
+        "create_created_on_field",
+        "create_autonumber_field",
+        "create_uuid_field",
+    ],
+)
+@pytest.mark.django_db
+def test_empty_not_empty_read_only_array_filter(fixture_method_name, data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+    target_field = getattr(data_fixture, fixture_method_name)(table=table_b)
+    lookup_field = data_fixture.create_lookup_field(
+        name="lookup",
+        table=table_a,
+        through_field=link_a_to_b,
+        target_field=target_field,
+        through_field_name=link_a_to_b.name,
+        target_field_name=target_field.name,
+    )
+    view = data_fixture.create_grid_view(user=user, table=table_a)
+    view_filter = data_fixture.create_view_filter(
+        view=view, field=lookup_field, type="empty"
+    )
+
+    row_handler = RowHandler()
+    (row_b1,) = row_handler.create_rows(user, table_b, [{}]).created_rows
+
+    model_a = table_a.get_model()
+    row_a1, row_a2, row_a3 = row_handler.force_create_rows(
+        user,
+        table_a,
+        [{}, {link_a_to_b.db_column: [row_b1.id]}, {link_a_to_b.db_column: []}],
+        model=model_a,
+    ).created_rows
+
+    handler = ViewHandler()
+    ids = [r.id for r in handler.apply_filters(view, model_a.objects.all()).all()]
+    assert ids == [row_a1.id, row_a3.id]
+
+    view_filter.type = "not_empty"
+    view_filter.save()
+
+    ids = [r.id for r in handler.apply_filters(view, model_a.objects.all()).all()]
+    assert ids == [row_a2.id]
 
 
 @pytest.mark.parametrize(

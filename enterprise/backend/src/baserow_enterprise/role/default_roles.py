@@ -9,6 +9,16 @@ from baserow_premium.row_comments.operations import (
     UpdateRowCommentsOperationType,
 )
 
+from baserow.contrib.automation.nodes.operations import (
+    CreateAutomationNodeOperationType,
+    DeleteAutomationNodeOperationType,
+    DuplicateAutomationNodeOperationType,
+    ListAutomationNodeOperationType,
+    OrderAutomationNodeOperationType,
+    ReadAutomationNodeOperationType,
+    RestoreAutomationNodeOperationType,
+    UpdateAutomationNodeOperationType,
+)
 from baserow.contrib.automation.operations import (
     ListAutomationWorkflowsOperationType,
     OrderAutomationWorkflowsOperationType,
@@ -505,6 +515,14 @@ default_roles[BUILDER_ROLE_UID].extend(
         DuplicateAutomationWorkflowOperationType,
         UpdateFieldPermissionsOperationType,
         ReadFieldPermissionsOperationType,
+        ListAutomationNodeOperationType,
+        CreateAutomationNodeOperationType,
+        UpdateAutomationNodeOperationType,
+        ReadAutomationNodeOperationType,
+        DeleteAutomationNodeOperationType,
+        OrderAutomationNodeOperationType,
+        RestoreAutomationNodeOperationType,
+        DuplicateAutomationNodeOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(

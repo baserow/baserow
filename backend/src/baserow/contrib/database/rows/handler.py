@@ -2343,7 +2343,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         model: Optional[Type[GeneratedTableModel]] = None,
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
-    ):
+    ) -> GeneratedTableModel:
         """
         Deletes an existing row of the given table and with row_id.
 
@@ -2356,6 +2356,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send the rows_deleted or similar signal. Defaults to True.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
+        :returns GeneratedTableModel: removed row
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
@@ -2372,6 +2373,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 send_realtime_update=send_realtime_update,
                 send_webhook_events=send_webhook_events,
             )
+        return row
 
     def delete_row(
         self,
@@ -2381,7 +2383,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         model: Optional[Type[GeneratedTableModel]] = None,
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
-    ):
+    ) -> GeneratedTableModelForUpdate:
         """
         Deletes an existing row of the given table and with row_id.
 
@@ -2394,6 +2396,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send the rows_deleted or similar signal. Defaults to True.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
+        :returns GeneratedTableModelForUpdate: removed row
         """
 
         workspace = table.database.workspace
@@ -2435,6 +2438,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             fields=updated_fields,
             dependant_fields=dependant_fields,
         )
+        return row
 
     def update_dependencies_of_rows_deleted(self, table, row, model):
         update_collector = FieldUpdateCollector(table, starting_row_ids=[row.id])

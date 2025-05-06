@@ -86,6 +86,8 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowDeleteRow,
     LocalBaserowGetRow,
     LocalBaserowListRows,
+    LocalBaserowRowCreated,
+    LocalBaserowRowUpdated,
     LocalBaserowTableService,
     LocalBaserowTableServiceFieldMapping,
     LocalBaserowTableServiceFilter,
@@ -108,6 +110,7 @@ from baserow.core.services.registries import (
     DispatchTypes,
     ListServiceTypeMixin,
     ServiceType,
+    TriggerServiceTypeMixin,
 )
 from baserow.core.services.types import (
     DispatchResult,
@@ -2511,3 +2514,17 @@ class LocalBaserowDeleteRowServiceType(
                 ) from exc
 
         return {"data": {}, "baserow_table_model": model}
+
+
+class LocalBaserowRowCreatedTriggerServiceType(
+    LocalBaserowTableServiceType, TriggerServiceTypeMixin
+):
+    type = "local_baserow_row_created"
+    model_class = LocalBaserowRowCreated
+
+
+class LocalBaserowRowUpdatedTriggerServiceType(
+    LocalBaserowTableServiceType, TriggerServiceTypeMixin
+):
+    type = "local_baserow_row_updated"
+    model_class = LocalBaserowRowUpdated

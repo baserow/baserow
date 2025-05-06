@@ -16,7 +16,6 @@ from baserow.core.signals import application_created
 from .tasks import create_tables_usage_for_new_database, update_table_usage
 
 
-# Rows signals for row count
 @receiver(rows_created)
 def on_rows_created(sender, rows, before, user, table, **kwargs):
     transaction.on_commit(
@@ -48,8 +47,10 @@ def on_rows_updated(
 # Table signals for row count
 @receiver(table_created)
 def on_table_created(sender, table, user, **kwargs):
-    row_count = table.get_model().objects.count()
-    transaction.on_commit(lambda: update_table_usage.delay(table.id, row_count))
+    # If rows have been created or imported, they will be counted in the `rows_created`
+    # signal, so let's only create an empty placehorder to make sure the table usage
+    # will be updated avoiding double counting.
+    transaction.on_commit(lambda: update_table_usage.delay(table.id, 0))
 
 
 @receiver(table_deleted)

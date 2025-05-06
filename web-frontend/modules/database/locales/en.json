@@ -916,7 +916,15 @@
   "rowHistorySidebar": {
     "name": "History",
     "empty": "No changes yet. You'll be able to track any changes to this row here.",
-    "you": "You"
+    "you": "You",
+    "created": "created this row",
+    "updated": "updated this row",
+    "submitted": "submitted this row",
+    "deleted": "deleted this row",
+    "restored": "restored this row",
+    "createdUndo": "undo row creation",
+    "updatedUndo": "undo row update",
+    "deletedUndo": "undo row deletion"
   },
   "fieldPasswordSubForm": {
     "description": "It's not yet possible to directly do anything with the password field, this is only used by the user authentication in the application builder."

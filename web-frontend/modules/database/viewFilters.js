@@ -2782,18 +2782,22 @@ export class EmptyViewFilterType extends ViewFilterType {
         'multiple_select',
         'multiple_collaborators',
         FormulaFieldType.arrayOf('single_file'),
-        FormulaFieldType.arrayOf('boolean')
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('boolean'),
+        FormulaFieldType.arrayOf('date'),
+        FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('single_select'),
+        FormulaFieldType.arrayOf('multiple_select'),
+        FormulaFieldType.arrayOf('multiple_collaborators'),
+        FormulaFieldType.arrayOf('duration')
       ),
     ]
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    return (
-      rowValue === null ||
-      (Array.isArray(rowValue) && rowValue.length === 0) ||
-      rowValue === false ||
-      rowValue.toString().trim() === ''
-    )
+    return fieldType.isEmpty(field, rowValue)
   }
 }
 
@@ -2850,17 +2854,21 @@ export class NotEmptyViewFilterType extends ViewFilterType {
         'multiple_select',
         'multiple_collaborators',
         FormulaFieldType.arrayOf('single_file'),
-        FormulaFieldType.arrayOf('boolean')
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('boolean'),
+        FormulaFieldType.arrayOf('date'),
+        FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('single_select'),
+        FormulaFieldType.arrayOf('multiple_select'),
+        FormulaFieldType.arrayOf('multiple_collaborators'),
+        FormulaFieldType.arrayOf('duration')
       ),
     ]
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    return !(
-      rowValue === null ||
-      (Array.isArray(rowValue) && rowValue.length === 0) ||
-      rowValue === false ||
-      rowValue.toString().trim() === ''
-    )
+    return !fieldType.isEmpty(field, rowValue)
   }
 }

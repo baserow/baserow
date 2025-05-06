@@ -18,6 +18,8 @@ class IntegrationsConfig(AppConfig):
             LocalBaserowDeleteRowServiceType,
             LocalBaserowGetRowUserServiceType,
             LocalBaserowListRowsUserServiceType,
+            LocalBaserowRowCreatedTriggerServiceType,
+            LocalBaserowRowUpdatedTriggerServiceType,
             LocalBaserowUpsertRowServiceType,
         )
 
@@ -26,5 +28,7 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(LocalBaserowAggregateRowsUserServiceType())
         service_type_registry.register(LocalBaserowUpsertRowServiceType())
         service_type_registry.register(LocalBaserowDeleteRowServiceType())
+        service_type_registry.register(LocalBaserowRowCreatedTriggerServiceType())
+        service_type_registry.register(LocalBaserowRowUpdatedTriggerServiceType())
 
         import baserow.contrib.integrations.signals  # noqa: F403, F401

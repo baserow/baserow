@@ -4,7 +4,6 @@ from typing import Optional
 from django.db.models import F, OuterRef, PositiveIntegerField, Subquery, Sum
 from django.db.models.functions import Coalesce
 
-from baserow.contrib.database.table.models import Table
 from baserow.core.models import Workspace
 from baserow.core.usage.registries import workspace_storage_usage_item_registry
 from baserow.core.utils import ChildProgressBuilder, grouper
@@ -60,8 +59,7 @@ class UsageHandler:
         """
 
         # FIXME: Move this to baserow.contrib.database
-
-        row_count = F("usage__row_count") + Coalesce(F("usage_update__row_count"), 0)
+        from baserow.contrib.database.table.models import Table, TableUsageUpdate
 
         return Coalesce(
             Subquery(
@@ -69,10 +67,24 @@ class UsageHandler:
                     database__workspace_id=OuterRef(outer_ref_name),
                     database__trashed=False,
                 )
-                .annotate(row_count=row_count)
+                .annotate(row_usage_count=Coalesce("usage__row_count", 0))
+                .annotate(
+                    row_update_count=Subquery(
+                        TableUsageUpdate.objects.filter(
+                            table_id=OuterRef("id"),
+                            row_count__isnull=False,
+                        )
+                        .values("table_id")
+                        .annotate(row_count=Coalesce(Sum("row_count"), 0))
+                        .values("row_count")[:1]
+                    )
+                )
+                .annotate(
+                    row_count=F("row_usage_count") + Coalesce(F("row_update_count"), 0)
+                )
                 .values("database__workspace_id")
-                .annotate(row_count_total=Sum("row_count"))
-                .values("row_count_total"),
+                .annotate(total=Sum("row_count"))
+                .values("total"),
                 output_field=PositiveIntegerField(),
             ),
             0,

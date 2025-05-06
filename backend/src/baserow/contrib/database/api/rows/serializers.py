@@ -483,6 +483,7 @@ class RowHistorySerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "action_type",
+            "action_command_type",
             "user",
             "timestamp",
             "before",

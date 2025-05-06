@@ -2,18 +2,36 @@ import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 import PremiumFeaturesObject from '@baserow_premium/features'
 import { LicenseType } from '@baserow_premium/licenseTypes'
 
-export class EnterpriseWithoutSupportLicenseType extends LicenseType {
+const commonAdvancedFeatures = [
+  // core
+  PremiumFeaturesObject.PREMIUM,
+  EnterpriseFeaturesObject.RBAC,
+  EnterpriseFeaturesObject.TEAMS,
+  EnterpriseFeaturesObject.AUDIT_LOG,
+  // database
+  EnterpriseFeaturesObject.DATA_SYNC,
+  EnterpriseFeaturesObject.ADVANCED_WEBHOOKS,
+  EnterpriseFeaturesObject.FIELD_LEVEL_PERMISSIONS,
+  // application builder
+  EnterpriseFeaturesObject.BUILDER_SSO,
+  EnterpriseFeaturesObject.BUILDER_NO_BRANDING,
+  EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
+  // Only self-hosted
+  EnterpriseFeaturesObject.SSO,
+]
+
+export class AdvancedLicenseType extends LicenseType {
   static getType() {
-    return 'enterprise_without_support'
+    return 'advanced'
   }
 
   getName() {
     const { i18n } = this.app
-    return i18n.t('enterprise.license')
+    return i18n.t('advanced.license')
   }
 
   getLicenseBadgeColor() {
-    return 'neutral'
+    return 'magenta'
   }
 
   getFeaturesDescription() {
@@ -24,8 +42,12 @@ export class EnterpriseWithoutSupportLicenseType extends LicenseType {
         enabled: true,
       },
       {
-        name: i18n.t('license.enterpriseFeatureName'),
+        name: i18n.t('license.advancedFeatureName'),
         enabled: true,
+      },
+      {
+        name: i18n.t('license.enterpriseFeatureName'),
+        enabled: false,
       },
       {
         name: i18n.t('license.supportFeatureName'),
@@ -35,20 +57,7 @@ export class EnterpriseWithoutSupportLicenseType extends LicenseType {
   }
 
   getFeatures() {
-    return [
-      PremiumFeaturesObject.PREMIUM,
-      EnterpriseFeaturesObject.RBAC,
-      EnterpriseFeaturesObject.SSO,
-      EnterpriseFeaturesObject.TEAMS,
-      EnterpriseFeaturesObject.AUDIT_LOG,
-      EnterpriseFeaturesObject.ENTERPRISE_SETTINGS,
-      EnterpriseFeaturesObject.DATA_SYNC,
-      EnterpriseFeaturesObject.BUILDER_SSO,
-      EnterpriseFeaturesObject.BUILDER_NO_BRANDING,
-      EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
-      EnterpriseFeaturesObject.ADVANCED_WEBHOOKS,
-      EnterpriseFeaturesObject.FIELD_LEVEL_PERMISSIONS,
-    ]
+    return [...commonAdvancedFeatures, EnterpriseFeaturesObject.SUPPORT]
   }
 
   getTopSidebarTooltip() {
@@ -61,7 +70,7 @@ export class EnterpriseWithoutSupportLicenseType extends LicenseType {
   }
 
   getOrder() {
-    return 100
+    return 75
   }
 
   getSeatsManuallyAssigned() {
@@ -79,6 +88,38 @@ export class EnterpriseWithoutSupportLicenseType extends LicenseType {
   }
 }
 
+export class EnterpriseWithoutSupportLicenseType extends AdvancedLicenseType {
+  static getType() {
+    return 'enterprise_without_support'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('enterprise.license')
+  }
+
+  getFeatures() {
+    return [
+      ...commonAdvancedFeatures,
+      EnterpriseFeaturesObject.ENTERPRISE_SETTINGS,
+    ]
+  }
+
+  getFeaturesDescription() {
+    const description = super.getFeaturesDescription()
+    description[2].enabled = true
+    return description
+  }
+
+  getOrder() {
+    return 100
+  }
+
+  getLicenseBadgeColor() {
+    return 'neutral'
+  }
+}
+
 export class EnterpriseLicenseType extends EnterpriseWithoutSupportLicenseType {
   static getType() {
     return 'enterprise'
@@ -90,7 +131,11 @@ export class EnterpriseLicenseType extends EnterpriseWithoutSupportLicenseType {
 
   getFeaturesDescription() {
     const description = super.getFeaturesDescription()
-    description[2].enabled = true
+    description[3].enabled = true
     return description
+  }
+
+  getOrder() {
+    return 101
   }
 }

@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Improved error handling in user source authentication.",
+    "domain": "builder",
+    "issue_number": 3594,
+    "bullet_points": [],
+    "created_at": "2025-05-02"
+}
