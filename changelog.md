@@ -1,5 +1,23 @@
 # Changelog
 
+## Released 1.33.1
+
+### New features
+* [Database] Fix Airtable import empty is_any_off bug. [#3595](https://gitlab.com/baserow/baserow/-/issues/3595)
+* [Database] Show row creation/deletion in row history' [#2117](https://gitlab.com/baserow/baserow/-/issues/2117)
+* [Database] Add empty and not_empty filters for lookup fields. [#3527](https://gitlab.com/baserow/baserow/-/issues/3527)
+* [Database] Introduce advanced self-hosting license type.
+
+### Bug fixes
+* [Builder] Fixed bug that prevented older browsers from checking the error state of a Collection element. [#3591](https://gitlab.com/baserow/baserow/-/issues/3591)
+* [Builder] Made the login error handling slightly more robust. [#3592](https://gitlab.com/baserow/baserow/-/issues/3592)
+* [Builder] Improved error handling in user source authentication. [#3594](https://gitlab.com/baserow/baserow/-/issues/3594)
+* [Database] Fix clearing link row and rating cell value in the grid view with backspace. [#1788](https://gitlab.com/baserow/baserow/-/issues/1788)
+
+### Refactors
+* [Database] Fix queuing and waiting many tableusageupdate queries [#2173](https://gitlab.com/baserow/baserow/-/issues/2173)
+
+
 ## Released 1.33.0
 
 ### New features

@@ -16,7 +16,7 @@ version: "3.4"
 services:
   baserow:
     container_name: baserow
-    image: baserow/baserow:1.33.0
+    image: baserow/baserow:1.33.1
     environment:
       BASEROW_PUBLIC_URL: 'http://localhost'
     ports:
