@@ -19,6 +19,7 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflow_updated,
     automation_workflows_reordered,
 )
+from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.handler import CoreHandler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder
@@ -85,7 +86,7 @@ class AutomationWorkflowService:
         Deletes the specified workflow.
 
         :param user: The user trying to delete the workflow.
-        :param workflow: The AutomationWorkflow instance that must be deleted.
+        :param workflow_id: The AutomationWorkflow ID that must be deleted.
         """
 
         workflow = self.handler.get_workflow(workflow_id)
@@ -109,12 +110,12 @@ class AutomationWorkflowService:
 
     def update_workflow(
         self, user: AbstractUser, workflow_id: int, **kwargs
-    ) -> AutomationWorkflow:
+    ) -> UpdatedAutomationWorkflow:
         """
         Updates fields of a workflow.
 
         :param user: The user trying to update the workflow.
-        :param workflow: The workflow that should be updated.
+        :param workflow_id: The workflow that should be updated.
         :param kwargs: The fields that should be updated with their corresponding value
         :return: The updated workflow.
         """

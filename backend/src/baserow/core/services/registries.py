@@ -32,6 +32,9 @@ class DispatchTypes(str, Enum):
     # A `ServiceType` which is used by a `DataSource`.
     DISPATCH_DATA_SOURCE = "dispatch-data-source"
 
+    # A `ServiceType` which is used by a `AutomationNode`.
+    DISPATCH_TRIGGER = "dispatch-trigger"
+
 
 class ServiceType(
     InstanceWithFormulaMixin,
@@ -356,6 +359,10 @@ class ServiceType(
         """
 
         return property_name
+
+
+class TriggerServiceTypeMixin:
+    service_type = DispatchTypes.DISPATCH_TRIGGER
 
 
 ServiceTypeSubClass = TypeVar("ServiceTypeSubClass", bound=ServiceType)
