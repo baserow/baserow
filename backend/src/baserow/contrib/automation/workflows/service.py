@@ -15,6 +15,7 @@ from baserow.contrib.automation.workflows.operations import (
 )
 from baserow.contrib.automation.workflows.signals import (
     automation_workflow_created,
+    automation_workflow_deleted,
     automation_workflow_updated,
     automation_workflows_reordered,
 )
@@ -97,6 +98,10 @@ class AutomationWorkflowService:
         )
 
         self.handler.delete_workflow(user, workflow)
+
+        automation_workflow_deleted.send(
+            self, automation=workflow.automation, workflow_id=workflow.id, user=user
+        )
 
         return workflow
 
