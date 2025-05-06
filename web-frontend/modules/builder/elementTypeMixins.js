@@ -313,9 +313,13 @@ export const CollectionElementTypeMixin = (Base) =>
         return true
       }
 
+      // A manual index is preferred over `.at()` since there are a lot of
+      // users on older browsers. See GitLab issue #3591.
+      const lastIndex = collectionAncestorsWithDataSource.length - 1
+
       // We consider the closest parent collection element with a data_source_id
       // The closest parent might be the current element itself
-      const parentWithDataSource = collectionAncestorsWithDataSource.at(-1)
+      const parentWithDataSource = collectionAncestorsWithDataSource[lastIndex]
 
       // We now check if the parent element configuration is correct.
       const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
