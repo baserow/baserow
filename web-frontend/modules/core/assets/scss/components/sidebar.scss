@@ -310,3 +310,12 @@
   margin-left: auto;
   color: $palette-neutral-700;
 }
+
+.chat-panel {
+  position: fixed;
+  width: 400px;
+  top: 5px;
+  bottom: 50px;
+  left: 5px;
+  background-color: white;
+}
