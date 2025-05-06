@@ -7,7 +7,7 @@ class AutomationConfig(AppConfig):
     name = "baserow.contrib.automation"
 
     def ready(self):
-        from baserow.contrib.automation.action.scopes import WorkflowActionScopeType
+        from baserow.contrib.automation.action_scopes import WorkflowActionScopeType
         from baserow.contrib.automation.application_types import (
             AutomationApplicationType,
         )

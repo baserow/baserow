@@ -4,7 +4,7 @@ from typing import List
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
-from baserow.contrib.automation.action.scopes import (
+from baserow.contrib.automation.action_scopes import (
     NODE_ACTION_CONTEXT,
     WorkflowActionScopeType,
 )
