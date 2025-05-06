@@ -16,7 +16,7 @@ def test_create_node(data_fixture):
     prepared_values = node_type.prepare_values({}, user)
 
     node = AutomationNodeHandler().create_node(
-        user, node_type, workflow=workflow, **prepared_values
+        node_type, workflow=workflow, **prepared_values
     )
 
     assert isinstance(node, LocalBaserowRowCreatedTriggerNode)
@@ -48,7 +48,7 @@ def test_update_node(data_fixture):
     assert node.previous_node_output == ""
 
     node_instance = AutomationNodeHandler().update_node(
-        user, node, previous_node_output="foo result"
+        node, previous_node_output="foo result"
     )
 
     assert node_instance == UpdatedAutomationNode(
@@ -103,9 +103,7 @@ def test_order_nodes(data_fixture):
     order = AutomationNodeHandler().get_nodes_order(workflow)
     assert order == [node_1.id, node_2.id]
 
-    new_order = AutomationNodeHandler().order_nodes(
-        user, workflow, [node_2.id, node_1.id]
-    )
+    new_order = AutomationNodeHandler().order_nodes(workflow, [node_2.id, node_1.id])
     assert new_order == [node_2.id, node_1.id]
 
     order = AutomationNodeHandler().get_nodes_order(workflow)
@@ -121,7 +119,7 @@ def test_order_nodes_invalid_node(data_fixture):
     node_2 = data_fixture.create_automation_node(user=user, workflow=workflow_2)
 
     with pytest.raises(AutomationNodeNotInWorkflow) as e:
-        AutomationNodeHandler().order_nodes(user, workflow_1, [node_2.id, node_1.id])
+        AutomationNodeHandler().order_nodes(workflow_1, [node_2.id, node_1.id])
 
     assert str(e.value) == f"The node {node_2.id} does not belong to the workflow."
 
@@ -137,7 +135,7 @@ def test_duplicate_node(data_fixture):
 
     assert workflow.automation_workflow_nodes.count() == 1
 
-    new_node = AutomationNodeHandler().duplicate_node(user, node)
+    new_node = AutomationNodeHandler().duplicate_node(node)
     assert new_node.workflow == workflow
     assert new_node.previous_node_output == "foo"
     assert workflow.automation_workflow_nodes.count() == 2

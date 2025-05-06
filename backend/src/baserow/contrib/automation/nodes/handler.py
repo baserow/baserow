@@ -24,13 +24,10 @@ from baserow.core.utils import MirrorDict, extract_allowed
 class AutomationNodeHandler:
     allowed_fields = ["previous_node_output"]
 
-    def create_node(
-        self, user: AbstractUser, node_type: AutomationNodeType, **kwargs
-    ) -> AutomationNode:
+    def create_node(self, node_type: AutomationNodeType, **kwargs) -> AutomationNode:
         """
         Create a new automation node.
 
-        :param user: The user trying to create the automation node.
         :param node_type: The automation node's type.
         :return: The newly created automation node instance.
         """
@@ -83,13 +80,10 @@ class AutomationNodeHandler:
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
-    def update_node(
-        self, user: AbstractUser, node: AutomationNode, **kwargs
-    ) -> UpdatedAutomationNode:
+    def update_node(self, node: AutomationNode, **kwargs) -> UpdatedAutomationNode:
         """
         Updates fields of the provided AutomationNode.
 
-        :param user: The user trying to update the automation node.
         :param node: The AutomationNode that should be updated.
         :param kwargs: The fields that should be updated with their
             corresponding values.
@@ -150,7 +144,6 @@ class AutomationNodeHandler:
 
     def order_nodes(
         self,
-        user: AbstractUser,
         workflow: AutomationWorkflow,
         order: List[int],
         base_qs=None,
@@ -160,7 +153,6 @@ class AutomationNodeHandler:
 
         A base_qs can be provided to pre-filter the nodes affected by this change.
 
-        :param user: The user trying to order the automation nodes.
         :param workflow: The workflow that the nodes belong to.
         :param order: The new order of the nodes.
         :param base_qs: A QS that can have filters already applied.
@@ -179,13 +171,10 @@ class AutomationNodeHandler:
 
         return full_order
 
-    def duplicate_node(
-        self, user: AbstractUser, node: AutomationNode
-    ) -> AutomationNode:
+    def duplicate_node(self, node: AutomationNode) -> AutomationNode:
         """
         Duplicates an existing AutomationNode instance.
 
-        :param user: The user trying to duplicate the automation node.
         :param node: The AutomationNode that is being duplicated.
         :raises ValueError: When the provided node is not an instance of
             AutomationNode.
