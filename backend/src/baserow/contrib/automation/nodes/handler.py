@@ -12,12 +12,6 @@ from baserow.contrib.automation.nodes.exceptions import (
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.automation.nodes.signals import (
-    automation_node_created,
-    automation_node_deleted,
-    automation_node_updated,
-    automation_nodes_reordered,
-)
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
     UpdatedAutomationNode,
@@ -47,12 +41,6 @@ class AutomationNodeHandler:
 
         node = node_type.model_class(**allowed_prepared_values)
         node.save()
-
-        automation_node_created.send(
-            self,
-            node=node,
-            user=user,
-        )
 
         return node.specific
 
@@ -116,12 +104,11 @@ class AutomationNodeHandler:
             setattr(node, key, value)
 
         node.save()
+
         new_node_values = self.export_prepared_values(node)
         updated_node = UpdatedAutomationNode(
             node, original_node_values, new_node_values
         )
-
-        automation_node_updated.send(self, user=user, node=updated_node.node)
 
         return updated_node
 
@@ -148,13 +135,6 @@ class AutomationNodeHandler:
 
         automation = node.workflow.automation
         TrashHandler.trash(user, automation.workspace, automation, node)
-
-        automation_node_deleted.send(
-            self,
-            workflow=node.workflow,
-            node_id=node.id,
-            user=user,
-        )
 
     def get_nodes_order(self, workflow: AutomationWorkflow) -> List[int]:
         """
@@ -197,10 +177,6 @@ class AutomationNodeHandler:
         except IdDoesNotExist as error:
             raise AutomationNodeNotInWorkflow(error.not_existing_id)
 
-        automation_nodes_reordered.send(
-            self, workflow=workflow, order=full_order, user=user
-        )
-
         return full_order
 
     def duplicate_node(
@@ -227,12 +203,6 @@ class AutomationNodeHandler:
             node.workflow,
             exported_node,
             id_mapping=id_mapping,
-        )
-
-        automation_node_created.send(
-            self,
-            node=new_node_clone,
-            user=user,
         )
 
         return new_node_clone

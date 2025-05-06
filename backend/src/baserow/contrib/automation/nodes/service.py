@@ -15,6 +15,12 @@ from baserow.contrib.automation.nodes.operations import (
     ReadAutomationNodeOperationType,
     UpdateAutomationNodeOperationType,
 )
+from baserow.contrib.automation.nodes.signals import (
+    automation_node_created,
+    automation_node_deleted,
+    automation_node_updated,
+    automation_nodes_reordered,
+)
 from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
 from baserow.core.handler import CoreHandler
 
@@ -51,6 +57,12 @@ class AutomationNodeService:
 
         new_node = self.handler.create_node(
             user, node_type, workflow=workflow, **prepared_values
+        )
+
+        automation_node_created.send(
+            self,
+            node=new_node,
+            user=user,
         )
 
         return new_node
@@ -128,6 +140,8 @@ class AutomationNodeService:
 
         updated_node = self.handler.update_node(user, node, **kwargs)
 
+        automation_node_updated.send(self, user=user, node=updated_node.node)
+
         return updated_node
 
     def delete_node(self, user: AbstractUser, node_id: int) -> AutomationNode:
@@ -148,6 +162,13 @@ class AutomationNodeService:
         )
 
         self.handler.delete_node(user, node)
+
+        automation_node_deleted.send(
+            self,
+            workflow=node.workflow,
+            node_id=node.id,
+            user=user,
+        )
 
         return node
 
@@ -182,7 +203,13 @@ class AutomationNodeService:
             workspace=automation.workspace,
         )
 
-        return self.handler.order_nodes(user, workflow, order, user_nodes)
+        new_order = self.handler.order_nodes(user, workflow, order, user_nodes)
+
+        automation_nodes_reordered.send(
+            self, workflow=workflow, order=new_order, user=user
+        )
+
+        return new_order
 
     def duplicate_node(
         self,
@@ -206,4 +233,12 @@ class AutomationNodeService:
             context=node,
         )
 
-        return self.handler.duplicate_node(user, node)
+        node_clone = self.handler.duplicate_node(user, node)
+
+        automation_node_created.send(
+            self,
+            node=node_clone,
+            user=user,
+        )
+
+        return node_clone
