@@ -345,7 +345,18 @@ export class FieldType extends Registerable {
    * Should return true if the provided value is empty.
    */
   isEmpty(field, value) {
-    if (Array.isArray(value) && value.length === 0) {
+    const isEmptyValue = (v) => {
+      return (
+        [null, undefined].includes(v) ||
+        String(v).trim() === '' ||
+        (Array.isArray(v) && v.length === 0)
+      )
+    }
+    if (
+      Array.isArray(value) &&
+      (value.length === 0 ||
+        value.every((i) => isEmptyValue(i.value ?? i.name)))
+    ) {
       return true
     }
     if (
@@ -355,10 +366,7 @@ export class FieldType extends Registerable {
     ) {
       return true
     }
-    if (typeof value === 'string') {
-      return value.trim() === ''
-    }
-    return [null, false].includes(value)
+    return value === false || isEmptyValue(value)
   }
 
   /**

@@ -22,6 +22,21 @@ from baserow.contrib.database.views.registries import (
 )
 from baserow.contrib.database.views.view_filters import DateMultiStepViewFilterType
 from baserow.test_utils.helpers import setup_interesting_test_table
+from tests.baserow.contrib.database.utils import (
+    date_field_factory,
+    datetime_field_factory,
+    duration_field_factory,
+    email_field_factory,
+    file_field_factory,
+    long_text_field_factory,
+    multiple_collaborators_field_factory,
+    multiple_select_field_factory,
+    number_field_factory,
+    phone_number_field_factory,
+    single_select_field_factory,
+    text_field_factory,
+    url_field_factory,
+)
 
 from .date_utils import (
     DATE_MULTI_STEP_OPERATOR_VALID_RESULTS,
@@ -1993,7 +2008,7 @@ def test_last_modified_date_equal_filter_type(data_fixture):
 
     # 2021-08-04 in Athens
     with freeze_time("2021-08-04 12:00"):
-        row_1 = model.objects.create(**{})
+        model.objects.create(**{})
 
     # 2021-08-05 in Athens
     with freeze_time("2021-08-04 22:01"):
@@ -6939,3 +6954,74 @@ def test_week_operator_for_view_multi_date_filters(data_fixture):
             [getattr(r, date_field.db_column) for r in qs.all()] == [
                 date(2025, 4, 7),
             ]
+
+
+@pytest.mark.parametrize(
+    "field_factory",
+    [
+        text_field_factory,
+        long_text_field_factory,
+        email_field_factory,
+        phone_number_field_factory,
+        number_field_factory,
+        url_field_factory,
+        single_select_field_factory,
+        multiple_select_field_factory,
+        date_field_factory,
+        datetime_field_factory,
+        duration_field_factory,
+        multiple_collaborators_field_factory,
+        file_field_factory,
+    ],
+)
+@pytest.mark.django_db
+def test_empty_not_empty_formula_filter(field_factory, data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    target_field = field_factory(data_fixture, table, user)
+    ref_target_field = data_fixture.create_formula_field(
+        name="ref_field",
+        table=table,
+        formula=f"field('target')",
+    )
+    assert ref_target_field.error is None
+    ref_ref_target_field = data_fixture.create_formula_field(
+        name="ref_ref_field",
+        table=table,
+        formula=f"field('ref_field')",
+    )
+    assert ref_ref_target_field.error is None
+
+    view = data_fixture.create_grid_view(user=user, table=table)
+    row_handler = RowHandler()
+
+    field_type = target_field.get_type()
+    row_empty_1, row_empty_2 = row_handler.force_create_rows(
+        user, table, [{}, {}]
+    ).created_rows
+
+    random_value = field_type.random_value(target_field, data_fixture.fake, {})
+    r3_value = field_type.random_to_input_value(target_field, random_value)
+    assert r3_value  # Ensure we're not getting empty value
+    row_3 = row_handler.force_create_row(
+        user, table, {target_field.db_column: r3_value}
+    )
+
+    for field in [target_field, ref_target_field, ref_ref_target_field]:
+        view_filter = data_fixture.create_view_filter(
+            view=view, field=field, type="empty"
+        )
+
+        model = table.get_model()
+
+        handler = ViewHandler()
+        ids = [r.id for r in handler.apply_filters(view, model.objects.all()).all()]
+        assert ids == [row_empty_1.id, row_empty_2.id]
+
+        view_filter.type = "not_empty"
+        view_filter.save()
+
+        ids = [r.id for r in handler.apply_filters(view, model.objects.all()).all()]
+        assert ids == [row_3.id]
+
+        view_filter.delete()

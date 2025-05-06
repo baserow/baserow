@@ -51,6 +51,7 @@ import {
   NumberFieldType,
   SingleSelectFieldType,
   MultipleSelectFieldType,
+  MultipleCollaboratorsFieldType,
 } from '@baserow/modules/database/fieldTypes'
 
 export const dateBeforeCases = [
@@ -2759,4 +2760,85 @@ describe('All Tests', () => {
     )
     expect(result).toBe(values.expectedResult)
   })
+})
+
+const MultipleCollaboratorsEmptyCases = [
+  {
+    filterType: 'empty',
+    rowValue: [],
+    filterValue: null,
+    expected: true,
+  },
+  {
+    filterType: 'empty',
+    rowValue: [{ id: 1, name: 'foo' }],
+    filterValue: null,
+    expected: false,
+  },
+]
+
+describe('Multiple collaborators view filters', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test.each(MultipleCollaboratorsEmptyCases)(
+    'Multiple collaborators is empty.',
+    (values) => {
+      const fieldType = new MultipleCollaboratorsFieldType({ app: testApp })
+      const field = { type: 'multiple_collaborators' }
+      const result = new EmptyViewFilterType({
+        app: testApp,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(values.expected)
+    }
+  )
+
+  test.each(MultipleCollaboratorsEmptyCases)(
+    'Multiple collaborators is not empty.',
+    (values) => {
+      const fieldType = new MultipleCollaboratorsFieldType({ app: testApp })
+      const field = { type: 'multiple_collaborators' }
+      const result = new NotEmptyViewFilterType({
+        app: testApp,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(!values.expected)
+    }
+  )
+
+  test.each(MultipleCollaboratorsEmptyCases)(
+    'Multiple collaborators formula is empty.',
+    (values) => {
+      const field = {
+        type: 'formula',
+        formula_type: 'multiple_collaborators',
+      }
+      const fieldType = new FormulaFieldType({ app: testApp })
+      const result = new EmptyViewFilterType({
+        app: testApp,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(values.expected)
+    }
+  )
+
+  test.each(MultipleCollaboratorsEmptyCases)(
+    'Multiple collaborators formula is not empty.',
+    (values) => {
+      const field = {
+        type: 'formula',
+        formula_type: 'multiple_collaborators',
+      }
+      const fieldType = new FormulaFieldType({ app: testApp })
+      const result = new NotEmptyViewFilterType({
+        app: testApp,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(!values.expected)
+    }
+  )
 })

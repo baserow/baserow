@@ -3812,11 +3812,11 @@ class FileFieldType(FieldType):
         qs = cache[queryset_name]
 
         values = []
-        for _ in range(randrange(0, min(3, count))):  # nosec
+        for _ in range(randrange(1, min(3, count))):  # nosec
             try:
-                instance = next(qs)
-                serialized = instance.serialize()
-                serialized["visible_name"] = instance.original_name
+                user_file = next(qs)
+                serialized = user_file.serialize()
+                serialized["visible_name"] = user_file.original_name
                 values.append(serialized)
             except StopIteration:
                 cache[queryset_name] = get_random_objects_iterator()
@@ -4282,7 +4282,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         if not select_options:
             return None
 
-        return select_options[randrange(0, len(select_options))]  # nosec
+        return select_options[randrange(1, len(select_options))]  # nosec
 
     def contains_query(self, field_name, value, model_field, field):
         value = value.strip()
@@ -4573,7 +4573,7 @@ class MultipleSelectFieldType(
         if not select_options:
             return None
 
-        return sample(select_options, randint(0, len(select_options)))  # nosec
+        return sample(select_options, randint(1, len(select_options)))  # nosec
 
     def get_export_value(self, value, field_object, rich_value=False):
         if value is None:
@@ -4896,6 +4896,13 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             **self.request_serializer_field_overrides,
             **get_baserow_formula_type_serializer_field_overrides(),
         }
+
+    def empty_query(self, field_name, model_field, field) -> Q:
+        (
+            field_instance,
+            field_type,
+        ) = self.get_field_instance_and_type_from_formula_field(field)
+        return field_type.empty_query(field_name, model_field, field_instance)
 
     @staticmethod
     def _stack_error_mapper(e):
@@ -6484,7 +6491,7 @@ class MultipleCollaboratorsFieldType(
         if not collaborators:
             return None
 
-        return sample(collaborators, randint(0, len(collaborators)))  # nosec
+        return sample(collaborators, randint(1, len(collaborators)))  # nosec
 
     def random_to_input_value(self, field, value):
         return [{"id": user_id} for user_id in value]

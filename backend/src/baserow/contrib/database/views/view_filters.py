@@ -64,6 +64,7 @@ from baserow.contrib.database.formula import (
 from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaDateIntervalType,
     BaserowFormulaDurationType,
+    BaserowFormulaMultipleCollaboratorsType,
     BaserowFormulaMultipleSelectType,
     BaserowFormulaSingleFileType,
     BaserowFormulaSingleSelectType,
@@ -1610,13 +1611,21 @@ class EmptyViewFilterType(ViewFilterType):
             BaserowFormulaMultipleSelectType.type,
             MultipleCollaboratorsFieldType.type,
             FormulaFieldType.array_of(BaserowFormulaSingleFileType.type),
+            FormulaFieldType.array_of(BaserowFormulaTextType.type),
+            FormulaFieldType.array_of(BaserowFormulaCharType.type),
+            FormulaFieldType.array_of(BaserowFormulaURLType.type),
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
             FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
+            FormulaFieldType.array_of(BaserowFormulaDateType.type),
+            FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleCollaboratorsType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
     def get_filter(self, field_name, value, model_field, field):
         field_type = field_type_registry.get_by_model(field)
-
         return field_type.empty_query(field_name, model_field, field)
 
 

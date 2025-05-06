@@ -2092,7 +2092,7 @@ def test_create_row_deadlock(api_client, data_fixture):
             HTTP_AUTHORIZATION=f"JWT {jwt_token}",
         )
 
-    response_json = response.json()
+    response.json()
     assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
     assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 

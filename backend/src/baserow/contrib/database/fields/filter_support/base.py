@@ -30,16 +30,22 @@ if TYPE_CHECKING:
 class HasValueEmptyFilterSupport:
     def get_in_array_empty_value(self, field: "Field") -> Any:
         """
-        Returns the value to use for filtering empty values in an array. An empty string
-        is used by default and works for test-like fields, but for number fields or
-        other types, this method should be overridden returning None or the most
-        appropriate value.
+        Returns a sigle value or a list of values to use for filtering empty values in
+        an arrays with the `get_jsonb_has_any_in_value_filter_expr`. See
+        `get_in_array_empty_query` and `get_all_empty_query` for more details
+        on how this value is used.
 
         :param field: The related field's instance.
-        :return: The value to use for filtering empty values in an array.
+        :return: A list of values to use in  get_jsonb_has_any_in_value_filter_expr for
+            filtering empty values in an array.
         """
 
         return ""
+
+    def empty_query(self, field_name, model_field, field) -> Q:
+        return self.get_all_empty_query(
+            field_name=field_name, model_field=model_field, field=field, in_array=False
+        )
 
     def get_in_array_empty_query(
         self, field_name: str, model_field: DjangoField, field: "Field"
@@ -54,8 +60,32 @@ class HasValueEmptyFilterSupport:
         """
 
         empty_value = self.get_in_array_empty_value(field)
-        return Q(
-            **{f"{field_name}__contains": Value([{"value": empty_value}], JSONField())}
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field,
+            empty_value,
+            query_path="$[*].value",
+            comparison_operator="==",
+            join_operator="||",
+        )
+
+    def get_all_empty_query(
+        self,
+        field_name: str,
+        model_field: DjangoField,
+        field: "Field",
+        in_array: bool = True,
+    ) -> OptionallyAnnotatedQ:
+        empty_value = self.get_in_array_empty_value(field)
+        any_not_empty = get_jsonb_has_any_in_value_filter_expr(
+            model_field,
+            empty_value,
+            query_path="$[*].value",
+            comparison_operator="!=",
+            join_operator="&&",
+        )
+        return AnnotatedQ(
+            annotation=any_not_empty.annotation,
+            q=~any_not_empty.q | Q(**{f"{field_name}": Value([], JSONField())}),
         )
 
 
@@ -297,25 +327,41 @@ def get_jsonb_contains_word_filter_expr(
     )
 
 
+VALUE_TO_JSON_PATH_MAP = {
+    None: "null",
+    "": '""',
+}
+
+
 def get_jsonb_has_any_in_value_filter_expr(
     model_field: DjangoField,
-    value: List[int],
+    value: Any,
     query_path: str = "$[*].id",
+    comparison_operator: str = "==",
+    join_operator: str = "||",
 ) -> OptionallyAnnotatedQ:
     """
     Returns an AnnotatedQ that will filter rows where the JSON field contains any of the
-    IDs provided in value. Providing a query_path allows for
-    filtering on a specific path in the JSON field.
+    IDs provided in value. Providing a query_path allows for filtering on a specific
+    path in the JSON field.
 
     :param model_field: The django model field to filter on. The field is used to get
         the model for the subquery and the field name.
-    :param value: A list of IDs to filter on. The list cannot be empty.
+    :param value: A single value or a list of values to filter on. If a list is
+        provided, it cannot be empty.
     :param query_path: The path in the JSON field to filter on. Defaults to "$[*].id".
     :return: An AnnotatedQ that will filter rows where the JSON field contains any of
         the select option IDs provided in the value.
     """
 
-    sql_ids = "||".join([f"(@ == {v})" for v in value])
+    if not isinstance(value, (list, tuple)):
+        value = [value]
+
+    mapped_values = [VALUE_TO_JSON_PATH_MAP.get(v, v) for v in value]
+
+    sql_ids = f"{join_operator}".join(
+        [f"(@ {comparison_operator} {v})" for v in mapped_values]
+    )
     field_name = model_field.name
 
     raw_sql = f"""
@@ -340,8 +386,8 @@ def get_jsonb_has_exact_value_filter_expr(
     """
     Returns an AnnotatedQ that filters rows where the JSON field exactly matches the
     provided IDs. The JSON field must be an array of objects, each containing a 'value'
-    key, which is an array of objects with 'id' keys. For example:
-    [{"value": [{"id": 1}, {"id": 2}]}, {"value": [{"id": 3}]}, ...]
+    key, which is an array of objects with 'id' keys.
+    For example: [{"value": [{"id":1}, {"id": 2}]}, {"value": [{"id": 3}]}, ...]
 
     :param model_field: The Django model field to filter on.
     :param value: A list of IDs to match. The list cannot be empty.

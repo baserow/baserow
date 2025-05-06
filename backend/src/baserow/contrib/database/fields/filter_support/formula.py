@@ -52,7 +52,7 @@ class FormulaFieldTypeArrayFilterSupport(
             field_name, value, model_field, field_instance
         )
 
-    def get_in_array_empty_value(self, field: "Field") -> typing.Any:
+    def get_in_array_empty_value(self, field: "Field") -> any:
         (
             field_instance,
             field_type,
