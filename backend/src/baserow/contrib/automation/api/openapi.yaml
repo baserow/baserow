@@ -1,0 +1,133 @@
+openapi: 3.0.3
+info:
+  title: Automations API
+  version: 1.0.0
+paths:
+  /automation/workflow/{workflowId}/nodes/:
+    get:
+      operationId: listNodes
+      parameters:
+        - in: path
+          name: workflowId
+          schema:
+            type: integer
+          required: true
+          description: Numeric ID of the workflow.
+      tags:
+        - Development
+      summary: List workflow nodes
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AutomationNode'
+          description: An array of nodes in this workflow.
+    post:
+      operationId: createNode
+      parameters:
+        - in: path
+          name: workflowId
+          schema:
+            type: integer
+          required: true
+          description: Numeric ID of the workflow.
+      tags:
+        - Development
+      summary: Create automation
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationNode'
+          description: The created node.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAutomationNode'
+  /automation/node/{nodeId}/:
+    patch:
+      operationId: updateNode
+      parameters:
+        - in: path
+          name: nodeId
+          schema:
+            type: integer
+          required: true
+          description: Numeric ID of the node.
+      tags:
+        - Development
+      summary: Update a single node
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationNode'
+          description: An array of nodes in this workflow.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAutomationNode'
+    delete:
+      operationId: deleteNode
+      parameters:
+        - in: path
+          name: nodeId
+          schema:
+            type: integer
+          required: true
+          description: Numeric ID of the node.
+      tags:
+        - Development
+      summary: Delete a single node
+      responses:
+        '204':
+          description: Node was deleted.
+components:
+  schemas:
+    AutomationNode:
+      type: object
+      properties:
+        id:
+          type: integer
+        workflow_id:
+          type: integer
+        type:
+          type: string
+        order:
+          type: integer
+        parent_node_id:
+          type: integer
+        previous_node_id:
+          type: integer
+        previous_node_output:
+          type: string
+    UpdateAutomationNode:
+      type: object
+      properties:
+        order:
+          type: integer
+        parent_node_id:
+          type: integer
+        previous_node_id:
+          type: integer
+        previous_node_output:
+          type: string
+    CreateAutomationNode:
+      type: object
+      required:
+        - type
+        - workflow_id
+      properties:
+        type:
+          type: string
+        workflow_id:
+          type: integer
