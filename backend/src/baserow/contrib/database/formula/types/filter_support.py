@@ -33,6 +33,15 @@ class BaserowFormulaArrayFilterSupportMixin(
     This mixin proxies all the array formula filters methods to the formula subtype.
     """
 
+    def empty_query(self, field_name, model_field, field):
+        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
+        return self.sub_type.get_all_empty_query(
+            field_name=field_name,
+            model_field=model_field,
+            field=field_instance,
+            in_array=True,
+        )
+
     def get_in_array_empty_value(self, field):
         field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
         return self.sub_type.get_in_array_empty_value(field_instance)

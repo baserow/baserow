@@ -160,6 +160,20 @@ def multiple_collaborators_field_factory(data_fixture, table, user):
     )
 
 
+def file_field_factory(data_fixture, table, user):
+    data_fixture.create_user_file(
+        original_name=f"a.txt",
+        sha256_hash="a",
+        uploaded_by=user,
+    )
+    data_fixture.create_user_file(
+        original_name=f"b.txt",
+        sha256_hash="b",
+        uploaded_by=user,
+    )
+    return data_fixture.create_file_field(name="target", user=user, table=table)
+
+
 def duration_field_factory(
     data_fixture, table, user, duration_format: str = "d h mm", name: str | None = None
 ):

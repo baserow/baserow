@@ -32,7 +32,7 @@ class HasValueEmptyFilterSupport:
         """
         Returns a sigle value or a list of values to use for filtering empty values in
         an arrays with the `get_jsonb_has_any_in_value_filter_expr`. See
-        `get_in_array_empty_query` and `get_in_array_all_empty_query` for more details
+        `get_in_array_empty_query` and `get_all_empty_query` for more details
         on how this value is used.
 
         :param field: The related field's instance.
@@ -43,8 +43,8 @@ class HasValueEmptyFilterSupport:
         return ""
 
     def empty_query(self, field_name, model_field, field) -> Q:
-        return self.get_in_array_all_empty_query(
-            field_name=field_name, model_field=model_field, field=field
+        return self.get_all_empty_query(
+            field_name=field_name, model_field=model_field, field=field, in_array=False
         )
 
     def get_in_array_empty_query(
@@ -68,18 +68,25 @@ class HasValueEmptyFilterSupport:
             join_operator="||",
         )
 
-    def get_in_array_all_empty_query(
-        self, field_name: str, model_field: DjangoField, field: "Field"
+    def get_all_empty_query(
+        self,
+        field_name: str,
+        model_field: DjangoField,
+        field: "Field",
+        in_array: bool = True,
     ) -> OptionallyAnnotatedQ:
         empty_value = self.get_in_array_empty_value(field)
-        has_non_empty_value = get_jsonb_has_any_in_value_filter_expr(
+        any_not_empty = get_jsonb_has_any_in_value_filter_expr(
             model_field,
             empty_value,
             query_path="$[*].value",
             comparison_operator="!=",
             join_operator="&&",
         )
-        return ~has_non_empty_value
+        return AnnotatedQ(
+            annotation=any_not_empty.annotation,
+            q=~any_not_empty.q | Q(**{f"{field_name}": Value([], JSONField())}),
+        )
 
 
 class HasValueEqualFilterSupport:

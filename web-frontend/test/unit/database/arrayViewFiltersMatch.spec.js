@@ -2169,3 +2169,130 @@ describe('Empty / not Empty array view filters', () => {
     })
   })
 })
+
+const MultipleCollaboratorsEmptyCases = [
+  {
+    filterType: 'empty',
+    rowValue: [],
+    expected: true,
+  },
+  {
+    filterType: 'empty',
+    rowValue: [{ id: 1, value: [] }],
+    expected: true,
+  },
+  {
+    filterType: 'empty',
+    rowValue: [{ id: 2, value: [{ id: 1, name: 'foo' }] }],
+    expected: false,
+  },
+  {
+    filterType: 'empty',
+    rowValue: [
+      { id: 2, value: [{ id: 1, name: 'foo' }] },
+      { id: 1, value: [] },
+    ],
+    expected: false,
+  },
+]
+
+describe('Multiple collaborators view filters', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test.each(MultipleCollaboratorsEmptyCases)(
+    'Multiple collaborators is empty.',
+    (values) => {
+      const fieldType = new FormulaFieldType({ app: testApp })
+      const field = {
+        type: 'lookup',
+        formula_type: 'array',
+        array_formula_type: 'multiple_collaborators',
+      }
+      const result = new EmptyViewFilterType({
+        app: testApp,
+      }).matches(values.rowValue, '', field, fieldType)
+      expect(result).toBe(values.expected)
+    }
+  )
+
+  test.each(MultipleCollaboratorsEmptyCases)(
+    'Multiple collaborators is not empty.',
+    (values) => {
+      const fieldType = new FormulaFieldType({ app: testApp })
+      const field = {
+        type: 'lookup',
+        formula_type: 'array',
+        array_formula_type: 'multiple_collaborators',
+      }
+      const result = new NotEmptyViewFilterType({
+        app: testApp,
+      }).matches(values.rowValue, '', field, fieldType)
+      expect(result).toBe(!values.expected)
+    }
+  )
+})
+
+const durationEmptyCases = [
+  {
+    cellValue: [],
+    expected: true,
+  },
+  {
+    cellValue: [{ value: 1 }],
+    expected: false,
+  },
+  {
+    cellValue: [{ value: null }],
+    expected: true,
+  },
+  {
+    cellValue: [{ value: '1' }, { value: null }],
+    expected: false,
+  },
+]
+
+describe('Duration view filters', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test.each(durationEmptyCases)('Duration is empty %j', (testValues) => {
+    const fieldType = new FormulaFieldType({ app: testApp })
+    const field = {
+      type: 'lookup',
+      formula_type: 'array',
+      array_formula_type: 'duration',
+    }
+    const result = new EmptyViewFilterType({
+      app: testApp,
+    }).matches(testValues.cellValue, '', field, fieldType)
+    expect(result).toBe(testValues.expected)
+  })
+
+  test.each(durationEmptyCases)('Duration is not empty %j', (testValues) => {
+    const fieldType = new FormulaFieldType({ app: testApp })
+    const field = {
+      type: 'lookup',
+      formula_type: 'array',
+      array_formula_type: 'duration',
+    }
+    const result = new NotEmptyViewFilterType({
+      app: testApp,
+    }).matches(testValues.cellValue, '', field, fieldType)
+    expect(result).toBe(!testValues.expected)
+  })
+})

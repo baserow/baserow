@@ -355,7 +355,7 @@ export class FieldType extends Registerable {
     if (
       Array.isArray(value) &&
       (value.length === 0 ||
-        value.every((i) => isEmptyValue(i.value ?? i.first_name)))
+        value.every((i) => isEmptyValue(i.value ?? i.name)))
     ) {
       return true
     }
