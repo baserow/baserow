@@ -42,7 +42,7 @@ class AutomationNodeHandler:
         node = node_type.model_class(**allowed_prepared_values)
         node.save()
 
-        return node.specific
+        return node
 
     def get_nodes(
         self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
