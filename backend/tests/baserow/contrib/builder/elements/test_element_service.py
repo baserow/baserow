@@ -39,9 +39,8 @@ def test_create_element(element_created_mock, data_fixture, element_type):
 
     pytest_params = element_type.get_pytest_params(data_fixture)
 
-    element = ElementService().create_element(
-        user, element_type, page=page, **pytest_params
-    )
+    service = ElementService()
+    element = service.create_element(user, element_type, page=page, **pytest_params)
 
     element_type.is_deactivated = prev_is_deactivated
 
@@ -50,7 +49,9 @@ def test_create_element(element_created_mock, data_fixture, element_type):
     # Check it's the last element
     assert last_element.id == element.id
 
-    assert element_created_mock.called_with(element=element, user=user)
+    element_created_mock.send.assert_called_once_with(
+        service, element=element, before_id=None, user=user
+    )
 
 
 @pytest.mark.django_db
@@ -135,9 +136,10 @@ def test_recalculate_full_order(element_orders_recalculated_mock, data_fixture):
     data_fixture.create_builder_heading_element(page=page, order="1.9000")
     data_fixture.create_builder_heading_element(page=page, order="3.4000")
 
-    ElementService().recalculate_full_orders(user, page)
+    service = ElementService()
+    service.recalculate_full_orders(user, page)
 
-    assert element_orders_recalculated_mock.called_with(page=page, user=user)
+    element_orders_recalculated_mock.send.assert_called_once_with(service, page=page)
 
 
 @pytest.mark.django_db
@@ -254,9 +256,12 @@ def test_delete_element(element_deleted_mock, data_fixture):
     user = data_fixture.create_user()
     element = data_fixture.create_builder_heading_element(user=user)
 
-    ElementService().delete_element(user, element)
+    service = ElementService()
+    service.delete_element(user, element)
 
-    assert element_deleted_mock.called_with(element_id=element.id, user=user)
+    element_deleted_mock.send.assert_called_once_with(
+        service, element_id=element.id, page=element.page, user=user
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -276,9 +281,12 @@ def test_update_element(element_updated_mock, data_fixture):
     user = data_fixture.create_user()
     element = data_fixture.create_builder_heading_element(user=user)
 
-    element_updated = ElementService().update_element(user, element, value="newValue")
+    service = ElementService()
+    element_updated = service.update_element(user, element, value="newValue")
 
-    assert element_updated_mock.called_with(element=element_updated, user=user)
+    element_updated_mock.send.assert_called_once_with(
+        service, element=element_updated, user=user
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -293,15 +301,16 @@ def test_update_element_permission_denied(data_fixture, stub_check_permissions):
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.builder.elements.service.element_updated")
-def test_move_element(element_updated_mock, data_fixture):
+@patch("baserow.contrib.builder.elements.service.element_moved")
+def test_move_element(element_moved_mock, data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     element1 = data_fixture.create_builder_heading_element(page=page)
     element2 = data_fixture.create_builder_heading_element(page=page)
     element3 = data_fixture.create_builder_text_element(page=page)
 
-    element_moved = ElementService().move_element(
+    service = ElementService()
+    element_moved = service.move_element(
         user,
         element3,
         element3.parent_element,
@@ -309,7 +318,9 @@ def test_move_element(element_updated_mock, data_fixture):
         before=element2,
     )
 
-    assert element_updated_mock.called_with(element=element_moved, user=user)
+    element_moved_mock.send.assert_called_once_with(
+        service, element=element_moved, before=element2, user=user
+    )
 
 
 @pytest.mark.django_db
@@ -353,7 +364,7 @@ def test_move_element_permission_denied(data_fixture, stub_check_permissions):
 
 @pytest.mark.django_db
 @patch("baserow.contrib.builder.elements.service.element_orders_recalculated")
-def test_move_element_trigger_order_recalculed(
+def test_move_element_trigger_order_recalculated(
     element_orders_recalculated_mock, data_fixture
 ):
     user = data_fixture.create_user()
@@ -366,7 +377,8 @@ def test_move_element_trigger_order_recalculed(
     )
     element3 = data_fixture.create_builder_heading_element(page=page, order="3.0000")
 
-    ElementService().move_element(
+    service = ElementService()
+    service.move_element(
         user,
         element3,
         element3.parent_element,
@@ -374,7 +386,7 @@ def test_move_element_trigger_order_recalculed(
         before=element2,
     )
 
-    assert element_orders_recalculated_mock.called_with(page=page, user=user)
+    element_orders_recalculated_mock.send.assert_called_once_with(service, page=page)
 
 
 @pytest.mark.django_db
@@ -383,10 +395,11 @@ def test_duplicate_element(elements_created_mock, data_fixture):
     user = data_fixture.create_user()
     element = data_fixture.create_builder_heading_element(user=user)
 
-    elements_duplicated = ElementService().duplicate_element(user, element)["elements"]
+    service = ElementService()
+    elements_duplicated = service.duplicate_element(user, element)["elements"]
 
-    assert elements_created_mock.called_with(
-        elements=elements_duplicated, user=user, page=element.page
+    elements_created_mock.send.assert_called_once_with(
+        service, elements=elements_duplicated, user=user, page=element.page
     )
 
 

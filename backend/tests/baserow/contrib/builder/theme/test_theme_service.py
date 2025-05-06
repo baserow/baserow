@@ -12,9 +12,11 @@ def test_theme_updated_signal_sent(theme_updated_mock, data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
 
-    ThemeService().update_theme(user, builder, primary_color="#f00000ff")
+    service = ThemeService()
+    service.update_theme(user, builder, primary_color="#f00000ff")
 
-    assert theme_updated_mock.called_with(
+    theme_updated_mock.send.assert_called_once_with(
+        service,
         builder=builder,
         user=user,
         properties={

@@ -36,7 +36,8 @@ def test_create_user_source(user_source_created_mock, data_fixture, user_source_
         application=application, order="2.0000"
     )
 
-    user_source = UserSourceService().create_user_source(
+    service = UserSourceService()
+    user_source = service.create_user_source(
         user, user_source_type, application=application
     )
 
@@ -45,7 +46,9 @@ def test_create_user_source(user_source_created_mock, data_fixture, user_source_
     # Check it's the last user_source
     assert last_user_source.id == user_source.id
 
-    assert user_source_created_mock.called_with(user_source=user_source, user=user)
+    user_source_created_mock.send.assert_called_once_with(
+        service, user_source=user_source, user=user, before_id=None
+    )
 
 
 @pytest.mark.django_db
@@ -166,10 +169,11 @@ def test_recalculate_full_order(user_source_orders_recalculated_mock, data_fixtu
         application=application, order="3.4000"
     )
 
-    UserSourceService().recalculate_full_orders(user, application)
+    service = UserSourceService()
+    service.recalculate_full_orders(user, application)
 
-    assert user_source_orders_recalculated_mock.called_with(
-        application=application, user=user
+    user_source_orders_recalculated_mock.send.assert_called_once_with(
+        service, application=application
     )
 
 
@@ -263,10 +267,14 @@ def test_delete_user_source(user_source_deleted_mock, data_fixture):
     user = data_fixture.create_user()
     user_source = data_fixture.create_user_source_with_first_type(user=user)
 
-    UserSourceService().delete_user_source(user, user_source)
+    service = UserSourceService()
+    service.delete_user_source(user, user_source)
 
-    assert user_source_deleted_mock.called_with(
-        user_source_id=user_source.id, user=user
+    user_source_deleted_mock.send.assert_called_once_with(
+        service,
+        user_source_id=user_source.id,
+        application=user_source.application,
+        user=user,
     )
 
 
@@ -287,12 +295,13 @@ def test_update_user_source(user_source_updated_mock, data_fixture):
     user = data_fixture.create_user()
     user_source = data_fixture.create_user_source_with_first_type(user=user)
 
-    user_source_updated = UserSourceService().update_user_source(
+    service = UserSourceService()
+    user_source_updated = service.update_user_source(
         user, user_source, value="newValue"
     )
 
-    assert user_source_updated_mock.called_with(
-        user_source=user_source_updated, user=user
+    user_source_updated_mock.send.assert_called_once_with(
+        service, user_source=user_source_updated, user=user
     )
 
 
@@ -308,8 +317,8 @@ def test_update_user_source_permission_denied(data_fixture, stub_check_permissio
 
 
 @pytest.mark.django_db
-@patch("baserow.core.user_sources.service.user_source_updated")
-def test_move_user_source(user_source_updated_mock, data_fixture):
+@patch("baserow.core.user_sources.service.user_source_moved")
+def test_move_user_source(user_source_moved_mock, data_fixture):
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     user_source1 = data_fixture.create_user_source_with_first_type(
@@ -322,12 +331,13 @@ def test_move_user_source(user_source_updated_mock, data_fixture):
         application=application
     )
 
-    user_source_moved = UserSourceService().move_user_source(
+    service = UserSourceService()
+    user_source_moved = service.move_user_source(
         user, user_source3, before=user_source2
     )
 
-    assert user_source_updated_mock.called_with(
-        user_source=user_source_moved, user=user
+    user_source_moved_mock.send.assert_called_once_with(
+        service, user_source=user_source_moved, before=user_source2, user=user
     )
 
 
@@ -372,7 +382,7 @@ def test_move_user_source_permission_denied(data_fixture, stub_check_permissions
 
 @pytest.mark.django_db
 @patch("baserow.core.user_sources.service.user_source_orders_recalculated")
-def test_move_user_source_trigger_order_recalculed(
+def test_move_user_source_trigger_order_recalculated(
     user_source_orders_recalculated_mock, data_fixture
 ):
     user = data_fixture.create_user()
@@ -387,8 +397,9 @@ def test_move_user_source_trigger_order_recalculed(
         application=application, order="3.0000"
     )
 
-    UserSourceService().move_user_source(user, user_source3, before=user_source2)
+    service = UserSourceService()
+    service.move_user_source(user, user_source3, before=user_source2)
 
-    assert user_source_orders_recalculated_mock.called_with(
-        application=application, user=user
+    user_source_orders_recalculated_mock.send.assert_called_once_with(
+        service, application=application
     )
