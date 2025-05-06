@@ -21,5 +21,6 @@ module.exports = {
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   snapshotSerializers: ['<rootDir>/node_modules/jest-serializer-vue'],
+  cacheDirectory: '<rootDir>/.cache/jest',
   ...coverageConfig,
 }
