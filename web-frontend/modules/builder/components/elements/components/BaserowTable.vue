@@ -22,13 +22,13 @@
             <template v-for="field in fields">
               <slot
                 name="cell-content"
-                :value="row[field.name]"
+                :value="row[field.__id__]"
                 :field="field"
                 :row-index="index"
                 :row="row"
               >
                 <td :key="field.id" class="baserow-table__cell">
-                  {{ row[field.name] }}
+                  {{ row[field.__id__] }}
                 </td>
               </slot>
             </template>
@@ -44,7 +44,7 @@
           >
             <tr
               v-for="(field, fieldIndex) in fields"
-              :key="`${row.__id__}_${field.id}`"
+              :key="`${row.__id__}_${field.__id__}`"
             >
               <slot name="field-name" :field="field">
                 <th :key="field.__id__" class="baserow-table__header-cell">
@@ -53,7 +53,7 @@
               </slot>
               <slot
                 name="cell-content"
-                :value="row[field.name]"
+                :value="row[field.__id__]"
                 :field="field"
                 :row-index="rowIndex"
                 :row="row"
