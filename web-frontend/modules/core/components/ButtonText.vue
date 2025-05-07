@@ -119,11 +119,13 @@ export default {
         attr.rel = this.target
       }
 
-      return Object.keys(attr).forEach((key) => {
+      Object.keys(attr).forEach((key) => {
         if (attr[key] === null) {
           delete attr[key]
         }
       })
+
+      return attr
     },
   },
 }
