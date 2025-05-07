@@ -32,7 +32,12 @@ class ForcableTraceIdRatioBased(TraceIdRatioBased):
             # deployment how the attributes are structured.
             forced = False
             for key, value in span_attributes.items():
-                if key.startswith("http.") and "force_full_otel_trace=true" in value:
+                if (
+                    isinstance(key, str)
+                    and isinstance(value, str)
+                    and key.startswith("http.")
+                    and "force_full_otel_trace=true" in value
+                ):
                     forced = True
                     break
             if forced:
