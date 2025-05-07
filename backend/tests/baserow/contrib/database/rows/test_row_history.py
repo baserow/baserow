@@ -1,5 +1,7 @@
-from datetime import datetime, timezone
-from typing import Callable
+import decimal
+import json
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Callable
 from unittest.mock import patch
 
 import pytest
@@ -7,12 +9,14 @@ from freezegun import freeze_time
 
 from baserow.api.sessions import get_untrusted_client_session_id
 from baserow.contrib.database.action.scopes import TableActionScopeType
+from baserow.contrib.database.fields.registries import FieldType
 from baserow.contrib.database.rows.actions import (
     CreateRowActionType,
     CreateRowsActionType,
     DeleteRowActionType,
     DeleteRowsActionType,
     UpdateRowsActionType,
+    get_row_values,
 )
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.history import RowHistoryHandler
@@ -21,8 +25,11 @@ from baserow.contrib.database.rows.registries import (
     ChangeRowHistoryType,
     change_row_history_registry,
 )
+from baserow.contrib.database.trash.trash_types import RowTrashableItemType
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import ActionType, action_type_registry
+from baserow.core.trash.actions import RestoreFromTrashActionType
+from baserow.test_utils.helpers import setup_interesting_test_table
 
 
 @pytest.mark.django_db
@@ -1314,3 +1321,561 @@ def test_delete_rows_action_row_history_with_undo_redo(
             "fields_metadata": {},
         },
     ]
+
+
+@pytest.mark.parametrize(
+    "action_type,input_values",
+    [
+        (CreateRowActionType, lambda f: {"values": f}),
+        (
+            CreateRowsActionType,
+            lambda f: {"rows_values": [f]},
+        ),
+    ],
+)
+@pytest.mark.django_db
+@pytest.mark.row_history
+def test_create_rows_action_row_history_with_undo_redo_related_tables(
+    data_fixture, action_type: "ActionType", input_values: Callable
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    table, user, inserted_row, blank_row, context = setup_interesting_test_table(
+        data_fixture, user, database
+    )
+
+    # sanity checks
+    model = table.get_model()
+    assert list(RowHistory.objects.all()) == []
+
+    rh = RowHandler()
+    fields = [f for f in inserted_row.get_field_objects() if not f["type"].read_only]
+
+    # When dictionaries are stored in database and restored back,
+    # keys will be strings, even if they were ints in the input.
+    # This helper is used to adjust expected structures to match ones
+    # from the database.
+    def dict_keys(val_in):
+        if isinstance(val_in, list):
+            return [dict_keys(item) for item in val_in]
+        if not isinstance(val_in, dict):
+            return val_in
+        return {str(k): dict_keys(v) for k, v in val_in.items()}
+
+    # Helper to get proper values from a row that will be present in
+    # before/after dictionaries
+    def get_row_values_local(row, fields) -> dict[str, Any]:
+        out = {"id": row.id}
+
+        for fdef in fields:
+            ftype: FieldType = fdef["type"]
+            if ftype.read_only:
+                continue
+            val = ftype.get_internal_value_from_db(row, fdef["name"])
+            # password will export bool instead of raw password value
+            if ftype.type == "password":
+                val = ftype.get_export_value(val, fdef["field"])
+            # ensure dict keys are str to match storage quirk
+            out[fdef["name"]] = dict_keys(val)
+
+        return out
+
+    values = get_row_values(inserted_row, fields)
+    values.pop("id", None)
+
+    freezed_timestamp = datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc)
+    action_type_name = action_type.type
+    action = action_type_registry.get(action_type.type)
+    with freeze_time(freezed_timestamp):
+        row = action.do(user=user, table=table, **input_values(values))
+        if isinstance(row, list):
+            row = row[0]
+
+    # let's use post-saved row values as a reference for after values.
+    values = get_row_values_local(row, fields)
+    values.pop("id", None)
+
+    # RowHistory keeps values serialized, so we need to patch serializer here
+    # in the app it is handled by other layers.
+    class Encoder(json.JSONEncoder):
+        def default(self, o):
+            if isinstance(o, decimal.Decimal):
+                return str(o)
+            if isinstance(o, datetime):
+                _offset = o.strftime("%z")
+                val = "{}{}".format(
+                    o.strftime("%Y-%m-%d %H:%M:%S"), f"{_offset[:3]}:{_offset[3:]}"
+                )
+                return val
+            if isinstance(o, date):
+                return o.strftime("%Y-%m-%d")
+            if isinstance(o, timedelta):
+                return o.total_seconds()
+            return super().default(o)
+
+    values = json.loads(json.dumps(values, cls=Encoder))
+
+    assert RowHistory.objects.filter(table_id=table.id, row_id=row.id).count() == 1
+
+    def get_row_history_entries(**kwargs):
+        return list(
+            RowHistory.objects.filter(**kwargs)
+            .order_by("row_id")
+            .values(
+                "user_id",
+                "user_name",
+                "table_id",
+                "row_id",
+                "action_timestamp",
+                "action_type",
+                "action_command_type",
+                "before_values",
+                "after_values",
+                "fields_metadata",
+            )
+        )
+
+    history = get_row_history_entries(table_id=table.id, row_id=row.id)
+    metadata = dict_keys(
+        rh.get_fields_metadata_for_rows([row], [f["field"] for f in fields])[row.id]
+    )
+    metadata.pop("id", None)
+    # password field is serialized to bool
+    before = {
+        f["name"]: None if f["type"].type != "password" else False for f in fields
+    }
+    expected = {
+        "user_id": user.id,
+        "user_name": user.first_name,
+        "table_id": table.id,
+        "row_id": row.id,
+        "action_timestamp": freezed_timestamp,
+        "action_type": action_type_name,
+        "action_command_type": "DO",
+        "after_values": values,
+        "before_values": before,  # {k: None for k in values.keys()},
+        "fields_metadata": metadata,
+    }
+    primary_field = model.get_primary_field()
+    primary_value = getattr(row, primary_field.db_column)
+
+    assert history == [expected]
+    for table_name, related_table in context["tables"].items():
+        related_model = related_table.get_model()
+        related_history = get_row_history_entries(table_id=related_table.id)
+        assert len(related_history) > 0
+        assert len(related_history) == related_model.objects.all().count()
+        for entry in related_history:
+            # each entry is an update from a linkrow field, and only from that field
+            assert entry["action_type"] == "update_rows"
+            assert entry["action_command_type"] == "DO"
+            assert len(entry["fields_metadata"].items()) == 1
+            check_metadata = list(entry["fields_metadata"].values())[0]
+            assert check_metadata["type"] == "link_row"
+            assert check_metadata["linked_rows"] == {
+                str(row.id): {"value": primary_value}
+            }
+
+    RowHistory.objects.all().delete()
+    with freeze_time(freezed_timestamp):
+        undone = ActionHandler.undo(
+            user,
+            [TableActionScopeType.value(table_id=table.id)],
+            session=get_untrusted_client_session_id(user),
+        )
+        assert undone
+
+    history = get_row_history_entries(table_id=table.id, row_id=row.id)
+    expected = {
+        "user_id": user.id,
+        "user_name": user.first_name,
+        "table_id": table.id,
+        "row_id": row.id,
+        "action_timestamp": freezed_timestamp,
+        "action_type": action_type_name,
+        "action_command_type": "UNDO",
+        "after_values": {},  # before,
+        "before_values": {},  # values,  # {k: None for k in values.keys()},
+        "fields_metadata": {},  # metadata,
+    }
+    assert history == [expected]
+    for table_name, related_table in context["tables"].items():
+        related_model = related_table.get_model()
+        related_history = get_row_history_entries(table_id=related_table.id)
+        assert len(related_history) > 0
+        assert len(related_history) == related_model.objects.all().count()
+        for entry in related_history:
+            # each entry is an update from a linkrow field, and only from that field
+            assert entry["action_type"] == "update_rows"
+            assert entry["action_command_type"] == "UNDO"
+            assert len(entry["fields_metadata"].items()) == 1
+            check_metadata = list(entry["fields_metadata"].values())[0]
+            assert check_metadata["type"] == "link_row"
+            assert check_metadata["linked_rows"] == {
+                str(row.id): {"value": primary_value}
+            }
+
+    RowHistory.objects.all().delete()
+    with freeze_time(freezed_timestamp):
+        redone = ActionHandler.redo(
+            user,
+            [TableActionScopeType.value(table_id=table.id)],
+            session=get_untrusted_client_session_id(user),
+        )
+        assert redone
+
+    history = get_row_history_entries(table_id=table.id, row_id=row.id)
+    expected = {
+        "user_id": user.id,
+        "user_name": user.first_name,
+        "table_id": table.id,
+        "row_id": row.id,
+        "action_timestamp": freezed_timestamp,
+        "action_type": action_type_name,
+        "action_command_type": "REDO",
+        "after_values": {},  # before,
+        "before_values": {},  # values,  # {k: None for k in values.keys()},
+        "fields_metadata": {},  # metadata,
+    }
+    assert history == [expected]
+    for table_name, related_table in context["tables"].items():
+        related_model = related_table.get_model()
+        related_history = get_row_history_entries(table_id=related_table.id)
+        assert len(related_history) > 0
+        assert len(related_history) == related_model.objects.all().count()
+        for entry in related_history:
+            # each entry is an update from a linkrow field, and only from that field
+            assert entry["action_type"] == "update_rows"
+            assert entry["action_command_type"] == "REDO"
+            assert len(entry["fields_metadata"].items()) == 1
+            check_metadata = list(entry["fields_metadata"].values())[0]
+            assert check_metadata["type"] == "link_row"
+            assert check_metadata["linked_rows"] == {
+                str(row.id): {"value": primary_value}
+            }
+
+
+@pytest.mark.parametrize(
+    "action_type,input_values",
+    [
+        (DeleteRowActionType, lambda f: {"row_id": f.id}),
+        (
+            DeleteRowsActionType,
+            lambda f: {"row_ids": [f.id]},
+        ),
+    ],
+)
+@pytest.mark.django_db
+@pytest.mark.row_history
+def test_delete_rows_action_row_history_with_undo_redo_related_tables(
+    data_fixture, action_type: "ActionType", input_values: Callable
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    table, user, inserted_row, blank_row, context = setup_interesting_test_table(
+        data_fixture, user, database
+    )
+
+    # sanity checks
+    model = table.get_model()
+    assert list(RowHistory.objects.all()) == []
+
+    rh = RowHandler()
+    fields = [f for f in inserted_row.get_field_objects() if not f["type"].read_only]
+
+    # When dictionaries are stored in database and restored back,
+    # keys will be strings, even if they were ints in the input.
+    # This helper is used to adjust expected structures to match ones
+    # from the database.
+    def dict_keys(val_in):
+        if isinstance(val_in, list):
+            return [dict_keys(item) for item in val_in]
+        if not isinstance(val_in, dict):
+            return val_in
+        return {str(k): dict_keys(v) for k, v in val_in.items()}
+
+    # Helper to get proper values from a row that will be present in
+    # before/after dictionaries
+    def get_row_values_local(row, fields) -> dict[str, Any]:
+        out = {"id": row.id}
+
+        for fdef in fields:
+            ftype: FieldType = fdef["type"]
+            if ftype.read_only:
+                continue
+            val = ftype.get_internal_value_from_db(row, fdef["name"])
+            # password will export bool instead of raw password value
+            if ftype.type == "password":
+                val = ftype.get_export_value(val, fdef["field"])
+            # ensure dict keys are str to match storage quirk
+            out[fdef["name"]] = dict_keys(val)
+
+        return out
+
+    values = get_row_values(inserted_row, fields)
+    values.pop("id", None)
+
+    row = rh.create_row(user, table, values)
+
+    freezed_timestamp = datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc)
+    action_type_name = action_type.type
+    action = action_type_registry.get(action_type.type)
+    with freeze_time(freezed_timestamp):
+        action.do(user=user, table=table, **input_values(row))
+
+    assert RowHistory.objects.filter(table_id=table.id, row_id=row.id).count() == 1
+
+    def get_row_history_entries(**kwargs):
+        return list(
+            RowHistory.objects.filter(**kwargs)
+            .order_by("row_id")
+            .values(
+                "user_id",
+                "user_name",
+                "table_id",
+                "row_id",
+                "action_timestamp",
+                "action_type",
+                "action_command_type",
+                "before_values",
+                "after_values",
+                "fields_metadata",
+            )
+        )
+
+    history = get_row_history_entries(table_id=table.id, row_id=row.id)
+    metadata = dict_keys(
+        rh.get_fields_metadata_for_rows([row], [f["field"] for f in fields])[row.id]
+    )
+    metadata.pop("id", None)
+    # delete actions don't produce values diff
+    expected = {
+        "user_id": user.id,
+        "user_name": user.first_name,
+        "table_id": table.id,
+        "row_id": row.id,
+        "action_timestamp": freezed_timestamp,
+        "action_type": action_type_name,
+        "action_command_type": "DO",
+        "after_values": {},
+        "before_values": {},
+        "fields_metadata": {},
+    }
+    primary_field = model.get_primary_field()
+    primary_value = getattr(row, primary_field.db_column)
+
+    assert history == [expected]
+    for table_name, related_table in context["tables"].items():
+        related_model = related_table.get_model()
+        related_history = get_row_history_entries(table_id=related_table.id)
+        assert len(related_history) > 0
+        assert len(related_history) == related_model.objects.all().count()
+        for entry in related_history:
+            # each entry is an update from a linkrow field, and only from that field
+            assert entry["action_type"] == "update_rows"
+            assert entry["action_command_type"] == "DO"
+            assert len(entry["fields_metadata"].items()) == 1
+            check_metadata = list(entry["fields_metadata"].values())[0]
+            assert check_metadata["type"] == "link_row"
+            assert check_metadata["linked_rows"] == {
+                str(row.id): {"value": primary_value}
+            }
+
+    RowHistory.objects.all().delete()
+    with freeze_time(freezed_timestamp):
+        undone = ActionHandler.undo(
+            user,
+            [TableActionScopeType.value(table_id=table.id)],
+            session=get_untrusted_client_session_id(user),
+        )
+        assert undone
+
+    history = get_row_history_entries(table_id=table.id, row_id=row.id)
+    expected = {
+        "user_id": user.id,
+        "user_name": user.first_name,
+        "table_id": table.id,
+        "row_id": row.id,
+        "action_timestamp": freezed_timestamp,
+        "action_type": action_type_name,
+        "action_command_type": "UNDO",
+        "after_values": {},  # before,
+        "before_values": {},  # values,  # {k: None for k in values.keys()},
+        "fields_metadata": {},  # metadata,
+    }
+    assert history == [expected]
+    for table_name, related_table in context["tables"].items():
+        related_model = related_table.get_model()
+        related_history = get_row_history_entries(table_id=related_table.id)
+        assert len(related_history) > 0
+        assert len(related_history) == related_model.objects.all().count()
+        for entry in related_history:
+            # each entry is an update from a linkrow field, and only from that field
+            assert entry["action_type"] == "update_rows"
+            assert entry["action_command_type"] == "UNDO"
+            assert len(entry["fields_metadata"].items()) == 1
+            check_metadata = list(entry["fields_metadata"].values())[0]
+            assert check_metadata["type"] == "link_row"
+            assert check_metadata["linked_rows"] == {
+                str(row.id): {"value": primary_value}
+            }
+
+    RowHistory.objects.all().delete()
+    with freeze_time(freezed_timestamp):
+        redone = ActionHandler.redo(
+            user,
+            [TableActionScopeType.value(table_id=table.id)],
+            session=get_untrusted_client_session_id(user),
+        )
+        assert redone
+
+    history = get_row_history_entries(table_id=table.id, row_id=row.id)
+    expected = {
+        "user_id": user.id,
+        "user_name": user.first_name,
+        "table_id": table.id,
+        "row_id": row.id,
+        "action_timestamp": freezed_timestamp,
+        "action_type": action_type_name,
+        "action_command_type": "REDO",
+        "after_values": {},  # before,
+        "before_values": {},  # values,  # {k: None for k in values.keys()},
+        "fields_metadata": {},  # metadata,
+    }
+    assert history == [expected]
+    for table_name, related_table in context["tables"].items():
+        related_model = related_table.get_model()
+        related_history = get_row_history_entries(table_id=related_table.id)
+        assert len(related_history) > 0
+        assert len(related_history) == related_model.objects.all().count()
+        for entry in related_history:
+            # each entry is an update from a linkrow field, and only from that field
+            assert entry["action_type"] == "update_rows"
+            assert entry["action_command_type"] == "REDO"
+            assert len(entry["fields_metadata"].items()) == 1
+            check_metadata = list(entry["fields_metadata"].values())[0]
+            assert check_metadata["type"] == "link_row"
+            assert check_metadata["linked_rows"] == {
+                str(row.id): {"value": primary_value}
+            }
+
+
+# Leaving this as parametrized to add DeleteRowsActionType test when it's feasible.
+# At the moment, DeleteRowsActionType is not supported, because it uses TrashedRows
+# to carry multiple row ids in one trash entry. This entry is removed in
+# RestoreFromTrashActionType before we hit row history calls.
+@pytest.mark.parametrize(
+    "action_type,params,trash_type",
+    [
+        (DeleteRowActionType, lambda f: {"row_id": f.id}, RowTrashableItemType.type),
+    ],
+)
+@pytest.mark.django_db
+@pytest.mark.row_history
+def test_restore_rows_action_with_related_tables(
+    data_fixture, action_type: ActionType, params: Callable, trash_type: str
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    table, user, inserted_row, blank_row, context = setup_interesting_test_table(
+        data_fixture, user, database
+    )
+
+    # sanity checks
+    model = table.get_model()
+    assert list(RowHistory.objects.all()) == []
+
+    rh = RowHandler()
+    fields = [f for f in inserted_row.get_field_objects() if not f["type"].read_only]
+
+    # When dictionaries are stored in database and restored back,
+    # keys will be strings, even if they were ints in the input.
+    # This helper is used to adjust expected structures to match ones
+    # from the database.
+    def dict_keys(val_in):
+        if isinstance(val_in, list):
+            return [dict_keys(item) for item in val_in]
+        if not isinstance(val_in, dict):
+            return val_in
+        return {str(k): dict_keys(v) for k, v in val_in.items()}
+
+    values = get_row_values(inserted_row, fields)
+    values.pop("id", None)
+
+    row = rh.create_row(user, table, values)
+
+    # Mind that DeleteRowActionType and DeleteRowsActionType
+    # produce different trash type.
+    freezed_timestamp = datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc)
+    with freeze_time(freezed_timestamp):
+        trashed = action_type.do(user=user, table=table, **params(row))
+
+    assert RowHistory.objects.filter(table_id=table.id, row_id=row.id).count() == 1
+    RowHistory.objects.all().delete()
+    with freeze_time(freezed_timestamp):
+        RestoreFromTrashActionType.do(
+            user=user,
+            trash_item_id=trashed.id,
+            parent_trash_item_id=table.id,
+            trash_item_type=trash_type,
+        )
+
+    assert RowHistory.objects.filter(table_id=table.id, row_id=row.id).count() == 1
+
+    def get_row_history_entries(**kwargs):
+        return list(
+            RowHistory.objects.filter(**kwargs)
+            .order_by("row_id")
+            .values(
+                "user_id",
+                "user_name",
+                "table_id",
+                "row_id",
+                "action_timestamp",
+                "action_type",
+                "action_command_type",
+                "before_values",
+                "after_values",
+                "fields_metadata",
+            )
+        )
+
+    history = get_row_history_entries(table_id=table.id, row_id=row.id)
+    metadata = dict_keys(
+        rh.get_fields_metadata_for_rows([row], [f["field"] for f in fields])[row.id]
+    )
+    metadata.pop("id", None)
+    expected = {
+        "user_id": user.id,
+        "user_name": user.first_name,
+        "table_id": table.id,
+        "row_id": row.id,
+        "action_timestamp": freezed_timestamp,
+        "action_type": RestoreFromTrashActionType.type,
+        "action_command_type": "DO",
+        "after_values": {},
+        "before_values": {},
+        "fields_metadata": {},
+    }
+    primary_field = model.get_primary_field()
+    primary_value = getattr(row, primary_field.db_column)
+
+    assert history == [expected]
+    for table_name, related_table in context["tables"].items():
+        related_model = related_table.get_model()
+        related_history = get_row_history_entries(table_id=related_table.id)
+        assert len(related_history) > 0
+        assert len(related_history) == related_model.objects.all().count()
+        for entry in related_history:
+            # each entry is an update from a linkrow field, and only from that field
+            assert entry["action_type"] == "update_rows"
+            assert entry["action_command_type"] == "DO"
+            assert len(entry["fields_metadata"].items()) == 1
+            check_metadata = list(entry["fields_metadata"].values())[0]
+            assert check_metadata["type"] == "link_row"
+            assert check_metadata["linked_rows"] == {
+                str(row.id): {"value": primary_value}
+            }

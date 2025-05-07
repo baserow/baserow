@@ -1,7 +1,8 @@
 import dataclasses
+from collections.abc import Iterable
 from copy import deepcopy
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -22,7 +23,11 @@ from baserow.contrib.database.rows.handler import (
 )
 from baserow.contrib.database.rows.types import FileImportDict
 from baserow.contrib.database.table.handler import TableHandler
-from baserow.contrib.database.table.models import GeneratedTableModel, Table
+from baserow.contrib.database.table.models import (
+    FieldObject,
+    GeneratedTableModel,
+    Table,
+)
 from baserow.core.action.models import Action
 from baserow.core.action.registries import (
     ActionScopeStr,
@@ -31,9 +36,6 @@ from baserow.core.action.registries import (
 )
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import Progress
-
-if TYPE_CHECKING:
-    pass
 
 
 def are_equal_on_create(field_identifier, after_value, before_value) -> bool:
@@ -60,7 +62,13 @@ def are_equal_on_create(field_identifier, after_value, before_value) -> bool:
     return before_value == after_value
 
 
-def get_row_values(row, fields) -> dict[str, Any]:
+def get_row_values(
+    row: GeneratedTableModel, fields: Iterable[FieldObject]
+) -> dict[str, Any]:
+    """
+    Extracts fields and field values from a row for requested fields.
+    """
+
     rh = RowHandler()
     field_ids = [f["field"].id for f in fields if not f["type"].read_only]
     out = rh.get_internal_values_for_fields(row, field_ids)
@@ -463,6 +471,7 @@ class DeleteRowActionType(UndoableActionType):
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=database.workspace
         )
+        return row
 
     @classmethod
     def scope(cls, table_id) -> ActionScopeStr:
@@ -559,6 +568,7 @@ class DeleteRowsActionType(UndoableActionType):
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=workspace
         )
+        return trashed_rows_entry
 
     @classmethod
     def scope(cls, table_id) -> ActionScopeStr:

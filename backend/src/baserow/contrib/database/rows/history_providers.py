@@ -10,7 +10,9 @@ from baserow.contrib.database.rows.actions import (  # noqa
     DeleteRowsActionType,
     UpdateRowActionType,
     UpdateRowsActionType,
+    get_row_values,
 )
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.helpers import (
     construct_entry_from_action_and_diff,
     construct_related_rows_entries,
@@ -22,19 +24,19 @@ from baserow.contrib.database.rows.models import RowHistory
 from baserow.contrib.database.rows.registries import RowHistoryProviderType
 from baserow.contrib.database.rows.types import (
     ActionData,
+    AnyUser,
     RelatedRowsDiff,
     RowChangeDiff,
 )
+from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.action.registries import ActionType, action_type_registry
 from baserow.core.action.signals import ActionCommandType
 from baserow.core.trash.actions import RestoreFromTrashActionType  # noqa
 
-from .types import AnyUser
-
 
 class RowChangeData(NamedTuple):
     """
-    A container for per-row values change data.
+    A container for per-row values data change.
     """
 
     row_id: int
@@ -52,10 +54,6 @@ def are_equal_on_create(field_identifier, after_value, before_value) -> bool:
     At the moment of creation we don't have knowledge what values should be used, but
     that's fine, because all we need is to know if a value inserted is different from
     empty one for a field.
-    :param field_identifier:
-    :param before_value:
-    :param after_value:
-    :return:
     """
 
     # Both field values are empty, but they may be empty in a different way. Initially,
@@ -69,8 +67,10 @@ def are_equal_on_create(field_identifier, after_value, before_value) -> bool:
 
 class BaseActionTypeRowHistoryProvider(RowHistoryProviderType):
     """
-    Base class for row values change history provider. This base class provides a
-    skeleton of getting rows values diff. A subclass should implement two methods:
+    Base class for handling row values change in RowHistoryProviderType hierarchy.
+    This base class provides a skeleton of getting rows values diff list. A subclass
+    should implement two methods:
+
     * get_changed_rows - returns iterable with per-row change data
     * get_row_history_entries - returns a list of RowHistory entries for a row
     """
@@ -109,7 +109,13 @@ class BaseActionTypeRowHistoryProvider(RowHistoryProviderType):
         related_rows_diff: RelatedRowsDiff,
         user: AnyUser,
         params: ActionData,
-    ):
+    ) -> Iterable[RowHistory]:
+        """
+        Generates related tables row history entries after initial table specific
+        changes were processed. Subclasses may want to override this if the moment of
+        generating related rows history is different.
+        """
+
         related_entries = construct_related_rows_entries(
             related_rows_diff, user, params
         )
@@ -118,6 +124,13 @@ class BaseActionTypeRowHistoryProvider(RowHistoryProviderType):
     def get_changed_rows(
         self, command_type: ActionCommandType, params: ActionType.Params
     ) -> Iterable[RowChangeData]:
+        """
+        Produces a list of RowChangeData for an action. Each RowChangeData should relate
+        to a specific row in the table in the context, but later it can affect related
+        tables as well. RowChangeData should provide data needed to establish related
+        rows in related tables later.
+        """
+
         raise NotImplementedError()
 
     def get_row_history_entries(
@@ -129,6 +142,12 @@ class BaseActionTypeRowHistoryProvider(RowHistoryProviderType):
         row_change: RowChangeData,
         related_rows_diff: RelatedRowsDiff,
     ) -> list[RowHistory]:
+        """
+        Produces a list of RowHistory entries for a given RowChangeData.
+        Each RowChangeData may generate multiple RowHistory entries, for current and
+        related tables.
+        """
+
         raise NotImplementedError()
 
 
@@ -138,10 +157,15 @@ class RestoreFromTrashHistoryProvider(BaseActionTypeRowHistoryProvider):
     def get_changed_rows(
         self, command_type: ActionCommandType, params: RestoreFromTrashActionType.Params
     ) -> Iterable[RowChangeData]:
-        if params.item_type != "row":
-            return []
-
-        return [RowChangeData(row_id=params.item_id, before={}, after={}, metadata={})]
+        # `rows` not supported yet, because RestoreFromTrashActionType for rows uses an
+        # intermediate TrashedRows object, which is removed in the action, so long
+        # before we get to history provider call, so we don't know what row ids were
+        # actually used.
+        if params.item_type == "row":
+            return [
+                RowChangeData(row_id=params.item_id, before={}, after={}, metadata={})
+            ]
+        return []
 
     def get_row_history_entries(
         self,
@@ -152,14 +176,41 @@ class RestoreFromTrashHistoryProvider(BaseActionTypeRowHistoryProvider):
         row_change: RowChangeData,
         related_rows_diff: RelatedRowsDiff,
     ) -> list[RowHistory]:
+        row_history_entires = []
         table_id = action_params.parent_item_id
         row_id = row_change.row_id
+
+        rh = RowHandler()
+        table = TableHandler().get_table(table_id)
+        model = table.get_model()
+        base_queryset = model.objects.all().enhance_by_fields()
+        row = rh.get_row(
+            user, table=table, model=model, row_id=row_id, base_queryset=base_queryset
+        )
+
+        field_names = []
+        fields = []
+        field_objects = []
+        [
+            (
+                field_names.append(f["name"]),
+                fields.append(f["field"]),
+                field_objects.append(f),
+            )
+            for f in model.get_field_objects()
+            if not f["type"].read_only
+        ]
+
         row_diff = RowChangeDiff(
             table_id=table_id,
             row_id=row_id,
             changed_field_names=[],
             before_values={},
             after_values={},
+        )
+        metadata = rh.get_fields_metadata_for_rows(
+            [row],
+            fields,
         )
 
         entry = construct_entry_from_action_and_diff(
@@ -168,7 +219,37 @@ class RestoreFromTrashHistoryProvider(BaseActionTypeRowHistoryProvider):
             {},
             row_diff,
         )
-        return [entry]
+        row_history_entires.append(entry)
+
+        changed = get_row_values(row, field_objects)
+        related_row_diff = RowChangeDiff(
+            table_id=table_id,
+            row_id=row_id,
+            changed_field_names=field_names,
+            before_values={k: None for k in changed.keys()},
+            after_values=changed,
+        )
+
+        related_metadata = {k: v for k, v in metadata[row_id].items() if k != "id"}
+
+        update_related_tables_entries(
+            related_rows_diff, related_metadata, related_row_diff
+        )
+        related_action = copy(params)
+        related_action.type = UpdateRowsActionType.type
+        related_entries = construct_related_rows_entries(
+            related_rows_diff, user, related_action
+        )
+        row_history_entires.extend(related_entries)
+        return row_history_entires
+
+    def get_related_rows_history(
+        self,
+        related_rows_diff: RelatedRowsDiff,
+        user: AnyUser,
+        params: ActionData,
+    ):
+        return []
 
 
 class CreateRowHistoryMixin:
@@ -249,7 +330,7 @@ class CreateRowHistoryMixin:
         )
 
         related_action = copy(params)
-        # Note: this is an update on a related table
+        # Note: even if the action is CreateRow, for a related table it's an update
         related_action.type = UpdateRowsActionType.type
         related_entries = construct_related_rows_entries(
             related_rows_diff, user, related_action
@@ -343,25 +424,21 @@ class DeleteRowHistoryMixin:
         )
         row_history_entries.append(entry)
 
-        related_row_diff = row_diff
-        related_metadata = changed_fields_metadata
-        related_field_names = row_diff.changed_field_names
+        related_field_names = [k for k in metadata.keys() if k != "id"]
+        related_row_diff = RowChangeDiff(
+            table_id=table_id,
+            row_id=row_id,
+            changed_field_names=related_field_names,
+            before_values=before,
+            after_values=after,
+        )
 
-        if command_type != ActionCommandType.DO:
-            related_field_names = [k for k in metadata.keys() if k != "id"]
-            related_row_diff = RowChangeDiff(
-                table_id=table_id,
-                row_id=row_id,
-                changed_field_names=related_field_names,
-                before_values=before,
-                after_values=after,
-            )
-
-            related_metadata = {k: v for k, v in metadata.items() if k != "id"}
+        related_metadata = {k: v for k, v in metadata.items() if k != "id"}
         update_related_tables_entries(
             related_rows_diff, related_metadata, related_row_diff
         )
         related_action = copy(params)
+        # Note: even if the action is DeleteRow(s), for a related table it's an update
         related_action.type = UpdateRowsActionType.type
         related_entries = construct_related_rows_entries(
             related_rows_diff, user, related_action
