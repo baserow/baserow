@@ -3640,6 +3640,29 @@ def test_submit_empty_form_view_for_interesting_test_table(api_client, data_fixt
     response_json = response.json()
     assert response_json["submit_action"] == "MESSAGE"
 
+    # Now make all the fields required
+    FormViewFieldOptions.objects.filter(form_view=form).update(
+        enabled=True, required=True
+    )
+
+    row_values = {}
+    for field_option in FormViewFieldOptions.objects.filter(form_view=form):
+        field = field_option.field
+        field_type = field.get_type()
+        row_values[field.db_column] = field_type.serialize_to_input_value(
+            field, getattr(row, field.db_column)
+        )
+
+    response = api_client.post(
+        url,
+        row_values,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    response_json = response.json()
+    assert response_json["submit_action"] == "MESSAGE"
+
 
 @pytest.mark.django_db
 def test_user_can_update_form_to_receive_notification(api_client, data_fixture):

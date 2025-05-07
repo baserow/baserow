@@ -322,10 +322,13 @@ export default {
     },
     openCreateRowModal(event) {
       const defaults = {}
+      const name = `field_${this.singleSelectField.id}`
       if (event.option !== null) {
-        const name = `field_${this.singleSelectField.id}`
         defaults[name] = clone(event.option)
+      } else {
+        defaults[name] = null
       }
+
       this.$refs.rowCreateModal.show(defaults)
     },
     async createRow({ row, callback }) {

@@ -95,6 +95,7 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_NOT_IN_TABLE,
 )
 from baserow.contrib.database.db.functions import RandomUUID
+from baserow.contrib.database.fields.exceptions import SelectOptionDoesNotBelongToField
 from baserow.contrib.database.fields.filter_support.formula import (
     FormulaFieldTypeArrayFilterSupport,
 )
@@ -579,6 +580,11 @@ class NumberFieldType(FieldType):
     _can_group_by = True
     _db_column_fields = ["number_decimal_places"]
     can_upsert = True
+
+    def serialize_to_input_value(self, field: Field, value: any) -> any:
+        if field.specific.number_decimal_places == 0:
+            return int(value)
+        return value
 
     def prepare_value_for_db(self, instance: NumberField, value):
         if value is None:
@@ -3982,6 +3988,11 @@ class SelectOptionBaseFieldType(FieldType):
             default_index = self.get_default_options_index(
                 select_default_value, select_options
             )
+            if select_default_value is not None and default_index is None:
+                raise SelectOptionDoesNotBelongToField(
+                    select_default_value,
+                    field_id=from_field.id,
+                )
 
             FieldHandler().update_field_select_options(user, from_field, select_options)
             to_field_values.pop("select_options")
@@ -4112,28 +4123,29 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         """
 
         default_value = default_value or instance.single_select_default
+        if default_value is None or default_value == NOT_PROVIDED:
+            return None
 
-        if (
-            default_value is not None
-            and not default_value == NOT_PROVIDED
-            and instance.select_options.filter(id=default_value).exists()
-        ):
+        if instance.select_options.filter(id=default_value).exists():
             return default_value
-        return None
 
     def get_serializer_field(self, instance, **kwargs):
-        required = kwargs.get("required", False)
+        required = kwargs.pop("required", False)
 
         default = self.get_single_select_default(
             instance, kwargs.get("single_select_default", None)
         )
+
         if default is not None:
-            kwargs["default"] = default
+            required = False
+        else:
+            default = serializers.empty
 
         field_serializer = IntegerOrStringField(
             **{
                 "required": required,
                 "allow_null": not required,
+                "default": default,
                 **kwargs,
             },
         )

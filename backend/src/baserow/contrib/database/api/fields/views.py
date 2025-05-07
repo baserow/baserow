@@ -51,6 +51,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_INVALID_BASEROW_FIELD_NAME,
     ERROR_MAX_FIELD_COUNT_EXCEEDED,
     ERROR_RESERVED_BASEROW_FIELD_NAME,
+    ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
     ERROR_TABLE_HAS_NO_PRIMARY_FIELD,
 )
 from baserow.contrib.database.api.tables.errors import (
@@ -85,6 +86,7 @@ from baserow.contrib.database.fields.exceptions import (
     InvalidBaserowFieldName,
     MaxFieldLimitExceeded,
     ReservedBaserowFieldNameException,
+    SelectOptionDoesNotBelongToField,
     TableHasNoPrimaryField,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -415,6 +417,7 @@ class FieldView(APIView):
             FailedToLockFieldDueToConflict: ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT,
             ImmutableFieldType: ERROR_IMMUTABLE_FIELD_TYPE,
             ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
+            SelectOptionDoesNotBelongToField: ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
         }
     )
     @require_request_data_type(dict)
