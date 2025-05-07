@@ -55,6 +55,7 @@ coverage[toml]==7.5.1
     # via
     #   -r dev.in
     #   pytest-cov
+    #   pytest-testmon
 debugpy==1.8.1
     # via -r dev.in
 decorator==5.1.1
@@ -226,6 +227,7 @@ pytest==8.2.0
     #   pytest-ordering
     #   pytest-retry
     #   pytest-split
+    #   pytest-testmon
     #   pytest-unordered
     #   pytest-xdist
 pytest-asyncio==0.23.6
@@ -249,6 +251,8 @@ pytest-ordering==0.6
 pytest-retry==1.7.0
     # via -r dev.in
 pytest-split==0.8.2
+    # via -r dev.in
+pytest-testmon==2.1.3
     # via -r dev.in
 pytest-unordered==0.6.0
     # via -r dev.in
