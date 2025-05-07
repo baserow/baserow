@@ -3,7 +3,6 @@ from django.core.asgi import get_asgi_application
 from django.urls import re_path
 
 from channels.routing import ProtocolTypeRouter, URLRouter
-from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
 
 from baserow.config.helpers import ConcurrencyLimiterASGI
 from baserow.core.mcp import baserow_mcp
@@ -22,16 +21,14 @@ setup_logging()
 
 application = ProtocolTypeRouter(
     {
-        "http": OpenTelemetryMiddleware(
-            ConcurrencyLimiterASGI(
-                URLRouter(
-                    [
-                        re_path(r"^mcp", baserow_mcp.sse_app()),
-                        re_path(r"", django_asgi_app),
-                    ]
-                ),
-                max_concurrency=settings.ASGI_HTTP_MAX_CONCURRENCY,
-            )
+        "http": ConcurrencyLimiterASGI(
+            URLRouter(
+                [
+                    re_path(r"^mcp", baserow_mcp.sse_app()),
+                    re_path(r"", django_asgi_app),
+                ]
+            ),
+            max_concurrency=settings.ASGI_HTTP_MAX_CONCURRENCY,
         ),
         "websocket": websocket_router,
     }
