@@ -33,6 +33,6 @@ application = ProtocolTypeRouter(
                 max_concurrency=settings.ASGI_HTTP_MAX_CONCURRENCY,
             )
         ),
-        "websocket": OpenTelemetryMiddleware(websocket_router),
+        "websocket": websocket_router,
     }
 )

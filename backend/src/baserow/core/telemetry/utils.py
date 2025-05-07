@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import inspect
 import os
@@ -14,14 +15,28 @@ from opentelemetry.trace import Status, StatusCode, Tracer, get_current_span
 
 
 def disable_instrumentation(wrapped_function):
-    @functools.wraps(wrapped_function)
-    def _wrapper(*args, **kwargs):
-        token = attach(set_value("suppress_instrumentation", True))
-        result = wrapped_function(*args, **kwargs)
-        detach(token)
-        return result
+    if asyncio.iscoroutinefunction(wrapped_function):
 
-    return _wrapper
+        @functools.wraps(wrapped_function)
+        async def _async_wrapper(*args, **kwargs):
+            token = attach(set_value("suppress_instrumentation", True))
+            try:
+                return await wrapped_function(*args, **kwargs)
+            finally:
+                detach(token)
+
+        return _async_wrapper
+    else:
+
+        @functools.wraps(wrapped_function)
+        def _sync_wrapper(*args, **kwargs):
+            token = attach(set_value("suppress_instrumentation", True))
+            try:
+                return wrapped_function(*args, **kwargs)
+            finally:
+                detach(token)
+
+        return _sync_wrapper
 
 
 # attrs don't include the module name to keep them short and easier to see so we add
@@ -60,21 +75,36 @@ def setup_user_in_baggage_and_spans(user, request=None):
 
 
 def _baserow_trace_func(wrapped_func, tracer: Tracer):
-    @functools.wraps(wrapped_func)
-    def _wrapper(*args, **kwargs):
-        with tracer.start_as_current_span(
-            wrapped_func.__module__ + "." + wrapped_func.__qualname__
-        ) as span:
-            try:
-                result = wrapped_func(*args, **kwargs)
-            except Exception as ex:
-                span.set_status(Status(StatusCode.ERROR))
-                span.record_exception(ex)
-                raise ex
+    if asyncio.iscoroutinefunction(wrapped_func):
 
-        return result
+        @functools.wraps(wrapped_func)
+        async def _async_wrapper(*args, **kwargs):
+            with tracer.start_as_current_span(
+                f"{wrapped_func.__module__}.{wrapped_func.__qualname__}"
+            ) as span:
+                try:
+                    return await wrapped_func(*args, **kwargs)
+                except Exception as ex:
+                    span.set_status(Status(StatusCode.ERROR))
+                    span.record_exception(ex)
+                    raise
 
-    return _wrapper
+        return _async_wrapper
+    else:
+
+        @functools.wraps(wrapped_func)
+        def _sync_wrapper(*args, **kwargs):
+            with tracer.start_as_current_span(
+                f"{wrapped_func.__module__}.{wrapped_func.__qualname__}"
+            ) as span:
+                try:
+                    return wrapped_func(*args, **kwargs)
+                except Exception as ex:
+                    span.set_status(Status(StatusCode.ERROR))
+                    span.record_exception(ex)
+                    raise
+
+        return _sync_wrapper
 
 
 def baserow_trace_methods(
