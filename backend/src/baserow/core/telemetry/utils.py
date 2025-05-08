@@ -3,8 +3,8 @@ import functools
 import inspect
 import os
 import typing
-from contextlib import contextmanager
 from abc import ABCMeta
+from contextlib import contextmanager
 from operator import attrgetter
 from typing import List, Optional, Union
 
