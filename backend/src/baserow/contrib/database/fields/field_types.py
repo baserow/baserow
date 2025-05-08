@@ -3980,26 +3980,40 @@ class SelectOptionBaseFieldType(FieldType):
                     field.save(update_fields=[default_value_field_name])
 
     def before_update(self, from_field, to_field_values, user, kwargs):
+        default_value_field_name = self.get_default_options_field_name()
+
+        default_index = None
+        has_new_default_value = default_value_field_name in to_field_values
+
+        if has_new_default_value:
+            select_default_value = to_field_values[default_value_field_name]
+        else:
+            select_default_value = getattr(from_field, default_value_field_name, None)
+
         if "select_options" in to_field_values:
-            default_value_field_name = self.get_default_options_field_name()
             select_options = to_field_values["select_options"]
 
-            select_default_value = to_field_values.get(default_value_field_name, None)
             default_index = self.get_default_options_index(
                 select_default_value, select_options
             )
-            if select_default_value is not None and default_index is None:
-                raise SelectOptionDoesNotBelongToField(
-                    select_default_value,
-                    field_id=from_field.id,
-                )
 
             FieldHandler().update_field_select_options(user, from_field, select_options)
             to_field_values.pop("select_options")
+        else:
+            select_options = list(from_field.select_options.values())
+            default_index = self.get_default_options_index(
+                select_default_value, select_options
+            )
 
-            if default_index is not None:
-                to_field_values[default_value_field_name] = self.get_options_by_index(
-                    from_field, default_index
+        if default_index is not None:
+            to_field_values[default_value_field_name] = self.get_options_by_index(
+                from_field, default_index
+            )
+        else:
+            if has_new_default_value and select_default_value is not None:
+                raise SelectOptionDoesNotBelongToField(
+                    select_default_value,
+                    field_id=from_field.id,
                 )
             else:
                 to_field_values[default_value_field_name] = None

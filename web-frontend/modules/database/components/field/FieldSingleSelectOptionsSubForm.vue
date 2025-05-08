@@ -59,5 +59,19 @@ export default {
       },
     }
   },
+  watch: {
+    'values.select_options': {
+      handler(newOptions) {
+        const optionIds = newOptions.map((option) => option.id)
+        if (
+          this.values.single_select_default &&
+          !optionIds.includes(this.values.single_select_default)
+        ) {
+          this.values.single_select_default = null
+        }
+      },
+      deep: true,
+    },
+  },
 }
 </script>
