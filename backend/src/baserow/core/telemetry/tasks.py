@@ -1,4 +1,5 @@
-from celery.signals import task_prerun, worker_process_init
+from celery import Task
+from celery.signals import worker_process_init
 from opentelemetry import baggage, context
 
 from baserow.core.telemetry.telemetry import setup_logging, setup_telemetry
@@ -13,7 +14,16 @@ def initialize_otel(**kwargs):
     setup_logging()
 
 
-@task_prerun.connect
-def before_task(task_id, task, *args, **kwargs):
-    if otel_is_enabled():
-        context.attach(baggage.set_baggage(TASK_NAME_KEY, task.name))
+class BaserowTelemetryTask(Task):
+    def __call__(self, *args, **kwargs):
+        if otel_is_enabled():
+            # Safely attach and detach baggage context within the same task call
+            curr_ctx = context.get_current()
+            new_ctx = baggage.set_baggage(TASK_NAME_KEY, self.name, context=curr_ctx)
+            token = context.attach(new_ctx)
+            try:
+                return super().__call__(*args, **kwargs)
+            finally:
+                context.detach(token)
+        else:
+            return super().__call__(*args, **kwargs)
