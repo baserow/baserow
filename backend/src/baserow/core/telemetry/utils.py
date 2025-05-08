@@ -4,6 +4,7 @@ import inspect
 import os
 import typing
 from abc import ABCMeta
+from contextlib import contextmanager
 from operator import attrgetter
 from typing import List, Optional, Union
 
@@ -54,24 +55,42 @@ class BatchBaggageSpanProcessor(BatchSpanProcessor):
             span.set_attribute(name, value)
 
 
+@contextmanager
 def setup_user_in_baggage_and_spans(user, request=None):
-    if otel_is_enabled():
-        span = get_current_span()
+    """
+    Context manager that sets user-related attributes in the current span and adds
+    selected attributes as OpenTelemetry baggage. Automatically handles context
+    attach/detach safely for ASGI.
+    """
 
-        def _set(name, attr, source, set_baggage=False):
-            try:
-                value = attrgetter(attr)(source)
-            except AttributeError:
-                value = None
-            if value:
-                span.set_attribute(name, value)
-                if set_baggage:
-                    context.attach(baggage.set_baggage(name, value))
+    if not otel_is_enabled():
+        yield
+        return
 
-        _set("user.id", "id", user, set_baggage=True)
-        _set("user.untrusted_client_session_id", "untrusted_client_session_id", user)
-        if request is not None:
-            _set("user.token_id", "user_token.id", request)
+    span = get_current_span()
+    ctx = context.get_current()
+
+    def _set(name, attr, source, set_baggage=False):
+        nonlocal ctx
+        try:
+            value = attrgetter(attr)(source)
+        except AttributeError:
+            value = None
+        if value:
+            span.set_attribute(name, value)
+            if set_baggage:
+                ctx = baggage.set_baggage(name, str(value), context=ctx)
+
+    _set("user.id", "id", user, set_baggage=True)
+    _set("user.untrusted_client_session_id", "untrusted_client_session_id", user)
+    if request is not None:
+        _set("user.token_id", "user_token.id", request)
+
+    token = context.attach(ctx)
+    try:
+        yield
+    finally:
+        context.detach(token)
 
 
 def _baserow_trace_func(wrapped_func, tracer: Tracer):
