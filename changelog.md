@@ -1,5 +1,20 @@
 # Changelog
 
+## Released 1.33.2
+
+### New features
+* [Builder] Support id_token to get user info with OIDC providers
+
+### Bug fixes
+* [Database] Fix bug formatting numbers in the gallery view with space and comma. [#3584](https://gitlab.com/baserow/baserow/-/issues/3584)
+* [Builder] Fixed a bug caused by an uninitialized variable. [#3589](https://gitlab.com/baserow/baserow/-/issues/3589)
+* [Builder] Fix a potential race condition when querying Data Sources. [#3593](https://gitlab.com/baserow/baserow/-/issues/3593)
+* [Database] Resolved a warning which was displayed when an autonumber field was added. [#3600](https://gitlab.com/baserow/baserow/-/issues/3600)
+
+### Refactors
+* [Core] Use cache for jest, eslint and prettier
+
+
 ## Released 1.33.1
 
 ### New features
