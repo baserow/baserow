@@ -3623,17 +3623,12 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getDefaultValue(field) {
-    return field.single_select_default ?? this.getEmptyValue(field)
-  }
-
-  getNewRowValue(field) {
-    const defaultValue = this.getDefaultValue(field)
-    if (defaultValue === null) {
-      return null
+    if (field.single_select_default != null) {
+      return field.select_options.find(
+        (option) => option.id === field.single_select_default
+      )
     }
-    return (
-      field.select_options.find((option) => option.id === defaultValue) || null
-    )
+    return this.getEmptyValue(field)
   }
 }
 

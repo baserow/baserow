@@ -4146,23 +4146,19 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.pop("required", False)
 
-        default = self.get_single_select_default(
-            instance, kwargs.get("single_select_default", None)
-        )
+        serializer_kwargs = {
+            "required": required,
+            "allow_null": not required,
+            **kwargs,
+        }
 
-        if default is not None:
-            required = False
-        else:
-            default = serializers.empty
+        if not required:
+            default_value = self.get_single_select_default(
+                instance, kwargs.get("single_select_default", None)
+            )
+            serializer_kwargs["default"] = default_value
 
-        field_serializer = IntegerOrStringField(
-            **{
-                "required": required,
-                "allow_null": not required,
-                "default": default,
-                **kwargs,
-            },
-        )
+        field_serializer = IntegerOrStringField(**serializer_kwargs)
         return field_serializer
 
     def get_response_serializer_field(self, instance, **kwargs):
