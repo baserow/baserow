@@ -168,8 +168,9 @@ class DataSourceHandler:
 
             # Distribute specific services to their data_source
             for data_source in data_sources:
-                if data_source.service_id:
-                    data_source.service = specific_services_map[data_source.service_id]
+                service_id = data_source.service_id
+                if service_id is not None and service_id in specific_services_map:
+                    data_source.service = specific_services_map[service_id]
 
         else:
             data_source_queryset.select_related(

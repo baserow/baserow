@@ -34,16 +34,17 @@ def test_create_data_source(data_source_created_mock, data_fixture):
 
     service_type = service_type_registry.get("local_baserow_get_row")
 
-    data_source = DataSourceService().create_data_source(
-        user, service_type=service_type, page=page
-    )
+    service = DataSourceService()
+    data_source = service.create_data_source(user, service_type=service_type, page=page)
 
     last_data_source = DataSource.objects.last()
 
     # Check it's the last data_source
     assert last_data_source.id == data_source.id
 
-    assert data_source_created_mock.called_with(data_source=data_source, user=user)
+    data_source_created_mock.send.assert_called_once_with(
+        service, data_source=data_source, user=user, before_id=None
+    )
 
 
 @pytest.mark.django_db
@@ -142,9 +143,12 @@ def test_recalculate_full_order(data_source_orders_recalculated_mock, data_fixtu
     data_fixture.create_builder_data_source(page=page, order="1.9000")
     data_fixture.create_builder_data_source(page=page, order="3.4000")
 
-    DataSourceService().recalculate_full_orders(user, page)
+    service = DataSourceService()
+    service.recalculate_full_orders(user, page)
 
-    assert data_source_orders_recalculated_mock.called_with(page=page, user=user)
+    data_source_orders_recalculated_mock.send.assert_called_once_with(
+        service, page=page
+    )
 
 
 @pytest.mark.django_db
@@ -240,10 +244,11 @@ def test_delete_data_source(data_source_deleted_mock, data_fixture):
     user = data_fixture.create_user()
     data_source = data_fixture.create_builder_data_source(user=user)
 
-    DataSourceService().delete_data_source(user, data_source)
+    service = DataSourceService()
+    service.delete_data_source(user, data_source)
 
-    assert data_source_deleted_mock.called_with(
-        data_source_id=data_source.id, user=user
+    data_source_deleted_mock.send.assert_called_once_with(
+        service, data_source_id=data_source.id, page=data_source.page, user=user
     )
 
 
@@ -264,12 +269,13 @@ def test_update_data_source(data_source_updated_mock, data_fixture):
     user = data_fixture.create_user()
     data_source = data_fixture.create_builder_data_source(user=user)
 
-    data_source_updated = DataSourceService().update_data_source(
+    service = DataSourceService()
+    data_source_updated = service.update_data_source(
         user, data_source, value="newValue"
     )
 
-    assert data_source_updated_mock.called_with(
-        data_source=data_source_updated, user=user
+    data_source_updated_mock.send.assert_called_once_with(
+        service, data_source=data_source_updated, user=user
     )
 
 
@@ -313,8 +319,8 @@ def test_update_data_source_with_service_type_for_different_dispatch_type(
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.builder.data_sources.service.data_source_updated")
-def test_move_data_source(data_source_updated_mock, data_fixture):
+@patch("baserow.contrib.builder.data_sources.service.data_source_moved")
+def test_move_data_source(data_source_moved_mock, data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     data_source1 = data_fixture.create_builder_data_source(page=page)
@@ -323,12 +329,13 @@ def test_move_data_source(data_source_updated_mock, data_fixture):
         page=page
     )
 
-    data_source_moved = DataSourceService().move_data_source(
+    service = DataSourceService()
+    data_source_moved = service.move_data_source(
         user, data_source3, before=data_source2
     )
 
-    assert data_source_updated_mock.called_with(
-        data_source=data_source_moved, user=user
+    data_source_moved_mock.send.assert_called_once_with(
+        service, data_source=data_source_moved, before=data_source2, user=user
     )
 
 
@@ -378,9 +385,12 @@ def test_move_data_source_trigger_order_recalculed(
     )
     data_source3 = data_fixture.create_builder_data_source(page=page, order="3.0000")
 
-    DataSourceService().move_data_source(user, data_source3, before=data_source2)
+    service = DataSourceService()
+    service.move_data_source(user, data_source3, before=data_source2)
 
-    assert data_source_orders_recalculated_mock.called_with(page=page, user=user)
+    data_source_orders_recalculated_mock.send.assert_called_once_with(
+        service, page=page
+    )
 
 
 @pytest.mark.django_db

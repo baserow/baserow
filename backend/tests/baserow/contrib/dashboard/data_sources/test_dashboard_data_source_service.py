@@ -165,12 +165,13 @@ def test_delete_data_source(dashboard_data_source_deleted, data_fixture):
     user = data_fixture.create_user()
     data_source = data_fixture.create_dashboard_data_source(user=user)
 
-    DashboardDataSourceService().delete_data_source(user, data_source.id)
+    service = DashboardDataSourceService()
+    service.delete_data_source(user, data_source.id)
 
     assert DashboardDataSource.objects.count() == 0
 
-    assert dashboard_data_source_deleted.called_with(
-        data_source_id=data_source.id, user=user
+    dashboard_data_source_deleted.send.assert_called_once_with(
+        service, data_source_id=data_source.id, user=user
     )
 
 
@@ -213,15 +214,16 @@ def test_create_data_source(dashboard_data_source_created, data_fixture):
     dashboard = data_fixture.create_dashboard_application(workspace=workspace)
     service_type = service_type_registry.get("local_baserow_aggregate_rows")
 
-    created_data_source = DashboardDataSourceService().create_data_source(
+    service = DashboardDataSourceService()
+    created_data_source = service.create_data_source(
         user, dashboard.id, service_type, "My data source"
     )
 
     assert created_data_source.name == "My data source"
     assert created_data_source.dashboard == dashboard
     assert created_data_source.service is not None
-    assert dashboard_data_source_created.called_with(
-        data_source=created_data_source, user=user
+    dashboard_data_source_created.send.assert_called_once_with(
+        service, data_source=created_data_source, user=user
     )
 
 
@@ -263,13 +265,14 @@ def test_update_data_source_name(dashboard_data_source_updated, data_fixture):
         dashboard=dashboard, user=user
     )
 
-    updated_data_source = DashboardDataSourceService().update_data_source(
+    service = DashboardDataSourceService()
+    updated_data_source = service.update_data_source(
         user, data_source.id, data_source.service.get_type(), name="Updated name"
     )
     assert updated_data_source.data_source.name == "Updated name"
 
-    assert dashboard_data_source_updated.called_with(
-        data_source=updated_data_source.data_source, user=user
+    dashboard_data_source_updated.send.assert_called_once_with(
+        service, data_source=updated_data_source.data_source, user=user
     )
 
 

@@ -1,10 +1,13 @@
 from celery import Celery, signals
 
 from baserow.core.cache import local_cache
+from baserow.core.telemetry.tasks import BaserowTelemetryTask
 
 app = Celery("baserow")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
+
+app.Task = BaserowTelemetryTask
 
 
 def clear_local_cache(*args, **kwargs):

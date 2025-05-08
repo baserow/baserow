@@ -33,7 +33,8 @@ def test_create_integration(integration_created_mock, data_fixture, integration_
         application=application, order="2.0000"
     )
 
-    integration = IntegrationService().create_integration(
+    service = IntegrationService()
+    integration = service.create_integration(
         user, integration_type, application=application
     )
 
@@ -42,7 +43,9 @@ def test_create_integration(integration_created_mock, data_fixture, integration_
     # Check it's the last integration
     assert last_integration.id == integration.id
 
-    assert integration_created_mock.called_with(integration=integration, user=user)
+    integration_created_mock.send.assert_called_once_with(
+        service, integration=integration, user=user, before_id=None
+    )
 
 
 @pytest.mark.django_db
@@ -123,10 +126,11 @@ def test_recalculate_full_order(integration_orders_recalculated_mock, data_fixtu
         application=application, order="3.4000"
     )
 
-    IntegrationService().recalculate_full_orders(user, application)
+    service = IntegrationService()
+    service.recalculate_full_orders(user, application)
 
-    assert integration_orders_recalculated_mock.called_with(
-        application=application, user=user
+    integration_orders_recalculated_mock.send.assert_called_once_with(
+        service, application=application
     )
 
 
@@ -220,10 +224,14 @@ def test_delete_integration(integration_deleted_mock, data_fixture):
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(user=user)
 
-    IntegrationService().delete_integration(user, integration)
+    service = IntegrationService()
+    service.delete_integration(user, integration)
 
-    assert integration_deleted_mock.called_with(
-        integration_id=integration.id, user=user
+    integration_deleted_mock.send.assert_called_once_with(
+        service,
+        integration_id=integration.id,
+        application=integration.application,
+        user=user,
     )
 
 
@@ -244,12 +252,13 @@ def test_update_integration(integration_updated_mock, data_fixture):
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(user=user)
 
-    integration_updated = IntegrationService().update_integration(
+    service = IntegrationService()
+    integration_updated = service.update_integration(
         user, integration, value="newValue"
     )
 
-    assert integration_updated_mock.called_with(
-        integration=integration_updated, user=user
+    integration_updated_mock.send.assert_called_once_with(
+        service, integration=integration_updated, user=user
     )
 
 
@@ -265,8 +274,8 @@ def test_update_integration_permission_denied(data_fixture, stub_check_permissio
 
 
 @pytest.mark.django_db
-@patch("baserow.core.integrations.service.integration_updated")
-def test_move_integration(integration_updated_mock, data_fixture):
+@patch("baserow.core.integrations.service.integration_moved")
+def test_move_integration(integration_moved_mock, data_fixture):
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     integration1 = data_fixture.create_local_baserow_integration(
@@ -279,12 +288,13 @@ def test_move_integration(integration_updated_mock, data_fixture):
         application=application
     )
 
-    integration_moved = IntegrationService().move_integration(
+    service = IntegrationService()
+    integration_moved = service.move_integration(
         user, integration3, before=integration2
     )
 
-    assert integration_updated_mock.called_with(
-        integration=integration_moved, user=user
+    integration_moved_mock.send.assert_called_once_with(
+        service, integration=integration_moved, user=user, before=integration2
     )
 
 
@@ -329,7 +339,7 @@ def test_move_integration_permission_denied(data_fixture, stub_check_permissions
 
 @pytest.mark.django_db
 @patch("baserow.core.integrations.service.integration_orders_recalculated")
-def test_move_integration_trigger_order_recalculed(
+def test_move_integration_trigger_order_recalculated(
     integration_orders_recalculated_mock, data_fixture
 ):
     user = data_fixture.create_user()
@@ -344,8 +354,9 @@ def test_move_integration_trigger_order_recalculed(
         application=application, order="3.0000"
     )
 
-    IntegrationService().move_integration(user, integration3, before=integration2)
+    service = IntegrationService()
+    service.move_integration(user, integration3, before=integration2)
 
-    assert integration_orders_recalculated_mock.called_with(
-        application=application, user=user
+    integration_orders_recalculated_mock.send.assert_called_once_with(
+        service, application=application
     )
