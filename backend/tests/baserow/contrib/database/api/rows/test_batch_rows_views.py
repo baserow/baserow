@@ -15,7 +15,7 @@ from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
-    HTTP_503_SERVICE_UNAVAILABLE,
+    HTTP_409_CONFLICT,
 )
 
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -400,7 +400,7 @@ def test_batch_create_rows_deadlock(api_client, data_fixture):
             HTTP_AUTHORIZATION=f"JWT {jwt_token}",
         )
 
-    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.status_code == HTTP_409_CONFLICT
     assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
@@ -1390,7 +1390,7 @@ def test_batch_update_rows_deadlock(api_client, data_fixture):
             format="json",
             HTTP_AUTHORIZATION=f"JWT {jwt_token}",
         )
-    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.status_code == HTTP_409_CONFLICT
     assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
@@ -2344,7 +2344,7 @@ def test_batch_delete_rows_deadlock(api_client, data_fixture):
             format="json",
             HTTP_AUTHORIZATION=f"JWT {jwt_token}",
         )
-    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.status_code == HTTP_409_CONFLICT
     assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
