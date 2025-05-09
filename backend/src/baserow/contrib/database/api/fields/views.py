@@ -103,7 +103,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.tokens.exceptions import NoPermissionToTable
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.action.registries import action_type_registry
-from baserow.core.db import specific_iterator
+from baserow.core.db import atomic_with_retry_on_deadlock, specific_iterator
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
@@ -252,7 +252,7 @@ class FieldsView(APIView):
             404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
+    @atomic_with_retry_on_deadlock()
     @validate_body_custom_fields(
         field_type_registry,
         base_serializer_class=CreateFieldSerializer,
@@ -401,7 +401,7 @@ class FieldView(APIView):
             404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
+    @atomic_with_retry_on_deadlock()
     @map_exceptions(
         {
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
@@ -479,7 +479,7 @@ class FieldView(APIView):
             404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
+    @atomic_with_retry_on_deadlock()
     @map_exceptions(
         {
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
