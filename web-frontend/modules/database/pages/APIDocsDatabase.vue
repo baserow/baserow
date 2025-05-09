@@ -121,6 +121,7 @@
         :get-upload-file-example="getUploadFileExample"
         :get-upload-file-response="getUploadFileResponse"
       />
+      <APIDocsListTables v-model="exampleData" />
       <APIDocsUploadFileViaURL
         v-model="exampleData"
         :get-upload-file-response="getUploadFileResponse"
@@ -154,9 +155,10 @@ import APIDocsTableMoveRow from '@baserow/modules/database/components/docs/secti
 import APIDocsTableDeleteRow from '@baserow/modules/database/components/docs/sections/APIDocsTableDeleteRow'
 import APIDocsUploadFile from '@baserow/modules/database/components/docs/sections/APIDocsUploadFile'
 import APIDocsUploadFileViaURL from '@baserow/modules/database/components/docs/sections/APIDocsUploadFileViaURL'
+import APIDocsListTables from '@baserow/modules/database/components/docs/sections/APIDocsListTables'
 import APIDocsFilters from '@baserow/modules/database/components/docs/sections/APIDocsFilters'
 import APIDocsErrors from '@baserow/modules/database/components/docs/sections/APIDocsErrors'
-import APIDocsMenu from '@baserow/modules/database/components/docs/sections/APIDocsMenu.vue'
+import APIDocsMenu from '@baserow/modules/database/components/docs/sections/APIDocsMenu'
 
 // Re-use the FileFieldType docs response example.
 import { FileFieldType } from '@baserow/modules/database/fieldTypes'
@@ -180,6 +182,7 @@ export default {
     APIDocsFilters,
     APIDocsErrors,
     APIDocsMenu,
+    APIDocsListTables,
   },
   middleware: ['authenticated', 'workspacesAndApplications'],
   async asyncData({ store, params, error, app }) {

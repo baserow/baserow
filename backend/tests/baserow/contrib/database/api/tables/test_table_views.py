@@ -11,18 +11,242 @@ from rest_framework.status import (
     HTTP_202_ACCEPTED,
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
+    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.file_import.models import FileImportJob
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.jobs.models import Job
 from baserow.test_utils.helpers import (
     assert_serialized_rows_contain_same_values,
     independent_test_db_connection,
     setup_interesting_test_table,
 )
+
+
+@pytest.mark.django_db
+def test_list_all_tables_access_to_one_specific_table(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace_1 = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace_1)
+    database_2 = data_fixture.create_database_application(workspace=workspace_1)
+    table_1 = data_fixture.create_database_table(database=database, order=1)
+    table_2 = data_fixture.create_database_table(database=database, order=2)
+    table_3 = data_fixture.create_database_table(database=database_2, order=3)
+    table_4 = data_fixture.create_database_table(user=user)
+    table_5 = data_fixture.create_database_table()
+
+    token = TokenHandler().create_token(user, workspace_1, "Good")
+    TokenHandler().update_token_permissions(
+        user=user,
+        token=token,
+        create=[table_1],
+        read=False,
+        update=False,
+        delete=False,
+    )
+
+    url = reverse("api:database:tables:all_tables")
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"Token {token.key}")
+    response_json = response.json()
+
+    assert len(response_json) == 1
+    assert response_json == [
+        {
+            "id": table_1.id,
+            "database_id": table_1.database_id,
+            "name": table_1.name,
+            "order": table_1.order,
+        }
+    ]
+    assert response_json[0]["id"] == table_1.id
+
+
+@pytest.mark.django_db
+def test_list_all_tables_access_to_two_specific_tables(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace_1 = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace_1)
+    database_2 = data_fixture.create_database_application(workspace=workspace_1)
+    table_1 = data_fixture.create_database_table(database=database, order=1)
+    table_2 = data_fixture.create_database_table(database=database, order=2)
+    table_3 = data_fixture.create_database_table(database=database_2, order=3)
+    table_4 = data_fixture.create_database_table(user=user)
+    table_5 = data_fixture.create_database_table()
+
+    token = TokenHandler().create_token(user, workspace_1, "Good")
+    TokenHandler().update_token_permissions(
+        user=user,
+        token=token,
+        create=[table_1, table_3],
+        read=False,
+        update=False,
+        delete=False,
+    )
+
+    url = reverse("api:database:tables:all_tables")
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"Token {token.key}")
+    response_json = response.json()
+
+    assert len(response_json) == 2
+    assert response_json[0]["id"] == table_1.id
+    assert response_json[1]["id"] == table_3.id
+
+
+@pytest.mark.django_db
+def test_list_all_tables_access_to_one_specific_database(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace_1 = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace_1)
+    database_2 = data_fixture.create_database_application(workspace=workspace_1)
+    table_1 = data_fixture.create_database_table(database=database, order=1)
+    table_2 = data_fixture.create_database_table(database=database, order=2)
+    table_3 = data_fixture.create_database_table(database=database_2, order=3)
+    table_4 = data_fixture.create_database_table(user=user)
+    table_5 = data_fixture.create_database_table()
+
+    token = TokenHandler().create_token(user, workspace_1, "Good")
+    TokenHandler().update_token_permissions(
+        user=user,
+        token=token,
+        create=[database],
+        read=False,
+        update=False,
+        delete=False,
+    )
+
+    url = reverse("api:database:tables:all_tables")
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"Token {token.key}")
+    response_json = response.json()
+
+    assert len(response_json) == 2
+    assert response_json[0]["id"] == table_1.id
+    assert response_json[1]["id"] == table_2.id
+
+
+@pytest.mark.django_db
+def test_list_all_tables_access_to_specific_database_and_table(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace_1 = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace_1)
+    database_2 = data_fixture.create_database_application(workspace=workspace_1)
+    table_1 = data_fixture.create_database_table(database=database, order=1)
+    table_2 = data_fixture.create_database_table(database=database, order=2)
+    table_3 = data_fixture.create_database_table(database=database_2, order=3)
+    table_4 = data_fixture.create_database_table(user=user)
+    table_5 = data_fixture.create_database_table()
+
+    token = TokenHandler().create_token(user, workspace_1, "Good")
+    TokenHandler().update_token_permissions(
+        user=user,
+        token=token,
+        create=[table_1, database_2],
+        read=False,
+        update=False,
+        delete=False,
+    )
+
+    url = reverse("api:database:tables:all_tables")
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"Token {token.key}")
+    response_json = response.json()
+
+    assert len(response_json) == 2
+    assert response_json[0]["id"] == table_1.id
+    assert response_json[1]["id"] == table_3.id
+
+
+@pytest.mark.django_db
+def test_list_all_tables_access_to_specific_all_in_workspace(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace_1 = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace_1)
+    database_2 = data_fixture.create_database_application(workspace=workspace_1)
+    table_1 = data_fixture.create_database_table(database=database, order=1)
+    table_2 = data_fixture.create_database_table(database=database, order=2)
+    table_3 = data_fixture.create_database_table(database=database_2, order=3)
+    table_4 = data_fixture.create_database_table(user=user)
+    table_5 = data_fixture.create_database_table()
+
+    token = TokenHandler().create_token(user, workspace_1, "Good")
+    TokenHandler().update_token_permissions(
+        user=user,
+        token=token,
+        create=True,
+        read=False,
+        update=False,
+        delete=False,
+    )
+
+    url = reverse("api:database:tables:all_tables")
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"Token {token.key}")
+    response_json = response.json()
+
+    assert len(response_json) == 3
+    assert response_json[0]["id"] == table_1.id
+    assert response_json[1]["id"] == table_2.id
+    assert response_json[2]["id"] == table_3.id
+
+
+@pytest.mark.django_db
+def test_list_all_tables_access_to_none(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace_1 = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace_1)
+    database_2 = data_fixture.create_database_application(workspace=workspace_1)
+    table_1 = data_fixture.create_database_table(database=database, order=1)
+    table_2 = data_fixture.create_database_table(database=database, order=2)
+    table_3 = data_fixture.create_database_table(database=database_2, order=3)
+    table_4 = data_fixture.create_database_table(user=user)
+    table_5 = data_fixture.create_database_table()
+
+    token = TokenHandler().create_token(user, workspace_1, "Good")
+    TokenHandler().update_token_permissions(
+        user=user,
+        token=token,
+        create=False,
+        read=False,
+        update=False,
+        delete=False,
+    )
+
+    url = reverse("api:database:tables:all_tables")
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"Token {token.key}")
+    response_json = response.json()
+
+    assert len(response_json) == 0
+
+
+@pytest.mark.django_db
+def test_list_all_tables_access_no_authentication(api_client, data_fixture):
+    url = reverse("api:database:tables:all_tables")
+    response = api_client.get(url)
+    response_json = response.json()
+    assert response.status_code == HTTP_403_FORBIDDEN
+    assert response_json["detail"] == "Authentication credentials were not provided."
+
+
+@pytest.mark.django_db
+def test_list_all_tables_access_jwt_token(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace_1 = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace_1)
+    database_2 = data_fixture.create_database_application(workspace=workspace_1)
+    table_1 = data_fixture.create_database_table(database=database, order=1)
+    table_2 = data_fixture.create_database_table(database=database, order=2)
+    table_3 = data_fixture.create_database_table(database=database_2, order=3)
+    table_4 = data_fixture.create_database_table(user=user)
+    table_5 = data_fixture.create_database_table()
+
+    url = reverse("api:database:tables:all_tables")
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    response_json = response.json()
+    assert response.status_code == HTTP_403_FORBIDDEN
+    assert response_json["detail"] == "Authentication credentials were not provided."
 
 
 @pytest.mark.django_db

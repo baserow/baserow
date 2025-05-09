@@ -164,6 +164,14 @@
       <li>
         <a
           class="api-docs__nav-link"
+          :class="{ active: navActive === 'section-list-tables' }"
+          @click.prevent="navigate('section-list-tables')"
+          >{{ $t('apiDocs.listTables') }}</a
+        >
+      </li>
+      <li>
+        <a
+          class="api-docs__nav-link"
           :class="{ active: navActive === 'section-filters' }"
           @click.prevent="navigate('section-filters')"
           >{{ $t('apiDocs.filters') }}</a

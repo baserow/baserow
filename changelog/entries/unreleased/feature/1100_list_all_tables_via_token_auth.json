@@ -1,0 +1,8 @@
+{
+  "type": "feature",
+  "message": "Introduce list all tables endpoints via token auth.",
+  "domain": "database",
+  "issue_number": 1100,
+  "bullet_points": [],
+  "created_at": "2025-04-16"
+}
