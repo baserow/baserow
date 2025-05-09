@@ -1673,6 +1673,18 @@ def test_create_row(api_client, data_fixture):
     number_field_2 = data_fixture.create_number_field(
         table=table, order=5, name="Stock", number_default=100
     )
+    option_field = data_fixture.create_single_select_field(
+        table=table, order=5, name="Option"
+    )
+    option_a = data_fixture.create_select_option(
+        field=option_field, value="A", color="blue"
+    )
+    option_b = data_fixture.create_select_option(
+        field=option_field, value="B", color="red"
+    )
+    option_field = FieldHandler().update_field(
+        user=user, field=option_field, single_select_default=option_a.id
+    )
 
     token = TokenHandler().create_token(user, table.database.workspace, "Good")
     wrong_token = TokenHandler().create_token(user, table.database.workspace, "Wrong")
@@ -1732,6 +1744,7 @@ def test_create_row(api_client, data_fixture):
             f"field_{boolean_field.id}": None,
             f"field_{boolean_field_2.id}": False,
             f"field_{text_field_2.id}": None,
+            f"field_{option_field.id}": option_a.id,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
@@ -1777,6 +1790,11 @@ def test_create_row(api_client, data_fixture):
     assert response_json_row_1[f"field_{boolean_field_2.id}"] is True
     assert response_json_row_1[f"field_{text_field_2.id}"] is None
     assert response_json_row_1[f"field_{number_field_2.id}"] == "100"
+    assert response_json_row_1[f"field_{option_field.id}"] == {
+        "id": option_a.id,
+        "value": "A",
+        "color": "blue",
+    }
     assert response_json_row_1["order"] == "1.00000000000000000000"
 
     response = api_client.post(
@@ -1787,6 +1805,7 @@ def test_create_row(api_client, data_fixture):
             f"field_{boolean_field_2.id}": False,
             f"field_{text_field_2.id}": "",
             f"field_{number_field_2.id}": 50,
+            f"field_{option_field.id}": option_b.id,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
@@ -1799,6 +1818,11 @@ def test_create_row(api_client, data_fixture):
     assert response_json_row_2[f"field_{boolean_field_2.id}"] is False
     assert response_json_row_2[f"field_{text_field_2.id}"] == ""
     assert response_json_row_2[f"field_{number_field_2.id}"] == "50"
+    assert response_json_row_2[f"field_{option_field.id}"] == {
+        "id": option_b.id,
+        "value": "B",
+        "color": "red",
+    }
     assert response_json_row_2["order"] == "2.00000000000000000000"
 
     response = api_client.post(
@@ -1810,6 +1834,7 @@ def test_create_row(api_client, data_fixture):
             f"field_{boolean_field_2.id}": True,
             f"field_{text_field_2.id}": "Not important",
             f"field_{number_field_2.id}": None,
+            f"field_{option_field.id}": option_a.id,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
@@ -1822,6 +1847,11 @@ def test_create_row(api_client, data_fixture):
     assert response_json_row_3[f"field_{boolean_field_2.id}"]
     assert response_json_row_3[f"field_{text_field_2.id}"] == "Not important"
     assert response_json_row_3[f"field_{number_field_2.id}"] is None
+    assert response_json_row_3[f"field_{option_field.id}"] == {
+        "id": option_a.id,
+        "value": "A",
+        "color": "blue",
+    }
     assert response_json_row_3["order"] == "3.00000000000000000000"
 
     response = api_client.post(
@@ -1832,6 +1862,7 @@ def test_create_row(api_client, data_fixture):
             f"field_{boolean_field.id}": True,
             f"field_{boolean_field_2.id}": False,
             f"field_{text_field_2.id}": "",
+            f"field_{option_field.id}": option_b.id,
         },
         format="json",
         HTTP_AUTHORIZATION=f"Token {token.key}",
@@ -1844,6 +1875,11 @@ def test_create_row(api_client, data_fixture):
     assert response_json_row_4[f"field_{boolean_field_2.id}"] is False
     assert response_json_row_4[f"field_{text_field_2.id}"] == ""
     assert response_json_row_4[f"field_{number_field_2.id}"] == "100"
+    assert response_json_row_4[f"field_{option_field.id}"] == {
+        "id": option_b.id,
+        "value": "B",
+        "color": "red",
+    }
     assert response_json_row_4["order"] == "4.00000000000000000000"
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
@@ -1855,6 +1891,7 @@ def test_create_row(api_client, data_fixture):
             f"field_{boolean_field.id}": False,
             f"field_{boolean_field_2.id}": False,
             f"field_{text_field_2.id}": "",
+            f"field_{option_field.id}": option_b.id,
         },
         format="json",
         HTTP_AUTHORIZATION=f"Token {token.key}",
@@ -1867,6 +1904,11 @@ def test_create_row(api_client, data_fixture):
     assert not response_json_row_5[f"field_{boolean_field_2.id}"]
     assert response_json_row_5[f"field_{text_field_2.id}"] == ""
     assert response_json_row_5[f"field_{number_field_2.id}"] == "100"
+    assert response_json_row_5[f"field_{option_field.id}"] == {
+        "id": option_b.id,
+        "value": "B",
+        "color": "red",
+    }
     assert response_json_row_5["order"] == "2.50000000000000000000"
 
     model = table.get_model()
@@ -1882,6 +1924,7 @@ def test_create_row(api_client, data_fixture):
     assert getattr(row_1, f"field_{boolean_field_2.id}") is True
     assert getattr(row_1, f"field_{text_field_2.id}") is None
     assert getattr(row_1, f"field_{number_field_2.id}") == 100
+    assert getattr(row_1, f"field_{option_field.id}").id == option_a.id
 
     assert row_2.id == response_json_row_2["id"]
     assert getattr(row_2, f"field_{text_field.id}") == "white"
@@ -1890,6 +1933,7 @@ def test_create_row(api_client, data_fixture):
     assert getattr(row_2, f"field_{boolean_field_2.id}") is False
     assert getattr(row_2, f"field_{text_field_2.id}") == ""
     assert getattr(row_2, f"field_{number_field_2.id}") == 50
+    assert getattr(row_2, f"field_{option_field.id}").id == option_b.id
 
     assert row_3.id == response_json_row_3["id"]
     assert getattr(row_3, f"field_{text_field.id}") == "Green"
@@ -1898,6 +1942,7 @@ def test_create_row(api_client, data_fixture):
     assert getattr(row_3, f"field_{boolean_field_2.id}") is True
     assert getattr(row_3, f"field_{text_field_2.id}") == "Not important"
     assert getattr(row_3, f"field_{number_field_2.id}") is None
+    assert getattr(row_3, f"field_{option_field.id}").id == option_a.id
 
     assert row_4.id == response_json_row_4["id"]
     assert getattr(row_4, f"field_{text_field.id}") == "Purple"
@@ -1906,6 +1951,7 @@ def test_create_row(api_client, data_fixture):
     assert getattr(row_4, f"field_{boolean_field_2.id}") is False
     assert getattr(row_4, f"field_{text_field_2.id}") == ""
     assert getattr(row_4, f"field_{number_field_2.id}") == 100
+    assert getattr(row_4, f"field_{option_field.id}").id == option_b.id
 
     assert row_5.id == response_json_row_5["id"]
     assert getattr(row_5, f"field_{text_field.id}") == "Red"
@@ -1914,6 +1960,7 @@ def test_create_row(api_client, data_fixture):
     assert getattr(row_5, f"field_{boolean_field_2.id}") is False
     assert getattr(row_5, f"field_{text_field_2.id}") == ""
     assert getattr(row_5, f"field_{number_field_2.id}") == 100
+    assert getattr(row_5, f"field_{option_field.id}").id == option_b.id
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
 
@@ -1924,6 +1971,7 @@ def test_create_row(api_client, data_fixture):
             f"Horsepower": 480,
             f"For Sale": False,
             f"Description": "",
+            f"Option": "A",
         },
         format="json",
         HTTP_AUTHORIZATION=f"Token {token.key}",
@@ -1941,6 +1989,7 @@ def test_create_row(api_client, data_fixture):
         "Horsepower": "480",
         "id": 6,
         "order": "5.00000000000000000000",
+        "Option": {"id": option_a.id, "value": "A", "color": "blue"},
     }
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
@@ -1951,6 +2000,7 @@ def test_create_row(api_client, data_fixture):
             f"Horsepower": 480,
             f"For Sale": False,
             f"Description": "",
+            f"Option": "A",
         },
         format="json",
         HTTP_AUTHORIZATION=f"Token {token.key}",
@@ -1968,6 +2018,7 @@ def test_create_row(api_client, data_fixture):
         "Horsepower": "480",
         "id": 7,
         "order": "6.00000000000000000000",
+        "Option": {"id": option_a.id, "value": "A", "color": "blue"},
     }
 
 

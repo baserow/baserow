@@ -182,7 +182,15 @@ def construct_all_possible_field_kwargs(
                     {"id": 0, "value": "A", "color": "red"},
                     {"id": 1, "value": "B", "color": "blue"},
                 ],
-            }
+            },
+            {
+                "name": "single_select_with_default",
+                "select_options": [
+                    {"id": 10, "value": "AA", "color": "red"},
+                    {"id": 11, "value": "BB", "color": "blue"},
+                ],
+                "single_select_default": 11,
+            },
         ],
         "multiple_select": [
             {

@@ -3640,6 +3640,66 @@ def test_submit_empty_form_view_for_interesting_test_table(api_client, data_fixt
     response_json = response.json()
     assert response_json["submit_action"] == "MESSAGE"
 
+    # enabling and requiring one field at the time, the form should fail with a 400 if
+    # the value is not provided, or success with a 200 if it is provided
+    for field_option in FormViewFieldOptions.objects.filter(form_view=form):
+        FormViewFieldOptions.objects.filter(form_view=form).update(
+            enabled=False, required=False
+        )
+
+        field_option.enabled = True
+        field_option.required = True
+        field_option.save(update_fields=["enabled", "required"])
+
+        response = api_client.post(
+            url,
+            {},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+        field = field_option.field
+        field_type = field.get_type()
+        row_values = {
+            field.db_column: field_type.serialize_to_input_value(
+                field, getattr(row, field.db_column)
+            )
+        }
+        response = api_client.post(
+            url,
+            row_values,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK, response.json()
+        response_json = response.json()
+        assert response_json["submit_action"] == "MESSAGE"
+
+    # Now make all the fields required
+    FormViewFieldOptions.objects.filter(form_view=form).update(
+        enabled=True, required=True
+    )
+
+    row_values = {}
+    for field_option in FormViewFieldOptions.objects.filter(form_view=form):
+        field = field_option.field
+        field_type = field.get_type()
+        row_values[field.db_column] = field_type.serialize_to_input_value(
+            field, getattr(row, field.db_column)
+        )
+
+    response = api_client.post(
+        url,
+        row_values,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    response_json = response.json()
+    assert response_json["submit_action"] == "MESSAGE"
+
 
 @pytest.mark.django_db
 def test_user_can_update_form_to_receive_notification(api_client, data_fixture):

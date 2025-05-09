@@ -1049,11 +1049,13 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         instance_to_create = []
         for order, select_option in enumerate(select_options):
             upsert_id = select_option.pop(UPSERT_OPTION_DICT_KEY, None)
-            id = select_option.pop("id", upsert_id)
-            if id in existing_option_ids:
+            option_id = select_option.pop("id", upsert_id)
+            if option_id in existing_option_ids:
                 select_option.pop("order", None)
                 # Update existing options
-                field.select_options.filter(id=id).update(**select_option, order=order)
+                field.select_options.filter(id=option_id).update(
+                    **select_option, order=order
+                )
             else:
                 # Create new instance
                 instance_to_create.append(

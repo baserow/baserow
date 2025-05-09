@@ -349,6 +349,7 @@ def test_can_export_every_interesting_different_field_to_csv(
             '"a.txt (http://localhost:8000/media/user_files/hashed_name.txt),b.txt (http://localhost:8000/media/user_files/other_name.txt)"',
         ],
         "single_select": ["", "A"],
+        "single_select_with_default": ["BB", "BB"],
         "multiple_select": ["", '"D,C,E"'],
         "multiple_collaborators": [
             "",

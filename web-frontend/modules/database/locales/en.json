@@ -239,7 +239,8 @@
     "placeholder": "Default text"
   },
   "fieldSingleSelectSubForm": {
-    "optionsLabel": "Options"
+    "optionsLabel": "Options",
+    "defaultOptionLabel": "Default option"
   },
   "fieldSingleSelectDropdown": {
     "notFound": "Option not found"

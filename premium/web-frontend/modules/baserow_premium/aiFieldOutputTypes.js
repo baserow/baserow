@@ -5,7 +5,6 @@ import {
   SingleSelectFieldType,
 } from '@baserow/modules/database/fieldTypes'
 import FieldSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSelectOptionsSubForm.vue'
-
 export class AIFieldOutputType extends Registerable {
   /**
    * A human readable name of the AI output type. This will be shown in in the dropdown

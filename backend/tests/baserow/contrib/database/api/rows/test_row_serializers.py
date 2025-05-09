@@ -428,6 +428,11 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                     "id": SelectOption.objects.get(value="A").id,
                     "value": "A",
                 },
+                "single_select_with_default": {
+                    "color": "blue",
+                    "id": SelectOption.objects.get(value="BB").id,
+                    "value": "BB",
+                },
                 "multiple_collaborators": [
                     {"id": context["user2"].id, "name": context["user2"].first_name},
                     {"id": context["user3"].id, "name": context["user3"].first_name},
@@ -594,3 +599,39 @@ def test_remap_serialized_row_to_user_field_names(data_fixture):
         ],
         "Test 1": "Test value",
     }
+
+
+@pytest.mark.django_db
+def test_get_table_serializer_single_select_default(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(name="Cars", user=user)
+    single_select_field = data_fixture.create_single_select_field(
+        table=table, order=0, name="Status"
+    )
+
+    option_1 = data_fixture.create_select_option(
+        field=single_select_field, value="Active", color="blue"
+    )
+    option_2 = data_fixture.create_select_option(
+        field=single_select_field, value="Inactive", color="red"
+    )
+
+    field_handler = FieldHandler()
+    single_select_field = field_handler.update_field(
+        user=user, field=single_select_field, single_select_default=option_1.id
+    )
+
+    model = table.get_model(attribute_names=True)
+    serializer_class = get_row_serializer_class(model=model)
+
+    serializer_instance = serializer_class(data={})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data == {"status": option_1.id}
+
+    serializer_instance = serializer_class(data={"status": option_2.id})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data == {"status": option_2.id}
+
+    serializer_instance = serializer_class(data={"status": None})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["status"] is None

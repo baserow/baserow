@@ -34,6 +34,7 @@ import FieldLongTextSubForm from '@baserow/modules/database/components/field/Fie
 import FieldDateSubForm from '@baserow/modules/database/components/field/FieldDateSubForm'
 import FieldLinkRowSubForm from '@baserow/modules/database/components/field/FieldLinkRowSubForm'
 import FieldSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSelectOptionsSubForm'
+import FieldSingleSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSingleSelectOptionsSubForm'
 import FieldCollaboratorSubForm from '@baserow/modules/database/components/field/FieldCollaboratorSubForm'
 import FieldPasswordSubForm from '@baserow/modules/database/components/field/FieldPasswordSubForm'
 import FieldBooleanSubForm from '@baserow/modules/database/components/field/FieldBooleanSubForm'
@@ -3385,7 +3386,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getFormComponent() {
-    return FieldSelectOptionsSubForm
+    return FieldSingleSelectOptionsSubForm
   }
 
   getGridViewFieldComponent() {
@@ -3604,7 +3605,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       (option) => option.value === value
     )
 
-    return selectedOption ?? this.getDefaultValue()
+    return selectedOption ?? this.getDefaultValue(field)
   }
 
   getCanImport() {
@@ -3627,6 +3628,15 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     const value1Id = value1?.id || null
     const value2Id = value2?.id || null
     return value1Id === value2Id
+  }
+
+  getDefaultValue(field) {
+    if (field.single_select_default != null) {
+      return field.select_options.find(
+        (option) => option.id === field.single_select_default
+      )
+    }
+    return this.getEmptyValue(field)
   }
 }
 

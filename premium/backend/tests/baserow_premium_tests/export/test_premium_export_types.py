@@ -79,6 +79,7 @@ def test_can_export_every_interesting_different_field_to_json(
     "multiple_collaborators_link_row": [],
     "file": [],
     "single_select": "",
+    "single_select_with_default": "BB",
     "multiple_select": [],
     "multiple_collaborators": [],
     "phone_number": "",
@@ -195,6 +196,7 @@ def test_can_export_every_interesting_different_field_to_json(
         }
     ],
     "single_select": "A",
+    "single_select_with_default": "BB",
     "multiple_select": [
         "D",
         "C",
@@ -387,6 +389,7 @@ def test_can_export_every_interesting_different_field_to_xml(
       <multiple-collaborators-link-row/>
       <file/>
       <single-select/>
+      <single-select-with-default>BB</single-select-with-default>
       <multiple-select/>
       <multiple-collaborators/>
       <phone-number/>
@@ -503,6 +506,7 @@ def test_can_export_every_interesting_different_field_to_xml(
          </item>
       </file>
       <single-select>A</single-select>
+      <single-select-with-default>BB</single-select-with-default>
       <multiple-select>
          <item>D</item>
          <item>C</item>
@@ -773,6 +777,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "multiple_collaborators_link_row",
         "file",
         "single_select",
+        "single_select_with_default",
         "multiple_select",
         "multiple_collaborators",
         "phone_number",
@@ -847,6 +852,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         None,
         None,
         None,
+        "BB",
         None,
         None,
         None,
@@ -921,6 +927,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         '"User2 <user2@example.com>,User3 <user3@example.com>",User2 <user2@example.com>',
         "a.txt (http://localhost:8000/media/user_files/hashed_name.txt),b.txt (http://localhost:8000/media/user_files/other_name.txt)",
         "A",
+        "BB",
         "D,C,E",
         "User2 <user2@example.com>,User3 <user3@example.com>",
         "+4412345678",
