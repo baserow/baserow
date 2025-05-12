@@ -17,6 +17,7 @@ from baserow.api.schemas import get_error_schema
 from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS,
     ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
+    LIMIT_LINKED_ITEMS_API_PARAM,
 )
 from baserow.contrib.database.api.fields.errors import (
     ERROR_FIELD_DOES_NOT_EXIST,
@@ -31,7 +32,10 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
-from baserow.contrib.database.api.views.utils import get_public_view_authorization_token
+from baserow.contrib.database.api.views.utils import (
+    get_public_view_authorization_token,
+    parse_limit_linked_items_params,
+)
 from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     FilterFieldNotFound,
@@ -114,6 +118,7 @@ class KanbanViewView(APIView):
                 ),
             ),
             *ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
+            LIMIT_LINKED_ITEMS_API_PARAM,
         ],
         tags=["Database table kanban view"],
         operation_id="list_database_table_kanban_view_rows",
@@ -192,8 +197,12 @@ class KanbanViewView(APIView):
         ) = prepare_kanban_view_parameters(request)
 
         model = view.table.get_model()
+        limit_linked_items = parse_limit_linked_items_params(request)
+        extra_kwargs = (
+            {"limit_linked_items": limit_linked_items} if limit_linked_items else None
+        )
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True
+            model, RowSerializer, is_response=True, extra_kwargs=extra_kwargs
         )
         rows = get_rows_grouped_by_single_select_field(
             view=view,

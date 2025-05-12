@@ -16,6 +16,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.handler import ViewIndexingHandler
 from baserow.contrib.database.views.models import GridView, View
 from baserow.contrib.database.views.registries import view_type_registry
@@ -1185,3 +1186,46 @@ def test_loading_a_sortable_view_will_create_an_index(
         assert response.status_code == HTTP_200_OK
 
     assert ViewIndexingHandler.does_index_exist(index.name) is True
+
+
+@pytest.mark.django_db
+def test_can_limit_linked_items_in_views(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+    grid = data_fixture.create_grid_view(user=user, table=table_a)
+    gallery = data_fixture.create_gallery_view(user=user, table=table_a)
+
+    rows_b = RowHandler().force_create_rows(user, table_b, [{}] * 3).created_rows
+    RowHandler().force_create_rows(
+        user, table_a, [{link_a_to_b.db_column: [row.id for row in rows_b]}]
+    )
+
+    grid_url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
+    resp = api_client.get(grid_url, HTTP_AUTHORIZATION=f"JWT {token}", format="json")
+    assert resp.status_code == HTTP_200_OK
+    assert len(resp.json()["results"][0][link_a_to_b.db_column]) == 3
+
+    # Limit the linked items to 2
+    resp = api_client.get(
+        f"{grid_url}?limit_linked_items=2",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        format="json",
+    )
+    assert resp.status_code == HTTP_200_OK
+    assert len(resp.json()["results"][0][link_a_to_b.db_column]) == 2
+
+    gallery_url = reverse(
+        "api:database:views:gallery:list", kwargs={"view_id": gallery.id}
+    )
+    resp = api_client.get(gallery_url, HTTP_AUTHORIZATION=f"JWT {token}", format="json")
+    assert resp.status_code == HTTP_200_OK
+    assert len(resp.json()["results"][0][link_a_to_b.db_column]) == 3
+
+    # Limit the linked items to 2
+    resp = api_client.get(
+        f"{gallery_url}?limit_linked_items=2",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        format="json",
+    )
+    assert resp.status_code == HTTP_200_OK
+    assert len(resp.json()["results"][0][link_a_to_b.db_column]) == 2

@@ -82,6 +82,7 @@ from baserow.contrib.database.api.fields.serializers import (
     LinkRowRequestSerializer,
     LinkRowValueSerializer,
     ListOrStringField,
+    ListSerializer,
     MustBeEmptyField,
     PasswordSerializer,
     SelectOptionSerializer,
@@ -1060,7 +1061,7 @@ class DateFieldType(FieldType):
             ),
         )
     }
-    serializer_extra_kwargs = {"date_force_timezone_offset": {"write_only": True}}
+    serializer_field_extra_kwargs = {"date_force_timezone_offset": {"write_only": True}}
     api_exceptions_map = {
         DateForceTimezoneOffsetValueError: ERROR_DATE_FORCE_TIMEZONE_OFFSET_ERROR
     }
@@ -2176,6 +2177,7 @@ class LinkRowFieldType(
         "link_row_table_primary_field",
         "link_row_multiple_relationships",
     ]
+    serializer_extra_args = ["limit_linked_items"]
     serializer_mixins = [LinkRowFieldSerializerMixin]
     serializer_field_overrides = {
         "link_row_table_id": serializers.IntegerField(
@@ -2786,6 +2788,8 @@ class LinkRowFieldType(
         """
 
         required = kwargs.pop("required", False)
+        kwargs.pop("limit_linked_items", None)  # This is not needed here.
+
         if instance.link_row_multiple_relationships is False:
             kwargs["max_length"] = 1
         return LinkRowRequestSerializer(required=required, **kwargs)
@@ -2803,21 +2807,24 @@ class LinkRowFieldType(
 
         link_row_join: LinkRowJoin = kwargs.pop("link_row_join", None)
         if link_row_join is None:
-            return serializers.ListSerializer(
-                child=LinkRowValueSerializer(), **{"required": False, **kwargs}
+            inner_serializer = LinkRowValueSerializer
+        else:
+            inner_serializer = type(
+                str("LinkRowLookupValueSerializer"),
+                (LinkRowValueSerializer,),
+                {
+                    f"{target_field.field_ref}": target_field.field_serializer
+                    for target_field in link_row_join.target_fields
+                },
             )
-        attrs = {
-            f"{target_field.field_ref}": target_field.field_serializer
-            for target_field in link_row_join.target_fields
-        }
-        base_class = LinkRowValueSerializer
-        inner_serializer = type(
-            str("LinkRowLookupValueSerializer"),
-            (base_class,),
-            attrs,
-        )
-        return serializers.ListSerializer(
-            child=inner_serializer(), **{"required": False, **kwargs}
+
+        return ListSerializer(
+            child=inner_serializer(),
+            **{
+                "required": False,
+                "limit": kwargs.pop("limit_linked_items", None),
+                **kwargs,
+            },
         )
 
     def get_serializer_help_text(self, instance):

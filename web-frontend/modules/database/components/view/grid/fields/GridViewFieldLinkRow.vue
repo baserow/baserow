@@ -1,5 +1,6 @@
 <template>
   <div
+    v-prevent-parent-scroll
     class="grid-view__cell grid-field-many-to-many__cell active"
     :class="{ invalid: removingRelationships }"
   >
@@ -35,8 +36,14 @@
           <i class="iconoir-cancel"></i>
         </a>
       </component>
+      <div
+        v-if="loadingAllValues"
+        class="grid-field-many-to-many__item--loading"
+      >
+        <div class="loading"></div>
+      </div>
       <a
-        v-if="canAccessLinkedTable && canAddValue"
+        v-if="!loadingAllValues && canAccessLinkedTable && canAddValue"
         class="grid-field-many-to-many__item grid-field-many-to-many__item--link"
         @click.prevent="showModal()"
       >

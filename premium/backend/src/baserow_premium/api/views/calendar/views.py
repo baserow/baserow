@@ -38,6 +38,7 @@ from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
 from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS,
     ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
+    LIMIT_LINKED_ITEMS_API_PARAM,
     SEARCH_MODE_API_PARAM,
 )
 from baserow.contrib.database.api.fields.errors import (
@@ -56,7 +57,10 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
 from baserow.contrib.database.api.views.serializers import ViewSerializer
-from baserow.contrib.database.api.views.utils import get_public_view_authorization_token
+from baserow.contrib.database.api.views.utils import (
+    get_public_view_authorization_token,
+    parse_limit_linked_items_params,
+)
 from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     FilterFieldNotFound,
@@ -155,6 +159,7 @@ class CalendarViewView(APIView):
             ),
             SEARCH_MODE_API_PARAM,
             *ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
+            LIMIT_LINKED_ITEMS_API_PARAM,
         ],
         tags=["Database table calendar view"],
         operation_id="list_database_table_calendar_view_rows",
@@ -240,8 +245,12 @@ class CalendarViewView(APIView):
             combine_filters=False,
         )
 
+        limit_linked_items = parse_limit_linked_items_params(request)
+        extra_kwargs = (
+            {"limit_linked_items": limit_linked_items} if limit_linked_items else None
+        )
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True
+            model, RowSerializer, is_response=True, extra_kwargs=extra_kwargs
         )
 
         grouped_rows_serialized = {}

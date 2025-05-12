@@ -36,9 +36,17 @@
 
   .grid-field-many-to-many__cell.active & {
     height: auto;
-    max-height: initial;
+    max-height: 300px;
+    overflow: auto;
     flex-wrap: wrap;
   }
+}
+
+.grid-field-many-to-many__item--loading {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .grid-field-many-to-many__item {

@@ -30,8 +30,11 @@
         </a>
       </li>
     </ul>
+    <div v-if="loadingAllValues" class="field-link-row__item--loading">
+      <div class="loading"></div>
+    </div>
     <a
-      v-if="!readOnly && canAddValue"
+      v-if="!loadingAllValues && !readOnly && canAddValue"
       class="add"
       @click.prevent="$refs.selectModal.show()"
     >

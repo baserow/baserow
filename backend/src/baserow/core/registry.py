@@ -143,10 +143,17 @@ class CustomFieldsInstanceMixin:
     This property is useful if you want to add some custom behaviour for example.
     """
 
-    serializer_extra_kwargs = None
+    serializer_field_extra_kwargs = None
     """
     The extra kwargs that must be added to the serializer fields. This property is
-    useful if you want to add some custom `write_only` field for example.
+    useful if you want to add some custom `write_only` attribute to a field for example.
+    """
+
+    serializer_extra_args = []
+    """
+    A list of extra args that can be passed to the serializer. This is useful if
+    you want to add some custom behaviour, like limiting the number of items returned by
+    a link row field, for example.
     """
 
     def __init__(self):
@@ -206,7 +213,7 @@ class CustomFieldsInstanceMixin:
             field_names,
             field_overrides=field_overrides,
             base_mixins=dynamic_serializer_mixins,
-            meta_extra_kwargs=self.serializer_extra_kwargs,
+            meta_extra_kwargs=self.serializer_field_extra_kwargs,
             meta_ref_name=meta_ref_name,
             base_class=base_class,
             *args,

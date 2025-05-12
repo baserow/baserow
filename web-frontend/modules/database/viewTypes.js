@@ -272,6 +272,23 @@ export class ViewType extends Registerable {
   rowCreated(context, tableId, fields, values, metadata, storePrefix) {}
 
   /**
+   * Event that is called when all row values are loaded. This is used when there
+   * are link row fields with a lot of values in the row. To keep the performance
+   * high, only a portion of the values are loaded at once. This event is called when
+   * all values are needed and then loaded.
+   */
+  async rowLoaded(
+    { store },
+    tableId,
+    fields,
+    row,
+    values,
+    metadata,
+    updatedFieldIds,
+    storePrefix = ''
+  ) {}
+
+  /**
    * Event that is called when a row is updated from an outside source, so for example
    * via a real time event by another user. It can be used to check if data in an store
    * needs to be updated.
@@ -747,6 +764,31 @@ export class GridViewType extends ViewType {
     }
   }
 
+  async rowLoaded(
+    { store },
+    tableId,
+    fields,
+    row,
+    values,
+    metadata,
+    updatedFieldIds,
+    storePrefix = ''
+  ) {
+    if (this.isCurrentView(store, tableId)) {
+      await store.dispatch(
+        storePrefix + 'view/' + this.getType() + '/updatedExistingRow',
+        {
+          view: store.getters['view/getSelected'],
+          fields,
+          row,
+          values,
+          metadata,
+          updatedFieldIds,
+        }
+      )
+    }
+  }
+
   async rowUpdated(
     { store },
     tableId,
@@ -992,6 +1034,29 @@ export const BaseBufferedRowViewTypeMixin = (Base) =>
           {
             view: store.getters['view/getSelected'],
             fields,
+            values,
+          }
+        )
+      }
+    }
+
+    async rowLoaded(
+      { store },
+      tableId,
+      fields,
+      row,
+      values,
+      metadata,
+      updatedFieldIds,
+      storePrefix = ''
+    ) {
+      if (this.isCurrentView(store, tableId)) {
+        await store.dispatch(
+          storePrefix + 'view/' + this.getType() + '/afterExistingRowUpdated',
+          {
+            view: store.getters['view/getSelected'],
+            fields,
+            row,
             values,
           }
         )

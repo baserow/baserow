@@ -185,6 +185,26 @@ export class KanbanViewType extends PremiumViewType {
     }
   }
 
+  async rowLoaded(
+    { store },
+    tableId,
+    fields,
+    row,
+    values,
+    metadata,
+    updatedFieldIds,
+    storePrefix = ''
+  ) {
+    if (this.isCurrentView(store, tableId)) {
+      await store.dispatch(storePrefix + 'view/kanban/updatedExistingRow', {
+        view: store.getters['view/getSelected'],
+        fields,
+        row,
+        values,
+      })
+    }
+  }
+
   async rowUpdated(
     { store },
     tableId,
@@ -395,6 +415,26 @@ export class CalendarViewType extends PremiumViewType {
         view: store.getters['view/getSelected'],
         values,
         fields,
+      })
+    }
+  }
+
+  async rowLoaded(
+    { store },
+    tableId,
+    fields,
+    row,
+    values,
+    metadata,
+    updatedFieldIds,
+    storePrefix = ''
+  ) {
+    if (this.isCurrentView(store, tableId)) {
+      await store.dispatch(storePrefix + 'view/calendar/updatedExistingRow', {
+        view: store.getters['view/getSelected'],
+        fields,
+        row,
+        values,
       })
     }
   }

@@ -264,3 +264,13 @@ EXCLUDE_FIELDS_API_PARAM = OpenApiParameter(
         "response. "
     ),
 )
+
+LIMIT_LINKED_ITEMS_API_PARAM = OpenApiParameter(
+    name="limit_linked_items",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.INT,
+    description=(
+        "If provided, the number of linked rows to return. If not provided, "
+        "all linked rows will be returned."
+    ),
+)
