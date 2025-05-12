@@ -60,6 +60,10 @@ export default function (
           include: /node_modules/,
           type: 'javascript/auto',
         })
+        config.resolve.alias = {
+          ...(config.resolve.alias || {}),
+          '@vue2-flow/core': require.resolve('@vue2-flow/core'),
+        }
       },
       babel: { compact: true },
       transpile: [
@@ -69,8 +73,7 @@ export default function (
         'vue-chartjs',
         'chart.js',
         '@vue2-flow/core',
-        '@vue2-flow/background',
-      ],
-    },
+        ],
+      },
   }
 }

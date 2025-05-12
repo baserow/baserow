@@ -52,8 +52,6 @@ services:
 
   web-frontend:
     image: baserow_web-frontend_dev:latest
-    environment:
-      GITLAB_NPM_TOKEN: ${GITLAB_NPM_TOKEN}
     build:
       dockerfile: ./web-frontend/Dockerfile
       context: .
@@ -63,7 +61,6 @@ services:
         # reducing the chance the containers screw up the bind mounted folders.
         UID: $UID
         GID: $GID
-        GITLAB_NPM_TOKEN: ${GITLAB_NPM_TOKEN}
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
     volumes:
@@ -94,7 +91,6 @@ services:
         # reducing the chance the containers screw up the bind mounted folders.
         UID: $UID
         GID: $GID
-        GITLAB_NPM_TOKEN: ${GITLAB_NPM_TOKEN}
     command: "storybook-dev"
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:6006:6006"
@@ -223,7 +219,6 @@ services:
         # reducing the chance the containers screw up the bind mounted folders.
         UID: $UID
         GID: $GID
-        GITLAB_NPM_TOKEN: ${GITLAB_NPM_TOKEN}
       context: .
       dockerfile: ./web-frontend/Dockerfile
     image: baserow_web-frontend:latest

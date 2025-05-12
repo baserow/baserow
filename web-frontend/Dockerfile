@@ -4,8 +4,6 @@ ARG UID
 ENV UID=${UID:-9999}
 ARG GID
 ENV GID=${GID:-9999}
-ARG GITLAB_NPM_TOKEN
-ENV GITLAB_NPM_TOKEN=${GITLAB_NPM_TOKEN}
 
 
 # Perform all OS package installation and cleanup in one single command to reduce the
@@ -36,12 +34,12 @@ ENV BASEROW_IMAGE_TYPE="web-frontend"
 USER $UID:$GID
 
 # Create and install the dependencies in separate COPY commands
-COPY --chown=$UID:$GID ./web-frontend/package.json ./web-frontend/yarn.lock ./web-frontend/.yarnrc ./web-frontend/.npmrc  /baserow/web-frontend/
+COPY --chown=$UID:$GID ./web-frontend/package.json ./web-frontend/yarn.lock /baserow/web-frontend/
 
 WORKDIR /baserow/web-frontend
 
 # We still need dev-dependencies as we will be running a nuxt build below
-RUN yarn install  && yarn cache clean
+RUN yarn install && yarn cache clean
 
 COPY --chown=$UID:$GID ./web-frontend /baserow/web-frontend/
 COPY --chown=$UID:$GID ./premium/web-frontend /baserow/premium/web-frontend/
