@@ -135,10 +135,16 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
             {"count": 1, "field_positive_decimal": "1.2"},
             {"count": 1, "field_positive_decimal": None},
         ],
+        "decimal_with_default": [
+            {"count": 2, "field_decimal_with_default": "1.8"},
+        ],
         "rating": [{"count": 1, "field_rating": 0}, {"count": 1, "field_rating": 3}],
         "boolean": [
             {"count": 1, "field_boolean": False},
             {"count": 1, "field_boolean": True},
+        ],
+        "boolean_with_default": [
+            {"count": 2, "field_boolean_with_default": True},
         ],
         "datetime_us": [
             {"count": 1, "field_datetime_us": "2020-02-01T01:23:00Z"},

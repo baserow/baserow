@@ -957,6 +957,19 @@ class FieldType(
 
         return self.serialize_to_input_value(field, value)
 
+    def serialize_allowed_fields(self, field: Field) -> Dict[str, Any]:
+        """
+        Serializes the allowed fields of the field to a serialized dict.
+
+        :param field: The field instance that must be serialized.
+        :return: The serialized dict of the allowed fields.
+        """
+
+        serialized = {}
+        for field_name in self.allowed_fields:
+            serialized[field_name] = getattr(field, field_name)
+        return serialized
+
     def export_serialized(
         self, field: Field, include_allowed_fields: bool = True
     ) -> Dict[str, Any]:
@@ -983,8 +996,7 @@ class FieldType(
         }
 
         if include_allowed_fields:
-            for field_name in self.allowed_fields:
-                serialized[field_name] = getattr(field, field_name)
+            serialized.update(self.serialize_allowed_fields(field))
 
         if self.can_have_select_options:
             serialized["select_options"] = [

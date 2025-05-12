@@ -324,6 +324,7 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
         json.dumps(
             {
                 "boolean": True,
+                "boolean_with_default": True,
                 "date_eu": "2020-02-01",
                 "date_us": "2020-02-01",
                 "datetime_eu": "2020-02-01T01:23:00Z",
@@ -347,6 +348,7 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                     {"id": 2, "value": "-123.456", "order": "2.00000000000000000000"},
                     {"id": 3, "value": "", "order": "3.00000000000000000000"},
                 ],
+                "decimal_with_default": "1.8",
                 "duration_hm": 3660.0,
                 "duration_hms": 3666.0,
                 "duration_hms_s": 3666.6,

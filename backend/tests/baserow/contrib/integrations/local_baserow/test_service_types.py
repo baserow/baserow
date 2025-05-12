@@ -183,6 +183,16 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "metadata": {},
             "type": "string",
         },
+        field_db_column_by_name["decimal_with_default"]: {
+            "title": "decimal_with_default",
+            "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
+            "original_type": "number",
+            "metadata": {},
+            "type": "string",
+        },
         field_db_column_by_name["rating"]: {
             "title": "rating",
             "default": None,
@@ -195,6 +205,16 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         },
         field_db_column_by_name["boolean"]: {
             "title": "boolean",
+            "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
+            "original_type": "boolean",
+            "metadata": {},
+            "type": "boolean",
+        },
+        field_db_column_by_name["boolean_with_default"]: {
+            "title": "boolean_with_default",
             "default": None,
             "searchable": True,
             "sortable": True,

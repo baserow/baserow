@@ -43,8 +43,10 @@ def test_can_export_every_interesting_different_field_to_json(
     "positive_int": "",
     "negative_decimal": "",
     "positive_decimal": "",
+    "decimal_with_default": "1.8",
     "rating": 0,
     "boolean": false,
+    "boolean_with_default": true,
     "datetime_us": "",
     "date_us": "",
     "datetime_eu": "",
@@ -122,8 +124,10 @@ def test_can_export_every_interesting_different_field_to_json(
     "positive_int": 1,
     "negative_decimal": "-1.2",
     "positive_decimal": "1.2",
+    "decimal_with_default": "1.8",
     "rating": 3,
     "boolean": true,
+    "boolean_with_default": true,
     "datetime_us": "02/01/2020 01:23",
     "date_us": "02/01/2020",
     "datetime_eu": "01/02/2020 01:23",
@@ -353,8 +357,10 @@ def test_can_export_every_interesting_different_field_to_xml(
       <positive-int/>
       <negative-decimal/>
       <positive-decimal/>
+      <decimal-with-default>1.8</decimal-with-default>
       <rating>0</rating>
       <boolean>false</boolean>
+      <boolean-with-default>true</boolean-with-default>
       <datetime-us/>
       <date-us/>
       <datetime-eu/>
@@ -432,8 +438,10 @@ def test_can_export_every_interesting_different_field_to_xml(
       <positive-int>1</positive-int>
       <negative-decimal>-1.2</negative-decimal>
       <positive-decimal>1.2</positive-decimal>
+      <decimal-with-default>1.8</decimal-with-default>
       <rating>3</rating>
       <boolean>true</boolean>
+      <boolean-with-default>true</boolean-with-default>
       <datetime-us>02/01/2020 01:23</datetime-us>
       <date-us>02/01/2020</date-us>
       <datetime-eu>01/02/2020 01:23</datetime-eu>
@@ -741,8 +749,10 @@ def test_can_export_every_interesting_different_field_to_excel(
         "positive_int",
         "negative_decimal",
         "positive_decimal",
+        "decimal_with_default",
         "rating",
         "boolean",
+        "boolean_with_default",
         "datetime_us",
         "date_us",
         "datetime_eu",
@@ -816,8 +826,10 @@ def test_can_export_every_interesting_different_field_to_excel(
         None,
         None,
         None,
+        "1.8",
         "0",
         "False",
+        "True",
         None,
         None,
         None,
@@ -891,7 +903,9 @@ def test_can_export_every_interesting_different_field_to_excel(
         "1",
         "-1.2",
         "1.2",
+        "1.8",
         "3",
+        "True",
         "True",
         "02/01/2020 01:23",
         "02/01/2020",

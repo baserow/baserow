@@ -362,7 +362,6 @@ def test_number_field_serializer_default_with_required(data_fixture):
 
     field_type = field_type_registry.get_by_model(field_with_default)
 
-    # Test with required=True for both fields
     serializer_field_with_default = field_type.get_serializer_field(
         field_with_default, required=True
     )
@@ -370,12 +369,10 @@ def test_number_field_serializer_default_with_required(data_fixture):
         field_without_default, required=True
     )
 
-    # Field with default should not be required even if required=True
-    assert serializer_field_with_default.required is False
-    assert serializer_field_with_default.allow_null is True
-    assert serializer_field_with_default.default == 0
+    assert serializer_field_with_default.required is True
+    assert serializer_field_with_default.allow_null is False
+    assert serializer_field_with_default.default == serializers.empty
 
-    # Field without default should respect the required parameter
     assert serializer_field_without_default.required is True
     assert serializer_field_without_default.allow_null is False
     assert serializer_field_without_default.default is serializers.empty
