@@ -1242,8 +1242,7 @@ export class InputTextElementType extends FormElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    const displayValue =
-      element.label || element.default_value || element.placeholder
+    const displayValue = element.label || element.placeholder
 
     if (displayValue?.trim()) {
       const resolvedName = ensureString(
@@ -1702,8 +1701,7 @@ export class ChoiceElementType extends FormElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    const displayValue =
-      element.label || element.default_value || element.placeholder
+    const displayValue = element.label || element.placeholder
 
     if (displayValue) {
       const resolvedName = ensureString(
@@ -1962,8 +1960,7 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
   }
 
   getDisplayName(element, applicationContext) {
-    const displayValue =
-      element.label || element.default_value || element.placeholder
+    const displayValue = element.label || element.placeholder
 
     if (displayValue) {
       const resolvedName = ensureString(
@@ -1971,6 +1968,7 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
       ).trim()
       return resolvedName || this.name
     }
+
     return this.name
   }
 
