@@ -2,7 +2,7 @@ from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
-    HTTP_503_SERVICE_UNAVAILABLE,
+    HTTP_409_CONFLICT,
 )
 
 ERROR_TOKEN_DOES_NOT_EXIST = (
@@ -24,6 +24,7 @@ ERROR_CANNOT_INCLUDE_ROW_METADATA = (
 
 ERROR_DATABASE_DEADLOCK = (
     "ERROR_DATABASE_DEADLOCK",
-    HTTP_503_SERVICE_UNAVAILABLE,
-    "The database failed to commit the transaction due to a deadlock.",
+    HTTP_409_CONFLICT,
+    "The requested resource is already being updated or used by another operation, "
+    "please try again after other concurrent operations have finished.",
 )
