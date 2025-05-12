@@ -581,6 +581,16 @@ class NumberFieldType(FieldType):
     _db_column_fields = ["number_decimal_places"]
     can_upsert = True
 
+    def serialize_allowed_fields(self, field: Field) -> Dict[str, Any]:
+        serialized = {}
+        for field_name in self.allowed_fields:
+            value = getattr(field, field_name)
+            # number default is Decimal
+            if field_name == "number_default" and value is not None:
+                value = str(value)
+            serialized[field_name] = value
+        return serialized
+
     def serialize_to_input_value(self, field: Field, value: any) -> any:
         if field.specific.number_decimal_places == 0:
             return int(value)
@@ -628,18 +638,14 @@ class NumberFieldType(FieldType):
         if not instance.number_negative:
             kwargs["min_value"] = Decimal("0")
 
-        default = instance.number_default
-        if default is not None:
-            required = False
-        else:
-            default = serializers.empty
+        if not required and instance.number_default is not None:
+            kwargs["default"] = instance.number_default
 
         return serializers.DecimalField(
             **{
                 "max_digits": self.MAX_DIGITS + kwargs["decimal_places"],
                 "required": required,
                 "allow_null": not required,
-                "default": default,
                 **kwargs,
             }
         )
@@ -987,9 +993,9 @@ class BooleanFieldType(FieldType):
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
-        return BaserowBooleanField(
-            **{"required": required, "default": instance.boolean_default, **kwargs}
-        )
+        if not required:
+            kwargs["default"] = instance.boolean_default
+        return BaserowBooleanField(**{"required": required, **kwargs})
 
     def get_model_field(self, instance, **kwargs):
         return models.BooleanField(default=instance.boolean_default, **kwargs)

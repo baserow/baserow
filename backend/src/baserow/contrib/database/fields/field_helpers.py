@@ -48,11 +48,23 @@ def construct_all_possible_field_kwargs(
                 "number_negative": False,
                 "number_decimal_places": 1,
             },
+            {
+                "name": "decimal_with_default",
+                "number_negative": False,
+                "number_decimal_places": 1,
+                "number_default": 1.8,
+            },
         ],
         "rating": [
             {"name": "rating", "max_value": 5, "color": "blue", "style": "star"}
         ],
-        "boolean": [{"name": "boolean"}],
+        "boolean": [
+            {"name": "boolean"},
+            {
+                "name": "boolean_with_default",
+                "boolean_default": True,
+            },
+        ],
         "date": [
             {"name": "datetime_us", "date_include_time": True, "date_format": "US"},
             {"name": "date_us", "date_include_time": False, "date_format": "US"},
