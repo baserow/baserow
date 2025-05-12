@@ -1,7 +1,7 @@
 import contextvars
-import traceback
 
 from asgiref.sync import sync_to_async
+from loguru import logger
 from mcp.server.lowlevel.server import Server
 from mcp.server.lowlevel.server import lifespan as default_lifespan
 from mcp.types import TextContent
@@ -125,8 +125,10 @@ class BaserowMCPServer:
                         streams[1],
                         self._mcp_server.create_initialization_options(),
                     )
+
             except Exception as e:
-                traceback.print_exception(type(e), e, e.__traceback__)
+                logger.exception(e)
+                return Response(f"Endpoint error", status_code=500)
             finally:
                 # Reset the context variable when done
                 current_key.reset(key_ctx)
