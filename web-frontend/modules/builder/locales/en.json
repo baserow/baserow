@@ -410,6 +410,10 @@
     "alignmentCenter": "Center",
     "alignmentRight": "Right"
   },
+  "borderRadiusSelector": {
+    "percent": "Percent",
+    "pixel": "Pixel"
+  },
   "verticalAlignmentSelector": {
     "alignmentTop": "Top",
     "alignmentCenter": "Middle",
@@ -643,7 +647,11 @@
     "imageConstraintContain": "Contain",
     "imageConstraintContainDisabled": "Unavailable with a max height.",
     "imageBorderRadiusLabel": "Border radius",
-    "imageBorderRadiusPlaceholder": "Enter the image border radius."
+    "imageBorderRadiusPercentPlaceholder": "Enter the image border radius percentage.",
+    "imageBorderRadiusPixelPlaceholder": "Enter the image border radius pixels.",
+    "imageBorderRadiusType": "Border radius type",
+    "imageBorderRadiusTypePercent": "Pixel",
+    "imageBorderRadiusTypePixel": "Percent"
   },
   "tableThemeConfigBlock": {
     "borderColor": "Border color",

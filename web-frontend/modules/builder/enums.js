@@ -53,6 +53,11 @@ export const ALLOWED_LINK_PROTOCOLS = [
   'tel:',
 ]
 
+export const BORDER_RADIUS_TYPES = {
+  PIXEL: 'pixel',
+  PERCENT: 'percent',
+}
+
 export const TEXT_FORMAT_TYPES = {
   PLAIN: 'plain',
   MARKDOWN: 'markdown',

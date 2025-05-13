@@ -124,22 +124,81 @@
           horizontal-narrow
           small-label
           required
+          :label="$t('imageThemeConfigBlock.imageBorderRadiusType')"
+          class="margin-bottom-2"
+        >
+          <BorderRadiusSelector v-model="values.image_border_radius_type" />
+
+          <template #after-input>
+            <ResetButton
+              v-model="values.image_border_radius_type"
+              :default-value="theme?.image_border_radius_type"
+            />
+          </template>
+        </FormGroup>
+
+        <FormGroup
+          v-if="showBorderRadiusPercent"
+          horizontal-narrow
+          small-label
+          required
           class="margin-bottom-2"
           :label="$t('imageThemeConfigBlock.imageBorderRadiusLabel')"
-          :error="fieldHasErrors('image_border_radius')"
+          :error="fieldHasErrors('image_border_radius_percent')"
         >
           <FormInput
-            v-model="values.image_border_radius"
+            v-model="v$.values.image_border_radius_percent.$model"
             :default-value-when-empty="
-              defaultValuesWhenEmpty[`image_border_radius`]
+              defaultValuesWhenEmpty[`image_border_radius_percent`]
             "
-            :error="fieldHasErrors('image_border_radius')"
+            :error="fieldHasErrors('image_border_radius_percent')"
             type="number"
-            :min="0"
-            :max="100"
+            :min="defaultValuesWhenEmpty.image_border_radius_percent.min"
+            :max="defaultValuesWhenEmpty.image_border_radius_percent.max"
             remove-number-input-controls
             :placeholder="
-              $t('imageThemeConfigBlock.imageBorderRadiusPlaceholder')
+              $t('imageThemeConfigBlock.imageBorderRadiusPercentPlaceholder')
+            "
+            :to-value="(value) => (value ? parseInt(value) : null)"
+          >
+            <template #suffix>
+              <i class="iconoir-percentage"></i>
+            </template>
+          </FormInput>
+
+          <template #after-input>
+            <ResetButton
+              v-model="values.image_border_radius_percent"
+              :default-value="theme?.image_border_radius_percent"
+            />
+          </template>
+
+          <template #error>
+            {{ v$.values.image_border_radius_percent.$errors[0].$message }}
+          </template>
+        </FormGroup>
+
+        <FormGroup
+          v-if="showBorderRadiusPixel"
+          horizontal-narrow
+          small-label
+          required
+          class="margin-bottom-2"
+          :label="$t('imageThemeConfigBlock.imageBorderRadiusLabel')"
+          :error="fieldHasErrors('image_border_radius_pixel')"
+        >
+          <FormInput
+            v-model="v$.values.image_border_radius_pixel.$model"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`image_border_radius_pixel`]
+            "
+            :error="fieldHasErrors('image_border_radius_pixel')"
+            type="number"
+            :min="defaultValuesWhenEmpty.image_border_radius_pixel.min"
+            :max="defaultValuesWhenEmpty.image_border_radius_pixel.max"
+            remove-number-input-controls
+            :placeholder="
+              $t('imageThemeConfigBlock.imageBorderRadiusPixelPlaceholder')
             "
             :to-value="(value) => (value ? parseInt(value) : null)"
           >
@@ -148,13 +207,13 @@
 
           <template #after-input>
             <ResetButton
-              v-model="values.image_border_radius"
-              :default-value="theme?.image_border_radius"
+              v-model="values.image_border_radius_pixel"
+              :default-value="theme?.image_border_radius_pixel"
             />
           </template>
 
           <template #error>
-            {{ v$.values.image_border_radius.$errors[0].$message }}
+            {{ v$.values.image_border_radius_pixel.$errors[0].$message }}
           </template>
         </FormGroup>
       </template>
@@ -171,7 +230,11 @@ import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
-import { IMAGE_SOURCE_TYPES } from '@baserow/modules/builder/enums'
+import BorderRadiusSelector from '@baserow/modules/builder/components/BorderRadiusSelector.vue'
+import {
+  IMAGE_SOURCE_TYPES,
+  BORDER_RADIUS_TYPES,
+} from '@baserow/modules/builder/enums'
 import {
   integer,
   maxValue,
@@ -189,7 +252,11 @@ const minMax = {
     min: 5,
     max: 3000,
   },
-  image_border_radius: {
+  image_border_radius_percent: {
+    min: 0,
+    max: 50,
+  },
+  image_border_radius_pixel: {
     min: 0,
     max: 100,
   },
@@ -198,6 +265,7 @@ const minMax = {
 export default {
   name: 'ImageThemeConfigBlock',
   components: {
+    BorderRadiusSelector,
     ThemeConfigBlockSection,
     ResetButton,
     HorizontalAlignmentsSelector,
@@ -213,23 +281,48 @@ export default {
         image_max_width: this.theme?.image_max_width,
         image_max_height: this.theme?.image_max_height,
         image_constraint: this.theme?.image_constraint,
-        image_border_radius: this.theme?.image_border_radius,
+        image_border_radius_type: this.theme?.image_border_radius_type,
+        image_border_radius_pixel: this.theme?.image_border_radius_pixel,
+        image_border_radius_percent: this.theme?.image_border_radius_percent,
       },
       allowedValues: [
         'image_alignment',
         'image_max_width',
         'image_max_height',
         'image_constraint',
-        'image_border_radius',
+        'image_border_radius_pixel',
+        'image_border_radius_percent',
+        'image_border_radius_type',
       ],
       defaultValuesWhenEmpty: {
         image_min_width: minMax.image_width.min,
         image_min_height: minMax.image_height.min,
-        image_border_radius: minMax.image_border_radius.min,
+        image_border_radius_pixel: minMax.image_border_radius_pixel.min,
+        image_border_radius_percent: minMax.image_border_radius_percent.min,
       },
     }
   },
   computed: {
+    borderRadiusTypes() {
+      return [
+        {
+          label: this.$t('imageThemeConfigBlock.imageBorderRadiusTypePixel'),
+          value: BORDER_RADIUS_TYPES.PIXEL,
+        },
+        {
+          label: this.$t('imageThemeConfigBlock.imageBorderRadiusTypePercent'),
+          value: BORDER_RADIUS_TYPES.PERCENT,
+        },
+      ]
+    },
+    showBorderRadiusPixel() {
+      return this.values.image_border_radius_type === BORDER_RADIUS_TYPES.PIXEL
+    },
+    showBorderRadiusPercent() {
+      return (
+        this.values.image_border_radius_type === BORDER_RADIUS_TYPES.PERCENT
+      )
+    },
     imageMaxHeight: {
       get() {
         return this.values.image_max_height
@@ -338,19 +431,34 @@ export default {
         },
         image_constraint: {},
         image_alignment: {},
-        image_border_radius: {
+        image_border_radius_percent: {
           integer: helpers.withMessage(this.$t('error.integerField'), integer),
           minValue: helpers.withMessage(
             this.$t('error.minValueField', {
-              min: minMax.image_border_radius.min,
+              min: minMax.image_border_radius_percent.min,
             }),
-            minValue(minMax.image_border_radius.min)
+            minValue(minMax.image_border_radius_percent.min)
           ),
           maxValue: helpers.withMessage(
-            this.$t('error.minValueField', {
-              min: minMax.image_border_radius.max,
+            this.$t('error.maxValueField', {
+              max: minMax.image_border_radius_percent.max,
             }),
-            minValue(minMax.image_border_radius.min)
+            maxValue(minMax.image_border_radius_percent.max)
+          ),
+        },
+        image_border_radius_pixel: {
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', {
+              min: minMax.image_border_radius_pixel.min,
+            }),
+            minValue(minMax.image_border_radius_pixel.min)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', {
+              max: minMax.image_border_radius_pixel.max,
+            }),
+            maxValue(minMax.image_border_radius_pixel.max)
           ),
         },
       },
