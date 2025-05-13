@@ -9,8 +9,7 @@ from baserow.contrib.database.rows.models import RowHistory
 from baserow.contrib.database.rows.types import ActionData
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
-
-from .types import AnyUser
+from baserow.core.types import AnyUser
 
 
 class RowMetadataRegistry(Registry):
@@ -150,7 +149,7 @@ class RowHistoryProviderType(Instance, abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_row_history(self, user: "AnyUser", params: ActionData) -> list[RowHistory]:
+    def get_row_history(self, user: AnyUser, params: ActionData) -> list[RowHistory]:
         """
         Returns a list of RowHistory instances related to the action.
         """

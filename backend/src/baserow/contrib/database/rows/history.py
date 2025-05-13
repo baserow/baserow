@@ -2,7 +2,6 @@ from datetime import datetime
 from itertools import groupby
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 from django.dispatch import receiver
 
@@ -19,6 +18,7 @@ from baserow.contrib.database.rows.types import ActionData
 from baserow.core.action.signals import action_done
 from baserow.core.models import Workspace
 from baserow.core.telemetry.utils import baserow_trace
+from baserow.core.types import AnyUser
 
 tracer = trace.get_tracer(__name__)
 
@@ -28,7 +28,7 @@ class RowHistoryHandler:
     @baserow_trace(tracer)
     def record_history_from_rows_action(
         cls,
-        user: AbstractUser,
+        user: AnyUser,
         action: ActionData,
         row_history_provider: RowHistoryProviderType,
     ):

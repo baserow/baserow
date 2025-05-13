@@ -24,7 +24,6 @@ from baserow.contrib.database.rows.models import RowHistory
 from baserow.contrib.database.rows.registries import RowHistoryProviderType
 from baserow.contrib.database.rows.types import (
     ActionData,
-    AnyUser,
     RelatedRowsDiff,
     RowChangeDiff,
 )
@@ -32,6 +31,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.action.registries import ActionType, action_type_registry
 from baserow.core.action.signals import ActionCommandType
 from baserow.core.trash.actions import RestoreFromTrashActionType  # noqa
+from baserow.core.types import AnyUser
 
 
 class RowChangeData(NamedTuple):

@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, NamedTuple, NewType, TypedDict, TypeVar
 
-from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.db.models import QuerySet
 
 from baserow.contrib.database.table.models import GeneratedTableModel
@@ -79,4 +78,3 @@ class RowChangeDiff(NamedTuple):
 
 
 ActionTypeVar = TypeVar("ActionTypeVar", bound=ActionType)
-AnyUser = AbstractUser | AnonymousUser
