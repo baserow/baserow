@@ -45,6 +45,9 @@ const REFRESH_ROW_DELAY = 1000
  * @param fieldsInOrder a list of fields used
  * @param registry
  * @param fromRows (optional) a list of existing rows which will be used to pre-populate
+ * @param forUpdate (optional) if true, the values will be prepared to be used for an update
+ * request. If false, the values won't be prepared and will contain the rich values prepared
+ * for paste.
  *  rows
  * @returns {*[]}
  */
@@ -54,6 +57,7 @@ function populateRows({
   fieldsInOrder,
   registry,
   fromRows,
+  forUpdate = true,
 }) {
   const newRows = []
 
@@ -80,7 +84,11 @@ function populateRows({
         textValue,
         jsonValue
       )
-      row[fieldId] = fieldType.prepareValueForUpdate(field, preparedValue)
+      if (forUpdate) {
+        row[fieldId] = fieldType.prepareValueForUpdate(field, preparedValue)
+      } else {
+        row[fieldId] = preparedValue
+      }
     })
     newRows.push(row)
   })
@@ -2688,6 +2696,7 @@ export const actions = {
           jsonData: jsonDataToCreate,
           fieldsInOrder,
           registry: this.$registry,
+          forUpdate: false,
         }),
         selectPrimaryCell: false,
         undoRedoActionGroupId,

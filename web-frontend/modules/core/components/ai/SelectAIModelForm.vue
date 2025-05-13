@@ -119,7 +119,7 @@ export default {
       values: {
         ai_generative_ai_type: null,
         ai_generative_ai_model: null,
-        ai_temperature: null,
+        ai_temperature: 0.1,
       },
       temperature: null,
     }
@@ -139,11 +139,7 @@ export default {
       })
     },
     aIModelsPerType() {
-      return (
-        this.workspace.generative_ai_models_enabled[
-          this.values.ai_generative_ai_type
-        ] || []
-      )
+      return this.getAIModelsPerType(this.values.ai_generative_ai_type)
     },
     maxTemperature() {
       if (!this.values.ai_generative_ai_type) {
@@ -175,6 +171,19 @@ export default {
           }
         }
       }
+    },
+  },
+  mounted() {
+    if (!this.values.ai_generative_ai_type && this.aITypes.length > 0) {
+      const aiType = this.aITypes[0].getType()
+      this.values.ai_generative_ai_type = aiType
+      const aiModels = this.getAIModelsPerType(aiType)
+      this.values.ai_generative_ai_model = aiModels[0] || null
+    }
+  },
+  methods: {
+    getAIModelsPerType(aiType) {
+      return this.workspace.generative_ai_models_enabled[aiType] || []
     },
   },
   validations() {

@@ -22,8 +22,9 @@
       :is="outputGridViewFieldComponent"
       v-else
       ref="cell"
+      :read-only="readOnly || generating"
       v-bind="$props"
-      :read-only="true"
+      v-on="$listeners"
     >
       <template v-if="!readOnly && editing" #default="{ editing }">
         <div style="background-color: #fff; padding: 8px">
@@ -76,11 +77,27 @@ export default {
         .getGridViewFieldComponent(this.field)
     },
   },
+  watch: {
+    value(newValue) {
+      const outputType = this.$registry.get(
+        'aiFieldOutputType',
+        this.field.ai_output_type
+      )
+      this.$nextTick(() => {
+        if (this.$refs.cell) {
+          outputType.updateValue(this.$refs.cell, newValue)
+        }
+      })
+    },
+  },
   methods: {
     save() {
       this.opened = false
       this.editing = false
       this.afterSave()
+    },
+    canSaveByPressingEnter(event) {
+      return this.$refs.cell.canSaveByPressingEnter(event)
     },
     canUnselectByClickingOutside(event) {
       if (this.isDeactivated && this.workspace) {
