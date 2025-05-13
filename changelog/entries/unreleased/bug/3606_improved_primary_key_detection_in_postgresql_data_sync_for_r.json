@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Improved primary key detection in PostgreSQL data sync for roles that are not owners of synchronized table",
+    "domain": "database",
+    "issue_number": 3606,
+    "bullet_points": [],
+    "created_at": "2025-05-09"
+}

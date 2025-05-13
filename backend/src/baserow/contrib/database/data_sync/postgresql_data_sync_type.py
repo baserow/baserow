@@ -187,6 +187,46 @@ class PostgreSQLDataSyncType(DataSyncType):
             if connection:
                 connection.close()
 
+    def _get_primary_columns(self, cursor, instance: PostgreSQLDataSync) -> list[str]:
+        """
+        Returns a list of columns that are primary keys for a synchronized table.
+
+        If a table doesn't have primary key, the list will be empty.
+        """
+
+        for orimary_key_query in (
+            # This query uses pg_catalog, which can change between PostgreSQL version.
+            # This should work for cases when a role is not the owner of the table.
+            """
+                        SELECT a.attname
+                        FROM   pg_catalog.pg_index i
+                        JOIN   pg_catalog.pg_attribute a ON a.attrelid = i.indrelid
+                                AND a.attnum = ANY(i.indkey)
+                        JOIN pg_catalog.pg_type t on t.typrelid = i.indrelid
+                        JOIN pg_catalog.pg_namespace n on n.oid = t.typnamespace
+                        WHERE n.nspname = %s
+                          AND t.typname = %s
+                          AND    i.indisprimary;
+            """,
+            # Fallback query, if the first one won't return any results.
+            """
+                        SELECT kcu.column_name
+                        FROM information_schema.table_constraints tc
+                                 JOIN information_schema.key_column_usage kcu
+                                      ON tc.constraint_name = kcu.constraint_name
+                        WHERE tc.table_schema = %s
+                          AND tc.table_name = %s
+                          AND tc.constraint_type = 'PRIMARY KEY';
+            """,
+        ):
+            cursor.execute(
+                orimary_key_query,
+                (instance.postgresql_schema, instance.postgresql_table),
+            )
+            if result := list(cursor.fetchall()):
+                return [row[0] for row in result]
+        return []
+
     def _get_table_columns(self, instance):
         with self._connection(instance) as cursor:
             exists_query = """
@@ -206,20 +246,7 @@ class PostgreSQLDataSyncType(DataSyncType):
                     f"The table {instance.postgresql_table} does not exist."
                 )
 
-            primary_query = """
-                SELECT kcu.column_name
-                FROM information_schema.table_constraints tc
-                JOIN information_schema.key_column_usage kcu
-                ON tc.constraint_name = kcu.constraint_name
-                WHERE tc.table_schema = %s
-                AND tc.table_name = %s
-                AND tc.constraint_type = 'PRIMARY KEY';
-            """
-
-            cursor.execute(
-                primary_query, (instance.postgresql_schema, instance.postgresql_table)
-            )
-            primary_columns = [result[0] for result in cursor.fetchall()]
+            primary_columns = self._get_primary_columns(cursor, instance)
 
             columns_query = """
                 SELECT column_name, data_type, numeric_scale
