@@ -245,11 +245,11 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         )
 
     def get_group_by_field_filters_and_annotations(
-        self, field, field_name, base_queryset, value
+        self, field, field_name, base_queryset, value, cte, rows
     ):
         baserow_field_type = self.get_baserow_field_type(field)
         return baserow_field_type.get_group_by_field_filters_and_annotations(
-            field, field_name, base_queryset, value
+            field, field_name, base_queryset, value, cte, rows
         )
 
     def get_export_serialized_value(

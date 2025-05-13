@@ -3633,6 +3633,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         qs_per_level = defaultdict(lambda: Q())
         unique_value_per_level = defaultdict(set)
         all_annotations = {}
+        cte = {}
 
         for row in rows:
             all_values = tuple()
@@ -3657,7 +3658,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                         filters,
                         annotations,
                     ) = field_type.get_group_by_field_filters_and_annotations(
-                        field, field_name, base_queryset, unique_value
+                        field, field_name, base_queryset, unique_value, cte, rows
                     )
 
                     all_filters.update(**filters)
@@ -3688,6 +3689,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 .annotate(count=Count("id"))
                 .order_by()
             )
+
+            for cte_with in cte.values():
+                queryset = queryset.with_cte(cte_with)
 
             by_level[fields[level]] = queryset
 

@@ -15,6 +15,7 @@ from django.db import models
 from django.db.models import Field as DjangoModelFieldClass
 from django.db.models import JSONField, Q, QuerySet, Value
 
+from django_cte.cte import CTEManager, CTEQuerySet
 from loguru import logger
 from opentelemetry import trace
 
@@ -100,7 +101,7 @@ def get_row_needs_background_update_index(table):
     )
 
 
-class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, models.QuerySet):
+class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, CTEQuerySet):
     def _insert(self, objs, fields, *args, **kwargs):
         """
         We never want to include TSVector fields when inserting rows, we manage them
@@ -492,6 +493,14 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, models.QuerySet):
 
 
 class TableModelTrashAndObjectsManager(models.Manager):
+    @classmethod
+    def from_queryset(cls, queryset_class, class_name=None):
+        if not issubclass(queryset_class, CTEQuerySet):
+            raise TypeError("models with CTE support need to use a CTEQuerySet")
+        return super(CTEManager, cls).from_queryset(
+            queryset_class, class_name=class_name
+        )
+
     def get_queryset(self):
         qs = TableModelQuerySet(self.model, using=self._db)
         for field in self.model.get_fields_with_search_index(include_trash=True):

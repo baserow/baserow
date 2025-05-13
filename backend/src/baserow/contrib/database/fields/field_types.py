@@ -1424,7 +1424,7 @@ class DateFieldType(FieldType):
         return value
 
     def get_group_by_field_filters_and_annotations(
-        self, field, field_name, base_queryset, value
+        self, field, field_name, base_queryset, value, cte, rows
     ):
         filters = {field_name: value}
         annotations = {}
@@ -4926,6 +4926,12 @@ class MultipleSelectFieldType(
 
         return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
 
+    def get_group_by_aggregated_order(self, related_field):
+        # The multiple select field must be ordered by the id of the entry in the
+        # through table because it respects the insertion order. It respects the
+        # `MultipleSelectManyToManyDescriptor::related_manager_cls::_apply_rel_ordering`
+        return ("id",) + super().get_group_by_aggregated_order(related_field)
+
     def before_field_options_update(
         self, field, to_create=None, to_update=None, to_delete=None
     ):
@@ -6713,6 +6719,12 @@ class MultipleCollaboratorsFieldType(
             order = order.asc(nulls_first=True)
 
         return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
+
+    def get_group_by_aggregated_order(self, related_field):
+        # The multiple select field must be ordered by the id of the entry in the
+        # through table because it respects the insertion order. It respects the
+        # `MultipleSelectManyToManyDescriptor::related_manager_cls::_apply_rel_ordering`
+        return ("id",) + super().get_group_by_aggregated_order(related_field)
 
     def get_value_for_filter(self, row: "GeneratedTableModel", field) -> any:
         related_objects = getattr(row, field.db_column)
