@@ -29,7 +29,7 @@
           class="grid-field-many-to-many__loading"
         ></span>
         <a
-          v-else-if="canAccessLinkedTable"
+          v-else-if="!loadingAllValues && canAccessLinkedTable"
           class="grid-field-many-to-many__remove"
           @click.prevent.stop="removeValue($event, value, item.id)"
         >

@@ -22,7 +22,7 @@
           class="field-link-row__loading"
         ></span>
         <a
-          v-else-if="!readOnly"
+          v-else-if="!loadingAllValues && !readOnly"
           class="field-link-row__remove"
           @click.prevent.stop="removeValue($event, value, item.id)"
         >
