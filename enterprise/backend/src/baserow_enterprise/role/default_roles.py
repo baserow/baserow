@@ -12,6 +12,7 @@ from baserow_premium.row_comments.operations import (
 from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
     DeleteAutomationNodeOperationType,
+    DispatchAutomationNodeOperationType,
     DuplicateAutomationNodeOperationType,
     ListAutomationNodeOperationType,
     OrderAutomationNodeOperationType,
@@ -523,6 +524,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         OrderAutomationNodeOperationType,
         RestoreAutomationNodeOperationType,
         DuplicateAutomationNodeOperationType,
+        DispatchAutomationNodeOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(

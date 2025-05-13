@@ -19,7 +19,7 @@ class AutomationNodeFixtures:
                 user = self.create_user()
             workflow = self.create_automation_workflow(user=user)
 
-        _node_type = kwargs.pop("node_type", None)
+        _node_type = kwargs.pop("type", None)
         if _node_type is None:
             node_type = automation_node_type_registry.get("rows_created")
         elif isinstance(_node_type, str):

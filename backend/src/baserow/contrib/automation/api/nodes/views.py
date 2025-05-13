@@ -205,7 +205,10 @@ class AutomationNodeView(APIView):
     def patch(self, request, data: Dict, node_id: int):
         node = UpdateAutomationNodeActionType.do(request.user, node_id, data)
 
-        serializer = AutomationNodeSerializer(node)
+        serializer = automation_node_type_registry.get_serializer(
+            node, AutomationNodeSerializer
+        )
+
         return Response(serializer.data)
 
     @extend_schema(

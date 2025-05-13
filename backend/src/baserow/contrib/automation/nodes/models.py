@@ -5,15 +5,9 @@ from baserow.contrib.automation.workflows.models import (
     AutomationWorkflow,
     DuplicateAutomationWorkflowJob,
 )
-from baserow.core.mixins import (
-    CreatedAndUpdatedOnMixin,
-    FractionOrderableMixin,
-    HierarchicalModelMixin,
-    PolymorphicContentTypeMixin,
-    TrashableModelMixin,
-    WithRegistry,
-)
+from baserow.core.mixins import FractionOrderableMixin, TrashableModelMixin
 from baserow.core.services.models import Service
+from baserow.core.workflow_actions.models import WorkflowAction
 
 __all__ = [
     "AutomationNode",
@@ -30,12 +24,9 @@ def get_default_node_content_type():
 
 
 class AutomationNode(
-    HierarchicalModelMixin,
     TrashableModelMixin,
-    CreatedAndUpdatedOnMixin,
     FractionOrderableMixin,
-    PolymorphicContentTypeMixin,
-    WithRegistry,
+    WorkflowAction,
 ):
     """
     This model represents an Automation Workflow's Node.
@@ -113,11 +104,7 @@ class AutomationTriggerNode(AutomationNode):
 
 
 class LocalBaserowRowCreatedTriggerNode(AutomationTriggerNode):
-    def save(self, *args, **kwargs):
-        """TODO: this shouldn't be required. There seems to be a MRO issue."""
-
-        self._ensure_content_type_is_set()
-        super().save(*args, **kwargs)
+    ...
 
 
 class LocalBaserowCreateRowActionNode(AutomationNode):

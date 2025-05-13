@@ -41,3 +41,7 @@ class RestoreAutomationNodeOperationType(AutomationNodeOperationType):
 
 class DuplicateAutomationNodeOperationType(AutomationNodeOperationType):
     type = "automation.node.duplicate"
+
+
+class DispatchAutomationNodeOperationType(AutomationNodeOperationType):
+    type = "automation.node.dispatch"

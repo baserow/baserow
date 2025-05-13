@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Optional, Type
 from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
@@ -13,7 +13,14 @@ from baserow.core.registry import (
     PublicCustomFieldsInstanceMixin,
     Registry,
 )
+from baserow.core.services.types import DispatchResult
+from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.workflow_actions.registries import WorkflowActionType
+
+if TYPE_CHECKING:
+    from baserow.contrib.builder.data_sources.builder_dispatch_context import (
+        BuilderDispatchContext,
+    )
 
 
 class BuilderWorkflowActionType(
@@ -147,6 +154,19 @@ class BuilderWorkflowActionType(
         [m.save() for m in updated_models]
 
         return created_instance
+
+    def dispatch(
+        self,
+        workflow_action: WorkflowAction,
+        dispatch_context: "BuilderDispatchContext",
+    ) -> DispatchResult:
+        """
+        The default implementation of dispatch simply returns an empty
+        dispatch result for now. This is to ensure a consistent interface
+        between actions with and without a service.
+        """
+
+        return DispatchResult(data={}, status=200)
 
 
 class BuilderWorkflowActionTypeRegistry(
