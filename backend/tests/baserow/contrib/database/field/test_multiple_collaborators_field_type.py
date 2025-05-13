@@ -587,6 +587,34 @@ def test_multiple_collaborators_are_row_values_equal(
             is False
         )
 
+        assert (
+            MultipleCollaboratorsFieldType().are_row_values_equal(
+                [user3.id], [user3.id]
+            )
+            is True
+        )
+
+        assert (
+            MultipleCollaboratorsFieldType().are_row_values_equal(
+                [user.id, user2.id], [user2.id, user.id]
+            )
+            is True
+        )
+
+        assert MultipleCollaboratorsFieldType().are_row_values_equal([], []) is True
+
+        assert (
+            MultipleCollaboratorsFieldType().are_row_values_equal([], [user.id])
+            is False
+        )
+
+        assert (
+            MultipleCollaboratorsFieldType().are_row_values_equal(
+                [user.id, user2.id], [user.id, user3.id]
+            )
+            is False
+        )
+
 
 @pytest.mark.django_db
 @pytest.mark.field_multiple_collaborators
