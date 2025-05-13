@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
@@ -107,6 +107,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     }
     can_get_unique_values = True
     can_have_select_options = True
+
+    def get_internal_value_from_db(
+        self, row: "GeneratedTableModel", field_name: str
+    ) -> Any:
+        field_object = row.get_field_object(field_name)
+        baserow_field_type = self.get_baserow_field_type(field_object["field"])
+        return baserow_field_type.get_internal_value_from_db(row, field_name)
 
     def get_baserow_field_type(self, instance):
         output_type = ai_field_output_registry.get(instance.ai_output_type)

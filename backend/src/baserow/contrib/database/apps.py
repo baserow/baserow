@@ -1032,6 +1032,25 @@ class DatabaseConfig(AppConfig):
         mcp_tool_registry.register(UpdateRowMcpTool())
         mcp_tool_registry.register(DeleteRowMcpTool())
 
+        from baserow.contrib.database.rows.history_providers import (
+            CreateRowHistoryProvider,
+            CreateRowsHistoryProvider,
+            DeleteRowHistoryProvider,
+            DeleteRowsHistoryProvider,
+            RestoreFromTrashHistoryProvider,
+            UpdateRowsHistoryProvider,
+        )
+        from baserow.contrib.database.rows.registries import (
+            row_history_provider_registry,
+        )
+
+        row_history_provider_registry.register(CreateRowHistoryProvider())
+        row_history_provider_registry.register(CreateRowsHistoryProvider())
+        row_history_provider_registry.register(DeleteRowsHistoryProvider())
+        row_history_provider_registry.register(DeleteRowHistoryProvider())
+        row_history_provider_registry.register(UpdateRowsHistoryProvider())
+        row_history_provider_registry.register(RestoreFromTrashHistoryProvider())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.database.data_sync.signals  # noqa: F403, F401

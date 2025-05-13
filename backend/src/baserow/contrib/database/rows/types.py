@@ -1,19 +1,11 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    NamedTuple,
-    NewType,
-    Protocol,
-    TypedDict,
-    runtime_checkable,
-)
+from typing import Any, NamedTuple, NewType, TypedDict, TypeVar
 
-from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 
 from baserow.contrib.database.table.models import GeneratedTableModel
+from baserow.core.action.registries import ActionType
 from baserow.core.action.signals import ActionCommandType
 
 GeneratedTableModelForUpdate = NewType(
@@ -21,11 +13,6 @@ GeneratedTableModelForUpdate = NewType(
 )
 
 RowsForUpdate = NewType("RowsForUpdate", QuerySet)
-
-if TYPE_CHECKING:
-    from baserow.core.action.registries import ActionType
-
-    from .models import RowHistory
 
 
 class FileImportConfiguration(TypedDict):
@@ -90,14 +77,4 @@ class RowChangeDiff(NamedTuple):
     after_values: dict[FieldName, Any]
 
 
-@runtime_checkable
-class ActionHistoryProvider(Protocol):
-    """
-    Implementor can generate a list of RowHistory based on params provided
-    """
-
-    @classmethod
-    def get_row_change_history(
-        cls, user: AbstractUser, params: ActionData
-    ) -> "list[RowHistory]":
-        ...
+ActionTypeVar = TypeVar("ActionTypeVar", bound=ActionType)

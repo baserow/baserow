@@ -115,10 +115,11 @@ def setup_interesting_test_table(
             workspace=database.workspace, first_name="User3", email="user3@example.com"
         )
 
+    linked_tables = {}
     table = data_fixture.create_database_table(
         database=database, user=user, name=name or "interesting_test_table"
     )
-    link_table = data_fixture.create_database_table(
+    linked_tables["link_table"] = link_table = data_fixture.create_database_table(
         database=database, user=user, name="link_table"
     )
     link_table_primary_text_field = data_fixture.create_text_field(
@@ -127,13 +128,19 @@ def setup_interesting_test_table(
     link_table_duration_field = data_fixture.create_duration_field(
         table=link_table, name="duration_field"
     )
-    decimal_link_table = data_fixture.create_database_table(
+    linked_tables[
+        "decimal_link_table"
+    ] = decimal_link_table = data_fixture.create_database_table(
         database=database, user=user, name="decimal_link_table"
     )
-    file_link_table = data_fixture.create_database_table(
+    linked_tables[
+        "file_link_table"
+    ] = file_link_table = data_fixture.create_database_table(
         database=database, user=user, name="file_link_table"
     )
-    multiple_collaborators_link_table = data_fixture.create_database_table(
+    linked_tables[
+        "multiple_collaborators_link_table"
+    ] = multiple_collaborators_link_table = data_fixture.create_database_table(
         database=database, user=user, name="multiple_collaborators_link_table"
     )
     all_possible_kwargs_per_type = construct_all_possible_field_kwargs(
@@ -430,7 +437,12 @@ def setup_interesting_test_table(
             },
         )
 
-    context = {"user2": user2, "user3": user3, "fields": fields}
+    context = {
+        "user2": user2,
+        "user3": user3,
+        "fields": fields,
+        "tables": linked_tables,
+    }
 
     return table, user, row, blank_row, context
 
