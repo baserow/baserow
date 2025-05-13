@@ -22,6 +22,7 @@ from baserow.api.utils import (
     validate_data,
     validate_data_custom_fields,
 )
+from baserow.contrib.database.api.views.utils import parse_limit_linked_items_params
 from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -624,3 +625,30 @@ def test_anon_user_works(data_fixture):
     with freeze_time("2023-03-30 00:00:02"):
         throttle = ConcurrentUserRequestsThrottle()
         assert throttle.allow_request(create_dummy_request(user), None)
+
+
+@pytest.mark.django_db
+def test_parse_limit_linked_items_params(data_fixture):
+    # Test with no params
+    request = APIRequestFactory().get("/api/database/rows/")
+    assert parse_limit_linked_items_params(request) is None
+
+    # Test with empty params
+    request = APIRequestFactory().get("/api/database/rows/?limit_linked_items=")
+    assert parse_limit_linked_items_params(request) is None
+
+    # Test with invalid params
+    request = APIRequestFactory().get(f"/api/database/rows/?limit_linked_items=hello!")
+    assert parse_limit_linked_items_params(request) is None
+
+    # Test with negative params
+    request = APIRequestFactory().get(f"/api/database/rows/?limit_linked_items=-1")
+    assert parse_limit_linked_items_params(request) is None
+
+    # Test with zero as params
+    request = APIRequestFactory().get(f"/api/database/rows/?limit_linked_items=0")
+    assert parse_limit_linked_items_params(request) is None
+
+    # Test with valid params
+    request = APIRequestFactory().get(f"/api/database/rows/?limit_linked_items=3")
+    assert parse_limit_linked_items_params(request) == 3

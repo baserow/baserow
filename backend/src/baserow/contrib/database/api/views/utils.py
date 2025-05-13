@@ -183,13 +183,16 @@ def parse_limit_linked_items_params(request):
     :return: The parsed limit linked items parameters.
     """
 
+    value = 0
+
     limit_linked_items = request.GET.get(LIMIT_LINKED_ITEMS_API_PARAM.name, None)
     if limit_linked_items is not None:
         try:
-            return int(limit_linked_items)
+            value = int(limit_linked_items)
         except ValueError:
-            return None
-    return None
+            pass
+
+    return value if value > 0 else None
 
 
 def paginate_and_serialize_queryset(
