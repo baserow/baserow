@@ -11,6 +11,7 @@
         class="page-preview__scaled"
         tabindex="0"
         data-highlight="builder-preview"
+        dir="rtl"
         @keydown="handleKeyDown"
       >
         <ThemeProvider class="page">

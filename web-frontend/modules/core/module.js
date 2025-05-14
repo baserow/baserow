@@ -144,7 +144,7 @@ export default function CoreModule(options) {
 
   const locales = [
     { code: 'en', name: 'English', file: 'en.json' },
-    { code: 'fr', name: 'Français', file: 'fr.json' },
+    { code: 'fr', name: 'Français', file: 'fr.json', dir: 'rtl' },
     { code: 'nl', name: 'Nederlands', file: 'nl.json' },
     { code: 'de', name: 'Deutsch', file: 'de.json' },
     { code: 'es', name: 'Español', file: 'es.json' },

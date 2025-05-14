@@ -299,6 +299,8 @@ export default {
       title: this.currentPage.name,
       bodyAttrs: {
         class: 'public-page',
+        style: cssVars,
+        dir: 'rtl',
       },
       __dangerouslyDisableSanitizers: ['style'],
       style: [{ cssText: `:root { ${cssVars} }`, type: 'text/css' }],
