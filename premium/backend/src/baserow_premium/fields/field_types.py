@@ -123,7 +123,6 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         return baserow_field_type
 
     def get_serializer_field(self, instance, **kwargs):
-        kwargs["read_only"] = True
         baserow_field_type = self.get_baserow_field_type(instance)
         return baserow_field_type.get_serializer_field(instance, **kwargs)
 

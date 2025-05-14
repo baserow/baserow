@@ -4,7 +4,8 @@
       :is="outputRowEditFieldComponent"
       ref="field"
       v-bind="$props"
-      :read-only="true"
+      :read-only="generating || readOnly"
+      v-on="$listeners"
     ></component>
     <div v-if="!readOnly" class="margin-top-2">
       <Button
