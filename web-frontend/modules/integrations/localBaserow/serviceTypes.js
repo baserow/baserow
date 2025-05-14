@@ -1,7 +1,10 @@
 import { ServiceType } from '@baserow/modules/core/serviceTypes'
-import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/integrationTypes'
+import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
 import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
+import LocalBaserowUpsertRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm.vue'
+import LocalBaserowUpdateRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpdateRowServiceForm.vue'
+import LocalBaserowDeleteRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowDeleteRowServiceForm.vue'
 import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
 import { uuid } from '@baserow/modules/core/utils/string'
 import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowAdhocHeader'
@@ -313,5 +316,33 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
 
   getOrder() {
     return 30
+  }
+}
+
+export class LocalBaserowCreateRowWorkflowServiceType extends LocalBaserowTableServiceType {
+  static getType() {
+    return 'local_baserow_create_row'
+  }
+
+  get formComponent() {
+    return LocalBaserowUpsertRowServiceForm
+  }
+}
+export class LocalBaserowUpdateRowWorkflowServiceType extends LocalBaserowTableServiceType {
+  static getType() {
+    return 'local_baserow_update_row'
+  }
+
+  get formComponent() {
+    return LocalBaserowUpdateRowServiceForm
+  }
+}
+export class LocalBaserowDeleteRowWorkflowServiceType extends LocalBaserowTableServiceType {
+  static getType() {
+    return 'local_baserow_delete_row'
+  }
+
+  get formComponent() {
+    return LocalBaserowDeleteRowServiceForm
   }
 }

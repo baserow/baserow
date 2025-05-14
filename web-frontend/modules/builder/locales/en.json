@@ -781,7 +781,8 @@
     "updateRowLabel": "Update Row",
     "deleteRowLabel": "Delete Row",
     "logoutLabel": "Logout",
-    "refreshDataSourceLabel": "Refresh data source"
+    "refreshDataSourceLabel": "Refresh data source",
+    "httpRequest": "HTTP request"
   },
   "notificationWorkflowActionForm": {
     "titleLabel": "Title",

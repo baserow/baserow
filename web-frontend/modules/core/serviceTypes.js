@@ -9,7 +9,7 @@ export class ServiceType extends Registerable {
    * The integration type necessary to access this service.
    */
   get integrationType() {
-    throw new Error('Must be set on the type.')
+    return null
   }
 
   /**

@@ -132,3 +132,9 @@ class PolymorphicServiceSerializer(PolymorphicSerializer):
 class PolymorphicServiceRequestSerializer(PolymorphicSerializer):
     base_class = serializers.Serializer
     registry = service_type_registry
+
+
+class PublicPolymorphicServiceSerializer(PolymorphicSerializer):
+    base_class = ServiceSerializer
+    registry = service_type_registry
+    extra_params = {"public": True}

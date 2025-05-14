@@ -7,12 +7,16 @@ import it from '@baserow/modules/integrations/locales/it.json'
 import pl from '@baserow/modules/integrations/locales/pl.json'
 import ko from '@baserow/modules/integrations/locales/ko.json'
 
-import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/integrationTypes'
+import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import {
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
-} from '@baserow/modules/integrations/serviceTypes'
+  LocalBaserowCreateRowWorkflowServiceType,
+  LocalBaserowDeleteRowWorkflowServiceType,
+  LocalBaserowUpdateRowWorkflowServiceType,
+} from '@baserow/modules/integrations/localBaserow/serviceTypes'
+import { CoreHTTPRequestServiceType } from '@baserow/modules/integrations/core/serviceTypes'
 
 export default (context) => {
   const { app, isDev } = context
@@ -44,4 +48,17 @@ export default (context) => {
     'service',
     new LocalBaserowAggregateRowsServiceType(context)
   )
+  app.$registry.register(
+    'service',
+    new LocalBaserowCreateRowWorkflowServiceType(context)
+  )
+  app.$registry.register(
+    'service',
+    new LocalBaserowUpdateRowWorkflowServiceType(context)
+  )
+  app.$registry.register(
+    'service',
+    new LocalBaserowDeleteRowWorkflowServiceType(context)
+  )
+  app.$registry.register('service', new CoreHTTPRequestServiceType(context))
 }

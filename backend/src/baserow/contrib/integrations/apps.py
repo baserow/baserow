@@ -29,4 +29,10 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(LocalBaserowDeleteRowServiceType())
         service_type_registry.register(LocalBaserowRowsCreatedTriggerServiceType())
 
+        from baserow.contrib.integrations.core.service_types import (
+            CoreHTTPRequestServiceType,
+        )
+
+        service_type_registry.register(CoreHTTPRequestServiceType())
+
         import baserow.contrib.integrations.signals  # noqa: F403, F401

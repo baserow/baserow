@@ -1,14 +1,18 @@
 import { WorkflowActionType } from '@baserow/modules/core/workflowActionTypes'
 import NotificationWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/NotificationWorkflowActionForm.vue'
 import OpenPageWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/OpenPageWorkflowActionForm'
-import CreateRowWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/CreateRowWorkflowAction.vue'
+import WorkflowActionWithService from '@baserow/modules/builder/components/workflowAction/WorkflowActionWithService.vue'
 import RefreshDataSourceWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/RefreshDataSourceWorkflowActionForm.vue'
-import UpdateRowWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/UpdateRowWorkflowAction.vue'
+import { CoreHTTPRequestServiceType } from '@baserow/modules/integrations/core/serviceTypes'
+import {
+  LocalBaserowCreateRowWorkflowServiceType,
+  LocalBaserowUpdateRowWorkflowServiceType,
+  LocalBaserowDeleteRowWorkflowServiceType,
+} from '@baserow/modules/integrations/localBaserow/serviceTypes'
 
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import { ensureString } from '@baserow/modules/core/utils/validator'
-import DeleteRowWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/DeleteRowWorkflowActionForm.vue'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 
 export class NotificationWorkflowActionType extends WorkflowActionType {
@@ -179,6 +183,10 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
 }
 
 export class WorkflowActionServiceType extends WorkflowActionType {
+  get form() {
+    return WorkflowActionWithService
+  }
+
   execute({ workflowAction: { id }, applicationContext, resolveFormula }) {
     const data = DataProviderType.getAllActionDispatchContext(
       this.app.$registry.getAll('builderDataProvider'),
@@ -202,14 +210,42 @@ export class WorkflowActionServiceType extends WorkflowActionType {
   }
 
   getDataSchema(workflowAction) {
-    if (!workflowAction?.service?.schema) {
+    if (!workflowAction.service) {
       return null
     }
+
+    const serviceSchema = this.serviceType.getDataSchema(workflowAction.service)
+
     return {
       title: this.label,
       type: 'object',
-      properties: workflowAction?.service?.schema?.properties,
+      properties: serviceSchema?.properties,
     }
+  }
+
+  get serviceType() {
+    throw new Error('This method must be implemented')
+  }
+}
+
+export class CoreHTTPRequestActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'http_request'
+  }
+
+  get label() {
+    return this.app.i18n.t('workflowActionTypes.httpRequest')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreHTTPRequestServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 10
   }
 }
 
@@ -218,8 +254,11 @@ export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
     return 'create_row'
   }
 
-  get form() {
-    return CreateRowWorkflowActionForm
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowCreateRowWorkflowServiceType.getType()
+    )
   }
 
   get label() {
@@ -232,8 +271,11 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
     return 'update_row'
   }
 
-  get form() {
-    return UpdateRowWorkflowActionForm
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowUpdateRowWorkflowServiceType.getType()
+    )
   }
 
   get label() {
@@ -246,8 +288,11 @@ export class DeleteRowWorkflowActionType extends WorkflowActionServiceType {
     return 'delete_row'
   }
 
-  get form() {
-    return DeleteRowWorkflowActionForm
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowDeleteRowWorkflowServiceType.getType()
+    )
   }
 
   get label() {

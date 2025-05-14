@@ -77,6 +77,28 @@
     "dataSource": "Data source",
     "pageParameter": "Parameter"
   },
+  "coreHTTPRequestServiceForm": {
+    "httpMethod": "HTTP method",
+    "url": "Endpoint URL",
+    "queryParams": "Query parameters",
+    "name": "Name",
+    "value": "Value",
+    "namePlaceholder": "Name...",
+    "valuePlaceholder": "Value...",
+    "headers": "Headers",
+    "addQueryParam": "add query parameter",
+    "addHeader": "add header",
+    "formData": "Form data",
+    "addFormData": "add form data",
+    "bodyType": "Body type",
+    "bodyContent": "Body content",
+    "urlPlaceholder": "Enter endpoint url...",
+    "bodyPlaceholder": "Add request body...",
+    "timeoutPlaceholder": "Enter timeout...",
+    "nameFieldRequired": "The name property is required.",
+    "nameFieldInvalid": "The name must contain only alphanumeric characters, dashes, or underscores, and must not start with a dash or an underscore.",
+    "timeout": "Timeout"
+  },
   "localBaserowTableSelector": {
     "viewFieldLabel": "View",
     "tableFieldLabel": "Table",

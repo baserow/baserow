@@ -1,3 +1,4 @@
+from baserow.contrib.integrations.core.models import CoreHTTPRequestService
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
     LocalBaserowDeleteRow,
@@ -8,6 +9,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceSort,
     LocalBaserowUpsertRow,
 )
+from baserow.core.services.registries import service_type_registry
 
 
 class ServiceFixtures:
@@ -57,10 +59,19 @@ class ServiceFixtures:
     ) -> LocalBaserowTableServiceSort:
         return LocalBaserowTableServiceSort.objects.create(**kwargs)
 
+    def create_core_http_request_service(self, **kwargs) -> CoreHTTPRequestService:
+        service = self.create_service(CoreHTTPRequestService, **kwargs)
+        return service
+
     def create_service(self, model_class, **kwargs):
         if "integration" not in kwargs:
-            integrations_args = kwargs.pop("integration_args", {})
-            integration = self.create_local_baserow_integration(**integrations_args)
+            integration = None
+            service_type = service_type_registry.get_by_model(model_class)
+            if service_type.get_integration_type():
+                integrations_args = kwargs.pop("integration_args", {})
+                integration = self.create_integration(
+                    service_type.get_integration_type().model_class, **integrations_args
+                )
         else:
             integration = kwargs.pop("integration", None)
             kwargs.pop("integration_args", None)

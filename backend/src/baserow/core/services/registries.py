@@ -16,6 +16,7 @@ from baserow.core.registry import (
     InstanceWithFormulaMixin,
     ModelInstanceMixin,
     ModelRegistryMixin,
+    PublicCustomFieldsInstanceMixin,
     Registry,
 )
 from baserow.core.services.dispatch_context import DispatchContext
@@ -39,6 +40,7 @@ class ServiceType(
     InstanceWithFormulaMixin,
     EasyImportExportMixin[ServiceSubClass],
     ModelInstanceMixin[ServiceSubClass],
+    PublicCustomFieldsInstanceMixin,
     CustomFieldsInstanceMixin,
     Instance,
     ABC,
@@ -69,6 +71,18 @@ class ServiceType(
     # should be chosen, or via a `WorkflowAction`, in which case
     # `DISPATCH_WORKFLOW_ACTION` should be chosen.
     dispatch_type = None
+
+    # By default all service data should be hidden
+    public_serializer_field_names = []
+    public_serializer_field_overrides = {}
+
+    def get_integration_type(self):
+        from baserow.core.integrations.registries import integration_type_registry
+
+        if self.integration_type:
+            return integration_type_registry.get(self.integration_type)
+
+        return None
 
     def get_id_property(self, service: Service) -> str:
         """
