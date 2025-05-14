@@ -337,6 +337,13 @@ export class FieldType extends Registerable {
   /**
    * Because we want to show a new row immediately after creating we need to have an
    * default value to show right away.
+   *
+   * @param field - The field object.
+   * @param flat - If true, returns a simplified default value suitable for
+   *  backend operations (such as IDs or primitives). If false, returns the
+   *  full object representation, which may include additional metadata for
+   *  frontend use. This allows flexibility depending on whether a minimal or
+   *  detailed value is required.
    */
   getDefaultValue(field, flat) {
     return null

@@ -312,12 +312,17 @@ def test_get_example_row_serializer_class():
 
 
 @pytest.mark.django_db
-def test_get_row_serializer_with_user_field_names(data_fixture):
+def test_get_row_serializer_with_user_field_names(
+    data_fixture, django_assert_num_queries
+):
     table, user, row, _, context = setup_interesting_test_table(data_fixture)
     model = table.get_model()
-    serializer_class = get_row_serializer_class(
-        model, RowSerializer, is_response=True, user_field_names=True
-    )
+
+    # get_row_serializer_class should nevere make any queries to the database
+    with django_assert_num_queries(0):
+        serializer_class = get_row_serializer_class(
+            model, RowSerializer, is_response=True, user_field_names=True
+        )
     serializer_instance = serializer_class([row], many=True)
     u2, u3 = context["user2"], context["user3"]
     expected_result = json.loads(

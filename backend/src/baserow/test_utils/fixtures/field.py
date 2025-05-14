@@ -103,7 +103,7 @@ class FieldFixtures:
             model = kwargs["table"].get_model()
             field_kwargs = {"view": view}
             AutonumberFieldType().after_create(
-                field, model, user, connection, None, False, field_kwargs
+                field, model, user, connection, None, field_kwargs
             )
 
         return field

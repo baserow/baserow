@@ -194,14 +194,6 @@ def setup_interesting_test_table(
         .order_by("id")
         .values_list("id", flat=True)
     )
-    option_m_1, option_m_2, option_m_3 = (
-        SelectOption.objects.filter(
-            field_id=name_to_field_id["multiple_select_with_default"]
-        )
-        .order_by("id")
-        .values_list("id", flat=True)
-    )
-
     values = {
         "text": "text",
         "long_text": "long_text",
@@ -450,6 +442,7 @@ def setup_interesting_test_table(
         "user3": user3,
         "fields": fields,
         "tables": linked_tables,
+        "name_to_field_id": name_to_field_id,
     }
 
     return table, user, row, blank_row, context

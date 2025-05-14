@@ -742,9 +742,7 @@ class FieldType(
         :type field_kwargs: dict
         """
 
-    def after_create(
-        self, field, model, user, connection, before, is_duplicate, field_kwargs
-    ):
+    def after_create(self, field, model, user, connection, before, field_kwargs):
         """
         This hook is called right after the has been created. The schema change has
         also been done so the provided model could optionally be used.
@@ -759,11 +757,16 @@ class FieldType(
         :type connection: DatabaseWrapper
         :param before: The value returned by the before_created method.
         :type before: any
-        :param is_duplicate: Whether the field is being duplicated.
-        :type is_duplicate: bool
         :param field_kwargs: The kwargs that were passed when creating the field
             instance.
         :type field_kwargs: dict
+        """
+
+    def init_field_data(self, field, model):
+        """
+        This hook is called right after the field has been created, when the field data
+        needs to be initialized. This is for example used by the CreateFieldActionType
+        to initialize the field data when the field is created.
         """
 
     def before_update(self, from_field, to_field_values, user, field_kwargs):
