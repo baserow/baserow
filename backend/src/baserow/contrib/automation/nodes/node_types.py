@@ -17,10 +17,9 @@ from baserow.contrib.builder.api.workflow_actions.serializers import (
     PolymorphicServiceRequestSerializer,
     PolymorphicServiceSerializer,
 )
-from baserow.contrib.database.rows.signals import rows_created, rows_updated
+from baserow.contrib.database.rows.signals import rows_created
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsCreatedTriggerServiceType,
-    LocalBaserowRowsUpdatedTriggerServiceType,
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.services.handler import ServiceHandler
@@ -184,13 +183,3 @@ class LocalBaserowRowsCreatedNodeTriggerType(
     handler = handle_local_baserow_row_trigger_signal
     model_class = LocalBaserowRowCreatedTriggerNode
     service_type = LocalBaserowRowsCreatedTriggerServiceType.type
-
-
-class LocalBaserowRowsUpdatedNodeTriggerType(
-    LocalBaserowSignalTriggerTypeMixin, AutomationServiceNodeTriggerType
-):
-    type = "rows_updated"
-    signal = rows_updated
-    handler = handle_local_baserow_row_trigger_signal
-    model_class = object()
-    service_type = LocalBaserowRowsUpdatedTriggerServiceType.type
