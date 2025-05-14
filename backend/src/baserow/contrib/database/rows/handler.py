@@ -2020,9 +2020,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 )
 
                 original_set_of_values = set(
-                    original_row_values_by_id[row.id].get(field_name, [])
+                    original_row_values_by_id[row.id].get(field_name) or []
                 )
-                new_set_of_values = set(value)
+                # if a list of models is provided as value, make sure to compare the ids
+                value_ids = [v.id if hasattr(v, "id") else v for v in value]
+                new_set_of_values = set(value_ids)
                 to_add = new_set_of_values - original_set_of_values
                 to_delete = original_set_of_values - new_set_of_values
 
@@ -2030,7 +2032,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     row_column_name,
                     value_column,
                 ) = self._prepare_m2m_field_related_objects(
-                    row, field_name, list(filter(lambda v: v in to_add, value))
+                    row, field_name, list(filter(lambda v: v in to_add, value_ids))
                 )
                 row_column_names[field_name] = row_column_name
 
@@ -2041,7 +2043,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     prev_q = m2m_values_to_delete.get(field_name, Q())
                     q_kwargs = {row_column_name: row.id}
                     # Delete all the row relations only if the new value is empty
-                    if value:
+                    if value_ids:
                         q_kwargs[f"{value_column}__in"] = to_delete
                     m2m_values_to_delete[field_name] = prev_q | Q(**q_kwargs)
 
