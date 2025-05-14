@@ -3,7 +3,7 @@ from typing import Any, Dict
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.types import AutomationNodeDict
+from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,

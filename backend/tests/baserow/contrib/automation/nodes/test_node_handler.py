@@ -5,6 +5,7 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowRowCreatedTriggerNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
+from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowCreated
 
 
 @pytest.mark.django_db
@@ -12,7 +13,7 @@ def test_create_node(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
 
-    node_type = automation_node_type_registry.get("row_created")
+    node_type = automation_node_type_registry.get("rows_created")
     prepared_values = node_type.prepare_values({}, user)
 
     node = AutomationNodeHandler().create_node(
@@ -23,12 +24,18 @@ def test_create_node(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_nodes(data_fixture):
-    node = data_fixture.create_automation_node()
+def test_get_nodes(data_fixture, django_assert_num_queries):
+    node = data_fixture.create_local_baserow_rows_created_trigger_node()
+    workflow = node.workflow
 
-    nodes_qs = AutomationNodeHandler().get_nodes(node.workflow)
+    with django_assert_num_queries(1):
+        nodes_qs = AutomationNodeHandler().get_nodes(workflow, specific=False)
+        assert [n.id for n in nodes_qs.all()] == [node.id]
 
-    assert [n.id for n in nodes_qs.all()] == [node.id]
+    with django_assert_num_queries(6):
+        nodes = AutomationNodeHandler().get_nodes(workflow, specific=True)
+        assert [n.id for n in nodes] == [node.id]
+        assert isinstance(nodes[0].service, LocalBaserowRowCreated)
 
 
 @pytest.mark.django_db
@@ -154,8 +161,8 @@ def test_export_node(data_fixture):
         "parent_node_id": None,
         "previous_node_id": None,
         "previous_node_output": "foo",
-        "service_id": node.service.id,
-        "type": "row_created",
+        "service_id": node.service_id,
+        "type": "rows_created",
         "workflow_id": node.workflow.id,
     }
 

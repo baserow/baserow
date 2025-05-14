@@ -3,17 +3,24 @@ from typing import Any, Dict
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.nodes.models import (
-    AutomationServiceNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowRowCreatedTriggerNode,
+)
+from baserow.contrib.automation.nodes.receivers import (
+    handle_local_baserow_row_trigger_signal,
 )
 from baserow.contrib.automation.nodes.registries import (
     AutomationNodeType,
     automation_node_type_registry,
 )
-from baserow.contrib.automation.types import AutomationNodeDict
+from baserow.contrib.builder.api.workflow_actions.serializers import (
+    PolymorphicServiceRequestSerializer,
+    PolymorphicServiceSerializer,
+)
+from baserow.contrib.database.rows.signals import rows_created, rows_updated
 from baserow.contrib.integrations.local_baserow.service_types import (
-    LocalBaserowRowCreatedTriggerServiceType,
+    LocalBaserowRowsCreatedTriggerServiceType,
+    LocalBaserowRowsUpdatedTriggerServiceType,
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.services.handler import ServiceHandler
@@ -37,16 +44,46 @@ def service_backed_automation_nodes():
     ]
 
 
+def signal_triggered_automation_triggers():
+    """
+    Returns all automation node types that are triggers, and specifically triggered
+    by a Django signal.
+
+    :return: A list of automation node types that are triggered by a signal.
+    """
+
+    return [
+        automation_node_type
+        for automation_node_type in automation_node_type_registry.get_all()
+        if issubclass(
+            automation_node_type.__class__,
+            (AutomationServiceNodeTriggerType, LocalBaserowSignalTriggerTypeMixin),
+        )
+    ]
+
+
 class AutomationServiceNodeActionType(AutomationNodeType):
     service_type = None
 
 
 class AutomationServiceNodeTriggerType(AutomationNodeType):
     service_type = None
-    request_serializer_field_names = []
+    request_serializer_field_names = ["service"]
+    serializer_field_overrides = {
+        "service": PolymorphicServiceSerializer(
+            help_text="The service which this workflow action is associated with."
+        )
+    }
+    request_serializer_field_overrides = {
+        "service": PolymorphicServiceRequestSerializer(
+            default=None,
+            required=False,
+            help_text="The service which this workflow action is associated with.",
+        )
+    }
 
-    class SerializedDict(AutomationNodeDict):
-        service_id: int
+    class SerializedDict(AutomationNodeType.SerializedDict):
+        service: dict
 
     @property
     def serializer_field_names(self):
@@ -60,7 +97,7 @@ class AutomationServiceNodeTriggerType(AutomationNodeType):
         self,
         values: Dict[str, Any],
         user: AbstractUser,
-        instance: AutomationServiceNode = None,
+        instance=None,
     ):
         """
         Responsible for preparing the service based trigger node. By default,
@@ -111,7 +148,49 @@ class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
     model_class = LocalBaserowCreateRowActionNode
 
 
-class LocalBaserowRowCreatedNodeType(AutomationServiceNodeTriggerType):
-    type = "row_created"
+class LocalBaserowSignalTriggerTypeMixin:
+    """
+    A mixin which `AutomationNodeType` can implement if they related to a
+    Local Baserow signal, such as `rows_created`, `rows_updated`, etc.
+
+    New trigger types should inherit from this class, set the `signal` and `handler`
+    to point to the signal/function they are related to, and only implement the
+    `start_listening` and `stop_listening` methods.
+    """
+
+    signal = None
+    handler = None
+
+    def start_listening(self):
+        self.signal.connect(self.handler)
+
+    def stop_listening(self):
+        self.signal.disconnect(self.handler)
+
+    def after_register(self):
+        self.start_listening()
+        return super().after_register()
+
+    def before_unregister(self):
+        self.stop_listening()
+        return super().before_unregister()
+
+
+class LocalBaserowRowsCreatedNodeTriggerType(
+    LocalBaserowSignalTriggerTypeMixin, AutomationServiceNodeTriggerType
+):
+    type = "rows_created"
+    signal = rows_created
+    handler = handle_local_baserow_row_trigger_signal
     model_class = LocalBaserowRowCreatedTriggerNode
-    service_type = LocalBaserowRowCreatedTriggerServiceType.type
+    service_type = LocalBaserowRowsCreatedTriggerServiceType.type
+
+
+class LocalBaserowRowsUpdatedNodeTriggerType(
+    LocalBaserowSignalTriggerTypeMixin, AutomationServiceNodeTriggerType
+):
+    type = "rows_updated"
+    signal = rows_updated
+    handler = handle_local_baserow_row_trigger_signal
+    model_class = object()
+    service_type = LocalBaserowRowsUpdatedTriggerServiceType.type

@@ -16,7 +16,10 @@ from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
     UpdatedAutomationNode,
 )
+from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.models import Service
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict, extract_allowed
 
@@ -42,12 +45,17 @@ class AutomationNodeHandler:
         return node
 
     def get_nodes(
-        self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
+        self,
+        workflow: Optional[AutomationWorkflow] = None,
+        specific: Optional[bool] = True,
+        base_queryset: Optional[QuerySet] = None,
     ) -> QuerySet:
         """
-        Return all the nodes for a workflow.
+        Returns all the nodes, optionally filtered by a workflow.
 
         :param workflow: The workflow associated with the nodes.
+        :param specific: A boolean flag indicating whether to return the specific
+            nodes and their services
         :param base_queryset: Optional base queryset to filter the results.
         :return: A list of automation nodes.
         """
@@ -55,7 +63,27 @@ class AutomationNodeHandler:
         if base_queryset is None:
             base_queryset = AutomationNode.objects.all()
 
-        return base_queryset.filter(workflow=workflow)
+        nodes = base_queryset
+        if workflow is not None:
+            nodes = nodes.filter(workflow=workflow)
+
+        if specific:
+            nodes = specific_iterator(nodes.select_related("content_type"))
+            service_ids = [
+                node.service_id for node in nodes if node.service_id is not None
+            ]
+            specific_services_map = {
+                s.id: s
+                for s in ServiceHandler().get_services(
+                    base_queryset=Service.objects.filter(id__in=service_ids)
+                )
+            }
+            for node in nodes:
+                service_id = node.service_id
+                if service_id is not None and service_id in specific_services_map:
+                    node.service = specific_services_map[service_id]
+
+        return nodes
 
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
@@ -113,7 +141,7 @@ class AutomationNodeHandler:
         It is called by undo/redo ActionHandler to store the values in a way that
         could be restored later.
 
-        :param instance: The node instance to export values for.
+        :param node: The node instance to export values for.
         :return: A dict of prepared values.
         """
 
@@ -201,7 +229,7 @@ class AutomationNodeHandler:
         node: AutomationNode,
         *args: Any,
         **kwargs: Any,
-    ) -> List[AutomationNodeDict]:
+    ) -> AutomationNodeDict:
         """
         Serializes the given node.
 
@@ -214,10 +242,10 @@ class AutomationNodeHandler:
         return AutomationNodeDict(
             id=node.id,
             order=node.order,
-            workflow_id=node.workflow.id,
-            service_id=node.specific.service.id,
-            parent_node_id=node.parent_node.id if node.parent_node else None,
-            previous_node_id=node.previous_node.id if node.previous_node else None,
+            workflow_id=node.workflow_id,
+            service_id=node.service_id,
+            parent_node_id=node.parent_node_id,
+            previous_node_id=node.previous_node_id,
             previous_node_output=node.previous_node_output,
             type=node.get_type().type,
         )

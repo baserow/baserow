@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import NewType, TypedDict
+from typing import NewType, Optional, TypedDict
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 
@@ -15,7 +15,9 @@ class UpdatedAutomationNode:
 
 class AutomationNodeDict(TypedDict):
     id: int
+    type: str
     order: float
+    service_id: Optional[int]
     workflow_id: int
     parent_node_id: int
     previous_node_id: int
