@@ -46,7 +46,7 @@ def handle_local_baserow_row_trigger_signal(*args, **kwargs):
     # all the trigger nodes that are associated with the table.
     triggers = AutomationNodeHandler().get_nodes(
         base_queryset=AutomationTriggerNode.objects.filter(
-            service__in=trigger_services_qs
+            workflow__published=True, service__in=trigger_services_qs
         )
     )
     for trigger in triggers:
