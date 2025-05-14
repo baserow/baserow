@@ -32,7 +32,7 @@ class AutomationNodeFixtures:
     def create_local_baserow_rows_created_trigger_node(self, user=None, **kwargs):
         service = kwargs.pop("service", None)
         if service is None:
-            service = self.create_local_baserow_row_created_service()
+            service = self.create_local_baserow_rows_created_service()
         return self.create_automation_node(
             user=user,
             service=service,

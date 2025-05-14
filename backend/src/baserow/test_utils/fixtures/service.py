@@ -37,7 +37,7 @@ class ServiceFixtures:
         service = self.create_service(LocalBaserowAggregateRows, **kwargs)
         return service
 
-    def create_local_baserow_row_created_service(
+    def create_local_baserow_rows_created_service(
         self, **kwargs
     ) -> LocalBaserowRowCreated:
         service = self.create_service(LocalBaserowRowCreated, **kwargs)
