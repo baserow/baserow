@@ -18,143 +18,152 @@
 </template>
 
 <script>
+import {
+  defineComponent,
+  ref,
+  computed,
+  provide,
+  useStore,
+  useContext,
+  useFetch,
+} from '@nuxtjs/composition-api'
 import AutomationHeader from '@baserow/modules/automation/components/AutomationHeader'
 import WorkflowEditor from '@baserow/modules/automation/components/workflow/WorkflowEditor.vue'
 
-export default {
+export default defineComponent({
   name: 'AutomationWorkflow',
   components: {
     AutomationHeader,
     WorkflowEditor,
   },
-  provide() {
-    return {
-      workspace: this.workspace,
-      automation: this.automation,
-      currentWorkflow: this.currentWorkflow,
-    }
-  },
   layout: 'app',
-  async asyncData({ store, params, error, $registry }) {
-    const automationId = parseInt(params.automationId)
-    const workflowId = parseInt(params.workflowId)
+  setup() {
+    const store = useStore()
+    const { params, error } = useContext()
 
-    const data = {}
-    try {
-      const automation = await store.dispatch(
-        'application/selectById',
-        automationId
-      )
-      const workspace = await store.dispatch(
-        'workspace/selectById',
-        automation.workspace.id
-      )
+    const automationId = parseInt(params.value.automationId)
+    const workflowId = parseInt(params.value.workflowId)
 
-      // Ensure the workflow exists before selecting and fetching nodes
-      const workflow = store.getters['automationWorkflow/getById'](
-        automation,
-        workflowId
-      )
+    const workspace = ref(null)
+    const automation = ref(null)
+    const currentWorkflow = ref(null)
 
-      await store.dispatch('automationWorkflow/selectById', {
-        automation,
-        workflowId,
-      })
-
-      // Fetch the nodes for the selected workflow
-      await store.dispatch('automationWorkflowNode/fetch', { workflowId })
-
-      data.workspace = workspace
-      data.automation = automation
-      data.currentWorkflow = workflow
-    } catch (e) {
-      return error({
-        statusCode: 404,
-        message: 'Automation workflow or its nodes not found.', // Updated message
-      })
-    }
-    return data
-  },
-  data() {
-    return {
-      isWorkflowReadOnly: false,
-    }
-  },
-  computed: {
-    workflowNodes() {
-      // Assumes the store module is registered and nodes are fetched
-      return this.$store.getters['automationWorkflowNode/getAll']
-    },
-  },
-  methods: {
-    handleReadOnlyToggle(newReadOnlyState) {
-      this.isWorkflowReadOnly = newReadOnlyState
-    },
-    async handleAddNode({ type, previousNodeId }) {
+    useFetch(async () => {
       try {
-        const newNode = await this.$store.dispatch(
-          'automationWorkflowNode/create',
-          {
-            workflowId: this.currentWorkflow.id,
-            type: 'row_created',
-          }
+        const fetchedAutomation = await store.dispatch(
+          'application/selectById',
+          automationId
         )
+        automation.value = fetchedAutomation
 
-        if (!newNode || typeof newNode.id === 'undefined') {
-          console.error(
-            'Node creation failed or newNode object is invalid (id missing).',
-            newNode
-          )
-          return
-        }
+        const fetchedWorkspace = await store.dispatch(
+          'workspace/selectById',
+          fetchedAutomation.workspace.id
+        )
+        workspace.value = fetchedWorkspace
 
-        const newNodeIdString = newNode.id
+        const fetchedWorkflow = store.getters['automationWorkflow/getById'](
+          fetchedAutomation,
+          workflowId
+        )
+        currentWorkflow.value = fetchedWorkflow
 
-        const currentNodesWithNew =
-          this.$store.getters['automationWorkflowNode/getAll']
+        await store.dispatch('automationWorkflow/selectById', {
+          automation: fetchedAutomation,
+          workflowId,
+        })
+        await store.dispatch('automationWorkflowNode/fetch', { workflowId })
+      } catch (e) {
+        return error({
+          statusCode: 404,
+          message: 'Automation workflow or its nodes not found.',
+        })
+      }
+    })
 
-        const oldOrder = currentNodesWithNew.map((n) => n.id)
+    provide('workspace', workspace)
+    provide('automation', automation)
+    provide('currentWorkflow', currentWorkflow)
 
-        const existingIds = currentNodesWithNew
-          .filter((n) => n.id !== newNodeIdString)
+    const isWorkflowReadOnly = ref(false)
+    const workflowNodes = computed(() => {
+      return store.getters['automationWorkflowNode/getAll']
+    })
+
+    const handleReadOnlyToggle = (newReadOnlyState) => {
+      isWorkflowReadOnly.value = newReadOnlyState
+    }
+
+    const handleAddNode = async ({ previousNodeId }) => {
+      try {
+        const newNode = await store.dispatch('automationWorkflowNode/create', {
+          workflowId: currentWorkflow.value.id,
+          type: 'row_created',
+        })
+
+        const newId = newNode.id
+
+        const currentNodesIncludingNew =
+          store.getters['automationWorkflowNode/getAll']
+        const oldOrder = currentNodesIncludingNew.map((n) => n.id)
+
+        const existingIds = currentNodesIncludingNew
+          .filter((n) => n.id !== newId)
           .map((n) => n.id)
 
         let newFinalOrderIds = []
         if (previousNodeId === null) {
-          newFinalOrderIds = [newNodeIdString, ...existingIds]
+          newFinalOrderIds = [newId, ...existingIds]
         } else {
           const insertAfterIndex = existingIds.indexOf(previousNodeId)
           if (insertAfterIndex !== -1) {
-            existingIds.splice(insertAfterIndex + 1, 0, newNodeIdString)
-            newFinalOrderIds = existingIds
+            const tempExistingIds = [...existingIds]
+            tempExistingIds.splice(insertAfterIndex + 1, 0, newId)
+            newFinalOrderIds = tempExistingIds
           } else {
             console.warn(
-              `previousNodeId '${previousNodeId}'not found in existingIds (string array): [${existingIds.join(
+              `previousNodeId '${previousNodeId}' not found in existingIds: [${existingIds.join(
                 ', '
-              )}]. Appending ${newNodeIdString}.`
+              )}]. Appending ${newId}.`
             )
-            newFinalOrderIds = [...existingIds, newNodeIdString]
+            newFinalOrderIds = [...existingIds, newId]
           }
         }
-        await this.$store.dispatch('automationWorkflowNode/order', {
-          workflowId: this.currentWorkflow.id,
+        await store.dispatch('automationWorkflowNode/order', {
+          workflowId: currentWorkflow.value.id,
           order: newFinalOrderIds,
           oldOrder,
         })
-      } catch (error) {
-        console.error('Failed to add and order node:', error)
+      } catch (err) {
+        console.error('Failed to add and order node:', err)
       }
-    },
-    async handleRemoveNode(nodeId) {
+    }
+
+    const handleRemoveNode = async (nodeId) => {
+      if (!currentWorkflow.value) {
+        console.error('currentWorkflow is not available to remove a node.')
+        return
+      }
       try {
-        await this.$store.dispatch('automationWorkflowNode/delete', {
-          workflowId: this.currentWorkflow.id,
+        await store.dispatch('automationWorkflowNode/delete', {
+          workflowId: currentWorkflow.value.id,
           nodeId: parseInt(nodeId),
         })
-      } catch (error) {
-        console.error('Failed to delete node:', error)
+      } catch (err) {
+        console.error('Failed to delete node:', err)
       }
-    },
+    }
+
+    return {
+      workspace,
+      automation,
+      currentWorkflow,
+      isWorkflowReadOnly,
+      workflowNodes,
+      handleReadOnlyToggle,
+      handleAddNode,
+      handleRemoveNode,
+    }
   },
-}
+})
 </script>
