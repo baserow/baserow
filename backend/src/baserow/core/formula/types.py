@@ -57,15 +57,15 @@ class FunctionCollection(ABC):
 
 class FormulaFunction(ABC):
     @abstractmethod
-    def validate_args(args: FormulaArgs):
+    def validate_args(self, args: FormulaArgs):
         """Should validate the given arguments."""
 
     @abstractmethod
-    def parse_args(args: FormulaArgs) -> FormulaArgs:
+    def parse_args(self, args: FormulaArgs) -> FormulaArgs:
         """
         Should return the parsed arguments.
         """
 
     @abstractmethod
-    def execute(context: FormulaContext, args: FormulaArgs) -> Any:
+    def execute(self, context: FormulaContext, args: FormulaArgs) -> Any:
         """Executes the function"""

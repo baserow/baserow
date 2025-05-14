@@ -1,4 +1,4 @@
-.ab-text {
+.ab-code {
   font-size: var(--body-font-size, 14px);
   font-weight: var(--body-font-weight, 400);
   margin: 0;
@@ -6,7 +6,8 @@
   text-align: var(--body-text-alignment, left);
   font-family: var(--body-font-family, Inter);
 
-  .markdown & {
+  .markdown {
+    // for markdown text
     strong {
       color: var(--body-text-color, $black);
     }

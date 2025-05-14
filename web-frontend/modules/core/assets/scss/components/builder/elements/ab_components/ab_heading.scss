@@ -1,5 +1,9 @@
 .ab-heading {
   margin: 0;
+
+  .markdown & {
+    margin-top: 1em;
+  }
 }
 
 .ab-heading--h1 {
