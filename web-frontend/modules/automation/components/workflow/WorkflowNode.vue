@@ -1,0 +1,83 @@
+<template>
+  <div class="workflow-editor__node">
+    <span>ID: {{ id }}  </span>
+  
+      <a
+         v-if="!props.data.readOnly"
+        ref="editNodeContextToggle"
+        class="workflow-editor__node__more-icon"
+        @click="openContext()"
+      >
+        <i class="baserow-icon-more-vertical"></i>
+      </a>
+
+      <Context
+        ref="contextMenu"
+        overflow-scroll
+        max-height-if-outside-viewport
+      >
+        <ul class="context__menu">
+          <li class="context__menu-item">
+            <a
+              class="context__menu-item-link context__menu-item-link--delete"
+              @click="emit('removeNode', props.id)"
+            >
+              <i class="context__menu-item-icon iconoir-bin"></i>
+              Delete node
+            </a>
+          </li>
+        </ul>
+      </Context>
+
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+
+const props = defineProps({
+  id: {
+    type: String,
+    default: null,
+  },
+  label: {
+    type: String,
+    default: null,
+  },
+  selected: {
+    type: Boolean,
+    default: false,
+  },
+  dragging: {
+    type: Boolean,
+    default: false,
+  },
+  data: {
+    type: Object,
+    default: () => ({ readOnly: false }),
+  },
+})
+
+const emit = defineEmits(['removeNode'])
+
+const editNodeContextToggle = ref(null)
+const contextMenu = ref(null)
+
+
+const openContext = () => {
+  if (contextMenu.value && editNodeContextToggle.value) {
+    contextMenu.value.toggle(
+      editNodeContextToggle.value,
+      'bottom',
+      'right',
+      0
+    )
+  } else {
+    console.warn(
+      'Context menu or toggle element ref not available for BaserowNode',
+      id
+    )
+  }
+}
+
+</script>

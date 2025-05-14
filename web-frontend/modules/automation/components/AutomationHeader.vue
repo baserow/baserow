@@ -25,10 +25,22 @@
         <Badge color="cyan" rounded size="small">{{
           $t('automationHeader.switchLabel')
         }}</Badge>
-        <SwitchInput
+      <SwitchInput
           small
           :value="switchValue"
           @input="switchValue = !switchValue"
+        ></SwitchInput>
+      </span>
+
+      <span
+        v-if="isDevEnvironment"
+        class="header__switch-container u-margin-left-2"
+      >
+        <Badge color="yellow" rounded size="small">Read Only</Badge>
+        <SwitchInput
+          small
+          :value="readOnlySwitchValue"
+          @input="toggleReadOnly"
         ></SwitchInput>
       </span>
 
@@ -43,7 +55,7 @@
 </template>
 
 <script>
-import { defineComponent, ref } from 'vue'
+import { defineComponent, ref, computed } from 'vue'
 
 export default defineComponent({
   name: 'AutomationHeader',
@@ -54,11 +66,26 @@ export default defineComponent({
       required: true,
     },
   },
-  setup() {
+  emits: ['read-only-toggled'],
+  setup(props, { emit }) {
     const switchValue = ref(false)
+    const readOnlySwitchValue = ref(false)
+
+    // Check if in development environment
+    const isDevEnvironment = computed(
+      () => process.env.NODE_ENV === 'development'
+    )
+
+    const toggleReadOnly = () => {
+      readOnlySwitchValue.value = !readOnlySwitchValue.value
+      emit('read-only-toggled', readOnlySwitchValue.value)
+    }
 
     return {
       switchValue,
+      readOnlySwitchValue,
+      toggleReadOnly,
+      isDevEnvironment,
     }
   },
 })

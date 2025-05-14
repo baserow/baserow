@@ -1,7 +1,7 @@
 <template>
     <VueFlow
-          :nodes="nodes"
-          :edges="edges"
+          :nodes="displayNodes"
+          :edges="computedEdges"
           class="basic-flow"
           :zoom-on-scroll="false"
           :nodes-draggable="nodesDraggable"
@@ -9,30 +9,33 @@
           :pan-on-scroll="panOnScroll"
           :zoom-on-double-click="zoomOnDoubleClick"
         >
-          <Background pattern-color="#ededed" size="3" gap="15" />
-          <template #node-baserow-node="slotProps">
-            <BaserowNode
+          <Background pattern-color="#ededed" :size="3" :gap="15" />
+          <template #node-workflow-node="slotProps">
+            <WorkflowNode
               :id="slotProps.id"
               :label="slotProps.label"
               :selected="slotProps.selected"
               :dragging="slotProps.dragging"
               :position="slotProps.position"
+              :data="slotProps.data"
+              @removeNode="handleRemoveNode"
             />
           </template>
 
-          <template #node-add-button="slotProps">
-            <BaserowAddButtonNode
+          <template #node-workflow-add-button-node="slotProps">
+            <WorkflowAddBtnNode
               :id="slotProps.id"
+              :data="slotProps.data"
               :label="slotProps.label"
               :selected="slotProps.selected"
               :dragging="slotProps.dragging"
               :position="slotProps.position"
-              @addNode="emit('addNode', $event)"
+              @addNode="handleAddNode"
             />
           </template>
 
-          <template #edge-baserow-edge="slotProps">
-            <BaserowEdge
+          <template #edge-workflow-edge="slotProps">
+            <WorkflowEdge
               :id="slotProps.id"
               :source-x="slotProps.sourceX"
               :source-y="slotProps.sourceY"
@@ -46,125 +49,149 @@
 <script setup>
 import { VueFlow, useVueFlow } from '@vue2-flow/core'
 import { Background } from '@vue2-flow/background'
-import { ref } from 'vue'
-import BaserowNode from '@baserow/modules/automation/components/workflow/BaserowNode.vue'
-import BaserowAddButtonNode from '@baserow/modules/automation/components/workflow/BaserowAddButtonNode.vue'
-import BaserowEdge from '@baserow/modules/automation/components/workflow/BaserowEdge.vue'
-import { initialNodes, initialEdges } from '@baserow/modules/automation/pages/initial-nodes-edges.js'
+import { ref, computed } from 'vue'
+import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode.vue'
+import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode.vue'
+import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge.vue'
 
-const emit = defineEmits(['addNode'])
+const props = defineProps({
+  nodes: {
+    type: Array,
+    required: true,
+  },
+  readOnly: {
+    type: Boolean,
+    default: false,
+  },
+})
 
-const { onInit, onConnect, addEdges } = useVueFlow()
+const emit = defineEmits(['add-node'])
 
-const nodes = ref(initialNodes)
-const edges = ref(initialEdges)
+const { onInit } = useVueFlow()
+
 const nodesDraggable = ref(false)
 const zoomOnScroll = ref(false)
 const panOnScroll = ref(true)
 const zoomOnDoubleClick = ref(false)
 
+// Constants for positioning
+const NODE_VERTICAL_SPACING = 144 // Vertical distance between the tops of consecutive data nodes
+const ADD_BUTTON_OFFSET_Y = 92 // Vertical offset of add button relative to the data node above it
+const INITIAL_Y_POS = 0
+const DATA_NODE_X_POS = 0
+const ADD_BUTTON_X_POS = 190
+
+const displayNodes = computed(() => {
+  const vueFlowNodes = []
+  // props.nodes should already be sorted by 'order' from the store getter
+  const sortedDataNodes = [...props.nodes]
+
+  if (props.readOnly) {
+    let currentY = INITIAL_Y_POS
+    return sortedDataNodes.map((node) => {
+      const position = { x: DATA_NODE_X_POS, y: currentY }
+      currentY += NODE_VERTICAL_SPACING // Increment Y for the next node
+
+
+      return {
+        ...node,
+        id: node.id.toString(), // VueFlow expects string IDs
+        position,
+        type: 'workflow-node',
+        data: { readOnly: props.readOnly },
+      }
+    })
+  }
+
+  // Not readOnly mode: intersperse workflow-add-button-node nodes
+  if (sortedDataNodes.length === 0) {
+    // No data nodes, show a single add button to start the flow
+    vueFlowNodes.push({
+      id: 'initial-workflow-add-button-node',
+      type: 'workflow-add-button-node',
+      label: '',
+      position: { x: ADD_BUTTON_X_POS, y: ADD_BUTTON_OFFSET_Y },
+      data: { nodeId: null }, // No preceding data node
+    })
+  } else {
+
+    let currentY = INITIAL_Y_POS
+    sortedDataNodes.forEach((dataNode) => {
+      const dataNodePosition = { x: DATA_NODE_X_POS, y: currentY }
+      vueFlowNodes.push({
+        ...dataNode,
+        type: 'workflow-node',
+        id: dataNode.id.toString(),
+        position: dataNodePosition,
+        data: { readOnly: props.readOnly },
+      })
+
+      // Add an Add Node Button node below it
+      const addButtonPosition = {
+        x: ADD_BUTTON_X_POS,
+        y: currentY + ADD_BUTTON_OFFSET_Y,
+      }
+
+      vueFlowNodes.push({
+        id: `workflow-add-button-node-${dataNode.id}`,
+        data: { nodeId: dataNode.id },
+        type: 'workflow-add-button-node',
+        position: addButtonPosition,
+      })
+
+      // Increment Y for the next node
+      currentY += NODE_VERTICAL_SPACING
+    })
+  }
+  return vueFlowNodes
+})
+
+const computedEdges = computed(() => {
+  const edges = []
+  const currentNodesToProcess = displayNodes.value
+
+  if (props.readOnly) {
+    const dataNodesOnly = displayNodes.value
+    for (let i = 0; i < dataNodesOnly.length - 1; i++) {
+      const sourceNode = dataNodesOnly[i]
+      const targetNode = dataNodesOnly[i + 1]
+      edges.push({
+        id: `e-${sourceNode.id}-${targetNode.id}`,
+        source: sourceNode.id,
+        target: targetNode.id,
+        type: 'workflow-edge',
+      })
+    }
+  } else {
+    for (let i = 0; i < currentNodesToProcess.length - 1; i++) {
+      const source = currentNodesToProcess[i]
+      const target = currentNodesToProcess[i + 1]
+
+      edges.push({
+        id: `e-${source.id}-${target.id}`,
+        source: source.id,
+        target: target.id,
+        type: 'workflow-edge',
+      })
+    }
+  }
+  return edges
+})
+
 onInit((vueFlowInstance) => {
   vueFlowInstance.fitView({ maxZoom: 1, minZoom: 0.5 })
 })
 
-onConnect((connection) => {
-  addEdges(connection)
-})
-
-const onAddNode = (addNodeId) => {
-  // Find the highest node ID and increment it
-  const maxNodeId = Math.max(
-    ...nodes.value.map((node) => parseInt(node.id, 10))
-  )
-  const newNodeId = (maxNodeId + 1).toString()
-
-  // Find the clicked add node index
-  const clickedNodeIndex = nodes.value.findIndex(
-    (node) => node.id === addNodeId
-  )
-  if (clickedNodeIndex === -1) return
-
-  // Find the source node that connects to this add node
-  const sourceNodeId = edges.value.find(
-    (edge) => edge.target === addNodeId
-  )?.source
-
-  // Calculate vertical position for the new node (144px below the source node)
-  const sourceNode = nodes.value.find((node) => node.id === sourceNodeId)
-  const newNodeY = sourceNode.position.y + 144
-
-  // Create new baserow node
-  const newNode = {
-    id: newNodeId,
-    label: 'New node',
-    type: 'baserow-node',
-    position: { x: 0, y: newNodeY },
-  }
-
-  // Create new add node below the new baserow node
-  const newAddNodeId = (maxNodeId + 2).toString()
-  const newAddNode = {
-    id: newAddNodeId,
-    label: '',
-    type: 'add-button',
-    position: { x: 190, y: newNodeY + 92 },
-  }
-
-  // Shift all nodes below the insertion point
-  const nodesToShift = nodes.value.filter(
-    (node) =>
-      node.position.y > sourceNode.position.y && node.id !== addNodeId
-  )
-
-  nodesToShift.forEach((node) => {
-    node.position.y += 144 // Shift by the height of two nodes (baserow + add)
+const handleAddNode = (previousNodeId) => {
+  emit('add-node', {
+    type: 'workflow-node',
+    previousNodeId,
   })
-
-  // Create new edges to connect the nodes
-  const newEdges = [
-    // Edge from add node to new baserow node
-    {
-      id: `e${addNodeId}-${newNodeId}`,
-      source: addNodeId,
-      target: newNodeId,
-      type: 'baserow-edge',
-    },
-    // Edge from new baserow node to new add node
-    {
-      id: `e${newNodeId}-${newAddNodeId}`,
-      source: newNodeId,
-      target: newAddNodeId,
-      type: 'baserow-edge',
-    },
-  ]
-
-  // Find next node that the clicked add node originally pointed to
-  const nextNodeId = edges.value.find(
-    (edge) => edge.source === addNodeId
-  )?.target
-
-  if (nextNodeId) {
-    // Connect new add node to the next node
-    newEdges.push({
-      id: `e${newAddNodeId}-${nextNodeId}`,
-      source: newAddNodeId,
-      target: nextNodeId,
-      type: 'baserow-edge',
-    })
-
-    // Remove the original edge between clicked add node and next node
-    const edgeToRemove = edges.value.findIndex(
-      (edge) => edge.source === addNodeId && edge.target === nextNodeId
-    )
-
-    if (edgeToRemove !== -1) {
-      edges.value.splice(edgeToRemove, 1)
-    }
-  }
-
-  // Add the new nodes and edges
-  nodes.value.push(newNode)
-  nodes.value.push(newAddNode)
-  edges.value.push(...newEdges)
 }
+
+const handleRemoveNode = (nodeId) => {
+  emit('remove-node', nodeId)
+}
+
+
 </script>

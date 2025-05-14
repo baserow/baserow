@@ -27,7 +27,6 @@
     </defs>
     <path
       :d="path"
-      class="vue-flow__edge-path"
       :stroke="`url(#${activeGradientId})`"
       stroke-width="2"
     />

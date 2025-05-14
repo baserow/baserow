@@ -2,7 +2,7 @@
   <ButtonFloating
     icon="iconoir-plus"
     size="small"
-    @click="emit('addNode', props.id)"
+    @click="emit('addNode', props.data.nodeId)"
   ></ButtonFloating>
 </template>
 
@@ -16,6 +16,12 @@ const props = defineProps({
     type: Object,
     default: () => ({ x: 0, y: 0 }),
   },
+  data: {
+    type: Object,
+    default: () => ({ nodeId: null }),
+  },
+  
+  
 })
 
 const emit = defineEmits(['addNode'])
