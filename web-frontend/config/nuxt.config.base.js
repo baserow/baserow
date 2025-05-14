@@ -73,7 +73,7 @@ export default function (
         'vue-chartjs',
         'chart.js',
         '@vue2-flow/core',
-        ],
-      },
+      ],
+    },
   }
 }

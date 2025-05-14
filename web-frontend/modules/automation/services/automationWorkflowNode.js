@@ -2,7 +2,7 @@ export default (client) => {
   return {
     create(workflowId, type) {
       return client.post(`automation/workflow/${workflowId}/nodes/`, {
-       type
+        type,
       })
     },
     get(workflowId) {

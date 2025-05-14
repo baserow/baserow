@@ -25,11 +25,7 @@
         <stop offset="100%" stop-color="#f7f7f7" />
       </linearGradient>
     </defs>
-    <path
-      :d="path"
-      :stroke="`url(#${activeGradientId})`"
-      stroke-width="2"
-    />
+    <path :d="path" :stroke="`url(#${activeGradientId})`" stroke-width="2" />
   </g>
 </template>
 

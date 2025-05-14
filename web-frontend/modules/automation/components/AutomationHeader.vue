@@ -25,7 +25,7 @@
         <Badge color="cyan" rounded size="small">{{
           $t('automationHeader.switchLabel')
         }}</Badge>
-      <SwitchInput
+        <SwitchInput
           small
           :value="switchValue"
           @input="switchValue = !switchValue"

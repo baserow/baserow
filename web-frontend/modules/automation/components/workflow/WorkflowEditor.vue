@@ -1,49 +1,49 @@
 <template>
-    <VueFlow
-          :nodes="displayNodes"
-          :edges="computedEdges"
-          class="basic-flow"
-          :zoom-on-scroll="false"
-          :nodes-draggable="nodesDraggable"
-          :zoom-on-drag="zoomOnScroll"
-          :pan-on-scroll="panOnScroll"
-          :zoom-on-double-click="zoomOnDoubleClick"
-        >
-          <Background pattern-color="#ededed" :size="3" :gap="15" />
-          <template #node-workflow-node="slotProps">
-            <WorkflowNode
-              :id="slotProps.id"
-              :label="slotProps.label"
-              :selected="slotProps.selected"
-              :dragging="slotProps.dragging"
-              :position="slotProps.position"
-              :data="slotProps.data"
-              @removeNode="handleRemoveNode"
-            />
-          </template>
+  <VueFlow
+    :nodes="displayNodes"
+    :edges="computedEdges"
+    class="basic-flow"
+    :zoom-on-scroll="false"
+    :nodes-draggable="nodesDraggable"
+    :zoom-on-drag="zoomOnScroll"
+    :pan-on-scroll="panOnScroll"
+    :zoom-on-double-click="zoomOnDoubleClick"
+  >
+    <Background pattern-color="#ededed" :size="3" :gap="15" />
+    <template #node-workflow-node="slotProps">
+      <WorkflowNode
+        :id="slotProps.id"
+        :label="slotProps.label"
+        :selected="slotProps.selected"
+        :dragging="slotProps.dragging"
+        :position="slotProps.position"
+        :data="slotProps.data"
+        @removeNode="handleRemoveNode"
+      />
+    </template>
 
-          <template #node-workflow-add-button-node="slotProps">
-            <WorkflowAddBtnNode
-              :id="slotProps.id"
-              :data="slotProps.data"
-              :label="slotProps.label"
-              :selected="slotProps.selected"
-              :dragging="slotProps.dragging"
-              :position="slotProps.position"
-              @addNode="handleAddNode"
-            />
-          </template>
+    <template #node-workflow-add-button-node="slotProps">
+      <WorkflowAddBtnNode
+        :id="slotProps.id"
+        :data="slotProps.data"
+        :label="slotProps.label"
+        :selected="slotProps.selected"
+        :dragging="slotProps.dragging"
+        :position="slotProps.position"
+        @addNode="handleAddNode"
+      />
+    </template>
 
-          <template #edge-workflow-edge="slotProps">
-            <WorkflowEdge
-              :id="slotProps.id"
-              :source-x="slotProps.sourceX"
-              :source-y="slotProps.sourceY"
-              :target-x="slotProps.targetX"
-              :target-y="slotProps.targetY"
-            />
-          </template>
-        </VueFlow>
+    <template #edge-workflow-edge="slotProps">
+      <WorkflowEdge
+        :id="slotProps.id"
+        :source-x="slotProps.sourceX"
+        :source-y="slotProps.sourceY"
+        :target-x="slotProps.targetX"
+        :target-y="slotProps.targetY"
+      />
+    </template>
+  </VueFlow>
 </template>
 
 <script setup>
@@ -92,7 +92,6 @@ const displayNodes = computed(() => {
       const position = { x: DATA_NODE_X_POS, y: currentY }
       currentY += NODE_VERTICAL_SPACING // Increment Y for the next node
 
-
       return {
         ...node,
         id: node.id.toString(), // VueFlow expects string IDs
@@ -114,7 +113,6 @@ const displayNodes = computed(() => {
       data: { nodeId: null }, // No preceding data node
     })
   } else {
-
     let currentY = INITIAL_Y_POS
     sortedDataNodes.forEach((dataNode) => {
       const dataNodePosition = { x: DATA_NODE_X_POS, y: currentY }
@@ -192,6 +190,4 @@ const handleAddNode = (previousNodeId) => {
 const handleRemoveNode = (nodeId) => {
   emit('remove-node', nodeId)
 }
-
-
 </script>

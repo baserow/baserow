@@ -20,8 +20,6 @@ const props = defineProps({
     type: Object,
     default: () => ({ nodeId: null }),
   },
-  
-  
 })
 
 const emit = defineEmits(['addNode'])
