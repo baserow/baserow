@@ -1858,15 +1858,16 @@ def test_update_rows_only_create_or_delete_differences_for_m2m_fields(data_fixtu
     multiselect_through = model_a._meta.get_field(
         multiple_select_field.db_column
     ).remote_field.through
-    assert list(multiselect_through.objects.values_list("id", flat=True)) == [1]
 
     multicollab_through = model_a._meta.get_field(
         multiple_collaborator_field.db_column
     ).remote_field.through
-    assert list(multicollab_through.objects.values_list("id", flat=True)) == [1]
 
     link_through = model_a._meta.get_field(link_a_b.db_column).remote_field.through
-    assert list(link_through.objects.values_list("id", flat=True)) == [1]
+
+    assert set(multiselect_through.objects.values_list("id", flat=True)) == {1}
+    assert set(multicollab_through.objects.values_list("id", flat=True)) == {1}
+    assert set(link_through.objects.values_list("id", flat=True)) == {1}
 
     # If we update the rows adding a new relation, the previous items should be kept
     # and the new ones added
@@ -1891,9 +1892,9 @@ def test_update_rows_only_create_or_delete_differences_for_m2m_fields(data_fixtu
         model=model_a,
     )
 
-    assert list(multiselect_through.objects.values_list("id", flat=True)) == [1, 2]
-    assert list(multicollab_through.objects.values_list("id", flat=True)) == [1, 2]
-    assert list(link_through.objects.values_list("id", flat=True)) == [1, 2, 3]
+    assert set(multiselect_through.objects.values_list("id", flat=True)) == {1, 2}
+    assert set(multicollab_through.objects.values_list("id", flat=True)) == {1, 2}
+    assert set(link_through.objects.values_list("id", flat=True)) == {1, 2, 3}
 
     # If we update the rows removing the relations, only those items should be removed
 
@@ -1911,6 +1912,6 @@ def test_update_rows_only_create_or_delete_differences_for_m2m_fields(data_fixtu
         model=model_a,
     )
 
-    assert list(multiselect_through.objects.values_list("id", flat=True)) == [2]
-    assert list(multicollab_through.objects.values_list("id", flat=True)) == [2]
-    assert list(link_through.objects.values_list("id", flat=True)) == [3]
+    assert set(multiselect_through.objects.values_list("id", flat=True)) == {2}
+    assert set(multicollab_through.objects.values_list("id", flat=True)) == {2}
+    assert set(link_through.objects.values_list("id", flat=True)) == {3}
