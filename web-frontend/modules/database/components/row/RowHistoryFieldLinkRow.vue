@@ -37,28 +37,24 @@ export default {
       return this.removedItems.concat(this.addedItems)
     },
     removedItems() {
-      if (!this.entry.before[this.fieldIdentifier]) {
+      const itemsBefore = this.entry.before[this.fieldIdentifier]
+      const itemsAfter = this.entry.after[this.fieldIdentifier] || []
+      if (!itemsBefore) {
         return []
       }
-      return this.entry.before[this.fieldIdentifier].filter((before) => {
-        return (
-          (this.entry.after[this.fieldIdentifier] || []).findIndex(
-            (item) => item === before
-          ) === -1
-        )
-      })
+      return itemsBefore.filter(
+        (before) => itemsAfter.findIndex((item) => item === before) === -1
+      )
     },
     addedItems() {
-      if (!this.entry.after[this.fieldIdentifier]) {
+      const itemsBefore = this.entry.before[this.fieldIdentifier] || []
+      const itemsAfter = this.entry.after[this.fieldIdentifier]
+      if (!itemsAfter) {
         return []
       }
-      return this.entry.after[this.fieldIdentifier].filter((after) => {
-        return (
-          (this.entry.before[this.fieldIdentifier] || []).findIndex(
-            (item) => item === after
-          ) === -1
-        )
-      })
+      return itemsAfter.filter(
+        (after) => itemsBefore.findIndex((item) => item === after) === -1
+      )
     },
   },
   methods: {

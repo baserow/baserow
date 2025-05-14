@@ -4048,10 +4048,7 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
                     ],
                     f"field_{single_select_field.id}": option_a.id,
                     f"field_{multiple_select_field.id}": [multi_option_a.id],
-                    f"field_{collaborator_field.id}": [
-                        {"id": user2.id},
-                        {"id": user3.id},
-                    ],
+                    f"field_{collaborator_field.id}": [user2.id, user3.id],
                     f"field_{linkrow_field.id}": [table2_row1.id],
                 },
                 "after": {
@@ -4092,7 +4089,7 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
                         multi_option_b.id,
                     ],
                     f"field_{collaborator_field.id}": [
-                        {"id": user2.id},
+                        user2.id,
                     ],
                     f"field_{linkrow_field.id}": [table2_row1.id, table2_row2.id],
                 },

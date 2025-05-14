@@ -21,7 +21,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.db.models import Field as DjangoField
-from django.db.models import Model, QuerySet, Window
+from django.db.models import Model, Q, QuerySet, Window
 from django.db.models.expressions import RawSQL
 from django.db.models.fields.related import ForeignKey, ManyToManyField
 from django.db.models.functions import RowNumber
@@ -1363,18 +1363,18 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
     def _prepare_m2m_field_related_objects(
         self, row: GeneratedTableModel, field_name: str, value: List[Any]
-    ) -> Tuple[List[Type[Model]], str]:
+    ) -> Tuple[List[Type[Model]], Tuple[str, str]]:
         """
-        Prepares the many to many related objects for a given row and field
-        name, taking into account whether the field is self-referencing or not.
+        Prepares the many to many related objects for a given row and field name, taking
+        into account whether the field is self-referencing or not.
 
-        :param row: The row instance for which the related objects must be
+        :param row: The row instance for which the related objects must be prepared.
+        :param field_name: The name of the field for which the related objects must be
             prepared.
-        :param field_name: The name of the field for which the related objects
-            must be prepared.
         :param value: The value of the field.
-        :return: A list of related objects and a string indicating the column
-            name of the row in the through table.
+        :return: A list of related objects and a tuple containing a string indicating
+            the column name of the row in the through table and a string indicating the
+            column name of the value in the through table.
         """
 
         model = row._meta.model
@@ -1403,7 +1403,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             else:
                 value_column = field.get_attname_column()[1]
 
-        return [
+        m2m_objects = [
             through(
                 **{
                     row_column: row.id,
@@ -1411,7 +1411,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 }
             )
             for v in value
-        ], row_column
+        ]
+
+        return m2m_objects, (row_column, value_column)
 
     def validate_rows(
         self,
@@ -1991,7 +1993,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     model._meta.get_field(field_name).pre_save(obj, add=False),
                 )
 
-        many_to_many = defaultdict(list)
+        m2m_values_to_add = defaultdict(list)
+        m2m_values_to_delete = {}
         row_column_names: Dict[str, str] = {}
         row_ids_change_m2m_per_field = defaultdict(set)
 
@@ -2016,28 +2019,46 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     field_obj, field_name, row, value
                 )
 
-                m2m_objects, row_column_name = self._prepare_m2m_field_related_objects(
-                    row, field_name, value
+                original_set_of_values = set(
+                    original_row_values_by_id[row.id].get(field_name) or []
+                )
+                # if a list of models is provided as value, make sure to compare the ids
+                value_ids = [v.id if hasattr(v, "id") else v for v in value]
+                new_set_of_values = set(value_ids)
+                to_add = new_set_of_values - original_set_of_values
+                to_delete = original_set_of_values - new_set_of_values
+
+                m2m_to_add, (
+                    row_column_name,
+                    value_column,
+                ) = self._prepare_m2m_field_related_objects(
+                    row, field_name, list(filter(lambda v: v in to_add, value_ids))
                 )
                 row_column_names[field_name] = row_column_name
 
-                if len(value) == 0:
-                    many_to_many[field_name].append(None)
-                else:
-                    many_to_many[field_name].extend(m2m_objects)
+                if len(to_add) > 0:
+                    m2m_values_to_add[field_name].extend(m2m_to_add)
+
+                if len(to_delete) > 0:
+                    prev_q = m2m_values_to_delete.get(field_name, Q())
+                    q_kwargs = {row_column_name: row.id}
+                    # Delete all the row relations only if the new value is empty
+                    if value_ids:
+                        q_kwargs[f"{value_column}__in"] = to_delete
+                    m2m_values_to_delete[field_name] = prev_q | Q(**q_kwargs)
 
         # The many to many relations need to be updated first because they need to
         # exist when the rows are updated in bulk. Otherwise, the formula and lookup
         # fields can't see the relations.
-        for field_name, values in many_to_many.items():
+        for field_name, q_filters in m2m_values_to_delete.items():
+            through = getattr(model, field_name).through
+            delete_qs = through.objects.all().filter(q_filters)
+            delete_qs._raw_delete(delete_qs.db)
+
+        for field_name, m2m_to_add in m2m_values_to_add.items():
             through = getattr(model, field_name).through
             row_column_name = row_column_names[field_name]
-            filters = {
-                f"{row_column_name}__in": row_ids_change_m2m_per_field[field_name]
-            }
-            delete_qs = through.objects.all().filter(**filters)
-            delete_qs._raw_delete(delete_qs.db)
-            through.objects.bulk_create([v for v in values if v is not None])
+            through.objects.bulk_create(m2m_to_add)
 
         bulk_update_fields = ["updated_on"]
 

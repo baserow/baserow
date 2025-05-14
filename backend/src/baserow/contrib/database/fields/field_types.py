@@ -6407,7 +6407,7 @@ class MultipleCollaboratorsFieldType(
         self, row: "GeneratedTableModel", field_name: str
     ) -> List[int]:
         related_objects = getattr(row, field_name)
-        return [{"id": related_object.id} for related_object in related_objects.all()]
+        return [related_object.id for related_object in related_objects.all()]
 
     def get_response_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
@@ -6544,7 +6544,9 @@ class MultipleCollaboratorsFieldType(
         }
 
     def are_row_values_equal(self, value1: any, value2: any) -> bool:
-        return {v["id"] for v in value1} == {v["id"] for v in value2}
+        v1 = set([v["id"] if isinstance(v, dict) else v for v in value1])
+        v2 = set([v["id"] if isinstance(v, dict) else v for v in value2])
+        return v1 == v2
 
     def get_model_field(self, instance, **kwargs):
         return None

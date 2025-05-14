@@ -16,6 +16,7 @@ from baserow.contrib.database.api.utils import (
     extract_user_field_names_from_params,
     get_include_exclude_fields,
 )
+from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.exceptions import UserNotInWorkspace
@@ -1807,3 +1808,110 @@ def test_rows_created_is_not_sent_if_there_are_no_rows_to_create(data_fixture):
         RowHandler().force_create_rows(user, table, [])
 
         assert mock.call_count == 0
+
+
+@pytest.mark.django_db
+def test_update_rows_only_create_or_delete_differences_for_m2m_fields(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    user_2 = data_fixture.create_user(workspace=workspace)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table_a, table_b, link_a_b = data_fixture.create_two_linked_tables(
+        user=user, database=database
+    )
+    multiple_select_field = data_fixture.create_multiple_select_field(
+        table=table_a, name="multiple_select"
+    )
+    select_options = SelectOption.objects.bulk_create(
+        [
+            SelectOption(field=multiple_select_field, value="a", order=1),
+            SelectOption(field=multiple_select_field, value="b", order=2),
+        ]
+    )
+    multiple_collaborator_field = data_fixture.create_multiple_collaborators_field(
+        table=table_a, name="multiple_collaborator"
+    )
+
+    row_b1, row_b2, row_b3 = (
+        RowHandler().force_create_rows(user, table_b, [{}] * 3).created_rows
+    )
+
+    model_a = table_a.get_model()
+    (row_a1,) = (
+        RowHandler()
+        .force_create_rows(
+            user,
+            table_a,
+            [
+                {
+                    multiple_select_field.db_column: [select_options[0].id],
+                    multiple_collaborator_field.db_column: [{"id": user_2.id}],
+                    link_a_b.db_column: [row_b1.id],
+                }
+            ],
+            model=model_a,
+        )
+        .created_rows
+    )
+
+    assert row_a1.id is not None
+    multiselect_through = model_a._meta.get_field(
+        multiple_select_field.db_column
+    ).remote_field.through
+
+    multicollab_through = model_a._meta.get_field(
+        multiple_collaborator_field.db_column
+    ).remote_field.through
+
+    link_through = model_a._meta.get_field(link_a_b.db_column).remote_field.through
+
+    assert set(multiselect_through.objects.values_list("id", flat=True)) == {1}
+    assert set(multicollab_through.objects.values_list("id", flat=True)) == {1}
+    assert set(link_through.objects.values_list("id", flat=True)) == {1}
+
+    # If we update the rows adding a new relation, the previous items should be kept
+    # and the new ones added
+
+    RowHandler().force_update_rows(
+        user,
+        table_a,
+        [
+            {
+                "id": row_a1.id,
+                multiple_select_field.db_column: [
+                    select_options[0].id,
+                    select_options[1].id,
+                ],
+                multiple_collaborator_field.db_column: [
+                    {"id": user_2.id},
+                    {"id": user.id},
+                ],
+                link_a_b.db_column: [row_b1.id, row_b2.id, row_b3.id],
+            }
+        ],
+        model=model_a,
+    )
+
+    assert set(multiselect_through.objects.values_list("id", flat=True)) == {1, 2}
+    assert set(multicollab_through.objects.values_list("id", flat=True)) == {1, 2}
+    assert set(link_through.objects.values_list("id", flat=True)) == {1, 2, 3}
+
+    # If we update the rows removing the relations, only those items should be removed
+
+    RowHandler().force_update_rows(
+        user,
+        table_a,
+        [
+            {
+                "id": row_a1.id,
+                multiple_select_field.db_column: [select_options[1].id],
+                multiple_collaborator_field.db_column: [{"id": user.id}],
+                link_a_b.db_column: [row_b3.id],
+            }
+        ],
+        model=model_a,
+    )
+
+    assert set(multiselect_through.objects.values_list("id", flat=True)) == {2}
+    assert set(multicollab_through.objects.values_list("id", flat=True)) == {2}
+    assert set(link_through.objects.values_list("id", flat=True)) == {3}
