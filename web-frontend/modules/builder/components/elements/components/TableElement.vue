@@ -23,7 +23,7 @@
         -- is respected even if it comes from the main theme.
         -->
         <td
-          :key="field.id"
+          :key="`${row.__id__}_${field.__id__}`"
           class="ab-table__cell"
           :style="{
             '--force-self-alignment': 'auto',
@@ -96,19 +96,19 @@ export default {
       if (!this.element.fields) {
         return []
       }
-      return this.element.fields.map((field, index) => ({
+      return this.element.fields.map((field) => ({
         ...field,
-        __id__: index,
+        __id__: field.id,
       }))
     },
     rows() {
       return this.elementContent.map((row, rowIndex) => {
         const newRow = Object.fromEntries(
           this.fields.map((field) => {
-            const { name, type } = field
+            const { __id__: fieldId, type } = field
             const fieldType = this.collectionFieldTypes[type]
             return [
-              name,
+              fieldId,
               fieldType.getProps(field, {
                 resolveFormula: (formula) =>
                   this.resolveRowFormula(formula, rowIndex),

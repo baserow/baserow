@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix issue when two columns of a table element have the same value",
+    "domain": "builder",
+    "issue_number": 3144,
+    "bullet_points": [],
+    "created_at": "2025-05-07"
+}
