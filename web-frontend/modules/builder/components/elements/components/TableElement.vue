@@ -23,7 +23,7 @@
         -- is respected even if it comes from the main theme.
         -->
         <td
-          :key="field.id"
+          :key="`${row.__id__}_${field.__id__}`"
           class="ab-table__cell"
           :style="{
             '--force-self-alignment': 'auto',
