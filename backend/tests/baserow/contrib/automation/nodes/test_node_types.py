@@ -64,7 +64,9 @@ def test_triggering_local_baserow_signal_trigger_enqueues_workflow_run(
     integration = data_fixture.create_local_baserow_integration(
         application=automation, authorized_user=user
     )
-    workflow = data_fixture.create_automation_workflow(automation=automation)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, published=True
+    )
     service = data_fixture.create_local_baserow_rows_created_service(
         integration=integration,
         table=table_issuing_signal,
