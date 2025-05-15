@@ -753,7 +753,7 @@ def test_sync_data_sync_table_without_license(enterprise_data_fixture):
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_async_sync_data_sync_table_without_license(
-    api_client, enterprise_data_fixture
+    api_client, enterprise_data_fixture, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 

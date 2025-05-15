@@ -194,7 +194,6 @@ def setup_interesting_test_table(
         .order_by("id")
         .values_list("id", flat=True)
     )
-
     values = {
         "text": "text",
         "long_text": "long_text",
@@ -305,6 +304,7 @@ def setup_interesting_test_table(
             "duration_rollup_avg",
             "duration_rollup_sum",
             "multiple_collaborators_lookup",
+            "multiple_select_with_default",
         }
     )
     assert missing_fields == set(), (
@@ -442,6 +442,7 @@ def setup_interesting_test_table(
         "user3": user3,
         "fields": fields,
         "tables": linked_tables,
+        "name_to_field_id": name_to_field_id,
     }
 
     return table, user, row, blank_row, context

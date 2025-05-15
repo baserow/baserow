@@ -33,7 +33,7 @@ import FieldTextSubForm from '@baserow/modules/database/components/field/FieldTe
 import FieldLongTextSubForm from '@baserow/modules/database/components/field/FieldLongTextSubForm'
 import FieldDateSubForm from '@baserow/modules/database/components/field/FieldDateSubForm'
 import FieldLinkRowSubForm from '@baserow/modules/database/components/field/FieldLinkRowSubForm'
-import FieldSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSelectOptionsSubForm'
+import FieldMultipleSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldMultipleSelectOptionsSubForm'
 import FieldSingleSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSingleSelectOptionsSubForm'
 import FieldCollaboratorSubForm from '@baserow/modules/database/components/field/FieldCollaboratorSubForm'
 import FieldPasswordSubForm from '@baserow/modules/database/components/field/FieldPasswordSubForm'
@@ -337,8 +337,15 @@ export class FieldType extends Registerable {
   /**
    * Because we want to show a new row immediately after creating we need to have an
    * default value to show right away.
+   *
+   * @param field - The field object.
+   * @param flat - If true, returns a simplified default value suitable for
+   *  backend operations (such as IDs or primitives). If false, returns the
+   *  full object representation, which may include additional metadata for
+   *  frontend use. This allows flexibility depending on whether a minimal or
+   *  detailed value is required.
    */
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     return null
   }
 
@@ -1049,7 +1056,7 @@ export class TextFieldType extends FieldType {
     return ''
   }
 
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     return field.text_default || this.getEmptyValue(field)
   }
 
@@ -1164,7 +1171,7 @@ export class LongTextFieldType extends FieldType {
     }
   }
 
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     return ''
   }
 
@@ -1280,7 +1287,7 @@ export class LinkRowFieldType extends FieldType {
     return RowHistoryFieldLinkRow
   }
 
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     return []
   }
 
@@ -1649,7 +1656,7 @@ export class NumberFieldType extends FieldType {
     return ['text', '1', '9']
   }
 
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     if (field.number_default === null || field.number_default === undefined) {
       return null
     }
@@ -1871,7 +1878,7 @@ export class RatingFieldType extends FieldType {
     return ['text', '1', '9']
   }
 
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     return 0
   }
 
@@ -2017,7 +2024,7 @@ export class BooleanFieldType extends FieldType {
     return false
   }
 
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     return field.boolean_default || this.getEmptyValue(field)
   }
 
@@ -3016,7 +3023,7 @@ export class URLFieldType extends FieldType {
     }
   }
 
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     return ''
   }
 
@@ -3119,7 +3126,7 @@ export class EmailFieldType extends FieldType {
     }
   }
 
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     return ''
   }
 
@@ -3299,7 +3306,7 @@ export class FileFieldType extends FieldType {
     }
   }
 
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     return []
   }
 
@@ -3630,8 +3637,12 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     return value1Id === value2Id
   }
 
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     if (field.single_select_default != null) {
+      if (flat) {
+        return field.single_select_default
+      }
+
       return field.select_options.find(
         (option) => option.id === field.single_select_default
       )
@@ -3655,7 +3666,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getFormComponent() {
-    return FieldSelectOptionsSubForm
+    return FieldMultipleSelectOptionsSubForm
   }
 
   getGridViewFieldComponent() {
@@ -3867,8 +3878,20 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
     return genericContainsWordFilter
   }
 
-  getDefaultValue() {
+  getEmptyValue(field) {
     return []
+  }
+
+  getDefaultValue(field, flat) {
+    if (!field.multiple_select_default) {
+      return this.getEmptyValue(field)
+    }
+    if (flat) {
+      return field.multiple_select_default
+    }
+    return (field.multiple_select_default || [])
+      .map((id) => field.select_options.find((opt) => opt.id === id))
+      .filter(Boolean)
   }
 
   shouldFetchFieldSelectOptions() {
@@ -3978,7 +4001,7 @@ export class PhoneNumberFieldType extends FieldType {
     }
   }
 
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     return ''
   }
 
@@ -4131,7 +4154,7 @@ export class FormulaFieldType extends mix(
     return this.getFormulaType(field)?.getSortTypes(field)
   }
 
-  getDefaultValue(field) {
+  getDefaultValue(field, flat) {
     return null
   }
 
@@ -4395,7 +4418,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     return components
   }
 
-  getDefaultValue() {
+  getDefaultValue(field, flat) {
     return []
   }
 

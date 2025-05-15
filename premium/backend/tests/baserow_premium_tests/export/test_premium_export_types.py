@@ -83,6 +83,10 @@ def test_can_export_every_interesting_different_field_to_json(
     "single_select": "",
     "single_select_with_default": "BB",
     "multiple_select": [],
+    "multiple_select_with_default": [
+        "M-1",
+        "M-2"
+    ],
     "multiple_collaborators": [],
     "phone_number": "",
     "formula_text": "test FORMULA",
@@ -205,6 +209,10 @@ def test_can_export_every_interesting_different_field_to_json(
         "D",
         "C",
         "E"
+    ],
+    "multiple_select_with_default": [
+        "M-1",
+        "M-2"
     ],
     "multiple_collaborators": [
         "User2 <user2@example.com>",
@@ -397,6 +405,10 @@ def test_can_export_every_interesting_different_field_to_xml(
       <single-select/>
       <single-select-with-default>BB</single-select-with-default>
       <multiple-select/>
+      <multiple-select-with-default>
+         <item>M-1</item>
+         <item>M-2</item>
+      </multiple-select-with-default>
       <multiple-collaborators/>
       <phone-number/>
       <formula-text>test FORMULA</formula-text>
@@ -520,6 +532,10 @@ def test_can_export_every_interesting_different_field_to_xml(
          <item>C</item>
          <item>E</item>
       </multiple-select>
+      <multiple-select-with-default>
+         <item>M-1</item>
+         <item>M-2</item>
+      </multiple-select-with-default>
       <multiple-collaborators>
          <item>User2 &lt;user2@example.com&gt;</item>
          <item>User3 &lt;user3@example.com&gt;</item>
@@ -789,6 +805,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "single_select",
         "single_select_with_default",
         "multiple_select",
+        "multiple_select_with_default",
         "multiple_collaborators",
         "phone_number",
         "formula_text",
@@ -866,6 +883,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         None,
         "BB",
         None,
+        "M-1,M-2",
         None,
         None,
         "test FORMULA",
@@ -943,6 +961,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "A",
         "BB",
         "D,C,E",
+        "M-1,M-2",
         "User2 <user2@example.com>,User3 <user3@example.com>",
         "+4412345678",
         "test FORMULA",

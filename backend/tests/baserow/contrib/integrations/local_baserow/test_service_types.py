@@ -611,6 +611,24 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 },
             },
         },
+        field_db_column_by_name["multiple_select_with_default"]: {
+            "title": "multiple_select_with_default",
+            "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
+            "original_type": "multiple_select",
+            "metadata": {},
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"title": "id", "type": "number"},
+                    "value": {"title": "value", "type": "string"},
+                    "color": {"title": "color", "type": "string"},
+                },
+            },
+        },
         field_db_column_by_name["multiple_collaborators"]: {
             "title": "multiple_collaborators",
             "default": None,

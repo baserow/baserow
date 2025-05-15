@@ -272,12 +272,13 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         user: AbstractUser,
         table: Table,
         type_name: str,
-        primary=False,
-        skip_django_schema_editor_add_field=True,
-        return_updated_fields=False,
-        primary_key=None,
-        skip_search_updates=False,
+        primary: bool = False,
+        skip_django_schema_editor_add_field: bool = True,
+        return_updated_fields: bool = False,
+        primary_key: bool = None,
+        skip_search_updates: bool = False,
         description: Optional[str] = None,
+        init_field_data: bool = False,
         **kwargs,
     ) -> Union[Field, Tuple[Field, List[Field]]]:
         """
@@ -295,11 +296,13 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             the second field you create, you don't want to create the m2m table again.
         :param return_updated_fields: When True any other fields who changed as a
             result of this field creation are returned with their new field instances.
+        :param primary_key: The id of the field.
         :param skip_search_updates: Whether to trigger a search update for
             this field creation.
+        :param description: The description of the field.
+        :param init_field_data: Whether to initialize the field with data.
         :param kwargs: The field values that need to be set upon creation.
-        :type kwargs: object
-        :param primary_key: The id of the field.
+
         :raises PrimaryFieldAlreadyExists: When we try to create a primary field,
             but one already exists.
         :raises MaxFieldLimitExceeded: When we try to create a field,
@@ -389,6 +392,9 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             before,
             kwargs,
         )
+
+        if init_field_data:
+            field_type.init_field_data(instance, to_model)
 
         field_cache.cache_model_fields(to_model)
         update_collector = FieldUpdateCollector(table)

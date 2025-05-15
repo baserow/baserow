@@ -405,12 +405,14 @@ class CreateFieldActionType(UndoableActionType):
             as a second tuple value.
         """
 
-        result = FieldHandler().create_field(
+        handler = FieldHandler()
+        result = handler.create_field(
             user,
             table,
             type_name,
             primary=primary,
             return_updated_fields=return_updated_fields,
+            init_field_data=True,
             **kwargs,
         )
 

@@ -48,7 +48,11 @@ from baserow.contrib.database.table.constants import (
     LAST_MODIFIED_BY_COLUMN_NAME,
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
 )
-from baserow.contrib.database.table.models import GeneratedTableModel, Table
+from baserow.contrib.database.table.models import (
+    FieldObject,
+    GeneratedTableModel,
+    Table,
+)
 from baserow.contrib.database.table.operations import (
     CreateRowDatabaseTableOperationType,
     ImportRowsDatabaseTableOperationType,
@@ -240,10 +244,36 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             if field_id in values or field["name"] in values
         }
 
+    def prepare_values_with_defaults(
+        self, field_objects: Dict[int, FieldObject], rows_values: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Iterate over the rows and add the default values for the fields that are not
+        present in the row values and have a default value. This is used when creating
+        new rows, but it shouldn't be used when updating rows because it will override
+        the values that are already set.
+
+        :param field_objects: The field objects for a model.
+        :param rows_values: The rows and their values that need to be prepared. Note
+            that it will be modified in place.
+        :return: The prepared values for all rows in the same structure as it was
+        """
+
+        for row_value in rows_values:
+            for field_obj in field_objects.values():
+                field_name = field_obj["name"]
+                field_type = field_obj["type"]
+                field = field_obj["field"]
+                if field_name not in row_value:
+                    default_value = field_type.get_default_value(field)
+                    if default_value is not None:
+                        row_value[field_name] = default_value
+        return rows_values
+
     def prepare_rows_in_bulk(
         self,
-        fields: Dict[int, Dict[str, Any]],
-        row_values: List[Dict[str, Any]],
+        field_objects: Dict[int, FieldObject],
+        rows_values: List[Dict[str, Any]],
         generate_error_report: bool = False,
     ) -> Tuple[List[Dict[str, Any]], Dict[int, Dict[str, Any]]]:
         """
@@ -251,8 +281,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         updated in the database. It will check if the values can actually be set and
         prepares them based on their field type.
 
-        :param fields: The returned fields object from the get_model method.
-        :param rows: The rows and their values that need to be prepared.
+        :param field_objects: The returned fields object from the get_model method.
+        :param rows_values: The rows and their values that need to be prepared.
         :param generate_error_report: If set to True, the method will return an
             object that contains information about the errors that
             occurred during the rows preparation.
@@ -264,33 +294,34 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         prepared_values_by_field = defaultdict(dict)
 
         # organize values by field name
-        for index, row_value in enumerate(row_values):
-            for field_id, field in fields.items():
-                field_name = field["name"]
+        for index, row_value in enumerate(rows_values):
+            for field_id, field_obj in field_objects.items():
+                field_name = field_obj["name"]
+                field_type = field_obj["type"]
+                field = field_obj["field"]
                 field_ids[field_name] = field_id
                 if field_name in row_value:
                     prepared_values_by_field[field_name][index] = row_value[field_name]
 
         # bulk-prepare values per field
         for field_name, batch_values in prepared_values_by_field.items():
-            field = fields[field_ids[field_name]]
-            field_type = field["type"]
+            field_obj = field_objects[field_ids[field_name]]
+            field_type = field_obj["type"]
+            field = field_obj["field"]
             prepared_values_by_field[
                 field_name
             ] = field_type.prepare_value_for_db_in_bulk(
-                field["field"],
-                batch_values,
-                continue_on_error=generate_error_report,
+                field, batch_values, continue_on_error=generate_error_report
             )
 
         # replace original values to keep ordering
         prepared_rows = []
         failing_rows = {}
-        for index, row_value in enumerate(row_values):
+        for index, row_value in enumerate(rows_values):
             new_values = deepcopy(row_value)
             row_errors = {}
-            for field_id, field in fields.items():
-                field_name = field["name"]
+            for field_id, field_obj in field_objects.items():
+                field_name = field_obj["name"]
                 if field_name in row_value:
                     prepared_value = prepared_values_by_field[field_name][index]
                     if isinstance(prepared_value, Exception):
@@ -765,7 +796,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         if not values_already_prepared:
-            prepared_values = self.prepare_values(model._field_objects, values)
+            values_with_defaults = self.prepare_values_with_defaults(
+                model._field_objects, [values]
+            )
+            prepared_values = self.prepare_values(
+                model._field_objects, values_with_defaults[0]
+            )
         else:
             prepared_values = values
 
@@ -1131,9 +1167,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         report = {}
+        rows_values_with_defaults = self.prepare_values_with_defaults(
+            model._field_objects, rows_values
+        )
         prepared_rows_values, errors = self.prepare_rows_in_bulk(
             model._field_objects,
-            rows_values,
+            rows_values_with_defaults,
             generate_error_report=generate_error_report,
         )
         report.update({index: err for index, err in errors.items()})

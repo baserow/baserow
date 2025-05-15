@@ -224,6 +224,9 @@ class FieldType(
 
         return f"{self.type}_default"
 
+    def get_default_value(self, field: Field) -> Any:
+        return None
+
     @property
     def db_column_fields(self) -> Set[str]:
         if self._db_column_fields is not None:
@@ -757,6 +760,13 @@ class FieldType(
         :param field_kwargs: The kwargs that were passed when creating the field
             instance.
         :type field_kwargs: dict
+        """
+
+    def init_field_data(self, field, model):
+        """
+        This hook is called right after the field has been created, when the field data
+        needs to be initialized. This is for example used by the CreateFieldActionType
+        to initialize the field data when the field is created.
         """
 
     def before_update(self, from_field, to_field_values, user, field_kwargs):

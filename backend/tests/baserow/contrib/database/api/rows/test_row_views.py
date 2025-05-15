@@ -4706,3 +4706,66 @@ def test_link_row_field_validate_input_data_for_read_only_primary_fields(
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_update_single_field_does_not_affect_others(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table, user, row, blank_row, context = setup_interesting_test_table(
+        data_fixture, user=user
+    )
+
+    values = {
+        "text": "text updated",
+        "long_text": "long_text updated",
+        "negative_decimal": "-10.2",
+        "rating": 2,
+        "boolean": False,
+        "datetime_us": "2025-05-14T13:37:00Z",
+        "date_us": "2025-05-14",
+        "duration_hm": 0,
+        "file": [],
+        "single_select": None,
+        "multiple_select": [],
+        "multiple_collaborators": [],
+        "phone_number": "+44876543210",
+    }
+    field_ids = context["name_to_field_id"]
+    url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row.id}
+    )
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    initial_data = response.json()
+
+    original_values = {
+        field_id: initial_data.get(f"field_{field_id}")
+        for field_id in field_ids.values()
+    }
+
+    for field_name, new_value in values.items():
+        field_id = field_ids[field_name]
+        response = api_client.patch(
+            url,
+            {f"field_{field_id}": new_value},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        updated_data = response.json()
+
+        for check_field_name in values.keys():
+            check_field_id = field_ids[check_field_name]
+            old_val = original_values[check_field_id]
+            key = f"field_{check_field_id}"
+            if check_field_id == field_id:
+                assert updated_data[key] == new_value
+            else:
+                assert updated_data[key] == old_val
+
+        # Update original_values for next iteration
+        original_values[field_id] = updated_data[f"field_{field_id}"]

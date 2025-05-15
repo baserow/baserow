@@ -353,6 +353,7 @@ def test_can_export_every_interesting_different_field_to_csv(
         "single_select": ["", "A"],
         "single_select_with_default": ["BB", "BB"],
         "multiple_select": ["", '"D,C,E"'],
+        "multiple_select_with_default": ['"M-1,M-2"', '"M-1,M-2"'],
         "multiple_collaborators": [
             "",
             '"User2 <user2@example.com>,User3 <user3@example.com>"',
