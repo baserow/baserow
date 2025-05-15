@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Allow null value as valid value for link row field in upsert row action",
+    "message": "Allow blank link row values in create and update row actions.",
     "domain": "builder",
     "issue_number": 3524,
     "bullet_points": [],
