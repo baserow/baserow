@@ -125,6 +125,7 @@ class BaserowMCPServer:
                         streams[1],
                         self._mcp_server.create_initialization_options(),
                     )
+                return Response()
 
             except Exception as e:
                 logger.exception(e)

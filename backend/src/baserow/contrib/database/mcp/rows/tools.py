@@ -4,9 +4,9 @@ from mcp.types import TextContent
 from rest_framework.response import Response
 from starlette.status import HTTP_204_NO_CONTENT
 
-from baserow.contrib.database.api.rows.serializers import get_row_serializer_class
 from baserow.contrib.database.mcp.table.utils import (
     get_all_tables,
+    get_table_row_serializer,
     remove_table_no_permission,
     table_in_workspace_of_endpoint,
 )
@@ -102,10 +102,7 @@ class CreateRowMcpTool(MCPTool):
 
         tools = []
         for table in tables:
-            model = await sync_to_async(table.get_model)()
-            validation_serializer = get_row_serializer_class(
-                model, user_field_names=True
-            )
+            validation_serializer = await sync_to_async(get_table_row_serializer)(table)
             spec = serializer_to_openapi_inline(
                 validation_serializer, "POST", "request"
             )
@@ -161,10 +158,7 @@ class UpdateRowMcpTool(MCPTool):
 
         tools = []
         for table in tables:
-            model = await sync_to_async(table.get_model)()
-            validation_serializer = get_row_serializer_class(
-                model, user_field_names=True
-            )
+            validation_serializer = await sync_to_async(get_table_row_serializer)(table)
             spec = serializer_to_openapi_inline(
                 validation_serializer, "PATCH", "request"
             )

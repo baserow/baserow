@@ -1,5 +1,6 @@
 from typing import List
 
+from baserow.contrib.database.api.rows.serializers import get_row_serializer_class
 from baserow.contrib.database.operations import ListTablesDatabaseTableOperationType
 from baserow.contrib.database.table.models import Table
 from baserow.core.handler import CoreHandler
@@ -19,7 +20,8 @@ def get_all_tables(endpoint: MCPEndpoint) -> List[Table]:
 
     workspace = endpoint.workspace
     tables_qs = Table.objects.filter(
-        database__workspace_id=workspace.id
+        database__workspace_id=workspace.id,
+        database__trashed=False,
     ).select_related("database__workspace")
     return list(
         CoreHandler().filter_queryset(
@@ -70,3 +72,16 @@ def table_in_workspace_of_endpoint(endpoint: MCPEndpoint, table_id: int) -> bool
     return Table.objects.filter(
         id=table_id, database__workspace_id=endpoint.workspace.id
     ).exists()
+
+
+def get_table_row_serializer(table):
+    """
+    Returns the serializer class for rows in the given table, using the user field
+    names.
+
+    :param table: The table to get the serializer for.
+    :return: The serializer class for the table rows.
+    """
+
+    model = table.get_model()
+    return get_row_serializer_class(model, user_field_names=True)
