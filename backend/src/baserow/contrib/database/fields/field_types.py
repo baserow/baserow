@@ -6431,7 +6431,7 @@ class MultipleCollaboratorsFieldType(
                 set,
                 tuple,
             ),
-        ) or not all([isinstance(v, dict) for v in value]):
+        ) or not all([isinstance(v, (dict, int)) for v in value]):
             raise ValidationError(
                 f"The value for field {instance.id} is not a valid list of dictionaries",
                 code="invalid",
@@ -6443,7 +6443,7 @@ class MultipleCollaboratorsFieldType(
         if len(value) == 0:
             return []
 
-        user_ids = [v["id"] for v in value]
+        user_ids = [v["id"] if isinstance(v, dict) else v for v in value]
         workspace = instance.table.database.workspace
         workspace_users_count = WorkspaceUser.objects.filter(
             user_id__in=user_ids, workspace_id=workspace.id
@@ -6461,7 +6461,7 @@ class MultipleCollaboratorsFieldType(
         rows_by_value = defaultdict(list)
         all_user_ids = set()
         for row_index, values in values_by_row.items():
-            user_ids = [v["id"] for v in values]
+            user_ids = [v["id"] if isinstance(v, dict) else v for v in values]
             for user_id in user_ids:
                 rows_by_value[user_id].append(row_index)
             all_user_ids = all_user_ids.union(user_ids)
