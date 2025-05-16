@@ -76,6 +76,8 @@ export default defineComponent({
         await store.dispatch('automationWorkflowNode/fetch', {
           workflow: currentWorkflow.value,
         })
+
+        currentWorkflow.value = { ...currentWorkflow.value }
       } catch (e) {
         return error({
           statusCode: 404,
