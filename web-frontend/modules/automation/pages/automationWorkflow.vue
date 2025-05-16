@@ -1,6 +1,7 @@
 <template>
   <div class="automation-app">
     <AutomationHeader
+      v-if="automation"
       :automation="automation"
       @read-only-toggled="handleReadOnlyToggle"
     />
@@ -72,7 +73,9 @@ export default defineComponent({
           automation: fetchedAutomation,
           workflowId,
         })
-        await store.dispatch('automationWorkflowNode/fetch', { workflowId })
+        await store.dispatch('automationWorkflowNode/fetch', {
+          workflow: currentWorkflow.value,
+        })
       } catch (e) {
         return error({
           statusCode: 404,
@@ -87,7 +90,9 @@ export default defineComponent({
 
     const isWorkflowReadOnly = ref(false)
     const workflowNodes = computed(() => {
-      return store.getters['automationWorkflowNode/getAll']
+      return store.getters['automationWorkflowNode/getNodes'](
+        currentWorkflow.value
+      )
     })
 
     const handleReadOnlyToggle = (newReadOnlyState) => {
@@ -97,14 +102,15 @@ export default defineComponent({
     const handleAddNode = async ({ previousNodeId }) => {
       try {
         const newNode = await store.dispatch('automationWorkflowNode/create', {
-          workflowId: currentWorkflow.value.id,
+          workflow: currentWorkflow.value,
           type: 'row_created',
         })
 
         const newId = newNode.id
 
-        const currentNodesIncludingNew =
-          store.getters['automationWorkflowNode/getAll']
+        const currentNodesIncludingNew = store.getters[
+          'automationWorkflowNode/getNodes'
+        ](currentWorkflow.value)
         const oldOrder = currentNodesIncludingNew.map((n) => n.id)
 
         const existingIds = currentNodesIncludingNew
@@ -130,10 +136,13 @@ export default defineComponent({
           }
         }
         await store.dispatch('automationWorkflowNode/order', {
-          workflowId: currentWorkflow.value.id,
+          workflow: currentWorkflow.value,
           order: newFinalOrderIds,
           oldOrder,
         })
+
+        // Force a refresh of the workflow nodes by creating a new reference
+        currentWorkflow.value = { ...currentWorkflow.value }
       } catch (err) {
         console.error('Failed to add and order node:', err)
       }
@@ -146,9 +155,12 @@ export default defineComponent({
       }
       try {
         await store.dispatch('automationWorkflowNode/delete', {
-          workflowId: currentWorkflow.value.id,
+          workflow: currentWorkflow.value,
           nodeId: parseInt(nodeId),
         })
+
+        // Force a refresh of the workflow nodes by creating a new reference
+        currentWorkflow.value = { ...currentWorkflow.value }
       } catch (err) {
         console.error('Failed to delete node:', err)
       }

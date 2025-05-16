@@ -1,88 +1,137 @@
 import AutomationWorkflowNodeService from '@baserow/modules/automation/services/automationWorkflowNode'
 
-const state = {
-  nodes: [],
+const state = {}
+
+const updateCachedValues = (workflow) => {
+  if (!workflow || !workflow.nodes) return
+
+  workflow.nodeMap = Object.fromEntries(
+    workflow.nodes.map((node) => [`${node.id}`, node])
+  )
 }
 
 const mutations = {
-  SET_ITEMS(state, { nodes }) {
-    state.nodes = nodes
+  SET_ITEMS(state, { workflow, nodes }) {
+    workflow.nodes = nodes || []
+    updateCachedValues(workflow)
   },
-  ADD_ITEM(state, { node }) {
-    state.nodes.push(node)
+  ADD_ITEM(state, { workflow, node }) {
+    workflow.nodes.push(node)
+    updateCachedValues(workflow)
   },
-  UPDATE_ITEM(state, { node, values }) {
-    const index = state.nodes.findIndex((item) => item.id === node.id)
+  UPDATE_ITEM(state, { workflow, node, values }) {
+    const index = workflow.nodes.findIndex((item) => item.id === node.id)
     if (index !== -1) {
-      Object.assign(state.nodes[index], values)
+      Object.assign(workflow.nodes[index], values)
     }
+    updateCachedValues(workflow)
   },
-  DELETE_ITEM(state, { nodeId }) {
-    const index = state.nodes.findIndex((item) => item.id === nodeId)
-    if (index !== -1) {
-      state.nodes.splice(index, 1)
-    }
+  DELETE_ITEM(state, { workflow, nodeId }) {
+    const nodeIdStr = nodeId.toString()
+    workflow.nodes = workflow.nodes.filter(
+      (item) => item.id.toString() !== nodeIdStr
+    )
+    updateCachedValues(workflow)
   },
-  ORDER_ITEMS(state, { order }) {
-    state.nodes.forEach((node) => {
+  ORDER_ITEMS(state, { workflow, order }) {
+    const updatedNodes = [...workflow.nodes]
+    updatedNodes.forEach((node) => {
       const index = order.findIndex((value) => value === node.id)
-      node.order = index === -1 ? 0 : index + 1 // Assuming nodes have an 'order' property
+      node.order = index === -1 ? 0 : index + 1
     })
-    // Optionally re-sort the local array based on the new order
-    state.nodes.sort((a, b) => a.order - b.order)
+    updatedNodes.sort((a, b) => a.order - b.order)
+    workflow.nodes = updatedNodes
+    updateCachedValues(workflow)
   },
 }
 
 const actions = {
-  async fetch({ commit }, { workflowId }) {
+  async fetch({ commit }, { workflow }) {
+    if (!workflow) return []
+
     const { data: nodes } = await AutomationWorkflowNodeService(
       this.$client
-    ).get(workflowId)
-    commit('SET_ITEMS', { nodes })
+    ).get(workflow.id)
+
+    if (!workflow.nodes) {
+      workflow.nodes = []
+    }
+
+    commit('SET_ITEMS', { workflow, nodes })
     return nodes
   },
-  async create({ commit }, { workflowId, type }) {
+  async create({ commit }, { workflow, type }) {
     const { data: node } = await AutomationWorkflowNodeService(
       this.$client
-    ).create(workflowId, type)
-    commit('ADD_ITEM', { node })
+    ).create(workflow.id, type)
+    commit('ADD_ITEM', { workflow, node })
     return node
   },
-  async update({ commit }, { node, values }) {
-    const { data: updatedNodeData } = await AutomationWorkflowNodeService(
-      this.$client
-    ).update(node.id, values)
-    // Ensure only the updated values are committed
-    const updatePayload = Object.keys(values).reduce((result, key) => {
-      result[key] = updatedNodeData[key]
-      return result
-    }, {})
-    commit('UPDATE_ITEM', { node, values: updatePayload })
-    return updatedNodeData
-  },
-  async delete({ commit }, { nodeId }) {
-    await AutomationWorkflowNodeService(this.$client).delete(nodeId)
-    commit('DELETE_ITEM', { nodeId })
-  },
-  async order({ commit, state }, { workflowId, order, oldOrder }) {
-    commit('ORDER_ITEMS', { order })
+  async update({ commit, getters }, { workflow, nodeId, values }) {
+    const node = getters.findById(workflow, nodeId)
+    const originalNode = { ...node }
+    commit('UPDATE_ITEM', { workflow, node, values })
+
     try {
-      await AutomationWorkflowNodeService(this.$client).order(workflowId, order)
+      const { data: updatedNodeData } = await AutomationWorkflowNodeService(
+        this.$client
+      ).update(node.id, values)
+
+      const serverValues = Object.keys(values).reduce((result, key) => {
+        result[key] = updatedNodeData[key]
+        return result
+      }, {})
+      commit('UPDATE_ITEM', { workflow, node, values: serverValues })
+
+      return updatedNodeData
     } catch (error) {
-      // Revert to the old order if the API call fails
-      commit('ORDER_ITEMS', { order: oldOrder })
+      const rollbackValues = {}
+      Object.keys(values).forEach((key) => {
+        rollbackValues[key] = originalNode[key]
+      })
+      commit('UPDATE_ITEM', { workflow, node, values: rollbackValues })
+      throw error
+    }
+  },
+  async delete({ commit, getters }, { workflow, nodeId }) {
+    const node = getters.findById(workflow, nodeId)
+    const originalNode = { ...node }
+    commit('DELETE_ITEM', { workflow, nodeId })
+    try {
+      await AutomationWorkflowNodeService(this.$client).delete(nodeId)
+    } catch (error) {
+      commit('ADD_ITEM', { workflow, node: originalNode })
+      throw error
+    }
+  },
+  async order({ commit }, { workflow, order, oldOrder }) {
+    commit('ORDER_ITEMS', { workflow, order })
+    try {
+      await AutomationWorkflowNodeService(this.$client).order(
+        workflow.id,
+        order
+      )
+    } catch (error) {
+      commit('ORDER_ITEMS', { workflow, order: oldOrder })
       throw error
     }
   },
 }
 
 const getters = {
-  getAll(state) {
-    // Return a sorted copy based on the order property
-    return [...state.nodes].sort((a, b) => a.order - b.order)
+  getNodes: (state) => (workflow) => {
+    if (!workflow) return []
+    if (!workflow.nodes) workflow.nodes = []
+    return workflow.nodes
   },
-  findById: (state) => (nodeId) => {
-    return state.nodes.find((node) => node.id === nodeId)
+  findById: (state) => (workflow, nodeId) => {
+    if (!workflow || !workflow.nodes) return null
+
+    const nodeIdStr = nodeId.toString()
+    if (workflow.nodeMap && workflow.nodeMap[nodeIdStr])
+      return workflow.nodeMap[nodeIdStr]
+
+    return null
   },
 }
 
