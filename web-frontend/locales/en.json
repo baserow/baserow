@@ -219,7 +219,7 @@
     "containsWord": "contains word",
     "doesntContainWord": "doesn't contain word",
     "filenameContains": "filename contains",
-    "has": "has",
+    "has": "has any of",
     "hasNot": "doesn't have",
     "higherThan": "higher than",
     "higherThanOrEqual": "higher than or equal",
