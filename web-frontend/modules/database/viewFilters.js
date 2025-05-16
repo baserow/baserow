@@ -2327,7 +2327,7 @@ export class MultipleSelectHasFilterType extends ViewFilterType {
 
   getName() {
     const { i18n } = this.app
-    return i18n.t('viewFilter.has')
+    return i18n.t('viewFilter.hasAnyOf')
   }
 
   getExample() {
@@ -2425,7 +2425,7 @@ export class MultipleCollaboratorsHasFilterType extends ViewFilterType {
 
   getName() {
     const { i18n } = this.app
-    return i18n.t('viewFilter.has')
+    return i18n.t('viewFilter.hasAnyOf')
   }
 
   getExample() {
@@ -2606,7 +2606,7 @@ export class LinkRowHasFilterType extends ViewFilterType {
 
   getName() {
     const { i18n } = this.app
-    return i18n.t('viewFilter.has')
+    return i18n.t('viewFilter.hasAnyOf')
   }
 
   getExample() {
