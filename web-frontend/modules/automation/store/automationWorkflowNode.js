@@ -43,6 +43,10 @@ const mutations = {
     workflow.nodes = updatedNodes
     updateCachedValues(workflow)
   },
+  ADD_ITEM_AT(state, { workflow, node, index }) {
+    workflow.nodes.splice(index, 0, node)
+    updateCachedValues(workflow)
+  },
 }
 
 const actions = {
@@ -60,12 +64,104 @@ const actions = {
     commit('SET_ITEMS', { workflow, nodes })
     return nodes
   },
-  async create({ commit }, { workflow, type }) {
-    const { data: node } = await AutomationWorkflowNodeService(
-      this.$client
-    ).create(workflow.id, type)
-    commit('ADD_ITEM', { workflow, node })
-    return node
+  async create({ commit, getters }, { workflow, type, previousNodeId = null }) {
+    // Create a temporary node with a unique temporary ID
+    const tempId = `temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+
+    // Calculate the correct position/order for this node
+    const existingNodes = getters.getNodes(workflow)
+    let tempOrder = existingNodes.length + 1
+
+    // Find the nodes before and after the insertion point to calculate the right order
+    if (previousNodeId === null) {
+      // Add at the beginning
+      tempOrder =
+        existingNodes.length > 0 ? Math.max(0, existingNodes[0].order - 1) : 1
+    } else {
+      // Add after the specified node
+      const prevNode = getters.findById(workflow, previousNodeId)
+      if (prevNode) {
+        const nextNodes = existingNodes
+          .filter((n) => n.order > prevNode.order)
+          .sort((a, b) => a.order - b.order)
+
+        if (nextNodes.length > 0) {
+          // If there's a node after the previousNode, place between them
+          tempOrder = prevNode.order + (nextNodes[0].order - prevNode.order) / 2
+        } else {
+          // If it's the last node, add after it
+          tempOrder = prevNode.order + 1
+        }
+      }
+    }
+
+    const tempNode = {
+      id: tempId,
+      type,
+      workflow_id: workflow.id,
+      order: tempOrder,
+    }
+
+    // Add the node at the correct position in the array
+    const nodeIndex =
+      previousNodeId === null
+        ? 0
+        : existingNodes.findIndex(
+            (n) => n.id.toString() === previousNodeId.toString()
+          ) + 1
+
+    // Apply optimistic create with position
+    commit('ADD_ITEM_AT', { workflow, node: tempNode, index: nodeIndex })
+
+    try {
+      // Send API request
+      const { data: node } = await AutomationWorkflowNodeService(
+        this.$client
+      ).create(workflow.id, type)
+
+      // Calculate the correct order for the server response
+      const existingIds = getters
+        .getNodes(workflow)
+        .filter((n) => n.id !== tempId)
+        .map((n) => n.id)
+
+      let newFinalOrderIds = []
+      if (previousNodeId === null) {
+        newFinalOrderIds = [node.id, ...existingIds]
+      } else {
+        const insertAfterIndex = existingIds.indexOf(previousNodeId)
+        if (insertAfterIndex !== -1) {
+          newFinalOrderIds = [
+            ...existingIds.slice(0, insertAfterIndex + 1),
+            node.id,
+            ...existingIds.slice(insertAfterIndex + 1),
+          ]
+        } else {
+          newFinalOrderIds = [...existingIds, node.id]
+        }
+      }
+
+      // Remove the temporary node
+      commit('DELETE_ITEM', { workflow, nodeId: tempId })
+
+      // Add the real node
+      commit('ADD_ITEM', { workflow, node })
+
+      // Order the nodes correctly
+      commit('ORDER_ITEMS', { workflow, order: newFinalOrderIds })
+
+      // Send the order to the server
+      await AutomationWorkflowNodeService(this.$client).order(
+        workflow.id,
+        newFinalOrderIds
+      )
+
+      return node
+    } catch (error) {
+      // If API fails, remove the temporary node
+      commit('DELETE_ITEM', { workflow, nodeId: tempId })
+      throw error
+    }
   },
   async update({ commit, getters }, { workflow, nodeId, values }) {
     const node = getters.findById(workflow, nodeId)

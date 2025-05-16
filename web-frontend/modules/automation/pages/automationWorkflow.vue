@@ -101,50 +101,16 @@ export default defineComponent({
 
     const handleAddNode = async ({ previousNodeId }) => {
       try {
-        const newNode = await store.dispatch('automationWorkflowNode/create', {
+        await store.dispatch('automationWorkflowNode/create', {
           workflow: currentWorkflow.value,
           type: 'row_created',
-        })
-
-        const newId = newNode.id
-
-        const currentNodesIncludingNew = store.getters[
-          'automationWorkflowNode/getNodes'
-        ](currentWorkflow.value)
-        const oldOrder = currentNodesIncludingNew.map((n) => n.id)
-
-        const existingIds = currentNodesIncludingNew
-          .filter((n) => n.id !== newId)
-          .map((n) => n.id)
-
-        let newFinalOrderIds = []
-        if (previousNodeId === null) {
-          newFinalOrderIds = [newId, ...existingIds]
-        } else {
-          const insertAfterIndex = existingIds.indexOf(previousNodeId)
-          if (insertAfterIndex !== -1) {
-            const tempExistingIds = [...existingIds]
-            tempExistingIds.splice(insertAfterIndex + 1, 0, newId)
-            newFinalOrderIds = tempExistingIds
-          } else {
-            console.warn(
-              `previousNodeId '${previousNodeId}' not found in existingIds: [${existingIds.join(
-                ', '
-              )}]. Appending ${newId}.`
-            )
-            newFinalOrderIds = [...existingIds, newId]
-          }
-        }
-        await store.dispatch('automationWorkflowNode/order', {
-          workflow: currentWorkflow.value,
-          order: newFinalOrderIds,
-          oldOrder,
+          previousNodeId,
         })
 
         // Force a refresh of the workflow nodes by creating a new reference
         currentWorkflow.value = { ...currentWorkflow.value }
       } catch (err) {
-        console.error('Failed to add and order node:', err)
+        console.error('Failed to add node:', err)
       }
     }
 
