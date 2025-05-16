@@ -19,6 +19,9 @@ export default {
       multiple: this.reactiveMultiple,
     }
   },
+  inject: {
+    forInput: { from: 'forInput', default: null },
+  },
   props: {
     /**
      * The size of the dropdown.

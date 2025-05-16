@@ -9,6 +9,7 @@
       disabled: disabled,
       hover: isHovering(value),
     }"
+    role="listitem"
     @click="$emit('click', $event)"
   >
     <a

@@ -218,6 +218,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                
               <div
                 class="dropdown dropdown--floating"
+                role="list"
                 tabindex="0"
               >
                 <!---->
@@ -233,6 +234,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                   >
                     <li
                       class="select__item select__item--no-options visible"
+                      role="listitem"
                     >
                       <a
                         class="select__item-link"
@@ -264,6 +266,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                      
                     <li
                       class="select__item select__item--no-options visible"
+                      role="listitem"
                     >
                       <a
                         class="select__item-link"
@@ -295,6 +298,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                      
                     <li
                       class="select__item select__item--no-options visible"
+                      role="listitem"
                     >
                       <a
                         class="select__item-link"

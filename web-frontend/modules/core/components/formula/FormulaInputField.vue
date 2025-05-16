@@ -11,6 +11,7 @@
   </Alert>
   <div v-else>
     <EditorContent
+      :id="forInput"
       ref="editor"
       class="form-input formula-input-field"
       role="textbox"
@@ -59,6 +60,9 @@ export default {
       applicationContext: this.applicationContext,
       dataProviders: this.dataProviders,
     }
+  },
+  inject: {
+    forInput: { from: 'forInput', default: null },
   },
   props: {
     value: {

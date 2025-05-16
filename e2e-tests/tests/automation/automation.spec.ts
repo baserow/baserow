@@ -5,7 +5,7 @@ test.describe("Automation application test suite", () => {
     await workspacePage.goto();
   });
 
-  test("Can create automation application - default name", { tag: "@slow" }, async ({ page }) => {
+  test("Can create automation application - default name", async ({ page }) => {
     // Create an automation application
     await page.locator(".sidebar__new").getByText("Add new").click();
     await page.locator(".context__menu").getByText("Automation").click();
@@ -22,7 +22,7 @@ test.describe("Automation application test suite", () => {
     ).toBeVisible();
   });
 
-  test("Can create automation application - custom name", { tag: "@slow" }, async ({ page }) => {
+  test("Can create automation application - custom name", async ({ page }) => {
     // Create an automation application
     await page.locator(".sidebar__new").getByText("Add new").click();
     await page.locator(".context__menu").getByText("Automation").click();

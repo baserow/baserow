@@ -1,4 +1,4 @@
-import { Page, expect } from "@playwright/test";
+import { Locator, Page, expect } from "@playwright/test";
 import { baserowConfig } from "../playwright.config";
 import { User } from "../fixtures/user";
 
@@ -21,6 +21,21 @@ export class BaserowPage {
 
   async checkOnPage() {
     await expect(this.page.url()).toBe(this.getFullUrl());
+  }
+
+  async changeDropdown(
+    currentValue: string,
+    newValue: string,
+    location?: Locator
+  ) {
+    await (location ? location : this.page)
+      .locator(".dropdown__selected-text")
+      .getByText(currentValue)
+      .click();
+    await (location ? location : this.page)
+      .locator(".select__item")
+      .getByText(newValue)
+      .click();
   }
 
   getFullUrl() {

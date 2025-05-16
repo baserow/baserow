@@ -5,18 +5,22 @@ test.describe("Automation workflow test suite", () => {
     await automationWorkflowPage.goto();
   });
 
-  test("Can create a workflow", { tag: "@slow" }, async ({ page }) => {
-    const workflowName = "Foo workflow"
+  test("Can create a workflow", async ({ page }) => {
+    const workflowName = "Foo workflow";
 
     await page.getByText("New workflow").click();
+
     await page.getByText("Create workflow").waitFor();
+
     await page
       .locator(".modal__wrapper")
       .getByPlaceholder("Enter a name...")
       .fill(workflowName);
+
     await page.locator(".button").getByText("Add workflow").click();
+
     await expect(page.getByText("Create workflow")).toBeHidden();
-    
+
     await expect(
       page.locator(".tree__link").getByText("Test Automation"),
       "Ensure the default automation name is displayed in the sidebar."
@@ -28,9 +32,11 @@ test.describe("Automation workflow test suite", () => {
     ).toBeVisible();
   });
 
-  test("Can duplicate a workflow", { tag: "@slow" }, async ({ page }) => {
-    const defaultWorkflowName = "Default workflow"
-    const workflow = await page.locator(".side-bar-automation__link-text").getByText(defaultWorkflowName);
+  test("Can duplicate a workflow", async ({ page }) => {
+    const defaultWorkflowName = "Default workflow";
+    const workflow = await page
+      .locator(".side-bar-automation__link-text")
+      .getByText(defaultWorkflowName);
     await workflow.hover();
     await page.locator(".tree__sub > .tree__options").first().click();
     await page.getByText("Duplicate").click();
@@ -38,14 +44,18 @@ test.describe("Automation workflow test suite", () => {
 
     // Ensure the duplicated workflow is visible
     await expect(
-      page.locator(".side-bar-automation__link-text").getByText(`${defaultWorkflowName} 2`),
+      page
+        .locator(".side-bar-automation__link-text")
+        .getByText(`${defaultWorkflowName} 2`),
       "Ensure the duplicated workflow is displayed in the sidebar."
     ).toBeVisible();
   });
 
-  test("Can rename a workflow", { tag: "@slow" }, async ({ page }) => {
-    const defaultWorkflowName = "Default workflow"
-    const workflow = await page.locator(".side-bar-automation__link-text").getByText(defaultWorkflowName);
+  test("Can rename a workflow", async ({ page }) => {
+    const defaultWorkflowName = "Default workflow";
+    const workflow = await page
+      .locator(".side-bar-automation__link-text")
+      .getByText(defaultWorkflowName);
     await workflow.hover();
     await page.locator(".tree__sub > .tree__options").first().click();
     await page.getByText("Rename").click();
@@ -55,18 +65,20 @@ test.describe("Automation workflow test suite", () => {
     const editable = await page.locator('span[contenteditable="true"]');
     await editable.click();
     await editable.evaluate((el) => {
-      el.textContent = '';
+      el.textContent = "";
     });
 
     // Type new workflow name
-    const newWorkflowName = "My new workflow name"
+    const newWorkflowName = "My new workflow name";
     await editable.type(newWorkflowName);
 
     // Click outside to cause a blur event so that the name is saved
-    await page.locator('body').click();
+    await page.locator("body").click();
 
     await expect(
-      page.locator(".side-bar-automation__link-text").getByText(newWorkflowName),
+      page
+        .locator(".side-bar-automation__link-text")
+        .getByText(newWorkflowName),
       "Ensure the renamed workflow is displayed in the sidebar."
     ).toBeVisible();
 
@@ -76,16 +88,20 @@ test.describe("Automation workflow test suite", () => {
     ).toBeVisible();
   });
 
-  test("Can delete a workflow", { tag: "@slow" }, async ({ page }) => {
-    const defaultWorkflowName = "Default workflow"
-    const workflow = await page.locator(".side-bar-automation__link-text").getByText(defaultWorkflowName);
+  test("Can delete a workflow", async ({ page }) => {
+    const defaultWorkflowName = "Default workflow";
+    const workflow = await page
+      .locator(".side-bar-automation__link-text")
+      .getByText(defaultWorkflowName);
     await workflow.hover();
     await page.locator(".tree__sub > .tree__options").first().click();
     await page.getByText("Delete").click();
     await expect(page.getByText("Delete")).toBeHidden();
 
     await expect(
-      page.locator(".side-bar-automation__link-text").getByText(defaultWorkflowName),
+      page
+        .locator(".side-bar-automation__link-text")
+        .getByText(defaultWorkflowName),
       "Ensure the workflow is no longer visible in the sidebar."
     ).not.toBeVisible();
   });

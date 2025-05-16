@@ -27,7 +27,7 @@ test.describe("Builder application test suite", () => {
 
     await expect(
       page.locator(".tree__link").getByText("My super application"),
-      "Check the name of the application is displayed in the sidebar."
+      "Checks the name of the application is displayed in the sidebar."
     ).toBeVisible();
   });
 });
