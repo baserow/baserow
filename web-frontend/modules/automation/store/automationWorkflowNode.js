@@ -68,47 +68,48 @@ const actions = {
     // Create a temporary node with a unique temporary ID
     const tempId = `temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
-    // Calculate the correct position/order for this node
+    // Get existing nodes
     const existingNodes = getters.getNodes(workflow)
-    let tempOrder = existingNodes.length + 1
 
-    // Find the nodes before and after the insertion point to calculate the right order
+    // Calculate position
+    let tempOrder
+    let nodeIndex
+
     if (previousNodeId === null) {
       // Add at the beginning
-      tempOrder =
-        existingNodes.length > 0 ? Math.max(0, existingNodes[0].order - 1) : 1
+      tempOrder = existingNodes.length > 0 ? existingNodes[0].order - 1 : 1
+      nodeIndex = 0
     } else {
-      // Add after the specified node
-      const prevNode = getters.findById(workflow, previousNodeId)
-      if (prevNode) {
-        const nextNodes = existingNodes
-          .filter((n) => n.order > prevNode.order)
-          .sort((a, b) => a.order - b.order)
+      // Find the previous node
+      const prevNodeIndex = existingNodes.findIndex(
+        (n) => n.id.toString() === previousNodeId.toString()
+      )
 
-        if (nextNodes.length > 0) {
-          // If there's a node after the previousNode, place between them
-          tempOrder = prevNode.order + (nextNodes[0].order - prevNode.order) / 2
-        } else {
-          // If it's the last node, add after it
-          tempOrder = prevNode.order + 1
-        }
+      if (prevNodeIndex === -1) {
+        // Previous node not found, add at the end
+        tempOrder = existingNodes.length + 1
+        nodeIndex = existingNodes.length
+      } else {
+        // Add after the specified node
+        const prevNode = existingNodes[prevNodeIndex]
+        const nextNode = existingNodes[prevNodeIndex + 1]
+
+        // Calculate order between prev and next nodes or after prev if it's the last
+        tempOrder = nextNode
+          ? prevNode.order + (nextNode.order - prevNode.order) / 2
+          : prevNode.order + 1
+
+        nodeIndex = prevNodeIndex + 1
       }
     }
 
+    // Create the temporary node
     const tempNode = {
       id: tempId,
       type,
       workflow_id: workflow.id,
       order: tempOrder,
     }
-
-    // Add the node at the correct position in the array
-    const nodeIndex =
-      previousNodeId === null
-        ? 0
-        : existingNodes.findIndex(
-            (n) => n.id.toString() === previousNodeId.toString()
-          ) + 1
 
     // Apply optimistic create with position
     commit('ADD_ITEM_AT', { workflow, node: tempNode, index: nodeIndex })
@@ -119,32 +120,18 @@ const actions = {
         this.$client
       ).create(workflow.id, type)
 
-      // Calculate the correct order for the server response
-      const existingIds = getters
+      // Calculate the final order for server
+      const nodesWithoutTemp = getters
         .getNodes(workflow)
         .filter((n) => n.id !== tempId)
         .map((n) => n.id)
 
-      let newFinalOrderIds = []
-      if (previousNodeId === null) {
-        newFinalOrderIds = [node.id, ...existingIds]
-      } else {
-        const insertAfterIndex = existingIds.indexOf(previousNodeId)
-        if (insertAfterIndex !== -1) {
-          newFinalOrderIds = [
-            ...existingIds.slice(0, insertAfterIndex + 1),
-            node.id,
-            ...existingIds.slice(insertAfterIndex + 1),
-          ]
-        } else {
-          newFinalOrderIds = [...existingIds, node.id]
-        }
-      }
+      // Insert the real node ID at the same position as the temp node was
+      const newFinalOrderIds = [...nodesWithoutTemp]
+      newFinalOrderIds.splice(nodeIndex, 0, node.id)
 
-      // Remove the temporary node
+      // Remove temp node and add real one
       commit('DELETE_ITEM', { workflow, nodeId: tempId })
-
-      // Add the real node
       commit('ADD_ITEM', { workflow, node })
 
       // Order the nodes correctly
