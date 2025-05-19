@@ -4,7 +4,7 @@
       {{ $t('formulaInputField.errorInvalidFormula') }}
     </p>
     <template #actions>
-      <Button type="danger" size="small" @click.prevent="reset">
+      <Button type="danger" size="small" @click.prevent="resetField">
         {{ $t('action.reset') }}
       </Button>
     </template>
@@ -253,7 +253,7 @@ export default {
     this.editor?.destroy()
   },
   methods: {
-    reset() {
+    resetField() {
       this.isFormulaInvalid = false
       this.$emit('input', '')
     },

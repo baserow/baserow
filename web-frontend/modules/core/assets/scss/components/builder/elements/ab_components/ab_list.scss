@@ -1,16 +1,25 @@
-.ab-text {
+.ab-list {
   font-size: var(--body-font-size, 14px);
   font-weight: var(--body-font-weight, 400);
   margin: 0;
+  padding: 0 0 0 1em;
   color: var(--body-text-color, $black);
   text-align: var(--body-text-alignment, left);
   font-family: var(--body-font-family, Inter);
 
+  .ab-list & {
+    padding-left: 1.5em;
+  }
+
   .markdown & {
+    margin-top: 1em;
+
     strong {
       color: var(--body-text-color, $black);
     }
+  }
 
-    margin-top: 1em;
+  .markdown .ab-list & {
+    margin-top: 0.4em;
   }
 }
