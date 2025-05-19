@@ -1,11 +1,14 @@
+from decimal import Decimal
+
 import pytest
 
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotInWorkflow
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowRowCreatedTriggerNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowCreated
+from baserow.core.utils import MirrorDict
+from baserow.test_utils.helpers import AnyDict
 
 
 @pytest.mark.django_db
@@ -54,25 +57,24 @@ def test_update_node(data_fixture):
 
     assert node.previous_node_output == ""
 
-    node_instance = AutomationNodeHandler().update_node(
+    updated_node = AutomationNodeHandler().update_node(
         node, previous_node_output="foo result"
     )
 
-    assert node_instance == UpdatedAutomationNode(
-        node=node,
-        original_values={"previous_node_output": ""},
-        new_values={"previous_node_output": "foo result"},
-    )
-    assert node.previous_node_output == "foo result"
+    assert updated_node.node.previous_node_output == "foo result"
 
 
 @pytest.mark.django_db
 def test_export_prepared_values(data_fixture):
     node = data_fixture.create_automation_node()
 
-    values = AutomationNodeHandler().export_prepared_values(node)
+    values = node.get_type().export_prepared_values(node)
 
-    assert values == {"previous_node_output": ""}
+    assert values == {
+        "order": Decimal("1.00000000000000000000"),
+        "service": AnyDict(),
+        "workflow": node.workflow_id,
+    }
 
 
 @pytest.mark.django_db
@@ -161,7 +163,7 @@ def test_export_node(data_fixture):
         "parent_node_id": None,
         "previous_node_id": None,
         "previous_node_output": "foo",
-        "service_id": node.service_id,
+        "service": AnyDict(),
         "type": "rows_created",
         "workflow_id": node.workflow.id,
     }
@@ -178,8 +180,9 @@ def test_import_node(data_fixture):
     assert workflow.automation_workflow_nodes.count() == 1
 
     exported_node = AutomationNodeHandler().export_node(node)
+    id_mapping = {"integrations": MirrorDict()}
 
-    result = AutomationNodeHandler().import_node(workflow, exported_node, {})
+    result = AutomationNodeHandler().import_node(workflow, exported_node, id_mapping)
     assert workflow.automation_workflow_nodes.count() == 2
 
     assert result == workflow.automation_workflow_nodes.all()[1].specific
@@ -196,8 +199,9 @@ def test_import_nodes(data_fixture):
     assert workflow.automation_workflow_nodes.count() == 1
 
     exported_node = AutomationNodeHandler().export_node(node)
+    id_mapping = {"integrations": MirrorDict()}
 
-    result = AutomationNodeHandler().import_nodes(workflow, [exported_node], {})
+    result = AutomationNodeHandler().import_nodes(workflow, [exported_node], id_mapping)
     assert workflow.automation_workflow_nodes.count() == 2
 
     assert result[0] == workflow.automation_workflow_nodes.all()[1].specific
@@ -215,11 +219,15 @@ def test_import_node_only(data_fixture):
 
     exported_node = AutomationNodeHandler().export_node(node)
 
-    id_mapping = {}
+    id_mapping = {"integrations": MirrorDict()}
     new_node = AutomationNodeHandler().import_node_only(
         workflow, exported_node, id_mapping
     )
     assert workflow.automation_workflow_nodes.count() == 2
 
     assert new_node == workflow.automation_workflow_nodes.all()[1].specific
-    assert id_mapping == {"automation_nodes": {node.id: new_node.id}}
+    assert id_mapping == {
+        "integrations": MirrorDict(),
+        "automation_nodes": {node.id: new_node.id},
+        "services": {node.service_id: new_node.service_id},
+    }

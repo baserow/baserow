@@ -61,9 +61,7 @@ class Migration(migrations.Migration):
             model_name="automationnode",
             name="service",
             field=models.OneToOneField(
-                default=None,
                 help_text="The service which this node is associated with.",
-                null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="automation_workflow_node",
                 to="core.service",

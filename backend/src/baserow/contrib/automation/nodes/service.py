@@ -142,7 +142,8 @@ class AutomationNodeService:
             context=node,
         )
 
-        updated_node = self.handler.update_node(node, **kwargs)
+        prepared_values = node.get_type().prepare_values(kwargs, user, node)
+        updated_node = self.handler.update_node(node, **prepared_values)
 
         automation_node_updated.send(self, user=user, node=updated_node.node)
 

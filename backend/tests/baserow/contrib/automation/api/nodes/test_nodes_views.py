@@ -143,7 +143,7 @@ def test_get_node(api_client, data_fixture):
             "id": node.id,
             "order": AnyStr(),
             "previous_node_output": "",
-            "service": None,
+            "service": AnyDict(),
             "type": "rows_created",
             "workflow": node.workflow.id,
         },

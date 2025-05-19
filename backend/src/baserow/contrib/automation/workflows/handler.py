@@ -46,6 +46,9 @@ class AutomationWorkflowHandler:
         :param dispatch_context: The context used for the dispatch.
         """
 
+        # todo should create the dispatch context using the event_payload
+        # and run the next action nodes following the trigger
+
         print(f"Executing workflow={workflow.id}")
 
     def get_workflow(

@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
+from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
 from baserow.contrib.automation.models import AutomationWorkflow
@@ -20,12 +21,13 @@ from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
+from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
-    allowed_fields = ["previous_node_output"]
+    allowed_fields = ["previous_node_output", "service", "workflow", "order"]
 
     def create_node(self, node_type: AutomationNodeType, **kwargs) -> AutomationNode:
         """
@@ -118,7 +120,7 @@ class AutomationNodeHandler:
         :return: The updated AutomationNode.
         """
 
-        original_node_values = self.export_prepared_values(node)
+        original_node_values = node.get_type().export_prepared_values(node)
 
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
 
@@ -127,25 +129,12 @@ class AutomationNodeHandler:
 
         node.save()
 
-        new_node_values = self.export_prepared_values(node)
+        new_node_values = node.get_type().export_prepared_values(node)
         updated_node = UpdatedAutomationNode(
             node, original_node_values, new_node_values
         )
 
         return updated_node
-
-    def export_prepared_values(self, node: AutomationNode) -> Dict[Any, Any]:
-        """
-        Return a serializable dict of prepared values for the node attributes.
-
-        It is called by undo/redo ActionHandler to store the values in a way that
-        could be restored later.
-
-        :param node: The node instance to export values for.
-        :return: A dict of prepared values.
-        """
-
-        return {key: getattr(node, key) for key in self.allowed_fields}
 
     def delete_node(self, user: AbstractUser, node: AutomationNode) -> None:
         """
@@ -227,8 +216,9 @@ class AutomationNodeHandler:
     def export_node(
         self,
         node: AutomationNode,
-        *args: Any,
-        **kwargs: Any,
+        files_zip: Optional[ExportZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict] = None,
     ) -> AutomationNodeDict:
         """
         Serializes the given node.
@@ -239,15 +229,8 @@ class AutomationNodeHandler:
         :return: The serialized version.
         """
 
-        return AutomationNodeDict(
-            id=node.id,
-            order=node.order,
-            workflow_id=node.workflow_id,
-            service_id=node.service_id,
-            parent_node_id=node.parent_node_id,
-            previous_node_id=node.previous_node_id,
-            previous_node_output=node.previous_node_output,
-            type=node.get_type().type,
+        return node.get_type().export_serialized(
+            node, files_zip=files_zip, storage=storage, cache=cache
         )
 
     def import_node(

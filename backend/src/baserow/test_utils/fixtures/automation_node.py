@@ -1,9 +1,14 @@
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
+    AutomationNodeTriggerType,
     LocalBaserowRowsCreatedNodeTriggerType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.integrations.local_baserow.models import (
+    LocalBaserowRowCreated,
+    LocalBaserowUpsertRow,
+)
 
 
 class AutomationNodeFixtures:
@@ -22,6 +27,13 @@ class AutomationNodeFixtures:
         else:
             node_type = _node_type
 
+        if "service" not in kwargs:
+            service_kwargs = kwargs.pop("service_kwargs", {})
+            service_model = LocalBaserowUpsertRow
+            if issubclass(node_type.__class__, AutomationNodeTriggerType):
+                service_model = LocalBaserowRowCreated
+            kwargs["service"] = self.create_service(service_model, **service_kwargs)
+
         if "order" not in kwargs:
             kwargs["order"] = AutomationNode.get_last_order(workflow)
 
@@ -30,12 +42,8 @@ class AutomationNodeFixtures:
         )
 
     def create_local_baserow_rows_created_trigger_node(self, user=None, **kwargs):
-        service = kwargs.pop("service", None)
-        if service is None:
-            service = self.create_local_baserow_rows_created_service()
         return self.create_automation_node(
             user=user,
-            service=service,
             node_type=LocalBaserowRowsCreatedNodeTriggerType.type,
             **kwargs,
         )

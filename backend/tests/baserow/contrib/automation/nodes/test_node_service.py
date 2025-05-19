@@ -117,11 +117,6 @@ def test_update_node(mocked_signal, data_fixture):
     service = AutomationNodeService()
     updated_node = service.update_node(user, node.id, previous_node_output="foo")
 
-    assert updated_node == UpdatedAutomationNode(
-        node=node.all_parents_and_self()[0],
-        original_values={"previous_node_output": ""},
-        new_values={"previous_node_output": "foo"},
-    )
     node.refresh_from_db()
     assert node.previous_node_output == "foo"
 

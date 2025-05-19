@@ -73,8 +73,6 @@ class AutomationNode(
     )
     service = models.OneToOneField(
         Service,
-        null=True,
-        default=None,
         help_text="The service which this node is associated with.",
         related_name="automation_workflow_node",
         on_delete=models.CASCADE,
@@ -110,7 +108,8 @@ class AutomationNode(
 
 
 class AutomationTriggerNode(AutomationNode):
-    ...
+    class Meta:
+        abstract = True
 
 
 class LocalBaserowRowCreatedTriggerNode(AutomationTriggerNode):
@@ -122,4 +121,8 @@ class LocalBaserowRowCreatedTriggerNode(AutomationTriggerNode):
 
 
 class LocalBaserowCreateRowActionNode(AutomationNode):
-    ...
+    def save(self, *args, **kwargs):
+        """TODO: this shouldn't be required. There seems to be a MRO issue."""
+
+        self._ensure_content_type_is_set()
+        super().save(*args, **kwargs)
