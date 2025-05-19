@@ -994,12 +994,14 @@ def test_fill_remaining_seats_in_license(mock_broadcast_to_users, data_fixture):
         assert license_users[0].license_id == license_object.id
         assert license_users[0].user_id == user_1.id
         assert license_users[1].license_id == license_object.id
-        assert license_users[1].user_id == user_2.id
+        # It's expected that the requesting user is included if it's not already in the
+        # plan.
+        assert license_users[1].user_id == admin_1.id
 
         mock_broadcast_to_users.delay.assert_called_once()
         args = mock_broadcast_to_users.delay.call_args
         assert len(args[0][0]) == 1
-        assert args[0][0][0] == user_2.id
+        assert args[0][0][0] == admin_1.id
         assert args[0][1]["type"] == "user_data_updated"
         assert args[0][1]["user_data"] == {
             "active_licenses": {"instance_wide": {"premium": True}}
@@ -1013,14 +1015,40 @@ def test_fill_remaining_seats_in_license(mock_broadcast_to_users, data_fixture):
         )
         assert len(created_license_users) == 1
         assert created_license_users[0].license_id == license_object_2.id
-        assert created_license_users[0].user_id == user_1.id
+        assert created_license_users[0].user_id == admin_1.id
         assert LicenseUser.objects.all().count() == 3
         license_users = LicenseUser.objects.filter(license=license_object_2).order_by(
             "user_id"
         )
         assert len(license_users) == 1
         assert license_users[0].license_id == license_object_2.id
+        assert license_users[0].user_id == admin_1.id
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+@patch("baserow_premium.license.handler.broadcast_to_users")
+def test_fill_remaining_seats_in_license_admin_already_on_license(
+    mock_broadcast_to_users, data_fixture
+):
+    with freeze_time("2021-09-01 12:00"):
+        user_1 = data_fixture.create_user()
+        user_2 = data_fixture.create_user()
+        data_fixture.create_user()
+        admin_1 = data_fixture.create_user(is_staff=True)
+
+        license_object = License.objects.create(license=VALID_TWO_SEAT_LICENSE.decode())
+        LicenseUser.objects.create(license=license_object, user=user_1)
+        LicenseHandler.add_user_to_license(admin_1, license_object, admin_1)
+        LicenseHandler.fill_remaining_seats_of_license(admin_1, license_object)
+        license_users = LicenseUser.objects.filter(license=license_object).order_by(
+            "user_id"
+        )
+        assert len(license_users) == 2
+        assert license_users[0].license_id == license_object.id
         assert license_users[0].user_id == user_1.id
+        assert license_users[1].license_id == license_object.id
+        assert license_users[1].user_id == admin_1.id
 
 
 @pytest.mark.django_db(transaction=True)

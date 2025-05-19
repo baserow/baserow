@@ -542,9 +542,11 @@ class LicenseHandler:
                 "The license instance id does not match the instance id."
             )
 
-        instance_wide = license_type_registry.get(
+        license_type = license_type_registry.get(
             decoded_license_payload["product_code"]
-        ).instance_wide
+        )
+        instance_wide = license_type.instance_wide
+        seats_manually_assigned = license_type.seats_manually_assigned
 
         license_id = decoded_license_payload["id"]
         license_object = cls.find_license_older_than(license_id, issued_on) or License()
@@ -552,6 +554,9 @@ class LicenseHandler:
         license_object.license = license_payload_as_string
         license_object.cached_untrusted_instance_wide = instance_wide
         license_object.save()
+
+        if seats_manually_assigned:
+            cls.fill_remaining_seats_of_license(requesting_user, license_object)
 
         if instance_wide:
             transaction.on_commit(
@@ -696,7 +701,9 @@ class LicenseHandler:
 
     @classmethod
     def fill_remaining_seats_of_license(
-        cls, requesting_user: User, license_object: License
+        cls,
+        requesting_user: User,
+        license_object: License,
     ) -> List[LicenseUser]:
         """
         Fills the remaining seats of the license with additional users.
@@ -718,9 +725,21 @@ class LicenseHandler:
         remaining_seats = license_object.seats - len(already_in_license)
 
         if remaining_seats > 0:
-            users_to_add = User.objects.filter(~Q(id__in=already_in_license)).order_by(
-                "id"
-            )[:remaining_seats]
+            users_to_add = list(
+                User.objects.filter(~Q(id__in=already_in_license)).order_by("-id")[
+                    :remaining_seats
+                ]
+            )
+
+            # Always try to include the request_user because when registering the
+            # license or when filling there is a high chance they want to put
+            # themselves on the plan.
+            if (
+                requesting_user.id not in already_in_license
+                and requesting_user.id not in [user.id for user in users_to_add]
+            ):
+                users_to_add[0] = requesting_user
+
             user_licenses = [
                 LicenseUser(license=license_object, user=user) for user in users_to_add
             ]
