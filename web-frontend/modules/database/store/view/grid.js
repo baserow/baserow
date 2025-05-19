@@ -30,6 +30,7 @@ import {
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
+import { LINKED_ITEMS_LOAD_ALL } from '@baserow/modules/database/constants'
 
 const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
@@ -1760,19 +1761,29 @@ export const actions = {
     const [minFieldIndex, maxFieldIndex] =
       getters.getMultiSelectFieldIndexSorted
 
-    let rows = []
+    let rows = null
     fields = fields.slice(minFieldIndex, maxFieldIndex + 1)
 
     if (getters.areMultiSelectRowsWithinBuffer) {
-      rows = getters.getSelectedRows
-    } else {
-      // Fetch rows from backend
+      const selectedRows = getters.getSelectedRows
+      const needsDataRefetch = fields.some((field) => {
+        const fieldType = this.$registry.get('field', field.type)
+        return fieldType.needsDataRefetch(field, selectedRows)
+      })
+      if (!needsDataRefetch) {
+        rows = getters.getSelectedRows
+      }
+    }
+
+    if (rows === null) {
+      // Fetch missing rows or missing field data from the backend
       const [minRowIndex, maxRowIndex] = getters.getMultiSelectRowIndexSorted
       const limit = maxRowIndex - minRowIndex + 1
       rows = await dispatch('fetchRowsByIndex', {
         startIndex: minRowIndex,
         limit,
         fields,
+        limitLinkedItems: LINKED_ITEMS_LOAD_ALL,
       })
     }
 
@@ -1786,7 +1797,7 @@ export const actions = {
    */
   async fetchRowsByIndex(
     { getters, rootGetters },
-    { startIndex, limit, fields, excludeFields }
+    { startIndex, limit, fields, excludeFields, limitLinkedItems }
   ) {
     if (fields !== undefined) {
       fields = fields.map((field) => `field_${field.id}`)
@@ -1811,6 +1822,7 @@ export const actions = {
       includeFields: fields,
       excludeFields,
       excludeCount: getters.canExcludeCount,
+      limitLinkedItems,
     })
     return data.results
   },

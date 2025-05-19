@@ -1,6 +1,6 @@
 import { getPrimaryOrFirstField } from '@baserow/modules/database/utils/field'
 import BigNumber from 'bignumber.js'
-import { DEFAULT_LINKED_ITEMS_LOAD_COUNT } from '@baserow/modules/database/constants'
+import { LINKED_ITEMS_DEFAULT_LOAD_COUNT } from '@baserow/modules/database/constants'
 import RowService from '@baserow/modules/database/services/row'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
@@ -62,7 +62,7 @@ export default {
     },
     allValuesLoaded() {
       return (
-        this.value?.length !== DEFAULT_LINKED_ITEMS_LOAD_COUNT ||
+        this.value?.length !== LINKED_ITEMS_DEFAULT_LOAD_COUNT ||
         this.fetchedAllValues
       )
     },

@@ -1,5 +1,8 @@
 import addPublicAuthTokenHeader from '@baserow/modules/database/utils/publicView'
-import { DEFAULT_LINKED_ITEMS_LOAD_COUNT } from '@baserow/modules/database/constants'
+import {
+  LINKED_ITEMS_LOAD_ALL,
+  LINKED_ITEMS_DEFAULT_LOAD_COUNT,
+} from '@baserow/modules/database/constants'
 
 export default (client) => {
   return {
@@ -17,6 +20,7 @@ export default (client) => {
       search = '',
       searchMode = '',
       filters = {},
+      limitLinkedItems = null,
     }) {
       const include = []
       const params = new URLSearchParams()
@@ -40,7 +44,13 @@ export default (client) => {
 
       params.append('from_timestamp', fromTimestamp.toISOString())
       params.append('to_timestamp', toTimestamp.toISOString())
-      params.append('limit_linked_items', DEFAULT_LINKED_ITEMS_LOAD_COUNT)
+
+      if (limitLinkedItems !== LINKED_ITEMS_LOAD_ALL) {
+        params.append(
+          'limit_linked_items',
+          limitLinkedItems ?? LINKED_ITEMS_DEFAULT_LOAD_COUNT
+        )
+      }
 
       if (userTimeZone) {
         params.append('user_timezone', userTimeZone)

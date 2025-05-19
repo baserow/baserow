@@ -1,5 +1,8 @@
 import addPublicAuthTokenHeader from '@baserow/modules/database/utils/publicView'
-import { DEFAULT_LINKED_ITEMS_LOAD_COUNT } from '@baserow/modules/database/constants'
+import {
+  LINKED_ITEMS_LOAD_ALL,
+  LINKED_ITEMS_DEFAULT_LOAD_COUNT,
+} from '@baserow/modules/database/constants'
 
 export default (client) => {
   return {
@@ -14,6 +17,7 @@ export default (client) => {
       publicUrl = false,
       publicAuthToken = null,
       filters = {},
+      limitLinkedItems = null,
     }) {
       const include = []
       const params = new URLSearchParams()
@@ -51,7 +55,13 @@ export default (client) => {
         }
         params.append('select_option', value)
       })
-      params.append('limit_linked_items', DEFAULT_LINKED_ITEMS_LOAD_COUNT)
+
+      if (limitLinkedItems !== LINKED_ITEMS_LOAD_ALL) {
+        params.append(
+          'limit_linked_items',
+          limitLinkedItems ?? LINKED_ITEMS_DEFAULT_LOAD_COUNT
+        )
+      }
 
       const config = { params }
 
