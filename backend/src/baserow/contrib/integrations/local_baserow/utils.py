@@ -15,6 +15,7 @@ from rest_framework.fields import (
     Field,
     FloatField,
     IntegerField,
+    ListField,
     SerializerMethodField,
     TimeField,
     UUIDField,
@@ -68,6 +69,12 @@ def guess_json_type_from_response_serializer_field(
         base_type = "boolean"
     elif isinstance(serializer_field, ListSerializer):
         # ListSerializer.child is required, so add its subtype.
+        sub_type = guess_json_type_from_response_serializer_field(
+            serializer_field.child
+        )
+        return {"type": "array", "items": sub_type}
+    elif isinstance(serializer_field, ListField):
+        # ListField.child is required, so add its subtype.
         sub_type = guess_json_type_from_response_serializer_field(
             serializer_field.child
         )
