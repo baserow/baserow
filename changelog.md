@@ -1,5 +1,33 @@
 # Changelog
 
+## Released 1.33.3
+
+### New features
+* [Database] Introduce list all tables endpoints via token auth. [#1100](https://gitlab.com/baserow/baserow/-/issues/1100)
+* [Database] Be able to specify a default value on multiple select field [#2173](https://gitlab.com/baserow/baserow/-/issues/2173)
+* [Database] Support default values for single select field [#2173](https://gitlab.com/baserow/baserow/-/issues/2173)
+* [Database] Make AI field editable [#3557](https://gitlab.com/baserow/baserow/-/issues/3557)
+
+### Bug fixes
+* [Builder] Fix issue when two columns of a table element have the same value [#3144](https://gitlab.com/baserow/baserow/-/issues/3144)
+* [Builder] Allow blank link row values in create and update row actions. [#3524](https://gitlab.com/baserow/baserow/-/issues/3524)
+* [Builder] Fix form values being reset before all actions are done [#3530](https://gitlab.com/baserow/baserow/-/issues/3530)
+* [Builder] Fix data input not reset after form submition with "Reset after submission" option [#3583](https://gitlab.com/baserow/baserow/-/issues/3583)
+* [Builder] Fix choice element missing default value for single select [#3602](https://gitlab.com/baserow/baserow/-/issues/3602)
+* [Database] Improved primary key detection in PostgreSQL data sync for roles that are not owners of synchronized table [#3606](https://gitlab.com/baserow/baserow/-/issues/3606)
+* [Core] MCP server returns error response [#3615](https://gitlab.com/baserow/baserow/-/issues/3615)
+* [Database] Fix for workspace export with default value on number field [#3619](https://gitlab.com/baserow/baserow/-/issues/3619)
+* [Builder] Formula values are not emptied anymore when an error happens
+* [Database] Don't create MCP tools for trashed databases.
+* [Builder] Markdown content now follows application theme
+
+### Refactors
+* [Database] Improved group by ManyToMany (link row and multiple select) performance by using CTE.
+
+### Breaking API changes
+* [Database] Returns an HTTP 409 instead of an HTTP 503 when the request fails due to a deadlock.
+
+
 ## Released 1.33.2
 
 ### New features
