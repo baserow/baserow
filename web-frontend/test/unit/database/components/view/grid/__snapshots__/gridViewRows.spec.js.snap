@@ -128,6 +128,16 @@ exports[`GridViewRows component With row details 1`] = `
         class="grid-view__row-info"
       >
         <div
+          class="grid-view__row-drag"
+        />
+         
+        <div
+          class="grid-view__row-checkbox"
+        >
+          <!---->
+        </div>
+         
+        <div
           class="grid-view__row-count grid-view__row-count--hide-on-hover"
           title="2"
         >
@@ -135,10 +145,6 @@ exports[`GridViewRows component With row details 1`] = `
             2
           
         </div>
-         
-        <div
-          class="grid-view__row-drag"
-        />
          
         <a
           class="grid-view__row-more"
@@ -193,6 +199,16 @@ exports[`GridViewRows component With row details 1`] = `
         class="grid-view__row-info"
       >
         <div
+          class="grid-view__row-drag"
+        />
+         
+        <div
+          class="grid-view__row-checkbox"
+        >
+          <!---->
+        </div>
+         
+        <div
           class="grid-view__row-count grid-view__row-count--hide-on-hover"
           title="4"
         >
@@ -200,10 +216,6 @@ exports[`GridViewRows component With row details 1`] = `
             4
           
         </div>
-         
-        <div
-          class="grid-view__row-drag"
-        />
          
         <a
           class="grid-view__row-more"
@@ -258,6 +270,16 @@ exports[`GridViewRows component With row details 1`] = `
         class="grid-view__row-info"
       >
         <div
+          class="grid-view__row-drag"
+        />
+         
+        <div
+          class="grid-view__row-checkbox"
+        >
+          <!---->
+        </div>
+         
+        <div
           class="grid-view__row-count grid-view__row-count--hide-on-hover"
           title="3"
         >
@@ -265,10 +287,6 @@ exports[`GridViewRows component With row details 1`] = `
             3
           
         </div>
-         
-        <div
-          class="grid-view__row-drag"
-        />
          
         <a
           class="grid-view__row-more"

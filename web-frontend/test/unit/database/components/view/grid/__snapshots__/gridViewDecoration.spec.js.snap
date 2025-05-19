@@ -79,6 +79,16 @@ exports[`GridView component with decoration Default component with first_cell de
                   class="grid-view__row-info"
                 >
                   <div
+                    class="grid-view__row-drag"
+                  />
+                   
+                  <div
+                    class="grid-view__row-checkbox"
+                  >
+                    <!---->
+                  </div>
+                   
+                  <div
                     class="grid-view__row-count grid-view__row-count--hide-on-hover"
                     title="2"
                   >
@@ -86,10 +96,6 @@ exports[`GridView component with decoration Default component with first_cell de
             2
           
                   </div>
-                   
-                  <div
-                    class="grid-view__row-drag"
-                  />
                    
                   <a
                     class="grid-view__row-more"
@@ -1084,6 +1090,16 @@ exports[`GridView component with decoration Default component with unavailable d
                   class="grid-view__row-info"
                 >
                   <div
+                    class="grid-view__row-drag"
+                  />
+                   
+                  <div
+                    class="grid-view__row-checkbox"
+                  >
+                    <!---->
+                  </div>
+                   
+                  <div
                     class="grid-view__row-count grid-view__row-count--hide-on-hover"
                     title="2"
                   >
@@ -1091,10 +1107,6 @@ exports[`GridView component with decoration Default component with unavailable d
             2
           
                   </div>
-                   
-                  <div
-                    class="grid-view__row-drag"
-                  />
                    
                   <a
                     class="grid-view__row-more"

@@ -1244,3 +1244,69 @@ def test_last_modified_by_reference_doesnt_prevent_user_deletion(data_fixture):
 
     row = model.objects.first()
     assert getattr(row, f"{LAST_MODIFIED_BY_COLUMN_NAME}_id") == user_id
+
+
+@pytest.mark.django_db
+def test_filter_by_fields_object_with_row_ids_queryset(data_fixture):
+    table = data_fixture.create_database_table(name="Rockets")
+    name_field = data_fixture.create_text_field(table=table, order=0, name="Name")
+    price_field = data_fixture.create_number_field(table=table, order=1, name="Price")
+
+    model = table.get_model()
+    row_1 = model.objects.create(
+        **{f"field_{name_field.id}": "Falcon Heavy", f"field_{price_field.id}": 10000}
+    )
+    row_2 = model.objects.create(
+        **{f"field_{name_field.id}": "Falcon 9", f"field_{price_field.id}": 20000}
+    )
+    row_3 = model.objects.create(
+        **{f"field_{name_field.id}": "Falcon 1", f"field_{price_field.id}": 5000}
+    )
+
+    results = model.objects.all().filter_by_fields_object(
+        filter_object={
+            "filter__field_id__in": [f"{str(row_1.id)},{str(row_2.id)}"],
+        },
+        filter_type="AND",
+    )
+    assert len(results) == 2
+    assert results[0].id == row_1.id
+    assert results[1].id == row_2.id
+
+    results = model.objects.all().filter_by_fields_object(
+        filter_object={
+            "filter__field_id__in": [f"{str(row_1.id)},this-is-not-a-number"],
+        },
+    )
+    assert len(results) == 1
+    assert results[0].id == row_1.id
+
+    results = model.objects.all().filter_by_fields_object(
+        filter_object={
+            "filter__field_id__in": ["invalid,not_a_number"],
+        },
+    )
+    assert len(results) == 3
+
+    results = model.objects.all().filter_by_fields_object(
+        filter_object={
+            "filter__field_id__in": "",
+        },
+    )
+    assert len(results) == 3
+
+    results = model.objects.all().filter_by_fields_object(
+        filter_object={
+            "filter__field_id__in": ["999999,888888"],
+        },
+    )
+    assert len(results) == 0
+
+    results = model.objects.all().filter_by_fields_object(
+        filter_object={
+            "filter__field_id__in": [f"{str(row_1.id)},{str(row_2.id)}"],
+            f"filter__field_{price_field.id}__higher_than": "15000",
+        },
+    )
+    assert len(results) == 1
+    assert results[0].id == row_2.id

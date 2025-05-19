@@ -45,6 +45,7 @@
       @row-hover="setRowHover($event.row, $event.value)"
       @row-context="showRowContext($event.event, $event.row)"
       @row-dragging="rowDragStart"
+      @row-select="handleRowSelect"
       @cell-mousedown-left="multiSelectStart"
       @cell-mouseover="multiSelectHold"
       @cell-mouseup-left="multiSelectStop"
@@ -388,7 +389,11 @@ import { clone } from '@baserow/modules/core/utils/object'
 import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
 import GridViewRowsAddContext from '@baserow/modules/database/components/view/grid/fields/GridViewRowsAddContext'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
-import { GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING } from '@baserow/modules/database/constants'
+import {
+  GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING,
+  GRID_VIEW_MULTI_SELECT_CHECKBOX,
+  GRID_VIEW_MULTI_SELECT_AREA,
+} from '@baserow/modules/database/constants'
 
 export default {
   name: 'GridView',
@@ -914,6 +919,10 @@ export default {
           fieldTailIndex: this.allVisibleFields.length - 1,
         }
       )
+      this.$store.dispatch(this.storePrefix + 'view/grid/addRowSelectedBy', {
+        row,
+        field: this.fields[0],
+      })
     },
     async addRow(before = null, values = {}) {
       try {
@@ -1013,8 +1022,57 @@ export default {
       })
       this.lastHoveredRow = row
     },
+    handleRowSelect({ row, value }) {
+      if (
+        this.$store.getters[this.storePrefix + 'view/grid/isMultiSelectActive']
+      ) {
+        this.$store.dispatch(
+          this.storePrefix + 'view/grid/clearAndDisableMultiSelect'
+        )
+      }
+
+      if (value) {
+        this.$store.dispatch(this.storePrefix + 'view/grid/addRowSelectedBy', {
+          row,
+          field: this.fields[0],
+        })
+      } else {
+        this.$store.dispatch(
+          this.storePrefix + 'view/grid/removeRowSelectedBy',
+          {
+            grid: this.view,
+            row,
+            field: this.fields[0],
+            fields: this.fields,
+            getScrollTop: () => this.$refs.left.$refs.body.scrollTop,
+          }
+        )
+      }
+    },
     showRowContext(event, row) {
       this.selectedRow = row
+      const selectionType =
+        this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
+
+      if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+        this.$refs.rowContext.toggleNextToMouse(event)
+      }
+
+      if (
+        selectionType === GRID_VIEW_MULTI_SELECT_AREA &&
+        row._.selectedBy.length > 0
+      ) {
+        this.$store.dispatch(this.storePrefix + 'view/grid/setMultipleSelect', {
+          rowHeadIndex: this.$store.getters[
+            this.storePrefix + 'view/grid/getRowIndexById'
+          ](row.id),
+          rowTailIndex: this.$store.getters[
+            this.storePrefix + 'view/grid/getRowIndexById'
+          ](row.id),
+          fieldHeadIndex: 0,
+          fieldTailIndex: this.allVisibleFields.length - 1,
+        })
+      }
       this.$refs.rowContext.toggleNextToMouse(event)
     },
     /**
@@ -1084,7 +1142,6 @@ export default {
 
       const element = component.$el
       this.scrollToCellElement(element, 'both', field)
-
       this.$store.dispatch(this.storePrefix + 'view/grid/addRowSelectedBy', {
         row,
         field,
@@ -1271,6 +1328,11 @@ export default {
      * Stop multi-select.
      */
     multiSelectStop({ event, row, field }) {
+      const selectionType =
+        this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
+      if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+        return
+      }
       this.$store.dispatch(
         this.storePrefix + 'view/grid/setMultiSelectHolding',
         false
@@ -1282,6 +1344,13 @@ export default {
      * outside of GridViewRows.
      */
     cancelMultiSelectIfActive(event) {
+      const selectionType =
+        this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
+
+      if (selectionType !== GRID_VIEW_MULTI_SELECT_AREA) {
+        return
+      }
+
       if (
         this.$store.getters[
           this.storePrefix + 'view/grid/isMultiSelectActive'
@@ -1422,6 +1491,7 @@ export default {
       if (!this.$store.getters[`${gridStore}/isMultiSelectActive`]) {
         return
       }
+
       try {
         this.$store.dispatch('toast/setCopying', true)
         await this.copySelectionToClipboard(

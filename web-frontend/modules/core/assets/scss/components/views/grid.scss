@@ -245,6 +245,61 @@
   background-color: $white;
 }
 
+.grid-view__row-info {
+  display: flex;
+  align-items: center;
+  line-height: $grid-view-row-height-small - 1px;
+  position: relative;
+
+  &.grid-view__row-info--matches-search {
+    background-color: $color-primary-100;
+  }
+}
+
+.grid-view__row-checkbox {
+  position: absolute;
+  left: 14px;
+  top: 10px;
+  width: 12px;
+  height: 12px;
+  border: 1px solid $palette-neutral-400;
+  border-radius: 2px;
+  background-color: $white;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 1px 2px 0 rgba($palette-neutral-1300, 0.1);
+
+  &:hover {
+    border-color: $color-primary-600;
+  }
+
+  &--checked {
+    display: flex;
+    background-color: $color-primary-600;
+    border-color: $color-primary-600;
+    color: white;
+    box-shadow: none;
+  }
+
+  &--disabled {
+    opacity: 0.5;
+    background-color: $color-neutral-100;
+    box-shadow: none;
+
+    &:hover {
+      border-color: $color-neutral-300;
+      background-color: $color-neutral-100;
+    }
+  }
+
+  .grid-view__row--hover & {
+    display: flex;
+  }
+}
+
 .grid-view__row {
   @extend %clearfix;
 
@@ -283,7 +338,17 @@
   }
 
   &.grid-view__row--selected {
+    background-color: rgba($palette-blue-500, 0.12);
+  }
+
+  &.grid-view__row--highlighted {
     background-color: $palette-neutral-25;
+  }
+
+  &:hover {
+    .grid-view__row-checkbox {
+      display: flex;
+    }
   }
 }
 
@@ -444,42 +509,6 @@
   @include rounded($rounded);
 }
 
-.grid-view__row-info {
-  display: flex;
-  align-items: center;
-  line-height: $grid-view-row-height-small - 1px;
-
-  &.grid-view__row-info--matches-search {
-    background-color: $color-primary-100;
-  }
-}
-
-.grid-view__row-drag {
-  @include absolute(9px, auto, 0, 9px);
-
-  width: 16px;
-  height: 16px;
-  cursor: grab;
-  display: none;
-
-  &::before {
-    @include absolute(0);
-
-    content: '';
-    width: 11px;
-    background-image: radial-gradient(
-      $palette-neutral-700 1.5px,
-      transparent 1.5px
-    );
-    background-size: 5px 5px;
-    background-repeat: repeat;
-  }
-
-  .grid-view__row--hover & {
-    display: block;
-  }
-}
-
 .grid-view__row-count {
   @extend %ellipsis;
 
@@ -490,8 +519,13 @@
     font-size: 11px;
   }
 
+  .grid-view__row-checkbox--checked + & {
+    opacity: 0;
+  }
+
   .grid-view__row--loading & {
     color: $white;
+    opacity: 1;
 
     &::after {
       @include loading;
@@ -502,8 +536,36 @@
     }
   }
 
-  .grid-view__row--hover &.grid-view__row-count--hide-on-hover {
-    visibility: hidden;
+  .grid-view__row--hover:not(.grid-view__row--loading) & {
+    opacity: 0;
+  }
+}
+
+.grid-view__row-drag {
+  position: absolute;
+  left: 2px;
+  top: 5px;
+  width: 10px;
+  height: 25px;
+  cursor: grab;
+  display: none;
+  z-index: 2;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 10px;
+    background-image: radial-gradient(
+      $palette-neutral-400 1.5px,
+      transparent 1.5px
+    );
+    background-size: 5px 5px;
+    background-repeat: repeat;
+  }
+
+  .grid-view__row--hover & {
+    display: block;
   }
 }
 
@@ -521,8 +583,7 @@
 
   @include rounded($rounded-md);
 
-  .grid-view__row--hover &,
-  .grid-view__row--selected & {
+  .grid-view__row--hover & {
     visibility: visible;
   }
 
