@@ -1649,6 +1649,7 @@ def test_get_public_kanban_view_with_single_select_and_cover(
                 "order": 0,
                 "primary": single_select_field.primary,
                 "select_options": [],
+                "single_select_default": None,
                 "table_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                 "type": "single_select",
                 "read_only": False,

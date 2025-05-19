@@ -125,7 +125,7 @@ def test_rows_enter_view_event_type(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.webhooks.registries.call_webhook")
 def test_rows_enter_view_event_type_require_enterprise_license(
-    mock_call_webhook, enterprise_data_fixture
+    mock_call_webhook, enterprise_data_fixture, synced_roles
 ):
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)
@@ -164,7 +164,7 @@ def test_rows_enter_view_event_type_require_enterprise_license(
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.webhooks.registries.call_webhook")
 def test_rows_enter_view_event_type_not_triggerd_with_include_all_events(
-    mock_call_webhook, enterprise_data_fixture, enable_enterprise
+    mock_call_webhook, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)
@@ -236,7 +236,7 @@ def test_rows_enter_view_event_event_type_test_payload(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.webhooks.registries.call_webhook")
 def test_rows_enter_view_event_type_not_called_without_view(
-    mock_call_webhook, enterprise_data_fixture, enable_enterprise
+    mock_call_webhook, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)
@@ -275,7 +275,7 @@ def test_rows_enter_view_event_type_not_called_without_view(
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.webhooks.registries.call_webhook")
 def test_rows_enter_view_event_type_called_once_per_view(
-    mock_call_webhook, enterprise_data_fixture, enable_enterprise
+    mock_call_webhook, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)
@@ -304,7 +304,7 @@ def test_rows_enter_view_event_type_called_once_per_view(
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.webhooks.registries.call_webhook")
 def test_rows_enter_view_event_type_only_right_webhook_is_called(
-    mock_call_webhook, enterprise_data_fixture, enable_enterprise
+    mock_call_webhook, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
     user = enterprise_data_fixture.create_user()
     table_a = enterprise_data_fixture.create_database_table(user=user)
@@ -348,7 +348,7 @@ def test_rows_enter_view_event_type_only_right_webhook_is_called(
 )
 @override_settings(DEBUG=True, BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE=2)
 def test_rows_enter_view_event_type_paginate_data(
-    mock_make_request, enterprise_data_fixture, enable_enterprise
+    mock_make_request, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)

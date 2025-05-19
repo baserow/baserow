@@ -21,7 +21,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.db.models import Field as DjangoField
-from django.db.models import Model, QuerySet, Window
+from django.db.models import Model, Q, QuerySet, Window
 from django.db.models.expressions import RawSQL
 from django.db.models.fields.related import ForeignKey, ManyToManyField
 from django.db.models.functions import RowNumber
@@ -48,7 +48,11 @@ from baserow.contrib.database.table.constants import (
     LAST_MODIFIED_BY_COLUMN_NAME,
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
 )
-from baserow.contrib.database.table.models import GeneratedTableModel, Table
+from baserow.contrib.database.table.models import (
+    FieldObject,
+    GeneratedTableModel,
+    Table,
+)
 from baserow.contrib.database.table.operations import (
     CreateRowDatabaseTableOperationType,
     ImportRowsDatabaseTableOperationType,
@@ -240,10 +244,36 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             if field_id in values or field["name"] in values
         }
 
+    def prepare_values_with_defaults(
+        self, field_objects: Dict[int, FieldObject], rows_values: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Iterate over the rows and add the default values for the fields that are not
+        present in the row values and have a default value. This is used when creating
+        new rows, but it shouldn't be used when updating rows because it will override
+        the values that are already set.
+
+        :param field_objects: The field objects for a model.
+        :param rows_values: The rows and their values that need to be prepared. Note
+            that it will be modified in place.
+        :return: The prepared values for all rows in the same structure as it was
+        """
+
+        for row_value in rows_values:
+            for field_obj in field_objects.values():
+                field_name = field_obj["name"]
+                field_type = field_obj["type"]
+                field = field_obj["field"]
+                if field_name not in row_value:
+                    default_value = field_type.get_default_value(field)
+                    if default_value is not None:
+                        row_value[field_name] = default_value
+        return rows_values
+
     def prepare_rows_in_bulk(
         self,
-        fields: Dict[int, Dict[str, Any]],
-        row_values: List[Dict[str, Any]],
+        field_objects: Dict[int, FieldObject],
+        rows_values: List[Dict[str, Any]],
         generate_error_report: bool = False,
     ) -> Tuple[List[Dict[str, Any]], Dict[int, Dict[str, Any]]]:
         """
@@ -251,8 +281,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         updated in the database. It will check if the values can actually be set and
         prepares them based on their field type.
 
-        :param fields: The returned fields object from the get_model method.
-        :param rows: The rows and their values that need to be prepared.
+        :param field_objects: The returned fields object from the get_model method.
+        :param rows_values: The rows and their values that need to be prepared.
         :param generate_error_report: If set to True, the method will return an
             object that contains information about the errors that
             occurred during the rows preparation.
@@ -264,33 +294,34 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         prepared_values_by_field = defaultdict(dict)
 
         # organize values by field name
-        for index, row_value in enumerate(row_values):
-            for field_id, field in fields.items():
-                field_name = field["name"]
+        for index, row_value in enumerate(rows_values):
+            for field_id, field_obj in field_objects.items():
+                field_name = field_obj["name"]
+                field_type = field_obj["type"]
+                field = field_obj["field"]
                 field_ids[field_name] = field_id
                 if field_name in row_value:
                     prepared_values_by_field[field_name][index] = row_value[field_name]
 
         # bulk-prepare values per field
         for field_name, batch_values in prepared_values_by_field.items():
-            field = fields[field_ids[field_name]]
-            field_type = field["type"]
+            field_obj = field_objects[field_ids[field_name]]
+            field_type = field_obj["type"]
+            field = field_obj["field"]
             prepared_values_by_field[
                 field_name
             ] = field_type.prepare_value_for_db_in_bulk(
-                field["field"],
-                batch_values,
-                continue_on_error=generate_error_report,
+                field, batch_values, continue_on_error=generate_error_report
             )
 
         # replace original values to keep ordering
         prepared_rows = []
         failing_rows = {}
-        for index, row_value in enumerate(row_values):
+        for index, row_value in enumerate(rows_values):
             new_values = deepcopy(row_value)
             row_errors = {}
-            for field_id, field in fields.items():
-                field_name = field["name"]
+            for field_id, field_obj in field_objects.items():
+                field_name = field_obj["name"]
                 if field_name in row_value:
                     prepared_value = prepared_values_by_field[field_name][index]
                     if isinstance(prepared_value, Exception):
@@ -765,7 +796,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         if not values_already_prepared:
-            prepared_values = self.prepare_values(model._field_objects, values)
+            values_with_defaults = self.prepare_values_with_defaults(
+                model._field_objects, [values]
+            )
+            prepared_values = self.prepare_values(
+                model._field_objects, values_with_defaults[0]
+            )
         else:
             prepared_values = values
 
@@ -1131,9 +1167,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         report = {}
+        rows_values_with_defaults = self.prepare_values_with_defaults(
+            model._field_objects, rows_values
+        )
         prepared_rows_values, errors = self.prepare_rows_in_bulk(
             model._field_objects,
-            rows_values,
+            rows_values_with_defaults,
             generate_error_report=generate_error_report,
         )
         report.update({index: err for index, err in errors.items()})
@@ -1363,18 +1402,18 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
     def _prepare_m2m_field_related_objects(
         self, row: GeneratedTableModel, field_name: str, value: List[Any]
-    ) -> Tuple[List[Type[Model]], str]:
+    ) -> Tuple[List[Type[Model]], Tuple[str, str]]:
         """
-        Prepares the many to many related objects for a given row and field
-        name, taking into account whether the field is self-referencing or not.
+        Prepares the many to many related objects for a given row and field name, taking
+        into account whether the field is self-referencing or not.
 
-        :param row: The row instance for which the related objects must be
+        :param row: The row instance for which the related objects must be prepared.
+        :param field_name: The name of the field for which the related objects must be
             prepared.
-        :param field_name: The name of the field for which the related objects
-            must be prepared.
         :param value: The value of the field.
-        :return: A list of related objects and a string indicating the column
-            name of the row in the through table.
+        :return: A list of related objects and a tuple containing a string indicating
+            the column name of the row in the through table and a string indicating the
+            column name of the value in the through table.
         """
 
         model = row._meta.model
@@ -1403,7 +1442,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             else:
                 value_column = field.get_attname_column()[1]
 
-        return [
+        m2m_objects = [
             through(
                 **{
                     row_column: row.id,
@@ -1411,7 +1450,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 }
             )
             for v in value
-        ], row_column
+        ]
+
+        return m2m_objects, (row_column, value_column)
 
     def validate_rows(
         self,
@@ -1991,7 +2032,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     model._meta.get_field(field_name).pre_save(obj, add=False),
                 )
 
-        many_to_many = defaultdict(list)
+        m2m_values_to_add = defaultdict(list)
+        m2m_values_to_delete = {}
         row_column_names: Dict[str, str] = {}
         row_ids_change_m2m_per_field = defaultdict(set)
 
@@ -2016,28 +2058,46 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     field_obj, field_name, row, value
                 )
 
-                m2m_objects, row_column_name = self._prepare_m2m_field_related_objects(
-                    row, field_name, value
+                original_set_of_values = set(
+                    original_row_values_by_id[row.id].get(field_name) or []
+                )
+                # if a list of models is provided as value, make sure to compare the ids
+                value_ids = [v.id if hasattr(v, "id") else v for v in value]
+                new_set_of_values = set(value_ids)
+                to_add = new_set_of_values - original_set_of_values
+                to_delete = original_set_of_values - new_set_of_values
+
+                m2m_to_add, (
+                    row_column_name,
+                    value_column,
+                ) = self._prepare_m2m_field_related_objects(
+                    row, field_name, list(filter(lambda v: v in to_add, value_ids))
                 )
                 row_column_names[field_name] = row_column_name
 
-                if len(value) == 0:
-                    many_to_many[field_name].append(None)
-                else:
-                    many_to_many[field_name].extend(m2m_objects)
+                if len(to_add) > 0:
+                    m2m_values_to_add[field_name].extend(m2m_to_add)
+
+                if len(to_delete) > 0:
+                    prev_q = m2m_values_to_delete.get(field_name, Q())
+                    q_kwargs = {row_column_name: row.id}
+                    # Delete all the row relations only if the new value is empty
+                    if value_ids:
+                        q_kwargs[f"{value_column}__in"] = to_delete
+                    m2m_values_to_delete[field_name] = prev_q | Q(**q_kwargs)
 
         # The many to many relations need to be updated first because they need to
         # exist when the rows are updated in bulk. Otherwise, the formula and lookup
         # fields can't see the relations.
-        for field_name, values in many_to_many.items():
+        for field_name, q_filters in m2m_values_to_delete.items():
+            through = getattr(model, field_name).through
+            delete_qs = through.objects.all().filter(q_filters)
+            delete_qs._raw_delete(delete_qs.db)
+
+        for field_name, m2m_to_add in m2m_values_to_add.items():
             through = getattr(model, field_name).through
             row_column_name = row_column_names[field_name]
-            filters = {
-                f"{row_column_name}__in": row_ids_change_m2m_per_field[field_name]
-            }
-            delete_qs = through.objects.all().filter(**filters)
-            delete_qs._raw_delete(delete_qs.db)
-            through.objects.bulk_create([v for v in values if v is not None])
+            through.objects.bulk_create(m2m_to_add)
 
         bulk_update_fields = ["updated_on"]
 

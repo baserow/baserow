@@ -4,13 +4,14 @@
       {{ $t('formulaInputField.errorInvalidFormula') }}
     </p>
     <template #actions>
-      <Button type="danger" size="small" @click.prevent="reset">
+      <Button type="danger" size="small" @click.prevent="resetField">
         {{ $t('action.reset') }}
       </Button>
     </template>
   </Alert>
   <div v-else>
     <EditorContent
+      :id="forInput"
       ref="editor"
       class="form-input formula-input-field"
       role="textbox"
@@ -59,6 +60,9 @@ export default {
       applicationContext: this.applicationContext,
       dataProviders: this.dataProviders,
     }
+  },
+  inject: {
+    forInput: { from: 'forInput', default: null },
   },
   props: {
     value: {
@@ -249,7 +253,7 @@ export default {
     this.editor?.destroy()
   },
   methods: {
-    reset() {
+    resetField() {
       this.isFormulaInvalid = false
       this.$emit('input', '')
     },

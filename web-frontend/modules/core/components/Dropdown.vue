@@ -1,5 +1,6 @@
 <template>
   <div
+    :id="forInput"
     class="dropdown"
     :class="{
       'dropdown--floating': !showInput,
@@ -8,6 +9,7 @@
       'dropdown--error': error,
     }"
     :tabindex="realTabindex"
+    role="list"
     @focusin="show()"
     @focusout="focusout($event)"
   >

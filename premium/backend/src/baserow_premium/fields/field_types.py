@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
@@ -108,6 +108,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     can_get_unique_values = True
     can_have_select_options = True
 
+    def get_internal_value_from_db(
+        self, row: "GeneratedTableModel", field_name: str
+    ) -> Any:
+        field_object = row.get_field_object(field_name)
+        baserow_field_type = self.get_baserow_field_type(field_object["field"])
+        return baserow_field_type.get_internal_value_from_db(row, field_name)
+
     def get_baserow_field_type(self, instance):
         output_type = ai_field_output_registry.get(instance.ai_output_type)
         baserow_field_type = field_type_registry.get_by_type(
@@ -116,7 +123,6 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         return baserow_field_type
 
     def get_serializer_field(self, instance, **kwargs):
-        kwargs["read_only"] = True
         baserow_field_type = self.get_baserow_field_type(instance)
         return baserow_field_type.get_serializer_field(instance, **kwargs)
 
@@ -238,11 +244,11 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         )
 
     def get_group_by_field_filters_and_annotations(
-        self, field, field_name, base_queryset, value
+        self, field, field_name, base_queryset, value, cte, rows
     ):
         baserow_field_type = self.get_baserow_field_type(field)
         return baserow_field_type.get_group_by_field_filters_and_annotations(
-            field, field_name, base_queryset, value
+            field, field_name, base_queryset, value, cte, rows
         )
 
     def get_export_serialized_value(

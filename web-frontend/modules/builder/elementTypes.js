@@ -1242,8 +1242,7 @@ export class InputTextElementType extends FormElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    const displayValue =
-      element.label || element.default_value || element.placeholder
+    const displayValue = element.label || element.placeholder
 
     if (displayValue?.trim()) {
       const resolvedName = ensureString(
@@ -1653,13 +1652,16 @@ export class ChoiceElementType extends FormElementType {
    * @param {Object} element the element we want the option for.
    * @returns the first option value.
    */
-  _getFirstOptionValue(element) {
+  _getFirstOptionValue(element, applicationContext) {
     switch (element.option_type) {
       case CHOICE_OPTION_TYPES.MANUAL:
         return element.options.find(({ value }) => value)
       case CHOICE_OPTION_TYPES.FORMULAS: {
         const formulaValues = ensureArray(
-          this.resolveFormula(this.element.formula_value)
+          this.resolveFormula(element.formula_value, {
+            element,
+            ...applicationContext,
+          })
         )
         if (formulaValues.length === 0) {
           return null
@@ -1673,7 +1675,7 @@ export class ChoiceElementType extends FormElementType {
 
   getInitialFormDataValue(element, applicationContext) {
     try {
-      const firstValue = this._getFirstOptionValue(element)
+      const firstValue = this._getFirstOptionValue(element, applicationContext)
       let converter = ensureStringOrInteger
       if (firstValue ?? Number.isInteger(firstValue)) {
         converter = (v) => ensurePositiveInteger(v, { allowNull: true })
@@ -1699,8 +1701,7 @@ export class ChoiceElementType extends FormElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    const displayValue =
-      element.label || element.default_value || element.placeholder
+    const displayValue = element.label || element.placeholder
 
     if (displayValue) {
       const resolvedName = ensureString(
@@ -1959,8 +1960,7 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
   }
 
   getDisplayName(element, applicationContext) {
-    const displayValue =
-      element.label || element.default_value || element.placeholder
+    const displayValue = element.label || element.placeholder
 
     if (displayValue) {
       const resolvedName = ensureString(
@@ -1968,6 +1968,7 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
       ).trim()
       return resolvedName || this.name
     }
+
     return this.name
   }
 

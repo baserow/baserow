@@ -71,7 +71,6 @@ def test_workflow_deleted_signal_sent(workflow_deleted_mock, data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(automation=automation)
-    workflow_id = workflow.id
 
     service = AutomationWorkflowService()
     service.delete_workflow(user, workflow.id)
@@ -79,7 +78,7 @@ def test_workflow_deleted_signal_sent(workflow_deleted_mock, data_fixture):
     workflow_deleted_mock.send.assert_called_once_with(
         service,
         automation=automation,
-        workflow_id=workflow_id,
+        workflow_id=workflow.id,
         user=user,
     )
 

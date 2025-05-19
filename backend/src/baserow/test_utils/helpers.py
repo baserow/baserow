@@ -115,10 +115,11 @@ def setup_interesting_test_table(
             workspace=database.workspace, first_name="User3", email="user3@example.com"
         )
 
+    linked_tables = {}
     table = data_fixture.create_database_table(
         database=database, user=user, name=name or "interesting_test_table"
     )
-    link_table = data_fixture.create_database_table(
+    linked_tables["link_table"] = link_table = data_fixture.create_database_table(
         database=database, user=user, name="link_table"
     )
     link_table_primary_text_field = data_fixture.create_text_field(
@@ -127,13 +128,19 @@ def setup_interesting_test_table(
     link_table_duration_field = data_fixture.create_duration_field(
         table=link_table, name="duration_field"
     )
-    decimal_link_table = data_fixture.create_database_table(
+    linked_tables[
+        "decimal_link_table"
+    ] = decimal_link_table = data_fixture.create_database_table(
         database=database, user=user, name="decimal_link_table"
     )
-    file_link_table = data_fixture.create_database_table(
+    linked_tables[
+        "file_link_table"
+    ] = file_link_table = data_fixture.create_database_table(
         database=database, user=user, name="file_link_table"
     )
-    multiple_collaborators_link_table = data_fixture.create_database_table(
+    linked_tables[
+        "multiple_collaborators_link_table"
+    ] = multiple_collaborators_link_table = data_fixture.create_database_table(
         database=database, user=user, name="multiple_collaborators_link_table"
     )
     all_possible_kwargs_per_type = construct_all_possible_field_kwargs(
@@ -187,7 +194,6 @@ def setup_interesting_test_table(
         .order_by("id")
         .values_list("id", flat=True)
     )
-
     values = {
         "text": "text",
         "long_text": "long_text",
@@ -197,8 +203,10 @@ def setup_interesting_test_table(
         "positive_int": 1,
         "negative_decimal": Decimal("-1.2"),
         "positive_decimal": Decimal("1.2"),
+        "decimal_with_default": None,
         "rating": 3,
         "boolean": "True",
+        "boolean_with_default": None,
         "datetime_us": datetime,
         "date_us": date,
         "datetime_eu": datetime,
@@ -257,6 +265,7 @@ def setup_interesting_test_table(
         "single_select": SelectOption.objects.get(
             value="A", field_id=name_to_field_id["single_select"]
         ).id,
+        "single_select_with_default": None,
         "multiple_select": [option_d, option_c, option_e],
         "multiple_collaborators": [
             {"id": user2.id, "name": user2.first_name},
@@ -295,6 +304,7 @@ def setup_interesting_test_table(
             "duration_rollup_avg",
             "duration_rollup_sum",
             "multiple_collaborators_lookup",
+            "multiple_select_with_default",
         }
     )
     assert missing_fields == set(), (
@@ -427,7 +437,13 @@ def setup_interesting_test_table(
             },
         )
 
-    context = {"user2": user2, "user3": user3, "fields": fields}
+    context = {
+        "user2": user2,
+        "user3": user3,
+        "fields": fields,
+        "tables": linked_tables,
+        "name_to_field_id": name_to_field_id,
+    }
 
     return table, user, row, blank_row, context
 

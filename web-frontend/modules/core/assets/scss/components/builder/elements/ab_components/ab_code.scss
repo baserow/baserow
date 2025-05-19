@@ -1,0 +1,17 @@
+.ab-code {
+  font-size: var(--body-font-size, 14px);
+  font-weight: var(--body-font-weight, 400);
+  margin: 0;
+  color: var(--body-text-color, $black);
+  text-align: var(--body-text-alignment, left);
+  font-family: var(--body-font-family, Inter);
+
+  .markdown {
+    // for markdown text
+    strong {
+      color: var(--body-text-color, $black);
+    }
+
+    margin-top: 1em;
+  }
+}

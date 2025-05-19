@@ -12,8 +12,10 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
-HANDLER_MODULE = "baserow.contrib.automation.workflows.handler"
+WORKFLOWS_MODULE = "baserow.contrib.automation.workflows"
+HANDLER_MODULE = f"{WORKFLOWS_MODULE}.handler"
 HANDLER_PATH = f"{HANDLER_MODULE}.AutomationWorkflowHandler"
+TRASH_TYPES_PATH = f"{WORKFLOWS_MODULE}.trash_types"
 
 
 @pytest.mark.django_db
@@ -86,15 +88,18 @@ def test_create_workflow_integrity_error(data_fixture):
         assert str(exc_info.value) == "unexpected integrity error"
 
 
+@patch(f"{TRASH_TYPES_PATH}.automation_workflow_deleted")
 @pytest.mark.django_db
-def test_delete_workflow(data_fixture):
+def test_delete_workflow(workflow_deleted_mock, data_fixture):
+    user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow()
 
     previous_count = AutomationWorkflow.objects.count()
 
-    AutomationWorkflowHandler().delete_workflow(workflow)
+    AutomationWorkflowHandler().delete_workflow(user, workflow)
 
     assert AutomationWorkflow.objects.count() == previous_count - 1
+    workflow_deleted_mock.send.assert_called_once()
 
 
 @pytest.mark.django_db

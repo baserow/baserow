@@ -105,6 +105,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
           >
             <div
               class="dropdown"
+              role="list"
               tabindex="0"
             >
               <a
@@ -151,6 +152,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                 >
                   <li
                     class="select__item select__item--no-options visible active"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -181,6 +183,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -211,6 +214,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -253,6 +257,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
           >
             <div
               class="dropdown"
+              role="list"
               tabindex="0"
             >
               <a
@@ -299,6 +304,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                 >
                   <li
                     class="select__item select__item--no-options visible active"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -329,6 +335,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -359,6 +366,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -389,6 +397,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -419,6 +428,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -449,6 +459,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -479,6 +490,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -509,6 +521,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -539,6 +552,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -627,6 +641,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
            
           <div
             class="dropdown"
+            role="list"
             tabindex="0"
           >
             <a
@@ -660,6 +675,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
               >
                 <li
                   class="select__item select__item--no-options visible active"
+                  role="listitem"
                 >
                   <a
                     class="select__item-link"
@@ -691,6 +707,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                  
                 <li
                   class="select__item select__item--no-options visible"
+                  role="listitem"
                 >
                   <a
                     class="select__item-link"
@@ -738,6 +755,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
           >
             <div
               class="dropdown"
+              role="list"
               tabindex="0"
             >
               <a
@@ -784,6 +802,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                 >
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -814,6 +833,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible active"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -844,6 +864,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -886,6 +907,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
           >
             <div
               class="dropdown"
+              role="list"
               tabindex="0"
             >
               <a
@@ -932,6 +954,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                 >
                   <li
                     class="select__item select__item--no-options visible active"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -962,6 +985,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -992,6 +1016,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1022,6 +1047,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1052,6 +1078,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1082,6 +1109,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1255,6 +1283,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
           >
             <div
               class="dropdown"
+              role="list"
               tabindex="0"
             >
               <a
@@ -1301,6 +1330,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                 >
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1331,6 +1361,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible active"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1361,6 +1392,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1403,6 +1435,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
           >
             <div
               class="dropdown"
+              role="list"
               tabindex=""
             >
               <a
@@ -1450,6 +1483,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                 >
                   <li
                     class="select__item select__item--no-options visible active hover"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1480,6 +1514,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1510,6 +1545,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1540,6 +1576,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1570,6 +1607,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1600,6 +1638,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1773,6 +1812,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
           >
             <div
               class="dropdown"
+              role="list"
               tabindex="0"
             >
               <a
@@ -1819,6 +1859,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                 >
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1849,6 +1890,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible active"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1879,6 +1921,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1921,6 +1964,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
           >
             <div
               class="dropdown"
+              role="list"
               tabindex="0"
             >
               <a
@@ -1968,6 +2012,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                 >
                   <li
                     class="select__item select__item--no-options visible active hover"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -1998,6 +2043,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -2028,6 +2074,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -2058,6 +2105,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -2088,6 +2136,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"
@@ -2118,6 +2167,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                   </li>
                   <li
                     class="select__item select__item--no-options visible"
+                    role="listitem"
                   >
                     <a
                       class="select__item-link"

@@ -1,5 +1,4 @@
 from baserow.contrib.automation.models import AutomationWorkflow
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.operations import (
     RestoreAutomationWorkflowOperationType,
 )
@@ -42,7 +41,7 @@ class AutomationWorkflowTrashableItemType(TrashableItemType):
     def permanently_delete_item(
         self, trashed_item: AutomationWorkflow, trash_item_lookup_cache=None
     ):
-        AutomationWorkflowHandler().delete_workflow(trashed_item)
+        trashed_item.delete()
 
     def get_restore_operation_type(self) -> str:
         return RestoreAutomationWorkflowOperationType.type

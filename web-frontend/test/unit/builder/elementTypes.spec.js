@@ -104,12 +104,6 @@ describe('elementTypes tests', () => {
       )
       expect(
         elementType.getDisplayName(
-          { default_value: "'Enter a first name'" },
-          {}
-        )
-      ).toBe('Enter a first name')
-      expect(
-        elementType.getDisplayName(
           { placeholder: "'Choose a first name...'" },
           {}
         )
@@ -128,11 +122,8 @@ describe('elementTypes tests', () => {
       expect(elementType.getDisplayName({ label: "'Animals'" }, {})).toBe(
         'Animals'
       )
-      expect(elementType.getDisplayName({ default_value: "'Horse'" }, {})).toBe(
-        'Horse'
-      )
       expect(
-        elementType.getDisplayName({ default_value: "'Choose an animal'" }, {})
+        elementType.getDisplayName({ placeholder: "'Choose an animal'" }, {})
       ).toBe('Choose an animal')
       // If a formula resolves to a blank string, fallback to the name.
       expect(

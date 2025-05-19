@@ -137,6 +137,7 @@ class ViewFixtures:
         return [
             self.create_form_view_field_option(form_view, field, **kwargs)
             for field in Field.objects.filter(table=form_view.table)
+            if field.get_type().can_be_in_form_view
         ]
 
     def create_form_view_field_option(self, form_view, field, **kwargs):

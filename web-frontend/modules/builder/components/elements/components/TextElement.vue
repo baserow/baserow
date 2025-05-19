@@ -84,7 +84,7 @@ export default {
       return {
         heading_open: (tokens, idx, options, env, renderer) => {
           const level = tokens[idx].markup.length
-          tokens[idx].attrJoin('class', `ab-heading--h${level}`)
+          tokens[idx].attrJoin('class', `ab-heading ab-heading--h${level}`)
           return renderer.renderToken(tokens, idx, options)
         },
         link_open: (tokens, idx, options, env, renderer) => {
@@ -106,25 +106,66 @@ export default {
           tokens[idx].attrJoin('class', 'ab-text')
           return renderer.renderToken(tokens, idx, options)
         },
-        table_open: (tokens, idx, options, env, renderer) => {
-          tokens[idx].attrJoin('class', 'baserow-table')
+        blockquote_open: (tokens, idx, options, env, renderer) => {
+          tokens[idx].attrJoin('class', 'ab-blockquote')
           return renderer.renderToken(tokens, idx, options)
+        },
+        fence: (tokens, idx, options, env, renderer) => {
+          tokens[idx].attrJoin('class', 'ab-code')
+          return renderer.renderToken(tokens, idx, options)
+        },
+        code_inline: (tokens, idx, options, env, renderer) => {
+          tokens[idx].attrJoin('class', 'ab-code')
+          return renderer.renderToken(tokens, idx, options)
+        },
+        hr: (tokens, idx, options, env, renderer) => {
+          tokens[idx].attrJoin('class', 'ab-hr')
+          return renderer.renderToken(tokens, idx, options)
+        },
+        table_open: (tokens, idx, options, env, renderer) => {
+          tokens[idx].attrJoin(
+            'class',
+            'baserow-table baserow-table--horizontal'
+          )
+          return `<div class="ab-table">${renderer.renderToken(
+            tokens,
+            idx,
+            options
+          )}`
+        },
+        table_close: (tokens, idx, options, env, renderer) => {
+          return `${renderer.renderToken(tokens, idx, options)}</div>`
         },
         tr_open: (tokens, idx, options, env, renderer) => {
           // Only apply this styling to the first row present in table header.
           if (idx > 0 && tokens[idx - 1].type === 'thead_open') {
-            tokens[idx].attrJoin('class', 'baserow-table__header-row')
+            tokens[idx].attrJoin('class', 'baserow-table__row')
           } else {
             tokens[idx].attrJoin('class', 'baserow-table__row')
           }
           return renderer.renderToken(tokens, idx, options)
         },
         th_open: (tokens, idx, options, env, renderer) => {
-          tokens[idx].attrJoin('class', 'baserow-table__header-cell')
-          return renderer.renderToken(tokens, idx, options)
+          tokens[idx].attrJoin('class', 'ab-table__header-cell')
+          return `${renderer.renderToken(tokens, idx, options)}<div>`
         },
         td_open: (tokens, idx, options, env, renderer) => {
-          tokens[idx].attrJoin('class', 'baserow-table__cell')
+          tokens[idx].attrJoin('class', 'ab-table__cell')
+          return `${renderer.renderToken(
+            tokens,
+            idx,
+            options
+          )}<div class="ab-table__cell-content">`
+        },
+        td_close: (tokens, idx, options, env, renderer) => {
+          return `</div>${renderer.renderToken(tokens, idx, options)}`
+        },
+        ordered_list_open: (tokens, idx, options, env, renderer) => {
+          tokens[idx].attrJoin('class', 'ab-list')
+          return renderer.renderToken(tokens, idx, options)
+        },
+        bullet_list_open: (tokens, idx, options, env, renderer) => {
+          tokens[idx].attrJoin('class', 'ab-list')
           return renderer.renderToken(tokens, idx, options)
         },
       }

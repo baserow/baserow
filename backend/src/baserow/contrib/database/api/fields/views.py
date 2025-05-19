@@ -51,6 +51,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_INVALID_BASEROW_FIELD_NAME,
     ERROR_MAX_FIELD_COUNT_EXCEEDED,
     ERROR_RESERVED_BASEROW_FIELD_NAME,
+    ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
     ERROR_TABLE_HAS_NO_PRIMARY_FIELD,
 )
 from baserow.contrib.database.api.tables.errors import (
@@ -85,6 +86,7 @@ from baserow.contrib.database.fields.exceptions import (
     InvalidBaserowFieldName,
     MaxFieldLimitExceeded,
     ReservedBaserowFieldNameException,
+    SelectOptionDoesNotBelongToField,
     TableHasNoPrimaryField,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -103,7 +105,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.tokens.exceptions import NoPermissionToTable
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.action.registries import action_type_registry
-from baserow.core.db import specific_iterator
+from baserow.core.db import atomic_with_retry_on_deadlock, specific_iterator
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
@@ -252,7 +254,7 @@ class FieldsView(APIView):
             404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
+    @atomic_with_retry_on_deadlock()
     @validate_body_custom_fields(
         field_type_registry,
         base_serializer_class=CreateFieldSerializer,
@@ -401,7 +403,7 @@ class FieldView(APIView):
             404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
+    @atomic_with_retry_on_deadlock()
     @map_exceptions(
         {
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
@@ -415,6 +417,7 @@ class FieldView(APIView):
             FailedToLockFieldDueToConflict: ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT,
             ImmutableFieldType: ERROR_IMMUTABLE_FIELD_TYPE,
             ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
+            SelectOptionDoesNotBelongToField: ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
         }
     )
     @require_request_data_type(dict)
@@ -479,7 +482,7 @@ class FieldView(APIView):
             404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
+    @atomic_with_retry_on_deadlock()
     @map_exceptions(
         {
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,

@@ -2,7 +2,7 @@
 
 exports[`HeadingElement Default HeadingElement component 1`] = `
 <div
-  class="element--no-value"
+  class="heading-element element--no-value"
 >
   <h2
     class="ab-heading ab-heading--h2"
@@ -16,7 +16,7 @@ exports[`HeadingElement Default HeadingElement component 1`] = `
 
 exports[`HeadingElement Default HeadingElement component v2 1`] = `
 <div
-  class=""
+  class="heading-element"
 >
   <h3
     class="ab-heading ab-heading--h3"

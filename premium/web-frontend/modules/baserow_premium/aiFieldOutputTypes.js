@@ -5,7 +5,6 @@ import {
   SingleSelectFieldType,
 } from '@baserow/modules/database/fieldTypes'
 import FieldSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSelectOptionsSubForm.vue'
-
 export class AIFieldOutputType extends Registerable {
   /**
    * A human readable name of the AI output type. This will be shown in in the dropdown
@@ -45,6 +44,12 @@ export class AIFieldOutputType extends Registerable {
   getFormComponent() {
     return null
   }
+
+  /**
+   * Callback called when a new value has been generated for the field. This is needed
+   * for example for the text output field to refresh the copy to use when editing.
+   */
+  updateValue(outputComponent, newValue) {}
 }
 
 export class TextAIFieldOutputType extends AIFieldOutputType {
@@ -64,6 +69,12 @@ export class TextAIFieldOutputType extends AIFieldOutputType {
 
   getBaserowFieldType() {
     return this.app.$registry.get('field', LongTextFieldType.getType())
+  }
+
+  updateValue(outputComponent, newValue) {
+    if (outputComponent.refreshCopy) {
+      outputComponent.refreshCopy(newValue) // update the editing copy
+    }
   }
 }
 

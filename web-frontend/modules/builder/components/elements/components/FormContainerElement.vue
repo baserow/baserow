@@ -176,10 +176,12 @@ export default {
     /*
      * Responsible for validating the form container's elements and submitting the form.
      */
-    validateAndSubmitEvent() {
+    async validateAndSubmitEvent() {
       this.setFormElementDescendantsTouched(true)
       if (!this.formElementChildrenAreInvalid) {
-        this.fireEvent(this.elementType.getEventByName(this.element, 'submit'))
+        await this.fireEvent(
+          this.elementType.getEventByName(this.element, 'submit')
+        )
         this.resetFormContainerElements()
       }
     },

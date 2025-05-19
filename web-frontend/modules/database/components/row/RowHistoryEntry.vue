@@ -47,7 +47,7 @@ const actioNameMapping = {
   update_row: 'updated',
   delete_row: 'deleted',
   delete_rows: 'deleted',
-  restored: 'restored',
+  restore_from_trash: 'restored',
   removedCreated: 'removedCreated',
 }
 

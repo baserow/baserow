@@ -27,6 +27,7 @@
 
 <script>
 import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
+import _ from 'lodash'
 
 export default {
   name: 'RowHistoryFieldMultipleCollaborators',
@@ -51,32 +52,34 @@ export default {
       return this.removedItems.concat(this.addedItems)
     },
     removedItems() {
-      if (!this.entry.before[this.fieldIdentifier]) {
+      const itemsBefore = this.entry.before[this.fieldIdentifier]
+      const itemsAfter = this.entry.after[this.fieldIdentifier] || []
+      if (!itemsBefore) {
         return []
       }
-      return this.entry.before[this.fieldIdentifier].filter((before) => {
-        return (
-          (this.entry.after[this.fieldIdentifier] || []).findIndex(
-            (item) => item.id === before.id
-          ) === -1
-        )
-      })
+      return itemsBefore.filter(
+        (before) =>
+          itemsAfter.findIndex((item) => _.isEqual(item, before)) === -1
+      )
     },
     addedItems() {
-      if (!this.entry.after[this.fieldIdentifier]) {
+      const itemsAfter = this.entry.after[this.fieldIdentifier]
+      const itemsBefore = this.entry.before[this.fieldIdentifier] || []
+      if (!itemsAfter) {
         return []
       }
-      return this.entry.after[this.fieldIdentifier].filter((after) => {
-        return (
-          (this.entry.before[this.fieldIdentifier] || []).findIndex(
-            (item) => item.id === after.id
-          ) === -1
-        )
-      })
+      return itemsAfter.filter(
+        (after) =>
+          itemsBefore.findIndex((item) => _.isEqual(item, after)) === -1
+      )
     },
   },
   methods: {
     name(item) {
+      // if item is a number, wrap it in an object as the getCollaboratorName expects
+      if (typeof item === 'number') {
+        item = { id: item }
+      }
       return this.getCollaboratorName(item, this.store)
     },
     initials(name) {

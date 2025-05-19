@@ -25,7 +25,7 @@
         >
           <component
             :is="pageSidePanelType.component"
-            class="side-panels__panel"
+            :class="`side-panels__panel side-panels__panel-${pageSidePanelType.type}`"
           />
         </ReadOnlyForm>
         <EmptySidePanelState v-else />

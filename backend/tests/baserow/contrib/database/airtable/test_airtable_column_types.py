@@ -1490,10 +1490,23 @@ def test_airtable_import_multi_select_column_with_default_value(
         AirtableImportConfig(),
         import_report,
     )
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "Multiple select"
-    assert import_report.items[0].scope == SCOPE_FIELD
-    assert import_report.items[0].table == ""
+
+    assert isinstance(baserow_field, MultipleSelectField)
+    assert isinstance(airtable_column_type, MultiSelectAirtableColumnType)
+
+    assert baserow_field.multiple_select_default == [
+        "fldURNo0cvi6YWYcYj1_selEOJmenvqEd6pndFQ",
+        "fldURNo0cvi6YWYcYj1_sel5ekvuoNVvl03olMO",
+    ]
+
+    select_options = list(baserow_field._prefetched_objects_cache["select_options"])
+    assert len(select_options) == 2
+    assert select_options[0].id == "fldURNo0cvi6YWYcYj1_selEOJmenvqEd6pndFQ"
+    assert select_options[0].value == "Option 1"
+    assert select_options[0].color == "light-blue"
+    assert select_options[1].id == "fldURNo0cvi6YWYcYj1_sel5ekvuoNVvl03olMO"
+    assert select_options[1].value == "Option 2"
+    assert select_options[1].color == "light-cyan"
 
 
 @pytest.mark.django_db
@@ -2489,17 +2502,32 @@ def test_airtable_import_select_column_with_default_value(
             "disableColors": False,
         },
     }
-    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig(), import_report
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "Single select"
-    assert import_report.items[0].scope == SCOPE_FIELD
-    assert import_report.items[0].table == ""
+    assert isinstance(baserow_field, SingleSelectField)
+    assert isinstance(airtable_column_type, SelectAirtableColumnType)
+
+    assert (
+        baserow_field.single_select_default == "fldRd2Vkzgsf6X4z6B4_selbh6rEWaaiyQvWyfg"
+    )
+
+    select_options = list(baserow_field._prefetched_objects_cache["select_options"])
+    assert len(select_options) == 2
+    assert select_options[0].id == "fldRd2Vkzgsf6X4z6B4_selbh6rEWaaiyQvWyfg"
+    assert select_options[0].value == "Option A"
+    assert select_options[0].color == "light-blue"
+    assert select_options[0].order == 0
+    assert select_options[1].id == "fldRd2Vkzgsf6X4z6B4_selvZgpWhbkeRVphROT"
+    assert select_options[1].value == "Option B"
+    assert select_options[1].color == "light-cyan"
+    assert select_options[1].order == 1
 
 
 @pytest.mark.django_db

@@ -2,20 +2,23 @@ from datetime import datetime
 from itertools import groupby
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 from django.dispatch import receiver
 
 from opentelemetry import trace
 
 from baserow.contrib.database.rows.models import RowHistory
-from baserow.contrib.database.rows.registries import change_row_history_registry
+from baserow.contrib.database.rows.registries import (
+    RowHistoryProviderType,
+    change_row_history_registry,
+    row_history_provider_registry,
+)
 from baserow.contrib.database.rows.signals import rows_history_updated
-from baserow.contrib.database.rows.types import ActionData, ActionHistoryProvider
-from baserow.core.action.registries import action_type_registry
+from baserow.contrib.database.rows.types import ActionData
 from baserow.core.action.signals import action_done
 from baserow.core.models import Workspace
 from baserow.core.telemetry.utils import baserow_trace
+from baserow.core.types import AnyUser
 
 tracer = trace.get_tracer(__name__)
 
@@ -25,11 +28,11 @@ class RowHistoryHandler:
     @baserow_trace(tracer)
     def record_history_from_rows_action(
         cls,
-        user: AbstractUser,
+        user: AnyUser,
         action: ActionData,
+        row_history_provider: RowHistoryProviderType,
     ):
-        action_cls: ActionHistoryProvider = action_type_registry.get(action.type)
-        row_history_entries = action_cls.get_row_change_history(user, action)
+        row_history_entries = row_history_provider.get_row_history(user, action)
 
         if row_history_entries:
             row_history_entries = RowHistory.objects.bulk_create(row_history_entries)
@@ -89,12 +92,19 @@ def on_action_done_update_row_history(
 ):
     if settings.BASEROW_ROW_HISTORY_RETENTION_DAYS == 0:
         return
-    if issubclass(action_type, ActionHistoryProvider):
-        action_data = ActionData(
-            action_uuid,
-            action_type.type,
-            action_timestamp,
-            action_command_type,
-            action_params,
-        )
-        RowHistoryHandler.record_history_from_rows_action(user, action_data)
+
+    try:
+        row_history_provider = row_history_provider_registry.get(action_type.type)
+    except row_history_provider_registry.does_not_exist_exception_class:
+        return
+
+    action_data = ActionData(
+        action_uuid,
+        action_type.type,
+        action_timestamp,
+        action_command_type,
+        action_params,
+    )
+    RowHistoryHandler.record_history_from_rows_action(
+        user, action_data, row_history_provider
+    )

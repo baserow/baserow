@@ -1,6 +1,6 @@
 # Please see `docs/development/ci-cd.md` for more information.
 
-include: '/.gitlab/ci_includes/jobs.yml'
+include: "/.gitlab/ci_includes/jobs.yml"
 
 stages:
   - build
@@ -108,8 +108,7 @@ build-ci-util-image:
     - docker push $CI_UTIL_IMAGE
   # Only trigger this job manually to prevent it running every single time a new branch
   # is made. See https://gitlab.com/gitlab-org/gitlab/-/issues/11427
-  when:
-    manual
+  when: manual
   # We can't use the newer rules: syntax due to https://gitlab.com/gitlab-org/gitlab/-/issues/34756
   only:
     changes:
@@ -168,8 +167,7 @@ build-ci-dind-image:
     - docker push $CI_DIND_IMAGE
   # Only trigger this job manually to prevent it running every single time a new branch
   # is made. See https://gitlab.com/gitlab-org/gitlab/-/issues/11427
-  when:
-    manual
+  when: manual
   # We can't use the newer rules: syntax due to https://gitlab.com/gitlab-org/gitlab/-/issues/34756
   only:
     changes:
@@ -239,7 +237,16 @@ backend-test-group-1:
       alias: docker
     - name: postgres:12
       alias: db
-      command: ["postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off"]
+      command:
+        [
+          "postgres",
+          "-c",
+          "fsync=off",
+          "-c",
+          "synchronous_commit=off",
+          "-c",
+          "full_page_writes=off",
+        ]
   variables:
     DOCKER_HOST: tcp://docker:2376
     DOCKER_TLS_CERTDIR: "/certs"
@@ -248,7 +255,7 @@ backend-test-group-1:
     POSTGRES_DB: baserow
     PYTEST_SPLIT_GROUP: 1
     RUN_WHEN_CHANGES_MADE_IN: "backend/ premium/backend/ enterprise/backend/ .gitlab-ci.yml"
-    DOWNLOAD_AND_UNPACK_ARTIFACTS_ON_SKIP: 'true'
+    DOWNLOAD_AND_UNPACK_ARTIFACTS_ON_SKIP: "true"
     FF_NETWORK_PER_BUILD: 1
   script:
     - mkdir -p reports
@@ -372,7 +379,6 @@ collect-backend-coverage:
         path: coverage.xml
   coverage: '/^TOTAL.+?(\d+\%)$/'
 
-
 # If pipeline not triggered by tag:
 # - Build and store non-dev images in CI repo under the `ci-tested` tag so we know
 #   those images have passed the tests.
@@ -394,7 +400,6 @@ build-final-backend-image:
     DEV_IMAGE_NAME: $BACKEND_DEV_IMAGE_NAME
     DOCKERFILE_PATH: $BACKEND_DOCKERFILE_PATH
 
-
 build-final-backend-image-manual:
   extends: .build-final-baserow-image
   needs:
@@ -405,8 +410,7 @@ build-final-backend-image-manual:
       - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
       - $CI_COMMIT_MESSAGE =~ /\[build-all]/
   only:
-  when:
-    manual
+  when: manual
   variables:
     IMAGE_NAME: $BACKEND_IMAGE_NAME
     DEV_IMAGE_NAME: $BACKEND_DEV_IMAGE_NAME
@@ -421,7 +425,6 @@ build-web-frontend-image:
   variables:
     DEV_IMAGE_NAME: $WEBFRONTEND_DEV_IMAGE_NAME
     DOCKERFILE_PATH: $WEBFRONTEND_DOCKERFILE_PATH
-
 
 # If pipeline not triggered by tag:
 # - Runs eslint and stylelint if the web-frontend code has changed, otherwise skips.
@@ -447,7 +450,7 @@ web-frontend-test:
     - .requires-lint
   variables:
     RUN_WHEN_CHANGES_MADE_IN: "web-frontend/ premium/web-frontend/ enterprise/web-frontend/"
-    DOWNLOAD_AND_UNPACK_ARTIFACTS_ON_SKIP: 'true'
+    DOWNLOAD_AND_UNPACK_ARTIFACTS_ON_SKIP: "true"
   script:
     - mkdir reports/ -p
     - TEST_TYPE=$([[ "$ENABLE_COVERAGE" = "true" ]] && echo "ci-test" || echo "test")
@@ -502,13 +505,11 @@ build-final-web-frontend-image-manual:
       - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
       - $CI_COMMIT_MESSAGE =~ /\[build-all]/
   only:
-  when:
-    manual
+  when: manual
   variables:
     IMAGE_NAME: $WEBFRONTEND_IMAGE_NAME
     DEV_IMAGE_NAME: $WEBFRONTEND_DEV_IMAGE_NAME
     DOCKERFILE_PATH: $WEBFRONTEND_DOCKERFILE_PATH
-
 
 # ==================================== E2E TESTS ======================================
 
@@ -524,9 +525,12 @@ e2e-tests:
     - cd e2e-tests
     - E2E_TEST_YARN_RUN_CMD=test-ci docker compose up --no-build --exit-code-from e2e-tests
   artifacts:
+    name: "e2e-report"
     paths:
       # Save the HTML report as an artifact for download or visualization
-      - e2e-tests/test-results/
+      - e2e-tests/playwright-report
+    expire_in: 1 week
+    when: always
 
 # ================================== ALL IN ONES ======================================
 # If pipeline not triggered by tag:
@@ -836,7 +840,6 @@ docker-file-hadolint:
       - "reports/*"
   needs:
     - job: backend-lint
-
 
 mjml-compiled-check:
   extends:

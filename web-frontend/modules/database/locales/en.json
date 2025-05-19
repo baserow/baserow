@@ -231,11 +231,20 @@
     "json": "JSON",
     "queryParameter": "Query parameter"
   },
+  "apiDocsListTables": {
+    "listTables": "List all tables",
+    "listTablesDescription": "This endpoint only works in combination with the token authentication. It lists all the tables that the token has either create, read, update or delete access to."
+  },
   "fieldTextSubForm": {
     "placeholder": "Default text"
   },
   "fieldSingleSelectSubForm": {
-    "optionsLabel": "Options"
+    "optionsLabel": "Options",
+    "defaultOptionLabel": "Default option"
+  },
+  "fieldMultipleSelectSubForm": {
+    "optionsLabel": "Options",
+    "defaultOptionsLabel": "Default options"
   },
   "fieldSingleSelectDropdown": {
     "notFound": "Option not found"

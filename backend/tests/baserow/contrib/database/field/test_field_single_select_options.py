@@ -136,3 +136,76 @@ def test_single_select_ids_are_removed_from_rows_when_deleted(data_fixture):
             return cursor.fetchall()
 
     assert check_row_b_option_id() == [(None,)]
+
+
+@pytest.mark.django_db
+def test_single_select_field_default_value(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    single_select_field = data_fixture.create_single_select_field(
+        table=table, name="Status"
+    )
+    option_a = data_fixture.create_select_option(
+        field=single_select_field, value="A", color="blue"
+    )
+    option_b = data_fixture.create_select_option(
+        field=single_select_field, value="B", color="red"
+    )
+
+    row_handler = RowHandler()
+
+    # Without a default value, new rows should have null for the single select
+    row_1 = row_handler.force_create_row(
+        user=user,
+        table=table,
+    )
+    row_2 = row_handler.force_create_row(
+        user=user,
+        table=table,
+        values={f"field_{single_select_field.id}": option_b.id},
+    )
+    assert getattr(row_1, f"field_{single_select_field.id}") is None
+    assert getattr(row_2, f"field_{single_select_field.id}").id == option_b.id
+
+    # Set option A as default
+    field_handler = FieldHandler()
+    single_select_field = field_handler.update_field(
+        user=user, field=single_select_field, single_select_default=option_a.id
+    )
+
+    row_3 = row_handler.force_create_row(
+        user=user,
+        table=table,
+    )
+    row_4 = row_handler.force_create_row(
+        user=user,
+        table=table,
+        values={f"field_{single_select_field.id}": option_b.id},
+    )
+    assert getattr(row_3, f"field_{single_select_field.id}").id == option_a.id
+    assert getattr(row_4, f"field_{single_select_field.id}").id == option_b.id
+
+    # Remove the default value
+    single_select_field = field_handler.update_field(
+        user=user, field=single_select_field, single_select_default=None
+    )
+
+    row_5 = row_handler.force_create_row(
+        user=user,
+        table=table,
+    )
+    assert getattr(row_5, f"field_{single_select_field.id}") is None
+
+    # Existing rows should keep their values after default value changes
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+    row_3.refresh_from_db()
+    row_4.refresh_from_db()
+    row_5.refresh_from_db()
+
+    assert getattr(row_1, f"field_{single_select_field.id}") is None
+    assert getattr(row_2, f"field_{single_select_field.id}").id == option_b.id
+    assert getattr(row_3, f"field_{single_select_field.id}").id == option_a.id
+    assert getattr(row_4, f"field_{single_select_field.id}").id == option_b.id
+    assert getattr(row_5, f"field_{single_select_field.id}") is None

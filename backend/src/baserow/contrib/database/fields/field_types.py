@@ -46,6 +46,7 @@ from django.db.models import (
     When,
     Window,
 )
+from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import ManyToManyField
 from django.db.models.functions import Cast, Coalesce, RowNumber
 
@@ -94,6 +95,7 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_NOT_IN_TABLE,
 )
 from baserow.contrib.database.db.functions import RandomUUID
+from baserow.contrib.database.fields.exceptions import SelectOptionDoesNotBelongToField
 from baserow.contrib.database.fields.filter_support.formula import (
     FormulaFieldTypeArrayFilterSupport,
 )
@@ -152,7 +154,7 @@ from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
-from baserow.core.utils import list_to_comma_separated_string
+from baserow.core.utils import grouper, list_to_comma_separated_string
 
 from .constants import (
     BASEROW_BOOLEAN_FIELD_FALSE_VALUES,
@@ -579,6 +581,21 @@ class NumberFieldType(FieldType):
     _db_column_fields = ["number_decimal_places"]
     can_upsert = True
 
+    def serialize_allowed_fields(self, field: Field) -> Dict[str, Any]:
+        serialized = {}
+        for field_name in self.allowed_fields:
+            value = getattr(field, field_name)
+            # number default is Decimal
+            if field_name == "number_default" and value is not None:
+                value = str(value)
+            serialized[field_name] = value
+        return serialized
+
+    def serialize_to_input_value(self, field: Field, value: any) -> any:
+        if field.specific.number_decimal_places == 0:
+            return int(value)
+        return value
+
     def prepare_value_for_db(self, instance: NumberField, value):
         if value is None:
             return value
@@ -621,18 +638,14 @@ class NumberFieldType(FieldType):
         if not instance.number_negative:
             kwargs["min_value"] = Decimal("0")
 
-        default = instance.number_default
-        if default is not None:
-            required = False
-        else:
-            default = serializers.empty
+        if not required and instance.number_default is not None:
+            kwargs["default"] = instance.number_default
 
         return serializers.DecimalField(
             **{
                 "max_digits": self.MAX_DIGITS + kwargs["decimal_places"],
                 "required": required,
                 "allow_null": not required,
-                "default": default,
                 **kwargs,
             }
         )
@@ -980,9 +993,9 @@ class BooleanFieldType(FieldType):
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
-        return BaserowBooleanField(
-            **{"required": required, "default": instance.boolean_default, **kwargs}
-        )
+        if not required:
+            kwargs["default"] = instance.boolean_default
+        return BaserowBooleanField(**{"required": required, **kwargs})
 
     def get_model_field(self, instance, **kwargs):
         return models.BooleanField(default=instance.boolean_default, **kwargs)
@@ -1411,7 +1424,7 @@ class DateFieldType(FieldType):
         return value
 
     def get_group_by_field_filters_and_annotations(
-        self, field, field_name, base_queryset, value
+        self, field, field_name, base_queryset, value, cte, rows
     ):
         filters = {field_name: value}
         annotations = {}
@@ -3884,27 +3897,131 @@ class SelectOptionBaseFieldType(FieldType):
     allowed_fields = ["select_options"]
     serializer_field_names = ["select_options"]
     serializer_field_overrides = {
-        "select_options": SelectOptionSerializer(many=True, required=False)
+        "select_options": SelectOptionSerializer(many=True, required=False),
     }
     _can_group_by = True
     _db_column_fields = []
 
+    def get_default_value(self, field: Field) -> Any:
+        return getattr(field, self.get_default_options_field_name(), None)
+
+    def create_select_options(self, field, select_options):
+        """
+        Creates the select options for the field.
+
+        :param field: The field instance.
+        :param select_options: List of select options to create.
+        :return: Mapping of select option ids before creation to
+            their ids after creation
+        """
+
+        mapping = {}
+        for select_option in select_options:
+            select_option_copy = select_option.copy()
+            select_option_id = select_option_copy.pop("id")
+            select_option_object = SelectOption.objects.create(
+                field=field, **select_option_copy
+            )
+            mapping[select_option_id] = select_option_object.id
+        return mapping
+
+    def after_create_select_options(
+        self, field, select_default, select_options, mapping
+    ):
+        """
+        Called after creating the select options.
+        Can be used i.e. to set default options for field
+
+        :param field: The field instance.
+        :param select_default: The default value to set.
+        :param select_options: List of select options to search through.
+        :param mapping: Mapping of select option ids before creation to
+            their ids after creation
+        """
+
+        return field
+
+    def get_default_options_index(self, default, select_options):
+        """
+        Returns the index of the default option in the select_options list.
+
+        :param default: The id of the default option to find.
+        :param select_options: List of select options to search through.
+
+        """
+
+        return None
+
+    def get_options_by_index(self, field, index):
+        """
+        Returns the option at the given index in the select_options list.
+
+        :param field: The field instance.
+        :param index: The index of the option to retrieve.
+
+        """
+
+        return None
+
+    def get_validated_default_value(
+        self, from_field, default_index, has_new_default_value, select_default_value
+    ):
+        return None
+
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
     ):
-        if "select_options" in allowed_field_values:
-            return allowed_field_values.pop("select_options")
+        select_options = allowed_field_values.pop("select_options", [])
+        default_value_field_name = f"{self.type}_default"
+        select_default_value = allowed_field_values.pop(default_value_field_name, None)
+        return select_options, select_default_value
 
     def after_create(self, field, model, user, connection, before, field_kwargs):
-        if before and len(before) > 0:
-            FieldHandler().update_field_select_options(user, field, before)
+        select_options, select_default_value = before
+
+        default_index = self.get_default_options_index(
+            select_default_value, select_options
+        )
+
+        if select_options and len(select_options) > 0:
+            FieldHandler().update_field_select_options(user, field, select_options)
+
+            default_value = self.get_options_by_index(field, default_index)
+            if default_value is not None:
+                default_value_field_name = self.get_default_options_field_name()
+                if hasattr(field, default_value_field_name):
+                    setattr(field, default_value_field_name, default_value)
+                    field.save(update_fields=[default_value_field_name])
 
     def before_update(self, from_field, to_field_values, user, kwargs):
+        default_value_field_name = self.get_default_options_field_name()
+
+        default_index = None
+        has_new_default_value = default_value_field_name in to_field_values
+
+        if has_new_default_value:
+            select_default_value = to_field_values[default_value_field_name]
+        else:
+            select_default_value = getattr(from_field, default_value_field_name, None)
+
         if "select_options" in to_field_values:
-            FieldHandler().update_field_select_options(
-                user, from_field, to_field_values["select_options"]
+            select_options = to_field_values["select_options"]
+
+            default_index = self.get_default_options_index(
+                select_default_value, select_options
             )
+
+            FieldHandler().update_field_select_options(user, from_field, select_options)
             to_field_values.pop("select_options")
+        else:
+            select_options = list(from_field.select_options.values())
+            default_index = self.get_default_options_index(
+                select_default_value, select_options
+            )
+        default_value = self.get_validated_default_value(
+            from_field, default_index, has_new_default_value, select_default_value
+        )
+        to_field_values[default_value_field_name] = default_value
 
     def should_backup_field_data_for_same_type_update(
         self, old_field: SingleSelectField, new_field_attrs: Dict[str, Any]
@@ -3976,17 +4093,98 @@ class SelectOptionBaseFieldType(FieldType):
 class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     type = "single_select"
     model_class = SingleSelectField
+    allowed_fields = ["select_options", "single_select_default"]
+    serializer_field_names = ["select_options", "single_select_default"]
     _can_order_by_types = [DEFAULT_SORT_TYPE_KEY, SINGLE_SELECT_SORT_BY_ORDER]
 
-    def get_serializer_field(self, instance, **kwargs):
-        required = kwargs.get("required", False)
-        field_serializer = IntegerOrStringField(
-            **{
-                "required": required,
-                "allow_null": not required,
-                **kwargs,
-            },
+    serializer_field_overrides = {
+        "select_options": SelectOptionSerializer(many=True, required=False),
+        "single_select_default": serializers.IntegerField(
+            required=False, allow_null=True
+        ),
+    }
+
+    def init_field_data(self, field, model):
+        if field.single_select_default:
+            model.objects.all().update(
+                **{f"{field.db_column}_id": field.single_select_default}
+            )
+
+    def get_default_options_index(self, default, select_options):
+        if default is None:
+            return None
+        return next(
+            (
+                index
+                for index, option in enumerate(select_options)
+                if option["id"] == default
+            ),
+            None,
         )
+
+    def get_options_by_index(self, field, index):
+        if index is None:
+            return None
+        try:
+            return field.select_options.all()[index].id
+        except IndexError:
+            return None
+
+    def after_create_select_options(
+        self, field, select_default, select_options, mapping
+    ):
+        if select_default is not None:
+            mapped_default = mapping.get(select_default, None)
+            field_name = self.get_default_options_field_name()
+            if hasattr(field, field_name):
+                setattr(field, field_name, mapped_default)
+                field.save(update_fields=[field_name])
+        return field
+
+    def get_instance_default_value(self, instance, default_value):
+        """
+        Checks if the provided default value is a valid option and returns it.
+        If the default value is not a valid option, it returns None.
+        """
+
+        default_value = default_value or instance.single_select_default
+        if default_value is None or default_value == NOT_PROVIDED:
+            return None
+
+        if default_value in [option.id for option in instance.select_options.all()]:
+            return default_value
+
+    def get_validated_default_value(
+        self, from_field, default_index, has_new_default_value, select_default_value
+    ):
+        if default_index is not None:
+            default_value = self.get_options_by_index(from_field, default_index)
+        else:
+            if has_new_default_value and select_default_value is not None:
+                raise SelectOptionDoesNotBelongToField(
+                    select_default_value,
+                    field_id=from_field.id,
+                )
+            else:
+                default_value = None
+        return default_value
+
+    def get_serializer_field(self, instance, **kwargs):
+        required = kwargs.pop("required", False)
+
+        serializer_kwargs = {
+            "required": required,
+            "allow_null": not required,
+            **kwargs,
+        }
+
+        if not required:
+            default_value = self.get_instance_default_value(
+                instance, kwargs.get("single_select_default", None)
+            )
+            serializer_kwargs["default"] = default_value
+
+        field_serializer = IntegerOrStringField(**serializer_kwargs)
         return field_serializer
 
     def get_response_serializer_field(self, instance, **kwargs):
@@ -4088,6 +4286,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             # Ignore empty and select values
             if value is None or isinstance(value, SelectOption):
                 continue
+
             if continue_on_error and value not in option_map:
                 values_by_row[row_index] = ValidationError(
                     f"The provided value {value} is not a valid option.",
@@ -4144,6 +4343,13 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         return value.value
 
     def get_model_field(self, instance, **kwargs):
+        default = self.get_instance_default_value(
+            instance, kwargs.get("single_select_default", None)
+        )
+
+        if default is not None:
+            kwargs["default"] = default
+
         return SingleSelectForeignKey(
             to=SelectOption,
             on_delete=models.SET_NULL,
@@ -4305,6 +4511,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         select_option_mapping = id_mapping["database_field_select_options"]
 
         if not value or value not in select_option_mapping:
+            setattr(row, field_name + "_id", None)
             return
 
         setattr(row, field_name + "_id", select_option_mapping[value])
@@ -4363,6 +4570,106 @@ class MultipleSelectFieldType(
     can_get_unique_values = False
     is_many_to_many_field = True
     _can_group_by = True
+    allowed_fields = ["select_options", "multiple_select_default"]
+    serializer_field_names = ["select_options", "multiple_select_default"]
+
+    serializer_field_overrides = {
+        "select_options": SelectOptionSerializer(many=True, required=False),
+        "multiple_select_default": serializers.ListField(
+            child=serializers.IntegerField(), required=False, allow_null=True
+        ),
+    }
+
+    def init_field_data(self, field, model):
+        if field.multiple_select_default:
+            through_model = model._meta.get_field(field.db_column).remote_field.through
+            row_id_field = through_model._meta.fields[1].name
+            option_id_field = through_model._meta.fields[2].name
+            batch_size = 10000
+            all_row_ids = model.objects.values_list("id", flat=True).iterator(
+                chunk_size=batch_size
+            )
+
+            for row_ids_batch in grouper(batch_size, all_row_ids):
+                through_model.objects.bulk_create(
+                    [
+                        through_model(
+                            **{
+                                f"{row_id_field}_id": row_id,
+                                f"{option_id_field}_id": option_id,
+                            }
+                        )
+                        for row_id in row_ids_batch
+                        for option_id in field.multiple_select_default
+                    ],
+                    ignore_conflicts=True,
+                )
+
+    def get_default_options_index(self, default, select_options):
+        if default is None or default == []:
+            return []
+        return [
+            index
+            for index, option in enumerate(select_options)
+            if option["id"] in default
+        ]
+
+    def get_options_by_index(self, field, index):
+        if not index:
+            return None
+        all_option_ids = [option.id for option in field.select_options.all()]
+        result = []
+        for i in index:
+            try:
+                result.append(all_option_ids[i])
+            except IndexError:
+                continue
+        return result
+
+    def after_create_select_options(
+        self, field, select_default, select_options, mapping
+    ):
+        if select_default:
+            mapped_default = [mapping[key] for key in select_default if key in mapping]
+            field_name = self.get_default_options_field_name()
+            if hasattr(field, field_name):
+                setattr(field, field_name, mapped_default)
+                field.save(update_fields=[field_name])
+        return field
+
+    def get_validated_default_value(
+        self, from_field, default_index, has_new_default_value, select_default_value
+    ):
+        default_value = self.get_options_by_index(from_field, default_index)
+        if not select_default_value:
+            return []
+        if len(select_default_value) == len(default_value):
+            return default_value
+        else:
+            missing_options = set(select_default_value) - set(default_value)
+            if has_new_default_value and missing_options:
+                raise SelectOptionDoesNotBelongToField(
+                    ", ".join(map(str, missing_options)),
+                    field_id=from_field.id,
+                )
+            else:
+                return default_value
+
+    def get_instance_default_value(self, instance, default_value):
+        """
+        Checks if the provided default value is a valid option and returns it.
+        If the default value is not a valid option, it returns None.
+        """
+
+        default_value = default_value or instance.multiple_select_default
+        if (
+            default_value == NOT_PROVIDED
+            or default_value == []
+            or default_value is None
+        ):
+            return []
+        existing_options = instance.select_options.all()
+        return [option.id for option in existing_options if option.id in default_value]
 
     def to_baserow_formula_type(self, field) -> BaserowFormulaType:
         return BaserowFormulaMultipleSelectType(nullable=True)
@@ -4373,6 +4680,14 @@ class MultipleSelectFieldType(
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.pop("required", False)
         source = kwargs.pop("source", None)
+
+        if required is False:
+            default = self.get_instance_default_value(
+                instance, kwargs.get("multiple_select_default", None)
+            )
+            if default:
+                kwargs["default"] = default
+
         field_serializer = IntegerOrStringField(
             **{
                 "required": required,
@@ -4626,6 +4941,10 @@ class MultipleSelectFieldType(
             "db_constraint": False,
         }
 
+        default = self.get_instance_default_value(instance, None)
+        if default is not None:
+            shared_kwargs["default"] = default
+
         MultipleSelectManyToManyField(
             to=select_option_model, related_name=related_name, **shared_kwargs
         ).contribute_to_class(model, field_name)
@@ -4738,6 +5057,12 @@ class MultipleSelectFieldType(
             order = order.asc(nulls_first=True)
 
         return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
+
+    def get_group_by_aggregated_order(self, related_field):
+        # The multiple select field must be ordered by the id of the entry in the
+        # through table because it respects the insertion order. It respects the
+        # `MultipleSelectManyToManyDescriptor::related_manager_cls::_apply_rel_ordering`
+        return ("id",) + super().get_group_by_aggregated_order(related_field)
 
     def before_field_options_update(
         self, field, to_create=None, to_update=None, to_delete=None
@@ -6214,7 +6539,7 @@ class MultipleCollaboratorsFieldType(
         self, row: "GeneratedTableModel", field_name: str
     ) -> List[int]:
         related_objects = getattr(row, field_name)
-        return [{"id": related_object.id} for related_object in related_objects.all()]
+        return [related_object.id for related_object in related_objects.all()]
 
     def get_response_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
@@ -6238,7 +6563,7 @@ class MultipleCollaboratorsFieldType(
                 set,
                 tuple,
             ),
-        ) or not all([isinstance(v, dict) for v in value]):
+        ) or not all([isinstance(v, (dict, int)) for v in value]):
             raise ValidationError(
                 f"The value for field {instance.id} is not a valid list of dictionaries",
                 code="invalid",
@@ -6250,7 +6575,7 @@ class MultipleCollaboratorsFieldType(
         if len(value) == 0:
             return []
 
-        user_ids = [v["id"] for v in value]
+        user_ids = [v["id"] if isinstance(v, dict) else v for v in value]
         workspace = instance.table.database.workspace
         workspace_users_count = WorkspaceUser.objects.filter(
             user_id__in=user_ids, workspace_id=workspace.id
@@ -6268,7 +6593,7 @@ class MultipleCollaboratorsFieldType(
         rows_by_value = defaultdict(list)
         all_user_ids = set()
         for row_index, values in values_by_row.items():
-            user_ids = [v["id"] for v in values]
+            user_ids = [v["id"] if isinstance(v, dict) else v for v in values]
             for user_id in user_ids:
                 rows_by_value[user_id].append(row_index)
             all_user_ids = all_user_ids.union(user_ids)
@@ -6351,7 +6676,9 @@ class MultipleCollaboratorsFieldType(
         }
 
     def are_row_values_equal(self, value1: any, value2: any) -> bool:
-        return {v["id"] for v in value1} == {v["id"] for v in value2}
+        v1 = set([v["id"] if isinstance(v, dict) else v for v in value1])
+        v2 = set([v["id"] if isinstance(v, dict) else v for v in value2])
+        return v1 == v2
 
     def get_model_field(self, instance, **kwargs):
         return None
@@ -6526,6 +6853,12 @@ class MultipleCollaboratorsFieldType(
             order = order.asc(nulls_first=True)
 
         return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
+
+    def get_group_by_aggregated_order(self, related_field):
+        # The multiple select field must be ordered by the id of the entry in the
+        # through table because it respects the insertion order. It respects the
+        # `MultipleSelectManyToManyDescriptor::related_manager_cls::_apply_rel_ordering`
+        return ("id",) + super().get_group_by_aggregated_order(related_field)
 
     def get_value_for_filter(self, row: "GeneratedTableModel", field) -> any:
         related_objects = getattr(row, field.db_column)

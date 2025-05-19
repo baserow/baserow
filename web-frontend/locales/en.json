@@ -441,6 +441,7 @@
   "apiDocs": {
     "intro": "Introduction",
     "authent": "Authentication",
+    "listTables": "List tables",
     "table": "{name} table",
     "filters": "Filters",
     "errors": "HTTP Errors",
@@ -466,7 +467,8 @@
     "sendWebhookEventsDescription": "A flag query parameter that triggers webhooks after the operation, if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. Defaults to `true`",
     "singleRow": "Single",
     "batchRows": "Batch",
-    "fileUploads": "File uploads"
+    "fileUploads": "File uploads",
+    "apiDocs": "List all tables"
   },
   "exporterType": {
     "csv": "Export to CSV"

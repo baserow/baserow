@@ -1032,6 +1032,25 @@ class DatabaseConfig(AppConfig):
         mcp_tool_registry.register(UpdateRowMcpTool())
         mcp_tool_registry.register(DeleteRowMcpTool())
 
+        from baserow.contrib.database.rows.history_providers import (
+            CreateRowHistoryProvider,
+            CreateRowsHistoryProvider,
+            DeleteRowHistoryProvider,
+            DeleteRowsHistoryProvider,
+            RestoreFromTrashHistoryProvider,
+            UpdateRowsHistoryProvider,
+        )
+        from baserow.contrib.database.rows.registries import (
+            row_history_provider_registry,
+        )
+
+        row_history_provider_registry.register(CreateRowHistoryProvider())
+        row_history_provider_registry.register(CreateRowsHistoryProvider())
+        row_history_provider_registry.register(DeleteRowsHistoryProvider())
+        row_history_provider_registry.register(DeleteRowHistoryProvider())
+        row_history_provider_registry.register(UpdateRowsHistoryProvider())
+        row_history_provider_registry.register(RestoreFromTrashHistoryProvider())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.database.data_sync.signals  # noqa: F403, F401
@@ -1049,6 +1068,7 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.table.receivers  # noqa: F401
         import baserow.contrib.database.views.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
+        from baserow.contrib.database.fields.models import SelectOption
 
         # Make sure that from now on, no model can make the User cache to expire,
         # because that can be a problem if some other thread tries to access the related
@@ -1056,6 +1076,7 @@ class DatabaseConfig(AppConfig):
         # NOTE: Make sure all FK or M2M fields to User are created with
         # `related_name="+"` because the relation won't be created on the user side.
         get_user_model()._meta._expire_cache = lambda *a, **kw: None
+        SelectOption._meta._expire_cache = lambda *a, **kw: None
 
 
 # noinspection PyPep8Naming

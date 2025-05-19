@@ -29,7 +29,6 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils.duration import D_H, H_M_S_SSS
-from baserow.core.utils import get_value_at_path
 
 from .config import AirtableImportConfig
 from .constants import (
@@ -41,7 +40,11 @@ from .constants import (
     AIRTABLE_RATING_ICON_MAPPING,
 )
 from .exceptions import AirtableSkipCellValue
-from .helpers import import_airtable_date_type_options, set_select_options_on_field
+from .helpers import (
+    import_airtable_date_type_options,
+    set_select_options_on_field,
+    to_import_select_option_id,
+)
 from .import_report import (
     ERROR_TYPE_DATA_TYPE_MISMATCH,
     ERROR_TYPE_UNSUPPORTED_FEATURE,
@@ -757,6 +760,7 @@ class MultipleAttachmentAirtableColumnType(AirtableColumnType):
 
 class SelectAirtableColumnType(AirtableColumnType):
     type = "select"
+    default_value_field = "single_select_default"
 
     def to_baserow_export_serialized_value(
         self,
@@ -771,7 +775,7 @@ class SelectAirtableColumnType(AirtableColumnType):
         import_report: AirtableImportReport,
     ):
         # use field id and option id for uniqueness
-        return f"{raw_airtable_column.get('id')}_{value}"
+        return to_import_select_option_id(raw_airtable_column.get("id"), value)
 
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
@@ -779,23 +783,43 @@ class SelectAirtableColumnType(AirtableColumnType):
         id_value = raw_airtable_column.get("id", "")
         type_options = raw_airtable_column.get("typeOptions", {})
 
-        def get_default(x):
-            return get_value_at_path(type_options, f"choices.{x}.name", "")
-
-        self.add_import_report_failed_if_default_is_provided(
-            raw_airtable_table,
-            raw_airtable_column,
-            import_report,
-            to_human_readable_default=get_default,
-        )
-
         field = SingleSelectField()
         field = set_select_options_on_field(field, id_value, type_options)
+
+        default_value = raw_airtable_column.get("default", None)
+        if default_value is not None:
+            default_option = to_import_select_option_id(id_value, default_value)
+            # Ensure that the default value is one of existing options
+            field.single_select_default = next(
+                (
+                    option.id
+                    for option in field._prefetched_objects_cache["select_options"]
+                    if option.id == default_option
+                ),
+                None,
+            )
         return field
+
+    def to_baserow_export_empty_value(
+        self,
+        row_id_mapping,
+        raw_airtable_table,
+        raw_airtable_row,
+        raw_airtable_column,
+        baserow_field,
+        files_to_download,
+        config,
+        import_report,
+    ):
+        if baserow_field.single_select_default is not None:
+            return None
+        else:
+            raise AirtableSkipCellValue
 
 
 class MultiSelectAirtableColumnType(AirtableColumnType):
     type = "multiSelect"
+    default_value_field = "multiple_select_default"
 
     def to_baserow_export_serialized_value(
         self,
@@ -811,7 +835,7 @@ class MultiSelectAirtableColumnType(AirtableColumnType):
     ):
         # use field id and option id for uniqueness
         column_id = raw_airtable_column.get("id")
-        return [f"{column_id}_{val}" for val in value]
+        return [to_import_select_option_id(column_id, val) for val in value]
 
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
@@ -819,25 +843,36 @@ class MultiSelectAirtableColumnType(AirtableColumnType):
         id_value = raw_airtable_column.get("id", "")
         type_options = raw_airtable_column.get("typeOptions", {})
 
-        def get_default(default):
-            default = default or []
-            return ", ".join(
-                [
-                    get_value_at_path(type_options, f"choices.{v}.name", "")
-                    for v in default
-                ]
-            )
-
-        self.add_import_report_failed_if_default_is_provided(
-            raw_airtable_table,
-            raw_airtable_column,
-            import_report,
-            to_human_readable_default=get_default,
-        )
-
         field = MultipleSelectField()
         field = set_select_options_on_field(field, id_value, type_options)
+
+        default_value = raw_airtable_column.get("default", None)
+        if default_value:
+            default_options = [
+                to_import_select_option_id(id_value, val) for val in default_value
+            ]
+            field.multiple_select_default = [
+                option.id
+                for option in field._prefetched_objects_cache["select_options"]
+                if option.id in default_options
+            ]
         return field
+
+    def to_baserow_export_empty_value(
+        self,
+        row_id_mapping,
+        raw_airtable_table,
+        raw_airtable_row,
+        raw_airtable_column,
+        baserow_field,
+        files_to_download,
+        config,
+        import_report,
+    ):
+        if baserow_field.multiple_select_default is not None:
+            return []
+        else:
+            raise AirtableSkipCellValue
 
 
 class PhoneAirtableColumnType(AirtableColumnType):

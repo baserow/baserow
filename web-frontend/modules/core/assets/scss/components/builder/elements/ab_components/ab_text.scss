@@ -6,8 +6,11 @@
   text-align: var(--body-text-alignment, left);
   font-family: var(--body-font-family, Inter);
 
-  // for markdown text
-  strong {
-    color: var(--body-text-color, $black);
+  .markdown & {
+    strong {
+      color: var(--body-text-color, $black);
+    }
+
+    margin-top: 1em;
   }
 }

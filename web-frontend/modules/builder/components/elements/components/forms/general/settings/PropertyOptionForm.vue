@@ -121,6 +121,7 @@ export default {
           name: this.$t('propertyOptionForm.fieldHeading'),
           property: null,
           isOption: false,
+          __id__: 'field',
         },
       ]
       if (this.isFilterable) {
@@ -128,6 +129,7 @@ export default {
           name: this.$t('propertyOptionForm.filterHeading'),
           property: 'filterable',
           isOption: true,
+          __id__: 'filter',
         })
       }
       if (this.isSortable) {
@@ -135,6 +137,7 @@ export default {
           name: this.$t('propertyOptionForm.sortHeading'),
           property: 'sortable',
           isOption: true,
+          __id__: 'sort',
         })
       }
       if (this.isSearchable) {
@@ -142,6 +145,7 @@ export default {
           name: this.$t('propertyOptionForm.searchHeading'),
           property: 'searchable',
           isOption: true,
+          __id__: 'search',
         })
       }
       return fields
@@ -164,18 +168,14 @@ export default {
         .map(([schemaProperty, propertyValues]) => ({
           schemaProperty,
           propertyValues,
-          [this.$t('propertyOptionForm.fieldHeading')]: propertyValues.title,
-          [this.$t('propertyOptionForm.filterHeading')]: this.getOptionValue(
+          field: propertyValues.title,
+          filter: this.getOptionValue(
             schemaProperty,
             propertyValues,
             'filterable'
           ),
-          [this.$t('propertyOptionForm.sortHeading')]: this.getOptionValue(
-            schemaProperty,
-            propertyValues,
-            'sortable'
-          ),
-          [this.$t('propertyOptionForm.searchHeading')]: this.getOptionValue(
+          sort: this.getOptionValue(schemaProperty, propertyValues, 'sortable'),
+          search: this.getOptionValue(
             schemaProperty,
             propertyValues,
             'searchable'

@@ -48,11 +48,23 @@ def construct_all_possible_field_kwargs(
                 "number_negative": False,
                 "number_decimal_places": 1,
             },
+            {
+                "name": "decimal_with_default",
+                "number_negative": False,
+                "number_decimal_places": 1,
+                "number_default": 1.8,
+            },
         ],
         "rating": [
             {"name": "rating", "max_value": 5, "color": "blue", "style": "star"}
         ],
-        "boolean": [{"name": "boolean"}],
+        "boolean": [
+            {"name": "boolean"},
+            {
+                "name": "boolean_with_default",
+                "boolean_default": True,
+            },
+        ],
         "date": [
             {"name": "datetime_us", "date_include_time": True, "date_format": "US"},
             {"name": "date_us", "date_include_time": False, "date_format": "US"},
@@ -182,7 +194,15 @@ def construct_all_possible_field_kwargs(
                     {"id": 0, "value": "A", "color": "red"},
                     {"id": 1, "value": "B", "color": "blue"},
                 ],
-            }
+            },
+            {
+                "name": "single_select_with_default",
+                "select_options": [
+                    {"id": 10, "value": "AA", "color": "red"},
+                    {"id": 11, "value": "BB", "color": "blue"},
+                ],
+                "single_select_default": 11,
+            },
         ],
         "multiple_select": [
             {
@@ -192,7 +212,16 @@ def construct_all_possible_field_kwargs(
                     {"id": 3, "value": "D", "color": "yellow"},
                     {"id": 4, "value": "E", "color": "green"},
                 ],
-            }
+            },
+            {
+                "name": "multiple_select_with_default",
+                "select_options": [
+                    {"id": 21, "value": "M-1", "color": "pink"},
+                    {"id": 22, "value": "M-2", "color": "purple"},
+                    {"id": 23, "value": "M-3", "color": "blue"},
+                ],
+                "multiple_select_default": [21, 22],
+            },
         ],
         "multiple_collaborators": [
             {

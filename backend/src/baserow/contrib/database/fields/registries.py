@@ -43,6 +43,7 @@ from django.db.models import (
 from django.db.models.fields.related import ForeignKey, ManyToManyField
 from django.db.models.functions import Cast, Coalesce
 
+from django_cte import With
 from rest_framework import serializers
 
 from baserow.contrib.database.fields.constants import UPSERT_OPTION_DICT_KEY
@@ -74,7 +75,7 @@ from .exceptions import (
     ReadOnlyFieldHasNoInternalDbValueError,
 )
 from .fields import DurationFieldUsingPostgresFormatting
-from .models import Field, LinkRowField, SelectOption
+from .models import Field, LinkRowField
 from .utils import DeferredForeignKeyUpdater
 
 if TYPE_CHECKING:
@@ -215,6 +216,16 @@ class FieldType(
     A field of this type may be used to calculate a match value during import, that
     allows to update existing rows with imported data instead of adding them.
     """
+
+    def get_default_options_field_name(self):
+        """
+        Returns the name of the field that stores the default value for the field type.
+        """
+
+        return f"{self.type}_default"
+
+    def get_default_value(self, field: Field) -> Any:
+        return None
 
     @property
     def db_column_fields(self) -> Set[str]:
@@ -751,6 +762,13 @@ class FieldType(
         :type field_kwargs: dict
         """
 
+    def init_field_data(self, field, model):
+        """
+        This hook is called right after the field has been created, when the field data
+        needs to be initialized. This is for example used by the CreateFieldActionType
+        to initialize the field data when the field is created.
+        """
+
     def before_update(self, from_field, to_field_values, user, field_kwargs):
         """
         This hook is called just before updating the field instance. It is called on
@@ -950,6 +968,19 @@ class FieldType(
 
         return self.serialize_to_input_value(field, value)
 
+    def serialize_allowed_fields(self, field: Field) -> Dict[str, Any]:
+        """
+        Serializes the allowed fields of the field to a serialized dict.
+
+        :param field: The field instance that must be serialized.
+        :return: The serialized dict of the allowed fields.
+        """
+
+        serialized = {}
+        for field_name in self.allowed_fields:
+            serialized[field_name] = getattr(field, field_name)
+        return serialized
+
     def export_serialized(
         self, field: Field, include_allowed_fields: bool = True
     ) -> Dict[str, Any]:
@@ -976,8 +1007,7 @@ class FieldType(
         }
 
         if include_allowed_fields:
-            for field_name in self.allowed_fields:
-                serialized[field_name] = getattr(field, field_name)
+            serialized.update(self.serialize_allowed_fields(field))
 
         if self.can_have_select_options:
             serialized["select_options"] = [
@@ -1037,6 +1067,13 @@ class FieldType(
             if self.can_have_select_options
             else []
         )
+
+        select_default = None
+        if self.can_have_select_options:
+            select_default_field_name = self.get_default_options_field_name()
+            if select_default_field_name:
+                select_default = serialized_copy.pop(select_default_field_name, None)
+
         should_create_tsvector_column = (
             not import_export_config.reduce_disk_space_usage
             and table.tsvectors_are_supported
@@ -1055,15 +1092,11 @@ class FieldType(
         id_mapping["database_field_names"][table.id][field.name] = field
 
         if self.can_have_select_options:
-            for select_option in select_options:
-                select_option_copy = select_option.copy()
-                select_option_id = select_option_copy.pop("id")
-                select_option_object = SelectOption.objects.create(
-                    field=field, **select_option_copy
-                )
-                id_mapping["database_field_select_options"][
-                    select_option_id
-                ] = select_option_object.id
+            select_options_mapping = self.create_select_options(field, select_options)
+            field = self.after_create_select_options(
+                field, select_default, select_options, select_options_mapping
+            )
+            id_mapping["database_field_select_options"].update(select_options_mapping)
 
         return field
 
@@ -1686,7 +1719,13 @@ class FieldType(
         return value
 
     def get_group_by_field_filters_and_annotations(
-        self, field: Field, field_name: str, base_queryset: QuerySet, value: Any
+        self,
+        field: Field,
+        field_name: str,
+        base_queryset: QuerySet,
+        value: Any,
+        cte: Dict[str, With],
+        rows: List["GeneratedTableModel"],
     ) -> Tuple[Dict, Dict]:
         """
         The filters that must be applied to match the provided value to the queryset
@@ -1697,6 +1736,9 @@ class FieldType(
         :param field_name: The name of the field in the table that must be looked up.
         :param base_queryset: The base queryset of the items the grouped rows.
         :param value: The unique value that must be looked up.
+        :param cte: A dict containing CTE that must be added to the final queryset.
+            Can be used to improve performance if there are many subqueries.
+        :param rows: The rows where to get the unique values from.
         :return: A tuple containing the filters and annotations as dict.
         """
 
@@ -2010,42 +2052,51 @@ class ManyToManyGroupByMixin:
     that the field type must set the `_can_group_by` property to `True`.
     """
 
-    def _get_group_by_agg_expression(self, field_name: str) -> Expression:
-        """
-        Returns the aggregation expression that can be used to group by the field. By
-        default it will return an ArrayAgg expression that will aggregate all the
-        related field values.
-
-        :param field_name: The name of the field in the table.
-        :return: The aggregation expression that can be used to group by the field.
-        """
-
-        return ArrayAgg(
-            f"{field_name}__id",
-            filter=Q(**{f"{field_name}__isnull": False}),
-        )
-
     def get_group_by_field_unique_value(
         self, field: Field, field_name: str, value: Any
     ) -> Any:
         return tuple([v.id for v in value.all()])
 
+    def get_group_by_aggregated_order(self, related_field):
+        return (f"{related_field}_id",)
+
     def get_group_by_field_filters_and_annotations(
-        self, field, field_name, base_queryset, value
+        self, field, field_name, base_queryset, value, cte, rows
     ):
-        filters = {
-            field_name: value,
-        }
-        annotations = {
-            field_name: Subquery(
-                base_queryset.filter(id=OuterRef("id"))
+        through_model = base_queryset.model._meta.get_field(
+            field_name
+        ).remote_field.through
+        reversed_field = through_model._meta.get_fields()[1].name
+        related_field = through_model._meta.get_fields()[2].name
+
+        if field_name not in cte:
+            row_ids = [row.id for row in rows]
+            # Improve performance of the query by creating a CTE with all the
+            # relationships of the field to group by. This is significantly faster than
+            # doing this every row in a separate subquery.
+            aggregated_cte = (
+                through_model.objects.filter(**{f"{reversed_field}_id__in": row_ids})
+                .values(f"{reversed_field}_id")
                 .annotate(
-                    res=Coalesce(
-                        self._get_group_by_agg_expression(field_name),
-                        Value([], output_field=ArrayField(IntegerField())),
-                    ),
+                    res=ArrayAgg(
+                        F(f"{related_field}_id"),
+                        filter=Q(**{f"{related_field}_id__isnull": False}),
+                        ordering=self.get_group_by_aggregated_order(related_field),
+                    )
                 )
-                .values("res")
+            )
+            cte[field_name] = With(aggregated_cte, name=f"{field_name}_cte")
+
+        filters = {field_name: value}
+        annotations = {
+            field_name: Coalesce(
+                Subquery(
+                    cte[field_name]
+                    .queryset()
+                    .filter(**{f"{reversed_field}_id": OuterRef("id")})
+                    .values("res")[:1]
+                ),
+                Value([], output_field=ArrayField(IntegerField())),
             )
         }
         return filters, annotations

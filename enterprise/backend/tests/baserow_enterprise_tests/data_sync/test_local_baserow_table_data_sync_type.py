@@ -349,6 +349,7 @@ def test_sync_data_sync_table_with_interesting_table_as_source(enterprise_data_f
     assert blank_results == {
         "Row ID": "1",
         "boolean": "False",
+        "boolean_with_default": "True",
         "date_eu": "",
         "date_us": "",
         "datetime_eu": "",
@@ -371,8 +372,10 @@ def test_sync_data_sync_table_with_interesting_table_as_source(enterprise_data_f
         "phone_number": "",
         "positive_decimal": "",
         "positive_int": "",
+        "decimal_with_default": "1.8",
         "rating": "0",
         "single_select": "",
+        "single_select_with_default": "BB",
         "text": "",
         "url": "",
         "created_on_date_eu": "02/01/2021",
@@ -393,6 +396,7 @@ def test_sync_data_sync_table_with_interesting_table_as_source(enterprise_data_f
     assert results == {
         "Row ID": "2",
         "boolean": "True",
+        "boolean_with_default": "True",
         "date_eu": "01/02/2020",
         "date_us": "02/01/2020",
         "datetime_eu": "01/02/2020 01:23",
@@ -415,8 +419,10 @@ def test_sync_data_sync_table_with_interesting_table_as_source(enterprise_data_f
         "phone_number": "+4412345678",
         "positive_decimal": "1.2",
         "positive_int": "1",
+        "decimal_with_default": "1.8",
         "rating": "3",
         "single_select": "A",
+        "single_select_with_default": "BB",
         "text": "text",
         "url": "https://www.google.com",
         "created_on_date_eu": "02/01/2021",
@@ -675,7 +681,7 @@ def test_sync_data_sync_table_without_license(enterprise_data_fixture):
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_async_sync_data_sync_table_without_license(
-    api_client, enterprise_data_fixture
+    api_client, enterprise_data_fixture, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 

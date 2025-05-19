@@ -89,6 +89,13 @@ export default {
       },
       immediate: true,
     },
+    inputValue(newValue) {
+      // If the inputValue was updated (after a reset for instance) we want to update
+      // the internal value
+      if (this.fromInternalValue(this.internalValue) !== newValue) {
+        this.internalValue = this.toInternalValue(newValue)
+      }
+    },
   },
   methods: {
     toInternalValue(value) {

@@ -1,8 +1,8 @@
 import dataclasses
-from collections import defaultdict
-from copy import copy, deepcopy
+from collections.abc import Iterable
+from copy import deepcopy
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -21,33 +21,21 @@ from baserow.contrib.database.rows.handler import (
     GeneratedTableModelForUpdate,
     RowHandler,
 )
-from baserow.contrib.database.rows.helpers import (
-    construct_entry_from_action_and_diff,
-    construct_related_rows_entries,
-    extract_row_diff,
-    raise_if_ids_mismatch,
-    update_related_tables_entries,
-)
-from baserow.contrib.database.rows.models import RowHistory
-from baserow.contrib.database.rows.types import (
-    FileImportDict,
-    RelatedRowsDiff,
-    RowChangeDiff,
-)
+from baserow.contrib.database.rows.types import FileImportDict
 from baserow.contrib.database.table.handler import TableHandler
-from baserow.contrib.database.table.models import GeneratedTableModel, Table
+from baserow.contrib.database.table.models import (
+    FieldObject,
+    GeneratedTableModel,
+    Table,
+)
 from baserow.core.action.models import Action
 from baserow.core.action.registries import (
     ActionScopeStr,
     ActionTypeDescription,
     UndoableActionType,
 )
-from baserow.core.action.signals import ActionCommandType
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import Progress
-
-if TYPE_CHECKING:
-    from baserow.contrib.database.rows.history import ActionData
 
 
 def are_equal_on_create(field_identifier, after_value, before_value) -> bool:
@@ -74,7 +62,13 @@ def are_equal_on_create(field_identifier, after_value, before_value) -> bool:
     return before_value == after_value
 
 
-def get_row_values(row, fields) -> dict[str, Any]:
+def get_row_values(
+    row: GeneratedTableModel, fields: Iterable[FieldObject]
+) -> dict[str, Any]:
+    """
+    Extracts fields and field values from a row for requested fields.
+    """
+
     rh = RowHandler()
     field_ids = [f["field"].id for f in fields if not f["type"].read_only]
     out = rh.get_internal_values_for_fields(row, field_ids)
@@ -194,100 +188,6 @@ class CreateRowActionType(UndoableActionType):
             user, "row", params.row_id, parent_trash_item_id=params.table_id
         )
 
-    @classmethod
-    def get_row_change_history(cls, user, action: "ActionData") -> list[RowHistory]:
-        params: CreateRowActionType.Params = cls.serialized_to_params(action.params)
-        table_id = params.table_id
-        after = params.row_values
-        row_id = params.row_id
-
-        before = {"id": params.row_id}
-
-        if action.command_type == ActionCommandType.UNDO:
-            before, after = after, before
-
-        row_history_entries = []
-        related_rows_diff: RelatedRowsDiff = defaultdict(
-            lambda: defaultdict(lambda: defaultdict(dict))
-        )
-
-        fields_metadata = {k: v for k, v in params.fields_metadata.items() if k != "id"}
-
-        # `extract_row_diff()` expects `before` and `after` to contain keys for
-        # values that were changed. We need to populate with empty values, so a diff
-        # can be properly detected.
-        before = {
-            **{field_name: None for field_name in fields_metadata.keys()},
-            **before,
-        }
-        after = {
-            **{field_name: None for field_name in fields_metadata.keys()},
-            **after,
-        }
-
-        row_diff = RowChangeDiff(
-            table_id=table_id,
-            row_id=row_id,
-            changed_field_names=[],
-            before_values={},
-            after_values={},
-        )
-
-        # we need a real diff for DO only. UNDO/REDO are marked as row operations only
-        if action.command_type == ActionCommandType.DO:
-            row_diff = (
-                extract_row_diff(
-                    table_id,
-                    row_id,
-                    fields_metadata,
-                    before,
-                    after,
-                    are_equal=are_equal_on_create,
-                )
-                or row_diff
-            )
-        changed_fields_metadata = {
-            k: v
-            for k, v in fields_metadata.items()
-            if k in row_diff.changed_field_names
-        }
-
-        entry = construct_entry_from_action_and_diff(
-            user,
-            action,
-            changed_fields_metadata,
-            row_diff,
-        )
-        row_history_entries.append(entry)
-
-        # we want to operate on a different row diff data for related tables in
-        # this case: while we don't show any change in our row, we should show
-        # in related rows added/removed linked rows.
-        related_row_diff = row_diff
-        related_metadata = changed_fields_metadata
-        related_field_names = row_diff.changed_field_names
-        if action.command_type != ActionCommandType.DO:
-            related_field_names = [k for k in fields_metadata.keys() if k != "id"]
-            related_row_diff = RowChangeDiff(
-                table_id=table_id,
-                row_id=row_id,
-                changed_field_names=related_field_names,
-                before_values=before,
-                after_values=after,
-            )
-
-            related_metadata = {k: v for k, v in fields_metadata.items() if k != "id"}
-        update_related_tables_entries(
-            related_rows_diff, related_metadata, related_row_diff
-        )
-        related_action = copy(action)
-        related_action.type = UpdateRowsActionType.type
-        related_entries = construct_related_rows_entries(
-            related_rows_diff, user, related_action
-        )
-        row_history_entries.extend(related_entries)
-        return row_history_entries
-
 
 class CreateRowsActionType(UndoableActionType):
     type = "create_rows"
@@ -403,100 +303,6 @@ class CreateRowsActionType(UndoableActionType):
             params.trashed_rows_entry_id,
             parent_trash_item_id=params.table_id,
         )
-
-    @classmethod
-    def get_row_change_history(cls, user, action: "ActionData") -> list[RowHistory]:
-        params: CreateRowsActionType.Params = cls.serialized_to_params(action.params)
-        table_id = params.table_id
-        after_values = params.rows_values
-
-        before_values = [{"id": r} for r in params.row_ids]
-
-        if action.command_type == ActionCommandType.UNDO:
-            before_values, after_values = after_values, before_values
-
-        row_history_entries = []
-        related_rows_diff: RelatedRowsDiff = defaultdict(
-            lambda: defaultdict(lambda: defaultdict(dict))
-        )
-
-        for i, after in enumerate(after_values):
-            row_id = params.row_ids[i]
-            # For some reason, row_id in metadata is a string, not an int.
-            fields_metadata = params.fields_metadata[str(row_id)]
-
-            before = before_values[i]
-
-            before = {
-                **{field_name: None for field_name in fields_metadata.keys()},
-                **before,
-            }
-            after = {
-                **{field_name: None for field_name in fields_metadata.keys()},
-                **after,
-            }
-            row_diff = RowChangeDiff(
-                table_id=table_id,
-                row_id=row_id,
-                changed_field_names=[],
-                before_values={},
-                after_values={},
-            )
-
-            if action.command_type == ActionCommandType.DO:
-                row_diff = (
-                    extract_row_diff(
-                        table_id,
-                        row_id,
-                        fields_metadata,
-                        before,
-                        after,
-                        are_equal=are_equal_on_create,
-                    )
-                    or row_diff
-                )
-            changed_fields_metadata = {
-                k: v
-                for k, v in fields_metadata.items()
-                if k in row_diff.changed_field_names
-            }
-
-            entry = construct_entry_from_action_and_diff(
-                user,
-                action,
-                changed_fields_metadata,
-                row_diff,
-            )
-            row_history_entries.append(entry)
-
-            related_row_diff = row_diff
-            related_metadata = changed_fields_metadata
-            related_field_names = row_diff.changed_field_names
-            if action.command_type != ActionCommandType.DO:
-                related_field_names = [k for k in fields_metadata.keys() if k != "id"]
-                related_row_diff = RowChangeDiff(
-                    table_id=table_id,
-                    row_id=row_id,
-                    changed_field_names=related_field_names,
-                    before_values=before,
-                    after_values=after,
-                )
-
-                related_metadata = {
-                    k: v for k, v in fields_metadata.items() if k != "id"
-                }
-            update_related_tables_entries(
-                related_rows_diff, related_metadata, related_row_diff
-            )
-
-            related_action = copy(action)
-            related_action.type = UpdateRowsActionType.type
-            related_entries = construct_related_rows_entries(
-                related_rows_diff, user, related_action
-            )
-            row_history_entries.extend(related_entries)
-
-        return row_history_entries
 
 
 class ImportRowsActionType(UndoableActionType):
@@ -665,6 +471,7 @@ class DeleteRowActionType(UndoableActionType):
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=database.workspace
         )
+        return row
 
     @classmethod
     def scope(cls, table_id) -> ActionScopeStr:
@@ -681,72 +488,6 @@ class DeleteRowActionType(UndoableActionType):
         RowHandler().delete_row_by_id(
             user, TableHandler().get_table(params.table_id), params.row_id
         )
-
-    @classmethod
-    def get_row_change_history(cls, user, action: "ActionData") -> list[RowHistory]:
-        params: DeleteRowActionType.Params = cls.serialized_to_params(action.params)
-        table_id = params.table_id
-        row_id = params.row_id
-        row_history_entries = []
-        fields_metadata = {k: v for k, v in params.fields_metadata.items() if k != "id"}
-        related_rows_diff: RelatedRowsDiff = defaultdict(
-            lambda: defaultdict(lambda: defaultdict(dict))
-        )
-
-        before = params.values
-        after = {"id": row_id}
-
-        before = {
-            **{field_name: None for field_name in fields_metadata.keys()},
-            **before,
-        }
-        after = {
-            **{field_name: None for field_name in fields_metadata.keys()},
-            **after,
-        }
-        row_diff = RowChangeDiff(
-            table_id=table_id,
-            row_id=row_id,
-            changed_field_names=[],
-            before_values={},
-            after_values={},
-        )
-
-        changed_fields_metadata = {}
-
-        entry = construct_entry_from_action_and_diff(
-            user,
-            action,
-            changed_fields_metadata,
-            row_diff,
-        )
-        row_history_entries.append(entry)
-
-        related_row_diff = row_diff
-        related_metadata = changed_fields_metadata
-        related_field_names = row_diff.changed_field_names
-        if action.command_type != ActionCommandType.DO:
-            related_field_names = [k for k in fields_metadata.keys() if k != "id"]
-            related_row_diff = RowChangeDiff(
-                table_id=table_id,
-                row_id=row_id,
-                changed_field_names=related_field_names,
-                before_values=before,
-                after_values=after,
-            )
-
-            related_metadata = {k: v for k, v in fields_metadata.items() if k != "id"}
-        update_related_tables_entries(
-            related_rows_diff, related_metadata, related_row_diff
-        )
-        related_action = copy(action)
-        related_action.type = UpdateRowsActionType.type
-        related_entries = construct_related_rows_entries(
-            related_rows_diff, user, related_action
-        )
-        row_history_entries.extend(related_entries)
-
-        return row_history_entries
 
 
 class DeleteRowsActionType(UndoableActionType):
@@ -827,6 +568,7 @@ class DeleteRowsActionType(UndoableActionType):
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=workspace
         )
+        return trashed_rows_entry
 
     @classmethod
     def scope(cls, table_id) -> ActionScopeStr:
@@ -848,89 +590,6 @@ class DeleteRowsActionType(UndoableActionType):
         )
         params.trashed_rows_entry_id = trashed_rows_entry.id
         action_being_redone.params = params
-
-    @classmethod
-    def get_row_change_history(cls, user, action: "ActionData") -> list[RowHistory]:
-        params: DeleteRowsActionType.Params = cls.serialized_to_params(action.params)
-        table_id = params.table_id
-        before_values = params.rows_values
-
-        after_values = [
-            {
-                "id": r,
-                **{
-                    field_name: None
-                    for field_name in params.fields_metadata[str(r)]
-                    if field_name != "id"
-                },
-            }
-            for r in params.row_ids
-        ]
-
-        if action.command_type == ActionCommandType.UNDO:
-            before_values, after_values = after_values, before_values
-
-        row_history_entries = []
-        related_rows_diff: RelatedRowsDiff = defaultdict(
-            lambda: defaultdict(lambda: defaultdict(dict))
-        )
-
-        for i, after in enumerate(after_values):
-            row_id = params.row_ids[i]
-            fields_metadata = params.fields_metadata[str(row_id)]
-            before = before_values[i]
-            before = {
-                **{field_name: None for field_name in fields_metadata.keys()},
-                **before,
-            }
-            after = {
-                **{field_name: None for field_name in fields_metadata.keys()},
-                **after,
-            }
-            row_diff = RowChangeDiff(
-                table_id=table_id,
-                row_id=row_id,
-                changed_field_names=[],
-                before_values={},
-                after_values={},
-            )
-
-            changed_fields_metadata = {}
-
-            entry = construct_entry_from_action_and_diff(
-                user,
-                action,
-                changed_fields_metadata,
-                row_diff,
-            )
-            row_history_entries.append(entry)
-
-            related_row_diff = row_diff
-            related_metadata = changed_fields_metadata
-            related_field_names = row_diff.changed_field_names
-            if action.command_type != ActionCommandType.DO:
-                related_field_names = [k for k in fields_metadata.keys() if k != "id"]
-                related_row_diff = RowChangeDiff(
-                    table_id=table_id,
-                    row_id=row_id,
-                    changed_field_names=related_field_names,
-                    before_values=before,
-                    after_values=after,
-                )
-
-                related_metadata = {
-                    k: v for k, v in fields_metadata.items() if k != "id"
-                }
-            update_related_tables_entries(
-                related_rows_diff, related_metadata, related_row_diff
-            )
-            related_action = copy(action)
-            related_action.type = UpdateRowsActionType.type
-            related_entries = construct_related_rows_entries(
-                related_rows_diff, user, related_action
-            )
-            row_history_entries.extend(related_entries)
-        return row_history_entries
 
 
 def get_rows_displacement(
@@ -1335,54 +994,3 @@ class UpdateRowsActionType(UndoableActionType):
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
         table = TableHandler().get_table(params.table_id)
         RowHandler().update_rows(user, table, params.row_values)
-
-    @classmethod
-    def get_row_change_history(cls, user, action: "ActionData") -> list[RowHistory]:
-        params = cls.serialized_to_params(action.params)
-        table_id = params.table_id
-        after_values = params.row_values
-        before_values = [
-            params.original_rows_values_by_id[r["id"]] for r in after_values
-        ]
-
-        if action.command_type == ActionCommandType.UNDO:
-            before_values, after_values = after_values, before_values
-
-        row_history_entries = []
-        related_rows_diff: RelatedRowsDiff = defaultdict(
-            lambda: defaultdict(lambda: defaultdict(dict))
-        )
-        for i, after in enumerate(after_values):
-            before = before_values[i]
-            fields_metadata = params.updated_fields_metadata_by_row_id[after["id"]]
-            raise_if_ids_mismatch(before, after, fields_metadata)
-
-            row_id = after["id"]
-            row_diff = extract_row_diff(
-                table_id, row_id, fields_metadata, before, after
-            )
-            if row_diff is None:
-                continue
-
-            changed_fields_metadata = {
-                k: v
-                for k, v in fields_metadata.items()
-                if k in row_diff.changed_field_names
-            }
-
-            entry = construct_entry_from_action_and_diff(
-                user,
-                action,
-                changed_fields_metadata,
-                row_diff,
-            )
-            row_history_entries.append(entry)
-            update_related_tables_entries(
-                related_rows_diff, changed_fields_metadata, row_diff
-            )
-
-        related_entries = construct_related_rows_entries(
-            related_rows_diff, user, action
-        )
-        row_history_entries.extend(related_entries)
-        return row_history_entries

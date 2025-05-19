@@ -56,7 +56,7 @@ class AutomationNodeService:
         prepared_values = node_type.prepare_values(kwargs, user)
 
         new_node = self.handler.create_node(
-            user, node_type, workflow=workflow, **prepared_values
+            node_type, workflow=workflow, **prepared_values
         )
 
         automation_node_created.send(
@@ -138,7 +138,7 @@ class AutomationNodeService:
             context=node,
         )
 
-        updated_node = self.handler.update_node(user, node, **kwargs)
+        updated_node = self.handler.update_node(node, **kwargs)
 
         automation_node_updated.send(self, user=user, node=updated_node.node)
 
@@ -203,7 +203,7 @@ class AutomationNodeService:
             workspace=automation.workspace,
         )
 
-        new_order = self.handler.order_nodes(user, workflow, order, user_nodes)
+        new_order = self.handler.order_nodes(workflow, order, user_nodes)
 
         automation_nodes_reordered.send(
             self, workflow=workflow, order=new_order, user=user
@@ -233,7 +233,7 @@ class AutomationNodeService:
             context=node,
         )
 
-        node_clone = self.handler.duplicate_node(user, node)
+        node_clone = self.handler.duplicate_node(node)
 
         automation_node_created.send(
             self,

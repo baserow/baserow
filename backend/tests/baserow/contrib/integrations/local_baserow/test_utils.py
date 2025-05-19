@@ -16,6 +16,7 @@ from rest_framework.fields import (
     EmailField,
     FloatField,
     IntegerField,
+    ListField,
     SerializerMethodField,
     UUIDField,
 )
@@ -124,6 +125,8 @@ def test_guess_type_for_response_serialize_field_permutations():
         (DateField(), ensure_date),
         (DateTimeField(), ensure_datetime),
         (ListSerializer(child=Serializer()), ensure_array),
+        (ListField(child=IntegerField()), ensure_array),
+        (ListField(), ensure_array),
         ("unknown", None),
         (None, None),
     ],
