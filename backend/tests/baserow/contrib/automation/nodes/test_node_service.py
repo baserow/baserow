@@ -7,7 +7,6 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowRowCreatedTriggerNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
-from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
 from baserow.core.exceptions import UserNotInWorkspace
 
 SERVICE_PATH = "baserow.contrib.automation.nodes.service"

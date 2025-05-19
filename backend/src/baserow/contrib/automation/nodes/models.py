@@ -121,8 +121,4 @@ class LocalBaserowRowCreatedTriggerNode(AutomationTriggerNode):
 
 
 class LocalBaserowCreateRowActionNode(AutomationNode):
-    def save(self, *args, **kwargs):
-        """TODO: this shouldn't be required. There seems to be a MRO issue."""
-
-        self._ensure_content_type_is_set()
-        super().save(*args, **kwargs)
+    ...

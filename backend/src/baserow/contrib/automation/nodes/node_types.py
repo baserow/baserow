@@ -1,5 +1,10 @@
-from typing import Dict
+from typing import Dict, Optional
 
+from django.db.models import QuerySet
+
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.nodes.models import (
     LocalBaserowCreateRowActionNode,
     LocalBaserowRowCreatedTriggerNode,
@@ -10,6 +15,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsCreatedTriggerServiceType,
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 
 
@@ -28,7 +34,9 @@ class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
 
 
 class AutomationNodeTriggerType(AutomationNodeType):
-    def on_event(self, service_queryset, event_payload):
+    def on_event(
+        self, service_queryset: QuerySet[Service], event_payload: Optional[Dict] = None
+    ):
         triggers = (
             self.model_class.objects.filter(
                 service__in=service_queryset, workflow__published=True
@@ -38,7 +46,10 @@ class AutomationNodeTriggerType(AutomationNodeType):
         )
 
         for trigger in triggers:
-            AutomationWorkflowHandler().run_workflow(trigger.workflow, event_payload)
+            AutomationWorkflowHandler().run_workflow(
+                trigger.workflow,
+                AutomationDispatchContext(trigger.workflow, event_payload),
+            )
 
     def after_register(self):
         service_type_registry.get(self.service_type).start_listening(self.on_event)

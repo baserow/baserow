@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.services.dispatch_context import DispatchContext
@@ -7,25 +7,25 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 
 
 class AutomationDispatchContext(DispatchContext):
-    own_properties = ["trigger_input_data", "automation"]
+    own_properties = ["event_payload", "automation"]
 
     def __init__(
         self,
-        trigger_input_data: Dict,
         workflow: AutomationWorkflow,
+        event_payload: Optional[Union[Dict, List[Dict]]],
     ):
         """
         The `DispatchContext` implementation for automations. This context is provided
         to nodes, and can be modified so that following nodes are aware of a proceeding
         node's changes.
 
-        :param trigger_input_data: The input data from the trigger node, if any was
+        :param event_payload: The event data from the trigger node, if any was
             provided, as this is optional.
         :param workflow: The workflow that this dispatch context is associated with.
         """
 
-        self.trigger_input_data = trigger_input_data
         self.workflow = workflow
+        self.event_payload = event_payload
         super().__init__()
 
     def range(self, service: Service):

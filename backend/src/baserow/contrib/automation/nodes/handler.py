@@ -27,7 +27,7 @@ from baserow.core.utils import MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
-    allowed_fields = ["previous_node_output", "service", "workflow", "order"]
+    allowed_fields = ["previous_node_output"]
 
     def create_node(self, node_type: AutomationNodeType, **kwargs) -> AutomationNode:
         """

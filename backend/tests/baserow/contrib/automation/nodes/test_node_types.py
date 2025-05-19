@@ -19,20 +19,18 @@ def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_f
     )
 
     service_queryset = service.get_type().model_class.objects.filter(table=table)
-    event_payload = (
-        [
-            {
-                "id": 1,
-                "order": "1.00000000000000000000",
-                f"field_1": "Community Engagement",
-            },
-            {
-                "id": 2,
-                "order": "2.00000000000000000000",
-                f"field_1": "Construction",
-            },
-        ],
-    )
+    event_payload = [
+        {
+            "id": 1,
+            "order": "1.00000000000000000000",
+            f"field_1": "Community Engagement",
+        },
+        {
+            "id": 2,
+            "order": "2.00000000000000000000",
+            f"field_1": "Construction",
+        },
+    ]
 
     node.get_type().on_event(service_queryset, event_payload)
-    mock_run_workflow.assert_called_once_with(node.workflow, event_payload)
+    mock_run_workflow.assert_called_once()
