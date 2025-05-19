@@ -303,9 +303,15 @@ class ArgCountSpecifier(abc.ABC):
 
 
 class BaserowExpressionContext:
-    def __init__(self, model: Type[Model], model_instance: Optional[Model]):
+    def __init__(
+        self,
+        model: Type[Model],
+        model_instance: Optional[Model],
+        cte_collector: "CTECollector",
+    ):
         self.model = model
         self.model_instance = model_instance
+        self.cte_collector = cte_collector
         try:
             # TODO: rename to workspace
             self.group = model.get_root()

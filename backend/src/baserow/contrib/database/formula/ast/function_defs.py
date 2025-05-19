@@ -1220,7 +1220,7 @@ class BaserowHasOption(TwoArgumentBaserowFunction):
             self.to_django_expression(args[0].expression, args[1].expression), args
         )
         subquery = construct_aggregate_wrapper_queryset(
-            expr_with_metadata, context.model
+            expr_with_metadata, context.model, context.cte_collector
         )
 
         # This subquery would return more than one row, but we only care if
@@ -2017,6 +2017,7 @@ def array_agg_expression(
             expr, pre_annotations, aggregate_filters, join_ids
         ),
         context.model,
+        context.cte_collector,
     ).expression
     return WrappedExpressionWithMetadata(
         Coalesce(
@@ -2697,6 +2698,7 @@ class BaserowAggJoin(TwoArgumentBaserowFunction):
                 join_ids,
             ),
             context.model,
+            context.cte_collector,
         )
 
 

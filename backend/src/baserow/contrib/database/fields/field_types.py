@@ -170,7 +170,7 @@ from .dependencies.exceptions import (
 from .dependencies.handler import FieldDependants, FieldDependencyHandler
 from .dependencies.models import FieldDependency
 from .dependencies.types import FieldDependencies
-from .dependencies.update_collector import FieldUpdateCollector
+from .dependencies.update_collector import FieldUpdateCollector, CTECollector
 from .exceptions import (
     AllProvidedCollaboratorIdsMustBeValidUsers,
     AllProvidedMultipleSelectValuesMustBeSelectOption,
@@ -5560,10 +5560,12 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]],
     ):
+        update_collector.cte_collector.set_last_path_to_starting_table(via_path_to_starting_table)
         update_statement = (
             FormulaHandler.baserow_expression_to_update_django_expression(
                 field.cached_typed_internal_expression,
                 field_cache.get_model(field.table),
+                update_collector.cte_collector,
             )
         )
         update_collector.add_field_with_pending_update_statement(
@@ -5628,7 +5630,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         via_path_to_starting_table: Optional[List[LinkRowField]] = None,
     ):
         expr = FormulaHandler.recalculate_formula_and_get_update_expression(
-            field, old_field, field_cache
+            field, old_field, field_cache, update_collector.cte_collector
         )
         # Check if the formula field type has changed. This can for example change into
         # an invalid type. If so, then we need to call the `add_to_fields_type_changed`
@@ -5660,10 +5662,14 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         """
 
         model = field.table.get_model()
+        cte_collector = CTECollector()
         expr = FormulaHandler.baserow_expression_to_update_django_expression(
-            field.cached_typed_internal_expression, model
+            field.cached_typed_internal_expression, model, cte_collector
         )
-        model.objects_and_trash.all().update(**{f"{field.db_column}": expr})
+        update_queryset = model.objects_and_trash.all()
+        for cte_with in cte_collector.add_starting_table_filters_and_get_all():
+            update_queryset = update_queryset.with_cte(cte_with)
+        update_queryset.update(**{f"{field.db_column}": expr})
 
     def after_rows_created(
         self,
@@ -5687,10 +5693,15 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         to_field_kwargs,
     ):
         to_model = to_field.table.get_model()
+
+        cte_collector = CTECollector()
         expr = FormulaHandler.baserow_expression_to_update_django_expression(
-            to_field.cached_typed_internal_expression, to_model
+            to_field.cached_typed_internal_expression, to_model, cte_collector
         )
-        to_model.objects_and_trash.all().update(**{f"{to_field.db_column}": expr})
+        update_queryset = to_model.objects_and_trash.all()
+        for cte_with in cte_collector.add_starting_table_filters_and_get_all():
+            update_queryset = update_queryset.with_cte(cte_with)
+        update_queryset.update(**{f"{to_field.db_column}": expr})
 
     def after_import_serialized(self, field, field_cache, id_mapping):
         field.save(recalculate=True, field_cache=field_cache)
