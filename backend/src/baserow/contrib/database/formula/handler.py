@@ -128,57 +128,6 @@ class FormulaHandler(metaclass=baserow_trace_methods(tracer)):
             expression, model, cte_collector
         )
 
-    # @classmethod
-    # def baserow_expression_to_row_update_django_expression(
-    #     cls,
-    #     expression: BaserowExpression,
-    #     model_instance: Model,
-    # ) -> Expression:
-    #     """
-    #     Converts the provided baserow expression to a django expression that can be
-    #     used to update a single row for a specific model instance.
-    #     Compared to the django expression from the alternate update method above this
-    #     expression will contain the values taken directly from the provided model
-    #     instance (row) and use those in place of field references when they are in the
-    #     same table. Lookup functions/field references will still join and calculate
-    #     the results using all related tables.
-    #
-    #     :param expression: A fully typed internal Baserow expression.
-    #     :param model_instance: The instance of the row that is about to be updated.
-    #     :return: A Django Expression for use in single row .save() call.
-    #     """
-    #
-    #     return baserow_expression_to_single_row_update_django_expression(
-    #         expression, model_instance
-    #     )
-
-    # @classmethod
-    # def baserow_expression_to_insert_django_expression(
-    #     cls,
-    #     expression: BaserowExpression,
-    #     model_instance: Model,
-    # ) -> Expression:
-    #     """
-    #     Converts the provided baserow expression that can be used when inserting a
-    #     new row.
-    #     Compared to the django expression from the alternate update methods above this
-    #     expression will contain the values taken directly from the provided model
-    #     instance (row) and use those in place of field references. However it will
-    #     also not perform any aggregate joining to calculate lookup expressions as
-    #     there is no row yet to join with. Instead any such expressions will evaluate
-    #     to None and you should refresh the row using the
-    #     baserow_expression_to_single_row_update_django_expression after it has been
-    #     inserted if your expression does containing aggregates.
-    #
-    #     :param expression: A fully typed internal Baserow expression.
-    #     :param model_instance: The instance of the row that is about to be inserted.
-    #     :return: A Django Expression for use in an insert statement.
-    #     """
-    #
-    #     return baserow_expression_to_insert_django_expression(
-    #         expression, model_instance
-    #     )
-
     @classmethod
     def get_normal_field_reference_expression(
         cls, field, formula_type: BaserowFormulaType

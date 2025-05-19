@@ -1,7 +1,7 @@
 import abc
 import hashlib
 from datetime import timedelta
-from typing import List, Type, Dict
+from typing import Dict, List, Type
 
 from django.db.models import (
     DecimalField,
@@ -328,7 +328,7 @@ def construct_aggregate_wrapper_queryset(
     # Create a unique key based on the table name, pre annotations and the aggregate
     # filters. If there are multiple aggregates, then only one CTE query has to be
     # created.
-    cte_key = f"table_{model.baserow_table.id}"
+    cte_key = f""
     for key in sorted(expr_with_metadata.pre_annotations.keys()):
         cte_key += f"__{key}"
     aggregate_filters = aggregate_expr_with_metadata_filters(expr_with_metadata)
@@ -337,7 +337,7 @@ def construct_aggregate_wrapper_queryset(
     ).hexdigest()
     cte_key += f"__{aggregate_filters_key}"
 
-    if not cte_collector.has(cte_key):
+    if not cte_collector.has(model.baserow_table.id, cte_key):
         # We need to enforce that each filtered relation is not null so django generates
         # us inner joins.
         not_null_filters_for_inner_join = construct_not_null_filters_for_inner_join(
@@ -368,7 +368,9 @@ def construct_aggregate_wrapper_queryset(
     with_cte.set_source_queryset(cte_queryset)
     with_cte = with_cte.add_lazy_values(result_key_for_cte)
 
-    cte_collector.add_or_update(with_cte, cte_collector.last_path_to_starting_table)
+    cte_collector.add_or_update(
+        model.baserow_table.id, with_cte, cte_collector.last_path_to_starting_table
+    )
 
     cte_queryset = (
         with_cte.queryset().filter(id=OuterRef("id")).values(result_key_for_cte)

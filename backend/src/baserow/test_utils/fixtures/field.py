@@ -365,7 +365,9 @@ class FieldFixtures:
                     field.cached_typed_internal_expression, model, cte_collector
                 )
                 update_queryset = model.objects_and_trash.all()
-                for cte_with in cte_collector.add_starting_table_filters_and_get_all():
+                for cte_with in cte_collector.add_starting_table_filters_and_get_all(
+                    field.table_id
+                ):
                     update_queryset = update_queryset.with_cte(cte_with)
                 update_queryset.update(**{f"{field.db_column}": expr})
 

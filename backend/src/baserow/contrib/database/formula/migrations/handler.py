@@ -81,7 +81,7 @@ def _recalculate_formula_metadata_dependencies_first_order(
                     force_recreate_column=force_recreate_columns,
                 )
                 update_queryset = model.objects_and_trash.all()
-                for cte_with in cte_collector.add_starting_table_filters_and_get_all():
+                for cte_with in cte_collector.add_starting_table_filters_and_get_all(field.table_id):
                     update_queryset = update_queryset.with_cte(cte_with)
                 update_queryset.update(**{f"{field.db_column}": expr})
                 fields_type_changed.send(

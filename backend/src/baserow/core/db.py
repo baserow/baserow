@@ -2,11 +2,8 @@ import contextlib
 import random
 import time
 from collections import defaultdict
-from copy import deepcopy
 from decimal import Decimal
 from functools import cache, wraps
-
-from django_cte.meta import CTEColumns
 from math import ceil
 from typing import (
     Any,
@@ -31,9 +28,8 @@ from django.db.models.sql.query import LOOKUP_SEP
 from django.db.transaction import Atomic, get_connection
 
 from django_cte.cte import With
-
+from django_cte.meta import CTEColumns
 from loguru import logger
-from oauthlib.uri_validate import query
 
 from baserow.contrib.database.exceptions import DeadlockException
 from baserow.core.psycopg import is_deadlock_error, sql

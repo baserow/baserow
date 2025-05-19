@@ -1,8 +1,9 @@
 """
 This file tests the link row field in combination with RBAC enabled
 """
-import pytest
 from django.db import transaction
+
+import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.formula import InvalidFormulaType

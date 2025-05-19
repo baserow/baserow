@@ -3,6 +3,7 @@ from copy import deepcopy
 from typing import Dict, List, Optional, Set, Tuple, cast
 
 from django.db.models import Expression, Q, Value
+
 from django_cte import With
 
 from baserow.contrib.database.fields.field_cache import FieldCache
@@ -17,6 +18,92 @@ from baserow.contrib.database.table.signals import table_updated
 from baserow.core.db import UpdatableCTEWith
 
 StartingRowIdsType = Optional[List[int]]
+
+
+class CTECollector:
+    """
+    @TODO docs.
+    """
+
+    def __init__(self, starting_row_ids: Optional[List[int]] = None):
+        self.cte = defaultdict(dict)
+        self.starting_row_ids = starting_row_ids
+        self.last_path_to_starting_table = None
+
+    def has(self, table_id, name: str):
+        return name in self.cte[table_id]
+
+    def get(self, table_id, name: str):
+        return self.cte[table_id][name]["with"]
+
+    def add_or_update(
+        self,
+        table_id,
+        cte_with: UpdatableCTEWith,
+        path_to_starting_table: Optional[List[LinkRowField]] = None,
+    ):
+        if cte_with.name in self.cte[table_id]:
+            self.cte[table_id][cte_with.name]["with"] = cte_with
+            if path_to_starting_table is not None:
+                self.cte[table_id][cte_with.name][
+                    "path_to_starting_table"
+                ] = path_to_starting_table
+        else:
+            self.cte[table_id][cte_with.name] = {
+                "with": cte_with,
+                "path_to_starting_table": path_to_starting_table,
+            }
+
+    def set_last_path_to_starting_table(self, value):
+        self.last_path_to_starting_table = value
+
+    def add_starting_table_filters_and_get_all(
+        self, table_id
+    ) -> List[UpdatableCTEWith | With]:
+        """
+        Returns a list containing all the CTE `With` objects that have been collected.
+        If `starting_row_ids` are set, then those are applied to add ctes as filters,
+        so that no unnecessary computations are done.
+
+        :return:
+        """
+
+        cte = list(self.cte[table_id].values())
+        cte_withs = []
+        starting_row_ids = self.starting_row_ids
+
+        for cte_object in cte:
+            path_to_starting_table = cte_object.get("path_to_starting_table", None)
+            cte_with = cte_object["with"]
+
+            if (
+                path_to_starting_table is not None
+                and len(path_to_starting_table) > 0
+                and starting_row_ids is not None
+            ):
+                # Reverse the path to the starting table because the last item in the
+                # list is where we must start.
+                reversed_path = deepcopy(path_to_starting_table)
+                reversed_path.reverse()
+                cte_queryset = cte_with.get_source_queryset()
+                path_to_starting_table_row_id_column = ""
+
+                # Loop over the remaining paths back to the starting table, so that we
+                # can do append the correct lookup
+                for link_row_field in reversed_path:
+                    path_to_starting_table_row_id_column += (
+                        f"{link_row_field.db_column}__"
+                    )
+                cte_queryset = cte_queryset.filter(
+                    **{
+                        f"{path_to_starting_table_row_id_column}id__in": starting_row_ids
+                    }
+                )
+                cte_with.set_source_queryset(cte_queryset)
+
+            cte_withs.append(cte_with)
+
+        return cte_withs
 
 
 class PathBasedUpdateStatementCollector:
@@ -98,7 +185,10 @@ class PathBasedUpdateStatementCollector:
                 # related link field that is being deleted, nothing to do as a separate
                 # update will fix this column.
                 return
-            next_link_db_column = next_via_field_link.db_column
+            # If a table has multiple link row fields pointing to the same table,
+            # then we want to only have one update query instead of N per link row
+            # field.
+            next_link_db_column = f"table_{next_via_field_link.table_id}"
             if next_link_db_column not in self.sub_paths:
                 self.sub_paths[next_link_db_column] = PathBasedUpdateStatementCollector(
                     next_via_field_link.table,
@@ -134,7 +224,7 @@ class PathBasedUpdateStatementCollector:
         starting_row_ids: StartingRowIdsType = None,
         path_to_starting_table: StartingRowIdsType = None,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]] = None,
-        cte: Optional[List[UpdatableCTEWith | With]] = None,
+        cte_collector: Optional[CTECollector] = None,
     ) -> int:
         updated_rows = 0
         path_to_starting_table = path_to_starting_table or []
@@ -145,16 +235,17 @@ class PathBasedUpdateStatementCollector:
             path_to_starting_table,
             starting_row_ids,
             deleted_m2m_rels_per_link_field,
-            cte=cte,
+            cte_collector=cte_collector,
         )
 
         for sub_path in self.sub_paths.values():
+            print("sub 1")
             updated_rows += sub_path.execute_all(
                 starting_row_ids=starting_row_ids,
                 path_to_starting_table=path_to_starting_table,
                 field_cache=field_cache,
                 deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
-                cte=cte,
+                cte_collector=cte_collector,
             )
         return updated_rows
 
@@ -164,7 +255,7 @@ class PathBasedUpdateStatementCollector:
         path_to_starting_table: List[LinkRowField],
         starting_row_ids: StartingRowIdsType,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]],
-        cte: Optional[List[UpdatableCTEWith | With]] = None,
+        cte_collector: Optional[CTECollector] = None,
     ) -> int:
         model = field_cache.get_model(self.table)
         qs = model.objects_and_trash
@@ -222,6 +313,7 @@ class PathBasedUpdateStatementCollector:
 
             update_queryset = qs.annotate(**annotations).filter(filters)
 
+            cte = cte_collector.add_starting_table_filters_and_get_all(self.table.id)
             if cte:
                 for cte_with in cte:
                     update_queryset = update_queryset.with_cte(cte_with)
@@ -291,89 +383,6 @@ class FieldUpdatesTracker(defaultdict):
 
     def fields(self, table):
         return self[table].keys()
-
-
-class CTECollector:
-    """
-    @TODO docs.
-    """
-
-    def __init__(self, starting_row_ids: Optional[List[int]] = None):
-        self.cte = {}
-        self.starting_row_ids = starting_row_ids
-        self.last_path_to_starting_table = None
-
-    def has(self, name: str):
-        return name in self.cte
-
-    def get(self, name: str):
-        return self.cte[name]["with"]
-
-    def add_or_update(
-        self,
-        cte_with: UpdatableCTEWith,
-        path_to_starting_table: Optional[List[LinkRowField]] = None,
-    ):
-        if cte_with.name in self.cte:
-            self.cte[cte_with.name]["with"] = cte_with
-            if path_to_starting_table is not None:
-                self.cte[cte_with.name][
-                    "path_to_starting_table"
-                ] = path_to_starting_table
-        else:
-            self.cte[cte_with.name] = {
-                "with": cte_with,
-                "path_to_starting_table": path_to_starting_table,
-            }
-
-    def set_last_path_to_starting_table(self, value):
-        self.last_path_to_starting_table = value
-
-    def add_starting_table_filters_and_get_all(self) -> List[UpdatableCTEWith | With]:
-        """
-        Returns a list containing all the CTE `With` objects that have been collected.
-        If `starting_row_ids` are set, then those are applied to add ctes as filters,
-        so that no unnecessary computations are done.
-
-        :return:
-        """
-
-        cte = list(self.cte.values())
-        cte_withs = []
-        starting_row_ids = self.starting_row_ids
-
-        for cte_object in cte:
-            path_to_starting_table = cte_object.get("path_to_starting_table", None)
-            cte_with = cte_object["with"]
-
-            if (
-                path_to_starting_table is not None
-                and len(path_to_starting_table) > 0
-                and starting_row_ids is not None
-            ):
-                # Reverse the path to the starting table because the last item in the
-                # list is where we must start.
-                reversed_path = deepcopy(path_to_starting_table)
-                reversed_path.reverse()
-                cte_queryset = cte_with.get_source_queryset()
-                path_to_starting_table_row_id_column = ""
-
-                # Loop over the remaining paths back to the starting table, so that we
-                # can do append the correct lookup
-                for link_row_field in reversed_path:
-                    path_to_starting_table_row_id_column += (
-                        f"{link_row_field.db_column}__"
-                    )
-                cte_queryset = cte_queryset.filter(
-                    **{
-                        f"{path_to_starting_table_row_id_column}id__in": starting_row_ids
-                    }
-                )
-                cte_with.set_source_queryset(cte_queryset)
-
-            cte_withs.append(cte_with)
-
-        return cte_withs
 
 
 class FieldUpdateCollector:
@@ -511,7 +520,7 @@ class FieldUpdateCollector:
             field_cache,
             self._starting_row_ids,
             deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
-            cte=self.cte_collector.add_starting_table_filters_and_get_all(),
+            cte_collector=self.cte_collector,
         )
 
         return updated_rows_count

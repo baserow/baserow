@@ -170,7 +170,7 @@ from .dependencies.exceptions import (
 from .dependencies.handler import FieldDependants, FieldDependencyHandler
 from .dependencies.models import FieldDependency
 from .dependencies.types import FieldDependencies
-from .dependencies.update_collector import FieldUpdateCollector, CTECollector
+from .dependencies.update_collector import CTECollector, FieldUpdateCollector
 from .exceptions import (
     AllProvidedCollaboratorIdsMustBeValidUsers,
     AllProvidedMultipleSelectValuesMustBeSelectOption,
@@ -5560,7 +5560,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]],
     ):
-        update_collector.cte_collector.set_last_path_to_starting_table(via_path_to_starting_table)
+        update_collector.cte_collector.set_last_path_to_starting_table(
+            via_path_to_starting_table
+        )
         update_statement = (
             FormulaHandler.baserow_expression_to_update_django_expression(
                 field.cached_typed_internal_expression,
@@ -5667,7 +5669,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             field.cached_typed_internal_expression, model, cte_collector
         )
         update_queryset = model.objects_and_trash.all()
-        for cte_with in cte_collector.add_starting_table_filters_and_get_all():
+        for cte_with in cte_collector.add_starting_table_filters_and_get_all(
+            field.table_id
+        ):
             update_queryset = update_queryset.with_cte(cte_with)
         update_queryset.update(**{f"{field.db_column}": expr})
 
@@ -5699,7 +5703,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             to_field.cached_typed_internal_expression, to_model, cte_collector
         )
         update_queryset = to_model.objects_and_trash.all()
-        for cte_with in cte_collector.add_starting_table_filters_and_get_all():
+        for cte_with in cte_collector.add_starting_table_filters_and_get_all(
+            from_field.table_id
+        ):
             update_queryset = update_queryset.with_cte(cte_with)
         update_queryset.update(**{f"{to_field.db_column}": expr})
 
