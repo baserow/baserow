@@ -6,14 +6,13 @@
   color: var(--body-text-color, $black);
   text-align: var(--body-text-alignment, left);
   font-family: var(--body-font-family, Inter);
+  list-style-position: inside;
 
   .ab-list & {
     padding-left: 1.5em;
   }
 
   .markdown & {
-    margin-top: 1em;
-
     strong {
       color: var(--body-text-color, $black);
     }
