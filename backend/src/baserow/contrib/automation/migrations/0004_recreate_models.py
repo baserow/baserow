@@ -18,26 +18,6 @@ class Migration(migrations.Migration):
             name="LocalBaserowRowCreatedTriggerNode",
         ),
         migrations.CreateModel(
-            name="AutomationTriggerNode",
-            fields=[
-                (
-                    "automationnode_ptr",
-                    models.OneToOneField(
-                        auto_created=True,
-                        on_delete=django.db.models.deletion.CASCADE,
-                        parent_link=True,
-                        primary_key=True,
-                        serialize=False,
-                        to="automation.automationnode",
-                    ),
-                ),
-            ],
-            options={
-                "abstract": False,
-            },
-            bases=("automation.automationnode",),
-        ),
-        migrations.CreateModel(
             name="LocalBaserowCreateRowActionNode",
             fields=[
                 (
@@ -71,21 +51,21 @@ class Migration(migrations.Migration):
             name="LocalBaserowRowCreatedTriggerNode",
             fields=[
                 (
-                    "automationtriggernode_ptr",
+                    "automationnode_ptr",
                     models.OneToOneField(
                         auto_created=True,
                         on_delete=django.db.models.deletion.CASCADE,
                         parent_link=True,
                         primary_key=True,
                         serialize=False,
-                        to="automation.automationtriggernode",
+                        to="automation.automationnode",
                     ),
                 ),
             ],
             options={
                 "abstract": False,
             },
-            bases=("automation.automationtriggernode",),
+            bases=("automation.automationnode",),
         ),
         migrations.AddField(
             model_name="automationworkflow",
