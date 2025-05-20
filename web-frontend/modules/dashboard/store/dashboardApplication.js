@@ -65,7 +65,9 @@ export const mutations = {
   },
   UPDATE_WIDGET(state, { widgetId, values }) {
     const widget = state.widgets.find((widget) => widget.id === widgetId)
-    Vue.set(widget, 'series_config', [...values.series_config])
+    if (Array.isArray(values.series_config)) {
+      Vue.set(widget, 'series_config', [...values.series_config])
+    }
     Object.assign(widget, values)
   },
   DELETE_WIDGET(state, widgetId) {

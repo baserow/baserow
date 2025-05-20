@@ -209,3 +209,69 @@ def test_update_chart_widget_series_config_invalid_series_id(
         "detail": "The requested configuration is not allowed.",
         "error": "ERROR_WIDGET_IMPROPERLY_CONFIGURED",
     }
+
+
+@pytest.mark.django_db
+def test_update_widget_preserve_chart_config(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token()
+    workspace = premium_data_fixture.create_workspace(user=user)
+    dashboard = premium_data_fixture.create_dashboard_application(user=user)
+    data_source = premium_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
+        dashboard=dashboard, name="Name 1"
+    )
+    service = data_source.service
+    database = premium_data_fixture.create_database_application(
+        user=user, workspace=workspace
+    )
+    table = premium_data_fixture.create_database_table(database=database)
+    field = premium_data_fixture.create_number_field(table=table)
+    series_1 = LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="min", order=1
+    )
+    series_2 = LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="max", order=1
+    )
+    widget = premium_data_fixture.create_chart_widget(
+        dashboard=dashboard,
+        data_source=data_source,
+        title="Widget 1",
+        description="Description 1",
+    )
+    ChartSeriesConfig.objects.create(
+        widget=widget, series=series_1, series_chart_type="BAR"
+    )
+    ChartSeriesConfig.objects.create(
+        widget=widget, series=series_2, series_chart_type="LINE"
+    )
+
+    url = reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget.id})
+    response = api_client.patch(
+        url,
+        {
+            "title": "Title changed"
+            # series_config is not modified here
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response_json == {
+        "id": widget.id,
+        "title": "Title changed",
+        "description": "Description 1",
+        "dashboard_id": dashboard.id,
+        "data_source_id": data_source.id,
+        "order": "1.00000000000000000000",
+        "type": "chart",
+        "series_config": [
+            {
+                "series_id": series_1.id,
+                "series_chart_type": "BAR",
+            },
+            {
+                "series_id": series_2.id,
+                "series_chart_type": "LINE",
+            },
+        ],
+    }

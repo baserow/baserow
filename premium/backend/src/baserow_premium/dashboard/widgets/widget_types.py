@@ -64,62 +64,63 @@ class ChartWidgetType(WidgetType):
         )
 
     def after_update(self, updated_widget: UpdatedWidget, **kwargs) -> UpdatedWidget:
-        series_config = kwargs.get("series_config", [])
-        allowed_series_ids = updated_widget.widget.data_source.service.service_aggregation_series.values_list(
-            flat=True
-        )
-        existing_series_configs = ChartSeriesConfig.objects.filter(
-            widget=updated_widget.widget
-        )
-        existing_series_configs_by_series_id = {
-            series_conf.series_id: series_conf
-            for series_conf in existing_series_configs
-        }
-        configs_to_create = []
-        configs_to_update = []
-        used_series_ids = set()
+        series_config = kwargs.get("series_config")
+        if series_config is not None:
+            allowed_series_ids = updated_widget.widget.data_source.service.service_aggregation_series.values_list(
+                flat=True
+            )
+            existing_series_configs = ChartSeriesConfig.objects.filter(
+                widget=updated_widget.widget
+            )
+            existing_series_configs_by_series_id = {
+                series_conf.series_id: series_conf
+                for series_conf in existing_series_configs
+            }
+            configs_to_create = []
+            configs_to_update = []
+            used_series_ids = set()
 
-        for series_conf in series_config:
-            if series_conf["series_id"] not in allowed_series_ids:
-                raise WidgetImproperlyConfigured(
-                    "The series id cannot be used with the widget."
-                )
-            if series_conf["series_id"] in used_series_ids:
+            for series_conf in series_config:
+                if series_conf["series_id"] not in allowed_series_ids:
+                    raise WidgetImproperlyConfigured(
+                        "The series id cannot be used with the widget."
+                    )
+                if series_conf["series_id"] in used_series_ids:
+                    raise WidgetImproperlyConfigured(
+                        "The series id cannot be repeated in the configuration."
+                    )
+
+                if series_conf["series_id"] in existing_series_configs_by_series_id:
+                    to_update = existing_series_configs_by_series_id.pop(
+                        series_conf["series_id"]
+                    )
+                    to_update.series_chart_type = series_conf["series_chart_type"]
+                    configs_to_update.append(to_update)
+                    used_series_ids.add(series_conf["series_id"])
+                else:
+                    configs_to_create.append(
+                        ChartSeriesConfig(
+                            widget=updated_widget.widget,
+                            series_id=series_conf["series_id"],
+                            series_chart_type=series_conf["series_chart_type"],
+                        )
+                    )
+
+            ChartSeriesConfig.objects.bulk_update(
+                configs_to_update, fields=["series_chart_type"]
+            )
+            try:
+                ChartSeriesConfig.objects.bulk_create(configs_to_create)
+            except IntegrityError as ex:
                 raise WidgetImproperlyConfigured(
                     "The series id cannot be repeated in the configuration."
-                )
+                ) from ex
 
-            if series_conf["series_id"] in existing_series_configs_by_series_id:
-                to_update = existing_series_configs_by_series_id.pop(
-                    series_conf["series_id"]
-                )
-                to_update.series_chart_type = series_conf["series_chart_type"]
-                configs_to_update.append(to_update)
-                used_series_ids.add(series_conf["series_id"])
-            else:
-                configs_to_create.append(
-                    ChartSeriesConfig(
-                        widget=updated_widget.widget,
-                        series_id=series_conf["series_id"],
-                        series_chart_type=series_conf["series_chart_type"],
-                    )
-                )
+            ChartSeriesConfig.objects.filter(
+                series_id__in=existing_series_configs_by_series_id.keys()
+            ).delete()
 
-        ChartSeriesConfig.objects.bulk_update(
-            configs_to_update, fields=["series_chart_type"]
-        )
-        try:
-            ChartSeriesConfig.objects.bulk_create(configs_to_create)
-        except IntegrityError as ex:
-            raise WidgetImproperlyConfigured(
-                "The series id cannot be repeated in the configuration."
-            ) from ex
-
-        ChartSeriesConfig.objects.filter(
-            series_id__in=existing_series_configs_by_series_id.keys()
-        ).delete()
-
-        updated_widget.new_values["series_config"] = series_config
+            updated_widget.new_values["series_config"] = series_config
         return updated_widget
 
     def prepare_value_for_db(self, values: dict, instance: Widget | None = None):
