@@ -471,7 +471,10 @@
   "aggregationSeriesForm": {
     "aggregationFieldLabel": "Field",
     "aggregationTypeLabel": "Summary",
-    "deleteSeries": "Delete series"
+    "deleteSeries": "Delete series",
+    "chartType": "Chart type",
+    "barChart": "Bar",
+    "lineChart": "Line"
   },
   "aggregationGroupByForm": {
     "groupByFieldLabel": "Group by",

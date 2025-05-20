@@ -8,6 +8,7 @@
     :default-values="dataSource"
     :store-prefix="storePrefix"
     @values-changed="onDataSourceValuesChanged"
+    @widget-values-changed="widgetValuesChanged"
   />
 </template>
 
@@ -65,6 +66,20 @@ export default {
       } catch (error) {
         this.$refs.dataSourceForm.reset()
         this.$refs.dataSourceForm.touch()
+        notifyIf(error, 'dashboard')
+      }
+    },
+    async widgetValuesChanged(values) {
+      try {
+        await this.$store.dispatch(
+          `${this.storePrefix}dashboardApplication/updateWidget`,
+          {
+            widgetId: this.widget.id,
+            originalValues: this.widget,
+            values,
+          }
+        )
+      } catch (error) {
         notifyIf(error, 'dashboard')
       }
     },

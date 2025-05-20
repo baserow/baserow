@@ -226,6 +226,16 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
     @staticmethod
+    def mark_all_trash_for_permanent_deletion():
+        """
+        Updates all trash entries for permanent deletion.
+        Does not perform the deletion itself.
+        """
+
+        updated_count = TrashEntry.objects.update(should_be_permanently_deleted=True)
+        logger.info(f"Successfully marked {updated_count} trash items for deletion.")
+
+    @staticmethod
     def empty(requesting_user: User, workspace_id: int, application_id: Optional[int]):
         """
         Marks all items in the selected workspace (or application in the workspace if

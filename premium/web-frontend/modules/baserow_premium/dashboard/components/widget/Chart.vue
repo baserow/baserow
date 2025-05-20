@@ -54,6 +54,10 @@ export default {
       type: Object,
       required: true,
     },
+    seriesConfig: {
+      type: Array,
+      required: true,
+    },
   },
   computed: {
     chartOptions() {
@@ -125,12 +129,14 @@ export default {
         return this.getGroupByValue(`field_${primaryField.metadata.id}`, item)
       })
       const datasets = []
-      for (const [index, series] of this.seriesConfig.entries()) {
+      for (const [index, series] of this.chartSeries.entries()) {
         const seriesData = this.result.map((item) => {
           return item[`${series.fieldName}_${series.aggregationType}`]
         })
         const label = this.getLabel(series.fieldName, series.aggregationType)
+        const seriesConfig = this.getIndividualSeriesConfig(series.id)
         datasets.push({
+          type: seriesConfig.series_chart_type?.toLowerCase() || 'bar',
           data: seriesData,
           label,
           ...this.chartColors[index],
@@ -144,12 +150,14 @@ export default {
     chartDataNoGrouping() {
       const labels = ['']
       const datasets = []
-      for (const [index, series] of this.seriesConfig.entries()) {
+      for (const [index, series] of this.chartSeries.entries()) {
         const seriesData = [
           this.result[`${series.fieldName}_${series.aggregationType}`],
         ]
         const label = this.getLabel(series.fieldName, series.aggregationType)
+        const seriesConfig = this.getIndividualSeriesConfig(series.id)
         datasets.push({
+          type: seriesConfig.series_chart_type?.toLowerCase() || 'bar',
           data: seriesData,
           label,
           ...this.chartColors[index],
@@ -160,9 +168,10 @@ export default {
         datasets,
       }
     },
-    seriesConfig() {
+    chartSeries() {
       return this.dataSource.aggregation_series.map((item) => {
         return {
+          id: item.id,
           fieldName: `field_${item.field_id}`,
           aggregationType: item.aggregation_type,
         }
@@ -228,6 +237,9 @@ export default {
       }
 
       return item[fieldName] ?? ''
+    },
+    getIndividualSeriesConfig(seriesId) {
+      return this.seriesConfig.find((item) => item.series_id === seriesId) || {}
     },
   },
 }

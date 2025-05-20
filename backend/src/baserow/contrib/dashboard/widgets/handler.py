@@ -93,7 +93,14 @@ class WidgetHandler:
 
         if specific:
             queryset = queryset.select_related("content_type")
-            widgets = specific_iterator(queryset)
+            widgets = specific_iterator(
+                queryset,
+                per_content_type_queryset_hook=(
+                    lambda widget, queryset: widget_type_registry.get_by_model(
+                        widget
+                    ).enhance_queryset(queryset)
+                ),
+            )
         else:
             widgets = queryset
 

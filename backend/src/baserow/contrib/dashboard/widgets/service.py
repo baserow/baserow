@@ -155,6 +155,9 @@ class WidgetService:
         )
 
         updated_widget = self.handler.update_widget(widget, **kwargs)
+        updated_widget = updated_widget.widget.get_type().after_update(
+            updated_widget, **kwargs
+        )
         widget_updated.send(self, user=user, widget=updated_widget.widget)
         return updated_widget
 
