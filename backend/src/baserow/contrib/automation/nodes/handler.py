@@ -48,12 +48,12 @@ class AutomationNodeHandler:
 
     def get_nodes(
         self,
-        workflow: Optional[AutomationWorkflow] = None,
+        workflow: AutomationWorkflow,
         specific: Optional[bool] = True,
         base_queryset: Optional[QuerySet] = None,
     ) -> QuerySet:
         """
-        Returns all the nodes, optionally filtered by a workflow.
+        Returns all the nodes, filtered by a workflow.
 
         :param workflow: The workflow associated with the nodes.
         :param specific: A boolean flag indicating whether to return the specific
@@ -65,9 +65,7 @@ class AutomationNodeHandler:
         if base_queryset is None:
             base_queryset = AutomationNode.objects.all()
 
-        nodes = base_queryset
-        if workflow is not None:
-            nodes = nodes.filter(workflow=workflow)
+        nodes = base_queryset.filter(workflow=workflow)
 
         if specific:
             nodes = specific_iterator(nodes.select_related("content_type"))
