@@ -508,18 +508,12 @@ class FieldDependencyHandler:
 
         dependencies_gouped_by_level = cls.group_dependencies_by_level(dependencies)
 
-        # @TODO docs about deduplicating.
         dependent_fields_by_level = []
         for group_of_depdencies in dependencies_gouped_by_level:
             level = []
-            seen_ids = set()
             for field_id in group_of_depdencies:
                 if field_id in dependency_map:
-                    for dep in dependency_map[field_id]:
-                        field_obj = dep[0]  # extract the object from the wrapper list
-                        if field_obj.id not in seen_ids:
-                            seen_ids.add(field_obj.id)
-                            level.append(dep)  # keep the original list-wrapped format
+                    level.extend(dependency_map[field_id])
             if level:
                 dependent_fields_by_level.append(level)
 

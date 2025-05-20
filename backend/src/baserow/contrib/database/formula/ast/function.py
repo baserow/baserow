@@ -370,7 +370,7 @@ def construct_aggregate_wrapper_queryset(
 
     # @TODO docs
     path_to_starting_table = None
-    if cte_collector.last_path_to_starting_table:
+    if cte_collector.last_path_to_starting_table and expr_with_metadata.join_ids:
         first_link = model.get_field_object(expr_with_metadata.join_ids[0][0])["field"]
         path_to_starting_table = cte_collector.last_path_to_starting_table.copy()
         path_to_starting_table[-1] = first_link

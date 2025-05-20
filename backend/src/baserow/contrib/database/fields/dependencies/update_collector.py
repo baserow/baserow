@@ -185,10 +185,7 @@ class PathBasedUpdateStatementCollector:
                 # related link field that is being deleted, nothing to do as a separate
                 # update will fix this column.
                 return
-            # If a table has multiple link row fields pointing to the same table,
-            # then we want to only have one update query instead of N per link row
-            # field.
-            next_link_db_column = f"table_{next_via_field_link.table_id}"
+            next_link_db_column = next_via_field_link.db_column
             if next_link_db_column not in self.sub_paths:
                 self.sub_paths[next_link_db_column] = PathBasedUpdateStatementCollector(
                     next_via_field_link.table,
