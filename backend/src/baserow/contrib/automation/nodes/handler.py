@@ -27,13 +27,16 @@ from baserow.core.utils import MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
-    allowed_fields = ["previous_node_output"]
+    allowed_fields = ["service", "previous_node_output"]
 
-    def create_node(self, node_type: AutomationNodeType, **kwargs) -> AutomationNode:
+    def create_node(
+        self, node_type: AutomationNodeType, workflow: AutomationWorkflow, **kwargs
+    ) -> AutomationNode:
         """
         Create a new automation node.
 
         :param node_type: The automation node's type.
+        :param workflow: The workflow the automation node is associated with.
         :return: The newly created automation node instance.
         """
 
@@ -41,6 +44,7 @@ class AutomationNodeHandler:
             kwargs, self.allowed_fields + node_type.allowed_fields
         )
 
+        allowed_prepared_values["workflow"] = workflow
         node = node_type.model_class(**allowed_prepared_values)
         node.save()
 

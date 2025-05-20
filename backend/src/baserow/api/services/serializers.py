@@ -4,6 +4,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from baserow.api.polymorphic import PolymorphicSerializer
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 
@@ -121,3 +122,13 @@ class UpdateServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = ("integration_id",)
+
+
+class PolymorphicServiceSerializer(PolymorphicSerializer):
+    base_class = ServiceSerializer
+    registry = service_type_registry
+
+
+class PolymorphicServiceRequestSerializer(PolymorphicSerializer):
+    base_class = serializers.Serializer
+    registry = service_type_registry

@@ -372,6 +372,7 @@ def test_update_node(api_client, data_fixture):
     assert response.json() == {
         "id": node.id,
         "order": AnyStr(),
+        "service": AnyDict(),
         "previous_node_output": "foo",
         "type": "rows_created",
         "workflow": workflow.id,

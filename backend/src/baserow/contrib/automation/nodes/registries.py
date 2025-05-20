@@ -4,10 +4,6 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
-from baserow.contrib.builder.api.workflow_actions.serializers import (
-    PolymorphicServiceRequestSerializer,
-    PolymorphicServiceSerializer,
-)
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import (
@@ -36,30 +32,9 @@ class AutomationNodeType(
     service_type = None
     parent_property_name = "workflow"
     id_mapping_name = AUTOMATION_NODES
-    request_serializer_field_names = ["service"]
-    serializer_field_overrides = {
-        "service": PolymorphicServiceSerializer(
-            help_text="The service which this workflow action is associated with."
-        )
-    }
-    request_serializer_field_overrides = {
-        "service": PolymorphicServiceRequestSerializer(
-            default=None,
-            required=False,
-            help_text="The service which this workflow action is associated with.",
-        )
-    }
 
     class SerializedDict(AutomationNodeDict):
         service: Dict
-
-    @property
-    def serializer_field_names(self):
-        return super().serializer_field_names + ["service", "workflow", "order"]
-
-    @property
-    def allowed_fields(self):
-        return super().allowed_fields + ["service", "workflow", "order"]
 
     def export_prepared_values(self, node: AutomationNode) -> Dict[Any, Any]:
         """

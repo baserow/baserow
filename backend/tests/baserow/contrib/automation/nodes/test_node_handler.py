@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 import pytest
 
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotInWorkflow
@@ -71,7 +69,6 @@ def test_export_prepared_values(data_fixture):
     values = node.get_type().export_prepared_values(node)
 
     assert values == {
-        "order": Decimal("1.00000000000000000000"),
         "service": AnyDict(),
         "workflow": node.workflow_id,
     }

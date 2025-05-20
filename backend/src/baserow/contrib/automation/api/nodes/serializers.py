@@ -4,13 +4,21 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from baserow.api.workflow_actions.serializers import WorkflowActionSerializer
+from baserow.api.services.serializers import (
+    PolymorphicServiceRequestSerializer,
+    PolymorphicServiceSerializer,
+)
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 
 
-class AutomationNodeSerializer(WorkflowActionSerializer):
+class AutomationNodeSerializer(serializers.ModelSerializer):
     """Basic automation node serializer."""
+
+    type = serializers.SerializerMethodField(help_text="The automation node type.")
+    service = PolymorphicServiceSerializer(
+        help_text="The service associated with this automation node."
+    )
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
@@ -18,11 +26,13 @@ class AutomationNodeSerializer(WorkflowActionSerializer):
 
     class Meta:
         model = AutomationNode
-        fields = ("id", "order", "workflow", "type", "previous_node_output")
+        fields = ("id", "order", "service", "workflow", "type", "previous_node_output")
 
         extra_kwargs = {
             "id": {"read_only": True},
             "workflow_id": {"read_only": True},
+            "type": {"read_only": True},
+            "order": {"read_only": True, "help_text": "Lowest first."},
         }
 
 
@@ -39,9 +49,16 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
 
 
 class UpdateAutomationNodeSerializer(serializers.ModelSerializer):
+    service = PolymorphicServiceRequestSerializer(
+        required=False, help_text="The service associated with this automation node."
+    )
+
     class Meta:
         model = AutomationNode
-        fields = ("previous_node_output",)
+        fields = (
+            "service",
+            "previous_node_output",
+        )
 
 
 class OrderAutomationNodesSerializer(serializers.Serializer):
