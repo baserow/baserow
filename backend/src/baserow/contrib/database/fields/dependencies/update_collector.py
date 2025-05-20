@@ -2,7 +2,7 @@ from collections import defaultdict
 from copy import deepcopy
 from typing import Dict, List, Optional, Set, Tuple, cast
 
-from django.db.models import Expression, Q, Value
+from django.db.models import Expression, Q, Value, OuterRef, Exists
 
 from django_cte import With
 
@@ -64,17 +64,7 @@ class CTECollector:
     def set_last_path_to_starting_table(self, value):
         self.last_path_to_starting_table = value
 
-    def add_starting_table_filters_and_get_all(
-        self, table_id
-    ) -> List[UpdatableCTEWith | With]:
-        """
-        Returns a list containing all the CTE `With` objects that have been collected.
-        If `starting_row_ids` are set, then those are applied to add ctes as filters,
-        so that no unnecessary computations are done.
-
-        :return:
-        """
-
+    def add_starting_table_filters_and_get_all(self, table_id) -> List[UpdatableCTEWith | With]:
         cte = list(self.cte[table_id].values())
         cte_withs = []
         starting_row_ids = self.starting_row_ids
@@ -88,30 +78,31 @@ class CTECollector:
                 and len(path_to_starting_table) > 0
                 and starting_row_ids is not None
             ):
-                # Reverse the path to the starting table because the last item in the
-                # list is where we must start.
+                # TODO IDEA: move the subquery into a CTE to improve performance.
+
                 reversed_path = deepcopy(path_to_starting_table)
                 reversed_path.reverse()
                 cte_queryset = cte_with.get_source_queryset()
+
+                # Build the lookup path dynamically
                 path_to_starting_table_row_id_column = ""
-
-                # Loop over the remaining paths back to the starting table, so that we
-                # can do append the correct lookup
                 for link_row_field in reversed_path:
-                    path_to_starting_table_row_id_column += (
-                        f"{link_row_field.db_column}__"
-                    )
-                path_to_starting_table_row_id_column += "id__in"
+                    path_to_starting_table_row_id_column += f"{link_row_field.db_column}__"
+                path_to_starting_table_row_id_column += "id"
 
-                filter_for_rows_connected_to_starting_row = Q(
-                    **{path_to_starting_table_row_id_column: starting_row_ids}
-                ) | include_rows_connected_to_deleted_m2m_relationships(
+                # Precompute matching IDs in one efficient query
+                filter_query = cte_queryset.model.objects.filter(
+                    **{f"{path_to_starting_table_row_id_column}__in": starting_row_ids}
+                ).values_list("id", flat=True)
+
+                # Use that in a single filter with `__in`
+                base_filter = Q(id__in=filter_query)
+                final_filter = base_filter | include_rows_connected_to_deleted_m2m_relationships(
                     self._deleted_m2m_rels_per_link_field,
                     path_to_starting_table,
                 )
-                cte_queryset = cte_queryset.filter(
-                    filter_for_rows_connected_to_starting_row
-                )
+
+                cte_queryset = cte_queryset.filter(final_filter)
                 cte_with.set_source_queryset(cte_queryset)
 
             cte_withs.append(cte_with)
