@@ -133,6 +133,8 @@ class TableTrashableItemType(TrashableItemType):
             model = trashed_item.get_model()
             schema_editor.delete_model(model)
 
+        # todo: remove search table as well (use signal)
+
         trashed_item.delete()
 
     # noinspection PyMethodMayBeStatic

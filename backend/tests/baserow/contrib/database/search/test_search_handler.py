@@ -248,8 +248,6 @@ def test_querying_table_with_trashed_field_doesnt_include_its_tsv(
     assert len(m2m.all()) == 1
 
     TrashHandler.trash(user, database.workspace, database, link_field)
-    # Force delete the tsv so if it gets queryed by the SQL it crashes the test
-    SearchHandler.after_field_perm_delete(link_field)
 
     requeried_rows_from_a = list(table_a.get_model().objects.all())
     assert len(requeried_rows_from_a) == 1

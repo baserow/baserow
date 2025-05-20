@@ -108,7 +108,7 @@ class TableUsageHandler:
                 table_id=table_id, row_count=row_count, timestamp=Now()
             )
         except IntegrityError as integrity_exc:
-            if f"violates foreign key constraint" in str(integrity_exc):
+            if "violates foreign key constraint" in str(integrity_exc):
                 # we can safely ignore the exception and don't try to
                 # update usage for non existing tables
                 return None
@@ -317,7 +317,9 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
 
         try:
             table = base_queryset.select_related(
-                "database__workspace", "data_sync"
+                "database__workspace",
+                "data_sync",
+                "database__workspace__workspacedatabasesettings",
             ).get(id=table_id)
         except Table.DoesNotExist:
             raise TableDoesNotExist(f"The table with id {table_id} does not exist.")

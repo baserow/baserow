@@ -483,7 +483,9 @@ def test_create_table_with_data(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_create_table_with_data_sync(api_client, data_fixture, patch_filefield_storage):
+def test_create_table_with_data_sync(
+    api_client, data_fixture, patch_filefield_storage, enable_singleton_testing
+):
     user, token = data_fixture.create_user_and_token()
     database = data_fixture.create_database_application(user=user)
     url = reverse("api:database:tables:list", kwargs={"database_id": database.id})
@@ -510,22 +512,23 @@ def test_create_table_with_data_sync(api_client, data_fixture, patch_filefield_s
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_INITIAL_SYNC_TABLE_DATA_LIMIT_EXCEEDED"
 
-    with patch_filefield_storage():
-        response = api_client.post(
-            url,
-            {
-                "name": "Test 1",
-                "data": [
-                    ["A", "B", "C", "D"],
-                    ["1-1", "1-2", "1-3", "1-4", "1-5"],
-                    ["2-1", "2-2", "2-3"],
-                    ["3-1", "3-2"],
-                ],
-                "first_row_header": True,
-            },
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
+    with override_settings(USE_PG_FULLTEXT_SEARCH=False):
+        with patch_filefield_storage():
+            response = api_client.post(
+                url,
+                {
+                    "name": "Test 1",
+                    "data": [
+                        ["A", "B", "C", "D"],
+                        ["1-1", "1-2", "1-3", "1-4", "1-5"],
+                        ["2-1", "2-2", "2-3"],
+                        ["3-1", "3-2"],
+                    ],
+                    "first_row_header": True,
+                },
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
 

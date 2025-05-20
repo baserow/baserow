@@ -20,6 +20,7 @@ from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.field_filters import FilterBuilder
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.search.handler import SearchHandler
+from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_filter_type_registry
@@ -714,8 +715,19 @@ class LocalBaserowTableServiceSearchableMixin:
 
         if isinstance(used_fields_from_parent, list) and service.search_query:
             fields = [fo["field"] for fo in self.get_table_field_objects(service) or []]
+            if not fields:
+                return []
+
+            table = fields[0].table
+
             return used_fields_from_parent + [
-                f.tsv_db_column if SearchHandler.full_text_enabled() else f.db_column
+                # f.db_column
+                f.tsv_db_column
+                if (
+                    SearchHandler.full_text_enabled()
+                    and table.search_data_state != SearchTableState.DONE
+                )
+                else f.db_column
                 for f in fields
             ]
 

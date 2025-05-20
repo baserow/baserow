@@ -32,6 +32,8 @@ from baserow.contrib.database.fields.models import (
     UUIDField,
 )
 from baserow.contrib.database.formula import FormulaHandler
+from baserow.contrib.database.search.types import SearchTableState
+from baserow.contrib.database.table.models import Table
 
 
 class FieldFixtures:
@@ -47,12 +49,18 @@ class FieldFixtures:
             self.create_tsv_for_field(field)
 
     def create_tsv_for_field(self, field):
+        table: "Table" = field.table
+        # migrated, or during migration
+        print("adding tsv from fixture", table, table.search_data_state)
+        if table.search_data_state in {SearchTableState.DONE, SearchTableState.INITED}:
+            return
         with safe_django_schema_editor() as schema_editor:
             model = field.table.get_model(
                 fields=[field], field_ids=[], add_dependencies=False
             )
             tsv_model_field = model._meta.get_field(field.tsv_db_column)
             schema_editor.add_field(model, tsv_model_field)
+            print("tsv in", field, tsv_model_field)
 
     def create_select_option(self, user=None, **kwargs):
         if "value" not in kwargs:

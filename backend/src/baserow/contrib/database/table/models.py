@@ -39,7 +39,12 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.fields.registries import FieldType, field_type_registry
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
-from baserow.contrib.database.search.handler import SearchHandler, SearchModes
+from baserow.contrib.database.search.handler import (
+    SearchBuilder,
+    SearchHandler,
+    SearchModes,
+)
+from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.table.cache import (
     get_cached_model_field_attrs,
     set_cached_model_field_attrs,
@@ -139,22 +144,41 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, CTEQuerySet):
         if len(sanitized_search) == 0:
             return self.filter(id__in=[])
 
-        # We use "raw" as we can't use XXX, so if someone had a cell for "cheese" and
-        # searches for "chee", we need to be able to match it with "$$chee$$:*"
-        search_query = SearchQuery(
-            sanitized_search,
-            search_type="raw",
-            config=SearchHandler.search_config(),
-        )
-
         filter_builder = FilterBuilder(filter_type=FILTER_TYPE_OR)
 
         self._add_exact_id_search(filter_builder, input_search)
+        filter_builder.apply_to_queryset(self)
 
-        for field in self.model.get_searchable_fields():
-            if only_search_by_field_ids is None or field.id in only_search_by_field_ids:
-                filter_builder.filter(Q(**{field.tsv_db_column: search_query}))
-        return filter_builder.apply_to_queryset(self)
+        table: Table = self.model.get_parent()
+        # use workspace-wide search, if a table is marked as migrated
+        if table.search_data_state == SearchTableState.DONE:
+            search_model = SearchHandler.get_search_table_model(
+                table.database.workspace_id
+            )
+            sb = SearchBuilder(table, search_model, self.model)
+            sb.add_term(sanitized_search, only_search_by_field_ids or "*")
+            q = sb.get_queryset(self)
+            return q
+        else:
+            # We use "raw" as we can't use XXX, so if someone had a cell for "cheese"
+            # and searches for "chee", we need to be able to match it with "$$chee$$:*"
+            search_query = SearchQuery(
+                sanitized_search,
+                search_type="raw",
+                config=SearchHandler.search_config(),
+            )
+
+            filter_builder = FilterBuilder(filter_type=FILTER_TYPE_OR)
+
+            self._add_exact_id_search(filter_builder, input_search)
+
+            for field in self.model.get_searchable_fields():
+                if (
+                    only_search_by_field_ids is None
+                    or field.id in only_search_by_field_ids
+                ):
+                    filter_builder.filter(Q(**{field.tsv_db_column: search_query}))
+            return filter_builder.apply_to_queryset(self)
 
     def _add_exact_id_search(self, filter_builder, input_search):
         try:
@@ -513,12 +537,12 @@ class TableModelTrashAndObjectsManager(models.Manager):
 
     def get_queryset(self):
         qs = TableModelQuerySet(self.model, using=self._db)
-        for field in self.model.get_fields_with_search_index(include_trash=True):
-            try:
-                qs = qs.defer(field.tsv_db_column)
-            except DjangoFieldDoesNotExist:
-                # THe model has been generated without TSVs so no need to defer.
-                pass
+        # for field in self.model.get_fields_with_search_index(include_trash=True):
+        #     try:
+        #         qs = qs.defer(field.tsv_db_column)
+        #     except DjangoFieldDoesNotExist:
+        #         # THe model has been generated without TSVs so no need to defer.
+        #         pass
         return qs
 
 
@@ -964,6 +988,14 @@ class Table(
         help_text="Indicates whether the table has had the created_by column added.",
     )
 
+    search_data_state = models.CharField(
+        null=True,
+        default=None,
+        max_length=64,
+        choices=SearchTableState,
+        help_text="Indicates the state of search data migration for the table, from in-table tsv columns to workspace-wide search table.",
+    )
+
     class Meta:
         ordering = ("order",)
 
@@ -1199,9 +1231,10 @@ class Table(
             default=1,
         )
 
-        self._add_search_tsvector_fields_to_model(
-            field_attrs, indexes, force_add_tsvectors
-        )
+        if self.search_data_state != SearchTableState.DONE:
+            self._add_search_tsvector_fields_to_model(
+                field_attrs, indexes, force_add_tsvectors
+            )
 
         if self.needs_background_update_column_added:
             self._add_needs_background_update_column(field_attrs, indexes)

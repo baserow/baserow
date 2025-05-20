@@ -1,6 +1,7 @@
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.table.models import Table, TableUsage
 
 
@@ -27,7 +28,11 @@ class TableFixtures:
         storage_usage = kwargs.pop("storage_usage", None)
         if storage_usage is not None:
             usage["storage_usage"] = storage_usage
-
+        kwargs["search_data_state"] = (
+            # DISABLEd is a default for tests, so a table won't be migrated to
+            # search data table immediately after first data/schema change.
+            kwargs.get("search_data_state", SearchTableState.DISABLED)
+        )
         table = Table.objects.create(**kwargs)
         if usage:
             TableUsage.objects.create(table=table, **usage)

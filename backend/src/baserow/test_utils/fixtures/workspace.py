@@ -1,3 +1,4 @@
+from baserow.contrib.database.search.handler import SearchHandler
 from baserow.core.models import Workspace, WorkspaceInvitation, WorkspaceUser
 
 
@@ -29,6 +30,8 @@ class WorkspaceFixtures:
                 workspace=workspace, user=user, permissions=permissions, order=index
             )
 
+        # ensure workspace-wide database settings
+        SearchHandler.create_search_table_for_workspace(workspace)
         return workspace
 
     def create_user_workspace(self, **kwargs):

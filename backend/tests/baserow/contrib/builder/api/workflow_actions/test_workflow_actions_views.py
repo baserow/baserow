@@ -23,6 +23,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     UpdateRowWorkflowActionType,
 )
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
@@ -698,7 +699,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
 
 @pytest.mark.django_db(transaction=True)
 def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index_and_record_id(
-    api_client, data_fixture
+    api_client, data_fixture, enable_singleton_testing
 ):
     with transaction.atomic():
         user, token = data_fixture.create_user_and_token()
@@ -712,6 +713,9 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
                 ("Category", "text", {}),
             ],
         )
+        table.search_data_state = SearchTableState.DISABLED
+        table.save()
+
         field = table.field_set.get()
         rows = (
             RowHandler()

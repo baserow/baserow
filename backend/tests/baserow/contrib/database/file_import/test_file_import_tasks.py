@@ -42,7 +42,9 @@ from baserow.core.jobs.tasks import clean_up_jobs, run_async_job
 
 
 @pytest.mark.django_db(transaction=True)
-def test_run_file_import_task(data_fixture, patch_filefield_storage):
+def test_run_file_import_task(
+    data_fixture, patch_filefield_storage, enable_singleton_testing
+):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application()
 

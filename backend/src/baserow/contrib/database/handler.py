@@ -24,7 +24,9 @@ class DatabaseHandler:
         """
 
         if base_queryset is None:
-            base_queryset = Database.objects
+            base_queryset = Database.objects.select_related(
+                "workspace__workspacedatabasesettings"
+            )
 
         return (
             CoreHandler()

@@ -27,6 +27,8 @@ from baserow.contrib.database.data_sync.registries import DataSyncTypeRegistry
 from baserow.contrib.database.fields.exceptions import CannotDeletePrimaryField
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field, LongTextField, TextField
+from baserow.contrib.database.search.types import SearchTableState
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import GridView
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import UserNotInWorkspace
@@ -677,7 +679,9 @@ def test_sync_data_sync_table_property_removed_from_data_sync_type(data_fixture)
         synced_properties=["uid", "dtstart"],
         ical_url="https://baserow.io/ical.ics",
     )
-
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
     registry = DataSyncTypeRegistry()
 
     class TmpICalCalendarDataSync(ICalCalendarDataSyncType):
@@ -736,7 +740,9 @@ def test_sync_data_sync_table_multiple_unique_primary_properties(data_fixture):
         synced_properties=["uid", "summary"],
         ical_url="https://baserow.io/ical.ics",
     )
-
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
     registry = DataSyncTypeRegistry()
 
     class TmpICalCalendarDataSync(ICalCalendarDataSyncType):
@@ -804,6 +810,9 @@ def test_sync_data_sync_table_refresh_called(send_mock, data_fixture):
         synced_properties=["uid", "dtstart", "dtend", "summary"],
         ical_url="https://baserow.io/ical.ics",
     )
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     send_mock.assert_called_once()
@@ -835,6 +844,9 @@ def test_sync_data_sync_table_sync_error(data_fixture):
         synced_properties=["uid", "dtstart", "dtend", "summary"],
         ical_url="https://baserow.io/ical.ics",
     )
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
     data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     assert data_sync.last_sync is None
@@ -891,6 +903,10 @@ def test_sync_data_sync_table_with_formula_field_dependency(data_fixture):
         synced_properties=["uid", "dtstart", "dtend", "summary"],
         ical_url="https://baserow.io/ical.ics",
     )
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
+
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     formula = FieldHandler().create_field(
@@ -941,6 +957,9 @@ def test_sync_data_sync_table_without_all_fields_rows_updated(data_fixture):
         synced_properties=["uid", "dtstart", "summary"],
         ical_url="https://baserow.io/ical.ics",
     )
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     # Trigger for a second time to check when row is updated.
@@ -1801,6 +1820,10 @@ def test_duplicate_data_sync_field(data_fixture):
         synced_properties=["uid"],
         ical_url="https://baserow.io/ical.ics",
     )
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
+
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))

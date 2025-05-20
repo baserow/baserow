@@ -8,6 +8,7 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.service import PageService
 from baserow.contrib.database.api.rows.serializers import RowSerializer
+from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowGetRow
 from baserow.contrib.integrations.local_baserow.service_types import (
@@ -836,6 +837,9 @@ def test_can_dispatch_interesting_table(data_fixture):
         data_fixture,
         user,
     )
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
+
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )

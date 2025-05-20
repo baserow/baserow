@@ -28,6 +28,7 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.management.commands.fill_table_rows import fill_table_rows
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.table.constants import (
     LAST_MODIFIED_BY_COLUMN_NAME,
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
@@ -1145,7 +1146,9 @@ def test_usage_is_calculated_correctly_when_a_template_is_installed(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_usage_is_calculated_correctly_when_creating_a_new_table(data_fixture):
+def test_usage_is_calculated_correctly_when_creating_a_new_table(
+    data_fixture, enable_singleton_testing
+):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
 
@@ -1153,6 +1156,8 @@ def test_usage_is_calculated_correctly_when_creating_a_new_table(data_fixture):
         table, _ = TableHandler().create_table(
             user, database, name="test", fill_example=True
         )
+        table.search_data_state = SearchTableState.DISABLED
+        table.save()
 
     workspace = (
         Workspace.objects.filter(id=database.workspace.id)

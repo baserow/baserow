@@ -18,6 +18,8 @@ from baserow.contrib.database.data_sync.postgresql_data_sync_type import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import NumberField
+from baserow.contrib.database.search.types import SearchTableState
+from baserow.contrib.database.table.models import Table
 from baserow.core.db import specific_iterator
 
 
@@ -200,6 +202,9 @@ def test_sync_postgresql_data_sync(data_fixture, create_postgresql_test_table):
         postgresql_table=create_postgresql_test_table,
         postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
     )
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
 
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
@@ -298,6 +303,10 @@ def test_sync_postgresql_data_sync_nothing_changed(
         postgresql_table=create_postgresql_test_table,
         postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
     )
+
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
 
     with transaction.atomic():
         handler.sync_data_sync_table(user=user, data_sync=data_sync)
@@ -570,6 +579,10 @@ def test_postgresql_data_sync_table_connect_to_same_database(data_fixture):
                 postgresql_table="test_table",
                 postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
             )
+            table: "Table" = data_sync.table
+            table.search_data_state = SearchTableState.DISABLED
+            table.save()
+
             handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     # This is expected to fail because `postgresql_host` is equal to the
@@ -603,6 +616,9 @@ def test_postgresql_data_sync_table_connect_to_blacklist(data_fixture):
                 postgresql_table="test_table",
                 postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
             )
+            table: "Table" = data_sync.table
+            table.search_data_state = SearchTableState.DISABLED
+            table.save()
             handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     # This is expected to fail because `postgresql_host` is equal to the to one of the
@@ -632,6 +648,9 @@ def test_postgresql_data_sync_table_does_not_exist(data_fixture):
             postgresql_table="test_table_DOES_NOT_EXIST",
             postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
         )
+        table: "Table" = data_sync.table
+        table.search_data_state = SearchTableState.DISABLED
+        table.save()
         handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     assert str(e.value) == "The table test_table_DOES_NOT_EXIST does not exist."
@@ -659,6 +678,9 @@ def test_postgresql_data_sync_connection_error(data_fixture):
             postgresql_table="test_table_DOES_NOT_EXIST",
             postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
         )
+        table: "Table" = data_sync.table
+        table.search_data_state = SearchTableState.DISABLED
+        table.save()
         handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     assert "failed" in str(e.value)
@@ -687,7 +709,9 @@ def test_postgresql_data_sync_initial_table_limit(
         postgresql_table=create_postgresql_test_table,
         postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
     )
-
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
     with override_settings(INITIAL_TABLE_DATA_LIMIT=1):
         handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
@@ -752,6 +776,9 @@ def test_update_data_sync_table_changing_primary_key(
         postgresql_table=create_postgresql_test_table,
         postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
     )
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
 
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
@@ -796,6 +823,9 @@ def test_update_data_sync_table_changing_primary_key_with_different_primary_fiel
         postgresql_table=create_postgresql_test_table,
         postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
     )
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
 
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
@@ -849,6 +879,9 @@ def test_update_data_sync_table_changing_table_with_different_primary_key(
         postgresql_table=create_postgresql_test_table,
         postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
     )
+    table: "Table" = data_sync.table
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
 
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
