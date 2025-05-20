@@ -239,7 +239,6 @@ class PathBasedUpdateStatementCollector:
         )
 
         for sub_path in self.sub_paths.values():
-            print("sub 1")
             updated_rows += sub_path.execute_all(
                 starting_row_ids=starting_row_ids,
                 path_to_starting_table=path_to_starting_table,

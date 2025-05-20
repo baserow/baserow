@@ -356,7 +356,7 @@ def construct_aggregate_wrapper_queryset(
         # columns in a table.
         with_cte = with_cte.add_lazy_values("id", "order")
     else:
-        with_cte = cte_collector.get(cte_key)
+        with_cte = cte_collector.get(model.baserow_table.id, cte_key)
 
     # Update the queryset of the already existing or newly created CTE, so that the
     # needed aggregation is added to it.
@@ -367,7 +367,6 @@ def construct_aggregate_wrapper_queryset(
     )
     with_cte.set_source_queryset(cte_queryset)
     with_cte = with_cte.add_lazy_values(result_key_for_cte)
-
 
     # @TODO docs
     path_to_starting_table = None
