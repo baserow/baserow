@@ -5570,6 +5570,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
                 update_collector.cte_collector,
             )
         )
+        update_collector.cte_collector.set_last_path_to_starting_table(None)
         update_collector.add_field_with_pending_update_statement(
             field,
             update_statement,
