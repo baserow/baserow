@@ -17,6 +17,7 @@ from typing import (
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import QuerySet
 
 from loguru import logger
@@ -2552,8 +2553,11 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
         return super().before_unregister()
 
     @abstractmethod
-    def handler(self, *args, **kwargs):
+    def handle_signal(self, *args, **kwargs):
         ...
+
+    def handler(self, *args, **kwargs):
+        transaction.on_commit(lambda: self.handle_signal(*args, **kwargs))
 
 
 class LocalBaserowRowsCreatedTriggerServiceType(
@@ -2565,7 +2569,7 @@ class LocalBaserowRowsCreatedTriggerServiceType(
     type = "local_baserow_rows_created"
     model_class = LocalBaserowRowCreated
 
-    def handler(self, sender, rows, before, user, table, model, **kwargs):
+    def handle_signal(self, sender, rows, before, user, table, model, **kwargs):
         serializer = get_row_serializer_class(
             model,
             RowSerializer,

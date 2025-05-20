@@ -2037,7 +2037,7 @@ def test_unregistering_signal_service_type_disconnects_from_signal(
     assert service_type.handler not in registered_handlers
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_local_baserow_rows_created_trigger_service_type_handler(data_fixture):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
