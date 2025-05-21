@@ -21,11 +21,11 @@ from baserow.core.formula.parser.parser import convert_string_to_string_literal_
 from baserow.core.registry import Instance
 
 if typing.TYPE_CHECKING:
-    from baserow.contrib.database.formula.expression_generator.generator import (
-        WrappedExpressionWithMetadata,
-    )
     from baserow.contrib.database.fields.dependencies.update_collector import (
         CTECollector,
+    )
+    from baserow.contrib.database.formula.expression_generator.generator import (
+        WrappedExpressionWithMetadata,
     )
 
 A = TypeVar("A")

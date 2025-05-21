@@ -45,10 +45,10 @@ from baserow.core.formula.parser.parser import get_parse_tree_for_formula
 from baserow.core.telemetry.utils import baserow_trace_methods
 
 if typing.TYPE_CHECKING:
-    from baserow.contrib.database.fields.models import FormulaField
     from baserow.contrib.database.fields.dependencies.update_collector import (
         CTECollector,
     )
+    from baserow.contrib.database.fields.models import FormulaField
 
 
 tracer = trace.get_tracer(__name__)

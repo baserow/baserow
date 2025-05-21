@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Dict, List, Optional, Tuple, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Type
 
 from django.db.models import (
     BooleanField,

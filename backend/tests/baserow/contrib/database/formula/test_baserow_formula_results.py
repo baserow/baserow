@@ -1279,6 +1279,7 @@ def test_aggregate_functions_can_be_referenced_by_other_formulas(
 
         for arg_set in field_refs:
             formula = str(BaserowFunctionCall[UnTyped](formula_func, arg_set, None))
+            print(formula)
             f = FieldHandler().create_field(
                 user,
                 table,

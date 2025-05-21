@@ -5,6 +5,7 @@ from typing import List
 
 from django.contrib.postgres.aggregates import JSONBAgg
 from django.db.models import (
+    Aggregate,
     Avg,
     Case,
     Count,
@@ -2522,7 +2523,7 @@ class BaserowAny(OneArgumentBaserowFunction):
         return func_call.with_valid_type(arg.expression_type)
 
     def to_django_expression(self, arg: Expression) -> Expression:
-        return Func(arg, function="bool_or", output_field=fields.BooleanField())
+        return Aggregate(arg, function="bool_or", output_field=fields.BooleanField())
 
 
 class BaserowEvery(OneArgumentBaserowFunction):
@@ -2538,7 +2539,7 @@ class BaserowEvery(OneArgumentBaserowFunction):
         return func_call.with_valid_type(arg.expression_type)
 
     def to_django_expression(self, arg: Expression) -> Expression:
-        return Func(arg, function="every", output_field=fields.BooleanField())
+        return Aggregate(arg, function="every", output_field=fields.BooleanField())
 
 
 class BaserowMax(OneArgumentBaserowFunction):

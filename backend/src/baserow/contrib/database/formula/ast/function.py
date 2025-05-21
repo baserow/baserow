@@ -1,7 +1,7 @@
 import abc
 import hashlib
 from datetime import timedelta
-from typing import List, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Type
 
 from django.db.models import (
     DecimalField,
