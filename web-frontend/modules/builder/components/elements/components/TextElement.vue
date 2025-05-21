@@ -112,11 +112,16 @@ export default {
         },
         fence: (tokens, idx, options, env, renderer) => {
           tokens[idx].attrJoin('class', 'ab-code')
-          return renderer.renderToken(tokens, idx, options)
+
+          return `${renderer.renderToken(tokens, idx, options)}<pre>${
+            tokens[idx].content
+          }</pre></code>`
         },
         code_inline: (tokens, idx, options, env, renderer) => {
-          tokens[idx].attrJoin('class', 'ab-code')
-          return renderer.renderToken(tokens, idx, options)
+          tokens[idx].attrJoin('class', 'ab-code ab-code--inline')
+          return `${renderer.renderToken(tokens, idx, options)}${
+            tokens[idx].content
+          }</code>`
         },
         hr: (tokens, idx, options, env, renderer) => {
           tokens[idx].attrJoin('class', 'ab-hr')
@@ -162,6 +167,10 @@ export default {
         },
         ordered_list_open: (tokens, idx, options, env, renderer) => {
           tokens[idx].attrJoin('class', 'ab-list')
+          return renderer.renderToken(tokens, idx, options)
+        },
+        list_item_open: (tokens, idx, options, env, renderer) => {
+          tokens[idx].attrJoin('class', 'ab-list__item')
           return renderer.renderToken(tokens, idx, options)
         },
         bullet_list_open: (tokens, idx, options, env, renderer) => {

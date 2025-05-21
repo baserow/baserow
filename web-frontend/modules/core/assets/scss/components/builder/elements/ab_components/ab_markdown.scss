@@ -5,9 +5,12 @@
   & > .ab-hr,
   & > .ab-image,
   & > .ab-link,
-  & > .ab-list,
   & > .ab-table,
   & > .ab-text {
+    margin-top: 1.5em;
+  }
+
+  & > .ab-list {
     margin-top: 1em;
   }
 }
