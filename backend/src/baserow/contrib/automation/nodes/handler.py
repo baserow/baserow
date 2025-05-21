@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
@@ -55,7 +55,7 @@ class AutomationNodeHandler:
         workflow: AutomationWorkflow,
         specific: Optional[bool] = True,
         base_queryset: Optional[QuerySet] = None,
-    ) -> QuerySet:
+    ) -> Union[QuerySet[AutomationNode], Iterable[AutomationNode]]:
         """
         Returns all the nodes, filtered by a workflow.
 
@@ -63,7 +63,7 @@ class AutomationNodeHandler:
         :param specific: A boolean flag indicating whether to return the specific
             nodes and their services
         :param base_queryset: Optional base queryset to filter the results.
-        :return: A list of automation nodes.
+        :return: A queryset or list of automation nodes.
         """
 
         if base_queryset is None:
