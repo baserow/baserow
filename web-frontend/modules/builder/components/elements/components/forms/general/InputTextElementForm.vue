@@ -150,6 +150,7 @@ export default {
         'rows',
         'type',
         'styles',
+        'input_type',
       ],
       values: {
         label: '',
@@ -158,6 +159,7 @@ export default {
         validation_type: 'any',
         placeholder: '',
         is_multiline: false,
+        input_type: 'text',
         rows: 3,
         type: 'text',
         styles: {},
