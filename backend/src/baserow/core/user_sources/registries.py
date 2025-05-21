@@ -182,12 +182,9 @@ class UserSourceType(
             return id_mapping["integrations"][value]
 
         if prop_name == "uid":
-            # If the uid is already used then we need to update it to ensure the
-            # uniqueness
-            if UserSource.objects.filter(uid=value).exists():
-                return uuid.uuid4().hex
-            else:
-                return value
+            # We generate a temporary uuid to prevent DB integrity error but it will be
+            # generated later once the instance exists
+            return uuid.uuid4().hex
 
         return super().deserialize_property(
             prop_name,

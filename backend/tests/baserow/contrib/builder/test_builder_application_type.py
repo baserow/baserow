@@ -40,6 +40,7 @@ from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_sources.registries import DEFAULT_USER_ROLE_PREFIX
+from baserow.test_utils.helpers import AnyStr
 from baserow_enterprise.integrations.local_baserow.user_source_types import (
     LocalBaserowUserSourceType,
 )
@@ -147,12 +148,9 @@ def test_builder_application_export(data_fixture):
         application=builder, authorized_user=user, name="test"
     )
 
-    with patch(
-        "uuid.uuid4", return_value=uuid.UUID("12345678-1234-5678-1234-567812345678")
-    ):
-        user_source = data_fixture.create_user_source_with_first_type(
-            application=builder, user=user, integration=integration
-        )
+    user_source = data_fixture.create_user_source_with_first_type(
+        application=builder, user=user, integration=integration
+    )
 
     auth_provider = data_fixture.create_app_auth_provider_with_first_type(
         user_source=user_source
@@ -592,7 +590,7 @@ def test_builder_application_export(data_fixture):
                 "role_field_id": None,
                 "table_id": None,
                 "type": "local_baserow",
-                "uid": "12345678123456781234567812345678",
+                "uid": AnyStr(),
                 "auth_providers": [
                     {
                         "id": auth_provider.id,

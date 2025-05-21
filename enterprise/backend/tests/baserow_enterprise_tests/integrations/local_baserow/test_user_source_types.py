@@ -777,7 +777,6 @@ def test_export_user_source(data_fixture):
         table=table_from_same_workspace1,
         email_field=email_field,
         name_field=name_field,
-        uid="uid",
     )
 
     auth_provider = data_fixture.create_app_auth_provider_with_first_type(
@@ -796,7 +795,7 @@ def test_export_user_source(data_fixture):
         "role_field_id": None,
         "table_id": table_from_same_workspace1.id,
         "type": "local_baserow",
-        "uid": "uid",
+        "uid": user_source.get_type().gen_uid(user_source),
         "auth_providers": [
             {
                 "id": auth_provider.id,
