@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractUser
 
 from rest_framework import serializers
 
-from baserow.contrib.builder.api.workflow_actions.serializers import (
+from baserow.api.services.serializers import (
     PolymorphicServiceRequestSerializer,
     PolymorphicServiceSerializer,
 )

@@ -1,7 +1,8 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
+from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
 from baserow.contrib.automation.models import AutomationWorkflow
@@ -16,19 +17,26 @@ from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
     UpdatedAutomationNode,
 )
+from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.models import Service
+from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
-    allowed_fields = ["previous_node_output"]
+    allowed_fields = ["service", "previous_node_output"]
 
-    def create_node(self, node_type: AutomationNodeType, **kwargs) -> AutomationNode:
+    def create_node(
+        self, node_type: AutomationNodeType, workflow: AutomationWorkflow, **kwargs
+    ) -> AutomationNode:
         """
         Create a new automation node.
 
         :param node_type: The automation node's type.
+        :param workflow: The workflow the automation node is associated with.
         :return: The newly created automation node instance.
         """
 
@@ -36,26 +44,50 @@ class AutomationNodeHandler:
             kwargs, self.allowed_fields + node_type.allowed_fields
         )
 
+        allowed_prepared_values["workflow"] = workflow
         node = node_type.model_class(**allowed_prepared_values)
         node.save()
 
         return node
 
     def get_nodes(
-        self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
-    ) -> QuerySet:
+        self,
+        workflow: AutomationWorkflow,
+        specific: Optional[bool] = True,
+        base_queryset: Optional[QuerySet] = None,
+    ) -> Union[QuerySet[AutomationNode], Iterable[AutomationNode]]:
         """
-        Return all the nodes for a workflow.
+        Returns all the nodes, filtered by a workflow.
 
         :param workflow: The workflow associated with the nodes.
+        :param specific: A boolean flag indicating whether to return the specific
+            nodes and their services
         :param base_queryset: Optional base queryset to filter the results.
-        :return: A list of automation nodes.
+        :return: A queryset or list of automation nodes.
         """
 
         if base_queryset is None:
             base_queryset = AutomationNode.objects.all()
 
-        return base_queryset.filter(workflow=workflow)
+        nodes = base_queryset.filter(workflow=workflow)
+
+        if specific:
+            nodes = specific_iterator(nodes.select_related("content_type"))
+            service_ids = [
+                node.service_id for node in nodes if node.service_id is not None
+            ]
+            specific_services_map = {
+                s.id: s
+                for s in ServiceHandler().get_services(
+                    base_queryset=Service.objects.filter(id__in=service_ids)
+                )
+            }
+            for node in nodes:
+                service_id = node.service_id
+                if service_id is not None and service_id in specific_services_map:
+                    node.service = specific_services_map[service_id]
+
+        return nodes
 
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
@@ -90,7 +122,7 @@ class AutomationNodeHandler:
         :return: The updated AutomationNode.
         """
 
-        original_node_values = self.export_prepared_values(node)
+        original_node_values = node.get_type().export_prepared_values(node)
 
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
 
@@ -99,25 +131,12 @@ class AutomationNodeHandler:
 
         node.save()
 
-        new_node_values = self.export_prepared_values(node)
+        new_node_values = node.get_type().export_prepared_values(node)
         updated_node = UpdatedAutomationNode(
             node, original_node_values, new_node_values
         )
 
         return updated_node
-
-    def export_prepared_values(self, node: AutomationNode) -> Dict[Any, Any]:
-        """
-        Return a serializable dict of prepared values for the node attributes.
-
-        It is called by undo/redo ActionHandler to store the values in a way that
-        could be restored later.
-
-        :param instance: The node instance to export values for.
-        :return: A dict of prepared values.
-        """
-
-        return {key: getattr(node, key) for key in self.allowed_fields}
 
     def delete_node(self, user: AbstractUser, node: AutomationNode) -> None:
         """
@@ -199,9 +218,10 @@ class AutomationNodeHandler:
     def export_node(
         self,
         node: AutomationNode,
-        *args: Any,
-        **kwargs: Any,
-    ) -> List[AutomationNodeDict]:
+        files_zip: Optional[ExportZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict] = None,
+    ) -> AutomationNodeDict:
         """
         Serializes the given node.
 
@@ -211,15 +231,8 @@ class AutomationNodeHandler:
         :return: The serialized version.
         """
 
-        return AutomationNodeDict(
-            id=node.id,
-            order=node.order,
-            workflow_id=node.workflow.id,
-            service_id=node.specific.service.id,
-            parent_node_id=node.parent_node.id if node.parent_node else None,
-            previous_node_id=node.previous_node.id if node.previous_node else None,
-            previous_node_output=node.previous_node_output,
-            type=node.get_type().type,
+        return node.get_type().export_serialized(
+            node, files_zip=files_zip, storage=storage, cache=cache
         )
 
     def import_node(

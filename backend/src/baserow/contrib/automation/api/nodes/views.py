@@ -200,6 +200,7 @@ class AutomationNodeView(APIView):
     @validate_body_custom_fields(
         automation_node_type_registry,
         base_serializer_class=UpdateAutomationNodeSerializer,
+        partial=True,
     )
     def patch(self, request, data: Dict, node_id: int):
         node = UpdateAutomationNodeActionType.do(request.user, node_id, data)

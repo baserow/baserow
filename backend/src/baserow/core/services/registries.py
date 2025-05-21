@@ -31,8 +31,7 @@ class DispatchTypes(str, Enum):
     DISPATCH_WORKFLOW_ACTION = "dispatch-action"
     # A `ServiceType` which is used by a `DataSource`.
     DISPATCH_DATA_SOURCE = "dispatch-data-source"
-
-    # A `ServiceType` which is used by a `AutomationNode`.
+    # A `ServiceType` which is used by an `AutomationTriggerNode`.
     DISPATCH_TRIGGER = "dispatch-trigger"
 
 
@@ -363,6 +362,14 @@ class ServiceType(
 
 class TriggerServiceTypeMixin:
     service_type = DispatchTypes.DISPATCH_TRIGGER
+
+    @abstractmethod
+    def start_listening(self, on_event: Callable):
+        ...
+
+    @abstractmethod
+    def stop_listening(self, on_event: Callable):
+        ...
 
 
 ServiceTypeSubClass = TypeVar("ServiceTypeSubClass", bound=ServiceType)

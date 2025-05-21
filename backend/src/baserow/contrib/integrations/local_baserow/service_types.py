@@ -1,18 +1,23 @@
+from abc import abstractmethod
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     Generator,
+    Generic,
     List,
     Optional,
     Tuple,
     Type,
+    TypeVar,
     Union,
 )
 
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import QuerySet
 
 from loguru import logger
@@ -56,6 +61,7 @@ from baserow.contrib.database.rows.exceptions import (
     CannotDeleteRowsInTable,
     RowDoesNotExist,
 )
+from baserow.contrib.database.rows.signals import rows_created
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
@@ -87,7 +93,6 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowGetRow,
     LocalBaserowListRows,
     LocalBaserowRowCreated,
-    LocalBaserowRowUpdated,
     LocalBaserowTableService,
     LocalBaserowTableServiceFieldMapping,
     LocalBaserowTableServiceFilter,
@@ -2516,15 +2521,59 @@ class LocalBaserowDeleteRowServiceType(
         return {"data": {}, "baserow_table_model": model}
 
 
-class LocalBaserowRowCreatedTriggerServiceType(
-    LocalBaserowTableServiceType, TriggerServiceTypeMixin
+T = TypeVar("T", bound="Instance")
+
+
+class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
+    """
+    A mixin which `AutomationNodeType` can implement if they related to a
+    Local Baserow signal, such as `rows_created`, `rows_updated`, etc.
+
+    New trigger types should inherit from this class, set the `signal` and `handler`
+    to point to the signal/function they are related to, and only implement the
+    `start_listening` and `stop_listening` methods.
+    """
+
+    signal = None
+    on_event = None
+
+    def start_listening(self, on_event: Callable):
+        self.on_event = on_event
+        self.signal.connect(self.handler)
+
+    def stop_listening(self):
+        self.signal.disconnect(self.handler)
+
+    def after_register(self):
+        self.start_listening(self.on_event)
+        return super().after_register()
+
+    def before_unregister(self):
+        self.stop_listening()
+        return super().before_unregister()
+
+    @abstractmethod
+    def handle_signal(self, *args, **kwargs):
+        ...
+
+    def handler(self, *args, **kwargs):
+        transaction.on_commit(lambda: self.handle_signal(*args, **kwargs))
+
+
+class LocalBaserowRowsCreatedTriggerServiceType(
+    LocalBaserowTableServiceType,
+    LocalBaserowSignalTriggerTypeMixin,
+    TriggerServiceTypeMixin,
 ):
-    type = "local_baserow_row_created"
+    signal = rows_created
+    type = "local_baserow_rows_created"
     model_class = LocalBaserowRowCreated
 
-
-class LocalBaserowRowUpdatedTriggerServiceType(
-    LocalBaserowTableServiceType, TriggerServiceTypeMixin
-):
-    type = "local_baserow_row_updated"
-    model_class = LocalBaserowRowUpdated
+    def handle_signal(self, sender, rows, before, user, table, model, **kwargs):
+        serializer = get_row_serializer_class(
+            model,
+            RowSerializer,
+            is_response=True,
+        )
+        serialized_rows = serializer(rows, many=True).data
+        self.on_event(self.model_class.objects.filter(table=table), serialized_rows)

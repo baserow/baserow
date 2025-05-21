@@ -15,6 +15,7 @@ class UpdatedAutomationNode:
 
 class AutomationNodeDict(TypedDict):
     id: int
+    type: str
     order: float
     workflow_id: int
     parent_node_id: int

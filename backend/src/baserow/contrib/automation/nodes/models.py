@@ -18,7 +18,10 @@ from baserow.core.services.models import Service
 __all__ = [
     "AutomationNode",
     "AutomationWorkflow",
+    "AutomationTriggerNode",
     "DuplicateAutomationWorkflowJob",
+    "LocalBaserowRowCreatedTriggerNode",
+    "LocalBaserowCreateRowActionNode",
 ]
 
 
@@ -68,7 +71,12 @@ class AutomationNode(
         help_text="The previous automation node.",
         related_name="automation_workflow_previous_nodes",
     )
-
+    service = models.OneToOneField(
+        Service,
+        help_text="The service which this node is associated with.",
+        related_name="automation_workflow_node",
+        on_delete=models.CASCADE,
+    )
     order = models.DecimalField(
         help_text="Lowest first.",
         max_digits=40,
@@ -99,18 +107,12 @@ class AutomationNode(
         return cls.get_highest_order_of_queryset(queryset)[0]
 
 
-class AutomationServiceNode(AutomationNode):
-    service = models.ForeignKey(
-        Service,
-        help_text="The service which this action is associated with.",
-        on_delete=models.CASCADE,
-    )
-
+class AutomationTriggerNode(AutomationNode):
     class Meta:
         abstract = True
 
 
-class LocalBaserowRowCreatedTriggerNode(AutomationServiceNode):
+class LocalBaserowRowCreatedTriggerNode(AutomationTriggerNode):
     def save(self, *args, **kwargs):
         """TODO: this shouldn't be required. There seems to be a MRO issue."""
 
@@ -118,5 +120,5 @@ class LocalBaserowRowCreatedTriggerNode(AutomationServiceNode):
         super().save(*args, **kwargs)
 
 
-class LocalBaserowCreateRowActionNode(AutomationServiceNode):
+class LocalBaserowCreateRowActionNode(AutomationNode):
     ...

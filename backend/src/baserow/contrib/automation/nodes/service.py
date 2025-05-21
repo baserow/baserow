@@ -1,4 +1,4 @@
-from typing import List
+from typing import Iterable, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -91,13 +91,15 @@ class AutomationNodeService:
         self,
         user: AbstractUser,
         workflow: AutomationWorkflow,
-    ) -> List[AutomationNode]:
+        specific: Optional[bool] = True,
+    ) -> Iterable[AutomationNode]:
         """
         Returns all the automation nodes for a specific workflow that can be
         accessed by the user.
 
         :param user: The user trying to get the workflow_actions.
         :param workflow: The workflow the automation node is associated with.
+        :param specific: If True, returns the specific node type.
         :return: The automation nodes of the workflow.
         """
 
@@ -115,7 +117,9 @@ class AutomationNodeService:
             workspace=workflow.automation.workspace,
         )
 
-        return self.handler.get_nodes(workflow, base_queryset=user_nodes)
+        return self.handler.get_nodes(
+            workflow, specific=specific, base_queryset=user_nodes
+        )
 
     def update_node(
         self, user: AbstractUser, node_id: int, **kwargs
@@ -138,7 +142,8 @@ class AutomationNodeService:
             context=node,
         )
 
-        updated_node = self.handler.update_node(node, **kwargs)
+        prepared_values = node.get_type().prepare_values(kwargs, user, node)
+        updated_node = self.handler.update_node(node, **prepared_values)
 
         automation_node_updated.send(self, user=user, node=updated_node.node)
 
@@ -193,7 +198,7 @@ class AutomationNodeService:
         )
 
         all_nodes = self.handler.get_nodes(
-            workflow, base_queryset=AutomationNode.objects
+            workflow, specific=False, base_queryset=AutomationNode.objects
         )
 
         user_nodes = CoreHandler().filter_queryset(

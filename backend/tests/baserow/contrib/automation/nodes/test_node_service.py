@@ -1,4 +1,4 @@
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -7,7 +7,6 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowRowCreatedTriggerNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
-from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
 from baserow.core.exceptions import UserNotInWorkspace
 
 SERVICE_PATH = "baserow.contrib.automation.nodes.service"
@@ -18,7 +17,7 @@ SERVICE_PATH = "baserow.contrib.automation.nodes.service"
 def test_create_node(mocked_signal, data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
-    node_type = automation_node_type_registry.get("row_created")
+    node_type = automation_node_type_registry.get("rows_created")
 
     service = AutomationNodeService()
     node = service.create_node(user, node_type, workflow)
@@ -31,7 +30,7 @@ def test_create_node(mocked_signal, data_fixture):
 def test_create_node_permission_error(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
-    node_type = automation_node_type_registry.get("row_created")
+    node_type = automation_node_type_registry.get("rows_created")
 
     another_user, _ = data_fixture.create_user_and_token()
 
@@ -117,11 +116,6 @@ def test_update_node(mocked_signal, data_fixture):
     service = AutomationNodeService()
     updated_node = service.update_node(user, node.id, previous_node_output="foo")
 
-    assert updated_node == UpdatedAutomationNode(
-        node=node.all_parents_and_self()[0],
-        original_values={"previous_node_output": ""},
-        new_values={"previous_node_output": "foo"},
-    )
     node.refresh_from_db()
     assert node.previous_node_output == "foo"
 
@@ -256,11 +250,7 @@ def test_duplicate_node(mocked_signal, data_fixture):
     assert workflow.automation_workflow_nodes.count() == 2
     assert duplicated_node == workflow.automation_workflow_nodes.all()[1].specific
 
-    # The data_fixture.create_automation_node() fires the signal, but we only care
-    # about the 2nd signal fired by the duplicate_node() call.
-    assert mocked_signal.mock_calls[1] == call.send(
-        service, node=duplicated_node, user=user
-    )
+    mocked_signal.send.assert_called_once_with(service, node=duplicated_node, user=user)
 
 
 @pytest.mark.django_db

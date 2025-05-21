@@ -7,6 +7,9 @@ from django.core.files.storage import Storage
 from django.db import IntegrityError
 from django.db.models import QuerySet
 
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.constants import (
     IMPORT_SERIALIZED_IMPORTING,
     WORKFLOW_NAME_MAX_LEN,
@@ -33,11 +36,26 @@ from baserow.core.utils import (
 class AutomationWorkflowHandler:
     allowed_fields = ["name"]
 
+    def run_workflow(
+        self, workflow: AutomationWorkflow, dispatch_context: AutomationDispatchContext
+    ):
+        """
+        Runs the provided workflow.
+
+        :param workflow: The AutomationWorkflow that should be executed.
+        :param dispatch_context: The context used for the dispatch.
+        """
+
+        # todo should create the dispatch context using the event_payload
+        # and run the next action nodes following the trigger
+
+        print(f"Executing workflow={workflow.id}")
+
     def get_workflow(
         self, workflow_id: int, base_queryset: Optional[QuerySet] = None
     ) -> AutomationWorkflow:
         """
-        Gets a AutomationWorkflow by its ID.
+        Gets an AutomationWorkflow by its ID.
 
         :param workflow_id: The ID of the AutomationWorkflow.
         :param base_queryset: Can be provided to already filter or apply performance

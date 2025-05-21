@@ -8,7 +8,7 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.test_utils.helpers import AnyInt, AnyStr
+from baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
 
 API_URL_BASE = "api:automation:nodes"
 API_URL_LIST = f"{API_URL_BASE}:list"
@@ -36,7 +36,7 @@ def test_create_node(api_client, data_fixture):
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
     response = api_client.post(
         url,
-        {"type": "row_created"},
+        {"type": "rows_created"},
         **get_api_kwargs(token),
     )
 
@@ -45,8 +45,8 @@ def test_create_node(api_client, data_fixture):
         "id": 1,
         "order": AnyStr(),
         "previous_node_output": "",
-        "service": AnyInt(),
-        "type": "row_created",
+        "service": AnyDict(),
+        "type": "rows_created",
         "workflow": AnyInt(),
     }
     assert workflow.automation_workflow_nodes.count() == 1
@@ -88,7 +88,7 @@ def test_create_node_invalid_workflow(api_client, data_fixture):
     url = reverse(API_URL_LIST, kwargs={"workflow_id": 999})
     response = api_client.post(
         url,
-        {"type": "row_created"},
+        {"type": "rows_created"},
         **get_api_kwargs(token),
     )
 
@@ -107,7 +107,7 @@ def test_create_node_undo_redo(api_client, data_fixture):
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
     api_kwargs = get_api_kwargs(token)
-    response = api_client.post(url, {"type": "row_created"}, **api_kwargs)
+    response = api_client.post(url, {"type": "rows_created"}, **api_kwargs)
     assert response.status_code == HTTP_200_OK
 
     assert workflow.automation_workflow_nodes.count() == 1
@@ -143,8 +143,8 @@ def test_get_node(api_client, data_fixture):
             "id": node.id,
             "order": AnyStr(),
             "previous_node_output": "",
-            "service": AnyInt(),
-            "type": "row_created",
+            "service": AnyDict(),
+            "type": "rows_created",
             "workflow": node.workflow.id,
         },
     ]
@@ -366,14 +366,15 @@ def test_update_node(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
-    payload = {"previous_node_output": "foo", "type": "row_created"}
+    payload = {"previous_node_output": "foo", "type": "rows_created"}
     response = api_client.patch(update_url, payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": node.id,
         "order": AnyStr(),
+        "service": AnyDict(),
         "previous_node_output": "foo",
-        "type": "row_created",
+        "type": "rows_created",
         "workflow": workflow.id,
     }
 
@@ -384,7 +385,7 @@ def test_update_node_invalid_node(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": 100})
-    payload = {"previous_node_output": "foo", "type": "row_created"}
+    payload = {"previous_node_output": "foo", "type": "rows_created"}
     response = api_client.patch(update_url, payload, **api_kwargs)
 
     assert response.status_code == HTTP_404_NOT_FOUND
@@ -402,7 +403,7 @@ def test_update_node_undo_redo(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
-    payload = {"previous_node_output": "foo", "type": "row_created"}
+    payload = {"previous_node_output": "foo", "type": "rows_created"}
     response = api_client.patch(update_url, payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert response.json()["previous_node_output"] == "foo"

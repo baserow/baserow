@@ -34,6 +34,10 @@ class AutomationWorkflow(
 
     name = models.CharField(max_length=WORKFLOW_NAME_MAX_LEN)
 
+    published = models.BooleanField(
+        default=False, help_text="Whether the workflow is published."
+    )
+
     order = models.PositiveIntegerField()
 
     class Meta:
