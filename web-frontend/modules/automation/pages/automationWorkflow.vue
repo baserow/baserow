@@ -105,7 +105,7 @@ export default defineComponent({
       try {
         await store.dispatch('automationWorkflowNode/create', {
           workflow: currentWorkflow.value,
-          type: 'row_created',
+          type: 'rows_created',
           previousNodeId,
         })
 
