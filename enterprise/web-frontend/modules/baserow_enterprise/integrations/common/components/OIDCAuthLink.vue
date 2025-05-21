@@ -43,6 +43,13 @@ export default {
         return () => {}
       },
     },
+    afterLogin: {
+      type: Function,
+      required: false,
+      default: () => {
+        return () => {}
+      },
+    },
   },
   data() {
     return {

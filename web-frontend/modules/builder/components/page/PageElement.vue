@@ -9,6 +9,7 @@
       <span v-if="showElementId" class="element--element-id">{{
         element.id
       }}</span>
+      <!-- See element store to understand why we are using the element uid as key here -->
       <component
         :is="component"
         :key="element._.uid"

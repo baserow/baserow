@@ -73,6 +73,13 @@ export default {
         return () => {}
       },
     },
+    afterLogin: {
+      type: Function,
+      required: false,
+      default: () => {
+        return () => {}
+      },
+    },
   },
   setup() {
     const instance = getCurrentInstance()
@@ -122,7 +129,7 @@ export default {
         this.values.password = ''
         this.values.email = ''
         this.v$.$reset()
-        this.$emit('after-login')
+        await this.afterLogin()
       } catch (error) {
         if (error.handler) {
           const response = error.handler.response
