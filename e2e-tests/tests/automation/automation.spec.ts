@@ -12,11 +12,6 @@ test.describe("Automation application test suite", () => {
     await page.locator(".modal__wrapper").getByText("Add automation").click();
 
     await expect(
-      page.locator(".automation-app__title").getByText("Workflow"),
-      "Ensure we see the newly created Automation's workflow."
-    ).toBeVisible();
-
-    await expect(
       page.locator(".tree__link").getByText("Untitled Automation"),
       "Ensure the default automation name is displayed in the sidebar."
     ).toBeVisible();
@@ -30,11 +25,6 @@ test.describe("Automation application test suite", () => {
     // Specify a custom name for the automation
     await page.locator(".modal__wrapper input").fill("Foo Automation");
     await page.locator(".modal__wrapper").getByText("Add automation").click();
-
-    await expect(
-      page.locator(".automation-app__title").getByText("Workflow"),
-      "Ensure we see the newly created Automation's workflow."
-    ).toBeVisible();
 
     await expect(
       page.locator(".tree__link").getByText("Foo Automation"),

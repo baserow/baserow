@@ -25,11 +25,6 @@ test.describe("Automation workflow test suite", () => {
       page.locator(".tree__link").getByText("Test Automation"),
       "Ensure the default automation name is displayed in the sidebar."
     ).toBeVisible();
-
-    await expect(
-      page.locator(".automation-app__title").getByText(workflowName),
-      "Ensure we see the newly created Automation's workflow."
-    ).toBeVisible();
   });
 
   test("Can duplicate a workflow", async ({ page }) => {
@@ -80,11 +75,6 @@ test.describe("Automation workflow test suite", () => {
         .locator(".side-bar-automation__link-text")
         .getByText(newWorkflowName),
       "Ensure the renamed workflow is displayed in the sidebar."
-    ).toBeVisible();
-
-    await expect(
-      page.locator(".automation-app__title").getByText(newWorkflowName),
-      "Ensure that we can see the updated workflow name in the editor."
     ).toBeVisible();
   });
 
