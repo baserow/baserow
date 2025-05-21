@@ -20,7 +20,7 @@
       >
         <td :key="field.id" class="ab-table__cell">
           <div class="ab-table__cell-content">
-            {{ value }}
+            {{ row[field.__id__] }}
           </div>
         </td>
       </slot>
