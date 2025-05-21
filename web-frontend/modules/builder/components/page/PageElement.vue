@@ -25,7 +25,7 @@
 </template>
 
 <script>
-import { resolveColor } from '@baserow/modules/core/utils/colors'
+import { resolveColor, colorContrast } from '@baserow/modules/core/utils/colors'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 import {
@@ -182,7 +182,6 @@ export default {
                 this.colorVariables
               )
             : 'none',
-
         '--element-background-image':
           this.element.style_background_file !== null
             ? `url(${this.element.style_background_file.url})`
@@ -220,6 +219,15 @@ export default {
           this.element.style_background_radius || 0
         }px`,
         '--element-border-radius': `${this.element.style_border_radius || 0}px`,
+      }
+
+      if (this.element.style_background === BACKGROUND_TYPES.COLOR) {
+        styles['--element-background-color-contrast'] = colorContrast(
+          this.resolveColor(
+            this.element.style_background_color,
+            this.colorVariables
+          )
+        )
       }
 
       if (this.element.style_background_file !== null) {

@@ -5,13 +5,26 @@
   color: var(--body-text-color, $black);
   text-align: var(--body-text-alignment, left);
   font-family: var(--body-font-family, Inter);
+  background-color: var(
+    --element-background-color-contrast,
+    var(--page-background-color-contrast, grey)
+  );
+  display: block;
+  padding: 1em 0.3em;
 
-  .markdown {
+  & pre {
+    margin: 0;
+  }
+
+  &.ab-code--inline {
+    display: inline-block;
+    padding: 0 0.3em;
+  }
+
+  .markdown & {
     // for markdown text
     strong {
       color: var(--body-text-color, $black);
     }
-
-    margin-top: 1em;
   }
 }
