@@ -5,6 +5,7 @@ ENV UID=${UID:-9999}
 ARG GID
 ENV GID=${GID:-9999}
 
+
 # Perform all OS package installation and cleanup in one single command to reduce the
 # size of the created layer.
 RUN apt-get update && \
@@ -34,7 +35,6 @@ USER $UID:$GID
 
 # Create and install the dependencies in separate COPY commands
 COPY --chown=$UID:$GID ./web-frontend/package.json ./web-frontend/yarn.lock /baserow/web-frontend/
-
 
 WORKDIR /baserow/web-frontend
 
