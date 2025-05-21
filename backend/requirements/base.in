@@ -6,9 +6,9 @@ psycopg2==2.9.10
 Faker==25.0.1
 Twisted==24.3.0
 gunicorn==23.0.0
-uvicorn[standard]==0.29.0
+uvicorn[standard]==0.34.2
 websockets==12.0
-requests==2.31.0
+requests==2.32.3
 itsdangerous==2.2.0
 Pillow==10.3.0
 drf-spectacular==0.27.2
@@ -67,7 +67,7 @@ posthog==3.5.0
 https://github.com/fellowapp/prosemirror-py/archive/refs/tags/v0.3.5.zip
 rich==13.7.1
 tzdata==2024.1
-sentry-sdk==2.0.1
+sentry-sdk==2.29.1
 typing_extensions==4.11.0
 ollama==0.1.9
 langchain==0.3.21
@@ -83,3 +83,6 @@ openpyxl==3.1.5
 zipstream-ng==1.8.0
 mcp==1.6.0
 django-cte==1.3.3
+tornado==6.5.0 # Pinned to address vulnerability.
+certifi==2025.4.26 # Pinned to address vulnerability.
+httpcore==1.0.9 # Pinned to address vulnerability.

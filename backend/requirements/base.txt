@@ -75,8 +75,9 @@ celery-redbeat==2.2.0
     # via -r base.in
 celery-singleton==0.3.1
     # via -r base.in
-certifi==2024.12.14
+certifi==2025.4.26
     # via
+    #   -r base.in
     #   httpcore
     #   httpx
     #   requests
@@ -217,12 +218,14 @@ greenlet==3.1.1
     # via sqlalchemy
 gunicorn==23.0.0
     # via -r base.in
-h11==0.14.0
+h11==0.16.0
     # via
     #   httpcore
     #   uvicorn
-httpcore==1.0.7
-    # via httpx
+httpcore==1.0.9
+    # via
+    #   -r base.in
+    #   httpx
 httptools==0.6.4
     # via uvicorn
 httpx==0.27.2
@@ -540,7 +543,7 @@ redis==5.0.4
     #   django-redis
 regex==2024.4.28
     # via -r base.in
-requests==2.31.0
+requests==2.32.3
     # via
     #   -r base.in
     #   advocate
@@ -565,7 +568,7 @@ rsa==4.9
     # via google-auth
 s3transfer==0.10.4
     # via boto3
-sentry-sdk==2.0.1
+sentry-sdk==2.29.1
     # via -r base.in
 service-identity==24.1.0
     # via
@@ -599,8 +602,10 @@ tenacity==8.5.0
     #   langchain-core
 tokenizers==0.21.0
     # via anthropic
-tornado==6.4.2
-    # via flower
+tornado==6.5
+    # via
+    #   -r base.in
+    #   flower
 tqdm==4.66.4
     # via
     #   -r base.in
@@ -648,7 +653,7 @@ urllib3==1.26.20
     #   botocore
     #   requests
     #   sentry-sdk
-uvicorn[standard]==0.29.0
+uvicorn[standard]==0.34.2
     # via
     #   -r base.in
     #   mcp
