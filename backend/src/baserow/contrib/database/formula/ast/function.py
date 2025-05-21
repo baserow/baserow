@@ -270,7 +270,7 @@ def aggregate_wrapper(
     aggregate the results over a model.
     """
 
-    subquery = construct_aggregate_wrapper_queryset(
+    subquery, result_key = construct_aggregate_wrapper_queryset(
         expr_with_metadata, model, cte_collector
     )
     expr: Expression = Subquery(subquery)
@@ -323,7 +323,6 @@ def construct_aggregate_wrapper_queryset(
     expr_with_metadata: WrappedExpressionWithMetadata,
     model: Type[Model],
     cte_collector: "CTECollector",
-    result_key="result",
 ) -> QuerySet:
     """
     Constructs a queryset which wraps the given expression. It's meant to be used
@@ -333,7 +332,7 @@ def construct_aggregate_wrapper_queryset(
     # Create a unique key based on the table name, pre annotations and the aggregate
     # filters. If there are multiple aggregates, then only one CTE query has to be
     # created.
-    cte_key = f""
+    cte_key = ""
     for key in sorted(expr_with_metadata.pre_annotations.keys()):
         cte_key += f"__{key}"
     aggregate_filters = aggregate_expr_with_metadata_filters(expr_with_metadata)
@@ -365,6 +364,7 @@ def construct_aggregate_wrapper_queryset(
 
     # Update the queryset of the already existing or newly created CTE, so that the
     # needed aggregation is added to it.
+    result_key = "result"
     result_key_for_cte = f"{result_key}{len(with_cte.values) + 1}"
     cte_queryset = with_cte.get_source_queryset()
     cte_queryset = cte_queryset.annotate(
@@ -386,7 +386,7 @@ def construct_aggregate_wrapper_queryset(
     cte_queryset = (
         with_cte.queryset().filter(id=OuterRef("id")).values(result_key_for_cte)
     )
-    return cte_queryset
+    return cte_queryset, result_key_for_cte
 
 
 class TwoArgumentBaserowFunction(

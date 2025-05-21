@@ -1219,14 +1219,14 @@ class BaserowHasOption(TwoArgumentBaserowFunction):
         expr_with_metadata = WrappedExpressionWithMetadata.from_args(
             self.to_django_expression(args[0].expression, args[1].expression), args
         )
-        subquery = construct_aggregate_wrapper_queryset(
+        subquery, result_key = construct_aggregate_wrapper_queryset(
             expr_with_metadata, context.model, context.cte_collector
         )
 
         # This subquery would return more than one row, but we only care if
         # there is at least one result that is true, so order by the result
         # and take the first row.
-        expr: Expression = Subquery(subquery.order_by("-result")[:1])
+        expr: Expression = Subquery(subquery.order_by(f"-{result_key}")[:1])
 
         return WrappedExpressionWithMetadata(
             ExpressionWrapper(
