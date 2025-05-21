@@ -101,7 +101,7 @@ export const DataSourceServiceTypeMixin = (Base) =>
 
 export const WorkflowActionServiceTypeMixin = (Base) =>
   class extends Base {
-    isAction = true
+    isWorkflowAction = true
   }
 
 export const TriggerServiceTypeMixin = (Base) =>

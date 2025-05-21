@@ -9,14 +9,11 @@ from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
-    DeleteRowWorkflowActionType,
     LogoutWorkflowActionType,
+    LocalBaserowWorkflowActionType,
     NotificationWorkflowActionType,
     OpenPageWorkflowActionType,
     RefreshDataSourceWorkflowActionType,
-    UpsertRowWorkflowActionType,
-    service_backed_workflow_actions,
-    LocalBaserowActionType,
 )
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.utils import MirrorDict
@@ -34,7 +31,7 @@ def local_baserow_service_backed_workflow_actions():
     return [
         workflow_action_type
         for workflow_action_type in builder_workflow_action_type_registry.get_all()
-        if issubclass(workflow_action_type.__class__, LocalBaserowActionType)
+        if issubclass(workflow_action_type.__class__, LocalBaserowWorkflowActionType)
     ]
 
 

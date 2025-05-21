@@ -394,11 +394,11 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
         )
 
 
-class LocalBaserowActionType(BuilderWorkflowServiceActionType):
+class LocalBaserowWorkflowActionType(BuilderWorkflowServiceActionType):
     pass
 
 
-class UpsertRowWorkflowActionType(LocalBaserowActionType):
+class UpsertRowWorkflowActionType(LocalBaserowWorkflowActionType):
     type = "upsert_row"
     service_type = LocalBaserowUpsertRowServiceType.type
 
@@ -417,7 +417,7 @@ class UpdateRowWorkflowActionType(UpsertRowWorkflowActionType):
     model_class = LocalBaserowUpdateRowWorkflowAction
 
 
-class DeleteRowWorkflowActionType(LocalBaserowActionType):
+class DeleteRowWorkflowActionType(LocalBaserowWorkflowActionType):
     type = "delete_row"
     model_class = LocalBaserowDeleteRowWorkflowAction
     service_type = LocalBaserowDeleteRowServiceType.type

@@ -8,7 +8,7 @@ from baserow.contrib.integrations.core.models import BODY_TYPE, HTTP_METHOD
 from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.core.services.handler import ServiceHandler
-from baserow.test_utils.helpers import AnyInt
+from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
@@ -64,7 +64,7 @@ def test_core_http_request_basic(
 
         mock_request.assert_called_once_with(
             **{
-                "headers": {},
+                "headers": {"user-agent": AnyStr()},
                 "method": HTTP_METHOD.POST,
                 "params": {},
                 "timeout": 15,
@@ -117,7 +117,7 @@ def test_core_http_request_basic_body_raw(
 
         mock_request.assert_called_once_with(
             **{
-                "headers": {},
+                "headers": {"user-agent": AnyStr()},
                 "data": "test",
                 "method": HTTP_METHOD.GET,
                 "params": {},
@@ -146,7 +146,7 @@ def test_core_http_request_basic_body_json(
 
         mock_request.assert_called_once_with(
             **{
-                "headers": {},
+                "headers": {"user-agent": AnyStr()},
                 "json": {"test": "2"},
                 "method": HTTP_METHOD.GET,
                 "params": {},
@@ -176,7 +176,7 @@ def test_core_http_request_with_formulas(
 
         mock_request.assert_called_once_with(
             **{
-                "headers": {},
+                "headers": {"user-agent": AnyStr()},
                 "json": {"test": "2"},
                 "method": HTTP_METHOD.GET,
                 "params": {},
@@ -209,7 +209,11 @@ def test_core_http_request_with_headers(
 
         mock_request.assert_called_once_with(
             **{
-                "headers": {"test": "test__2", "test2": "value"},
+                "headers": {
+                    "test": "test__2",
+                    "test2": "value",
+                    "user-agent": AnyStr(),
+                },
                 "method": HTTP_METHOD.GET,
                 "params": {},
                 "timeout": 30,
@@ -241,7 +245,7 @@ def test_core_http_request_with_query_params(
 
         mock_request.assert_called_once_with(
             **{
-                "headers": {},
+                "headers": {"user-agent": AnyStr()},
                 "method": HTTP_METHOD.GET,
                 "params": {"test": "test__2", "test2": "value"},
                 "timeout": 30,
@@ -273,7 +277,7 @@ def test_core_http_request_with_form_data(
 
         mock_request.assert_called_once_with(
             **{
-                "headers": {},
+                "headers": {"user-agent": AnyStr()},
                 "method": HTTP_METHOD.GET,
                 "data": {"test": "test__2", "test2": "value"},
                 "params": {},
