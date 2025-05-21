@@ -490,7 +490,7 @@ class FieldDependencyHandler:
             # get from the dependant cell to the dependency. The queryset can return
             # dependencies with via's for dependants in the same row, which don't need
             # a join, so we filter those out here.
-            via_path_to_starting_table = [
+            via_path_from_starting_table = [
                 field_cache.lookup_specific(specific_fields[via_id])
                 for via_id in dependency.via_ids
             ] or None
@@ -500,7 +500,7 @@ class FieldDependencyHandler:
                 (
                     dependant_field,
                     dependant_field_type,
-                    via_path_to_starting_table,
+                    via_path_from_starting_table,
                 )
             )
 
@@ -577,13 +577,13 @@ class FieldDependencyHandler:
             # get from the dependant cell to the dependency. The queryset can return
             # dependencies with via's for dependants in the same row, which don't need
             # a join, so we filter those out here.
-            via_path_to_starting_table = [
+            via_path_from_starting_table = [
                 field_cache.lookup_specific(specific_fields[via_id])
                 for via_id in dependency.via_ids
             ] or None
 
             result.append(
-                (dependant_field, dependant_field_type, via_path_to_starting_table)
+                (dependant_field, dependant_field_type, via_path_from_starting_table)
             )
 
         return result

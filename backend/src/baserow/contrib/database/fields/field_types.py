@@ -3485,17 +3485,17 @@ class LinkRowFieldType(
         starting_row: "StartingRowType",
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: List["LinkRowField"],
+        via_path_from_starting_table: List["LinkRowField"],
     ):
         update_collector.add_field_which_has_changed(
-            field, via_path_to_starting_table, send_field_updated_signal=False
+            field, via_path_from_starting_table, send_field_updated_signal=False
         )
         super().row_of_dependency_updated(
             field,
             starting_row,
             update_collector,
             field_cache,
-            via_path_to_starting_table,
+            via_path_from_starting_table,
         )
 
     def field_dependency_updated(
@@ -3505,10 +3505,10 @@ class LinkRowFieldType(
         updated_old_field: Field,
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         update_collector.add_field_which_has_changed(
-            field, via_path_to_starting_table, send_field_updated_signal=False
+            field, via_path_from_starting_table, send_field_updated_signal=False
         )
         super().field_dependency_updated(
             field,
@@ -3516,7 +3516,7 @@ class LinkRowFieldType(
             updated_old_field,
             update_collector,
             field_cache,
-            via_path_to_starting_table,
+            via_path_from_starting_table,
         )
 
     def serialize_metadata_for_row_history(
@@ -5466,7 +5466,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         fields: List[Field],
         update_collector: "Optional[FieldUpdateCollector]" = None,
         field_cache: "Optional[FieldCache]" = None,
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
         already_updated_fields: Optional[List[Field]] = None,
         skip_search_updates: bool = False,
         database_id: Optional[int] = None,
@@ -5492,7 +5492,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             update_collector = update_collectors[field.table_id]
 
             self._update_field_values(
-                field, update_collector, field_cache, via_path_to_starting_table
+                field, update_collector, field_cache, via_path_from_starting_table
             )
             updated_fields.add(field)
 
@@ -5521,7 +5521,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
                     dependant_field,
                     update_collectors[table_id],
                     field_cache,
-                    via_path_to_starting_table,
+                    via_path_from_starting_table,
                 )
             updated_fields |= set(
                 update_collector.apply_updates_and_get_updated_fields(
@@ -5539,10 +5539,10 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         starting_row: "StartingRowType",
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: Optional[List[LinkRowField]],
+        via_path_from_starting_table: Optional[List[LinkRowField]],
     ):
         self._update_field_values(
-            field, update_collector, field_cache, via_path_to_starting_table
+            field, update_collector, field_cache, via_path_from_starting_table
         )
 
         super().row_of_dependency_updated(
@@ -5550,7 +5550,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             starting_row,
             update_collector,
             field_cache,
-            via_path_to_starting_table,
+            via_path_from_starting_table,
         )
 
     def _update_field_values(
@@ -5558,10 +5558,10 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         field: FormulaField,
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: Optional[List[LinkRowField]],
+        via_path_from_starting_table: Optional[List[LinkRowField]],
     ):
-        update_collector.cte_collector.set_last_path_to_starting_table(
-            via_path_to_starting_table
+        update_collector.cte_collector.set_last_path_from_starting_table(
+            via_path_from_starting_table
         )
         update_statement = (
             FormulaHandler.baserow_expression_to_update_django_expression(
@@ -5570,11 +5570,11 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
                 update_collector.cte_collector,
             )
         )
-        update_collector.cte_collector.set_last_path_to_starting_table(None)
+        update_collector.cte_collector.set_last_path_from_starting_table(None)
         update_collector.add_field_with_pending_update_statement(
             field,
             update_statement,
-            via_path_to_starting_table=via_path_to_starting_table,
+            via_path_from_starting_table=via_path_from_starting_table,
         )
 
     def field_dependency_created(
@@ -5583,11 +5583,15 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         created_field: Field,
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         old_field = deepcopy(field)
         self._update_formula_after_dependency_change(
-            field, old_field, update_collector, field_cache, via_path_to_starting_table
+            field,
+            old_field,
+            update_collector,
+            field_cache,
+            via_path_from_starting_table,
         )
 
     def field_dependency_updated(
@@ -5597,7 +5601,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         updated_old_field: Field,
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         old_field = deepcopy(field)
 
@@ -5620,7 +5624,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             old_field,
             update_collector,
             field_cache,
-            via_path_to_starting_table,
+            via_path_from_starting_table,
         )
 
     # noinspection PyMethodMayBeStatic
@@ -5630,7 +5634,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         old_field: Field,
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         expr = FormulaHandler.recalculate_formula_and_get_update_expression(
             field, old_field, field_cache, update_collector.cte_collector
@@ -5642,7 +5646,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             update_collector.add_to_fields_type_changed(field)
         update_collector.add_to_rebuild_field_dependencies(field)
         update_collector.add_field_with_pending_update_statement(
-            field, expr, via_path_to_starting_table=via_path_to_starting_table
+            field, expr, via_path_from_starting_table=via_path_from_starting_table
         )
 
     def field_dependency_deleted(
@@ -5651,11 +5655,15 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         deleted_field: Field,
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         old_field = deepcopy(field)
         self._update_formula_after_dependency_change(
-            field, old_field, update_collector, field_cache, via_path_to_starting_table
+            field,
+            old_field,
+            update_collector,
+            field_cache,
+            via_path_from_starting_table,
         )
 
     def after_create(self, field, model, user, connection, before, field_kwargs):
@@ -5719,7 +5727,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         field: FormulaField,
         update_collector: Optional[FieldUpdateCollector] = None,
         field_cache: Optional["FieldCache"] = None,
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         apply_updates = False
         if update_collector is None:
@@ -5730,7 +5738,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             field_cache = FieldCache()
 
         self._update_field_values(
-            field, update_collector, field_cache, via_path_to_starting_table or []
+            field, update_collector, field_cache, via_path_from_starting_table or []
         )
 
         # TODO: To improve performance, group formula fields at the same level and
@@ -5888,7 +5896,7 @@ class CountFieldType(FormulaFieldType):
         deleted_field: Field,
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         if field.through_field_id == deleted_field.id:
             field.through_field_id = None
@@ -5897,7 +5905,7 @@ class CountFieldType(FormulaFieldType):
             deleted_field,
             update_collector,
             field_cache,
-            via_path_to_starting_table,
+            via_path_from_starting_table,
         )
 
     def _validate_through_field_values(
@@ -6126,7 +6134,7 @@ class RollupFieldType(FormulaFieldType):
         deleted_field: Field,
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         if field.through_field_id == deleted_field.id:
             field.through_field_id = None
@@ -6135,7 +6143,7 @@ class RollupFieldType(FormulaFieldType):
             deleted_field,
             update_collector,
             field_cache,
-            via_path_to_starting_table,
+            via_path_from_starting_table,
         )
 
     def import_serialized(
@@ -6354,7 +6362,7 @@ class LookupFieldType(FormulaFieldType):
         updated_old_field: Field,
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         # The updated field can be the through field or the target field, and we're only
         # interested if the name or the field type changed.
@@ -6373,7 +6381,7 @@ class LookupFieldType(FormulaFieldType):
             updated_old_field,
             update_collector,
             field_cache,
-            via_path_to_starting_table,
+            via_path_from_starting_table,
         )
 
     def field_dependency_deleted(
@@ -6382,7 +6390,7 @@ class LookupFieldType(FormulaFieldType):
         deleted_field: Field,
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         # Either the through field or the target field has been deleted
         if deleted_field.id == field.through_field_id:
@@ -6398,7 +6406,7 @@ class LookupFieldType(FormulaFieldType):
             deleted_field,
             update_collector,
             field_cache,
-            via_path_to_starting_table,
+            via_path_from_starting_table,
         )
 
     def field_dependency_created(
@@ -6407,7 +6415,7 @@ class LookupFieldType(FormulaFieldType):
         created_field: Field,
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         # If the created field can fix this broken field because it was pointing to
         # the same name, then we can do so.
@@ -6436,7 +6444,7 @@ class LookupFieldType(FormulaFieldType):
             created_field,
             update_collector,
             field_cache,
-            via_path_to_starting_table,
+            via_path_from_starting_table,
         )
 
     def import_serialized(
@@ -7055,7 +7063,7 @@ class AutonumberFieldType(ReadOnlyFieldType):
         field: FormulaField,
         update_collector: Optional[FieldUpdateCollector] = None,
         field_cache: Optional["FieldCache"] = None,
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         # Create the sequence so that rows can start being automatically numbered.
         self.create_field_sequence(field, field.table.get_model(), connection)

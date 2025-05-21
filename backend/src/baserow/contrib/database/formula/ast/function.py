@@ -374,13 +374,13 @@ def construct_aggregate_wrapper_queryset(
     with_cte = with_cte.add_lazy_values(result_key_for_cte)
 
     # @TODO docs
-    path_to_starting_table = None
-    if cte_collector.last_path_to_starting_table and expr_with_metadata.join_ids:
-        first_link = model.get_field_object(expr_with_metadata.join_ids[0][0])["field"]
-        path_to_starting_table = cte_collector.last_path_to_starting_table.copy()
-        path_to_starting_table[-1] = first_link
+    path_from_starting_table = None
+    if cte_collector.last_path_from_starting_table and expr_with_metadata.join_ids:
+        last_link = model.get_field_object(expr_with_metadata.join_ids[0][0])["field"]
+        path_from_starting_table = cte_collector.last_path_from_starting_table.copy()
+        path_from_starting_table[-1] = last_link
     cte_collector.add_or_update(
-        model.baserow_table.id, with_cte, path_to_starting_table
+        model.baserow_table.id, with_cte, path_from_starting_table
     )
 
     cte_queryset = (

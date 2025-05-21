@@ -34,7 +34,7 @@ class CTECollector:
     ):
         self.cte = defaultdict(dict)
         self.starting_row_ids = starting_row_ids
-        self.last_path_to_starting_table = None
+        self.last_path_from_starting_table = None
         self._deleted_m2m_rels_per_link_field = deleted_m2m_rels_per_link_field
 
     def has(self, table_id, name: str):
@@ -47,22 +47,22 @@ class CTECollector:
         self,
         table_id,
         cte_with: UpdatableCTEWith,
-        path_to_starting_table: Optional[List[LinkRowField]] = None,
+        path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         if cte_with.name in self.cte[table_id]:
             self.cte[table_id][cte_with.name]["with"] = cte_with
-            if path_to_starting_table is not None:
+            if path_from_starting_table is not None:
                 self.cte[table_id][cte_with.name][
-                    "path_to_starting_table"
-                ] = path_to_starting_table
+                    "path_from_starting_table"
+                ] = path_from_starting_table
         else:
             self.cte[table_id][cte_with.name] = {
                 "with": cte_with,
-                "path_to_starting_table": path_to_starting_table,
+                "path_from_starting_table": path_from_starting_table,
             }
 
-    def set_last_path_to_starting_table(self, value):
-        self.last_path_to_starting_table = value
+    def set_last_path_from_starting_table(self, value):
+        self.last_path_from_starting_table = value
 
     def add_starting_table_filters_and_get_all(
         self, table_id
@@ -72,23 +72,21 @@ class CTECollector:
         starting_row_ids = self.starting_row_ids
 
         for cte_object in cte:
-            path_to_starting_table = cte_object.get("path_to_starting_table", None)
+            path_from_starting_table = cte_object.get("path_from_starting_table", None)
             cte_with = cte_object["with"]
 
             if (
-                path_to_starting_table is not None
-                and len(path_to_starting_table) > 0
+                path_from_starting_table is not None
+                and len(path_from_starting_table) > 0
                 and starting_row_ids is not None
             ):
-                # TODO IDEA: move the subquery into a CTE to improve performance.
-
-                reversed_path = deepcopy(path_to_starting_table)
-                reversed_path.reverse()
+                path_to_starting_table = deepcopy(path_from_starting_table)
+                path_to_starting_table.reverse()
                 cte_queryset = cte_with.get_source_queryset()
 
                 # Build the lookup path dynamically
                 path_to_starting_table_row_id_column = ""
-                for link_row_field in reversed_path:
+                for link_row_field in path_to_starting_table:
                     path_to_starting_table_row_id_column += (
                         f"{link_row_field.db_column}__"
                     )
@@ -424,7 +422,7 @@ class FieldUpdateCollector:
         self,
         field: Field,
         update_statement: Expression,
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         """
         Stores the provided field as an updated one to send in field updated signals
@@ -434,7 +432,7 @@ class FieldUpdateCollector:
         :param field: The field which has been updated.
         :param update_statement: The update statement to run over the fields row values
             to update them.
-        :param via_path_to_starting_table: A list of link row fields which lead from
+        :param via_path_from_starting_table: A list of link row fields which lead from
             the self.starting_table to the table containing field. Used to properly
             order the update statements so the graph is updated in sequence and also
             used if self.starting_row_ids is set so only rows which join back to the
@@ -445,13 +443,13 @@ class FieldUpdateCollector:
         self._pending_field_updates.add_field(field)
 
         self._update_statement_collector.add_update_statement(
-            field, update_statement, via_path_to_starting_table
+            field, update_statement, via_path_from_starting_table
         )
 
     def add_field_which_has_changed(
         self,
         field: Field,
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
         send_field_updated_signal: bool = True,
     ):
         """
@@ -461,7 +459,7 @@ class FieldUpdateCollector:
         updates or background row tasks still need to be run for them
 
         :param field: The field which has had cell values changed.
-        :param via_path_to_starting_table: A list of link row fields which lead from
+        :param via_path_from_starting_table: A list of link row fields which lead from
             the self.starting_table to the table containing field. Used to properly
             order the update statements so the graph is updated in sequence and also
             used if self.starting_row_ids is set so only rows which join back to the
@@ -473,7 +471,7 @@ class FieldUpdateCollector:
         self._all_field_updates.add_field(field, send_field_updated_signal)
 
         self._update_statement_collector.mark_field_as_changed(
-            field, via_path_to_starting_table
+            field, via_path_from_starting_table
         )
 
     def apply_updates(self, field_cache: FieldCache) -> int:
