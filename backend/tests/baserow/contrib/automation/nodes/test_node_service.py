@@ -4,7 +4,7 @@ import pytest
 
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import LocalBaserowRowCreatedTriggerNode
+from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.core.exceptions import UserNotInWorkspace
@@ -22,7 +22,7 @@ def test_create_node(mocked_signal, data_fixture):
     service = AutomationNodeService()
     node = service.create_node(user, node_type, workflow)
 
-    assert isinstance(node, LocalBaserowRowCreatedTriggerNode)
+    assert isinstance(node, LocalBaserowRowsCreatedTriggerNode)
     mocked_signal.send.assert_called_once_with(service, node=node, user=user)
 
 

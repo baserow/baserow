@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -61,7 +60,7 @@ from baserow.contrib.database.rows.exceptions import (
     CannotDeleteRowsInTable,
     RowDoesNotExist,
 )
-from baserow.contrib.database.rows.signals import rows_created
+from baserow.contrib.database.rows.signals import rows_created, rows_updated
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
@@ -2533,6 +2532,7 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
 
     signal = None
     on_event = None
+    model_class = None
 
     def start_listening(self, on_event: Callable):
         self.on_event = on_event
@@ -2549,9 +2549,14 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
         self.stop_listening()
         return super().before_unregister()
 
-    @abstractmethod
-    def handle_signal(self, *args, **kwargs):
-        ...
+    def handle_signal(self, sender, rows, table, model, **kwargs):
+        serializer = get_row_serializer_class(
+            model,
+            RowSerializer,
+            is_response=True,
+        )
+        serialized_rows = serializer(rows, many=True).data
+        self.process_event(self.model_class.objects.filter(table=table), serialized_rows)
 
     def process_event(self, *args, **kwargs):
         return self.on_event(*args, **kwargs) if callable(self.on_event) else None
@@ -2569,13 +2574,12 @@ class LocalBaserowRowsCreatedTriggerServiceType(
     type = "local_baserow_rows_created"
     model_class = LocalBaserowRowCreated
 
-    def handle_signal(self, sender, rows, before, user, table, model, **kwargs):
-        serializer = get_row_serializer_class(
-            model,
-            RowSerializer,
-            is_response=True,
-        )
-        serialized_rows = serializer(rows, many=True).data
-        self.process_event(
-            self.model_class.objects.filter(table=table), serialized_rows
-        )
+
+class LocalBaserowRowsUpdatedTriggerServiceType(
+    LocalBaserowTableServiceType,
+    LocalBaserowSignalTriggerTypeMixin,
+    TriggerServiceTypeMixin,
+):
+    signal = rows_updated
+    type = "local_baserow_rows_updated"
+    model_class = LocalBaserowRowCreated

@@ -19,6 +19,7 @@ class IntegrationsConfig(AppConfig):
             LocalBaserowGetRowUserServiceType,
             LocalBaserowListRowsUserServiceType,
             LocalBaserowRowsCreatedTriggerServiceType,
+            LocalBaserowRowsUpdatedTriggerServiceType,
             LocalBaserowUpsertRowServiceType,
         )
 
@@ -28,6 +29,7 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(LocalBaserowUpsertRowServiceType())
         service_type_registry.register(LocalBaserowDeleteRowServiceType())
         service_type_registry.register(LocalBaserowRowsCreatedTriggerServiceType())
+        service_type_registry.register(LocalBaserowRowsUpdatedTriggerServiceType())
 
         from baserow.contrib.integrations.core.service_types import (
             CoreHTTPRequestServiceType,
