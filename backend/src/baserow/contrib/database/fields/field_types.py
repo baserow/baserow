@@ -5708,7 +5708,6 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             from_field.table_id
         ):
             update_queryset = update_queryset.with_cte(cte_with)
-        print(update_queryset.query)
         update_queryset.update(**{f"{to_field.db_column}": expr})
 
     def after_import_serialized(self, field, field_cache, id_mapping):
