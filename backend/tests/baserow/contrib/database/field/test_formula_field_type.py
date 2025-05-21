@@ -73,24 +73,24 @@ def test_adding_a_formula_field_to_an_existing_table_populates_it_for_all_rows(
 
 
 @pytest.mark.django_db
-def test_cant_change_the_value_of_a_formula_field_directly(data_fixture):
-    table = data_fixture.create_database_table()
-    data_fixture.create_formula_field(
-        name="formula", table=table, formula="''", formula_type="text"
+def test_can_move_row_with_row_id_formula_without_loosing_value(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_formula_field(
+        name="formula", table=table, formula="row_id()"
     )
-    data_fixture.create_text_field(name="text", table=table)
-    model = table.get_model(attribute_names=True)
+    row_1, row_2 = RowHandler().force_create_rows(user, table, [{}, {}]).created_rows
 
-    row = model.objects.create(formula="not test")
-    assert row.formula is None
+    assert getattr(row_1, field.db_column) == row_1.id
+    assert getattr(row_2, field.db_column) == row_2.id
 
-    row.text = "update other field"
-    row.save()
+    RowHandler().move_row(user, table, row_1, row_2)
 
-    row.formula = "not test"
-    row.save()
-    row.refresh_from_db()
-    assert row.formula is None
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+
+    assert getattr(row_1, field.db_column) == row_1.id
+    assert getattr(row_2, field.db_column) == row_2.id
 
 
 @pytest.mark.django_db

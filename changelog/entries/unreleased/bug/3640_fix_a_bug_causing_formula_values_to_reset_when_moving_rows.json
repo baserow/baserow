@@ -1,0 +1,8 @@
+{
+  "type": "bug",
+  "message": "Fixed bug where formula values reset when moving rows.",
+  "domain": "database",
+  "issue_number": 3640,
+  "bullet_points": [],
+  "created_at": "2025-05-21"
+}
