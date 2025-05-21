@@ -101,6 +101,8 @@ class ServiceHandler:
         if integration:
             queryset = queryset.filter(integration=integration)
 
+        print("here")
+
         if specific:
             # Apply the type specific queryset enhancement for performance.
             def per_content_type_queryset_hook(model, queryset):

@@ -99,7 +99,7 @@ export const DataSourceServiceTypeMixin = (Base) =>
     }
   }
 
-export const ActionServiceTypeMixin = (Base) =>
+export const WorkflowActionServiceTypeMixin = (Base) =>
   class extends Base {
     isAction = true
   }

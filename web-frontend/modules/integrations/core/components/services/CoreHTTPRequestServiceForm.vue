@@ -240,7 +240,9 @@
         :to-value="(value) => parseInt(value)"
         type="number"
       >
-        <template #suffix>seconds</template>
+        <template #suffix>{{
+          $t('coreHTTPRequestServiceForm.seconds')
+        }}</template>
       </FormInput>
     </FormGroup>
   </form>

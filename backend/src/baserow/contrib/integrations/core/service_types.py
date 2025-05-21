@@ -24,6 +24,7 @@ from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, ServiceDict
+from baserow.version import VERSION as BASEROW_VERSION
 
 from .constants import BODY_TYPE, HTTP_METHOD
 
@@ -534,7 +535,7 @@ class CoreHTTPRequestServiceType(ServiceType):
         elif service.body_type == BODY_TYPE.RAW:  # Raw payload
             body_dict["data"] = body_content
 
-        headers = {
+        headers = {"user-agent": f"Baserow/{BASEROW_VERSION}/HTTPRequestService"} | {
             h.key: resolved_values[f"header_{h.id}"] for h in service.headers.all()
         }
         query_params = {

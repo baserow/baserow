@@ -1,10 +1,10 @@
 import {
   ServiceType,
-  ActionServiceTypeMixin,
+  WorkflowActionServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import CoreHTTPRequestServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPRequestServiceForm.vue'
 
-export class CoreHTTPRequestServiceType extends ActionServiceTypeMixin(
+export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
 ) {
   static getType() {

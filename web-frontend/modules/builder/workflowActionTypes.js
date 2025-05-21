@@ -232,7 +232,7 @@ export class WorkflowActionServiceType extends WorkflowActionType {
   }
 }
 
-export class CoreHTTPRequestActionType extends WorkflowActionServiceType {
+export class CoreHTTPRequestWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'http_request'
   }

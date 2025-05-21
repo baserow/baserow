@@ -100,6 +100,7 @@
     "bodyPlaceholder": "Add request body...",
     "timeoutPlaceholder": "Enter timeout...",
     "nameFieldRequired": "The name property is required.",
+    "seconds": "seconds",
     "nameFieldInvalid": "The name must contain only alphanumeric characters, dashes, or underscores, and must not start with a dash or an underscore.",
     "timeout": "Timeout"
   },
