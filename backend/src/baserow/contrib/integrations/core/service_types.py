@@ -12,7 +12,7 @@ from baserow.contrib.builder.data_providers.exceptions import (
 )
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
-    FormData,
+    HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
 )
@@ -80,7 +80,7 @@ class CoreHTTPRequestServiceType(ServiceType):
     @property
     def serializer_field_overrides(self):
         from baserow.contrib.integrations.core.api.serializers import (
-            FormDataSerializer,
+            HTTPFormDataSerializer,
             HTTPHeaderSerializer,
             HTTPQueryParamSerializer,
         )
@@ -125,7 +125,7 @@ class CoreHTTPRequestServiceType(ServiceType):
                 required=False,
                 help_text="The query params for the request.",
             ),
-            "form_data": FormDataSerializer(
+            "form_data": HTTPFormDataSerializer(
                 many=True,
                 required=False,
                 help_text="The form data for the request.",
@@ -152,14 +152,14 @@ class CoreHTTPRequestServiceType(ServiceType):
 
             for fdata in values["form_data"]:
                 bulk_form_data.append(
-                    FormData(
+                    HTTPFormData(
                         service=instance,
                         key=fdata["key"],
                         value=fdata["value"],
                     )
                 )
 
-            FormData.objects.bulk_create(bulk_form_data)
+            HTTPFormData.objects.bulk_create(bulk_form_data)
 
         if "headers" in values:
             bulk_headers = []
@@ -306,9 +306,9 @@ class CoreHTTPRequestServiceType(ServiceType):
             **kwargs,
         )
 
-        FormData.objects.bulk_create(
+        HTTPFormData.objects.bulk_create(
             [
-                FormData(
+                HTTPFormData(
                     **fdata,
                     service=service,
                 )

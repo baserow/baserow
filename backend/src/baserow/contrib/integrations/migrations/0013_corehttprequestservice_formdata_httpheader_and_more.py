@@ -76,6 +76,14 @@ class Migration(migrations.Migration):
                     "timeout",
                     models.PositiveIntegerField(
                         default=30,
+                        validators=[
+                            django.core.validators.MinValueValidator(
+                                1, message="Value cannot be less than 1."
+                            ),
+                            django.core.validators.MaxValueValidator(
+                                120, message="Value cannot be greater than 120."
+                            ),
+                        ],
                         help_text="The timeout for the HTTP request in seconds.",
                     ),
                 ),
@@ -95,7 +103,7 @@ class Migration(migrations.Migration):
             bases=("core.service",),
         ),
         migrations.CreateModel(
-            name="FormData",
+            name="HTTPFormData",
             fields=[
                 (
                     "id",

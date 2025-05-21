@@ -15,6 +15,10 @@
     "localBaserowGetRow": "Get single row",
     "localBaserowListRows": "List multiple rows",
     "localBaserowAggregateRows": "Summarize field",
+    "localBaserowCreateRow": "Create a Row",
+    "localBaserowUpdateRow": "Update a Row",
+    "localBaserowDeleteRow": "Delete a row",
+    "coreHTTPRequest": "Send HTTP request",
     "misconfigured": "Misconfigured",
     "trashedField": "Trashed field"
   },

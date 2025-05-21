@@ -1,7 +1,12 @@
-import { ServiceType } from '@baserow/modules/core/serviceTypes'
+import {
+  ServiceType,
+  ActionServiceTypeMixin,
+} from '@baserow/modules/core/serviceTypes'
 import CoreHTTPRequestServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPRequestServiceForm.vue'
 
-export class CoreHTTPRequestServiceType extends ServiceType {
+export class CoreHTTPRequestServiceType extends ActionServiceTypeMixin(
+  ServiceType
+) {
   static getType() {
     return 'http_request'
   }

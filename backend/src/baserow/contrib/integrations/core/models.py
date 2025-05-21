@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from baserow.core.formula.field import FormulaField
@@ -32,6 +33,10 @@ class CoreHTTPRequestService(Service):
     )
     timeout = models.PositiveIntegerField(
         default=30,
+        validators=[
+            MinValueValidator(1, message="Value cannot be less than 1."),
+            MaxValueValidator(120, message="Value cannot be greater than 120."),
+        ],
         help_text="The timeout for the HTTP request in seconds.",
     )
     response_sample = models.JSONField(
@@ -42,7 +47,7 @@ class CoreHTTPRequestService(Service):
     )
 
 
-class FormData(models.Model):
+class HTTPFormData(models.Model):
     """
     Model to store Form data.
     """

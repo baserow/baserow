@@ -4,7 +4,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.integrations.core.models import (
-    FormData,
+    HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
 )
@@ -36,7 +36,7 @@ def validate_param_or_header_name(value):
     return value
 
 
-class FormDataSerializer(serializers.ModelSerializer):
+class HTTPFormDataSerializer(serializers.ModelSerializer):
     """
     Serializer for the Form data model.
     """
@@ -47,7 +47,7 @@ class FormDataSerializer(serializers.ModelSerializer):
     value = FormulaSerializerField(allow_blank=True)
 
     class Meta:
-        model = FormData
+        model = HTTPFormData
         fields = ["id", "key", "value"]
 
 

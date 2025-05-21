@@ -187,6 +187,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return WorkflowActionWithService
   }
 
+  get label() {
+    return this.serviceType.name
+  }
+
   execute({ workflowAction: { id }, applicationContext, resolveFormula }) {
     const data = DataProviderType.getAllActionDispatchContext(
       this.app.$registry.getAll('builderDataProvider'),
@@ -233,10 +237,6 @@ export class CoreHTTPRequestActionType extends WorkflowActionServiceType {
     return 'http_request'
   }
 
-  get label() {
-    return this.app.i18n.t('workflowActionTypes.httpRequest')
-  }
-
   get serviceType() {
     return this.app.$registry.get(
       'service',
@@ -260,10 +260,6 @@ export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
       LocalBaserowCreateRowWorkflowServiceType.getType()
     )
   }
-
-  get label() {
-    return this.app.i18n.t('workflowActionTypes.createRowLabel')
-  }
 }
 
 export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
@@ -277,10 +273,6 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
       LocalBaserowUpdateRowWorkflowServiceType.getType()
     )
   }
-
-  get label() {
-    return this.app.i18n.t('workflowActionTypes.updateRowLabel')
-  }
 }
 
 export class DeleteRowWorkflowActionType extends WorkflowActionServiceType {
@@ -293,9 +285,5 @@ export class DeleteRowWorkflowActionType extends WorkflowActionServiceType {
       'service',
       LocalBaserowDeleteRowWorkflowServiceType.getType()
     )
-  }
-
-  get label() {
-    return this.app.i18n.t('workflowActionTypes.deleteRowLabel')
   }
 }

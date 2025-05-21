@@ -1,4 +1,8 @@
-import { ServiceType } from '@baserow/modules/core/serviceTypes'
+import {
+  ServiceType,
+  DataSourceServiceTypeMixin,
+  ActionServiceTypeMixin,
+} from '@baserow/modules/core/serviceTypes'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
 import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
@@ -79,7 +83,9 @@ export class LocalBaserowTableServiceType extends ServiceType {
   }
 }
 
-export class LocalBaserowGetRowServiceType extends LocalBaserowTableServiceType {
+export class LocalBaserowGetRowServiceType extends DataSourceServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
   static getType() {
     return 'local_baserow_get_row'
   }
@@ -114,7 +120,9 @@ export class LocalBaserowGetRowServiceType extends LocalBaserowTableServiceType 
   }
 }
 
-export class LocalBaserowListRowsServiceType extends LocalBaserowTableServiceType {
+export class LocalBaserowListRowsServiceType extends DataSourceServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
   static getType() {
     return 'local_baserow_list_rows'
   }
@@ -232,7 +240,9 @@ export class LocalBaserowListRowsServiceType extends LocalBaserowTableServiceTyp
   }
 }
 
-export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServiceType {
+export class LocalBaserowAggregateRowsServiceType extends DataSourceServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
   static getType() {
     return 'local_baserow_aggregate_rows'
   }
@@ -319,27 +329,45 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
   }
 }
 
-export class LocalBaserowCreateRowWorkflowServiceType extends LocalBaserowTableServiceType {
+export class LocalBaserowCreateRowWorkflowServiceType extends ActionServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
   static getType() {
     return 'local_baserow_create_row'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.localBaserowCreateRow')
   }
 
   get formComponent() {
     return LocalBaserowUpsertRowServiceForm
   }
 }
-export class LocalBaserowUpdateRowWorkflowServiceType extends LocalBaserowTableServiceType {
+export class LocalBaserowUpdateRowWorkflowServiceType extends ActionServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
   static getType() {
     return 'local_baserow_update_row'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.localBaserowUpdateRow')
   }
 
   get formComponent() {
     return LocalBaserowUpdateRowServiceForm
   }
 }
-export class LocalBaserowDeleteRowWorkflowServiceType extends LocalBaserowTableServiceType {
+export class LocalBaserowDeleteRowWorkflowServiceType extends ActionServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
   static getType() {
     return 'local_baserow_delete_row'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.localBaserowDeleteRow')
   }
 
   get formComponent() {

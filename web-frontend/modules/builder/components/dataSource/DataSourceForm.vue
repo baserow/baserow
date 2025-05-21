@@ -143,6 +143,9 @@ export default {
     serviceTypes() {
       return this.$registry.getOrderedList('service')
     },
+    dataSourceServiceTypes() {
+      return this.serviceTypes.filter(({ isDataSource }) => isDataSource)
+    },
     serviceType() {
       return this.values.type
         ? this.$registry.get('service', this.values.type)
@@ -178,7 +181,7 @@ export default {
         .getOrderedList('integration')
         .map((integrationType) => [
           integrationType,
-          this.serviceTypes.filter(
+          this.dataSourceServiceTypes.filter(
             (serviceType) => serviceType.integrationType === integrationType
           ),
         ])
