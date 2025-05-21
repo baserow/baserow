@@ -1,6 +1,6 @@
 from collections import defaultdict
 from copy import deepcopy
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from django.db.models import Expression, Q, Value
 
@@ -24,7 +24,10 @@ StartingRowIdsType = Optional[List[int]]
 
 class CTECollector:
     """
-    @TODO docs.
+    This class is initialized for every `UpdateCollector`, and is directly related to
+    it. Its purpose is the improve performance related to lookup functions in the
+    formula system. It allows to create a CTE for each relationship instead of doing
+    a subquery.
     """
 
     def __init__(
@@ -32,15 +35,33 @@ class CTECollector:
         starting_row_ids: Optional[List[int]] = None,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]] = None,
     ):
-        self.cte = defaultdict(dict)
-        self.starting_row_ids = starting_row_ids
-        self.last_path_from_starting_table = None
-        self._deleted_m2m_rels_per_link_field = deleted_m2m_rels_per_link_field
+        self.cte: Dict[int : Dict[str, Any]] = defaultdict(dict)
+        self.starting_row_ids: Optional[List[int]] = starting_row_ids
+        self.last_path_from_starting_table: Optional[List[LinkRowField]] = None
+        self._deleted_m2m_rels_per_link_field: Optional[
+            Dict[int, Set[int]]
+        ] = deleted_m2m_rels_per_link_field
 
-    def has(self, table_id, name: str):
+    def has(self, table_id, name: str) -> bool:
+        """
+        Returns whether the provided CTE name already exists for the given table.
+
+        :param table_id: The table ID where to check if the name exists.
+        :param name: The name of the CTE to check whether it already exists.
+        :return: Whether the name exists in the collector.
+        """
+
         return name in self.cte[table_id]
 
-    def get(self, table_id, name: str):
+    def get(self, table_id, name: str) -> Union[UpdatableCTEWith | With]:
+        """
+        Returns the entry With object for the given name in the collector.
+
+        :param table_id: The table ID where to get the With object for.
+        :param name: The name of the CTE where to get the With object for.
+        :return: The With object related to the given parameters.
+        """
+
         return self.cte[table_id][name]["with"]
 
     def add_or_update(
@@ -49,6 +70,20 @@ class CTECollector:
         cte_with: UpdatableCTEWith,
         path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
+        """
+        Add or update the give CTE With. It uses the `name` property of the object as
+        unique identifier because that one must also be unique when applied to the
+        queryset with `with_cte` method.
+
+        :param table_id: The table where to add the CTE to. Note that only if an
+            update query for this table is executed, that it will be included.
+        :param cte_with: The CTE object to set.
+        :param path_from_starting_table: The `path_from_starting_table` list related
+            to this CTE. This will be used to filter on the `starting_row_ids` to
+            make things more efficient.
+        :return:
+        """
+
         if cte_with.name in self.cte[table_id]:
             self.cte[table_id][cte_with.name]["with"] = cte_with
             if path_from_starting_table is not None:
@@ -61,12 +96,34 @@ class CTECollector:
                 "path_from_starting_table": path_from_starting_table,
             }
 
-    def set_last_path_from_starting_table(self, value):
+    def set_last_path_from_starting_table(self, value: Optional[List[LinkRowField]]):
+        """
+        The `last_path_from_starting_table` is used to pass the
+        `path_from_starting_table` down to where the CTE is added. It's not the
+        nicest solution, but it does the trick.
+
+        :param value: The `path_from_starting_table` that must temporarily be set to
+        this instance.
+        """
+
         self.last_path_from_starting_table = value
 
     def add_starting_table_filters_and_get_all(
         self, table_id
     ) -> List[UpdatableCTEWith | With]:
+        """
+        Returns all the collected CTEs for the given table. If the
+        `path_from_starting_table` is provided for the CTE in the entry, and the
+        `starting_row_ids` are known, then a filter will be added to that CTE so that
+        only the updated rows are included in the CTE.
+
+        This is done to improve the performance because there is no need to select
+        all the rows in the CTE if they're not updated.
+
+        :param table_id: The table ID where to get the CTEs for.
+        :return: The CTEs of the given table.
+        """
+
         cte = list(self.cte[table_id].values())
         cte_withs = []
         starting_row_ids = self.starting_row_ids
@@ -75,16 +132,21 @@ class CTECollector:
             path_from_starting_table = cte_object.get("path_from_starting_table", None)
             cte_with = cte_object["with"]
 
+            # Only if the `path_from_starting_table` and `starting_row_ids` are set,
+            # it's possible to filter and include only the rows that are actually
+            # updated.
             if (
                 path_from_starting_table is not None
                 and len(path_from_starting_table) > 0
                 and starting_row_ids is not None
             ):
+                # Because we're not updating the starting table,
+                # the `path_from_starting` table must be reversed because we need the
+                # linkrowfield path back to the starting table.
                 path_to_starting_table = deepcopy(path_from_starting_table)
                 path_to_starting_table.reverse()
                 cte_queryset = cte_with.get_source_queryset()
 
-                # Build the lookup path dynamically
                 path_to_starting_table_row_id_column = ""
                 for link_row_field in path_to_starting_table:
                     path_to_starting_table_row_id_column += (
@@ -92,21 +154,23 @@ class CTECollector:
                     )
                 path_to_starting_table_row_id_column += "id"
 
-                # Precompute matching IDs in one efficient query
+                # Create a subquery that that filters the rows because if the filters
+                # are applied to the queryset directly, it introduces another join,
+                # which causes duplicate results because in most cases there already
+                # is a join.
                 filter_query = cte_queryset.model.objects.filter(
-                    **{f"{path_to_starting_table_row_id_column}__in": starting_row_ids}
-                ).values_list("id", flat=True)
-
-                # Use that in a single filter with `__in`
-                base_filter = Q(id__in=filter_query)
-                final_filter = (
-                    base_filter
+                    Q(
+                        **{
+                            f"{path_to_starting_table_row_id_column}__in": starting_row_ids
+                        }
+                    )
                     | include_rows_connected_to_deleted_m2m_relationships(
                         self._deleted_m2m_rels_per_link_field,
                         path_to_starting_table,
                     )
-                )
+                ).values_list("id", flat=True)
 
+                final_filter = Q(id__in=filter_query)
                 cte_queryset = cte_queryset.filter(final_filter)
                 cte_with.set_source_queryset(cte_queryset)
 

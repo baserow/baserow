@@ -329,9 +329,8 @@ def construct_aggregate_wrapper_queryset(
     in conjunction with aggregate_wrapper, or to be used directly in a subquery.
     """
 
-    # Create a unique key based on the table name, pre annotations and the aggregate
-    # filters. If there are multiple aggregates, then only one CTE query has to be
-    # created.
+    # Create a unique key based on the pre annotations and the aggregate filters. This
+    # is used to combine aggregates into one CTE for performance reasons.
     cte_key = ""
     for key in sorted(expr_with_metadata.pre_annotations.keys()):
         cte_key += f"__{key}"
@@ -373,7 +372,10 @@ def construct_aggregate_wrapper_queryset(
     with_cte.set_source_queryset(cte_queryset)
     with_cte = with_cte.add_lazy_values(result_key_for_cte)
 
-    # @TODO docs
+    # Every `lookup` function in a formula can use a different `LinkRowField`. Because
+    # the `path_from_starting_table` of the CTE collector might not use the correct
+    # `LinkRowField`, it must be replaced using the `join_ids` to make sure it uses the
+    # correct path.
     path_from_starting_table = None
     if cte_collector.last_path_from_starting_table and expr_with_metadata.join_ids:
         last_link = model.get_field_object(expr_with_metadata.join_ids[0][0])["field"]

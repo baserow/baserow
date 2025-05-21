@@ -862,7 +862,9 @@ def atomic_with_retry_on_deadlock(
 
 class UpdatableCTEWith(With):
     """
-    @TODO docs
+    This class extends the django-cte With object, and allows to update the provided
+    queryset after it has been added. This can be useful if the queryset must be
+    modified after the `.queryset()` has already been called.
     """
 
     def __init__(self, queryset, name="cte", materialized=False):
@@ -880,6 +882,12 @@ class UpdatableCTEWith(With):
 
     @property
     def query(self):
+        """
+        Uses the latest version of the `QuerySet` object, and adds the lazily added
+        annotations and values to it. This method is overwritten because we want those
+        modifications to be added at the latest moment possible.
+        """
+
         source_queryset = self.get_source_queryset()
         new_queryset = source_queryset.annotate(**self.annotations)
         new_queryset = new_queryset.values(*list(self.values))
