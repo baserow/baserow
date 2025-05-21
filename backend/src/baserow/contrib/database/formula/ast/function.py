@@ -1,7 +1,7 @@
 import abc
 import hashlib
 from datetime import timedelta
-from typing import Dict, List, Type
+from typing import List, Type, TYPE_CHECKING
 
 from django.db.models import (
     DecimalField,
@@ -39,6 +39,11 @@ from baserow.contrib.database.formula.types.type_checker import (
     BaserowSingleArgumentTypeChecker,
 )
 from baserow.core.db import UpdatableCTEWith
+
+if TYPE_CHECKING:
+    from baserow.contrib.database.fields.dependencies.update_collector import (
+        CTECollector,
+    )
 
 
 class FixedNumOfArgs(ArgCountSpecifier):

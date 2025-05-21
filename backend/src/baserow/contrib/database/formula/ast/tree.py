@@ -24,6 +24,9 @@ if typing.TYPE_CHECKING:
     from baserow.contrib.database.formula.expression_generator.generator import (
         WrappedExpressionWithMetadata,
     )
+    from baserow.contrib.database.fields.dependencies.update_collector import (
+        CTECollector,
+    )
 
 A = TypeVar("A")
 T = TypeVar("T")

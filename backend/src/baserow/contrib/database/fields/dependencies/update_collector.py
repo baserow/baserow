@@ -1,8 +1,8 @@
 from collections import defaultdict
 from copy import deepcopy
-from typing import Dict, List, Optional, Set, Tuple, cast
+from typing import Dict, List, Optional, Set, Tuple
 
-from django.db.models import Expression, Q, Value, OuterRef, Exists
+from django.db.models import Expression, Q, Value
 
 from django_cte import With
 
@@ -64,7 +64,9 @@ class CTECollector:
     def set_last_path_to_starting_table(self, value):
         self.last_path_to_starting_table = value
 
-    def add_starting_table_filters_and_get_all(self, table_id) -> List[UpdatableCTEWith | With]:
+    def add_starting_table_filters_and_get_all(
+        self, table_id
+    ) -> List[UpdatableCTEWith | With]:
         cte = list(self.cte[table_id].values())
         cte_withs = []
         starting_row_ids = self.starting_row_ids
@@ -87,7 +89,9 @@ class CTECollector:
                 # Build the lookup path dynamically
                 path_to_starting_table_row_id_column = ""
                 for link_row_field in reversed_path:
-                    path_to_starting_table_row_id_column += f"{link_row_field.db_column}__"
+                    path_to_starting_table_row_id_column += (
+                        f"{link_row_field.db_column}__"
+                    )
                 path_to_starting_table_row_id_column += "id"
 
                 # Precompute matching IDs in one efficient query
@@ -97,9 +101,12 @@ class CTECollector:
 
                 # Use that in a single filter with `__in`
                 base_filter = Q(id__in=filter_query)
-                final_filter = base_filter | include_rows_connected_to_deleted_m2m_relationships(
-                    self._deleted_m2m_rels_per_link_field,
-                    path_to_starting_table,
+                final_filter = (
+                    base_filter
+                    | include_rows_connected_to_deleted_m2m_relationships(
+                        self._deleted_m2m_rels_per_link_field,
+                        path_to_starting_table,
+                    )
                 )
 
                 cte_queryset = cte_queryset.filter(final_filter)

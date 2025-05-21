@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type, TYPE_CHECKING
 
 from django.db.models import (
     BooleanField,
@@ -36,6 +36,11 @@ from baserow.contrib.database.formula.types.formula_type import (
 from baserow.core.formula.exceptions import formula_exception_handler
 from baserow.core.formula.parser.exceptions import MaximumFormulaSizeError
 
+if TYPE_CHECKING:
+    from baserow.contrib.database.fields.dependencies.update_collector import (
+        CTECollector,
+    )
+
 
 def baserow_expression_to_update_django_expression(
     baserow_expression: BaserowExpression[BaserowFormulaType],
@@ -44,34 +49,6 @@ def baserow_expression_to_update_django_expression(
 ):
     return _baserow_expression_to_django_expression(
         baserow_expression, model, None, cte_collector
-    )
-
-
-def baserow_expression_to_single_row_update_django_expression(
-    baserow_expression: BaserowExpression[BaserowFormulaType],
-    model_instance: Model,
-    cte_collector: "CTECollector",
-):
-    return _baserow_expression_to_django_expression(
-        baserow_expression,
-        type(model_instance),
-        model_instance,
-        cte_collector,
-        insert=False,
-    )
-
-
-def baserow_expression_to_insert_django_expression(
-    baserow_expression: BaserowExpression[BaserowFormulaType],
-    model_instance: Model,
-    cte_collector: "CTECollector",
-):
-    return _baserow_expression_to_django_expression(
-        baserow_expression,
-        type(model_instance),
-        model_instance,
-        cte_collector,
-        insert=True,
     )
 
 

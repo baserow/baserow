@@ -15,8 +15,6 @@ from baserow.contrib.database.formula.ast.tree import (
     BaserowFunctionDefinition,
 )
 from baserow.contrib.database.formula.expression_generator.generator import (
-    baserow_expression_to_insert_django_expression,
-    baserow_expression_to_single_row_update_django_expression,
     baserow_expression_to_update_django_expression,
 )
 from baserow.contrib.database.formula.migrations.migrations import (
@@ -42,13 +40,15 @@ from baserow.contrib.database.formula.types.visitors import (
     FieldDependencyExtractingVisitor,
     FunctionsUsedVisitor,
 )
-from baserow.core.db import UpdatableCTEWith
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
 from baserow.core.telemetry.utils import baserow_trace_methods
 
 if typing.TYPE_CHECKING:
     from baserow.contrib.database.fields.models import FormulaField
+    from baserow.contrib.database.fields.dependencies.update_collector import (
+        CTECollector,
+    )
 
 
 tracer = trace.get_tracer(__name__)
