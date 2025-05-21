@@ -13,9 +13,9 @@
           :auth-providers="appAuthProviderPerTypes[appAuthType.type]"
           :login-button-label="resolvedLoginButtonLabel"
           :before-login="beforeLogin"
+          :after-login="afterLogin"
           :read-only="isEditMode"
           :authenticate="authenticateWithCredentials"
-          @after-login="afterLogin"
         />
       </div>
     </template>
@@ -133,6 +133,8 @@ export default {
   methods: {
     ...mapActions({
       actionForceUpdateElement: 'element/forceUpdate',
+      userLogoff: 'userSourceUser/logoff',
+      userAuthenticate: 'userSourceUser/authenticate',
     }),
     hasAtLeastOneProvider(authProviderType) {
       return (
@@ -141,21 +143,22 @@ export default {
     },
     async beforeLogin() {
       if (this.isAuthenticated) {
-        await this.$store.dispatch('userSourceUser/logoff', {
+        await this.userLogoff({
           application: this.builder,
         })
+        await this.$nextTick()
       }
     },
     async authenticateWithCredentials(credentials) {
-      await this.$store.dispatch('userSourceUser/authenticate', {
+      await this.userAuthenticate({
         application: this.builder,
         userSource: this.selectedUserSource,
         credentials,
         setCookie: this.mode === 'public',
       })
     },
-    afterLogin() {
-      this.fireEvent(
+    async afterLogin() {
+      await this.fireEvent(
         this.elementType.getEventByName(this.element, 'after_login')
       )
     },
