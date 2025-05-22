@@ -2,6 +2,7 @@ from django.urls import include, path
 
 from .admin import urls as admin_urls
 from .audit_log import urls as audit_log_urls
+from .builder.custom_code import urls as custom_code_urls
 from .data_sync import urls as data_sync_urls
 from .field_permissions import urls as field_permissions_urls
 from .role import urls as role_urls
@@ -20,5 +21,9 @@ urlpatterns = [
     path(
         "field-permissions/",
         include(field_permissions_urls, namespace="field_permissions"),
+    ),
+    path(
+        "custom_code/",
+        include(custom_code_urls, namespace="custom_code"),
     ),
 ]

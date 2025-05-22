@@ -19,7 +19,9 @@
       :class="{ 'control__label--small': smallLabel }"
     >
       <span>{{ label }}</span>
-      <span v-if="!required" class="control__required">Optional</span>
+      <span v-if="!required" class="control__required">{{
+        $t('common.optional')
+      }}</span>
       <HelpIcon
         v-if="helpIconTooltip"
         :tooltip="helpIconTooltip"

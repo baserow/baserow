@@ -213,4 +213,9 @@ export class BaserowPlugin extends Registerable {
   getLogoComponentOrder() {
     return 50
   }
+
+  /* Allow plugins to add scripts in the head section of a builder application */
+  getBuilderApplicationHeaderAddition({ builder, mode }) {
+    return {}
+  }
 }

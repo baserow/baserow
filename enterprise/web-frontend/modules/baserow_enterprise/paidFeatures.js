@@ -233,3 +233,29 @@ export class BuilderBrandingPaidFeature extends PaidFeature {
     return this.app.i18n.t('enterpriseFeatures.builderBrandingContent')
   }
 }
+
+export class BuilderCustomCodePaidFeature extends PaidFeature {
+  static getType() {
+    return 'builder_custom_code'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-eye-close'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.builderCustomCode')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.builderCustomCodeContent')
+  }
+}

@@ -55,6 +55,7 @@ def test_queries_to_list_apps_should_not_increase_with_the_number_of_application
 
     with CaptureQueriesContext(connection) as captured:
         _get_apps()
+        captured_queries = list(captured.captured_queries)
 
     _create_db_with_two_table()
     _create_db_with_two_table()
@@ -69,4 +70,4 @@ def test_queries_to_list_apps_should_not_increase_with_the_number_of_application
     with CaptureQueriesContext(connection) as captured2:
         _get_apps()
 
-    assert len(captured) >= len(captured2)
+    assert len(captured_queries) == len(captured2.captured_queries)

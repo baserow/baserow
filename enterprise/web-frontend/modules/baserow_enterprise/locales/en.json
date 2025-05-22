@@ -539,6 +539,36 @@
     "allowInForms": "Allow this field to be set in rows created through forms",
     "linkRowWarning": "This is a 'Link to table' field. To ensure values cannot be changed from the linked table, please make ensure to set the right permissions on the linked table as well."
   },
+  "builderSettingTypes": {
+    "customCode": "Custom CSS/JS"
+  },
+  "customCodeSettingForm": {
+    "customCSS": "Custom CSS",
+    "customJS": "Custom Javascript",
+    "customCSSPlaceholder": "Enter some custom CSS code...",
+    "customJSPlaceholder": "Enter some custom js code...",
+    "externalScripts": "External scripts / stylesheets",
+    "noScript": "Enhance your application with external scripts or stylesheets",
+    "customCodeTitle": "Custom code",
+    "customCodeHelp": "The custom codes are only visible in preview or published applications, you can't see the result in the editor.",
+    "addExternalScript": "Add an external script"
+  },
+  "customCodeSettingScriptForm": {
+    "type": "Type",
+    "loadType": "Load type",
+    "url": "URL",
+    "urlPlaceholder": "Enter the script URL...",
+    "crossorigin": "Cross origin",
+    "includeCredentials": "Include credentials",
+    "typeCSS": "CSS",
+    "typeJS": "Javascript",
+    "loadTypeNone": "Normal",
+    "loadTypeDefer": "Defer",
+    "loadTypeAsync": "Async",
+    "crossoriginTypeNone": "Normal",
+    "crossoriginTypeAnonymous": "Anonymous",
+    "crossoriginTypeCredentials": "Use credentials"
+  },
   "fieldPermissionsMenuItem": {
     "label": "Edit field permissions"
   }

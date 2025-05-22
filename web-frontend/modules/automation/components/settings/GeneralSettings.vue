@@ -47,7 +47,7 @@ import {
 import { useStore, useContext } from '@nuxtjs/composition-api'
 import { required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
-import _ from 'lodash'
+import { isSubObject } from '@baserow/modules/core/utils/object'
 
 export default defineComponent({
   name: 'GeneralSettings',
@@ -88,7 +88,7 @@ export default defineComponent({
     const v$ = useVuelidate(rules, values, { $lazy: true })
 
     const updateAutomation = async (updatedValues) => {
-      if (_.isMatch(automation.value, updatedValues)) {
+      if (isSubObject(automation.value, updatedValues)) {
         return
       }
 

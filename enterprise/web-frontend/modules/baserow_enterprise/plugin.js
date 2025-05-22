@@ -73,6 +73,7 @@ import {
   BuilderBrandingPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
+import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -214,5 +215,10 @@ export default (context) => {
   app.$registry.register(
     'fieldContextItem',
     new FieldPermissionsContextItemType(context)
+  )
+
+  app.$registry.register(
+    'builderSettings',
+    new CustomCodeBuilderSettingType(context)
   )
 }

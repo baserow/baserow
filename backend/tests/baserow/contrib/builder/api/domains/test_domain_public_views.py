@@ -133,55 +133,53 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
 
     shared_page = builder_to.shared_page
     workspace = Workspace.objects.get()
-    assert response_json == {
-        "favicon_file": UserFileSerializer(builder_to.favicon_file).data,
-        "id": builder_to.id,
-        "name": builder_to.name,
-        "login_page_id": None,
-        "pages": [
-            {
-                "id": shared_page.id,
-                "name": "__shared__",
-                "path": "__shared__",
-                "path_params": [],
-                "query_params": [],
-                "shared": True,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-            {
-                "id": page.id,
-                "name": page.name,
-                "path": page.path,
-                "path_params": [],
-                "query_params": [],
-                "shared": False,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-            {
-                "id": page2.id,
-                "name": page2.name,
-                "path": page2.path,
-                "path_params": [],
-                "query_params": [],
-                "shared": False,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-        ],
-        "type": "builder",
-        "user_sources": [],
-        "workspace": {
-            "generative_ai_models_enabled": {},
-            "id": workspace.id,
-            "name": workspace.name,
-            "licenses": [],
-        },
+
+    assert (
+        response_json["favicon_file"]
+        == UserFileSerializer(builder_to.favicon_file).data
+    )
+    assert response_json["login_page_id"] is None
+    assert response_json["workspace"] == {
+        "generative_ai_models_enabled": {},
+        "id": workspace.id,
+        "name": workspace.name,
+        "licenses": [],
     }
+    assert response_json["pages"] == [
+        {
+            "id": shared_page.id,
+            "name": "__shared__",
+            "path": "__shared__",
+            "path_params": [],
+            "query_params": [],
+            "shared": True,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+        {
+            "id": page.id,
+            "name": page.name,
+            "path": page.path,
+            "path_params": [],
+            "query_params": [],
+            "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+        {
+            "id": page2.id,
+            "name": page2.name,
+            "path": page2.path,
+            "path_params": [],
+            "query_params": [],
+            "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+    ]
 
     # Even if I'm authenticated I should be able to see it.
     response = api_client.get(
@@ -268,55 +266,52 @@ def test_get_public_builder_by_id(api_client, data_fixture):
 
     shared_page = page.builder.shared_page
 
-    assert response_json == {
-        "favicon_file": UserFileSerializer(page.builder.favicon_file).data,
-        "id": page.builder.id,
-        "name": page.builder.name,
-        "login_page_id": None,
-        "pages": [
-            {
-                "id": shared_page.id,
-                "name": "__shared__",
-                "path": "__shared__",
-                "path_params": [],
-                "query_params": [],
-                "shared": True,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-            {
-                "id": page.id,
-                "name": page.name,
-                "path": page.path,
-                "path_params": [],
-                "query_params": [],
-                "shared": False,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-            {
-                "id": page2.id,
-                "name": page2.name,
-                "path": page2.path,
-                "path_params": [],
-                "query_params": [],
-                "shared": False,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-        ],
-        "type": "builder",
-        "user_sources": [],
-        "workspace": {
-            "generative_ai_models_enabled": {},
-            "id": page.builder.workspace.id,
-            "name": page.builder.workspace.name,
-            "licenses": [],
-        },
+    assert (
+        response_json["favicon_file"]
+        == UserFileSerializer(page.builder.favicon_file).data
+    )
+    assert response_json["login_page_id"] is None
+    assert response_json["workspace"] == {
+        "generative_ai_models_enabled": {},
+        "id": page.builder.workspace.id,
+        "name": page.builder.workspace.name,
+        "licenses": [],
     }
+    assert response_json["pages"] == [
+        {
+            "id": shared_page.id,
+            "name": "__shared__",
+            "path": "__shared__",
+            "path_params": [],
+            "query_params": [],
+            "shared": True,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+        {
+            "id": page.id,
+            "name": page.name,
+            "path": page.path,
+            "path_params": [],
+            "query_params": [],
+            "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+        {
+            "id": page2.id,
+            "name": page2.name,
+            "path": page2.path,
+            "path_params": [],
+            "query_params": [],
+            "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+    ]
 
 
 @pytest.mark.django_db

@@ -5,7 +5,7 @@ import ThemeSettings from '@baserow/modules/builder/components/settings/ThemeSet
 import DomainsSettings from '@baserow/modules/builder/components/settings/DomainsSettings'
 import UserSourcesSettings from '@baserow/modules/builder/components/settings/UserSourcesSettings'
 
-class BuilderSettingType extends Registerable {
+export class BuilderSettingType extends Registerable {
   static getType() {
     return null
   }
@@ -24,6 +24,18 @@ class BuilderSettingType extends Registerable {
 
   get componentPadding() {
     return true
+  }
+
+  isDeactivated({ workspace }) {
+    return !!this.isDeactivatedReason({ workspace })
+  }
+
+  isDeactivatedReason({ workspace }) {
+    return null
+  }
+
+  getDeactivatedModal({ workspace }) {
+    return null
   }
 }
 

@@ -180,13 +180,21 @@ class DiscriminatorCustomFieldsMappingSerializerExtension(
     def map_serializer(self, auto_schema, direction):
         mapping = {}
 
-        for types in self.target.registry.registry.values():
-            name = types.type
+        forced_type = getattr(self.target, "forced_type", None)
+
+        types = (
+            self.target.registry.registry.values()
+            if not forced_type
+            else [self.target.registry.get(forced_type)]
+        )
+
+        for type_ in types:
+            name = type_.type
 
             if self.target.name_prefix:
                 name = f"{self.target.name_prefix}{name}"
 
-            mapping[name] = types.get_serializer_class(
+            mapping[name] = type_.get_serializer_class(
                 base_class=self.target.base_class,
                 request_serializer=self.target.request,
                 extra_params=self.target.extra_params,
@@ -203,4 +211,15 @@ class PolymorphicMappingSerializerExtensionMixin(
     """
 
     target_class = "baserow.api.polymorphic.PolymorphicSerializer"
+    match_subclasses = True
+
+
+class PolymorphicRequestMappingSerializerExtensionMixin(
+    CustomFieldRegistryMappingSerializerExtension
+):
+    """
+    Extension to correctly display Polymorphic request serializer documentation.
+    """
+
+    target_class = "baserow.api.polymorphic.PolymorphicRequestSerializer"
     match_subclasses = True

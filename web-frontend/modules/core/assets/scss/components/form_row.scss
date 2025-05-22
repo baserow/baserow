@@ -1,6 +1,5 @@
 .form-row {
   width: 100%;
-  margin-bottom: 20px;
   display: grid;
   grid-auto-columns: 1fr;
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
