@@ -143,6 +143,7 @@ export default defineComponent({
       handleReadOnlyToggle,
       handleAddNode,
       handleRemoveNode,
+      workflowId,
     }
   },
 })
