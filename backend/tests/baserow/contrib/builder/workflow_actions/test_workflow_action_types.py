@@ -10,12 +10,14 @@ from baserow.contrib.builder.workflow_actions.registries import (
 )
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     DeleteRowWorkflowActionType,
+    LogoutWorkflowActionType,
     NotificationWorkflowActionType,
     OpenPageWorkflowActionType,
     RefreshDataSourceWorkflowAction,
     UpsertRowWorkflowActionType,
     service_backed_workflow_actions,
 )
+from baserow.core.services.types import DispatchResult
 from baserow.core.utils import MirrorDict
 from baserow.core.workflow_actions.registries import WorkflowActionType
 
@@ -368,3 +370,27 @@ def test_import_open_page_workflow_action(data_fixture):
     assert (
         imported_workflow_action.query_parameters[0]["value"] == expected_query_formula
     )
+
+
+@pytest.mark.parametrize(
+    "workflow_action",
+    [
+        NotificationWorkflowActionType,
+        OpenPageWorkflowActionType,
+        LogoutWorkflowActionType,
+        RefreshDataSourceWorkflowAction,
+    ],
+)
+def test_builder_workflow_action_type_dispatch(workflow_action):
+    """
+    Ensure the base dispatch() returns the default dispatch result for
+    all workflow action types that aren't service backed.
+    """
+
+    instance = workflow_action()
+    mock_workflow_action = MagicMock()
+    mock_dispatch_context = MagicMock()
+
+    result = instance.dispatch(mock_workflow_action, mock_dispatch_context)
+
+    assert result == DispatchResult(data={}, status=200)

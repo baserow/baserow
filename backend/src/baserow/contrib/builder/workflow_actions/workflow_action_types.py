@@ -8,6 +8,9 @@ from baserow.api.services.serializers import (
     PolymorphicServiceRequestSerializer,
     PolymorphicServiceSerializer,
 )
+from baserow.contrib.builder.data_sources.builder_dispatch_context import (
+    BuilderDispatchContext,
+)
 from baserow.contrib.builder.elements.element_types import NavigationElementManager
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import (
@@ -34,6 +37,7 @@ from baserow.core.integrations.models import Integration
 from baserow.core.registry import Instance
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
+from baserow.core.services.types import DispatchResult
 from baserow.core.workflow_actions.models import WorkflowAction
 
 
@@ -389,6 +393,13 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
     def enhance_queryset(self, queryset):
         queryset = queryset.select_related("service")
         return super().enhance_queryset(queryset)
+
+    def dispatch(
+        self, workflow_action: WorkflowAction, dispatch_context: BuilderDispatchContext
+    ) -> DispatchResult:
+        return ServiceHandler().dispatch_service(
+            workflow_action.service.specific, dispatch_context
+        )
 
 
 class UpsertRowWorkflowActionType(BuilderWorkflowServiceActionType):
