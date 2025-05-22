@@ -2,10 +2,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from baserow.contrib.automation.data_sources.dispatch_context import (
-    AutomationNodeDispatchContext,
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
 )
-from baserow.core.services.types import DispatchResult
 
 
 @pytest.mark.django_db
@@ -42,23 +41,7 @@ def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_f
 
 
 @pytest.mark.django_db
-def test_service_node_action_type_serializer_field_names(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
-    node = data_fixture.create_automation_node(user=user, type="create_row")
-
-    assert node.get_type().serializer_field_names == ["service", "workflow", "order"]
-
-
-@pytest.mark.django_db
-def test_service_node_action_type_allowed_fields(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
-    node = data_fixture.create_automation_node(user=user, type="create_row")
-
-    assert node.get_type().allowed_fields == ["service", "workflow", "order"]
-
-
-@pytest.mark.django_db
-def test_service_node_action_type_prepare_values_with_instance(data_fixture):
+def test_automation_node_type_create_row_prepare_values_with_instance(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     node = data_fixture.create_automation_node(user=user, type="create_row")
 
@@ -68,7 +51,7 @@ def test_service_node_action_type_prepare_values_with_instance(data_fixture):
 
 
 @pytest.mark.django_db
-def test_service_node_action_type_prepare_values_without_instance(data_fixture):
+def test_automation_node_type_create_row_prepare_values_without_instance(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     node = data_fixture.create_automation_node(user=user, type="create_row")
 
@@ -81,16 +64,16 @@ def test_service_node_action_type_prepare_values_without_instance(data_fixture):
     assert new_service.id != node.service.id
 
 
-@patch("baserow.contrib.automation.nodes.node_types.ServiceHandler.dispatch_service")
+@patch("baserow.contrib.automation.nodes.registries.ServiceHandler.dispatch_service")
 @pytest.mark.django_db
-def test_service_node_action_type_dispatch(mock_dispatch, data_fixture):
+def test_automation_node_type_create_row_dispatch(mock_dispatch, data_fixture):
     mock_dispatch_result = MagicMock()
     mock_dispatch.return_value = mock_dispatch_result
 
     user, _ = data_fixture.create_user_and_token()
     node = data_fixture.create_automation_node(user=user, type="create_row")
 
-    dispatch_context = AutomationNodeDispatchContext(count=0, offset=0)
+    dispatch_context = AutomationDispatchContext(node.workflow, None)
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == mock_dispatch_result
@@ -98,25 +81,9 @@ def test_service_node_action_type_dispatch(mock_dispatch, data_fixture):
 
 
 @pytest.mark.django_db
-def test_service_node_trigger_type_serializer_field_names(data_fixture):
+def test_automation_node_type_rows_created_prepare_values_with_instance(data_fixture):
     user, _ = data_fixture.create_user_and_token()
-    node = data_fixture.create_automation_node(user=user, type="row_created")
-
-    assert node.get_type().serializer_field_names == ["service", "workflow", "order"]
-
-
-@pytest.mark.django_db
-def test_service_node_trigger_type_allowed_fields(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
-    node = data_fixture.create_automation_node(user=user, type="row_created")
-
-    assert node.get_type().allowed_fields == ["service", "workflow", "order"]
-
-
-@pytest.mark.django_db
-def test_service_node_trigger_type_prepare_values_with_instance(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
-    node = data_fixture.create_automation_node(user=user, type="row_created")
+    node = data_fixture.create_automation_node(user=user, type="rows_created")
 
     values = {"service": {}}
     result = node.get_type().prepare_values(values, user, instance=node)
@@ -124,9 +91,9 @@ def test_service_node_trigger_type_prepare_values_with_instance(data_fixture):
 
 
 @pytest.mark.django_db
-def test_service_node_trigger_type_prepare_values_without_instance(data_fixture):
+def test_service_node_type_rows_created_prepare_values_without_instance(data_fixture):
     user, _ = data_fixture.create_user_and_token()
-    node = data_fixture.create_automation_node(user=user, type="row_created")
+    node = data_fixture.create_automation_node(user=user, type="rows_created")
 
     values = {"service": {}}
     result = node.get_type().prepare_values(values, user)
@@ -135,14 +102,3 @@ def test_service_node_trigger_type_prepare_values_without_instance(data_fixture)
     new_service = result["service"]
     assert isinstance(new_service, type(node.service))
     assert new_service.id != node.service.id
-
-
-@pytest.mark.django_db
-def test_service_node_trigger_type_dispatch(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
-    node = data_fixture.create_automation_node(user=user, type="row_created")
-
-    dispatch_context = AutomationNodeDispatchContext(count=0, offset=0)
-    result = node.get_type().dispatch(node, dispatch_context)
-
-    assert result == DispatchResult(data={}, status=200)

@@ -1,7 +1,7 @@
 import pytest
 
-from baserow.contrib.automation.data_sources.dispatch_context import (
-    AutomationNodeDispatchContext,
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
 )
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotInWorkflow
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
@@ -75,7 +75,6 @@ def test_export_prepared_values(data_fixture):
     assert values == {
         "service": AnyDict(),
         "workflow": node.workflow_id,
-        "previous_node_output": "",
     }
 
 
@@ -252,7 +251,7 @@ def test_dispatch_node(data_fixture):
     # Ensure table is empty
     assert table.get_model().objects.count() == 0
 
-    dispatch_context = AutomationNodeDispatchContext(count=0, offset=0)
+    dispatch_context = AutomationDispatchContext(node.workflow, None)
 
     # Dispatch the node
     dispatch_result = AutomationNodeHandler().dispatch_node(node, dispatch_context)

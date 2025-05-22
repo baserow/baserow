@@ -5,8 +5,8 @@ from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
-from baserow.contrib.automation.data_sources.dispatch_context import (
-    AutomationNodeDispatchContext,
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
 )
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
@@ -335,7 +335,7 @@ class AutomationNodeHandler:
     def dispatch_node(
         self,
         node: AutomationNode,
-        dispatch_context: AutomationNodeDispatchContext,
+        dispatch_context: AutomationDispatchContext,
     ) -> DispatchResult:
         """
         Dispatch the automation node.

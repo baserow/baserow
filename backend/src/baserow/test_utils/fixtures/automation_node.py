@@ -44,6 +44,6 @@ class AutomationNodeFixtures:
     def create_local_baserow_rows_created_trigger_node(self, user=None, **kwargs):
         return self.create_automation_node(
             user=user,
-            node_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+            type=LocalBaserowRowsCreatedNodeTriggerType.type,
             **kwargs,
         )
