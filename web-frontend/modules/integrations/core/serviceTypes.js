@@ -15,6 +15,13 @@ export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
     return this.app.i18n.t('serviceType.coreHTTPRequest')
   }
 
+  isInError({ service }) {
+    if (service === undefined) {
+      return false
+    }
+    return !service.url
+  }
+
   getDataSchema(service) {
     return service.schema
   }

@@ -22,22 +22,6 @@ export class LocalBaserowTableServiceType extends ServiceType {
     )
   }
 
-  /**
-   * Responsible for determining if this service is in error. It will be if the
-   * `table_id` is missing, or if one or more filters/sortings point to a field that
-   * has been trashed.
-   * @param service - The service object.
-   * @returns {boolean} - If the service is valid.
-   */
-  isInError({ service }) {
-    if (service === undefined) {
-      return false
-    }
-    const filtersInError = service.filters.some((filter) => filter.trashed)
-    const sortingsInError = service.sortings.some((sorting) => sorting.trashed)
-    return Boolean(!service.table_id || filtersInError || sortingsInError)
-  }
-
   getDataSchema(service) {
     return service.schema
   }
@@ -84,6 +68,22 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
 ) {
   getIdProperty(service, record) {
     return 'id'
+  }
+
+  /**
+   * Responsible for determining if this service is in error. It will be if the
+   * `table_id` is missing, or if one or more filters/sortings point to a field that
+   * has been trashed.
+   * @param service - The service object.
+   * @returns {boolean} - If the service is valid.
+   */
+  isInError({ service }) {
+    if (service === undefined) {
+      return false
+    }
+    const filtersInError = service.filters.some((filter) => filter.trashed)
+    const sortingsInError = service.sortings.some((sorting) => sorting.trashed)
+    return Boolean(!service.table_id || filtersInError || sortingsInError)
   }
 }
 

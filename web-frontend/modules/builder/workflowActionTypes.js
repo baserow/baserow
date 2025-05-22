@@ -227,6 +227,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     }
   }
 
+  isInError(workflowAction, { element, builder }) {
+    return this.serviceType.isInError({ service: workflowAction.service })
+  }
+
   get serviceType() {
     throw new Error('This method must be implemented')
   }
