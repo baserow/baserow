@@ -112,6 +112,9 @@ class UpdateAutomationNodeActionType(UndoableActionType):
     ) -> AutomationNode:
         updated_node = AutomationNodeService().update_node(user, node_id, **new_data)
 
+        original_values = cls.serialize_original_values(updated_node.original_values)
+        new_values = cls.serialize_original_values(updated_node.new_values)
+
         cls.register_action(
             user=user,
             params=cls.Params(
@@ -119,13 +122,21 @@ class UpdateAutomationNodeActionType(UndoableActionType):
                 updated_node.node.workflow.automation.name,
                 updated_node.node.id,
                 updated_node.node.get_type().type,
-                updated_node.original_values,
-                updated_node.new_values,
+                original_values,
+                new_values,
             ),
             scope=cls.scope(updated_node.node.workflow.id),
             workspace=updated_node.node.workflow.automation.workspace,
         )
         return updated_node.node
+
+    @classmethod
+    def serialize_original_values(cls, data):
+        for key, value in data.items():
+            if key in ("workflow", "service"):
+                data[key] = getattr(value, "id", value)
+
+        return data
 
     @classmethod
     def scope(cls, workflow_id):

@@ -2,33 +2,28 @@ from typing import Any, Dict
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
-    EasyImportExportMixin,
-    Instance,
-    InstanceWithFormulaMixin,
-    ModelInstanceMixin,
     ModelRegistryMixin,
     PublicCustomFieldsInstanceMixin,
     Registry,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
+from baserow.core.services.types import DispatchResult
+from baserow.core.workflow_actions.registries import WorkflowActionType
 
 AUTOMATION_NODES = "automation_nodes"
 
 
-class AutomationNodeType(
-    InstanceWithFormulaMixin,
-    EasyImportExportMixin,
-    ModelInstanceMixin,
-    PublicCustomFieldsInstanceMixin,
-    Instance,
-):
+class AutomationNodeType(PublicCustomFieldsInstanceMixin, WorkflowActionType):
     service_type = None
     parent_property_name = "workflow"
     id_mapping_name = AUTOMATION_NODES
@@ -131,7 +126,7 @@ class AutomationNodeType(
         values: Dict[str, Any],
         user: AbstractUser,
         instance=None,
-    ):
+    ) -> Dict[str, Any]:
         """
         Responsible for preparing the service-based trigger node. By default,
         the only step is to pass any `service` data into the service.
@@ -165,6 +160,18 @@ class AutomationNodeType(
 
         values["service"] = service
         return values
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        ...
+
+    def dispatch(
+        self,
+        automation_node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        return ServiceHandler().dispatch_service(
+            automation_node.service.specific, dispatch_context
+        )
 
 
 class AutomationNodeTypeRegistry(
