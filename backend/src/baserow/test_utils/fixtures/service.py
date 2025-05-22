@@ -5,6 +5,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowGetRow,
     LocalBaserowListRows,
     LocalBaserowRowsCreated,
+    LocalBaserowRowsDeleted,
     LocalBaserowRowsUpdated,
     LocalBaserowTableServiceFilter,
     LocalBaserowTableServiceSort,
@@ -50,6 +51,12 @@ class ServiceFixtures:
         self, **kwargs
     ) -> LocalBaserowRowsUpdated:
         service = self.create_service(LocalBaserowRowsUpdated, **kwargs)
+        return service
+
+    def create_local_baserow_rows_deleted_service(
+        self, **kwargs
+    ) -> LocalBaserowRowsDeleted:
+        service = self.create_service(LocalBaserowRowsDeleted, **kwargs)
         return service
 
     def create_local_baserow_table_service_filter(
