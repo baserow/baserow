@@ -41,6 +41,7 @@ isort==5.13.2
 ipython
 fakeredis[lua]==2.23.2
 pytest-retry==1.7.0
+pytest-testmon==2.1.3
 ipdb
 # build is used to compile a wheel package with `python -m build .` command.
 build
