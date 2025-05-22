@@ -1,7 +1,7 @@
 from typing import Any, Optional
 
 from django.db import models
-from django.db.models import Field, Value
+from django.db.models import Field
 from django.db.models.expressions import RawSQL
 from django.db.models.fields.related_descriptors import (
     ForwardManyToOneDescriptor,
@@ -257,11 +257,6 @@ class BaserowExpressionField(models.Field):
 
     def select_format(self, compiler, sql, params):
         return self.expression_field.select_format(compiler, sql, params)
-
-    def pre_save(self, model_instance, add):
-        # Let the Field dependency handler to calculate the value of the expression in
-        # the correct order.
-        return Value(None)
 
 
 class SerialField(models.IntegerField):

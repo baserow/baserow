@@ -87,7 +87,7 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
         """
 
         trashed_item.trashed = False
-        trashed_item.save()
+        trashed_item.save(update_fields=["trashed"])
 
     @abstractmethod
     def get_name(self, trashed_item: Any) -> str:
@@ -126,7 +126,7 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
         """
 
         item_to_trash.trashed = True
-        item_to_trash.save()
+        item_to_trash.save(update_fields=["trashed"])
 
     @abstractmethod
     def get_restore_operation_type(
