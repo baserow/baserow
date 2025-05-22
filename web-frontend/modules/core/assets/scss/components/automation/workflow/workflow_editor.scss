@@ -1,3 +1,16 @@
+.workflow-editor {
+  .vue-flow__controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .vue-flow__controls-button {
+    border: none;
+    border-right: 1px solid #eee;
+  }
+}
+
 .workflow-editor__node {
   display: inline-flex;
   height: 72px;

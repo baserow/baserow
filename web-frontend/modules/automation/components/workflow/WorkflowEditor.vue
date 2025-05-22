@@ -1,14 +1,18 @@
 <template>
   <VueFlow
+    class="workflow-editor"
     :nodes="displayNodes"
     :edges="computedEdges"
-    class="basic-flow"
     :zoom-on-scroll="false"
     :nodes-draggable="nodesDraggable"
     :zoom-on-drag="zoomOnScroll"
     :pan-on-scroll="panOnScroll"
     :zoom-on-double-click="zoomOnDoubleClick"
+    fit-view-on-init
+    :max-zoom="1"
+    :min-zoom="0.5"
   >
+    <Controls :show-interactive="false" />
     <Background pattern-color="#ededed" :size="3" :gap="15" />
     <template #node-workflow-node="slotProps">
       <WorkflowNode
@@ -50,7 +54,8 @@
 <script setup>
 import { VueFlow, useVueFlow } from '@vue2-flow/core'
 import { Background } from '@vue2-flow/background'
-import { ref, computed } from 'vue'
+import { Controls } from '@vue2-flow/controls'
+import { ref, computed, nextTick } from 'vue'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode.vue'
 import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode.vue'
 import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge.vue'

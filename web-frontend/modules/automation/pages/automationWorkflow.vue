@@ -200,6 +200,7 @@ export default defineComponent({
       handleAddNode,
       handleClickNode,
       handleRemoveNode,
+      workflowId,
     }
   },
 })
