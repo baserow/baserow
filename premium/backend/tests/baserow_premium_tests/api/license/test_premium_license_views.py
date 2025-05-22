@@ -528,12 +528,12 @@ def test_admin_fill_users_in_license(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert len(response_json) == 2
-    assert response_json[0]["id"] == admin_user.id
-    assert response_json[0]["email"] == admin_user.email
-    assert response_json[0]["first_name"] == admin_user.first_name
-    assert response_json[1]["id"] == normal_user.id
-    assert response_json[1]["email"] == normal_user.email
-    assert response_json[1]["first_name"] == normal_user.first_name
+    assert response_json[0]["id"] == normal_user.id
+    assert response_json[0]["email"] == normal_user.email
+    assert response_json[0]["first_name"] == normal_user.first_name
+    assert response_json[1]["id"] == admin_user.id
+    assert response_json[1]["email"] == admin_user.email
+    assert response_json[1]["first_name"] == admin_user.first_name
     assert LicenseUser.objects.all().count() == 2
 
 
