@@ -15,6 +15,17 @@ test.describe("Automation application test suite", () => {
       page.locator(".tree__link").getByText("Untitled Automation"),
       "Ensure the default automation name is displayed in the sidebar."
     ).toBeVisible();
+
+    const workflowLink = page.locator(".tree__item .tree__sub-link", { hasText: "Workflow" });
+    await expect(
+      workflowLink,
+      "Ensure the default Workflow has been created and is visible."
+    ).toBeVisible();
+
+    await expect(
+      page.locator("button.button-floating--primary:has(i.iconoir-plus)"),
+      "Ensure the button to create a node is visible."
+    ).toBeVisible();
   });
 
   test("Can create automation application - custom name", async ({ page }) => {
@@ -29,6 +40,17 @@ test.describe("Automation application test suite", () => {
     await expect(
       page.locator(".tree__link").getByText("Foo Automation"),
       "Ensure the custom automation name is displayed in the sidebar."
+    ).toBeVisible();
+
+    const workflowLink = page.locator(".tree__item .tree__sub-link", { hasText: "Workflow" });
+    await expect(
+      workflowLink,
+      "Ensure the default Workflow has been created and is visible."
+    ).toBeVisible();
+
+    await expect(
+      page.locator("button.button-floating--primary:has(i.iconoir-plus)"),
+      "Ensure the button to create a node is visible."
     ).toBeVisible();
   });
 });

@@ -25,6 +25,11 @@ test.describe("Automation workflow test suite", () => {
       page.locator(".tree__link").getByText("Test Automation"),
       "Ensure the default automation name is displayed in the sidebar."
     ).toBeVisible();
+
+    await expect(
+      page.locator("button.button-floating--primary:has(i.iconoir-plus)"),
+      "Ensure the button to create a node is visible."
+    ).toBeVisible();
   });
 
   test("Can duplicate a workflow", async ({ page }) => {
@@ -43,6 +48,11 @@ test.describe("Automation workflow test suite", () => {
         .locator(".side-bar-automation__link-text")
         .getByText(`${defaultWorkflowName} 2`),
       "Ensure the duplicated workflow is displayed in the sidebar."
+    ).toBeVisible();
+
+    await expect(
+      page.locator("button.button-floating--primary:has(i.iconoir-plus)"),
+      "Ensure the button to create a node is visible."
     ).toBeVisible();
   });
 
@@ -76,6 +86,11 @@ test.describe("Automation workflow test suite", () => {
         .getByText(newWorkflowName),
       "Ensure the renamed workflow is displayed in the sidebar."
     ).toBeVisible();
+
+    await expect(
+      page.locator("button.button-floating--primary:has(i.iconoir-plus)"),
+      "Ensure the button to create a node is visible."
+    ).toBeVisible();
   });
 
   test("Can delete a workflow", async ({ page }) => {
@@ -94,5 +109,13 @@ test.describe("Automation workflow test suite", () => {
         .getByText(defaultWorkflowName),
       "Ensure the workflow is no longer visible in the sidebar."
     ).not.toBeVisible();
+
+    const workspaceName = page.locator(
+      ".dashboard__workspace-name .dashboard__workspace-name-text span"
+    );
+    await expect(
+      workspaceName,
+      "Ensure that the dashboard page is shown after workflow is deleted."
+    ).toBeVisible();
   });
 });
