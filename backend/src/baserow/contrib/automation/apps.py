@@ -21,6 +21,7 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.nodes.node_types import (
             LocalBaserowCreateRowNodeType,
             LocalBaserowRowsCreatedNodeTriggerType,
+            LocalBaserowRowsDeletedNodeTriggerType,
             LocalBaserowRowsUpdatedNodeTriggerType,
         )
         from baserow.contrib.automation.nodes.object_scopes import (
@@ -131,6 +132,9 @@ class AutomationConfig(AppConfig):
             )
             automation_node_type_registry.register(
                 LocalBaserowRowsUpdatedNodeTriggerType()
+            )
+            automation_node_type_registry.register(
+                LocalBaserowRowsDeletedNodeTriggerType()
             )
 
             # The signals must always be imported last because they use

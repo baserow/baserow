@@ -60,7 +60,11 @@ from baserow.contrib.database.rows.exceptions import (
     CannotDeleteRowsInTable,
     RowDoesNotExist,
 )
-from baserow.contrib.database.rows.signals import rows_created, rows_updated
+from baserow.contrib.database.rows.signals import (
+    rows_created,
+    rows_deleted,
+    rows_updated,
+)
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
@@ -91,7 +95,9 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowDeleteRow,
     LocalBaserowGetRow,
     LocalBaserowListRows,
-    LocalBaserowRowCreated,
+    LocalBaserowRowsCreated,
+    LocalBaserowRowsDeleted,
+    LocalBaserowRowsUpdated,
     LocalBaserowTableService,
     LocalBaserowTableServiceFieldMapping,
     LocalBaserowTableServiceFilter,
@@ -2572,7 +2578,7 @@ class LocalBaserowRowsCreatedTriggerServiceType(
 ):
     signal = rows_created
     type = "local_baserow_rows_created"
-    model_class = LocalBaserowRowCreated
+    model_class = LocalBaserowRowsCreated
 
 
 class LocalBaserowRowsUpdatedTriggerServiceType(
@@ -2582,4 +2588,14 @@ class LocalBaserowRowsUpdatedTriggerServiceType(
 ):
     signal = rows_updated
     type = "local_baserow_rows_updated"
-    model_class = LocalBaserowRowCreated
+    model_class = LocalBaserowRowsUpdated
+
+
+class LocalBaserowRowsDeletedTriggerServiceType(
+    LocalBaserowTableServiceType,
+    LocalBaserowSignalTriggerTypeMixin,
+    TriggerServiceTypeMixin,
+):
+    signal = rows_deleted
+    type = "local_baserow_rows_deleted"
+    model_class = LocalBaserowRowsDeleted

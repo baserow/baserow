@@ -21,6 +21,7 @@ __all__ = [
     "DuplicateAutomationWorkflowJob",
     "LocalBaserowRowsCreatedTriggerNode",
     "LocalBaserowRowsUpdatedTriggerNode",
+    "LocalBaserowRowsDeletedTriggerNode",
     "LocalBaserowCreateRowActionNode",
 ]
 
@@ -35,6 +36,7 @@ class AutomationNode(
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
     FractionOrderableMixin,
+    PolymorphicContentTypeMixin,
     WithRegistry,
 ):
     """
@@ -122,6 +124,10 @@ class LocalBaserowRowsCreatedTriggerNode(AutomationTriggerNode):
 
 
 class LocalBaserowRowsUpdatedTriggerNode(AutomationTriggerNode):
+    ...
+
+
+class LocalBaserowRowsDeletedTriggerNode(AutomationTriggerNode):
     ...
 
 
