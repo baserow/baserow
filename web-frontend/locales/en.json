@@ -221,6 +221,8 @@
     "filenameContains": "filename contains",
     "has": "has",
     "hasNot": "doesn't have",
+    "hasAnyOf": "has any of",
+    "hasNotAnyOf": "doesn't have any of",
     "higherThan": "higher than",
     "higherThanOrEqual": "higher than or equal",
     "is": "is",
