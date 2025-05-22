@@ -17,7 +17,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     UpsertRowWorkflowActionType,
     service_backed_workflow_actions,
 )
-from baserow.core.services.types import DispatchResult
+from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.utils import MirrorDict
 from baserow.core.workflow_actions.registries import WorkflowActionType
 
@@ -382,15 +382,13 @@ def test_import_open_page_workflow_action(data_fixture):
     ],
 )
 def test_builder_workflow_action_type_dispatch(workflow_action):
-    """
-    Ensure the base dispatch() returns the default dispatch result for
-    all workflow action types that aren't service backed.
-    """
+    """Ensure the base dispatch() raises an exception."""
 
     instance = workflow_action()
     mock_workflow_action = MagicMock()
     mock_dispatch_context = MagicMock()
 
-    result = instance.dispatch(mock_workflow_action, mock_dispatch_context)
+    with pytest.raises(InvalidServiceTypeDispatchSource) as e:
+        instance.dispatch(mock_workflow_action, mock_dispatch_context)
 
-    assert result == DispatchResult(data={}, status=200)
+    assert str(e.value) == "This service cannot be dispatched."

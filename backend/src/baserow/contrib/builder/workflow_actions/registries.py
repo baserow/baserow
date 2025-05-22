@@ -13,6 +13,7 @@ from baserow.core.registry import (
     PublicCustomFieldsInstanceMixin,
     Registry,
 )
+from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.types import DispatchResult
 from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.workflow_actions.registries import WorkflowActionType
@@ -160,13 +161,7 @@ class BuilderWorkflowActionType(
         workflow_action: WorkflowAction,
         dispatch_context: "BuilderDispatchContext",
     ) -> DispatchResult:
-        """
-        The default implementation of dispatch simply returns an empty
-        dispatch result for now. This is to ensure a consistent interface
-        between actions with and without a service.
-        """
-
-        return DispatchResult(data={}, status=200)
+        raise InvalidServiceTypeDispatchSource("This service cannot be dispatched.")
 
 
 class BuilderWorkflowActionTypeRegistry(
