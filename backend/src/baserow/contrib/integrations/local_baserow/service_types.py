@@ -2562,7 +2562,9 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
             is_response=True,
         )
         serialized_rows = serializer(rows, many=True).data
-        self.process_event(self.model_class.objects.filter(table=table), serialized_rows)
+        self.process_event(
+            self.model_class.objects.filter(table=table), serialized_rows
+        )
 
     def process_event(self, *args, **kwargs):
         return self.on_event(*args, **kwargs) if callable(self.on_event) else None
