@@ -75,6 +75,7 @@ def test_export_prepared_values(data_fixture):
     assert values == {
         "service": AnyDict(),
         "workflow": node.workflow_id,
+        "previous_node_output": "",
     }
 
 
