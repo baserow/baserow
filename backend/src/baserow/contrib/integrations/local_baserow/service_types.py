@@ -2556,6 +2556,9 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
     def handle_signal(self, *args, **kwargs):
         ...
 
+    def process_event(self, *args, **kwargs):
+        return self.on_event(*args, **kwargs) if callable(self.on_event) else None
+
     def handler(self, *args, **kwargs):
         transaction.on_commit(lambda: self.handle_signal(*args, **kwargs))
 
@@ -2576,4 +2579,6 @@ class LocalBaserowRowsCreatedTriggerServiceType(
             is_response=True,
         )
         serialized_rows = serializer(rows, many=True).data
-        self.on_event(self.model_class.objects.filter(table=table), serialized_rows)
+        self.process_event(
+            self.model_class.objects.filter(table=table), serialized_rows
+        )
