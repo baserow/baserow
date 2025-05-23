@@ -112,7 +112,7 @@ class AutomationNodeHandler:
         try:
             return base_queryset.select_related("workflow__automation__workspace").get(
                 id=node_id
-            )
+            ).specific
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
@@ -130,16 +130,14 @@ class AutomationNodeHandler:
 
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
 
-        specific_node = node.specific
-
         for key, value in allowed_values.items():
-            setattr(specific_node, key, value)
+            setattr(node, key, value)
 
-        specific_node.save()
+        node.save()
 
-        new_node_values = node.get_type().export_prepared_values(specific_node)
+        new_node_values = node.get_type().export_prepared_values(node)
         updated_node = UpdatedAutomationNode(
-            specific_node, original_node_values, new_node_values
+            node, original_node_values, new_node_values
         )
 
         return updated_node
