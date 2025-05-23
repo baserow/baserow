@@ -5,7 +5,14 @@ from baserow.contrib.automation.workflows.models import (
     AutomationWorkflow,
     DuplicateAutomationWorkflowJob,
 )
-from baserow.core.mixins import FractionOrderableMixin, TrashableModelMixin
+from baserow.core.mixins import (
+    CreatedAndUpdatedOnMixin,
+    FractionOrderableMixin,
+    HierarchicalModelMixin,
+    PolymorphicContentTypeMixin,
+    TrashableModelMixin,
+    WithRegistry,
+)
 from baserow.core.services.models import Service
 from baserow.core.workflow_actions.models import WorkflowAction
 
@@ -25,8 +32,11 @@ def get_default_node_content_type():
 
 class AutomationNode(
     TrashableModelMixin,
+    PolymorphicContentTypeMixin,
+    CreatedAndUpdatedOnMixin,
+    HierarchicalModelMixin,
     FractionOrderableMixin,
-    WorkflowAction,
+    WithRegistry,
 ):
     """
     This model represents an Automation Workflow's Node.
@@ -98,6 +108,11 @@ class AutomationNode(
         return cls.get_highest_order_of_queryset(queryset)[0]
 
 
+class AutomationActionNode(AutomationNode, WorkflowAction):
+    class Meta:
+        abstract = True
+
+
 class AutomationTriggerNode(AutomationNode):
     class Meta:
         abstract = True
@@ -107,5 +122,5 @@ class LocalBaserowRowCreatedTriggerNode(AutomationTriggerNode):
     ...
 
 
-class LocalBaserowCreateRowActionNode(AutomationNode):
+class LocalBaserowCreateRowActionNode(AutomationActionNode):
     ...
