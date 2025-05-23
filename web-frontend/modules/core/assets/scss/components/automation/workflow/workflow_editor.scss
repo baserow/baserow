@@ -1,16 +1,3 @@
-.workflow-editor {
-  .vue-flow__controls {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .vue-flow__controls-button {
-    border: none;
-    border-right: 1px solid #eee;
-  }
-}
-
 .workflow-editor__node {
   display: inline-flex;
   height: 72px;
@@ -22,6 +9,7 @@
   border-radius: 12px;
   border: 1.5px solid $palette-neutral-200;
   background: $white;
+  cursor: pointer;
 
   @include elevation($elevation-low);
 }
@@ -30,4 +18,25 @@
   color: $palette-neutral-800;
   font-size: 20px;
   margin-left: auto;
+}
+
+.workflow-editor {
+  .vue-flow__controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .vue-flow__controls-button {
+    border: none;
+    border-right: 1px solid #eee;
+  }
+
+  .vue-flow__node-workflow-node {
+    &.selected {
+      .workflow-editor__node {
+        border: 1.5px solid $palette-blue-500;
+      }
+    }
+  }
 }

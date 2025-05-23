@@ -54,6 +54,7 @@ export default defineComponent({
     EditorSidePanels,
     AutomationHeader,
     WorkflowEditor,
+    WorkflowSidebar,
   },
   layout: 'app',
   setup() {
@@ -66,6 +67,7 @@ export default defineComponent({
     const workspace = ref(null)
     const automation = ref(null)
     const currentWorkflow = ref(null)
+    const selectedNode = ref(null)
 
     const sidePanelWidth = 360
 
@@ -129,14 +131,16 @@ export default defineComponent({
 
     const handleAddNode = async ({ previousNodeId }) => {
       try {
-        await store.dispatch('automationWorkflowNode/create', {
+        const newNode = await store.dispatch('automationWorkflowNode/create', {
           workflow: currentWorkflow.value,
           type: 'rows_created',
           previousNodeId,
         })
 
-        // Force a refresh of the workflow nodes by creating a new reference
         currentWorkflow.value = { ...currentWorkflow.value }
+        if (newNode) {
+          selectedNode.value = newNode
+        }
       } catch (err) {
         console.error('Failed to add node:', err)
       }
@@ -176,8 +180,9 @@ export default defineComponent({
           workflow: currentWorkflow.value,
           nodeId: parseInt(nodeId),
         })
-
-        // Force a refresh of the workflow nodes by creating a new reference
+        if (selectedNode.value && selectedNode.value.id === parseInt(nodeId)) {
+          selectedNode.value = null
+        }
         currentWorkflow.value = { ...currentWorkflow.value }
       } catch (err) {
         console.error('Failed to delete node:', err)
@@ -187,6 +192,9 @@ export default defineComponent({
     const activeSidePanel = computed(() => {
       return store.getters['automationWorkflow/getActiveSidePanel']
     })
+    const handleNodeSelected = (node) => {
+      selectedNode.value = node
+    }
 
     return {
       workspace,
@@ -200,6 +208,8 @@ export default defineComponent({
       handleAddNode,
       handleClickNode,
       handleRemoveNode,
+      handleNodeSelected,
+      selectedNode,
       workflowId,
     }
   },
