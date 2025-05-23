@@ -137,7 +137,7 @@ class AutomationNodeHandler:
 
         specific_node.save()
 
-        new_node_values = node.get_type().export_prepared_values(node)
+        new_node_values = node.get_type().export_prepared_values(specific_node)
         updated_node = UpdatedAutomationNode(
             specific_node, original_node_values, new_node_values
         )

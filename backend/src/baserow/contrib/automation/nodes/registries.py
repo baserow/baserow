@@ -40,6 +40,13 @@ class AutomationNodeType(
     class SerializedDict(AutomationNodeDict):
         service: Dict
 
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + [
+            "previous_node_output",
+            "service",
+        ]
+
     def export_prepared_values(self, node: AutomationNode) -> Dict[Any, Any]:
         """
         Return a serializable dict of prepared values for the node attributes.
