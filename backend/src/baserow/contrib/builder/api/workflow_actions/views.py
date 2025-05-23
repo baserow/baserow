@@ -14,6 +14,7 @@ from baserow.api.decorators import (
     validate_body,
     validate_body_custom_fields,
 )
+from baserow.api.errors import ERROR_DATABASE_DEADLOCK
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
@@ -67,6 +68,8 @@ from baserow.contrib.builder.workflow_actions.registries import (
 from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
+from baserow.core.db import atomic_with_retry_on_deadlock
+from baserow.core.exceptions import DeadlockException
 from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 
@@ -378,7 +381,6 @@ class DispatchBuilderWorkflowActionView(APIView):
             ),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
@@ -388,8 +390,10 @@ class DispatchBuilderWorkflowActionView(APIView):
             BuilderWorkflowActionImproperlyConfigured: ERROR_WORKFLOW_ACTION_IMPROPERLY_CONFIGURED,
             DataSourceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
             FormDataProviderChunkInvalidException: ERROR_WORKFLOW_ACTION_FORM_DATA_INVALID,
+            DeadlockException: ERROR_DATABASE_DEADLOCK,
         }
     )
+    @atomic_with_retry_on_deadlock()
     def post(self, request, workflow_action_id: int):
         """
         Call the given workflow_action related service dispatch method.

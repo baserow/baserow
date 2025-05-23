@@ -29,7 +29,7 @@ from django.db.transaction import Atomic, get_connection
 
 from loguru import logger
 
-from baserow.contrib.database.exceptions import DeadlockException
+from baserow.core.exceptions import DeadlockException
 from baserow.core.psycopg import is_deadlock_error, sql
 
 from .utils import find_intermediate_order
@@ -850,6 +850,7 @@ def atomic_with_retry_on_deadlock(
                         )
                         raise DeadlockException() from exc
                     time.sleep(backoff)
+                    logger.debug("Retrying transaction after deadlock")
                     backoff *= 1.5 + random.uniform(0, jitter)  # nosec: B311
                 retries += 1
 

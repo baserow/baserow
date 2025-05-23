@@ -20,7 +20,7 @@ from baserow.api.decorators import (
     validate_body,
     validate_query_parameters,
 )
-from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
+from baserow.api.errors import ERROR_DATABASE_DEADLOCK, ERROR_USER_NOT_IN_GROUP
 from baserow.api.exceptions import (
     QueryParameterValidationException,
     RequestBodyValidationException,
@@ -54,7 +54,6 @@ from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIS
 from baserow.contrib.database.api.tokens.authentications import TokenAuthentication
 from baserow.contrib.database.api.tokens.errors import (
     ERROR_CANNOT_INCLUDE_ROW_METADATA,
-    ERROR_DATABASE_DEADLOCK,
     ERROR_NO_PERMISSION_TO_TABLE,
 )
 from baserow.contrib.database.api.utils import (
@@ -69,7 +68,6 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
 from baserow.contrib.database.api.views.utils import serialize_single_row_metadata
-from baserow.contrib.database.exceptions import DeadlockException
 from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     FilterFieldNotFound,
@@ -122,7 +120,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import atomic_with_retry_on_deadlock
-from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.exceptions import DeadlockException, UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
 

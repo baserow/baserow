@@ -1,5 +1,3 @@
-from django.db.utils import OperationalError
-
 from baserow.core.exceptions import MaxLocksPerTransactionExceededException
 
 
@@ -21,11 +19,3 @@ class DatabaseSnapshotMaxLocksExceededException(
         "number of PostgreSQL locks per transaction. Please read "
         "https://baserow.io/docs/technical/postgresql-locks"
     )
-
-
-class DeadlockException(OperationalError):
-    """
-    Raised when a database operation fails due to a deadlock.
-    """
-
-    message = "The database failed to commit the transaction due to a deadlock."
