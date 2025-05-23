@@ -19,7 +19,7 @@ from typing import (
 from django import db
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.db import connection, transaction
+from django.db import OperationalError, connection, transaction
 from django.db.models import Field as DjangoField
 from django.db.models import Model, Q, QuerySet, Window
 from django.db.models.expressions import RawSQL
@@ -75,7 +75,12 @@ from baserow.core.utils import Progress, get_non_unique_values, grouper
 
 from .constants import ROW_IMPORT_CREATION, ROW_IMPORT_VALIDATION
 from .error_report import RowErrorReport
-from .exceptions import InvalidRowLength, RowDoesNotExist, RowIdsNotUnique
+from .exceptions import (
+    FailedToLockRowsDueToConflict,
+    InvalidRowLength,
+    RowDoesNotExist,
+    RowIdsNotUnique,
+)
 from .operations import (
     DeleteDatabaseRowOperationType,
     MoveRowDatabaseRowOperationType,
@@ -904,6 +909,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         values_already_prepared: bool = False,
     ) -> GeneratedTableModelForUpdate:
         """
+        DEPRECATED: Use `update_rows` instead.
         Updates one or more values of the provided row_id.
 
         :param user: The user of whose behalf the change is made.
@@ -945,6 +951,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         values_already_prepared: bool = False,
     ) -> GeneratedTableModelForUpdate:
         """
+        DEPRECATED: Use `update_rows` instead.
         Updates one or more values of the provided row_id.
 
         :param user: The user of whose behalf the change is made.
@@ -1030,8 +1037,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         row.save(update_fields=update_row_fields + always_updated_fields)
         rows_updated_counter.add(1)
 
-        dependant_fields = self.update_dependencies_of_rows_updated(
+        update_collector = self.collect_dependencies_of_rows_updated(
             table, [row], model, updated_field_ids, m2m_change_tracker
+        )
+        dependant_fields = update_collector.get_all_collected_fields()
+        update_collector.execute_all_statements(
+            skip_fields_type_changed=True, skip_rebuild_field_dependencies=True
         )
         # We need to refresh here as ExpressionFields might have had their values
         # updated. Django does not support UPDATE .... RETURNING and so we need to
@@ -1058,18 +1069,17 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         return row
 
-    def update_dependencies_of_rows_updated(
+    def collect_dependencies_of_rows_updated(
         self,
         table: Table,
         updated_rows: List[GeneratedTableModel],
         model: Type[GeneratedTableModel],
         updated_field_ids: Set[int],
         m2m_change_tracker: Optional[RowM2MChangeTracker] = None,
-        skip_search_updates: bool = False,
-    ) -> List["DjangoField"]:
+    ) -> FieldUpdateCollector:
         """
-        Prepares a list of fields that are dependent on the updated fields and updates
-        them.
+        Collect a list of fields that are dependent on the updated fields and returns
+        a FieldUpdateCollector that can be used to update those fields.
 
         :param table: The table where the rows are updated.
         :param updated_rows: The rows that are updated.
@@ -1077,7 +1087,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param updated_field_ids: The field ids that are updated.
         :param m2m_change_tracker: The tracker that keeps track of the many to many
             changes.
-        :param skip_search_updates: Set to True to skip search updates.
         :return: The dependant fields that are updated.
         """
 
@@ -1101,15 +1110,14 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             table,
             starting_row_ids=[row.id for row in updated_rows],
             deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
+            field_cache=field_cache,
         )
-        updated_fields = []
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
             for (
                 dependant_field,
                 dependant_field_type,
                 path_from_starting_table,
             ) in dependant_fields_group:
-                updated_fields.append(dependant_field)
                 dependant_field_type.row_of_dependency_updated(
                     dependant_field,
                     updated_rows,
@@ -1117,10 +1125,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     field_cache,
                     path_from_starting_table,
                 )
-            update_collector.apply_updates_and_get_updated_fields(
-                field_cache, skip_search_updates
-            )
-        return updated_fields
+            update_collector.collect_all_statements()
+        return update_collector
 
     def force_create_rows(
         self,
@@ -1355,10 +1361,14 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         row_ids = [row.id for row in created_rows]
         table = model.baserow_table
-        update_collector = FieldUpdateCollector(table, starting_row_ids=row_ids)
 
         field_cache = FieldCache()
         field_cache.cache_model(model)
+
+        update_collector = FieldUpdateCollector(
+            table, starting_row_ids=row_ids, field_cache=field_cache
+        )
+
         field_ids = []
         fields = []
         for field_object in model._field_objects.values():
@@ -1370,7 +1380,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             field_type.after_rows_created(
                 field, created_rows, update_collector, field_cache
             )
-        update_collector.apply_updates_and_get_updated_fields(field_cache)
+        update_collector.apply_updates_and_get_updated_fields(
+            skip_fields_type_changed=True, skip_rebuild_field_dependencies=True
+        )
 
         dependant_fields = []
         all_dependent_fields_grouped_by_depth = (
@@ -1397,7 +1409,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     field_cache,
                     path_from_starting_table,
                 )
-            update_collector.apply_updates_and_get_updated_fields(field_cache)
+            update_collector.apply_updates_and_get_updated_fields(
+                skip_fields_type_changed=True, skip_rebuild_field_dependencies=True
+            )
         return fields, dependant_fields
 
     def _prepare_m2m_field_related_objects(
@@ -1893,7 +1907,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         table: Table,
         rows_values: List[Dict[str, Any]],
         model: Optional[Type[GeneratedTableModel]] = None,
-        rows_to_update: Optional[RowsForUpdate] = None,
+        rows_to_update: Optional[List[GeneratedTableModel]] = None,
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
         skip_search_update: bool = False,
@@ -1901,7 +1915,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
     ) -> UpdatedRowsData:
         """
         Updates field values in batch based on provided rows with the new
-        values.
+        values. To avoid deadlocks, it collects all the updates and then
+        locks FOR SHARE all the tables in order before running the updates
+        statements.
 
         :param user: The user of whose behalf the change is made.
         :param table: The table for which the row must be updated.
@@ -1910,7 +1926,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             provided so that it does not have to be generated for a second time.
         :param rows_to_update: If the rows to update have already been generated
             it can be provided so that it does not have to be generated for a
-            second time.
+            second time. Don't select_for_update rows as it may cause deadlocks with
+            concurrent updates trying to lock rows in a different order.
         :param send_realtime_update: If set to false then it is up to the caller to
             send the rows_created or similar signal. Defaults to True.
         :param send_webhook_events: If set the false then the webhooks will not be
@@ -1949,7 +1966,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             prepared_rows_values_by_id[row_id] = prepared_row_values
 
         if rows_to_update is None:
-            rows_to_update = self.get_rows_for_update(model, row_ids)
+            rows_to_update = self.get_rows(model, row_ids)
 
         if len(rows_to_update) != len(prepared_rows_values):
             db_rows_ids = [db_row.id for db_row in rows_to_update]
@@ -2086,18 +2103,24 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                         q_kwargs[f"{value_column}__in"] = to_delete
                     m2m_values_to_delete[field_name] = prev_q | Q(**q_kwargs)
 
-        # The many to many relations need to be updated first because they need to
-        # exist when the rows are updated in bulk. Otherwise, the formula and lookup
-        # fields can't see the relations.
+        update_collector = self.collect_dependencies_of_rows_updated(
+            table, rows_to_update, model, updated_field_ids, m2m_change_tracker
+        )
+
         for field_name, q_filters in m2m_values_to_delete.items():
             through = getattr(model, field_name).through
             delete_qs = through.objects.all().filter(q_filters)
-            delete_qs._raw_delete(delete_qs.db)
+            update_collector.prepend_statement(
+                model=through, statement=lambda qs=delete_qs: qs._raw_delete(qs.db)
+            )
 
-        for field_name, m2m_to_add in m2m_values_to_add.items():
+        for field_name, objs in m2m_values_to_add.items():
             through = getattr(model, field_name).through
-            row_column_name = row_column_names[field_name]
-            through.objects.bulk_create(m2m_to_add)
+            create_qs = through.objects.bulk_create
+            update_collector.prepend_statement(
+                model=through,
+                statement=lambda create_qs=create_qs, objs=objs: create_qs(objs),
+            )
 
         bulk_update_fields = ["updated_on"]
 
@@ -2123,14 +2146,24 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 bulk_update_fields.append(field_name)
 
         if len(bulk_update_fields) > 0:
-            model.objects.bulk_update(
-                rows_to_update, bulk_update_fields, batch_size=2000
+            update_collector.prepend_statement(
+                model=model,
+                statement=(
+                    lambda: model.objects.bulk_update(
+                        rows_to_update, bulk_update_fields, batch_size=2000
+                    )
+                ),
             )
             rows_updated_counter.add(len(rows_to_update))
 
-        dependant_fields = self.update_dependencies_of_rows_updated(
-            table, rows_to_update, model, updated_field_ids, m2m_change_tracker
-        )
+        dependant_fields = update_collector.get_all_collected_fields()
+        # Lock all the tables in order and execute the updates.
+        try:
+            update_collector.execute_all_statements(
+                skip_fields_type_changed=True, skip_rebuild_field_dependencies=True
+            )
+        except OperationalError as e:
+            raise FailedToLockRowsDueToConflict() from e
 
         from baserow.contrib.database.views.handler import ViewHandler
 
@@ -2313,7 +2346,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             model = table.get_model()
 
         with transaction.atomic():
-            row = self.get_row_for_update(user, table, row_id, model=model)
+            row = self.get_row(user, table, row_id, model=model)
             return self.move_row(user, table, row, before_row=before_row, model=model)
 
     def move_row(
@@ -2355,7 +2388,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         row.order = self.get_unique_orders_before_row(before_row, model)[0]
-        row.save(update_fields=["order", "updated_on"])
 
         # All fields must be marked as updated because the lookup fields can depend
         # on the row order. Only fields that are specifically marked as
@@ -2371,9 +2403,18 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 field = field_object["field"]
                 updated_fields.append(field)
 
-        dependant_fields = self.update_dependencies_of_rows_updated(
+        update_collector = self.collect_dependencies_of_rows_updated(
             table, [row], model, updated_field_ids
         )
+        update_collector.prepend_statement(
+            model, lambda: row.save(update_fields=["order", "updated_on"])
+        )
+        dependant_fields = update_collector.get_all_collected_fields()
+
+        try:
+            update_collector.execute_all_statements()
+        except OperationalError as e:
+            raise FailedToLockRowsDueToConflict() from e
 
         from baserow.contrib.database.views.handler import ViewHandler
 
@@ -2532,7 +2573,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 field_cache,
                 path_to_starting_table,
             )
-        update_collector.apply_updates_and_get_updated_fields(field_cache)
+        update_collector.apply_updates_and_get_updated_fields(
+            field_cache,
+            skip_fields_type_changed=True,
+            skip_rebuild_field_dependencies=True,
+        )
         return updated_fields, dependant_fields
 
     def delete_rows(
@@ -2673,7 +2718,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 field_cache,
                 path_to_starting_table,
             )
-        update_collector.apply_updates_and_get_updated_fields(field_cache)
+        update_collector.apply_updates_and_get_updated_fields(
+            field_cache,
+            skip_fields_type_changed=True,
+            skip_rebuild_field_dependencies=True,
+        )
 
         from baserow.contrib.database.views.handler import ViewHandler
 

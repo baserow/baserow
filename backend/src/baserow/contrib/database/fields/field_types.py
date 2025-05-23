@@ -3479,25 +3479,6 @@ class LinkRowFieldType(
         # ourself.
         return FieldDependencyHandler.get_via_dependants_of_link_field(field)
 
-    def row_of_dependency_updated(
-        self,
-        field: Field,
-        starting_row: "StartingRowType",
-        update_collector: FieldUpdateCollector,
-        field_cache: "FieldCache",
-        via_path_from_starting_table: List["LinkRowField"],
-    ):
-        update_collector.add_field_which_has_changed(
-            field, via_path_from_starting_table, send_field_updated_signal=False
-        )
-        super().row_of_dependency_updated(
-            field,
-            starting_row,
-            update_collector,
-            field_cache,
-            via_path_from_starting_table,
-        )
-
     def field_dependency_updated(
         self,
         field: Field,

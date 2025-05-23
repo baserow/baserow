@@ -158,15 +158,16 @@ def test_row_updated_without_sending_realtime_update(
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(table=table)
     row = table.get_model().objects.create()
-    RowHandler().update_rows(
-        user,
-        table,
-        [
-            {"id": row.id, f"field_{field.id}": "test"},
-        ],
-        rows_to_update=[row],
-        send_realtime_update=False,
-    )
+    with transaction.atomic():
+        RowHandler().force_update_rows(
+            user,
+            table,
+            [
+                {"id": row.id, f"field_{field.id}": "test"},
+            ],
+            rows_to_update=[row],
+            send_realtime_update=False,
+        )
 
     mock_broadcast_to_channel_group.delay.assert_not_called()
 

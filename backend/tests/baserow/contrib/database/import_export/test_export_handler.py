@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
-from django.utils.dateparse import parse_date, parse_datetime
+from django.utils.dateparse import parse_datetime
 
 import pytest
 from freezegun import freeze_time
@@ -39,16 +39,13 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.exceptions import ViewNotInTable
 from baserow.contrib.database.views.models import GridView, GridViewFieldOptions
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.test_utils.helpers import setup_interesting_test_table
 
 
 def _parse_datetime(datetime):
     return parse_datetime(datetime).replace(tzinfo=timezone.utc)
-
-
-def _parse_date(date):
-    return parse_date(date)
 
 
 @pytest.mark.django_db
@@ -840,7 +837,7 @@ def test_can_export_csv_with_different_column_separators(
 @pytest.mark.django_db
 @patch("baserow.core.storage.get_default_storage")
 def test_adding_more_rows_doesnt_increase_number_of_queries_run(
-    get_storage_mock, data_fixture, django_assert_num_queries
+    get_storage_mock, data_fixture
 ):
     storage_mock = MagicMock()
     get_storage_mock.return_value = storage_mock
@@ -872,7 +869,7 @@ def test_adding_more_rows_doesnt_increase_number_of_queries_run(
 
     data_fixture.warm_cache_before_counting_queries()
 
-    with CaptureQueriesContext(connection) as captured:
+    with CaptureQueriesContext(connection) as captured, local_cache.context():
         run_export_job_with_mock_storage(table, grid_view, storage_mock, user)
 
     add_row(
@@ -886,8 +883,10 @@ def test_adding_more_rows_doesnt_increase_number_of_queries_run(
         ],
         [linked_row_1.id],
     )
-    with django_assert_num_queries(len(captured.captured_queries)):
+    with CaptureQueriesContext(connection) as captured2, local_cache.context():
         run_export_job_with_mock_storage(table, grid_view, storage_mock, user)
+
+    assert len(captured2.captured_queries) <= len(captured.captured_queries)
 
 
 @pytest.mark.django_db
