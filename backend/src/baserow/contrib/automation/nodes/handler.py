@@ -110,9 +110,11 @@ class AutomationNodeHandler:
             base_queryset = AutomationNode.objects
 
         try:
-            return base_queryset.select_related("workflow__automation__workspace").get(
-                id=node_id
-            ).specific
+            return (
+                base_queryset.select_related("workflow__automation__workspace")
+                .get(id=node_id)
+                .specific
+            )
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
