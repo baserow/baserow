@@ -14,7 +14,6 @@ from baserow.core.mixins import (
     WithRegistry,
 )
 from baserow.core.services.models import Service
-from baserow.core.workflow_actions.models import WorkflowAction
 
 __all__ = [
     "AutomationNode",
@@ -108,7 +107,7 @@ class AutomationNode(
         return cls.get_highest_order_of_queryset(queryset)[0]
 
 
-class AutomationActionNode(AutomationNode, WorkflowAction):
+class AutomationActionNode(AutomationNode):
     class Meta:
         abstract = True
 

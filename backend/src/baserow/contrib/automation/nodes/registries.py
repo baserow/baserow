@@ -11,6 +11,10 @@ from baserow.contrib.builder.formula_importer import import_formula
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
+    EasyImportExportMixin,
+    Instance,
+    InstanceWithFormulaMixin,
+    ModelInstanceMixin,
     ModelRegistryMixin,
     PublicCustomFieldsInstanceMixin,
     Registry,
@@ -18,12 +22,17 @@ from baserow.core.registry import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
-from baserow.core.workflow_actions.registries import WorkflowActionType
 
 AUTOMATION_NODES = "automation_nodes"
 
 
-class AutomationNodeType(PublicCustomFieldsInstanceMixin, WorkflowActionType):
+class AutomationNodeType(
+    PublicCustomFieldsInstanceMixin,
+    InstanceWithFormulaMixin,
+    EasyImportExportMixin,
+    ModelInstanceMixin,
+    Instance,
+):
     service_type = None
     parent_property_name = "workflow"
     id_mapping_name = AUTOMATION_NODES
@@ -172,6 +181,10 @@ class AutomationNodeType(PublicCustomFieldsInstanceMixin, WorkflowActionType):
         return ServiceHandler().dispatch_service(
             automation_node.service.specific, dispatch_context
         )
+
+
+class AutomationNodeActionNodeType(AutomationNodeType):
+    ...
 
 
 class AutomationNodeTypeRegistry(
