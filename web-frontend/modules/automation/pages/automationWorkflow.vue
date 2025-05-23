@@ -6,14 +6,19 @@
       @read-only-toggled="handleReadOnlyToggle"
     />
     <div class="layout__col-2-2 automation-workflow__content">
-      <client-only>
-        <WorkflowEditor
-          :nodes="workflowNodes"
-          :read-only="isWorkflowReadOnly"
-          @add-node="handleAddNode"
-          @remove-node="handleRemoveNode"
-        />
-      </client-only>
+      <div :style="{ width: `calc(100% - 360px)` }">
+        <client-only>
+          <WorkflowEditor
+            :nodes="workflowNodes"
+            :read-only="isWorkflowReadOnly"
+            @add-node="handleAddNode"
+            @remove-node="handleRemoveNode"
+          />
+        </client-only>
+      </div>
+      <div class="automation-workflow__side-panel" style="width: 360px">
+        <EditorSidePanels />
+      </div>
     </div>
   </div>
 </template>
@@ -30,10 +35,12 @@ import {
 } from '@nuxtjs/composition-api'
 import AutomationHeader from '@baserow/modules/automation/components/AutomationHeader'
 import WorkflowEditor from '@baserow/modules/automation/components/workflow/WorkflowEditor.vue'
+import EditorSidePanels from '@baserow/modules/automation/components/workflow/EditorSidePanels'
 
 export default defineComponent({
   name: 'AutomationWorkflow',
   components: {
+    EditorSidePanels,
     AutomationHeader,
     WorkflowEditor,
   },

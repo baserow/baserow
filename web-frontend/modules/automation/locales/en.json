@@ -42,5 +42,8 @@
     "settingsBtn": "Settings",
     "historyBtn": "History",
     "switchLabel": "Draft"
+  },
+  "editorSidePanelType": {
+    "general": "General"
   }
 }

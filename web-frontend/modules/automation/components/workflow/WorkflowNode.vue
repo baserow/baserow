@@ -1,5 +1,5 @@
 <template>
-  <div class="workflow-editor__node">
+  <div class="workflow-editor__node" @click="onSelect">
     <span>ID: {{ id }} </span>
 
     <a
@@ -28,7 +28,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, inject } from 'vue'
+import { useStore } from '@nuxtjs/composition-api'
 
 const props = defineProps({
   id: {
@@ -53,10 +54,25 @@ const props = defineProps({
   },
 })
 
+const store = useStore()
+
 const emit = defineEmits(['removeNode'])
 
 const editNodeContextToggle = ref(null)
 const contextMenu = ref(null)
+
+const currentWorkflow = inject('currentWorkflow')
+
+const onSelect = () => {
+  const node = store.getters['automationWorkflowNode/findById'](
+    currentWorkflow.value,
+    props.id
+  )
+  store.dispatch('automationWorkflowNode/select', {
+    workflow: currentWorkflow.value,
+    node,
+  })
+}
 
 const openContext = () => {
   if (contextMenu.value && editNodeContextToggle.value)

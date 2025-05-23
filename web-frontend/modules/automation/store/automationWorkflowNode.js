@@ -13,6 +13,7 @@ const updateCachedValues = (workflow) => {
 const mutations = {
   SET_ITEMS(state, { workflow, nodes }) {
     workflow.nodes = nodes || []
+    workflow.selectedNode = null
     updateCachedValues(workflow)
   },
   ADD_ITEM(state, { workflow, node }) {
@@ -46,6 +47,9 @@ const mutations = {
   ADD_ITEM_AT(state, { workflow, node, index }) {
     workflow.nodes.splice(index, 0, node)
     updateCachedValues(workflow)
+  },
+  SELECT_ITEM(state, { workflow, node }) {
+    workflow.selectedNode = node
   },
 }
 
@@ -199,6 +203,10 @@ const actions = {
       throw error
     }
   },
+  select({ commit }, { workflow, node }) {
+    commit('SELECT_ITEM', { workflow, node })
+    console.log('workflow.selectedNode', workflow.selectedNode)
+  },
 }
 
 const getters = {
@@ -215,6 +223,9 @@ const getters = {
       return workflow.nodeMap[nodeIdStr]
 
     return null
+  },
+  getSelected: (state) => (workflow) => {
+    return workflow.selectedNode
   },
 }
 

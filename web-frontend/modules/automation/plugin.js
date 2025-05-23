@@ -22,6 +22,7 @@ import {
 } from '@baserow/modules/automation/nodeTypes'
 import { DuplicateAutomationWorkflowJobType } from '@baserow/modules/automation/jobTypes'
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
+import { GeneralEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -74,6 +75,10 @@ export default (context) => {
     app.$registry.register(
       'automationSettings',
       new IntegrationsAutomationSettingsType(context)
+    )
+    app.$registry.register(
+      'editorSidePanel',
+      new GeneralEditorSidePanelType(context)
     )
   }
 }
