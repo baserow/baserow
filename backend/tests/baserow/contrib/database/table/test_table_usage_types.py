@@ -20,7 +20,9 @@ def test_table_workspace_storage_usage_item_type(data_fixture):
 
     table_workspace_storage_usage_item_type = TableWorkspaceStorageUsageItemType()
     usage_in_megabytes = (
-        table_workspace_storage_usage_item_type.calculate_storage_usage(workspace.id)
+        table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
+            workspace.id
+        )
     )
 
     assert usage_in_megabytes == 0
@@ -32,7 +34,9 @@ def test_table_workspace_storage_usage_item_type(data_fixture):
     RowHandler().create_row(user, table, {file_field.id: [{"name": user_file_1.name}]})
 
     usage_in_megabytes = (
-        table_workspace_storage_usage_item_type.calculate_storage_usage(workspace.id)
+        table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
+            workspace.id
+        )
     )
 
     assert usage_in_megabytes == 2
@@ -44,7 +48,9 @@ def test_table_workspace_storage_usage_item_type(data_fixture):
     RowHandler().create_row(user, table, {file_field.id: [{"name": user_file_2.name}]})
 
     usage_in_megabytes = (
-        table_workspace_storage_usage_item_type.calculate_storage_usage(workspace.id)
+        table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
+            workspace.id
+        )
     )
 
     assert usage_in_megabytes == 10
@@ -64,20 +70,20 @@ def test_table_workspace_storage_usage_item_type_trashed_table(data_fixture):
     RowHandler().create_row(user, table, {file_field.id: [{"name": user_file_1.name}]})
 
     table_workspace_storage_usage_item_type = TableWorkspaceStorageUsageItemType()
-    usage = table_workspace_storage_usage_item_type.calculate_storage_usage(
+    usage = table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
         workspace.id
     )
 
     assert usage == 1
 
     TrashHandler().trash(user, workspace, database, table)
-    usage = table_workspace_storage_usage_item_type.calculate_storage_usage(
+    usage = table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
         workspace.id
     )
     assert usage == 0
 
     TrashHandler.restore_item(user, "table", table.id)
-    usage = table_workspace_storage_usage_item_type.calculate_storage_usage(
+    usage = table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
         workspace.id
     )
 
@@ -98,20 +104,20 @@ def test_table_workspace_storage_usage_item_type_trashed_file_field(data_fixture
     RowHandler().create_row(user, table, {file_field.id: [{"name": user_file_1.name}]})
 
     table_workspace_storage_usage_item_type = TableWorkspaceStorageUsageItemType()
-    usage = table_workspace_storage_usage_item_type.calculate_storage_usage(
+    usage = table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
         workspace.id
     )
 
     assert usage == 1
 
     FieldHandler().delete_field(user, file_field)
-    usage = table_workspace_storage_usage_item_type.calculate_storage_usage(
+    usage = table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
         workspace.id
     )
     assert usage == 0
 
     TrashHandler.restore_item(user, "field", file_field.id)
-    usage = table_workspace_storage_usage_item_type.calculate_storage_usage(
+    usage = table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
         workspace.id
     )
 
@@ -132,20 +138,20 @@ def test_table_workspace_storage_usage_item_type_trashed_database(data_fixture):
     RowHandler().create_row(user, table, {file_field.id: [{"name": user_file_1.name}]})
 
     table_workspace_storage_usage_item_type = TableWorkspaceStorageUsageItemType()
-    usage = table_workspace_storage_usage_item_type.calculate_storage_usage(
+    usage = table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
         workspace.id
     )
 
     assert usage == 5
 
     TrashHandler().trash(user, workspace, database, database)
-    usage = table_workspace_storage_usage_item_type.calculate_storage_usage(
+    usage = table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
         workspace.id
     )
     assert usage == 0
 
     TrashHandler.restore_item(user, "application", database.id)
-    usage = table_workspace_storage_usage_item_type.calculate_storage_usage(
+    usage = table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
         workspace.id
     )
 
@@ -178,7 +184,9 @@ def test_table_workspace_storage_usage_item_type_unique_files(data_fixture):
 
     table_workspace_storage_usage_item_type = TableWorkspaceStorageUsageItemType()
     usage_in_USAGE_UNIT_MB = (
-        table_workspace_storage_usage_item_type.calculate_storage_usage(workspace.id)
+        table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
+            workspace.id
+        )
     )
 
     assert usage_in_USAGE_UNIT_MB == 1
@@ -187,7 +195,9 @@ def test_table_workspace_storage_usage_item_type_unique_files(data_fixture):
     RowHandler().create_row(user, table, {file_field.id: [{"name": user_file_1.name}]})
 
     usage_in_USAGE_UNIT_MB = (
-        table_workspace_storage_usage_item_type.calculate_storage_usage(workspace.id)
+        table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
+            workspace.id
+        )
     )
 
     assert usage_in_USAGE_UNIT_MB == 1
@@ -198,7 +208,9 @@ def test_table_workspace_storage_usage_item_type_unique_files(data_fixture):
     )
 
     usage_in_USAGE_UNIT_MB = (
-        table_workspace_storage_usage_item_type.calculate_storage_usage(workspace.id)
+        table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
+            workspace.id
+        )
     )
 
     assert usage_in_USAGE_UNIT_MB == 1
@@ -209,7 +221,9 @@ def test_table_workspace_storage_usage_item_type_unique_files(data_fixture):
     )
 
     usage_in_USAGE_UNIT_MB = (
-        table_workspace_storage_usage_item_type.calculate_storage_usage(workspace.id)
+        table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
+            workspace.id
+        )
     )
 
     assert usage_in_USAGE_UNIT_MB == 3
@@ -220,7 +234,9 @@ def test_table_workspace_storage_usage_item_type_unique_files(data_fixture):
     )
 
     usage_in_USAGE_UNIT_MB = (
-        table_workspace_storage_usage_item_type.calculate_storage_usage(workspace.id)
+        table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
+            workspace.id
+        )
     )
 
     assert usage_in_USAGE_UNIT_MB == 3 + 1
@@ -261,7 +277,7 @@ def test_table_workspace_storage_usage_item_type_performance(data_fixture):
     profiler = Profiler()
     profiler.start()
     table_workspace_storage_usage_item_type = TableWorkspaceStorageUsageItemType()
-    usage = table_workspace_storage_usage_item_type.calculate_storage_usage(
+    usage = table_workspace_storage_usage_item_type.calculate_storage_usage_workspace(
         workspace.id
     )
     profiler.stop()

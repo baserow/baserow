@@ -13,7 +13,7 @@ from baserow.core.user_files.models import UserFile
 class ImageElementWorkspaceStorageUsageItem(WorkspaceStorageUsageItemType):
     type = "image_element"
 
-    def calculate_storage_usage(self, workspace_id: int) -> UsageInMB:
+    def calculate_storage_usage_workspace(self, workspace_id: int) -> UsageInMB:
         image_elements = ImageElement.objects.filter(
             page__builder__workspace_id=workspace_id,
             page__trashed=False,
