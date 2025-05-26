@@ -28,7 +28,6 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.nodes.operations import (
             CreateAutomationNodeOperationType,
             DeleteAutomationNodeOperationType,
-            DispatchAutomationNodeOperationType,
             DuplicateAutomationNodeOperationType,
             ListAutomationNodeOperationType,
             OrderAutomationNodeOperationType,
@@ -105,7 +104,6 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(DeleteAutomationNodeOperationType())
             operation_type_registry.register(RestoreAutomationNodeOperationType())
             operation_type_registry.register(DuplicateAutomationNodeOperationType())
-            operation_type_registry.register(DispatchAutomationNodeOperationType())
             operation_type_registry.register(OrderAutomationNodeOperationType())
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())
