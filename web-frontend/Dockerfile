@@ -1,9 +1,10 @@
-FROM node:21.7.3-bookworm as base
+FROM node:24-bookworm as base
 
 ARG UID
 ENV UID=${UID:-9999}
 ARG GID
 ENV GID=${GID:-9999}
+ENV NODE_OPTIONS=--openssl-legacy-provider
 
 
 # Perform all OS package installation and cleanup in one single command to reduce the
