@@ -6,27 +6,21 @@
       @read-only-toggled="handleReadOnlyToggle"
     />
     <div class="layout__col-2-2 automation-workflow__content">
-      <div
-        ref="editorRoot"
-        :style="{
-          width: activeSidePanel ? `calc(100% - ${sidePanelWidth}px)` : '100%',
-        }"
-      >
+      <div class="automation-workflow__editor">
         <client-only>
           <WorkflowEditor
             :nodes="workflowNodes"
             :read-only="isWorkflowReadOnly"
+            :active-node-id="selectedNode?.id"
+            :is-adding-node="isAddingNode"
             @add-node="handleAddNode"
             @click-node="handleClickNode"
             @remove-node="handleRemoveNode"
           />
         </client-only>
       </div>
-      <div
-        v-if="activeSidePanel"
-        class="automation-workflow__side-panel"
-        :style="{ width: sidePanelWidth + 'px' }"
-      >
+
+      <div v-if="activeSidePanel" class="automation-workflow__side-panel">
         <EditorSidePanels :active-side-panel="activeSidePanel" />
       </div>
     </div>
@@ -54,7 +48,6 @@ export default defineComponent({
     EditorSidePanels,
     AutomationHeader,
     WorkflowEditor,
-    WorkflowSidebar,
   },
   layout: 'app',
   setup() {
@@ -68,6 +61,7 @@ export default defineComponent({
     const automation = ref(null)
     const currentWorkflow = ref(null)
     const selectedNode = ref(null)
+    const isAddingNode = ref(false)
 
     const sidePanelWidth = 360
 
@@ -131,6 +125,7 @@ export default defineComponent({
 
     const handleAddNode = async ({ previousNodeId }) => {
       try {
+        isAddingNode.value = true
         const newNode = await store.dispatch('automationWorkflowNode/create', {
           workflow: currentWorkflow.value,
           type: 'rows_created',
@@ -143,6 +138,8 @@ export default defineComponent({
         }
       } catch (err) {
         console.error('Failed to add node:', err)
+      } finally {
+        isAddingNode.value = false
       }
     }
 
@@ -211,6 +208,7 @@ export default defineComponent({
       handleNodeSelected,
       selectedNode,
       workflowId,
+      isAddingNode,
     }
   },
 })

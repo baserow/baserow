@@ -1,8 +1,5 @@
 <template>
   <div>
-    <pre v-if="props.node">{{ JSON.stringify(props.node, null, 2) }}</pre>
-
-    <br />
     <FormGroup label="Action" small-label required>
       <Dropdown />
     </FormGroup>

@@ -69,6 +69,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  activeNodeId: {
+    type: [String, Number],
+    default: null,
+  },
+  isAddingNode: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['add-node', 'remove-node', 'click-node'])
@@ -116,7 +124,7 @@ const displayNodes = computed(() => {
       type: 'workflow-add-button-node',
       label: '',
       position: { x: ADD_BUTTON_X_POS, y: ADD_BUTTON_OFFSET_Y },
-      data: { nodeId: null }, // No preceding data node
+      data: { nodeId: null, disabled: props.isAddingNode }, // No preceding data node
     })
   } else {
     let currentY = INITIAL_Y_POS
@@ -138,7 +146,7 @@ const displayNodes = computed(() => {
 
       vueFlowNodes.push({
         id: `workflow-add-button-node-${dataNode.id}`,
-        data: { nodeId: dataNode.id },
+        data: { nodeId: dataNode.id, disabled: props.isAddingNode },
         type: 'workflow-add-button-node',
         position: addButtonPosition,
       })
@@ -197,11 +205,11 @@ const handleAddNode = (previousNodeId) => {
   })
 }
 
-const handleClickNode = (nodeId) => {
-  emit('click-node', nodeId)
-}
-
 const handleRemoveNode = (nodeId) => {
   emit('remove-node', nodeId)
+}
+
+const handleClickNode = ({ node }) => {
+  emit('click-node', node.id)
 }
 </script>
