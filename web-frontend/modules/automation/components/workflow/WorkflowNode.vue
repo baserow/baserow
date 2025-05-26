@@ -29,7 +29,9 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useVueFlow } from '@vue2-flow/core'
 
+const { onMove } = useVueFlow()
 const props = defineProps({
   id: {
     type: String,
@@ -58,7 +60,13 @@ const emit = defineEmits(['clickNode', 'removeNode'])
 const contextMenu = ref(null)
 const editNodeContextToggle = ref(null)
 const openContext = () => {
-  if (contextMenu.value && editNodeContextToggle.value)
+  if (contextMenu.value && editNodeContextToggle.value) {
     contextMenu.value.toggle(editNodeContextToggle.value, 'bottom', 'right', 0)
+  }
 }
+
+// Hide the context menu when user pan the canvas
+onMove(() => {
+  contextMenu.value.hide()
+})
 </script>
