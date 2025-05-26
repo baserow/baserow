@@ -55,7 +55,6 @@ RUN apt-get update && \
     python3-venv \
     tini \
     psmisc \
-    gosu \
     gawk \
     git \
     xmlsec1 \
@@ -95,6 +94,12 @@ RUN apt-get update && \
     # Sedding changes the owner, change it back.
     sed -i '/^logfile/d' /etc/redis/redis.conf && \
     chown redis:redis /etc/redis/redis.conf
+
+# Install su-exec as a safer alternative to gosu
+RUN curl -L -o /usr/local/bin/su-exec.c https://github.com/ncopa/su-exec/raw/master/su-exec.c \
+    && gcc -Wall -Werror -static -o /usr/local/bin/su-exec /usr/local/bin/su-exec.c \
+    && chmod 0755 /usr/local/bin/su-exec \
+    && rm /usr/local/bin/su-exec.c
 
 # In slim docker images, mime.types is removed and we need it for mimetypes guessing
 COPY --chown=$UID:$GID ./backend/docker/mime.types /etc/

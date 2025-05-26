@@ -17,11 +17,16 @@ RUN apt-get update && \
     dos2unix \
     tini \
     git \
-    gosu \
     && apt-get autoclean \
     && apt-get clean \
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
+
+# Install su-exec as a safer alternative to gosu
+RUN curl -L -o /usr/local/bin/su-exec.c https://github.com/ncopa/su-exec/raw/master/su-exec.c \
+    && gcc -Wall -Werror -static -o /usr/local/bin/su-exec /usr/local/bin/su-exec.c \
+    && chmod 0755 /usr/local/bin/su-exec \
+    && rm /usr/local/bin/su-exec.c
 
 # The node image already creates a non-root user to run as, update its ids so they
 # match the provided UID and GID we wish to build and run this image with.
