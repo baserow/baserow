@@ -5,6 +5,7 @@ from typing import List
 
 from django.contrib.postgres.aggregates import JSONBAgg
 from django.db.models import (
+    Aggregate,
     Avg,
     Case,
     Count,
@@ -1219,14 +1220,14 @@ class BaserowHasOption(TwoArgumentBaserowFunction):
         expr_with_metadata = WrappedExpressionWithMetadata.from_args(
             self.to_django_expression(args[0].expression, args[1].expression), args
         )
-        subquery = construct_aggregate_wrapper_queryset(
-            expr_with_metadata, context.model
+        subquery, result_key = construct_aggregate_wrapper_queryset(
+            expr_with_metadata, context.model, context.cte_collector
         )
 
         # This subquery would return more than one row, but we only care if
         # there is at least one result that is true, so order by the result
         # and take the first row.
-        expr: Expression = Subquery(subquery.order_by("-result")[:1])
+        expr: Expression = Subquery(subquery.order_by(f"-{result_key}")[:1])
 
         return WrappedExpressionWithMetadata(
             ExpressionWrapper(
@@ -2017,6 +2018,7 @@ def array_agg_expression(
             expr, pre_annotations, aggregate_filters, join_ids
         ),
         context.model,
+        context.cte_collector,
     ).expression
     return WrappedExpressionWithMetadata(
         Coalesce(
@@ -2521,7 +2523,7 @@ class BaserowAny(OneArgumentBaserowFunction):
         return func_call.with_valid_type(arg.expression_type)
 
     def to_django_expression(self, arg: Expression) -> Expression:
-        return Func(arg, function="bool_or", output_field=fields.BooleanField())
+        return Aggregate(arg, function="bool_or", output_field=fields.BooleanField())
 
 
 class BaserowEvery(OneArgumentBaserowFunction):
@@ -2537,7 +2539,7 @@ class BaserowEvery(OneArgumentBaserowFunction):
         return func_call.with_valid_type(arg.expression_type)
 
     def to_django_expression(self, arg: Expression) -> Expression:
-        return Func(arg, function="every", output_field=fields.BooleanField())
+        return Aggregate(arg, function="every", output_field=fields.BooleanField())
 
 
 class BaserowMax(OneArgumentBaserowFunction):
@@ -2697,6 +2699,7 @@ class BaserowAggJoin(TwoArgumentBaserowFunction):
                 join_ids,
             ),
             context.model,
+            context.cte_collector,
         )
 
 

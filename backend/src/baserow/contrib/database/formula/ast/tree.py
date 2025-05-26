@@ -21,6 +21,9 @@ from baserow.core.formula.parser.parser import convert_string_to_string_literal_
 from baserow.core.registry import Instance
 
 if typing.TYPE_CHECKING:
+    from baserow.contrib.database.fields.dependencies.update_collector import (
+        CTECollector,
+    )
     from baserow.contrib.database.formula.expression_generator.generator import (
         WrappedExpressionWithMetadata,
     )
@@ -303,9 +306,15 @@ class ArgCountSpecifier(abc.ABC):
 
 
 class BaserowExpressionContext:
-    def __init__(self, model: Type[Model], model_instance: Optional[Model]):
+    def __init__(
+        self,
+        model: Type[Model],
+        model_instance: Optional[Model],
+        cte_collector: "CTECollector",
+    ):
         self.model = model
         self.model_instance = model_instance
+        self.cte_collector = cte_collector
         try:
             # TODO: rename to workspace
             self.group = model.get_root()
