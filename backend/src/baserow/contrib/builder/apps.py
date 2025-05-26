@@ -282,7 +282,7 @@ class BuilderConfig(AppConfig):
             LogoutWorkflowActionType,
             NotificationWorkflowActionType,
             OpenPageWorkflowActionType,
-            RefreshDataSourceWorkflowAction,
+            RefreshDataSourceWorkflowActionType,
             UpdateRowWorkflowActionType,
         )
 
@@ -293,7 +293,7 @@ class BuilderConfig(AppConfig):
         builder_workflow_action_type_registry.register(DeleteRowWorkflowActionType())
         builder_workflow_action_type_registry.register(LogoutWorkflowActionType())
         builder_workflow_action_type_registry.register(
-            RefreshDataSourceWorkflowAction()
+            RefreshDataSourceWorkflowActionType()
         )
 
         from .elements.collection_field_types import (

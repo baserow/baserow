@@ -13,7 +13,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     LogoutWorkflowActionType,
     NotificationWorkflowActionType,
     OpenPageWorkflowActionType,
-    RefreshDataSourceWorkflowAction,
+    RefreshDataSourceWorkflowActionType,
     UpsertRowWorkflowActionType,
     service_backed_workflow_actions,
 )
@@ -231,7 +231,7 @@ def test_refresh_data_source_returns_value_from_id_mapping(mock_deserialize):
     and a value is provided.
     """
 
-    action = RefreshDataSourceWorkflowAction()
+    action = RefreshDataSourceWorkflowActionType()
     mock_result = MagicMock()
     id_mapping = {"builder_data_sources": {"1": mock_result}}
 
@@ -279,7 +279,7 @@ def test_refresh_data_source_returns_value_from_super_method(
 
     mock_result = MagicMock()
     mock_deserialize.return_value = mock_result
-    action = RefreshDataSourceWorkflowAction()
+    action = RefreshDataSourceWorkflowActionType()
 
     args = ["data_source_id", value, id_mapping]
     result = action.deserialize_property(*args)
@@ -378,7 +378,7 @@ def test_import_open_page_workflow_action(data_fixture):
         NotificationWorkflowActionType,
         OpenPageWorkflowActionType,
         LogoutWorkflowActionType,
-        RefreshDataSourceWorkflowAction,
+        RefreshDataSourceWorkflowActionType,
     ],
 )
 def test_builder_workflow_action_type_dispatch(workflow_action):

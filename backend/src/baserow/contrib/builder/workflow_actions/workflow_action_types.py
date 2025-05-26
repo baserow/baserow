@@ -179,7 +179,7 @@ class LogoutWorkflowActionType(BuilderWorkflowActionType):
         return {}
 
 
-class RefreshDataSourceWorkflowAction(BuilderWorkflowActionType):
+class RefreshDataSourceWorkflowActionType(BuilderWorkflowActionType):
     type = "refresh_data_source"
     model_class = RefreshDataSourceWorkflowAction
     serializer_field_names = ["data_source_id"]
