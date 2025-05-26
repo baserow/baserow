@@ -16,7 +16,9 @@ export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   isInError({ service }) {
-    if (service === undefined) {
+    // We check undefined because the url is not returned in public mode the the
+    // property is just ignored
+    if (service === undefined || service.url === undefined) {
       return false
     }
     return !service.url
