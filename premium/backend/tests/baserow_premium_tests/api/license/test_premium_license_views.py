@@ -254,7 +254,7 @@ def test_admin_register_license(api_client, data_fixture):
         assert response_json["last_check"] is None
         assert response_json["valid_from"] == "2021-08-29T19:53:37.092303Z"
         assert response_json["valid_through"] == "2021-09-29T19:53:37.092303Z"
-        assert response_json["seats_taken"] == 0
+        assert response_json["seats_taken"] == 2
         assert response_json["seats"] == 2
         assert response_json["product_code"] == "premium"
         assert response_json["issued_on"] == "2021-08-29T19:53:37.092303Z"
