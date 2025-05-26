@@ -125,6 +125,7 @@ class UpdateAutomationNodeActionType(UndoableActionType):
             scope=cls.scope(updated_node.node.workflow.id),
             workspace=updated_node.node.workflow.automation.workspace,
         )
+
         return updated_node.node
 
     @classmethod

@@ -24,7 +24,6 @@ from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
 from baserow.core.exceptions import IdDoesNotExist
-from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.types import DispatchResult
 from baserow.core.workflow_actions.handler import WorkflowActionHandler
 from baserow.core.workflow_actions.models import WorkflowAction
@@ -186,8 +185,8 @@ class BuilderWorkflowActionHandler(WorkflowActionHandler):
         :return: The result of dispatching the workflow action.
         """
 
-        dispatch_result = ServiceHandler().dispatch_service(
-            workflow_action.service.specific, dispatch_context
+        dispatch_result = workflow_action.get_type().dispatch(
+            workflow_action, dispatch_context
         )
 
         for data_provider in builder_data_provider_type_registry.get_all():

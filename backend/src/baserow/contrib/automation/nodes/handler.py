@@ -5,6 +5,9 @@ from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
@@ -21,13 +24,14 @@ from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
+from baserow.core.services.types import DispatchResult
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
-    allowed_fields = ["service", "previous_node_output"]
+    allowed_fields = ["previous_node_output", "service"]
 
     def create_node(
         self, node_type: AutomationNodeType, workflow: AutomationWorkflow, **kwargs
@@ -106,8 +110,10 @@ class AutomationNodeHandler:
             base_queryset = AutomationNode.objects
 
         try:
-            return base_queryset.select_related("workflow__automation__workspace").get(
-                id=node_id
+            return (
+                base_queryset.select_related("workflow__automation__workspace")
+                .get(id=node_id)
+                .specific
             )
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
@@ -325,3 +331,14 @@ class AutomationNodeHandler:
         id_mapping["automation_nodes"][serialized_node["id"]] = node_instance.id
 
         return node_instance
+
+    def dispatch_node(
+        self,
+        node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        """
+        Dispatch the automation node.
+        """
+
+        return node.get_type().dispatch(node, dispatch_context)

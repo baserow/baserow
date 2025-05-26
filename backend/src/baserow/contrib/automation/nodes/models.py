@@ -30,11 +30,11 @@ def get_default_node_content_type():
 
 
 class AutomationNode(
-    HierarchicalModelMixin,
     TrashableModelMixin,
-    CreatedAndUpdatedOnMixin,
-    FractionOrderableMixin,
     PolymorphicContentTypeMixin,
+    CreatedAndUpdatedOnMixin,
+    HierarchicalModelMixin,
+    FractionOrderableMixin,
     WithRegistry,
 ):
     """
@@ -107,18 +107,19 @@ class AutomationNode(
         return cls.get_highest_order_of_queryset(queryset)[0]
 
 
+class AutomationActionNode(AutomationNode):
+    class Meta:
+        abstract = True
+
+
 class AutomationTriggerNode(AutomationNode):
     class Meta:
         abstract = True
 
 
 class LocalBaserowRowCreatedTriggerNode(AutomationTriggerNode):
-    def save(self, *args, **kwargs):
-        """TODO: this shouldn't be required. There seems to be a MRO issue."""
-
-        self._ensure_content_type_is_set()
-        super().save(*args, **kwargs)
+    ...
 
 
-class LocalBaserowCreateRowActionNode(AutomationNode):
+class LocalBaserowCreateRowActionNode(AutomationActionNode):
     ...

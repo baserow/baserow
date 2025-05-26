@@ -9,7 +9,10 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowCreateRowActionNode,
     LocalBaserowRowCreatedTriggerNode,
 )
-from baserow.contrib.automation.nodes.registries import AutomationNodeType
+from baserow.contrib.automation.nodes.registries import (
+    AutomationNodeActionNodeType,
+    AutomationNodeType,
+)
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsCreatedTriggerServiceType,
@@ -19,7 +22,7 @@ from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 
 
-class LocalBaserowUpsertRowNodeType(AutomationNodeType):
+class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
     type = "upsert_row"
     service_type = LocalBaserowUpsertRowServiceType.type
 

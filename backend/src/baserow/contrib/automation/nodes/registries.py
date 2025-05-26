@@ -2,6 +2,9 @@ from typing import Any, Dict
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.builder.formula_importer import import_formula
@@ -16,17 +19,19 @@ from baserow.core.registry import (
     PublicCustomFieldsInstanceMixin,
     Registry,
 )
+from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
+from baserow.core.services.types import DispatchResult
 
 AUTOMATION_NODES = "automation_nodes"
 
 
 class AutomationNodeType(
+    PublicCustomFieldsInstanceMixin,
     InstanceWithFormulaMixin,
     EasyImportExportMixin,
     ModelInstanceMixin,
-    PublicCustomFieldsInstanceMixin,
     Instance,
 ):
     service_type = None
@@ -35,6 +40,13 @@ class AutomationNodeType(
 
     class SerializedDict(AutomationNodeDict):
         service: Dict
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + [
+            "previous_node_output",
+            "service",
+        ]
 
     def export_prepared_values(self, node: AutomationNode) -> Dict[Any, Any]:
         """
@@ -130,8 +142,8 @@ class AutomationNodeType(
         self,
         values: Dict[str, Any],
         user: AbstractUser,
-        instance=None,
-    ):
+        instance: AutomationNode = None,
+    ) -> Dict[str, Any]:
         """
         Responsible for preparing the service-based trigger node. By default,
         the only step is to pass any `service` data into the service.
@@ -165,6 +177,27 @@ class AutomationNodeType(
 
         values["service"] = service
         return values
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        ...
+
+    def dispatch(
+        self,
+        automation_node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        raise InvalidServiceTypeDispatchSource("This service cannot be dispatched.")
+
+
+class AutomationNodeActionNodeType(AutomationNodeType):
+    def dispatch(
+        self,
+        automation_node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        return ServiceHandler().dispatch_service(
+            automation_node.service.specific, dispatch_context
+        )
 
 
 class AutomationNodeTypeRegistry(

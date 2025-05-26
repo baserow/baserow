@@ -10,12 +10,14 @@ from baserow.contrib.builder.workflow_actions.registries import (
 )
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     DeleteRowWorkflowActionType,
+    LogoutWorkflowActionType,
     NotificationWorkflowActionType,
     OpenPageWorkflowActionType,
-    RefreshDataSourceWorkflowAction,
+    RefreshDataSourceWorkflowActionType,
     UpsertRowWorkflowActionType,
     service_backed_workflow_actions,
 )
+from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.utils import MirrorDict
 from baserow.core.workflow_actions.registries import WorkflowActionType
 
@@ -229,7 +231,7 @@ def test_refresh_data_source_returns_value_from_id_mapping(mock_deserialize):
     and a value is provided.
     """
 
-    action = RefreshDataSourceWorkflowAction()
+    action = RefreshDataSourceWorkflowActionType()
     mock_result = MagicMock()
     id_mapping = {"builder_data_sources": {"1": mock_result}}
 
@@ -277,7 +279,7 @@ def test_refresh_data_source_returns_value_from_super_method(
 
     mock_result = MagicMock()
     mock_deserialize.return_value = mock_result
-    action = RefreshDataSourceWorkflowAction()
+    action = RefreshDataSourceWorkflowActionType()
 
     args = ["data_source_id", value, id_mapping]
     result = action.deserialize_property(*args)
@@ -368,3 +370,25 @@ def test_import_open_page_workflow_action(data_fixture):
     assert (
         imported_workflow_action.query_parameters[0]["value"] == expected_query_formula
     )
+
+
+@pytest.mark.parametrize(
+    "workflow_action",
+    [
+        NotificationWorkflowActionType,
+        OpenPageWorkflowActionType,
+        LogoutWorkflowActionType,
+        RefreshDataSourceWorkflowActionType,
+    ],
+)
+def test_builder_workflow_action_type_dispatch(workflow_action):
+    """Ensure the base dispatch() raises an exception."""
+
+    instance = workflow_action()
+    mock_workflow_action = MagicMock()
+    mock_dispatch_context = MagicMock()
+
+    with pytest.raises(InvalidServiceTypeDispatchSource) as e:
+        instance.dispatch(mock_workflow_action, mock_dispatch_context)
+
+    assert str(e.value) == "This service cannot be dispatched."
