@@ -36,7 +36,6 @@ class AutomationNode(
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
     FractionOrderableMixin,
-    PolymorphicContentTypeMixin,
     WithRegistry,
 ):
     """

@@ -8,6 +8,7 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
+from baserow.core.services.types import DispatchResult
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyDict, AnyStr
 
