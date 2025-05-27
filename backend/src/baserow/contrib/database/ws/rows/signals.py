@@ -161,21 +161,21 @@ def rows_history_updated(
 ):
     row_page_type = page_registry.get("row")
 
-    def send_by_row():
-        for row_history_entry in row_history_entries:
-            serialized_entry = RowHistorySerializer(row_history_entry).data
-            row_page_type.broadcast(
-                {
-                    "type": "row_history_updated",
-                    "row_history_entry": serialized_entry,
-                    "table_id": table_id,
-                    "row_id": row_history_entry.row_id,
-                },
-                table_id=table_id,
-                row_id=row_history_entry.row_id,
-            )
+    def send_rows():
+        serialized_entries = RowHistorySerializer(row_history_entries, many=True).data
+        row_ids = [r.row_id for r in row_history_entries]
+        row_page_type.broadcast(
+            {
+                "type": "row_history_updated",
+                "row_history_entries": serialized_entries,
+                "table_id": table_id,
+                "row_ids": row_ids,
+            },
+            table_id=table_id,
+            row_ids=row_ids,
+        )
 
-    transaction.on_commit(send_by_row)
+    transaction.on_commit(send_rows)
 
 
 class RealtimeRowMessages:

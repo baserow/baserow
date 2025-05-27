@@ -321,45 +321,41 @@ def test_rows_history_updated(mock_broadcast_channel_group, data_fixture):
             None,
         ),
         call.delay(
-            f"table-{table.id}-row-{row1.id}",
+            f"table-{table.id}",
             {
                 "type": "row_history_updated",
-                "row_history_entry": {
-                    "id": AnyInt(),
-                    "action_type": "update_rows",
-                    "action_command_type": "DO",
-                    "user": OrderedDict([("id", user.id), ("name", user.first_name)]),
-                    "timestamp": "2023-03-30T00:00:00Z",
-                    "before": {f"field_{field.id}": "row 1"},
-                    "after": {f"field_{field.id}": "row 1 updated"},
-                    "fields_metadata": {
-                        f"field_{field.id}": {"id": field.id, "type": "text"}
+                "row_history_entries": [
+                    {
+                        "id": AnyInt(),
+                        "action_type": "update_rows",
+                        "action_command_type": "DO",
+                        "user": OrderedDict(
+                            [("id", user.id), ("name", user.first_name)]
+                        ),
+                        "timestamp": "2023-03-30T00:00:00Z",
+                        "before": {f"field_{field.id}": "row 1"},
+                        "after": {f"field_{field.id}": "row 1 updated"},
+                        "fields_metadata": {
+                            f"field_{field.id}": {"id": field.id, "type": "text"}
+                        },
                     },
-                },
-                "table_id": table.id,
-                "row_id": row1.id,
-            },
-            None,
-            None,
-        ),
-        call.delay(
-            f"table-{table.id}-row-{row2.id}",
-            {
-                "type": "row_history_updated",
-                "row_history_entry": {
-                    "id": AnyInt(),
-                    "action_type": "update_rows",
-                    "action_command_type": "DO",
-                    "user": OrderedDict([("id", user.id), ("name", user.first_name)]),
-                    "timestamp": "2023-03-30T00:00:00Z",
-                    "before": {f"field_{field.id}": "row 2"},
-                    "after": {f"field_{field.id}": "row 2 updated"},
-                    "fields_metadata": {
-                        f"field_{field.id}": {"id": field.id, "type": "text"}
+                    {
+                        "id": AnyInt(),
+                        "action_type": "update_rows",
+                        "action_command_type": "DO",
+                        "user": OrderedDict(
+                            [("id", user.id), ("name", user.first_name)]
+                        ),
+                        "timestamp": "2023-03-30T00:00:00Z",
+                        "before": {f"field_{field.id}": "row 2"},
+                        "after": {f"field_{field.id}": "row 2 updated"},
+                        "fields_metadata": {
+                            f"field_{field.id}": {"id": field.id, "type": "text"}
+                        },
                     },
-                },
+                ],
                 "table_id": table.id,
-                "row_id": row2.id,
+                "row_ids": [row1.id, row2.id],
             },
             None,
             None,
