@@ -1,6 +1,14 @@
 <template>
-  <div class="workflow-editor__node" @click="emit('clickNode', props.id)">
-    <span>ID: {{ id }} </span>
+  <div class="workflow-editor__node">
+    <div class="workflow-editor__node-icon">
+      <i class="iconoir-table"></i>
+    </div>
+
+    <h1 class="workflow-editor__node-title">
+      Row is created in Projects very long text
+    </h1>
+
+    <Badge rounded color="yellow" size="large">Configure</Badge>
 
     <a
       v-if="!props.data.readOnly"
@@ -15,11 +23,18 @@
       <ul class="context__menu">
         <li class="context__menu-item">
           <a
+            class="context__menu-item-link"
+            @click="emit('duplicateNode', props.id)"
+          >
+            <i class="context__menu-item-icon iconoir-copy"></i>
+            {{ $t('workflow.node.duplicate') }}
+          </a>
+          <a
             class="context__menu-item-link context__menu-item-link--delete"
             @click="emit('removeNode', props.id)"
           >
             <i class="context__menu-item-icon iconoir-bin"></i>
-            Delete node
+            {{ $t('workflow.node.delete') }}
           </a>
         </li>
       </ul>
