@@ -1,10 +1,5 @@
 <template>
-  <LocalBaserowServiceForm
-    enable-row-id
-    v-bind="$attrs"
-    :application="application"
-    v-on="$listeners"
-  />
+  <LocalBaserowServiceForm enable-row-id v-bind="$attrs" v-on="$listeners" />
 </template>
 
 <script>
@@ -14,12 +9,6 @@ export default {
   name: 'DeleteRowWorkflowActionForm',
   components: {
     LocalBaserowServiceForm,
-  },
-  props: {
-    application: {
-      type: Object,
-      required: true,
-    },
   },
 }
 </script>
