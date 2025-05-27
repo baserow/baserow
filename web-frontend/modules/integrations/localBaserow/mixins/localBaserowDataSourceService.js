@@ -3,7 +3,7 @@ import tableFields from '@baserow/modules/database/mixins/tableFields'
 export default {
   mixins: [tableFields],
   props: {
-    builder: {
+    application: {
       type: Object,
       required: true,
     },

@@ -52,7 +52,7 @@ export class LocalBaserowTableServiceType extends ServiceType {
 
     let description = this.name
     if (service.table_id && tableSelected) {
-      description += `- ${tableSelected.name}`
+      description += ` - ${tableSelected.name}`
     }
 
     if (this.isInError({ service })) {

@@ -1,6 +1,7 @@
 <template>
   <component
     :is="serviceType.formComponent"
+    :application="builder"
     :workflow-action="workflowAction"
     :default-values="defaultValues.service"
     @values-changed="values.service = { ...workflowAction.service, ...$event }"
@@ -13,8 +14,8 @@ import form from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'WorkflowActionWithWithService',
-  components: {},
   mixins: [form],
+  inject: ['builder'],
   props: {
     workflowAction: {
       type: Object,
