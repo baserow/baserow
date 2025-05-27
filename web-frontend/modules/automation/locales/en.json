@@ -42,11 +42,5 @@
     "settingsBtn": "Settings",
     "historyBtn": "History",
     "switchLabel": "Draft"
-  },
-  "nodeType": {
-      "localBaserowRowsCreated": "Rows created",
-      "localBaserowRowsCreatedDescription": "This node is triggered when one or more rows are created in a Baserow table.",
-      "localBaserowCreateRow": "Create row",
-      "localBaserowCreateRowDescription": "This node creates a new row in a Baserow table."
   }
 }
