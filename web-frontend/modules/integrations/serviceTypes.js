@@ -8,6 +8,11 @@ import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/
 import { DistributionViewAggregationType } from '@baserow/modules/database/viewAggregationTypes'
 
 export class LocalBaserowTableServiceType extends ServiceType {
+  // Determines whether collection elements with data sources using this
+  // service are allowed to perform adhoc refinements (filtering, sorting, searching).
+  // By default, they cannot, only the list rows service type can.
+  adhocRefinementsSupported = false
+
   get integrationType() {
     return this.app.$registry.get(
       'integration',
@@ -112,6 +117,8 @@ export class LocalBaserowGetRowServiceType extends LocalBaserowTableServiceType 
 }
 
 export class LocalBaserowListRowsServiceType extends LocalBaserowTableServiceType {
+  adhocRefinementsSupported = true
+
   static getType() {
     return 'local_baserow_list_rows'
   }
@@ -131,7 +138,7 @@ export class LocalBaserowListRowsServiceType extends LocalBaserowTableServiceTyp
     return LocalBaserowAdhocHeader
   }
 
-  get returnsList() {
+  returnsList({ service }) {
     return true
   }
 
@@ -234,6 +241,15 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
     return 'local_baserow_aggregate_rows'
   }
 
+  returnsList({ service }) {
+    // TODO: store this in the registry
+    return service.aggregation_type === 'distribution'
+  }
+
+  get maxResultLimit() {
+    return 100
+  }
+
   get name() {
     return this.app.i18n.t('serviceType.localBaserowAggregateRows')
   }
@@ -242,12 +258,19 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
     return LocalBaserowAggregateRowsForm
   }
 
-  /**
-   * Local Baserow aggregate rows does not currently support the distribution
-   * aggregation type, this will be resolved in a future release.
-   */
-  get unsupportedAggregationTypes() {
-    return [DistributionViewAggregationType.getType()]
+  getDefaultCollectionFields(service) {
+    return Object.keys(service.schema.items.properties)
+      .filter((field) => field !== 'id')
+      .map((field) => {
+        const outputType = 'text'
+        const valueFormula = `get('current_record.${field}')`
+        return {
+          name: service.schema.items.properties[field].title,
+          type: outputType,
+          value: valueFormula,
+          id: uuid(),
+        }
+      })
   }
 
   getResult(service, data) {

@@ -49,7 +49,13 @@ export default {
      * @returns {boolean} - Whether the property options are available.
      */
     propertyOptionsAvailable() {
-      return this.selectedDataSource && this.selectedDataSourceReturnsList
+      const { element } = this.applicationContext
+      const elementType = this.$registry.get('element', element.type)
+      return (
+        this.selectedDataSource &&
+        this.selectedDataSourceReturnsList &&
+        elementType.adhocRefinementsSupported(this.selectedDataSource)
+      )
     },
     /**
      * In collection element forms, the ability to view paging options
@@ -150,7 +156,9 @@ export default {
       return this.$registry.get('service', this.selectedDataSource.type)
     },
     selectedDataSourceReturnsList() {
-      return this.selectedDataSourceType?.returnsList
+      return this.selectedDataSourceType?.returnsList({
+        service: this.selectedDataSource,
+      })
     },
     maxItemPerPage() {
       if (!this.selectedDataSourceType) {

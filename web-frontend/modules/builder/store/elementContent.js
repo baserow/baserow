@@ -179,7 +179,10 @@ const actions = {
 
     // We have a data source, but if it doesn't return a list,
     // it needs to have a `schema_property` to work correctly.
-    if (!serviceType.returnsList && element.schema_property === null) {
+    if (
+      !serviceType.returnsList({ service: dataSource }) &&
+      element.schema_property === null
+    ) {
       // If we previously had a list data source, we might have content,
       // so rather than leave the content *until a schema property is set*,
       // clear it.
@@ -246,7 +249,7 @@ const actions = {
           })
         }
 
-        if (serviceType.returnsList) {
+        if (serviceType.returnsList({ service: dataSource })) {
           // The service type returns a list of results, we'll set the content
           // using the results key and set the range for future paging.
           commit('SET_CONTENT', {

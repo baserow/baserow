@@ -72,9 +72,6 @@ from baserow.contrib.database.views.exceptions import (
 )
 from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.service import ViewService
-from baserow.contrib.database.views.view_aggregations import (
-    DistributionViewAggregationType,
-)
 from baserow.contrib.integrations.local_baserow.api.serializers import (
     LocalBaserowTableServiceFieldMappingSerializer,
 )
@@ -1266,10 +1263,6 @@ class LocalBaserowAggregateRowsUserServiceType(
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
     serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 
-    # Local Baserow aggregate rows does not currently support the distribution
-    # aggregation type, this will be resolved in a future release.
-    unsupported_aggregation_types = [DistributionViewAggregationType.type]
-
     def get_schema_name(self, service: LocalBaserowAggregateRows) -> str:
         """
         The Local Baserow aggregation schema name added to the `title` in
@@ -1302,24 +1295,43 @@ class LocalBaserowAggregateRowsUserServiceType(
         if not service.field or not service.aggregation_type:
             return None
 
+        result_key = "results" if self.returns_list(service) else "result"
+
         # The `result` must be an allowed field, otherwise we have no schema.
-        if allowed_fields is not None and "result" not in allowed_fields:
+        if allowed_fields is not None and result_key not in allowed_fields:
             return {}
 
         # Pluck out the aggregation type which this service uses. We'll use its
         # `result_type` to inform the schema what the expected `result` format is.
         aggregation_type = field_aggregation_registry.get(service.aggregation_type)
 
-        return {
-            "title": self.get_schema_name(service),
-            "type": "object",
-            "properties": {
-                "result": {
+        schema = {"title": self.get_schema_name(service)}
+
+        if aggregation_type.result_type == "array":
+            schema["type"] = "array"
+            schema["items"] = {
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "title": f"{service.field.name} value",
+                        "type": "string",
+                    },
+                    "count": {
+                        "title": f"{service.field.name} distribution",
+                        "type": "number",
+                    },
+                },
+            }
+        else:
+            schema["type"] = "object"
+            schema["properties"] = {
+                f"{result_key}": {
                     "title": f"{service.field.name} result",
                     "type": aggregation_type.result_type,
                 }
-            },
-        }
+            }
+
+        return schema
 
     def get_context_data(
         self,
@@ -1388,6 +1400,10 @@ class LocalBaserowAggregateRowsUserServiceType(
         field_id: int
         aggregation_type: str
 
+    def returns_list(self, service: LocalBaserowAggregateRows) -> bool:
+        aggregation_type = field_aggregation_registry.get(service.aggregation_type)
+        return aggregation_type.result_type == "array"
+
     def prepare_values(
         self,
         values: Dict[str, Any],
@@ -1413,13 +1429,6 @@ class LocalBaserowAggregateRowsUserServiceType(
         aggregation_type = values.get(
             "aggregation_type", getattr(instance, "aggregation_type", "")
         )
-
-        if aggregation_type in self.unsupported_aggregation_types:
-            raise DRFValidationError(
-                detail=f"The {aggregation_type} aggregation type "
-                "is not currently supported.",
-                code="unsupported_aggregation_type",
-            )
 
         if "table" in values:
             # Reset the field if the table has changed
@@ -1574,9 +1583,12 @@ class LocalBaserowAggregateRowsUserServiceType(
         :return: Aggregations.
         """
 
-        only_field_names = self.get_used_field_names(service, dispatch_context)
-        if only_field_names and "result" not in only_field_names:
-            return {"data": {"result": None}}
+        result_key = "results" if self.returns_list(service) else "result"
+
+        # TODO: resolve
+        # only_field_names = self.get_used_field_names(service, dispatch_context)
+        # if only_field_names and result_key not in only_field_names:
+        #     return {"data": {result_key: []}}
 
         try:
             table = resolved_values["table"]
@@ -1594,7 +1606,7 @@ class LocalBaserowAggregateRowsUserServiceType(
             result = agg_type.aggregate(queryset, model_field, field)
 
             return {
-                "data": {"result": result},
+                "data": {result_key: result},
                 "baserow_table_model": model,
             }
         except DjangoFieldDoesNotExist as ex:
@@ -1626,10 +1638,8 @@ class LocalBaserowAggregateRowsUserServiceType(
         Returns the usual properties for this service type.
         """
 
-        if path[0] == "result":
-            return ["result"]
-
-        return []
+        # TODO: confirm this is right
+        return ["result", "value", "count"]
 
 
 class LocalBaserowGetRowUserServiceType(
