@@ -43,6 +43,8 @@ RUN apt-get update &&  \
     python3-venv\
     git \
     xmlsec1 \
+    && python3 -m pip install --no-cache-dir --upgrade pip setuptools==78.1.1 --break-system-packages \
+    && rm -rf /usr/lib/python3/dist-packages/setuptools* /usr/lib/python3/dist-packages/pkg_resources* \
     && apt-get autoclean \
     && apt-get clean \
     && apt-get autoremove \
@@ -65,14 +67,18 @@ RUN python3 -m venv /baserow/venv
 
 ENV PIP_CACHE_DIR=/tmp/baserow_pip_cache
 # hadolint ignore=SC1091,DL3042
-RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate && pip3 install  -r /baserow/requirements/base.txt
+RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate \
+    && pip3 install --no-cache-dir --upgrade pip setuptools==78.1.1 \
+    && pip3 install -r /baserow/requirements/base.txt
 
 # Build a dev_deps stage which also has the dev dependencies for use by the dev layer.
 FROM base as dev_deps
 
 COPY ./backend/requirements/dev.txt /baserow/requirements/
 # hadolint ignore=SC1091,DL3042
-RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate && pip3 install -r /baserow/requirements/dev.txt
+RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate &&  \
+    && pip3 install --no-cache-dir --upgrade pip setuptools==78.1.1 \
+    && pip3 install -r /baserow/requirements/dev.txt
 
 # The core stage contains all of Baserows source code and sets up the entrypoint
 FROM base as core
