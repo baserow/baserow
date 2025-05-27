@@ -50,6 +50,9 @@ class AutomationNodeType(
         ),
     }
 
+    is_workflow_trigger = False
+    is_workflow_action = False
+
     class SerializedDict(AutomationNodeDict):
         service: Dict
 

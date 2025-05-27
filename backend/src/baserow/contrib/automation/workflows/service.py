@@ -2,6 +2,9 @@ from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.operations import OrderAutomationWorkflowsOperationType
@@ -11,6 +14,7 @@ from baserow.contrib.automation.workflows.operations import (
     DeleteAutomationWorkflowOperationType,
     DuplicateAutomationWorkflowOperationType,
     ReadAutomationWorkflowOperationType,
+    RunAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
 )
 from baserow.contrib.automation.workflows.signals import (
@@ -27,11 +31,35 @@ from baserow.core.utils import ChildProgressBuilder
 class AutomationWorkflowService:
     def __init__(self):
         self.handler = AutomationWorkflowHandler()
-        self.automation_handler = AutomationHandler()
+
+    def run_workflow(
+        self,
+        user: AbstractUser,
+        workflow_id: int,
+        dispatch_context: AutomationDispatchContext,
+    ):
+        """
+        Runs the workflow with the given ID.
+
+        :param user: The user trying to run the workflow.
+        :param workflow_id: The ID of the workflow to run.
+        :param dispatch_context: The context in which the workflow is run.
+        """
+
+        workflow = self.handler.get_workflow(workflow_id)
+
+        CoreHandler().check_permissions(
+            user,
+            RunAutomationWorkflowOperationType.type,
+            workspace=workflow.automation.workspace,
+            context=workflow,
+        )
+
+        self.handler.run_workflow(workflow, dispatch_context)
 
     def get_workflow(self, user: AbstractUser, workflow_id: int) -> AutomationWorkflow:
         """
-        Returns a AutomationWorkflow instance by its ID.
+        Returns an AutomationWorkflow instance by its ID.
 
         :param user: The user requesting the workflow.
         :param workflow_id: The ID of the workflow.
@@ -59,12 +87,12 @@ class AutomationWorkflowService:
         Returns a new instance of AutomationWorkflow.
 
         :param user: The user trying to create the workflow.
-        :param automation: The automation the workflow belongs to.
+        :param automation_id: The automation workflow belongs to.
         :param name: The name of the workflow.
         :return: The newly created AutomationWorkflow instance.
         """
 
-        automation = self.automation_handler.get_automation(automation_id)
+        automation = AutomationHandler().get_automation(automation_id)
 
         CoreHandler().check_permissions(
             user,

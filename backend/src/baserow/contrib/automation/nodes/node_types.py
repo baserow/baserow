@@ -1,29 +1,42 @@
 from typing import Dict, Optional
 
+from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.nodes.models import (
+    AutomationNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowRowsCreatedTriggerNode,
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
 )
-from baserow.contrib.automation.nodes.registries import (
-    AutomationNodeActionNodeType,
-    AutomationNodeType,
-)
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsCreatedTriggerServiceType,
     LocalBaserowRowsDeletedTriggerServiceType,
     LocalBaserowRowsUpdatedTriggerServiceType,
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
+from baserow.core.services.types import DispatchResult
+
+
+class AutomationNodeActionNodeType(AutomationNodeType):
+    is_workflow_action = True
+
+    def dispatch(
+        self,
+        automation_node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        return ServiceHandler().dispatch_service(
+            automation_node.service.specific, dispatch_context
+        )
 
 
 class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
@@ -41,9 +54,18 @@ class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
 
 
 class AutomationNodeTriggerType(AutomationNodeType):
+    is_workflow_trigger = True
+
     def on_event(
-        self, service_queryset: QuerySet[Service], event_payload: Optional[Dict] = None
+        self,
+        user: AbstractUser,
+        service_queryset: QuerySet[Service],
+        event_payload: Optional[Dict] = None,
     ):
+        from baserow.contrib.automation.workflows.service import (
+            AutomationWorkflowService,
+        )
+
         triggers = (
             self.model_class.objects.filter(
                 service__in=service_queryset, workflow__published=True
@@ -53,7 +75,8 @@ class AutomationNodeTriggerType(AutomationNodeType):
         )
 
         for trigger in triggers:
-            AutomationWorkflowHandler().run_workflow(
+            AutomationWorkflowService().run_workflow(
+                user,
                 trigger.workflow,
                 AutomationDispatchContext(trigger.workflow, event_payload),
             )

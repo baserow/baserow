@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type
 from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
@@ -22,6 +22,7 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowNotInAutomation,
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.trash.handler import TrashHandler
@@ -46,10 +47,7 @@ class AutomationWorkflowHandler:
         :param dispatch_context: The context used for the dispatch.
         """
 
-        # todo should create the dispatch context using the event_payload
-        # and run the next action nodes following the trigger
-
-        print(f"Executing workflow={workflow.id}")
+        return AutomationWorkflowRunner().run(workflow, dispatch_context)
 
     def get_workflow(
         self, workflow_id: int, base_queryset: Optional[QuerySet] = None

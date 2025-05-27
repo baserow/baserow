@@ -67,6 +67,7 @@ class AutomationConfig(AppConfig):
             DuplicateAutomationWorkflowOperationType,
             ReadAutomationWorkflowOperationType,
             RestoreAutomationWorkflowOperationType,
+            RunAutomationWorkflowOperationType,
             UpdateAutomationWorkflowOperationType,
         )
         from baserow.contrib.automation.workflows.trash_types import (
@@ -99,6 +100,7 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(ListAutomationWorkflowsOperationType())
             operation_type_registry.register(OrderAutomationWorkflowsOperationType())
             operation_type_registry.register(RestoreAutomationWorkflowOperationType())
+            operation_type_registry.register(RunAutomationWorkflowOperationType())
             operation_type_registry.register(ListAutomationNodeOperationType())
             operation_type_registry.register(CreateAutomationNodeOperationType())
             operation_type_registry.register(UpdateAutomationNodeOperationType())
