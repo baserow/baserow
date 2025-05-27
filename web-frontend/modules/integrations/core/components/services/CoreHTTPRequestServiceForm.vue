@@ -52,7 +52,7 @@
           <div class="col col-5">
             <FormInput
               v-model="query_param.key"
-              :error="v$.values.query_params.$each.$message[index]?.[0]"
+              :error="!!v$.values.query_params.$each.$message[index]?.[0]"
               :placeholder="$t('coreHTTPRequestServiceForm.namePlaceholder')"
               @blur="v$.values.query_params.$touch()"
             />
@@ -111,7 +111,7 @@
           <div class="col col-5">
             <FormInput
               v-model="header.key"
-              :error="v$.values.headers.$each.$message[index]?.[0]"
+              :error="!!v$.values.headers.$each.$message[index]?.[0]"
               :placeholder="$t('coreHTTPRequestServiceForm.namePlaceholder')"
               @blur="v$.values.headers.$touch()"
             />
@@ -196,7 +196,7 @@
           <div class="col col-5">
             <FormInput
               v-model="fdata.key"
-              :error="v$.values.form_data.$each.$message[index]?.[0]"
+              :error="!!v$.values.form_data.$each.$message[index]?.[0]"
               :placeholder="$t('coreHTTPRequestServiceForm.namePlaceholder')"
               @blur="v$.values.form_data.$touch()"
             />
