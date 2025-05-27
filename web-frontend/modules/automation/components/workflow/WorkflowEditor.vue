@@ -55,7 +55,7 @@
 import { VueFlow, useVueFlow } from '@vue2-flow/core'
 import { Background } from '@vue2-flow/background'
 import { Controls } from '@vue2-flow/controls'
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, watch, toRefs } from 'vue'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode.vue'
 import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode.vue'
 import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge.vue'
@@ -81,7 +81,9 @@ const props = defineProps({
 
 const emit = defineEmits(['add-node', 'remove-node', 'click-node'])
 
-const { onInit, onPaneClick } = useVueFlow()
+const { addSelectedNodes, onNodeClick, onPaneClick } = useVueFlow()
+
+const { activeNodeId } = toRefs(props)
 
 const nodesDraggable = ref(false)
 const zoomOnScroll = ref(false)
@@ -94,6 +96,14 @@ const ADD_BUTTON_OFFSET_Y = 92 // Vertical offset of add button relative to the 
 const INITIAL_Y_POS = 0
 const DATA_NODE_X_POS = 0
 const ADD_BUTTON_X_POS = 190
+
+watch(
+  activeNodeId,
+  (newId, oldId) => {
+    addSelectedNodes([{ id: newId.toString() }])
+  },
+  { immediate: true }
+)
 
 const displayNodes = computed(() => {
   const vueFlowNodes = []
@@ -190,10 +200,6 @@ const computedEdges = computed(() => {
   return edges
 })
 
-onInit((vueFlowInstance) => {
-  vueFlowInstance.fitView({ maxZoom: 1, minZoom: 0.5 })
-})
-
 onPaneClick(() => {
   emit('click-node', null)
 })
@@ -209,7 +215,7 @@ const handleRemoveNode = (nodeId) => {
   emit('remove-node', nodeId)
 }
 
-const handleClickNode = ({ node }) => {
+onNodeClick(({ node }) => {
   emit('click-node', node.id)
-}
+})
 </script>
