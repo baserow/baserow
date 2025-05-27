@@ -9,8 +9,8 @@ from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
-    LogoutWorkflowActionType,
     LocalBaserowWorkflowActionType,
+    LogoutWorkflowActionType,
     NotificationWorkflowActionType,
     OpenPageWorkflowActionType,
     RefreshDataSourceWorkflowActionType,
