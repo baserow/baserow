@@ -30,7 +30,7 @@ export class NodeType extends Registerable {
   }
 
   get formComponent() {
-    return null
+    return this.serviceType.formComponent
   }
 
   isInError({ node, automation }) {
