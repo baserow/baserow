@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent>
-    <p>Create row action form.</p>
+    <p>Rows created trigger form.</p>
   </form>
 </template>
 

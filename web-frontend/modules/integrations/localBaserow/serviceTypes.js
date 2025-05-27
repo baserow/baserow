@@ -2,6 +2,7 @@ import {
   ServiceType,
   DataSourceServiceTypeMixin,
   WorkflowActionServiceTypeMixin,
+  TriggerServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
@@ -13,6 +14,7 @@ import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBa
 import { uuid } from '@baserow/modules/core/utils/string'
 import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowAdhocHeader'
 import { DistributionViewAggregationType } from '@baserow/modules/database/viewAggregationTypes'
+import LocalBaserowRowsCreatedServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowRowsCreatedServiceForm'
 
 export class LocalBaserowTableServiceType extends ServiceType {
   get integrationType() {
@@ -372,5 +374,25 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
 
   get formComponent() {
     return LocalBaserowDeleteRowServiceForm
+  }
+}
+
+export class LocalBaserowRowsCreatedTriggerServiceType extends TriggerServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
+  static getType() {
+    return 'rows_created'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.localBaserowRowsCreated')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowRowsCreatedDescription')
+  }
+
+  get formComponent() {
+    return LocalBaserowRowsCreatedServiceForm
   }
 }

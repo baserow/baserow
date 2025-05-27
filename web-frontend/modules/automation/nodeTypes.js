@@ -3,16 +3,22 @@ import {
   ActionNodeTypeMixin,
   TriggerNodeTypeMixin,
 } from '@baserow/modules/automation/nodeTypeMixins'
-import LocalBaserowCreateRowActionNodeForm from '@baserow/modules/automation/components/form/node/LocalBaserowCreateRowActionNodeForm'
-import LocalBaserowRowsCreatedTriggerNodeForm from '@baserow/modules/automation/components/form/node/LocalBaserowRowsCreatedTriggerNodeForm'
+import {
+  LocalBaserowCreateRowWorkflowServiceType,
+  LocalBaserowRowsCreatedTriggerServiceType,
+} from '@baserow/modules/integrations/localBaserow/serviceTypes'
 
 export class NodeType extends Registerable {
   get name() {
-    return null
+    return this.serviceType.name
   }
 
   get description() {
-    return null
+    return this.serviceType.description
+  }
+
+  get serviceType() {
+    throw new Error('This method must be implemented')
   }
 
   get iconClass() {
@@ -27,14 +33,8 @@ export class NodeType extends Registerable {
     return null
   }
 
-  /*
-  /**
-   * Returns whether the node configuration is valid or not.
-   * @param {object} param An object containing the workflow, node, and automation
-   * @returns true if the node is in error
-   */
-  isInError({ workspace, workflow, node, automation }) {
-    return false
+  isInError({ node, automation }) {
+    return this.serviceType.isInError({ service: node.service })
   }
 }
 
@@ -45,20 +45,15 @@ export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin
     return 'rows_created'
   }
 
-  get name() {
-    return this.app.i18n.t('nodeType.localBaserowRowsCreated')
-  }
-
-  get description() {
-    return this.app.i18n.t('nodeType.localBaserowRowsCreatedDescription')
-  }
-
-  get formComponent() {
-    return LocalBaserowRowsCreatedTriggerNodeForm
-  }
-
   getOrder() {
     return 1
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowRowsCreatedTriggerServiceType.getType()
+    )
   }
 }
 
@@ -69,19 +64,14 @@ export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
     return 'create_row'
   }
 
-  get name() {
-    return this.app.i18n.t('nodeType.localBaserowCreateRow')
-  }
-
-  get description() {
-    return this.app.i18n.t('nodeType.localBaserowCreateRowDescription')
-  }
-
-  get formComponent() {
-    return LocalBaserowCreateRowActionNodeForm
-  }
-
   getOrder() {
     return 2
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowCreateRowWorkflowServiceType.getType()
+    )
   }
 }

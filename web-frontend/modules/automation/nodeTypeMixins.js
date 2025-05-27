@@ -1,6 +1,6 @@
 export const TriggerNodeTypeMixin = (Base) =>
   class extends Base {
-    isWorkflowTrigger = true
+    isTrigger = true
   }
 
 export const ActionNodeTypeMixin = (Base) =>
