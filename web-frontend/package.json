@@ -107,7 +107,11 @@
     "vuejs-datepicker": "1.6.2"
   },
   "resolutions": {
-    "elliptic": "^6.6.1"
+    "elliptic": "^6.6.1",
+    "ws": "^7.5.10",
+    "cross-spawn": "^7.0.5",
+    "braces": "^3.0.3",
+    "glob-parent": "^5.1.2"
   },
   "devDependencies": {
     "@babel/core": "7.23.6",
