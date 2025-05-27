@@ -76,7 +76,7 @@ FROM base as dev_deps
 
 COPY ./backend/requirements/dev.txt /baserow/requirements/
 # hadolint ignore=SC1091,DL3042
-RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate &&  \
+RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate \
     && pip3 install --no-cache-dir --upgrade pip setuptools==78.1.1 \
     && pip3 install -r /baserow/requirements/dev.txt
 
