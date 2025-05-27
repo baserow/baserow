@@ -62,7 +62,7 @@
       <component
         :is="serviceType.formComponent"
         ref="subForm"
-        :builder="builder"
+        :application="builder"
         :data-source="dataSource"
         :default-values="defaultValues"
         :context-data="integration.context_data"

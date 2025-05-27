@@ -8,7 +8,7 @@
     >
       <IntegrationDropdown
         v-model="values.integration_id"
-        :application="builder"
+        :application="application"
         :integrations="integrations"
         :integration-type="integrationType"
       />
@@ -57,8 +57,11 @@ export default {
     InjectedFormulaInput,
   },
   mixins: [form],
-  inject: ['builder'],
   props: {
+    application: {
+      type: Object,
+      required: true,
+    },
     enableRowId: {
       type: Boolean,
       required: false,
@@ -77,7 +80,9 @@ export default {
   },
   computed: {
     integrations() {
-      return this.$store.getters['integration/getIntegrations'](this.builder)
+      return this.$store.getters['integration/getIntegrations'](
+        this.application
+      )
     },
     fakeTableId: {
       get() {
@@ -99,7 +104,7 @@ export default {
     },
     selectedIntegration() {
       return this.$store.getters['integration/getIntegrationById'](
-        this.builder,
+        this.application,
         this.values.integration_id
       )
     },

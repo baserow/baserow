@@ -71,7 +71,7 @@ import form from '@baserow/modules/core/mixins/form'
 import LocalBaserowTableSelector from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableSelector'
 import LocalBaserowTableServiceConditionalForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableServiceConditionalForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import localBaserowService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowService'
+import localBaserowDataSourceService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowDataSourceService'
 
 export default {
   components: {
@@ -79,7 +79,7 @@ export default {
     LocalBaserowTableSelector,
     LocalBaserowTableServiceConditionalForm,
   },
-  mixins: [form, localBaserowService],
+  mixins: [form, localBaserowDataSourceService],
   data() {
     return {
       allowedValues: [
