@@ -139,6 +139,8 @@ class LocalBaserowServiceType(ServiceType):
     The `ServiceType` for all `LocalBaserow` integration services.
     """
 
+    integration_type = LocalBaserowIntegrationType.type
+
     def get_schema_for_return_type(
         self, service: ServiceSubClass, properties: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -914,7 +916,6 @@ class LocalBaserowListRowsUserServiceType(
     one hosting the application.
     """
 
-    integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_list_rows"
     model_class = LocalBaserowListRows
     max_result_limit = 200
@@ -1260,7 +1261,6 @@ class LocalBaserowAggregateRowsUserServiceType(
     This service gives access to aggregations over fields in a Baserow table or view.
     """
 
-    integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_aggregate_rows"
     model_class = LocalBaserowAggregateRows
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
@@ -1644,7 +1644,6 @@ class LocalBaserowGetRowUserServiceType(
     Baserow instance as the one hosting the application.
     """
 
-    integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_get_row"
     model_class = LocalBaserowGetRow
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
@@ -1913,7 +1912,6 @@ class LocalBaserowUpsertRowServiceType(
     workflow actions.
     """
 
-    integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_upsert_row"
     model_class = LocalBaserowUpsertRow
     dispatch_type = DispatchTypes.DISPATCH_WORKFLOW_ACTION
@@ -2415,7 +2413,6 @@ class LocalBaserowUpsertRowServiceType(
 class LocalBaserowDeleteRowServiceType(
     LocalBaserowTableServiceType, LocalBaserowTableServiceSpecificRowMixin
 ):
-    integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_delete_row"
     model_class = LocalBaserowDeleteRow
     dispatch_type = DispatchTypes.DISPATCH_WORKFLOW_ACTION

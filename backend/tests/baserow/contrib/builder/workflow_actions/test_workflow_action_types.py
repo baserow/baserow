@@ -9,17 +9,30 @@ from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
-    DeleteRowWorkflowActionType,
+    LocalBaserowWorkflowActionType,
     LogoutWorkflowActionType,
     NotificationWorkflowActionType,
     OpenPageWorkflowActionType,
     RefreshDataSourceWorkflowActionType,
-    UpsertRowWorkflowActionType,
-    service_backed_workflow_actions,
 )
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.utils import MirrorDict
 from baserow.core.workflow_actions.registries import WorkflowActionType
+
+
+def local_baserow_service_backed_workflow_actions():
+    """
+    Responsible for returning all workflow action types which are backed by a local
+    baserow service.
+
+    :return: A list of workflow action types backed by a local baserow service.
+    """
+
+    return [
+        workflow_action_type
+        for workflow_action_type in builder_workflow_action_type_registry.get_all()
+        if issubclass(workflow_action_type.__class__, LocalBaserowWorkflowActionType)
+    ]
 
 
 def pytest_generate_tests(metafunc):
@@ -82,11 +95,8 @@ def test_import_workflow_action(data_fixture, workflow_action_type: WorkflowActi
     assert workflow_action.id != 9999
     assert isinstance(workflow_action, workflow_action_type.model_class)
 
-    if not issubclass(
-        workflow_action_type.__class__,
-        (UpsertRowWorkflowActionType, DeleteRowWorkflowActionType),
-    ):
-        for key, value in pytest_params.items():
+    for key, value in pytest_params.items():
+        if key != "service":
             assert getattr(workflow_action, key) == value
 
 
@@ -177,11 +187,11 @@ def test_export_import_upsert_row_workflow_action_type(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "builder_workflow_service_type",
-    service_backed_workflow_actions(),
+    "local_baserow_builder_workflow_action_type",
+    local_baserow_service_backed_workflow_actions(),
 )
-def test_builder_workflow_service_type_prepare_values_with_instance(
-    builder_workflow_service_type,
+def test_builder_local_baserow_workflow_service_type_prepare_values_with_instance(
+    local_baserow_builder_workflow_action_type,
     data_fixture,
 ):
     user, token = data_fixture.create_user_and_token()
@@ -194,7 +204,7 @@ def test_builder_workflow_service_type_prepare_values_with_instance(
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
     workflow_action = data_fixture.create_builder_workflow_service_action(
-        builder_workflow_service_type.model_class,
+        local_baserow_builder_workflow_action_type.model_class,
         page=page,
         element=element,
         event=EventTypes.CLICK,
@@ -206,7 +216,7 @@ def test_builder_workflow_service_type_prepare_values_with_instance(
     field = data_fixture.create_text_field(table=table)
     model = table.get_model()
     row2 = model.objects.create(**{f"field_{field.id}": "Cheese"})
-    builder_workflow_service_type.prepare_values(
+    local_baserow_builder_workflow_action_type.prepare_values(
         {
             "service": {
                 "row_id": row2.id,

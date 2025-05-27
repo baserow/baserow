@@ -39,14 +39,37 @@ const mutations = {
       page.workflowActions.splice(index, 1)
     }
   },
-  UPDATE_ITEM(state, { page, workflowAction: workflowActionToUpdate, values }) {
+  UPDATE_ITEM(
+    state,
+    { page, workflowAction: workflowActionToUpdate, values, overwrite = false }
+  ) {
     const index = page.workflowActions.findIndex(
       (wa) => wa.id === workflowActionToUpdate.id
     )
-    page.workflowActions.splice(index, 1, {
-      ...page.workflowActions[index],
-      ...values,
-    })
+
+    const {
+      id,
+      page_id: pageId,
+      element_id: elementId,
+      event,
+      order,
+    } = page.workflowActions[index]
+
+    const newValue = overwrite
+      ? populateWorkflowAction({
+          id,
+          page_id: pageId,
+          element_id: elementId,
+          event,
+          order,
+          ...values,
+        })
+      : {
+          ...page.workflowActions[index],
+          ...values,
+        }
+
+    page.workflowActions.splice(index, 1, newValue)
   },
   SET_ITEM(state, { page, workflowAction: workflowActionToSet, values }) {
     page.workflowActions = page.workflowActions.map((workflowAction) =>
@@ -77,8 +100,8 @@ const actions = {
   forceDelete({ commit }, { page, workflowActionId }) {
     commit('DELETE_ITEM', { page, workflowActionId })
   },
-  forceUpdate({ commit }, { page, workflowAction, values }) {
-    commit('UPDATE_ITEM', { page, workflowAction, values })
+  forceUpdate({ commit }, { page, workflowAction, values, overwrite }) {
+    commit('UPDATE_ITEM', { page, workflowAction, values, overwrite })
   },
   forceSet({ commit }, { page, workflowAction, values }) {
     commit('SET_ITEM', { page, workflowAction, values })
@@ -148,6 +171,7 @@ const actions = {
       page,
       workflowAction,
       values: updateContext.valuesToUpdate,
+      overwrite: !!updateContext.valuesToUpdate.type,
     })
 
     return new Promise((resolve, reject) => {

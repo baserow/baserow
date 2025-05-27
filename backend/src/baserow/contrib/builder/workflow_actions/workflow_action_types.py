@@ -7,6 +7,7 @@ from rest_framework import serializers
 from baserow.api.services.serializers import (
     PolymorphicServiceRequestSerializer,
     PolymorphicServiceSerializer,
+    PublicPolymorphicServiceSerializer,
 )
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
@@ -14,6 +15,7 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 from baserow.contrib.builder.elements.element_types import NavigationElementManager
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import (
+    CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
@@ -24,9 +26,9 @@ from baserow.contrib.builder.workflow_actions.models import (
 )
 from baserow.contrib.builder.workflow_actions.registries import (
     BuilderWorkflowActionType,
-    builder_workflow_action_type_registry,
 )
 from baserow.contrib.builder.workflow_actions.types import BuilderWorkflowActionDict
+from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowUpsertRowServiceType,
@@ -39,22 +41,6 @@ from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
 from baserow.core.workflow_actions.models import WorkflowAction
-
-
-def service_backed_workflow_actions():
-    """
-    Responsible for returning all workflow action types which are backed by a service.
-    We do this by checking if the workflow action type is a subclass of the base
-    `BuilderWorkflowServiceActionType` class.
-
-    :return: A list of workflow action types backed by a service.
-    """
-
-    return [
-        workflow_action_type
-        for workflow_action_type in builder_workflow_action_type_registry.get_all()
-        if issubclass(workflow_action_type.__class__, BuilderWorkflowServiceActionType)
-    ]
 
 
 class NotificationWorkflowActionType(BuilderWorkflowActionType):
@@ -245,6 +231,12 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
     }
     request_serializer_field_names = ["service"]
 
+    public_serializer_field_overrides = {
+        "service": PublicPolymorphicServiceSerializer(
+            help_text="The service which this workflow action is associated with."
+        )
+    }
+
     class SerializedDict(BuilderWorkflowActionDict):
         service: Dict
 
@@ -402,7 +394,11 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
         )
 
 
-class UpsertRowWorkflowActionType(BuilderWorkflowServiceActionType):
+class LocalBaserowWorkflowActionType(BuilderWorkflowServiceActionType):
+    pass
+
+
+class UpsertRowWorkflowActionType(LocalBaserowWorkflowActionType):
     type = "upsert_row"
     service_type = LocalBaserowUpsertRowServiceType.type
 
@@ -421,11 +417,21 @@ class UpdateRowWorkflowActionType(UpsertRowWorkflowActionType):
     model_class = LocalBaserowUpdateRowWorkflowAction
 
 
-class DeleteRowWorkflowActionType(BuilderWorkflowServiceActionType):
+class DeleteRowWorkflowActionType(LocalBaserowWorkflowActionType):
     type = "delete_row"
     model_class = LocalBaserowDeleteRowWorkflowAction
     service_type = LocalBaserowDeleteRowServiceType.type
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
         service = pytest_data_fixture.create_local_baserow_delete_row_service()
+        return {"service": service}
+
+
+class CoreHttpRequestActionType(BuilderWorkflowServiceActionType):
+    type = "http_request"
+    model_class = CoreHTTPRequestWorkflowAction
+    service_type = CoreHTTPRequestServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_core_http_request_service()
         return {"service": service}

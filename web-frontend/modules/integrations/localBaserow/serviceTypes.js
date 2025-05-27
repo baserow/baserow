@@ -1,7 +1,14 @@
-import { ServiceType } from '@baserow/modules/core/serviceTypes'
-import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/integrationTypes'
+import {
+  ServiceType,
+  DataSourceServiceTypeMixin,
+  WorkflowActionServiceTypeMixin,
+} from '@baserow/modules/core/serviceTypes'
+import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
 import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
+import LocalBaserowUpsertRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm.vue'
+import LocalBaserowUpdateRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpdateRowServiceForm.vue'
+import LocalBaserowDeleteRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowDeleteRowServiceForm.vue'
 import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
 import { uuid } from '@baserow/modules/core/utils/string'
 import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowAdhocHeader'
@@ -15,32 +22,12 @@ export class LocalBaserowTableServiceType extends ServiceType {
     )
   }
 
-  /**
-   * Responsible for determining if this service is in error. It will be if the
-   * `table_id` is missing, or if one or more filters/sortings point to a field that
-   * has been trashed.
-   * @param service - The service object.
-   * @returns {boolean} - If the service is valid.
-   */
-  isInError({ service }) {
-    if (service === undefined) {
-      return false
-    }
-    const filtersInError = service.filters.some((filter) => filter.trashed)
-    const sortingsInError = service.sortings.some((sorting) => sorting.trashed)
-    return Boolean(!service.table_id || filtersInError || sortingsInError)
-  }
-
   getDataSchema(service) {
     return service.schema
   }
 
   getContextDataSchema(service) {
     return service.context_data_schema
-  }
-
-  getIdProperty(service, record) {
-    return 'id'
   }
 
   /**
@@ -76,7 +63,31 @@ export class LocalBaserowTableServiceType extends ServiceType {
   }
 }
 
-export class LocalBaserowGetRowServiceType extends LocalBaserowTableServiceType {
+export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
+  getIdProperty(service, record) {
+    return 'id'
+  }
+
+  /**
+   * Responsible for determining if this service is in error. It will be if the
+   * `table_id` is missing, or if one or more filters/sortings point to a field that
+   * has been trashed.
+   * @param service - The service object.
+   * @returns {boolean} - If the service is valid.
+   */
+  isInError({ service }) {
+    if (service === undefined) {
+      return false
+    }
+    const filtersInError = service.filters.some((filter) => filter.trashed)
+    const sortingsInError = service.sortings.some((sorting) => sorting.trashed)
+    return Boolean(!service.table_id || filtersInError || sortingsInError)
+  }
+}
+
+export class LocalBaserowGetRowServiceType extends DataSourceLocalBaserowTableServiceType {
   static getType() {
     return 'local_baserow_get_row'
   }
@@ -111,7 +122,7 @@ export class LocalBaserowGetRowServiceType extends LocalBaserowTableServiceType 
   }
 }
 
-export class LocalBaserowListRowsServiceType extends LocalBaserowTableServiceType {
+export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTableServiceType {
   static getType() {
     return 'local_baserow_list_rows'
   }
@@ -229,7 +240,7 @@ export class LocalBaserowListRowsServiceType extends LocalBaserowTableServiceTyp
   }
 }
 
-export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServiceType {
+export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserowTableServiceType {
   static getType() {
     return 'local_baserow_aggregate_rows'
   }
@@ -313,5 +324,53 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
 
   getOrder() {
     return 30
+  }
+}
+
+export class LocalBaserowCreateRowWorkflowServiceType extends WorkflowActionServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
+  static getType() {
+    return 'local_baserow_create_row'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.localBaserowCreateRow')
+  }
+
+  get formComponent() {
+    return LocalBaserowUpsertRowServiceForm
+  }
+}
+
+export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
+  static getType() {
+    return 'local_baserow_update_row'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.localBaserowUpdateRow')
+  }
+
+  get formComponent() {
+    return LocalBaserowUpdateRowServiceForm
+  }
+}
+
+export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
+  static getType() {
+    return 'local_baserow_delete_row'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.localBaserowDeleteRow')
+  }
+
+  get formComponent() {
+    return LocalBaserowDeleteRowServiceForm
   }
 }

@@ -1,4 +1,5 @@
 from baserow.contrib.builder.workflow_actions.models import (
+    CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
@@ -24,6 +25,11 @@ class WorkflowActionFixture:
                 integration=integration,
             )
         return self.create_workflow_action(model_class, **kwargs)
+
+    def create_core_http_request_workflow_action(self, **kwargs):
+        return self.create_builder_workflow_service_action(
+            CoreHTTPRequestWorkflowAction, **kwargs
+        )
 
     def create_local_baserow_create_row_workflow_action(self, **kwargs):
         return self.create_builder_workflow_service_action(

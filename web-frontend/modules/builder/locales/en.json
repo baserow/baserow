@@ -777,11 +777,9 @@
   "workflowActionTypes": {
     "notificationLabel": "Show Notification",
     "openPageLabel": "Open Page",
-    "createRowLabel": "Create Row",
-    "updateRowLabel": "Update Row",
-    "deleteRowLabel": "Delete Row",
     "logoutLabel": "Logout",
-    "refreshDataSourceLabel": "Refresh data source"
+    "refreshDataSourceLabel": "Refresh data source",
+    "httpRequest": "Send HTTP request"
   },
   "notificationWorkflowActionForm": {
     "titleLabel": "Title",
