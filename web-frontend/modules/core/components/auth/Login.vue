@@ -161,6 +161,7 @@ export default {
           await this.$nuxt.$router.push({ name: 'dashboard' })
         }
       }
+      this.$emit('success')
     },
     emailNotVerified(email) {
       this.displayEmailNotVerified = true

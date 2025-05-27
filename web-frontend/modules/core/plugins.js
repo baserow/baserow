@@ -18,6 +18,11 @@ export class BaserowPlugin extends Registerable {
   userCreated(user, context) {}
 
   /**
+   * Hook that is called when the initial workspace is created for a user. This happens
+   * when the user cancels the onboarding, for example.
+   */
+  initialWorkspaceCreated(workspace) {}
+  /**
    * Every registered plugin can have a component that's rendered at the top of the
    * left sidebar.
    */

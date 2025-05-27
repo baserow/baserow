@@ -248,10 +248,17 @@ export default {
      */
     async cancel() {
       this.cancelling = true
+      let workspace = null
       try {
-        await WorkspaceService(this.$client).createInitialWorkspace()
+        const { data } = await WorkspaceService(
+          this.$client
+        ).createInitialWorkspace()
+        workspace = data
       } catch (error) {
         notifyIf(error)
+      }
+      for (const plugin of Object.values(this.$registry.getAll('plugin'))) {
+        await plugin.initialWorkspaceCreated(workspace)
       }
       await this.markAsComplete()
       // Clear all workspaces and application so that they're fetched again when
