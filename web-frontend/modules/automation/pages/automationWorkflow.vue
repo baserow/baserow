@@ -8,7 +8,7 @@
     <div class="layout__col-2-2 automation-workflow__content">
       <div
         ref="editorRoot"
-        :style="{ width: `calc(100% - 360px)` }"
+        :style="{ width: activeSidePanel ? `calc(100% - 360px)` : '100%' }"
         @click="handleEditorClick"
       >
         <client-only>

@@ -19,7 +19,7 @@ const state = {
   duplicateJob: null,
   // Which side panel is currently active in this workflow? The options are:
   // `null` (side panel is closed), `history` (view workflow run history) and
-  // `editNode` (trigger and action node edit forms).
+  // `node` (trigger and action node edit forms).
   activeSidePanel: null,
 }
 

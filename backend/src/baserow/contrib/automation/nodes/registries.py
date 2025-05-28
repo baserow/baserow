@@ -2,6 +2,8 @@ from typing import Any, Dict
 
 from django.contrib.auth.models import AbstractUser
 
+from rest_framework import serializers
+
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
@@ -19,7 +21,6 @@ from baserow.core.registry import (
     PublicCustomFieldsInstanceMixin,
     Registry,
 )
-from rest_framework import serializers
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
