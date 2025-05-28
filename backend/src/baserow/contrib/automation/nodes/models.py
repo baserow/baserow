@@ -13,7 +13,6 @@ from baserow.core.mixins import (
     TrashableModelMixin,
     WithRegistry,
 )
-from baserow.core.services.models import Service
 
 __all__ = [
     "AutomationNode",
@@ -100,12 +99,6 @@ class AutomationNode(
 
 
 class AutomationServiceNode(AutomationNode):
-    service = models.ForeignKey(
-        Service,
-        help_text="The service which this action is associated with.",
-        on_delete=models.CASCADE,
-    )
-
     class Meta:
         abstract = True
 
