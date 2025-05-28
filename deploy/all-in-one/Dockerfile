@@ -26,6 +26,7 @@ ENV BASEROW_IMAGE_TYPE="all-in-one"
 # ========================
 # = APT-GET UPDATE/UPGRADE/INSTALL DEPS + NODE + CADDY
 # ========================
+# hadolint ignore=DL3013
 RUN apt-get update && \
     apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
