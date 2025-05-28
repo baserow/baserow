@@ -6,7 +6,11 @@
       @read-only-toggled="handleReadOnlyToggle"
     />
     <div class="layout__col-2-2 automation-workflow__content">
-      <div :style="{ width: `calc(100% - 360px)` }">
+      <div
+        ref="editorRoot"
+        :style="{ width: `calc(100% - 360px)` }"
+        @click="handleEditorClick"
+      >
         <client-only>
           <WorkflowEditor
             :nodes="workflowNodes"
@@ -16,8 +20,12 @@
           />
         </client-only>
       </div>
-      <div class="automation-workflow__side-panel" style="width: 360px">
-        <EditorSidePanels />
+      <div
+        v-if="activeSidePanel"
+        class="automation-workflow__side-panel"
+        style="width: 360px"
+      >
+        <EditorSidePanels :active-side-panel="activeSidePanel" />
       </div>
     </div>
   </div>
@@ -36,6 +44,8 @@ import {
 import AutomationHeader from '@baserow/modules/automation/components/AutomationHeader'
 import WorkflowEditor from '@baserow/modules/automation/components/workflow/WorkflowEditor.vue'
 import EditorSidePanels from '@baserow/modules/automation/components/workflow/EditorSidePanels'
+import { checkIntermediateElements } from '@baserow/modules/core/utils/dom'
+import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 
 export default defineComponent({
   name: 'AutomationWorkflow',
@@ -47,11 +57,12 @@ export default defineComponent({
   layout: 'app',
   setup() {
     const store = useStore()
-    const { params, error } = useContext()
+    const { params, error, app } = useContext()
 
     const automationId = parseInt(params.value.automationId)
     const workflowId = parseInt(params.value.workflowId)
 
+    const editorRoot = ref(null)
     const workspace = ref(null)
     const automation = ref(null)
     const currentWorkflow = ref(null)
@@ -83,6 +94,12 @@ export default defineComponent({
         await store.dispatch('automationWorkflowNode/fetch', {
           workflow: currentWorkflow.value,
         })
+
+        const applicationType = app.$registry.get(
+          'application',
+          AutomationApplicationType.getType()
+        )
+        await applicationType.loadExtraData(automation.value)
 
         currentWorkflow.value = { ...currentWorkflow.value }
       } catch (e) {
@@ -141,15 +158,31 @@ export default defineComponent({
       }
     }
 
+    const handleEditorClick = ($event) => {
+      if (
+        !checkIntermediateElements(editorRoot.value, $event.target, (el) => {
+          return el.classList.contains('workflow-editor__node')
+        })
+      ) {
+        store.dispatch('automationWorkflow/setActiveSidePanel', null)
+      }
+    }
+
+    const activeSidePanel = computed(() => {
+      return store.getters['automationWorkflow/getActiveSidePanel']
+    })
+
     return {
       workspace,
       automation,
       currentWorkflow,
       isWorkflowReadOnly,
       workflowNodes,
+      activeSidePanel,
       handleReadOnlyToggle,
       handleAddNode,
       handleRemoveNode,
+      handleEditorClick,
     }
   },
 })

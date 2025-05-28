@@ -1,4 +1,5 @@
 import AutomationWorkflowNodeService from '@baserow/modules/automation/services/automationWorkflowNode'
+import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 
 const state = {}
 
@@ -68,7 +69,10 @@ const actions = {
     commit('SET_ITEMS', { workflow, nodes })
     return nodes
   },
-  async create({ commit, getters }, { workflow, type, previousNodeId = null }) {
+  async create(
+    { commit, dispatch, getters },
+    { workflow, type, previousNodeId = null }
+  ) {
     // Create a temporary node with a unique temporary ID
     const tempId = `temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
@@ -123,6 +127,9 @@ const actions = {
       const { data: node } = await AutomationWorkflowNodeService(
         this.$client
       ).create(workflow.id, type)
+
+      // Make it the currently selected node
+      dispatch('select', { workflow, node })
 
       // Calculate the final order for server
       const nodesWithoutTemp = getters
@@ -180,9 +187,12 @@ const actions = {
       throw error
     }
   },
-  async delete({ commit, getters }, { workflow, nodeId }) {
+  async delete({ commit, dispatch, getters }, { workflow, nodeId }) {
     const node = getters.findById(workflow, nodeId)
     const originalNode = { ...node }
+    if (getters.getSelected(workflow)?.id === nodeId) {
+      dispatch('select', { workflow, node: null })
+    }
     commit('DELETE_ITEM', { workflow, nodeId })
     try {
       await AutomationWorkflowNodeService(this.$client).delete(nodeId)
@@ -203,9 +213,13 @@ const actions = {
       throw error
     }
   },
-  select({ commit }, { workflow, node }) {
+  select({ commit, dispatch }, { workflow, node }) {
     commit('SELECT_ITEM', { workflow, node })
-    console.log('workflow.selectedNode', workflow.selectedNode)
+    dispatch(
+      'automationWorkflow/setActiveSidePanel',
+      node ? NodeEditorSidePanelType.getType() : null,
+      { root: true }
+    )
   },
 }
 
@@ -225,6 +239,8 @@ const getters = {
     return null
   },
   getSelected: (state) => (workflow) => {
+    // TODO: is this the best way to handle this?
+    if (!workflow) return null
     return workflow.selectedNode
   },
 }

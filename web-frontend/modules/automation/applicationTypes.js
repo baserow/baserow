@@ -53,9 +53,31 @@ export class AutomationApplicationType extends ApplicationType {
     $router.push({ name: 'dashboard' })
   }
 
+  async loadExtraData(automation) {
+    const { store } = this.app
+    if (!automation._loadedOnce) {
+      await Promise.all([
+        store.dispatch('integration/fetch', {
+          application: automation,
+        }),
+      ])
+
+      await store.dispatch('application/forceUpdate', {
+        application: automation,
+        data: { _loadedOnce: true },
+      })
+    }
+  }
+
   populate(application) {
     const values = super.populate(application)
     values.workflows = values.workflows.map(populateAutomationWorkflow)
+    if (!values.integrations) {
+      values.integrations = []
+    }
+    if (!values.selectedNode) {
+      values.selectedNode = null
+    }
     return values
   }
 

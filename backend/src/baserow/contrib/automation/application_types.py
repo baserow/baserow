@@ -36,6 +36,7 @@ class AutomationApplicationType(ApplicationType):
         "workflows",
     ]
     allowed_fields = []
+    supports_integrations = True
     request_serializer_field_names = []
     serializer_mixins = [lazy_get_instance_serializer_class]
 

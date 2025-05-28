@@ -11,7 +11,10 @@
       </li>
 
       <li class="header__filter-item">
-        <a data-item-type="settings" class="header__filter-link"
+        <a
+          data-item-type="history"
+          class="header__filter-link"
+          @click="historyClick()"
           ><i class="header__filter-icon baserow-icon-history"></i>
           <span class="header__filter-name">{{
             $t('automationHeader.historyBtn')
@@ -56,6 +59,8 @@
 
 <script>
 import { defineComponent, ref, computed } from 'vue'
+import { useStore } from '@nuxtjs/composition-api'
+import { HistoryEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 
 export default defineComponent({
   name: 'AutomationHeader',
@@ -68,6 +73,8 @@ export default defineComponent({
   },
   emits: ['read-only-toggled'],
   setup(props, { emit }) {
+    const store = useStore()
+
     const switchValue = ref(false)
     const readOnlySwitchValue = ref(false)
 
@@ -81,10 +88,18 @@ export default defineComponent({
       emit('read-only-toggled', readOnlySwitchValue.value)
     }
 
+    const historyClick = () => {
+      store.dispatch(
+        'automationWorkflow/setActiveSidePanel',
+        HistoryEditorSidePanelType.getType()
+      )
+    }
+
     return {
       switchValue,
       readOnlySwitchValue,
       toggleReadOnly,
+      historyClick,
       isDevEnvironment,
     }
   },

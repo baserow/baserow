@@ -1,11 +1,8 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import GeneralSidePanel from '@baserow/modules/automation/components/workflow/sidePanels/GeneralSidePanel'
+import NodeSidePanel from '@baserow/modules/automation/components/workflow/sidePanels/NodeSidePanel.vue'
+import HistorySidePanel from '@baserow/modules/automation/components/workflow/sidePanels/HistorySidePanel.vue'
 
 export class editorSidePanelType extends Registerable {
-  get label() {
-    return null
-  }
-
   get component() {
     return null
   }
@@ -19,20 +16,30 @@ export class editorSidePanelType extends Registerable {
   }
 }
 
-export class GeneralEditorSidePanelType extends editorSidePanelType {
+export class NodeEditorSidePanelType extends editorSidePanelType {
   static getType() {
-    return 'general'
-  }
-
-  get label() {
-    return this.app.i18n.t('editorSidePanelType.general')
+    return 'node'
   }
 
   get component() {
-    return GeneralSidePanel
+    return NodeSidePanel
   }
 
   getOrder() {
     return 10
+  }
+}
+
+export class HistoryEditorSidePanelType extends editorSidePanelType {
+  static getType() {
+    return 'history'
+  }
+
+  get component() {
+    return HistorySidePanel
+  }
+
+  getOrder() {
+    return 20
   }
 }

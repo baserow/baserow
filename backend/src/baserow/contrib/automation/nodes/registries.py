@@ -19,6 +19,7 @@ from baserow.core.registry import (
     PublicCustomFieldsInstanceMixin,
     Registry,
 )
+from rest_framework import serializers
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
@@ -37,6 +38,16 @@ class AutomationNodeType(
     service_type = None
     parent_property_name = "workflow"
     id_mapping_name = AUTOMATION_NODES
+
+    request_serializer_field_names = ["previous_node_output"]
+    request_serializer_field_overrides = {
+        "previous_node_output": serializers.CharField(
+            required=False,
+            default="",
+            allow_blank=True,
+            help_text="The output of the previous node.",
+        ),
+    }
 
     class SerializedDict(AutomationNodeDict):
         service: Dict

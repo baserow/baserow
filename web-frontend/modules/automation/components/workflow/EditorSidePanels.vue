@@ -1,45 +1,32 @@
 <template>
   <aside class="side-panels">
-    <Tabs full-height>
-      <Tab
-        v-for="editorSidePanelType in editorSidePanelTypes"
-        :key="editorSidePanelType.getType()"
-        :title="editorSidePanelType.label"
-      >
-        <p>Selected: {{ selectedNode?.id }}</p>
-        <component
-          :is="editorSidePanelType.component"
-          :class="`side-panels__panel side-panels__panel-${editorSidePanelType.type}`"
-        />
-      </Tab>
-    </Tabs>
+    <component :is="sidePanelType.component" />
   </aside>
 </template>
 
-<script setup>
-import { inject, useStore, useContext, computed } from '@nuxtjs/composition-api'
+<script>
+import { useContext, computed } from '@nuxtjs/composition-api'
+import { defineComponent } from 'vue'
 
-const store = useStore()
-const { app } = useContext()
-
-const currentWorkflow = inject('currentWorkflow')
-const selectedNode = computed(() =>
-  store.getters['automationWorkflowNode/getSelected'](currentWorkflow.value)
-)
-
-const sidePanelContext = computed(() => {
-  if (!selectedNode) {
-    return { workflow: currentWorkflow }
-  }
-  return {
-    node: selectedNode,
-    workflow: currentWorkflow,
-  }
+export default defineComponent({
+  name: 'EditorSidePanels',
+  props: {
+    activeSidePanel: {
+      type: String,
+      required: false,
+      default: () => null,
+    },
+  },
+  setup(props) {
+    const { app } = useContext()
+    const sidePanelType = computed(() => {
+      return props.activeSidePanel
+        ? app.$registry.get('editorSidePanel', props.activeSidePanel)
+        : null
+    })
+    return {
+      sidePanelType,
+    }
+  },
 })
-
-const editorSidePanelTypes = computed(() =>
-  app.$registry.getOrderedList('editorSidePanel')
-)
-
-console.log(sidePanelContext)
 </script>
