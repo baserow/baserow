@@ -16,8 +16,11 @@
     "localBaserowListRows": "List multiple rows",
     "localBaserowAggregateRows": "Summarize field",
     "localBaserowCreateRow": "Create a Row",
+    "localBaserowCreateRowDescription": "Creates a new row in a Baserow table.",
     "localBaserowUpdateRow": "Update a Row",
     "localBaserowDeleteRow": "Delete a row",
+    "localBaserowRowsCreated": "Rows created",
+    "localBaserowRowsCreatedDescription": "Triggered when one or more rows are created in a Baserow table.",
     "coreHTTPRequest": "Send HTTP request",
     "misconfigured": "Misconfigured",
     "trashedField": "Trashed field"

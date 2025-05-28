@@ -16,6 +16,10 @@ import { AutomationApplicationType } from '@baserow/modules/automation/applicati
 import automationApplicationStore from '@baserow/modules/automation/store/automationApplication'
 import automationWorkflowStore from '@baserow/modules/automation/store/automationWorkflow'
 import automationWorkflowNodeStore from '@baserow/modules/automation/store/automationWorkflowNode'
+import {
+  LocalBaserowCreateRowActionNodeType,
+  LocalBaserowRowsCreatedTriggerNodeType,
+} from '@baserow/modules/automation/nodeTypes'
 import { DuplicateAutomationWorkflowJobType } from '@baserow/modules/automation/jobTypes'
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
 
@@ -51,10 +55,17 @@ export default (context) => {
       new AutomationApplicationType(context)
     )
     app.$registry.register(
+      'node',
+      new LocalBaserowRowsCreatedTriggerNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowCreateRowActionNodeType(context)
+    )
+    app.$registry.register(
       'job',
       new DuplicateAutomationWorkflowJobType(context)
     )
-
     app.$registry.registerNamespace('automationSettings')
     app.$registry.register(
       'automationSettings',
