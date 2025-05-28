@@ -16,6 +16,7 @@ ENV DOCKER_USER=baserow_docker_user
 ENV POSTGRES_VERSION=15
 ENV BASEROW_IMAGE_TYPE="backend"
 
+# hadolint ignore=DL3013
 RUN apt-get update &&  \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
@@ -43,6 +44,8 @@ RUN apt-get update &&  \
     python3-venv\
     git \
     xmlsec1 \
+    && python3 -m pip install --no-cache-dir --upgrade pip setuptools==78.1.1 --break-system-packages \
+    && rm -rf /usr/lib/python3/dist-packages/setuptools* /usr/lib/python3/dist-packages/pkg_resources* \
     && apt-get autoclean \
     && apt-get clean \
     && apt-get autoremove \
@@ -64,15 +67,19 @@ COPY --chown=$UID:$GID ./backend/requirements/base.txt /baserow/requirements/
 RUN python3 -m venv /baserow/venv
 
 ENV PIP_CACHE_DIR=/tmp/baserow_pip_cache
-# hadolint ignore=SC1091,DL3042
-RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate && pip3 install  -r /baserow/requirements/base.txt
+# hadolint ignore=SC1091,DL3042,DL3013
+RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate \
+    && pip3 install --no-cache-dir --upgrade pip setuptools==78.1.1 \
+    && pip3 install -r /baserow/requirements/base.txt
 
 # Build a dev_deps stage which also has the dev dependencies for use by the dev layer.
 FROM base as dev_deps
 
 COPY ./backend/requirements/dev.txt /baserow/requirements/
-# hadolint ignore=SC1091,DL3042
-RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate && pip3 install -r /baserow/requirements/dev.txt
+# hadolint ignore=SC1091,DL3042,DL3013
+RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate \
+    && pip3 install --no-cache-dir --upgrade pip setuptools==78.1.1 \
+    && pip3 install -r /baserow/requirements/dev.txt
 
 # The core stage contains all of Baserows source code and sets up the entrypoint
 FROM base as core
