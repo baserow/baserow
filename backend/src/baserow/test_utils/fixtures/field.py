@@ -2,7 +2,6 @@ from django.db import connection
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
-from baserow.contrib.database.fields.dependencies.update_collector import CTECollector
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.field_types import AutonumberFieldType
 from baserow.contrib.database.fields.models import (
@@ -359,17 +358,11 @@ class FieldFixtures:
         if create_field:
             self.create_model_field(kwargs["table"], field)
             if calculate_cell_values:
-                cte_collector = CTECollector()
                 model = field.table.get_model()
                 expr = FormulaHandler.baserow_expression_to_update_django_expression(
-                    field.cached_typed_internal_expression, model, cte_collector
+                    field.cached_typed_internal_expression, model
                 )
-                update_queryset = model.objects_and_trash.all()
-                for cte_with in cte_collector.add_starting_table_filters_and_get_all(
-                    field.table_id
-                ):
-                    update_queryset = update_queryset.with_cte(cte_with)
-                update_queryset.update(**{f"{field.db_column}": expr})
+                model.objects_and_trash.all().update(**{f"{field.db_column}": expr})
 
         if setup_dependencies:
             FieldDependencyHandler().rebuild_dependencies([field], FieldCache())

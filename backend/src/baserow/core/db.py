@@ -27,8 +27,6 @@ from django.db.models.query import ModelIterable
 from django.db.models.sql.query import LOOKUP_SEP
 from django.db.transaction import Atomic, get_connection
 
-from django_cte.cte import With
-from django_cte.meta import CTEColumns
 from loguru import logger
 
 from baserow.core.exceptions import DeadlockException
@@ -859,58 +857,3 @@ def atomic_with_retry_on_deadlock(
         return wrapper
 
     return decorator
-
-
-class UpdatableCTEWith(With):
-    """
-    This class extends the django-cte With object, and allows to update the provided
-    queryset after it has been added. This can be useful if the queryset must be
-    modified after the `.queryset()` has already been called.
-    """
-
-    def __init__(self, queryset, name="cte", materialized=False):
-        self._source_queryset = queryset
-        self.annotations = {}
-        self.values = set()
-
-        # Must be identical to the `With:__init__` except for setting `self.query`
-        self.name = name
-        self.col = CTEColumns(self)
-        self.materialized = materialized
-
-    def __repr__(self):
-        return "<UpdatableCTEWith {}>".format(self.name)
-
-    @property
-    def query(self):
-        """
-        Uses the latest version of the `QuerySet` object, and adds the lazily added
-        annotations and values to it. This method is overwritten because we want those
-        modifications to be added at the latest moment possible.
-        """
-
-        source_queryset = self.get_source_queryset()
-        new_queryset = source_queryset.annotate(**self.annotations)
-        new_queryset = new_queryset.values(*list(self.values))
-        new_queryset = new_queryset.order_by()
-        return new_queryset.query
-
-    @query.setter
-    def set_query(self, value):
-        # No need to do anything because we're using the source queryset to generate
-        # the query on the fly.
-        pass
-
-    def add_lazy_annotate(self, **kwargs):
-        self.annotations.update(**kwargs)
-        return self
-
-    def add_lazy_values(self, *args):
-        self.values = self.values.union(set(args))
-        return self
-
-    def get_source_queryset(self):
-        return self._source_queryset
-
-    def set_source_queryset(self, queryset):
-        self._source_queryset = queryset

@@ -10,7 +10,6 @@ from django.db.models import Min, Q, QuerySet
 from loguru import logger
 from tqdm import tqdm
 
-from baserow.contrib.database.fields.dependencies.update_collector import CTECollector
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.signals import fields_type_changed
 from baserow.contrib.database.formula import FormulaHandler
@@ -72,18 +71,13 @@ def _recalculate_formula_metadata_dependencies_first_order(
         if recalculate_cell_values or force_recreate_columns:
             try:
                 model = field_cache.get_model(field.table)
-                cte_collector = CTECollector()
                 expr = FormulaHandler.recalculate_formula_and_get_update_expression(
                     field,
                     old_field,
                     field_cache,
-                    cte_collector,
                     force_recreate_column=force_recreate_columns,
                 )
-                update_queryset = model.objects_and_trash.all()
-                for cte_with in cte_collector.add_starting_table_filters_and_get_all(field.table_id):
-                    update_queryset = update_queryset.with_cte(cte_with)
-                update_queryset.update(**{f"{field.db_column}": expr})
+                model.objects_and_trash.all().update(**{f"{field.db_column}": expr})
                 fields_type_changed.send(
                     _recalculate_formula_metadata_dependencies_first_order,
                     fields=[field]

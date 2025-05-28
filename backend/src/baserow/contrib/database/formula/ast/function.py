@@ -1,7 +1,6 @@
 import abc
-import hashlib
 from datetime import timedelta
-from typing import TYPE_CHECKING, List, Type
+from typing import List, Type
 
 from django.db.models import (
     DecimalField,
@@ -38,12 +37,6 @@ from baserow.contrib.database.formula.types.type_checker import (
     BaserowArgumentTypeChecker,
     BaserowSingleArgumentTypeChecker,
 )
-from baserow.core.db import UpdatableCTEWith
-
-if TYPE_CHECKING:
-    from baserow.contrib.database.fields.dependencies.update_collector import (
-        CTECollector,
-    )
 
 
 class FixedNumOfArgs(ArgCountSpecifier):
@@ -95,7 +88,7 @@ class ToDjangoExpressionGivenArgsMixin:
             self.to_django_expression(*[arg.expression for arg in args]), args
         )
         if self.aggregate:
-            return aggregate_wrapper(expr, context.model, context.cte_collector)
+            return aggregate_wrapper(expr, context.model)
         else:
             return expr
 
@@ -262,7 +255,6 @@ class OneArgumentBaserowFunction(
 def aggregate_wrapper(
     expr_with_metadata: WrappedExpressionWithMetadata,
     model: Type[Model],
-    cte_collector: "CTECollector",
 ) -> WrappedExpressionWithMetadata:
     """
     Returns a wrapped expression with metadata which wraps the given expression
@@ -270,9 +262,7 @@ def aggregate_wrapper(
     aggregate the results over a model.
     """
 
-    subquery, result_key = construct_aggregate_wrapper_queryset(
-        expr_with_metadata, model, cte_collector
-    )
+    subquery = construct_aggregate_wrapper_queryset(expr_with_metadata, model)
     expr: Expression = Subquery(subquery)
 
     output_field = expr_with_metadata.expression.output_field
@@ -322,73 +312,32 @@ def construct_not_null_filters_for_inner_join(pre_annotations):
 def construct_aggregate_wrapper_queryset(
     expr_with_metadata: WrappedExpressionWithMetadata,
     model: Type[Model],
-    cte_collector: "CTECollector",
+    result_key="result",
 ) -> QuerySet:
     """
     Constructs a queryset which wraps the given expression. It's meant to be used
     in conjunction with aggregate_wrapper, or to be used directly in a subquery.
     """
 
-    # Create a unique key based on the pre annotations and the aggregate filters. This
-    # is used to combine aggregates into one CTE for performance reasons.
-    cte_key = ""
-    for key in sorted(expr_with_metadata.pre_annotations.keys()):
-        cte_key += f"__{key}"
+    # We need to enforce that each filtered relation is not null so django generates us
+    # inner joins.
+    not_null_filters_for_inner_join = construct_not_null_filters_for_inner_join(
+        expr_with_metadata.pre_annotations
+    )
+
     aggregate_filters = aggregate_expr_with_metadata_filters(expr_with_metadata)
-    aggregate_filters_key = hashlib.sha256(
-        str(aggregate_filters).encode("utf-8")
-    ).hexdigest()
-    cte_key += f"__{aggregate_filters_key}"
 
-    if not cte_collector.has(model.baserow_table.id, cte_key):
-        # We need to enforce that each filtered relation is not null so django generates
-        # us inner joins.
-        not_null_filters_for_inner_join = construct_not_null_filters_for_inner_join(
-            expr_with_metadata.pre_annotations
+    qs = model.objects_and_trash.annotate(**expr_with_metadata.pre_annotations)
+
+    return (
+        qs.filter(
+            aggregate_filters, id=OuterRef("id"), **not_null_filters_for_inner_join
         )
-
-        aggregate_filters = aggregate_expr_with_metadata_filters(expr_with_metadata)
-
-        queryset = model.objects_and_trash.annotate(
-            **expr_with_metadata.pre_annotations
-        ).filter(aggregate_filters, **not_null_filters_for_inner_join)
-
-        with_cte = UpdatableCTEWith(queryset=queryset, name=cte_key)
-        # There is no need to select any other values than the id and order of that
-        # table because those values are never used, and there can be quite some
-        # columns in a table.
-        with_cte = with_cte.add_lazy_values("id", "order")
-    else:
-        with_cte = cte_collector.get(model.baserow_table.id, cte_key)
-
-    # Update the queryset of the already existing or newly created CTE, so that the
-    # needed aggregation is added to it.
-    result_key = "result"
-    result_key_for_cte = f"{result_key}{len(with_cte.values) + 1}"
-    cte_queryset = with_cte.get_source_queryset()
-    cte_queryset = cte_queryset.annotate(
-        **{result_key_for_cte: expr_with_metadata.expression}
+        .values("id")
+        .annotate(**{result_key: expr_with_metadata.expression})
+        .order_by()
+        .values(result_key)
     )
-    with_cte.set_source_queryset(cte_queryset)
-    with_cte = with_cte.add_lazy_values(result_key_for_cte)
-
-    # Every `lookup` function in a formula can use a different `LinkRowField`. Because
-    # the `path_from_starting_table` of the CTE collector might not use the correct
-    # `LinkRowField`, it must be replaced using the `join_ids` to make sure it uses the
-    # correct path.
-    path_from_starting_table = None
-    if cte_collector.last_path_from_starting_table and expr_with_metadata.join_ids:
-        last_link = model.get_field_object(expr_with_metadata.join_ids[0][0])["field"]
-        path_from_starting_table = cte_collector.last_path_from_starting_table.copy()
-        path_from_starting_table[-1] = last_link
-    cte_collector.add_or_update(
-        model.baserow_table.id, with_cte, path_from_starting_table
-    )
-
-    cte_queryset = (
-        with_cte.queryset().filter(id=OuterRef("id")).values(result_key_for_cte)
-    )
-    return cte_queryset, result_key_for_cte
 
 
 class TwoArgumentBaserowFunction(
