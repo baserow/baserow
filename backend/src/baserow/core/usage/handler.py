@@ -29,12 +29,17 @@ class UsageHandler:
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=qs.count())
 
+        for item in workspace_storage_usage_item_registry.get_all():
+            item.calculate_storage_usage_instance()
+
         for workspaces in grouper(chunk_size, workspaces_queryset):
             now = datetime.now(tz=timezone.utc)
             for workspace in workspaces:
                 usage_in_megabytes = 0
                 for item in workspace_storage_usage_item_registry.get_all():
-                    usage_in_megabytes += item.calculate_storage_usage(workspace.id)
+                    usage_in_megabytes += item.calculate_storage_usage_workspace(
+                        workspace.id
+                    )
 
                 workspace.storage_usage = usage_in_megabytes
                 workspace.storage_usage_updated_at = now

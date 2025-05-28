@@ -9,10 +9,11 @@ from .handler import TableHandler, TableUsageHandler
 class TableWorkspaceStorageUsageItemType(WorkspaceStorageUsageItemType):
     type = "table"
 
-    def calculate_storage_usage(self, workspace_id: int) -> UsageInMB:
+    def calculate_storage_usage_instance(self):
         # ensure all pending updates are applied first
         TableUsageHandler.update_tables_usage()
 
+    def calculate_storage_usage_workspace(self, workspace_id: int) -> UsageInMB:
         # Aggregate all the tables storage usage in the workspace
         return (
             TableHandler.get_tables()

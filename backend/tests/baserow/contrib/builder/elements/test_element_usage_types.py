@@ -13,8 +13,10 @@ def test_image_element_workspace_storage_usage_item(data_fixture):
     builder = data_fixture.create_builder_application(workspace=workspace)
     page = data_fixture.create_builder_page(builder=builder)
 
-    usage_in_mb = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage(
-        workspace.id
+    usage_in_mb = (
+        ImageElementWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
+            workspace.id
+        )
     )
 
     assert usage_in_mb == 0
@@ -26,8 +28,10 @@ def test_image_element_workspace_storage_usage_item(data_fixture):
         image_file=image_file,
     )
 
-    usage_in_mb = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage(
-        workspace.id
+    usage_in_mb = (
+        ImageElementWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
+            workspace.id
+        )
     )
 
     assert usage_in_mb == 2
@@ -46,7 +50,7 @@ def test_image_element_workspace_storage_usage_item_trashed_builder(data_fixture
         image_file=image_file,
     )
 
-    usage = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage(
+    usage = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
         workspace.id
     )
 
@@ -54,7 +58,7 @@ def test_image_element_workspace_storage_usage_item_trashed_builder(data_fixture
 
     builder.trashed = True
     builder.save()
-    usage = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage(
+    usage = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
         workspace.id
     )
     assert usage == 0
@@ -73,7 +77,7 @@ def test_image_element_workspace_storage_usage_item_trashed_page(data_fixture):
         image_file=image_file,
     )
 
-    usage = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage(
+    usage = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
         workspace.id
     )
 
@@ -81,7 +85,7 @@ def test_image_element_workspace_storage_usage_item_trashed_page(data_fixture):
 
     page.trashed = True
     page.save()
-    usage = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage(
+    usage = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
         workspace.id
     )
     assert usage == 0
@@ -100,7 +104,7 @@ def test_image_element_workspace_storage_usage_item_duplicate_ids(data_fixture):
         image_file=image_file,
     )
 
-    usage = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage(
+    usage = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
         workspace.id
     )
 
@@ -111,7 +115,7 @@ def test_image_element_workspace_storage_usage_item_duplicate_ids(data_fixture):
         image_file=image_file,
     )
 
-    usage = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage(
+    usage = ImageElementWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
         workspace.id
     )
 

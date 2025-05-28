@@ -9,6 +9,7 @@ from baserow.contrib.database.table.object_scopes import DatabaseTableObjectScop
 from baserow.contrib.database.table.operations import (
     ListenToAllDatabaseTableEventsOperationType,
 )
+from baserow.contrib.database.table.signals import table_usage_updated
 from baserow.contrib.database.ws.pages import TablePageType
 from baserow.core.exceptions import PermissionException
 from baserow.core.mixins import TrashableModelMixin
@@ -178,6 +179,8 @@ def update_table_usage(self, table_id: int, row_count: int = 0):
     from baserow.contrib.database.table.handler import TableUsageHandler
 
     TableUsageHandler.mark_table_for_usage_update(table_id, row_count)
+
+    table_usage_updated.send(sender=self, table_id=table_id)
 
 
 @app.task(bind=True)

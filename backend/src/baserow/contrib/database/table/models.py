@@ -895,9 +895,9 @@ class TableUsageUpdate(models.Model):
 class TableUsage(models.Model):
     """
     This table stores the resources required by the associated table. It gets updated
-    whenever the `UsageHandler.calculate_storage_usage()` method is executed. This
-    method runs for all tables that either have an entry in the `TableUsageUpdate` table
-    or do not have an entry yet.
+    whenever the `UsageHandler.calculate_storage_usage_workspace()` method is executed.
+    This method runs for all tables that either have an entry in the `TableUsageUpdate`
+    table or do not have an entry yet.
     """
 
     table = models.OneToOneField(
