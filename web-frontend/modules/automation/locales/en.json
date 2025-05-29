@@ -44,9 +44,8 @@
     "switchLabel": "Draft"
   },
   "workflow": {
-    "node": {
-      "delete": "Supprimer l'action",
-      "duplicate": "Dupliquer l'action"
-    }
+    "actionDelete": "Delete action",
+    "actionDuplicate": "Duplocate action",
+    "actionConfigure": "Configure"
   }
 }

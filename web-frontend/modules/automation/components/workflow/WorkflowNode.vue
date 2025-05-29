@@ -8,7 +8,9 @@
       Row is created in Projects very long text
     </h1>
 
-    <Badge rounded color="yellow" size="large">Configure</Badge>
+    <Badge rounded color="yellow" size="large">
+      {{ $t('workflow.actionConfigure') }}}</Badge
+    >
 
     <a
       v-if="!props.data.readOnly"
@@ -27,14 +29,14 @@
             @click="emit('duplicateNode', props.id)"
           >
             <i class="context__menu-item-icon iconoir-copy"></i>
-            {{ $t('workflow.node.duplicate') }}
+            {{ $t('workflow.actionDuplicate') }}
           </a>
           <a
             class="context__menu-item-link context__menu-item-link--delete"
             @click="emit('removeNode', props.id)"
           >
             <i class="context__menu-item-icon iconoir-bin"></i>
-            {{ $t('workflow.node.delete') }}
+            {{ $t('workflow.actionDelete') }}
           </a>
         </li>
       </ul>
