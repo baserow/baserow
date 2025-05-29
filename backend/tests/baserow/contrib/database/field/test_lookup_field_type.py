@@ -2022,6 +2022,103 @@ def test_can_modify_row_containing_lookup_diamond_dep(
 
 
 @pytest.mark.django_db
+def test_can_modify_row_container_direct_and_indirect_loopup(data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user, name="Table")
+    table_extra = data_fixture.create_database_table(
+        user=user, database=table.database, name="Table extra"
+    )
+    table_lookups = data_fixture.create_database_table(
+        user=user, database=table.database, name="Table lookups"
+    )
+
+    primary_table1 = data_fixture.create_text_field(
+        name="primaryfield", table=table, primary=True
+    )
+    primary_table2 = data_fixture.create_text_field(
+        name="primaryfield", table=table_extra, primary=True
+    )
+    primary_table3 = data_fixture.create_text_field(
+        name="primaryfield", table=table_lookups, primary=True
+    )
+
+    extra_link = FieldHandler().create_field(
+        user,
+        table_extra,
+        "link_row",
+        name="extra_link",
+        link_row_table=table,
+    )
+    lookups_extra_link = FieldHandler().create_field(
+        user,
+        table_lookups,
+        "link_row",
+        name="lookup_extra_link",
+        link_row_table=table_extra,
+    )
+    lookups_link = FieldHandler().create_field(
+        user,
+        table_lookups,
+        "link_row",
+        name="lookup_link",
+        link_row_table=table,
+    )
+
+    starting_row = RowHandler().create_row(
+        user, table, {primary_table1.db_column: "row1"}
+    )
+    extra_row_1, extra_row_2 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_extra,
+            [
+                {
+                    primary_table2.db_column: "extra_row1",
+                    extra_link.db_column: [starting_row.id],
+                },
+                {
+                    primary_table2.db_column: "extra_row2",
+                    extra_link.db_column: [starting_row.id],
+                },
+            ],
+        )
+        .created_rows
+    )
+    lookup_row = RowHandler().create_row(
+        user,
+        table_lookups,
+        {
+            primary_table1.db_column: "lookup_row1",
+            lookups_extra_link.db_column: [extra_row_1.id, extra_row_2.id],
+            lookups_link.db_column: [starting_row.id],
+        },
+    )
+
+    direct_and_indirect_field = FieldHandler().create_field(
+        user,
+        table_lookups,
+        "formula",
+        name="lookup",
+        formula="""join(lookup("lookup_extra_link", "extra_link"), "") + join(lookup("lookup_link", "primaryfield"), "")""",
+    )
+
+    lookups_model = table_lookups.get_model()
+    lookup_row = lookups_model.objects.get(id=lookup_row.id)
+    assert getattr(lookup_row, direct_and_indirect_field.db_column) == "row1row1row1"
+
+    RowHandler().update_row(
+        user, table, starting_row, {primary_table1.db_column: "updated"}
+    )
+
+    lookup_row.refresh_from_db()
+    assert (
+        getattr(lookup_row, direct_and_indirect_field.db_column)
+        == "updatedupdatedupdated"
+    )
+
+
+@pytest.mark.django_db
 def test_deleting_link_in_other_side_of_link_row_field_updates_lookups(
     data_fixture, api_client, django_assert_num_queries
 ):

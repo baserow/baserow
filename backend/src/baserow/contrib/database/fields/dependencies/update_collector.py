@@ -1,5 +1,4 @@
 from collections import defaultdict
-from copy import deepcopy
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from django.db.models import Expression, Q, Value
@@ -32,10 +31,12 @@ class CTECollector:
 
     def __init__(
         self,
+        starting_table: Optional[Table] = None,
         starting_row_ids: Optional[List[int]] = None,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]] = None,
     ):
         self.cte: Dict[int : Dict[str, Any]] = defaultdict(dict)
+        self.starting_table = starting_table
         self.starting_row_ids: Optional[List[int]] = starting_row_ids
         self.last_path_from_starting_table: Optional[List[LinkRowField]] = None
         self._deleted_m2m_rels_per_link_field: Optional[
@@ -68,7 +69,7 @@ class CTECollector:
         self,
         table_id,
         cte_with: UpdatableCTEWith,
-        path_from_starting_table: Optional[List[LinkRowField]] = None,
+        path_to_starting_table: Optional[List[LinkRowField]] = None,
     ):
         """
         Add or update the give CTE With. It uses the `name` property of the object as
@@ -78,22 +79,22 @@ class CTECollector:
         :param table_id: The table where to add the CTE to. Note that only if an
             update query for this table is executed, that it will be included.
         :param cte_with: The CTE object to set.
-        :param path_from_starting_table: The `path_from_starting_table` list related
-            to this CTE. This will be used to filter on the `starting_row_ids` to
-            make things more efficient.
+        :param path_to_starting_table: The to the started table related to this CTE.
+            This will be used to filter on the `starting_row_ids` to make things more
+            efficient.
         :return:
         """
 
         if cte_with.name in self.cte[table_id]:
             self.cte[table_id][cte_with.name]["with"] = cte_with
-            if path_from_starting_table is not None:
+            if path_to_starting_table is not None:
                 self.cte[table_id][cte_with.name][
-                    "path_from_starting_table"
-                ] = path_from_starting_table
+                    "path_to_starting_table"
+                ] = path_to_starting_table
         else:
             self.cte[table_id][cte_with.name] = {
                 "with": cte_with,
-                "path_from_starting_table": path_from_starting_table,
+                "path_to_starting_table": path_to_starting_table,
             }
 
     def set_last_path_from_starting_table(self, value: Optional[List[LinkRowField]]):
@@ -129,22 +130,17 @@ class CTECollector:
         starting_row_ids = self.starting_row_ids
 
         for cte_object in cte:
-            path_from_starting_table = cte_object.get("path_from_starting_table", None)
+            path_to_starting_table = cte_object.get("path_to_starting_table", None)
             cte_with = cte_object["with"]
 
             # Only if the `path_from_starting_table` and `starting_row_ids` are set,
             # it's possible to filter and include only the rows that are actually
             # updated.
             if (
-                path_from_starting_table is not None
-                and len(path_from_starting_table) > 0
+                path_to_starting_table is not None
+                and len(path_to_starting_table) > 0
                 and starting_row_ids is not None
             ):
-                # Because we're not updating the starting table,
-                # the `path_from_starting` table must be reversed because we need the
-                # linkrowfield path back to the starting table.
-                path_to_starting_table = deepcopy(path_from_starting_table)
-                path_to_starting_table.reverse()
                 cte_queryset = cte_with.get_source_queryset()
 
                 path_to_starting_table_row_id_column = ""
@@ -471,7 +467,9 @@ class FieldUpdateCollector:
 
     def _init_cte_collector(self):
         return CTECollector(
-            self._starting_row_ids, self._deleted_m2m_rels_per_link_field
+            self._starting_table,
+            self._starting_row_ids,
+            self._deleted_m2m_rels_per_link_field,
         )
 
     def _init_update_statement_collector(self):
