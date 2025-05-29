@@ -12,7 +12,7 @@ from baserow.contrib.database.api.rows.serializers import (
 from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.rows.registries import row_metadata_registry
 from baserow.contrib.database.table.models import GeneratedTableModel
-from baserow.ws.registries import page_registry
+from baserow.ws.registries import PageType, page_registry
 
 if TYPE_CHECKING:
     from baserow.contrib.database.rows.models import RowHistory
@@ -162,7 +162,7 @@ def rows_history_updated(
     row_history_entries: "list[RowHistory]",
     **kwargs,
 ):
-    row_page_type = page_registry.get("row")
+    row_page_type: PageType = page_registry.get("row")
 
     def send_rows():
         payloads_with_group_kws = [

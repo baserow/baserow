@@ -199,25 +199,22 @@ def broadcast_many_to_channel_group(
 
     :param payload: A list of pairs: channel workspace and payload dictionary
         containing data that must be broadcast. Each pair can be sent to a different
-        workspace.
-    :type payload: list[tuple[str, dict]]
+        channel group.
     :param ignore_web_socket_id: The web socket id to which messages must not be
         sent. This is normally the web socket id that has originally made the change
         request.
-    :type ignore_web_socket_id: str
     :param exclude_user_ids: A list of User ids which should be excluded from
         receiving messages.
-    :type exclude_user_ids: Optional[list]
     """
 
     from asgiref.sync import async_to_sync
     from channels.layers import get_channel_layer
 
     channel_layer = get_channel_layer()
-    for workspace, payload in payloads:
+    for channel_group_name, payload in payloads:
         async_to_sync(send_message_to_channel_group)(
             channel_layer,
-            workspace,
+            channel_group_name,
             {
                 "type": "broadcast_to_group",
                 "payload": payload,
@@ -230,16 +227,16 @@ def broadcast_many_to_channel_group(
 @app.task(bind=True)
 def broadcast_to_channel_group(
     self,
-    workspace,
+    channel_group_name,
     payload,
     ignore_web_socket_id=None,
     exclude_user_ids=None,
 ):
     """
-    Broadcasts a JSON payload all the users within the channel workspace having the
+    Broadcasts a JSON payload all the users within the channel group having the
     provided name.
 
-    :param workspace: The name of the channel workspace where the payload must be
+    :param channel_group_name: The name of the channel group where the payload must be
         broadcast to.
     :type workspace: str
     :param payload: A dictionary object containing the payload that must be broadcast.
@@ -259,7 +256,7 @@ def broadcast_to_channel_group(
     channel_layer = get_channel_layer()
     async_to_sync(send_message_to_channel_group)(
         channel_layer,
-        workspace,
+        channel_group_name,
         {
             "type": "broadcast_to_group",
             "payload": payload,
