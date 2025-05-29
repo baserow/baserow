@@ -711,7 +711,7 @@ class MoveRowActionType(UndoableActionType):
             model = table.get_model()
 
         row_handler = RowHandler()
-        row = row_handler.get_row_for_update(user, table, row_id, model=model)
+        row = row_handler.get_row(user, table, row_id, model=model)
 
         original_row_order = row.order
 
@@ -754,7 +754,7 @@ class MoveRowActionType(UndoableActionType):
         model = table.get_model()
 
         row_handler = RowHandler()
-        row = row_handler.get_row_for_update(user, table, params.row_id, model=model)
+        row = row_handler.get_row(user, table, params.row_id, model=model)
 
         before_row = get_before_row_from_displacement(
             row, model, -params.rows_displacement
@@ -768,7 +768,7 @@ class MoveRowActionType(UndoableActionType):
         model = table.get_model()
 
         row_handler = RowHandler()
-        row = row_handler.get_row_for_update(user, table, params.row_id, model=model)
+        row = row_handler.get_row(user, table, params.row_id, model=model)
 
         before_row = get_before_row_from_displacement(
             row, model, params.rows_displacement

@@ -194,6 +194,10 @@ export class ClientErrorMap {
           'clientHandler.databaseUniquePrimaryPropertyNotFoundDescription'
         )
       ),
+      ERROR_FAILED_TO_LOCK_ROWS_DUE_TO_CONFLICT: new ResponseErrorMessage(
+        app.i18n.t('clientHandler.failedToLockRowsDueToConflictTitle'),
+        app.i18n.t('clientHandler.failedToLockRowsDueToConflictDescription')
+      ),
     }
   }
 

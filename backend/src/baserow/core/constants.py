@@ -1,4 +1,6 @@
 """Miscellaneous constant values used across the codebase."""
+from enum import Enum
+
 from django.db import models
 
 # Date formats supported in Baserow
@@ -59,3 +61,14 @@ class RatingStyleChoices(models.TextChoices):
     THUMBS_UP = "thumbs-up"
     FLAG = "flag"
     SMILE = "smile"
+
+
+class LockTableTimeoutOptions(Enum):
+    """
+    Enum for lock table timeout values used in Baserow.
+    Any positive number value represents a timeout in seconds.
+    """
+
+    NO_WAIT = 0
+    INFINITE = -1
+    DISABLED = -2

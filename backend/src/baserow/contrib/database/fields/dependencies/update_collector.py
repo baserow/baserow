@@ -1,9 +1,11 @@
 from collections import defaultdict
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
+from django.conf import settings
 from django.db.models import Expression, Q, Value
 
+import pglock
 from django_cte import With
 
 from baserow.contrib.database.fields.field_cache import FieldCache
@@ -13,8 +15,9 @@ from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.constants import (
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
 )
-from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.table.signals import table_updated
+from baserow.core.constants import LockTableTimeoutOptions
 from baserow.core.db import UpdatableCTEWith
 
 from .utils import include_rows_connected_to_deleted_m2m_relationships
@@ -288,46 +291,87 @@ class PathBasedUpdateStatementCollector:
             collector = self.sub_paths[broken_name]
         return collector
 
-    def execute_all(
+    def collect_all(
         self,
         field_cache: FieldCache,
         starting_row_ids: StartingRowIdsType = None,
         path_to_starting_table: StartingRowIdsType = None,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]] = None,
         cte_collector: Optional[CTECollector] = None,
-    ) -> int:
-        updated_rows = 0
+    ) -> List[Tuple[GeneratedTableModel, Callable[[None], Any]]]:
+        update_statements = []
+
         path_to_starting_table = path_to_starting_table or []
         if self.connection_here is not None:
             path_to_starting_table = [self.connection_here] + path_to_starting_table
-        updated_rows += self._execute_pending_update_statements(
+        statement = self._prepare_pending_update_statements(
             field_cache,
             path_to_starting_table,
             starting_row_ids,
             deleted_m2m_rels_per_link_field,
             cte_collector=cte_collector,
         )
+        if statement is not None:
+            model = field_cache.get_model(self.table)
+            update_statements.append((model, statement))
 
         for sub_path in self.sub_paths.values():
-            updated_rows += sub_path.execute_all(
-                starting_row_ids=starting_row_ids,
-                path_to_starting_table=path_to_starting_table,
-                field_cache=field_cache,
-                deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
-                cte_collector=cte_collector,
+            update_statements.extend(
+                sub_path.collect_all(
+                    starting_row_ids=starting_row_ids,
+                    path_to_starting_table=path_to_starting_table,
+                    field_cache=field_cache,
+                    deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
+                    cte_collector=cte_collector,
+                )
             )
-        return updated_rows
+        return update_statements
 
-    def _execute_pending_update_statements(
+    def _prepare_pending_update_statements(
         self,
         field_cache: FieldCache,
         path_to_starting_table: List[LinkRowField],
         starting_row_ids: StartingRowIdsType,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]],
         cte_collector: Optional[CTECollector] = None,
-    ) -> int:
+    ) -> Optional[Callable[[None], None]]:
+        """
+        Prepares the queryset and update statements to execute the pending updates for
+        this table collector. If the connection is broken back to the starting table it
+        just update all cells. If the starting_row_ids is set then only rows which join
+        back to these starting rows will be updated, otherwise all rows in the table
+        will be updated.
+
+        It returns a callable that can be used to execute the update statements
+
+        :param field_cache: The field cache to use to get the model for the table.
+        :param path_to_starting_table: A list of link row fields which lead from the
+            self.table to the starting table. Used to properly order the update
+            statements so the graph is updated in sequence and also used if
+            self.starting_row_ids is set so only rows which join back to the starting
+            rows via this path will be updated.
+        :param starting_row_ids: If the update starts from specific rows in the starting
+            table set this and all update statements executed by this collector will
+            only update rows which join back to these starting rows.
+        :param deleted_m2m_rels_per_link_field: A dictionary per link field of rows in
+            the table it links to which have had their connections removed. This is used
+            to ensure that rows which have had their connections removed are still
+            updated when the starting row ids are set.
+        :param cte_collector: The CTE collector to use to collect the CTEs for the
+            update statements. If not provided, no CTEs will be collected.
+        :returns: A callable that can be used to execute the update statements.
+        """
+
+        if starting_row_ids is None:
+            # We aren't updating individual rows but instead entire columns, so don't
+            # set this per row attribute.
+            self.update_statements.pop(ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME, None)
+
+        if not self.update_statements:
+            return None
+
         model = field_cache.get_model(self.table)
-        qs = model.objects_and_trash
+        queryset = model.objects_and_trash
         # If the connection is broken back to the starting table then there is no
         # way to join back to these starting rows. So we just update all cells.
         if starting_row_ids is not None and not self.connection_is_broken:
@@ -346,50 +390,39 @@ class PathBasedUpdateStatementCollector:
                 path_to_starting_table,
             )
 
-            qs = qs.filter(filter_for_rows_connected_to_starting_row)
-        if starting_row_ids is None:
-            # We aren't updating individual rows but instead entire columns, so don't
-            # set this per row attribute.
-            self.update_statements.pop(ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME, None)
+            queryset = queryset.filter(filter_for_rows_connected_to_starting_row)
 
-        updated_rows = 0
-        if self.update_statements:
-            annotations, filters = {}, Q()
+        # If we are only updating changes, we need to filter out rows that don't
+        # need to be updated. Because of how postgres works, this could save a lot
+        # of disk space and IO, at the cost of a more complex query and a longer
+        # execution time, but if we're updating an entire field or only certain
+        # rows, it's better to skip this optimization.
+        annotations, filters = {}, Q()
+        if self.update_changes_only:
+            for field, expr in self.update_statements.items():
+                if expr is None or not field.startswith("field_"):
+                    continue
 
-            # If we are only updating changes, we need to filter out rows that don't
-            # need to be updated. Because of how postgres works, this could save a lot
-            # of disk space and IO, at the cost of a more complex query and a longer
-            # execution time, but if we're updating an entire field or only certain
-            # rows, it's better to skip this optimization.
-            if self.update_changes_only:
-                for field, expr in self.update_statements.items():
-                    if expr is None or not field.startswith("field_"):
-                        continue
+                annotated_field = f"{field}_expr"
+                annotations[annotated_field] = expr
+                # Because the expression can evaluate to null and because of how the
+                # comparison with null should be handle in SQL
+                # (https://www.postgresql.org/docs/15/functions-comparison.html), we
+                # need to properly filter rows to correctly update only the ones
+                # that need to be updated.
+                filters |= Q(
+                    **{
+                        f"{field}__isnull": False,
+                        f"{annotated_field}__isnull": True,
+                    }
+                ) | ~Q(**{field: expr})
 
-                    annotated_field = f"{field}_expr"
-                    annotations[annotated_field] = expr
-                    # Because the expression can evaluate to null and because of how the
-                    # comparison with null should be handle in SQL
-                    # (https://www.postgresql.org/docs/15/functions-comparison.html), we
-                    # need to properly filter rows to correctly update only the ones
-                    # that need to be updated.
-                    filters |= Q(
-                        **{
-                            f"{field}__isnull": False,
-                            f"{annotated_field}__isnull": True,
-                        }
-                    ) | ~Q(**{field: expr})
+        queryset = queryset.annotate(**annotations).filter(filters)
+        ctes = cte_collector.add_starting_table_filters_and_get_all(self.table.id)
+        for cte_with in ctes:
+            queryset = queryset.with_cte(cte_with)
 
-            update_queryset = qs.annotate(**annotations).filter(filters)
-
-            cte = cte_collector.add_starting_table_filters_and_get_all(self.table.id)
-            if cte:
-                for cte_with in cte:
-                    update_queryset = update_queryset.with_cte(cte_with)
-
-            updated_rows = update_queryset.update(**self.update_statements)
-
-        return updated_rows
+        return lambda: queryset.update(**self.update_statements)
 
 
 class FieldUpdatesTracker(defaultdict):
@@ -425,6 +458,7 @@ class FieldUpdateCollector:
         starting_row_ids: StartingRowIdsType = None,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]] = None,
         update_changes_only: bool = False,
+        field_cache: Optional[FieldCache] = None,
     ):
         """
         :param starting_table: The table where the triggering field update begins.
@@ -446,6 +480,7 @@ class FieldUpdateCollector:
         self._pending_field_updates = FieldUpdatesTracker()
         # Track all fields which have been updated in this collector
         self._all_field_updates = FieldUpdatesTracker()
+        self.field_cache = field_cache or FieldCache()
 
         self._starting_row_ids = starting_row_ids
         self._starting_table = starting_table
@@ -464,6 +499,12 @@ class FieldUpdateCollector:
         # way, we can efficiently call the rebuild_dependencies method in bulk to reduce
         # the number of queries.
         self._rebuild_field_dependencies = set()
+
+        # Contains all the querysets and update statements to run in order. Collect them
+        # in a list allow us to lock all the rows upfront and avoid deadlocks.
+        self._models_and_updates: List[
+            Tuple[GeneratedTableModel, Callable[[None], Any]]
+        ] = []
 
         # Allow collecting all the CTEs, so that they can be passed into the
         # `execute_all` method, and be used when doing the combined update.
@@ -538,20 +579,24 @@ class FieldUpdateCollector:
             field, via_path_from_starting_table
         )
 
-    def apply_updates(self, field_cache: FieldCache) -> int:
+    def collect_all_statements(self, field_cache: Optional[FieldCache] = None):
         """
-        Triggers all update statements to be executed in the correct order in as few
-        update queries as possible and return the number of updated rows.
+        Collects all the update statements for the fields that have been updated
+        since the last call to apply_updates. It will collect the update statements
+        in the correct order so that the graph is updated in sequence.
         """
 
-        updated_rows_count = self._update_statement_collector.execute_all(
-            field_cache,
-            self._starting_row_ids,
-            deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
-            cte_collector=self.cte_collector,
+        if field_cache is None:
+            field_cache = self.field_cache
+
+        self._models_and_updates.extend(
+            self._update_statement_collector.collect_all(
+                field_cache,
+                self._starting_row_ids,
+                deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
+                cte_collector=self.cte_collector,
+            )
         )
-
-        return updated_rows_count
 
     def apply_fields_type_changed(self, field_cache: FieldCache):
         if len(self._fields_type_changed) > 0:
@@ -569,9 +614,27 @@ class FieldUpdateCollector:
             )
             self._rebuild_field_dependencies = set()
 
+    def prepend_statement(
+        self,
+        model: GeneratedTableModel,
+        statement: Callable[[None], Any],
+    ):
+        """
+        Adds an update statement to the very front of the execution queue.
+
+        This guarantees that the provided statement will run before any others, while
+        still respecting the table locking order in execute_all_statements().
+
+        :param model: The GeneratedTableModel whose rows the statement will update.
+        :param statement: A zero-argument callable that, when invoked, executes the
+            update on that model.
+        """
+
+        self._models_and_updates.insert(0, (model, statement))
+
     def apply_updates_and_get_updated_fields(
         self,
-        field_cache: FieldCache,
+        field_cache: Optional[FieldCache] = None,
         skip_search_updates=False,
         skip_fields_type_changed=False,
         skip_rebuild_field_dependencies=False,
@@ -582,8 +645,104 @@ class FieldUpdateCollector:
         :return: The list of all fields which have been updated in the starting table.
         """
 
-        updated_rows_count = self.apply_updates(field_cache)
-        if updated_rows_count > 0 and not skip_search_updates:
+        if field_cache is None:
+            field_cache = self.field_cache
+
+        # If the update was not executed, we don't need to send any signals.
+        # We can just return the updated fields.
+        self.collect_all_statements(field_cache)
+        return self.execute_all_statements(
+            field_cache,
+            skip_search_updates=skip_search_updates,
+            skip_fields_type_changed=skip_fields_type_changed,
+            skip_rebuild_field_dependencies=skip_rebuild_field_dependencies,
+            lock_timeout=LockTableTimeoutOptions.DISABLED.value,  # compatibility with old code
+        )
+
+    def lock_tables_to_update_in_order(
+        self, lock_mode: str = pglock.SHARE_ROW_EXCLUSIVE, timeout: Optional[int] = None
+    ):
+        """
+        Locks all the tables involved in the update statements in a consistent order to
+        avoid deadlocks. If additional_tables_to_lock is provided, those tables will
+        also be locked. Since we cannot guarantee the correct order of the updates
+        across multiple tables, we lock with a SHARE ROW EXCLUSIVE lock to ensure that
+        no other transaction can modify the rows while we are updating them. Locking the
+        table is usually faster than select_for_update rows first, and easier to
+        maintain since we should select_for_update rows in the right order, which is not
+        always easy in formulas.
+
+        :param lock_mode: The lock mode to use when locking the tables. Defaults to
+            SHARE ROW EXCLUSIVE, which is the most restrictive lock that allows
+            concurrent reads but prevents concurrent writes.
+        :param timeout: The timeout in seconds to wait for the lock to be acquired. None
+            means wait indefinitely, 0 means do not wait at all, and any positive
+            integer means wait that many seconds.
+        :raises: django.db.OperationalError if the lock cannot be acquired within the
+            timeout.
+        """
+
+        models_to_lock_in_order = sorted(
+            set([model for model, _ in self._models_and_updates]),
+            key=lambda t: t._meta.db_table,
+        )
+        if not models_to_lock_in_order:
+            # If there are no models to lock, we don't need to do anything.
+            return
+
+        if timeout == LockTableTimeoutOptions.INFINITE.value:
+            timeout = None
+
+        pglock.model(
+            *models_to_lock_in_order,
+            mode=lock_mode,
+            timeout=timeout,
+            side_effect=pglock.Raise,
+        )
+
+    def execute_all_statements(
+        self,
+        field_cache: Optional[FieldCache] = None,
+        skip_search_updates=False,
+        skip_fields_type_changed=False,
+        skip_rebuild_field_dependencies=False,
+        lock_timeout: Optional[int] = settings.LOCK_TABLE_TIMEOUT_SECONDS,
+    ) -> List[Field]:
+        """
+        Executes all the collected update statements in the correct order and sends the
+        field_updated signals for the updated fields. If the update was not executed, it
+        will not send any signals and just return the updated fields.
+
+        :param field_cache: The field cache to use to get the model for the table.
+        :param skip_search_updates: If True, it will not send any search updates for the
+            updated fields. This is useful when the updates are not related to search,
+            for example when the field type has changed.
+        :param skip_fields_type_changed: If True, it will not send any
+            fields_type_changed signals for the updated fields. This is useful when the
+            updates are not related to field type changes, for example when the field
+            values have changed.
+        :param skip_rebuild_field_dependencies: If True, it will not rebuild the field
+            dependencies for the updated fields. This is useful when the updates are not
+            related to field dependencies, for example when the field values have
+            changed.
+        :return: The list of all fields which have been updated in the starting table.
+        :raises: django.db.OperationalError if the lock cannot be acquired within the
+            timeout.
+        """
+
+        if field_cache is None:
+            field_cache = self.field_cache
+
+        # Lock all the tables involved in the update statements in a consistent
+        # order to avoid deadlocks.
+        if lock_timeout != LockTableTimeoutOptions.DISABLED.value:
+            self.lock_tables_to_update_in_order(timeout=lock_timeout)
+
+        # Execute the update statements in the correct order.
+        for _, update_statement in self._models_and_updates:
+            update_statement()
+
+        if not skip_search_updates:
             for table in self._pending_field_updates.tables():
                 if not self._starting_table or table.id != self._starting_table.id:
                     if self._starting_row_ids is not None:
@@ -595,15 +754,16 @@ class FieldUpdateCollector:
                     else:
                         # The cascade was for the entire field
                         SearchHandler.entire_field_values_changed_or_created(
-                            table, self._get_updated_fields_in_table(table)
+                            table, self.get_updated_fields_in_table(table)
                         )
 
-        updated_fields = self._get_updated_fields_in_table(self._starting_table)
+        updated_fields = self.get_updated_fields_in_table(self._starting_table)
 
         # Reset the pending field updates so next time apply_updates is called it
         # will only send signals for the newly updated fields.
         self._pending_field_updates = FieldUpdatesTracker()
         self._update_statement_collector = self._init_update_statement_collector()
+        self._models_and_updates = []
         self.cte_collector = self._init_cte_collector()
 
         if not skip_fields_type_changed:
@@ -626,7 +786,7 @@ class FieldUpdateCollector:
         for (
             field,
             related_fields,
-        ) in self._get_updated_fields_to_send_signals_for_per_table():
+        ) in self.get_updated_fields_per_table():
             if field.table != self._starting_table:
                 field_updated.send(
                     self,
@@ -639,7 +799,7 @@ class FieldUpdateCollector:
         for table in self._all_field_updates.tables():
             table_updated.send(self, table=table, user=None, force_table_refresh=True)
 
-    def _get_updated_fields_to_send_signals_for_per_table(
+    def get_updated_fields_per_table(
         self,
     ) -> List[Tuple[Field, List[Field]]]:
         result = []
@@ -654,8 +814,20 @@ class FieldUpdateCollector:
                 result.append((fields[0], fields[1:]))
         return result
 
-    def _get_updated_fields_in_table(self, table) -> List[Field]:
+    def get_updated_fields_in_table(self, table) -> List[Field]:
         return [field for field in self._pending_field_updates.fields(table)]
+
+    def get_all_collected_fields(self) -> List[Field]:
+        """
+        Returns a list of all fields that have been updated in this collector,
+        regardless of whether they were updated in the starting table or not.
+        """
+
+        return [
+            field
+            for table in self._all_field_updates.tables()
+            for field in self._all_field_updates.fields(table)
+        ]
 
     def add_to_fields_type_changed(self, field: Field):
         self._fields_type_changed.add(field)

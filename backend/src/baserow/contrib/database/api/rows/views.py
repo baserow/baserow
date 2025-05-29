@@ -44,6 +44,7 @@ from baserow.contrib.database.api.fields.errors import (
 from baserow.contrib.database.api.rows.errors import (
     ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
     ERROR_CANNOT_DELETE_ROWS_IN_TABLE,
+    ERROR_FAILED_TO_LOCK_ROWS_DUE_TO_CONFLICT,
     ERROR_INVALID_JOIN_PARAMETER,
     ERROR_ROW_DOES_NOT_EXIST,
     ERROR_ROW_IDS_NOT_UNIQUE,
@@ -87,6 +88,7 @@ from baserow.contrib.database.rows.actions import (
 from baserow.contrib.database.rows.exceptions import (
     CannotCreateRowsInTable,
     CannotDeleteRowsInTable,
+    FailedToLockRowsDueToConflict,
     RowDoesNotExist,
     RowIdsNotUnique,
 )
@@ -870,6 +872,7 @@ class RowView(APIView):
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
+            FailedToLockRowsDueToConflict: ERROR_FAILED_TO_LOCK_ROWS_DUE_TO_CONFLICT,
         }
     )
     @atomic_with_retry_on_deadlock()
@@ -1075,6 +1078,7 @@ class RowMoveView(APIView):
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
+            FailedToLockRowsDueToConflict: ERROR_FAILED_TO_LOCK_ROWS_DUE_TO_CONFLICT,
         }
     )
     @atomic_with_retry_on_deadlock()
@@ -1344,6 +1348,7 @@ class BatchRowsView(APIView):
             RowIdsNotUnique: ERROR_ROW_IDS_NOT_UNIQUE,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
+            FailedToLockRowsDueToConflict: ERROR_FAILED_TO_LOCK_ROWS_DUE_TO_CONFLICT,
         }
     )
     @atomic_with_retry_on_deadlock()

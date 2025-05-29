@@ -268,15 +268,16 @@ def test_rows_updated_event_type_skip_not_updated_fields(
     model = table.get_model()
     row = model.objects.create()
 
-    RowHandler().update_rows(
-        user,
-        table,
-        [
-            {"id": row.id},
-        ],
-        rows_to_update=[row],
-        send_webhook_events=False,
-    )
+    with transaction.atomic():
+        RowHandler().force_update_rows(
+            user,
+            table,
+            [
+                {"id": row.id},
+            ],
+            rows_to_update=[row],
+            send_webhook_events=False,
+        )
 
     mock_call_webhook.delay.assert_not_called()
 

@@ -377,7 +377,11 @@ def test_update_statements_only_update_rows_where_values_change(data_fixture):
             via_path_to_starting_table,
         )
         field_cache.cache_model(table_model)
-        updated_rows = update_collector.apply_updates(field_cache)
+        update_collector.collect_all_statements(field_cache)
+
+        updated_rows = 0
+        for _, statement in update_collector._models_and_updates:
+            updated_rows += statement()
         return updated_rows
 
     def assert_all_rows_have_value(value):

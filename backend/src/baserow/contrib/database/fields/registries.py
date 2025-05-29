@@ -1478,6 +1478,10 @@ class FieldType(
             from the starting table.
         """
 
+        update_collector.add_field_which_has_changed(
+            field, via_path_from_starting_table, send_field_updated_signal=False
+        )
+
     def row_of_dependency_deleted(
         self,
         field: Field,

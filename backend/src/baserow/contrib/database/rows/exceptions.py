@@ -1,3 +1,6 @@
+from baserow.core.exceptions import LockConflict
+
+
 class RowDoesNotExist(Exception):
     """Raised when trying to get rows that don't exist."""
 
@@ -45,3 +48,14 @@ class InvalidRowLength(Exception):
 
     def __init__(self, row_idx: int):
         self.row_idx = row_idx
+
+
+class FailedToLockRowsDueToConflict(LockConflict):
+    """
+    Raised when a database operation cannot obtain a lock on the requested rows
+    because another concurrent transaction holds a conflicting lock.
+    """
+
+    message = (
+        "Failed to lock the required rows due to a conflict with another transaction."
+    )
