@@ -100,13 +100,15 @@
             </footer>
           </template>
 
-          <component
-            :is="decorator.component"
-            v-for="(decorator, index) in builderPageDecorators"
-            :key="index"
-            :props="decorator.props"
-            show-paid-features-modal
-          />
+          <client-only>
+            <component
+              :is="decorator.component"
+              v-for="(decorator, index) in builderPageDecorators"
+              :key="index"
+              :props="decorator.props"
+              show-paid-features-modal
+            />
+          </client-only>
         </ThemeProvider>
       </div>
       <AddElementModal ref="addElementModal" :page="currentPage" />
