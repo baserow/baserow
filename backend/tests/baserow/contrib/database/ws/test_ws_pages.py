@@ -195,7 +195,8 @@ def test_row_page_can_add(data_fixture):
 def test_row_page_get_group_name():
     row_page = page_registry.get("row")
     table_id = 22
-    assert row_page.get_group_name(table_id) == "table-22"
+    row_id = 2
+    assert row_page.get_group_name(table_id, row_id) == "table-22-row-2"
 
 
 @pytest.mark.websockets
@@ -219,7 +220,7 @@ def test_row_page_broadcast(mock_broadcast_to_channel_group):
 
     mock_broadcast_to_channel_group.delay.assert_called_once()
     args = mock_broadcast_to_channel_group.delay.call_args
-    assert args[0][0] == "table-22"
+    assert args[0][0] == "table-22-row-2"
     assert args[0][1] == payload
     assert args[0][2] == ignore_web_socket_id
 

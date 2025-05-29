@@ -258,13 +258,11 @@ export const registerRealtimeEvents = (realtime) => {
   })
 
   realtime.registerEvent('row_history_updated', ({ store }, data) => {
-    const rowHistoryEntries = data.row_history_entries
-    rowHistoryEntries.forEach((rowHistoryEntry) => {
-      store.dispatch('rowHistory/forceCreate', {
-        rowHistoryEntry,
-        rowId: rowHistoryEntry.row_id,
-        tableId: data.table_id,
-      })
+    const rowHistoryEntry = data.row_history_entry
+    store.dispatch('rowHistory/forceCreate', {
+      rowHistoryEntry,
+      rowId: data.row_id,
+      tableId: data.table_id,
     })
   })
 

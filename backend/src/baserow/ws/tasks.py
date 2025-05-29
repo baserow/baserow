@@ -187,6 +187,47 @@ def broadcast_to_users_individual_payloads(
 
 
 @app.task(bind=True)
+def broadcast_many_to_channel_group(
+    self,
+    payloads: list[tuple[str, dict]],
+    ignore_web_socket_id: str | None = None,
+    exclude_user_ids: list[int] | None = None,
+):
+    """
+    Broadcasts a list of JSON payloads to all the users within the channel workspace
+     having the provided name for each payload.
+
+    :param payload: A list of pairs: channel workspace and payload dictionary
+        containing data that must be broadcast. Each pair can be sent to a different
+        workspace.
+    :type payload: list[tuple[str, dict]]
+    :param ignore_web_socket_id: The web socket id to which messages must not be
+        sent. This is normally the web socket id that has originally made the change
+        request.
+    :type ignore_web_socket_id: str
+    :param exclude_user_ids: A list of User ids which should be excluded from
+        receiving messages.
+    :type exclude_user_ids: Optional[list]
+    """
+
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+
+    channel_layer = get_channel_layer()
+    for workspace, payload in payloads:
+        async_to_sync(send_message_to_channel_group)(
+            channel_layer,
+            workspace,
+            {
+                "type": "broadcast_to_group",
+                "payload": payload,
+                "ignore_web_socket_id": ignore_web_socket_id,
+                "exclude_user_ids": exclude_user_ids,
+            },
+        )
+
+
+@app.task(bind=True)
 def broadcast_to_channel_group(
     self,
     workspace,
