@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from django.db import transaction
 from django.dispatch import receiver
@@ -12,7 +12,10 @@ from baserow.contrib.database.api.rows.serializers import (
 from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.rows.registries import row_metadata_registry
 from baserow.contrib.database.table.models import GeneratedTableModel
-from baserow.ws.registries import page_registry
+from baserow.ws.registries import PageType, page_registry
+
+if TYPE_CHECKING:
+    from baserow.contrib.database.rows.models import RowHistory
 
 
 @receiver(row_signals.before_rows_update)
@@ -156,26 +159,33 @@ def row_orders_recalculated(sender, table, **kwargs):
 def rows_history_updated(
     sender,
     table_id,
-    row_history_entries,
+    row_history_entries: "list[RowHistory]",
     **kwargs,
 ):
-    row_page_type = page_registry.get("row")
+    row_page_type: PageType = page_registry.get("row")
 
-    def send_by_row():
-        for row_history_entry in row_history_entries:
-            serialized_entry = RowHistorySerializer(row_history_entry).data
-            row_page_type.broadcast(
+    def send_rows():
+        payloads_with_group_kws = [
+            (
+                {
+                    "table_id": table_id,
+                    "row_id": entry.row_id,
+                },
                 {
                     "type": "row_history_updated",
-                    "row_history_entry": serialized_entry,
+                    "row_history_entry": RowHistorySerializer(entry).data,
                     "table_id": table_id,
-                    "row_id": row_history_entry.row_id,
+                    "row_id": entry.row_id,
                 },
-                table_id=table_id,
-                row_id=row_history_entry.row_id,
             )
+            for entry in row_history_entries
+        ]
+        row_page_type.broadcast_many(
+            payloads_with_group_kws,
+            table_id=table_id,
+        )
 
-    transaction.on_commit(send_by_row)
+    transaction.on_commit(send_rows)
 
 
 class RealtimeRowMessages:
