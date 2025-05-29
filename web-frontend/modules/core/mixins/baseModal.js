@@ -2,6 +2,13 @@ import MoveToBody from '@baserow/modules/core/mixins/moveToBody'
 
 export default {
   mixins: [MoveToBody],
+  props: {
+    canClose: {
+      type: Boolean,
+      default: true,
+      required: false,
+    },
+  },
   data() {
     return {
       open: false,
@@ -9,10 +16,13 @@ export default {
       // when you release the mouse at different coordinates. Therefore we expect this
       // variable to be set on mousedown to be consistent.
       downElement: null,
+      // used to identify the topmost dialog when the user presses the ESC key
+      modalId: null,
     }
   },
-  mounted() {
+  async mounted() {
     this.$bus.$on('close-modals', this.hide)
+    this.modalId = await this.$store.dispatch('modal/getNewModalId')
   },
   beforeDestroy() {
     this.$bus.$off('close-modals', this.hide)
@@ -45,7 +55,11 @@ export default {
      * Show the modal.
      */
     show() {
-      this.open = true
+      if (!this.open) {
+        this.open = true
+        this.$store.dispatch('modal/pushModal', this.modalId)
+      }
+
       this.$emit('show')
       window.addEventListener('keyup', this.keyup)
       document.body.classList.add('prevent-scroll')
@@ -67,6 +81,8 @@ export default {
       if (!this.open) {
         return
       }
+
+      this.$store.dispatch('modal/removeModal', this.modalId)
 
       // This is a temporary fix. What happens is the modal is opened by a context menu
       // item and the user closes the modal, the element is first deleted and then the
@@ -96,7 +112,10 @@ export default {
      */
     keyup(event) {
       if (event.key === 'Escape' && this.canClose) {
-        this.hide()
+        // only close if this is the topmost modal
+        if (this.$store.getters['modal/topMostModalId'] === this.modalId) {
+          this.hide()
+        }
       }
     },
   },
