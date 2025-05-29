@@ -1,4 +1,5 @@
 import MoveToBody from '@baserow/modules/core/mixins/moveToBody'
+import { v4 as uuidv4 } from 'uuid'
 
 export default {
   mixins: [MoveToBody],
@@ -9,16 +10,22 @@ export default {
       // when you release the mouse at different coordinates. Therefore we expect this
       // variable to be set on mousedown to be consistent.
       downElement: null,
+      modalId: `modal_${uuidv4()}`,
     }
+  },
+  props: {
+    canClose: {
+      type: Boolean,
+      default: true,
+      required: false,
+    },
   },
   mounted() {
     this.$bus.$on('close-modals', this.hide)
   },
   beforeDestroy() {
     this.$bus.$off('close-modals', this.hide)
-  },
-  destroyed() {
-    window.removeEventListener('keyup', this.keyup)
+    this.popFromModalStack()
   },
   methods: {
     /**
@@ -45,9 +52,15 @@ export default {
      * Show the modal.
      */
     show() {
+      if (this.open) {
+        return
+      }
+
       this.open = true
       this.$emit('show')
-      window.addEventListener('keyup', this.keyup)
+
+      this.pushToModalStack()
+
       document.body.classList.add('prevent-scroll')
       const mouseDownEvent = (event) => {
         this.downElement = event.target
@@ -57,8 +70,26 @@ export default {
       this.$once('hidden', () => {
         document.body.removeEventListener('mousedown', mouseDownEvent)
         document.body.classList.remove('prevent-scroll')
-        window.removeEventListener('keyup', this.keyup)
+        this.popFromModalStack()
       })
+    },
+    /**
+     * Push the modal to the stack and register the close event.
+     */
+    pushToModalStack() {
+      this.$store.dispatch('modal/pushModal', {
+        id: this.modalId,
+        canClose: this.canClose,
+      })
+
+      this.$bus.$on(`modal:close:${this.modalId}`, this.hide)
+    },
+    /**
+     * Pop the modal from the stack and unregister the close event.
+     */
+    popFromModalStack() {
+      this.$bus.$off(`modal:close:${this.modalId}`, this.hide)
+      this.$store.dispatch('modal/popModal', this.modalId)
     },
     /**
      * Hide the modal.
@@ -88,14 +119,6 @@ export default {
      */
     outside() {
       if (this.downElement === this.$refs.modalWrapper && this.canClose) {
-        this.hide()
-      }
-    },
-    /**
-     * When the escape key is pressed the modal needs to be hidden.
-     */
-    keyup(event) {
-      if (event.key === 'Escape' && this.canClose) {
         this.hide()
       }
     },
