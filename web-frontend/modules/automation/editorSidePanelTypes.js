@@ -1,6 +1,6 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import NodeSidePanel from '@baserow/modules/automation/components/workflow/sidePanels/NodeSidePanel.vue'
-import HistorySidePanel from '@baserow/modules/automation/components/workflow/sidePanels/HistorySidePanel.vue'
+import NodeSidePanel from '@baserow/modules/automation/components/workflow/sidePanels/NodeSidePanel'
+import HistorySidePanel from '@baserow/modules/automation/components/workflow/sidePanels/HistorySidePanel'
 
 export class editorSidePanelType extends Registerable {
   get component() {

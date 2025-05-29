@@ -239,7 +239,6 @@ const getters = {
     return null
   },
   getSelected: (state) => (workflow) => {
-    // TODO: is this the best way to handle this?
     if (!workflow) return null
     return workflow.selectedNode
   },

@@ -8,7 +8,9 @@
     <div class="layout__col-2-2 automation-workflow__content">
       <div
         ref="editorRoot"
-        :style="{ width: activeSidePanel ? `calc(100% - 360px)` : '100%' }"
+        :style="{
+          width: activeSidePanel ? `calc(100% - ${sidePanelWidth}px)` : '100%',
+        }"
         @click="handleEditorClick"
       >
         <client-only>
@@ -23,7 +25,7 @@
       <div
         v-if="activeSidePanel"
         class="automation-workflow__side-panel"
-        style="width: 360px"
+        :style="{ width: sidePanelWidth + 'px' }"
       >
         <EditorSidePanels :active-side-panel="activeSidePanel" />
       </div>
@@ -66,6 +68,8 @@ export default defineComponent({
     const workspace = ref(null)
     const automation = ref(null)
     const currentWorkflow = ref(null)
+
+    const sidePanelWidth = 360
 
     useFetch(async () => {
       try {
@@ -176,6 +180,7 @@ export default defineComponent({
       workspace,
       automation,
       currentWorkflow,
+      sidePanelWidth,
       isWorkflowReadOnly,
       workflowNodes,
       activeSidePanel,
