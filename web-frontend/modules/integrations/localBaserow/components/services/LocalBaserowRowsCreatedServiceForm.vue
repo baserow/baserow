@@ -9,8 +9,7 @@
 </template>
 
 <script>
-import { defineComponent, ref } from 'vue'
-import { inject } from '@nuxtjs/composition-api'
+import { defineComponent, ref, inject } from 'vue'
 import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm'
 import _ from 'lodash'
 
