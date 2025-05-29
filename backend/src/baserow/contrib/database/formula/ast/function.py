@@ -372,17 +372,19 @@ def construct_aggregate_wrapper_queryset(
     with_cte.set_source_queryset(cte_queryset)
     with_cte = with_cte.add_lazy_values(result_key_for_cte)
 
-    # Every `lookup` function in a formula can use a different `LinkRowField`. Because
-    # the `path_from_starting_table` of the CTE collector might not use the correct
-    # `LinkRowField`, it must be replaced using the `join_ids` to make sure it uses the
-    # correct path.
-    path_from_starting_table = None
+    path_to_starting_table = None
     if cte_collector.last_path_from_starting_table and expr_with_metadata.join_ids:
-        last_link = model.get_field_object(expr_with_metadata.join_ids[0][0])["field"]
-        path_from_starting_table = cte_collector.last_path_from_starting_table.copy()
-        path_from_starting_table[-1] = last_link
+        path_to_starting_table = cte_collector.last_path_from_starting_table.copy()
+        path_to_starting_table.reverse()
+        first_link = model.get_field_object(expr_with_metadata.join_ids[0][0])["field"]
+        # The `join_ids` are in the `path_to_starting_table` order, so if the first
+        # link row in the list links to the same table, then the path to starting
+        # table is valid.
+        if first_link.link_row_table_id == path_to_starting_table[0].link_row_table_id:
+            path_to_starting_table[0] = first_link
+
     cte_collector.add_or_update(
-        model.baserow_table.id, with_cte, path_from_starting_table
+        model.baserow_table.id, with_cte, path_to_starting_table
     )
 
     cte_queryset = (
