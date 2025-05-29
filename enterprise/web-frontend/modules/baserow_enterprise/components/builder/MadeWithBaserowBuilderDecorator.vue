@@ -16,7 +16,7 @@
 
     <PaidFeaturesModal
       ref="paidFeaturesModal"
-      initial-selected-type="public_logo_removal"
+      initial-selected-type="builder_branding"
     ></PaidFeaturesModal>
   </div>
 </template>
