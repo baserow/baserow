@@ -139,7 +139,7 @@ def test_can_only_trigger_update_for_rows_joined_to_a_starting_row_across_a_m2m(
         update_collector.add_field_with_pending_update_statement(
             first_table_primary_field,
             Value("other"),
-            via_path_from_starting_table=[link_row_field],
+            via_path_to_starting_table=[link_row_field],
         )
         # Cache the models so we are only asserting about the update queries
         field_cache.cache_model(first_table.get_model())
@@ -214,12 +214,12 @@ def test_can_trigger_update_for_rows_joined_to_a_starting_row_across_a_m2m_and_b
         update_collector.add_field_with_pending_update_statement(
             first_table_primary_field,
             Value("other"),
-            via_path_from_starting_table=[link_row_field],
+            via_path_to_starting_table=[link_row_field],
         )
         update_collector.add_field_with_pending_update_statement(
             second_table_primary_field,
             Value("other"),
-            via_path_from_starting_table=[
+            via_path_to_starting_table=[
                 link_row_field,
                 link_row_field.link_row_related_field,
             ],
@@ -305,17 +305,17 @@ def test_update_statements_at_the_same_path_node_are_grouped_into_one(
         update_collector.add_field_with_pending_update_statement(
             first_table_primary_field,
             Value("other"),
-            via_path_from_starting_table=[link_row_field],
+            via_path_to_starting_table=[link_row_field],
         )
         update_collector.add_field_with_pending_update_statement(
             first_table_other_field,
             Value("updated"),
-            via_path_from_starting_table=[link_row_field],
+            via_path_to_starting_table=[link_row_field],
         )
         update_collector.add_field_with_pending_update_statement(
             second_table_primary_field,
             Value("other"),
-            via_path_from_starting_table=[
+            via_path_to_starting_table=[
                 link_row_field,
                 link_row_field.link_row_related_field,
             ],
@@ -441,7 +441,7 @@ def test_apply_updates_returns_only_last_updated_fields_but_update_collector_tra
         t1_field1, Value("other 1")
     )
     update_collector.add_field_with_pending_update_statement(
-        t2_field1, Value("other 1"), via_path_from_starting_table=[t2_link_t1]
+        t2_field1, Value("other 1"), via_path_to_starting_table=[t2_link_t1]
     )
     updated_fields_in_table = update_collector.apply_updates_and_get_updated_fields(
         field_cache
@@ -461,7 +461,7 @@ def test_apply_updates_returns_only_last_updated_fields_but_update_collector_tra
         t1_field2, Value("other 2")
     )
     update_collector.add_field_with_pending_update_statement(
-        t3_field1, Value("other 2"), via_path_from_starting_table=[t3_link_t1]
+        t3_field1, Value("other 2"), via_path_to_starting_table=[t3_link_t1]
     )
     updated_fields_in_table = update_collector.apply_updates_and_get_updated_fields(
         field_cache

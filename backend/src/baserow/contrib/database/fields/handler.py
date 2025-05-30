@@ -437,14 +437,14 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             for (
                 dependant_field,
                 dependant_field_type,
-                path_from_starting_table,
+                path_to_starting_table,
             ) in dependant_fields_group:
                 dependant_field_type.field_dependency_created(
                     dependant_field,
                     field,
                     update_collector,
                     field_cache,
-                    path_from_starting_table,
+                    path_to_starting_table,
                 )
             updated_fields += update_collector.apply_updates_and_get_updated_fields(
                 field_cache,
@@ -689,7 +689,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         for (
             dependant_field,
             dependant_field_type,
-            via_path_from_starting_table,
+            via_path_to_starting_table,
         ) in dependants_broken_due_to_type_change:
             dependant_field_type.field_dependency_updated(
                 dependant_field,
@@ -697,7 +697,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 old_field,
                 update_collector,
                 field_cache,
-                via_path_from_starting_table,
+                via_path_to_starting_table,
             )
 
         updated_fields = update_collector.apply_updates_and_get_updated_fields(
@@ -742,7 +742,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             for (
                 dependant_field,
                 dependant_field_type,
-                path_from_starting_table,
+                path_to_starting_table,
             ) in dependant_fields_group:
                 dependant_field_type.field_dependency_updated(
                     dependant_field,
@@ -750,7 +750,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                     old_field,
                     update_collector,
                     field_cache,
-                    path_from_starting_table,
+                    path_to_starting_table,
                 )
             updated_fields += update_collector.apply_updates_and_get_updated_fields(
                 field_cache,
@@ -973,14 +973,14 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             for (
                 dependant_field,
                 dependant_field_type,
-                path_from_starting_table,
+                path_to_starting_table,
             ) in dependant_fields_group:
                 dependant_field_type.field_dependency_deleted(
                     dependant_field,
                     field,
                     update_collector,
                     field_cache,
-                    path_from_starting_table,
+                    path_to_starting_table,
                 )
 
             updated_fields += update_collector.apply_updates_and_get_updated_fields(
@@ -1227,14 +1227,14 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             for (
                 dependant_field,
                 dependant_field_type,
-                path_from_starting_table,
+                path_to_starting_table,
             ) in dependant_fields_group:
                 dependant_field_type.field_dependency_created(
                     dependant_field,
                     field,
                     update_collector,
                     field_cache,
-                    path_from_starting_table,
+                    path_to_starting_table,
                 )
 
             updated_fields += update_collector.apply_updates_and_get_updated_fields(

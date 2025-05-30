@@ -1,8 +1,6 @@
 """
 This file tests the link row field in combination with RBAC enabled
 """
-from django.db import transaction
-
 import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -177,15 +175,14 @@ def test_cant_create_lookup_at_table_where_not_viewer_or_higher(
     )
 
     with pytest.raises(InvalidFormulaType):
-        with transaction.atomic():
-            FieldHandler().create_field(
-                user=user_without_access,
-                table=table_with_access,
-                type_name="lookup",
-                name="shouldnt be able to create",
-                target_field_name=private_field_in_no_access_table.name,
-                through_field_name=link_row_field.name,
-            )
+        FieldHandler().create_field(
+            user=user_without_access,
+            table=table_with_access,
+            type_name="lookup",
+            name="shouldnt be able to create",
+            target_field_name=private_field_in_no_access_table.name,
+            through_field_name=link_row_field.name,
+        )
 
     # Now make them a viewer and it should work
     RoleAssignmentHandler().assign_role(

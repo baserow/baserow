@@ -1120,7 +1120,7 @@ class FieldType(
         field: Field,
         update_collector: Optional["FieldUpdateCollector"] = None,
         field_cache: Optional["FieldCache"] = None,
-        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
     ):
         """
         Called on fields in dependency order after all of its rows have been inserted
@@ -1129,8 +1129,8 @@ class FieldType(
 
         :param field: A field instance of this field type.
         :param field_cache: A field cache to be used when fetching fields.
-        :param via_path_from_starting_table: A list of link row fields if any leading
-            from the starting table.
+        :param via_path_to_starting_table: A list of link row fields if any leading
+            back to the starting table where the first rows were imported.
         :param update_collector: Any row update statements should be registered into
             this collector.
         """
@@ -1342,7 +1342,7 @@ class FieldType(
         fields: List[Field],
         update_collector: "Optional[FieldUpdateCollector]" = None,
         field_cache: "Optional[FieldCache]" = None,
-        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
         already_updated_fields: Optional[List[Field]] = None,
         skip_search_updates: bool = False,
         database_id: Optional[int] = None,
@@ -1357,8 +1357,8 @@ class FieldType(
             collector so they are run correctly at the right time. You should not be
             manually updating field values yourself in this method.
         :param field_cache: A field cache to be used when fetching fields.
-        :param via_path_from_starting_table: A list of link row fields if any leading
-            from the starting table.
+        :param via_path_to_starting_table: A list of link row fields if any leading
+            back to the starting table where the row was created.
         :param already_updated_fields: A list of fields that have already been updated
             before. That can happen because it was a dependency of another field for
             example.
@@ -1426,7 +1426,7 @@ class FieldType(
         starting_row: "StartingRowType",
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
-        via_path_from_starting_table: Optional[List[LinkRowField]],
+        via_path_to_starting_table: Optional[List[LinkRowField]],
     ):
         """
         Called when a row is created in a dependency field (a field that the field
@@ -1440,8 +1440,8 @@ class FieldType(
             collector so they are run correctly at the right time. You should not be
             manually updating row values yourself in this method.
         :param field_cache: A field cache to be used when fetching fields.
-        :param via_path_from_starting_table: A list of link row fields if any leading
-            from the starting table.
+        :param via_path_to_starting_table: A list of link row fields if any leading
+            back to the starting table where the row was created.
         """
 
         self.row_of_dependency_updated(
@@ -1449,7 +1449,7 @@ class FieldType(
             starting_row,
             update_collector,
             field_cache,
-            via_path_from_starting_table,
+            via_path_to_starting_table,
         )
 
     def row_of_dependency_updated(
@@ -1458,7 +1458,7 @@ class FieldType(
         starting_row: "StartingRowType",
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
-        via_path_from_starting_table: List["LinkRowField"],
+        via_path_to_starting_table: List["LinkRowField"],
     ):
         """
         Called when a row or rows are updated in a dependency field (a field that the
@@ -1474,8 +1474,8 @@ class FieldType(
             collector so they are run correctly at the right time. You should not be
             manually updating row values yourself in this method.
         :param field_cache: An optional field cache to be used when fetching fields.
-        :param via_path_from_starting_table: A list of link row fields if any leading
-            from the starting table.
+        :param via_path_to_starting_table: A list of link row fields if any leading
+            back to the starting table where the first row was changed.
         """
 
     def row_of_dependency_deleted(
@@ -1484,7 +1484,7 @@ class FieldType(
         starting_row: "StartingRowType",
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
-        via_path_from_starting_table: Optional[List[LinkRowField]],
+        via_path_to_starting_table: Optional[List[LinkRowField]],
     ):
         """
         Called when a row is deleted in a dependency field (a field that the
@@ -1498,8 +1498,8 @@ class FieldType(
             collector so they are run correctly at the right time. You should not be
             manually updating row values yourself in this method.
         :param field_cache: An optional field cache to be used when fetching fields.
-        :param via_path_from_starting_table: A list of link row fields if any leading
-            from the starting table.
+        :param via_path_to_starting_table: A list of link row fields if any leading
+            back to the starting table where the row was deleted.
         """
 
         self.row_of_dependency_updated(
@@ -1507,7 +1507,7 @@ class FieldType(
             starting_row,
             update_collector,
             field_cache,
-            via_path_from_starting_table,
+            via_path_to_starting_table,
         )
 
     def field_dependency_created(
@@ -1516,7 +1516,7 @@ class FieldType(
         created_field: Field,
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
-        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
     ):
         """
         Called when a field is created which the field parameter depends on.
@@ -1531,8 +1531,8 @@ class FieldType(
             this collector which will be run correctly at the right time.
             You should not be manually updating row values yourself in this method.
         :param field_cache: An optional field cache to be used when fetching fields.
-        :param via_path_from_starting_table: A list of link row fields if any leading
-            from the starting table.
+        :param via_path_to_starting_table: A list of link row fields if any leading
+            back to the starting table where field was created.
         """
 
         self.field_dependency_updated(
@@ -1541,7 +1541,7 @@ class FieldType(
             field,
             update_collector,
             field_cache,
-            via_path_from_starting_table,
+            via_path_to_starting_table,
         )
 
     def field_dependency_updated(
@@ -1551,7 +1551,7 @@ class FieldType(
         updated_old_field: Field,
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
-        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
     ):
         """
         Called when a field is updated which the field parameter depends on.
@@ -1567,8 +1567,8 @@ class FieldType(
             this collector which will be run correctly at the right time.
             You should not be manually updating row values yourself in this method.
         :param field_cache: An optional field cache to be used when fetching fields.
-        :param via_path_from_starting_table: A list of link row fields if any leading
-            from the starting table.
+        :param via_path_to_starting_table: A list of link row fields if any leading
+            back to the starting table the first field change occurred.
         """
 
         update_collector.add_to_rebuild_field_dependencies(field)
@@ -1583,7 +1583,7 @@ class FieldType(
         deleted_field: Field,
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
-        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
     ):
         """
         Called when a field is deleted which the field parameter depends on.
@@ -1598,8 +1598,8 @@ class FieldType(
             this collector which will be run correctly at the right time.
             You should not be manually updating row values yourself in this method.
         :param field_cache: An optional field cache to be used when fetching fields.
-        :param via_path_from_starting_table: A list of link row fields if any leading
-            from the starting table.
+        :param via_path_to_starting_table: A list of link row fields if any leading
+            back to the starting table the field was deleted.
         """
 
         self.field_dependency_updated(
@@ -1608,7 +1608,7 @@ class FieldType(
             field,
             update_collector,
             field_cache,
-            via_path_from_starting_table,
+            via_path_to_starting_table,
         )
 
     def can_be_primary_field(self, field_or_values: Union[Field, dict]) -> bool:

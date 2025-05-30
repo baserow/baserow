@@ -1113,7 +1113,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             for (
                 dependant_field,
                 dependant_field_type,
-                path_from_starting_table,
+                path_to_starting_table,
             ) in dependant_fields_group:
                 updated_fields.append(dependant_field)
                 dependant_field_type.row_of_dependency_updated(
@@ -1121,7 +1121,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     updated_rows,
                     update_collector,
                     field_cache,
-                    path_from_starting_table,
+                    path_to_starting_table,
                 )
             update_collector.apply_updates_and_get_updated_fields(
                 field_cache, skip_search_updates
@@ -1398,7 +1398,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             for (
                 dependant_field,
                 dependant_field_type,
-                path_from_starting_table,
+                path_to_starting_table,
             ) in dependant_fields_group:
                 dependant_fields.append(dependant_field)
                 dependant_field_type.row_of_dependency_created(
@@ -1406,7 +1406,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     created_rows,
                     update_collector,
                     field_cache,
-                    path_from_starting_table,
+                    path_to_starting_table,
                 )
             update_collector.apply_updates_and_get_updated_fields(field_cache)
         return fields, dependant_fields
