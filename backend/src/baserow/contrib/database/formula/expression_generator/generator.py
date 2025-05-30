@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Dict, List, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Type
 
 from django.db.models import (
     BooleanField,
@@ -36,29 +36,19 @@ from baserow.contrib.database.formula.types.formula_type import (
 from baserow.core.formula.exceptions import formula_exception_handler
 from baserow.core.formula.parser.exceptions import MaximumFormulaSizeError
 
+if TYPE_CHECKING:
+    from baserow.contrib.database.fields.dependencies.update_collector import (
+        CTECollector,
+    )
+
 
 def baserow_expression_to_update_django_expression(
     baserow_expression: BaserowExpression[BaserowFormulaType],
     model: Type[Model],
-):
-    return _baserow_expression_to_django_expression(baserow_expression, model, None)
-
-
-def baserow_expression_to_single_row_update_django_expression(
-    baserow_expression: BaserowExpression[BaserowFormulaType],
-    model_instance: Model,
+    cte_collector: "CTECollector",
 ):
     return _baserow_expression_to_django_expression(
-        baserow_expression, type(model_instance), model_instance, insert=False
-    )
-
-
-def baserow_expression_to_insert_django_expression(
-    baserow_expression: BaserowExpression[BaserowFormulaType],
-    model_instance: Model,
-):
-    return _baserow_expression_to_django_expression(
-        baserow_expression, type(model_instance), model_instance, insert=True
+        baserow_expression, model, None, cte_collector
     )
 
 
@@ -66,6 +56,7 @@ def _baserow_expression_to_django_expression(
     baserow_expression: BaserowExpression[BaserowFormulaType],
     model: Type[Model],
     model_instance: Optional[Model],
+    cte_collector: "CTECollector",
     insert=False,
 ) -> Expression:
     """
@@ -88,6 +79,7 @@ def _baserow_expression_to_django_expression(
     :param insert: Must be set to True if the resulting expression will be used in
         a SQL INSERT statement. Will ensure any aggregate / lookup expressions are
         replaced with None as they cannot be calculated in an INSERT.
+    :param cte_collector: @TODO
     :return: A Django Expression which can be used in a create operation when a
         model_instance is provided or an update operation when one is not provided.
     """
@@ -107,7 +99,9 @@ def _baserow_expression_to_django_expression(
                 return baserow_expression.expression_type.placeholder_empty_value()
             else:
                 generator = BaserowExpressionToDjangoExpressionGenerator(
-                    model, model_instance
+                    model,
+                    model_instance,
+                    cte_collector,
                 )
                 return baserow_expression.accept(generator).expression
     except RecursionError:
@@ -170,10 +164,11 @@ class BaserowExpressionToDjangoExpressionGenerator(
         self,
         model: Type[Model],
         model_instance: Optional[Model],
+        cte_collector: "CTECollector",
     ):
         self.model_instance = model_instance
         self.model = model
-        self.context = BaserowExpressionContext(model, model_instance)
+        self.context = BaserowExpressionContext(model, model_instance, cte_collector)
 
     def visit_field_reference(
         self, field_reference: BaserowFieldReference[BaserowFormulaType]
