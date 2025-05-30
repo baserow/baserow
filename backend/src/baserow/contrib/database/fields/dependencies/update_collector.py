@@ -1,7 +1,10 @@
 from collections import defaultdict
-from typing import Dict, List, Optional, Set, Tuple, cast
+from copy import deepcopy
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from django.db.models import Expression, Q, Value
+
+from django_cte import With
 
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.models import Field, LinkRowField
@@ -12,8 +15,168 @@ from baserow.contrib.database.table.constants import (
 )
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.signals import table_updated
+from baserow.core.db import UpdatableCTEWith
+
+from .utils import include_rows_connected_to_deleted_m2m_relationships
 
 StartingRowIdsType = Optional[List[int]]
+
+
+class CTECollector:
+    """
+    This class is initialized for every `UpdateCollector`, and is directly related to
+    it. Its purpose is the improve performance related to lookup functions in the
+    formula system. It allows to create a CTE for each relationship instead of doing
+    a subquery.
+    """
+
+    def __init__(
+        self,
+        starting_row_ids: Optional[List[int]] = None,
+        deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]] = None,
+    ):
+        self.cte: Dict[int : Dict[str, Any]] = defaultdict(dict)
+        self.starting_row_ids: Optional[List[int]] = starting_row_ids
+        self.last_path_from_starting_table: Optional[List[LinkRowField]] = None
+        self._deleted_m2m_rels_per_link_field: Optional[
+            Dict[int, Set[int]]
+        ] = deleted_m2m_rels_per_link_field
+
+    def has(self, table_id, name: str) -> bool:
+        """
+        Returns whether the provided CTE name already exists for the given table.
+
+        :param table_id: The table ID where to check if the name exists.
+        :param name: The name of the CTE to check whether it already exists.
+        :return: Whether the name exists in the collector.
+        """
+
+        return name in self.cte[table_id]
+
+    def get(self, table_id, name: str) -> Union[UpdatableCTEWith | With]:
+        """
+        Returns the entry With object for the given name in the collector.
+
+        :param table_id: The table ID where to get the With object for.
+        :param name: The name of the CTE where to get the With object for.
+        :return: The With object related to the given parameters.
+        """
+
+        return self.cte[table_id][name]["with"]
+
+    def add_or_update(
+        self,
+        table_id,
+        cte_with: UpdatableCTEWith,
+        path_from_starting_table: Optional[List[LinkRowField]] = None,
+    ):
+        """
+        Add or update the give CTE With. It uses the `name` property of the object as
+        unique identifier because that one must also be unique when applied to the
+        queryset with `with_cte` method.
+
+        :param table_id: The table where to add the CTE to. Note that only if an
+            update query for this table is executed, that it will be included.
+        :param cte_with: The CTE object to set.
+        :param path_from_starting_table: The `path_from_starting_table` list related
+            to this CTE. This will be used to filter on the `starting_row_ids` to
+            make things more efficient.
+        :return:
+        """
+
+        if cte_with.name in self.cte[table_id]:
+            self.cte[table_id][cte_with.name]["with"] = cte_with
+            if path_from_starting_table is not None:
+                self.cte[table_id][cte_with.name][
+                    "path_from_starting_table"
+                ] = path_from_starting_table
+        else:
+            self.cte[table_id][cte_with.name] = {
+                "with": cte_with,
+                "path_from_starting_table": path_from_starting_table,
+            }
+
+    def set_last_path_from_starting_table(self, value: Optional[List[LinkRowField]]):
+        """
+        The `last_path_from_starting_table` is used to pass the
+        `path_from_starting_table` down to where the CTE is added. It's not the
+        nicest solution, but it does the trick.
+
+        :param value: The `path_from_starting_table` that must temporarily be set to
+        this instance.
+        """
+
+        self.last_path_from_starting_table = value
+
+    def add_starting_table_filters_and_get_all(
+        self, table_id
+    ) -> List[UpdatableCTEWith | With]:
+        """
+        Returns all the collected CTEs for the given table. If the
+        `path_from_starting_table` is provided for the CTE in the entry, and the
+        `starting_row_ids` are known, then a filter will be added to that CTE so that
+        only the updated rows are included in the CTE.
+
+        This is done to improve the performance because there is no need to select
+        all the rows in the CTE if they're not updated.
+
+        :param table_id: The table ID where to get the CTEs for.
+        :return: The CTEs of the given table.
+        """
+
+        cte = list(self.cte[table_id].values())
+        cte_withs = []
+        starting_row_ids = self.starting_row_ids
+
+        for cte_object in cte:
+            path_from_starting_table = cte_object.get("path_from_starting_table", None)
+            cte_with = cte_object["with"]
+
+            # Only if the `path_from_starting_table` and `starting_row_ids` are set,
+            # it's possible to filter and include only the rows that are actually
+            # updated.
+            if (
+                path_from_starting_table is not None
+                and len(path_from_starting_table) > 0
+                and starting_row_ids is not None
+            ):
+                # Because we're not updating the starting table,
+                # the `path_from_starting` table must be reversed because we need the
+                # linkrowfield path back to the starting table.
+                path_to_starting_table = deepcopy(path_from_starting_table)
+                path_to_starting_table.reverse()
+                cte_queryset = cte_with.get_source_queryset()
+
+                path_to_starting_table_row_id_column = ""
+                for link_row_field in path_to_starting_table:
+                    path_to_starting_table_row_id_column += (
+                        f"{link_row_field.db_column}__"
+                    )
+                path_to_starting_table_row_id_column += "id"
+
+                # Create a subquery that that filters the rows because if the filters
+                # are applied to the queryset directly, it introduces another join,
+                # which causes duplicate results because in most cases there already
+                # is a join.
+                filter_query = cte_queryset.model.objects.filter(
+                    Q(
+                        **{
+                            f"{path_to_starting_table_row_id_column}__in": starting_row_ids
+                        }
+                    )
+                    | include_rows_connected_to_deleted_m2m_relationships(
+                        self._deleted_m2m_rels_per_link_field,
+                        path_to_starting_table,
+                    )
+                ).values_list("id", flat=True)
+
+                final_filter = Q(id__in=filter_query)
+                cte_queryset = cte_queryset.filter(final_filter)
+                cte_with.set_source_queryset(cte_queryset)
+
+            cte_withs.append(cte_with)
+
+        return cte_withs
 
 
 class PathBasedUpdateStatementCollector:
@@ -131,6 +294,7 @@ class PathBasedUpdateStatementCollector:
         starting_row_ids: StartingRowIdsType = None,
         path_to_starting_table: StartingRowIdsType = None,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]] = None,
+        cte_collector: Optional[CTECollector] = None,
     ) -> int:
         updated_rows = 0
         path_to_starting_table = path_to_starting_table or []
@@ -141,6 +305,7 @@ class PathBasedUpdateStatementCollector:
             path_to_starting_table,
             starting_row_ids,
             deleted_m2m_rels_per_link_field,
+            cte_collector=cte_collector,
         )
 
         for sub_path in self.sub_paths.values():
@@ -149,6 +314,7 @@ class PathBasedUpdateStatementCollector:
                 path_to_starting_table=path_to_starting_table,
                 field_cache=field_cache,
                 deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
+                cte_collector=cte_collector,
             )
         return updated_rows
 
@@ -158,6 +324,7 @@ class PathBasedUpdateStatementCollector:
         path_to_starting_table: List[LinkRowField],
         starting_row_ids: StartingRowIdsType,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]],
+        cte_collector: Optional[CTECollector] = None,
     ) -> int:
         model = field_cache.get_model(self.table)
         qs = model.objects_and_trash
@@ -174,7 +341,7 @@ class PathBasedUpdateStatementCollector:
 
             filter_for_rows_connected_to_starting_row = Q(
                 **{path_to_starting_table_id_column: starting_row_ids}
-            ) | self._include_rows_connected_to_deleted_m2m_relationships(
+            ) | include_rows_connected_to_deleted_m2m_relationships(
                 deleted_m2m_rels_per_link_field,
                 path_to_starting_table,
             )
@@ -213,55 +380,16 @@ class PathBasedUpdateStatementCollector:
                         }
                     ) | ~Q(**{field: expr})
 
-            updated_rows = (
-                qs.annotate(**annotations)
-                .filter(filters)
-                .update(**self.update_statements)
-            )
+            update_queryset = qs.annotate(**annotations).filter(filters)
+
+            cte = cte_collector.add_starting_table_filters_and_get_all(self.table.id)
+            if cte:
+                for cte_with in cte:
+                    update_queryset = update_queryset.with_cte(cte_with)
+
+            updated_rows = update_queryset.update(**self.update_statements)
+
         return updated_rows
-
-    def _include_rows_connected_to_deleted_m2m_relationships(
-        self,
-        deleted_m2m_rels_per_link_field: Dict[int, Set[int]],
-        path_to_starting_table: List[LinkRowField],
-    ):
-        """
-        If a row or batch of rows have been updated breaking their link row connections
-        with other rows, we need to ensure that those other rows are still updated.
-        We can't just join back to the starting row id as that m2m relation has been
-        deleted by now. Instead the provided dict contains per link field which rows
-        have had their connections deleted. This method then constructs a Q filter that
-        ensures this UPDATE statement will also update those rows as they need to
-        change their values because a connection has been removed for them.
-
-        :return: A filter including any rows which previously were connected to the
-            starting row.
-        """
-
-        if deleted_m2m_rels_per_link_field is None or not path_to_starting_table:
-            return Q()
-
-        # The first link row field in the path will be a link row field not in the
-        # starting table, but which leads to the starting table. However the
-        # deleted_m2m_rels_per_link_field is a dictionary per link field of rows in
-        # the table it links to which have had their connections removed. Hence we
-        # need to use the link row field in the starting table to lookup the deleted
-        # row ids in the table after the starting table.
-        link_row_field_in_starting_table: int = cast(
-            int, path_to_starting_table[-1].link_row_related_field_id
-        )
-        filters = Q()
-        if link_row_field_in_starting_table in deleted_m2m_rels_per_link_field:
-            path_to_table_after_starting_table = "".join(
-                [p.db_column + "__" for p in path_to_starting_table[:-1]]
-            )
-
-            row_ids = deleted_m2m_rels_per_link_field[link_row_field_in_starting_table]
-            filter_kwargs_forcing_update_for_row_with_deleted_rels = {
-                f"{path_to_table_after_starting_table}id__in": row_ids
-            }
-            filters |= Q(**filter_kwargs_forcing_update_for_row_with_deleted_rels)
-        return filters
 
 
 class FieldUpdatesTracker(defaultdict):
@@ -337,6 +465,15 @@ class FieldUpdateCollector:
         # the number of queries.
         self._rebuild_field_dependencies = set()
 
+        # Allow collecting all the CTEs, so that they can be passed into the
+        # `execute_all` method, and be used when doing the combined update.
+        self.cte_collector = self._init_cte_collector()
+
+    def _init_cte_collector(self):
+        return CTECollector(
+            self._starting_row_ids, self._deleted_m2m_rels_per_link_field
+        )
+
     def _init_update_statement_collector(self):
         return PathBasedUpdateStatementCollector(
             self._starting_table,
@@ -349,7 +486,7 @@ class FieldUpdateCollector:
         self,
         field: Field,
         update_statement: Expression,
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
     ):
         """
         Stores the provided field as an updated one to send in field updated signals
@@ -359,7 +496,7 @@ class FieldUpdateCollector:
         :param field: The field which has been updated.
         :param update_statement: The update statement to run over the fields row values
             to update them.
-        :param via_path_to_starting_table: A list of link row fields which lead from
+        :param via_path_from_starting_table: A list of link row fields which lead from
             the self.starting_table to the table containing field. Used to properly
             order the update statements so the graph is updated in sequence and also
             used if self.starting_row_ids is set so only rows which join back to the
@@ -370,13 +507,13 @@ class FieldUpdateCollector:
         self._pending_field_updates.add_field(field)
 
         self._update_statement_collector.add_update_statement(
-            field, update_statement, via_path_to_starting_table
+            field, update_statement, via_path_from_starting_table
         )
 
     def add_field_which_has_changed(
         self,
         field: Field,
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+        via_path_from_starting_table: Optional[List[LinkRowField]] = None,
         send_field_updated_signal: bool = True,
     ):
         """
@@ -386,7 +523,7 @@ class FieldUpdateCollector:
         updates or background row tasks still need to be run for them
 
         :param field: The field which has had cell values changed.
-        :param via_path_to_starting_table: A list of link row fields which lead from
+        :param via_path_from_starting_table: A list of link row fields which lead from
             the self.starting_table to the table containing field. Used to properly
             order the update statements so the graph is updated in sequence and also
             used if self.starting_row_ids is set so only rows which join back to the
@@ -398,7 +535,7 @@ class FieldUpdateCollector:
         self._all_field_updates.add_field(field, send_field_updated_signal)
 
         self._update_statement_collector.mark_field_as_changed(
-            field, via_path_to_starting_table
+            field, via_path_from_starting_table
         )
 
     def apply_updates(self, field_cache: FieldCache) -> int:
@@ -411,6 +548,7 @@ class FieldUpdateCollector:
             field_cache,
             self._starting_row_ids,
             deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
+            cte_collector=self.cte_collector,
         )
 
         return updated_rows_count
@@ -466,6 +604,7 @@ class FieldUpdateCollector:
         # will only send signals for the newly updated fields.
         self._pending_field_updates = FieldUpdatesTracker()
         self._update_statement_collector = self._init_update_statement_collector()
+        self.cte_collector = self._init_cte_collector()
 
         if not skip_fields_type_changed:
             self.apply_fields_type_changed(field_cache)
