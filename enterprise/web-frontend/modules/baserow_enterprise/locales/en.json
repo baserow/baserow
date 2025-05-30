@@ -309,7 +309,9 @@
     "advancedWebhooks": "Advanced webhooks",
     "advancedWebhooksContent": "Trigger webhooks when a row enters a specific view — great for automating workflows based on filter conditions.",
     "fieldLevelPermissions": "Field-level permissions",
-    "fieldLevelPermissionsContent": "Control who can edit specific fields in a table. Set permissions for editors, builders, admins, or completely disable modifications to field values."
+    "fieldLevelPermissionsContent": "Control who can edit specific fields in a table. Set permissions for editors, builders, admins, or completely disable modifications to field values.",
+    "builderBranding": "Application branding",
+    "builderBrandingContent": "White label the branding of your application by removing the 'Made with Baserow' branding in the footer of your application."
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"

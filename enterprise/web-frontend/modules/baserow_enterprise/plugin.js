@@ -70,6 +70,7 @@ import {
   SSOPaidFeature,
   SupportPaidFeature,
   FieldLevelPermissionsPaidFeature,
+  BuilderBrandingPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
 
@@ -202,6 +203,7 @@ export default (context) => {
     new FieldLevelPermissionsPaidFeature(context)
   )
   app.$registry.register('paidFeature', new SupportPaidFeature(context))
+  app.$registry.register('paidFeature', new BuilderBrandingPaidFeature(context))
   // Register builder page decorator namespace and types
   app.$registry.registerNamespace('builderPageDecorator')
   app.$registry.register(

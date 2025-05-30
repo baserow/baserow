@@ -99,6 +99,16 @@
               />
             </footer>
           </template>
+
+          <client-only>
+            <component
+              :is="decorator.component"
+              v-for="(decorator, index) in builderPageDecorators"
+              :key="index"
+              :props="decorator.props"
+              show-paid-features-modal
+            />
+          </client-only>
         </ThemeProvider>
       </div>
       <AddElementModal ref="addElementModal" :page="currentPage" />
@@ -146,6 +156,15 @@ export default {
     }),
     elementSelected() {
       return this.getElementSelected(this.builder)
+    },
+    builderPageDecorators() {
+      // Get available page decorators from registry
+      return Object.values(this.$registry.getAll('builderPageDecorator') || {})
+        .filter((decorator) => decorator.isDecorationAllowed(this.workspace))
+        .map((decorator) => ({
+          component: decorator.component,
+          props: decorator.getProps(),
+        }))
     },
     contextAdditions() {
       return {
