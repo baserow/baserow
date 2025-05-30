@@ -9,7 +9,7 @@
     </h1>
 
     <Badge rounded color="yellow" size="large">
-      {{ $t('workflow.actionConfigure') }}}</Badge
+      {{ $t('workflow.actionConfigure') }}</Badge
     >
 
     <a
