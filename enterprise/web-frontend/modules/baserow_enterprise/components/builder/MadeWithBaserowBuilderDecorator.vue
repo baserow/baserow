@@ -3,6 +3,7 @@
     <slot></slot>
     <a
       class="made-with-baserow"
+      title="Open source self-hosted no-code platform"
       :href="showPaidFeaturesModal ? null : 'https://baserow.io/'"
       :target="showPaidFeaturesModal ? null : '_blank'"
       @click="handleMadeWithBaserowClick"
@@ -16,13 +17,14 @@
 
     <PaidFeaturesModal
       ref="paidFeaturesModal"
-      initial-selected-type="builder_branding"
+      :initial-selected-type="paidFeatureType"
     ></PaidFeaturesModal>
   </div>
 </template>
 
 <script>
-import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal.vue'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { BuilderBrandingPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 export default {
   components: {
@@ -32,6 +34,11 @@ export default {
     showPaidFeaturesModal: {
       type: Boolean,
       default: false,
+    },
+  },
+  computed: {
+    paidFeatureType() {
+      return BuilderBrandingPaidFeature.getType()
     },
   },
   methods: {
