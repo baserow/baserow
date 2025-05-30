@@ -10,6 +10,19 @@ export class GuidedTourType extends Registerable {
   }
 
   /**
+   * Indicates whether the completed state should be saved for this tour. If set to
+   * true, then it will be saved and the tour never starts again. If set to false, then
+   * the tour purely depends on the `isActive` state whether it's shown.
+   */
+  get saveCompleted() {
+    return true
+  }
+
+  /**
+   * Hook that is called when whole onboarding completes, and this one was included.
+  completed() {}
+
+  /**
    * Should return true if the guided tour should is active and should be shown. This
    * is a reactive method. If multiple guided tours are `true`, then they will automatically be combined.
    */
