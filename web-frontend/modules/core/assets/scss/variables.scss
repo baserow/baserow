@@ -12,6 +12,7 @@ $z-index-layout-col-3: 1 !default;
 $z-index-layout-resize: 4 !default;
 $z-index-layout-col-3-1: 6 !default;
 $z-index-layout-col-3-2: 5 !default;
+$z-index-dropdown-items: 50 !default;
 
 // The z-index of modal and context must always be the same because they can be nested
 // inside each other. The order in html decided which must be shown over the other.
