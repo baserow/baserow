@@ -34,13 +34,19 @@ class AutomationNodeHandler:
     allowed_fields = ["previous_node_output", "service"]
 
     def create_node(
-        self, node_type: AutomationNodeType, workflow: AutomationWorkflow, **kwargs
+        self,
+        node_type: AutomationNodeType,
+        workflow: AutomationWorkflow,
+        before: Optional[AutomationNode] = None,
+        **kwargs,
     ) -> AutomationNode:
         """
         Create a new automation node.
 
         :param node_type: The automation node's type.
         :param workflow: The workflow the automation node is associated with.
+        :param before: If provided and no order is provided, will place the new node
+            before the given node.
         :return: The newly created automation node instance.
         """
 
@@ -48,8 +54,14 @@ class AutomationNodeHandler:
             kwargs, self.allowed_fields + node_type.allowed_fields
         )
 
+        parent_node_id = allowed_prepared_values.get("parent_node_id", None)
+        if before:
+            order = AutomationNode.get_unique_order_before_node(before, parent_node_id)
+        else:
+            order = AutomationNode.get_last_order(workflow)
+
         allowed_prepared_values["workflow"] = workflow
-        node = node_type.model_class(**allowed_prepared_values)
+        node = node_type.model_class(order=order, **allowed_prepared_values)
         node.save()
 
         return node

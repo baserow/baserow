@@ -42,10 +42,14 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
         required=True,
         help_text="The type of the automation node",
     )
+    before_id = serializers.IntegerField(
+        required=False,
+        help_text="If provided, creates the node before the node with the given id.",
+    )
 
     class Meta:
         model = AutomationNode
-        fields = ("id", "type")
+        fields = ("id", "type", "before_id")
 
 
 class UpdateAutomationNodeSerializer(serializers.ModelSerializer):
