@@ -36,6 +36,12 @@ class DataSync(
         on_delete=models.CASCADE,
     )
     properties = models.ManyToManyField(Field, through="DataSyncSyncedProperty")
+    auto_add_new_properties = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="If enabled and new properties are detected on sync, then they're "
+        "automatically added. Note that this means all properties will always be added.",
+    )
 
     @staticmethod
     def get_type_registry():

@@ -29,12 +29,31 @@
         :key="property.key"
         class="margin-top-2"
         small
-        :value="syncedProperties.includes(property.key)"
-        :disabled="property.unique_primary || jobIsRunning || jobHasSucceeded"
+        :value="syncedProperties.includes(property.key) || autoAddNewProperties"
+        :disabled="
+          property.unique_primary ||
+          autoAddNewProperties ||
+          jobIsRunning ||
+          jobHasSucceeded
+        "
         @input="toggleVisibleField(property.key)"
       >
         <i :class="getFieldTypeIconClass(property.field_type)"></i>
         {{ property.name }}</SwitchInput
+      >
+    </FormGroup>
+    <FormGroup
+      small-label
+      class="margin-top-2"
+      :helper-text="$t('createDataSync.autoAddHelper')"
+    >
+      <SwitchInput
+        v-model="autoAddNewProperties"
+        class="margin-top-2"
+        small
+        :disabled="jobIsRunning || jobHasSucceeded"
+      >
+        {{ $t('createDataSync.autoAddLabel') }}</SwitchInput
       >
     </FormGroup>
     <Error :error="error"></Error>
@@ -86,6 +105,7 @@ export default {
       properties: null,
       creatingTable: false,
       createdTable: null,
+      autoAddNewProperties: false,
     }
   },
   computed: {
@@ -130,6 +150,7 @@ export default {
       const formValues = clone(this.formValues)
       formValues.table_name = formValues.name
       formValues.synced_properties = this.syncedProperties
+      formValues.auto_add_new_properties = this.autoAddNewProperties
 
       this.creatingTable = true
       this.hideError()

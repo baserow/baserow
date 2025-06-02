@@ -325,6 +325,64 @@ def test_sync_postgresql_data_sync_nothing_changed(
 
 
 @pytest.mark.django_db(transaction=True)
+def test_sync_postgresql_data_sync_auto_add_new_properties(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        auto_add_new_properties=True,
+        synced_properties=[
+            "id",
+            "text_col",
+            "char_col",
+            "int_col",
+            "float_col",
+            "numeric_col",
+            "numeric2_col",
+            "smallint_col",
+            "bigint_col",
+            "decimal_col",
+            "date_col",
+            "datetime_col",
+            "boolean_col",
+        ],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                ALTER TABLE {create_postgresql_test_table} ADD COLUMN new_col TEXT;
+            """
+            )
+
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    data_sync.refresh_from_db()
+    synced_properties = [field.name for field in data_sync.table.field_set.all()]
+    assert "new_col" in synced_properties
+
+
+@pytest.mark.django_db(transaction=True)
 def test_postgresql_data_sync_get_properties(
     data_fixture, api_client, create_postgresql_test_table
 ):

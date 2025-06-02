@@ -110,7 +110,7 @@ class DataSyncHandler:
         data_sync_type = data_sync_type_registry.get(type_name)
         model_class = data_sync_type.model_class
 
-        allowed_fields = [] + data_sync_type.allowed_fields
+        allowed_fields = ["auto_add_new_properties"] + data_sync_type.allowed_fields
         values = extract_allowed(kwargs, allowed_fields)
         values = data_sync_type.prepare_values(user, values)
 
@@ -226,7 +226,7 @@ class DataSyncHandler:
         data_sync = data_sync.specific
         data_sync_type = data_sync_type_registry.get_by_model(data_sync)
 
-        allowed_fields = [] + data_sync_type.allowed_fields
+        allowed_fields = ["auto_add_new_properties"] + data_sync_type.allowed_fields
         data_sync = set_allowed_attrs(kwargs, allowed_fields, data_sync)
         data_sync.save()
 
@@ -332,11 +332,16 @@ class DataSyncHandler:
         # because data sync type properties might have changed, and we want to make sure
         # they're in sync before syncing the rows.
         enabled_properties = DataSyncSyncedProperty.objects.filter(data_sync=data_sync)
-        flat_enabled_properties = [
-            key
-            for key in enabled_properties.values_list("key", flat=True)
-            if key in key_to_property.keys()
-        ]
+        if data_sync.auto_add_new_properties:
+            # If `auto_add_new_properties` is true, then we always want to enable all
+            # the properties of the data sync. This automatically adds new ones.
+            flat_enabled_properties = key_to_property
+        else:
+            flat_enabled_properties = [
+                key
+                for key in enabled_properties.values_list("key", flat=True)
+                if key in key_to_property.keys()
+            ]
         self.set_data_sync_synced_properties(
             user,
             data_sync,
