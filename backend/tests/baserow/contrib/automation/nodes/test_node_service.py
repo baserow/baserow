@@ -7,7 +7,10 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import AutomationNode, LocalBaserowRowsCreatedTriggerNode
+from baserow.contrib.automation.nodes.models import (
+    AutomationNode,
+    LocalBaserowRowsCreatedTriggerNode,
+)
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.core.exceptions import UserNotInWorkspace
