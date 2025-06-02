@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("core", "0099_mcpendpoint"),
         ("database", "0189_alter_tableusageupdate_id_and_more"),
-        ("integrations", "0012_localbaserowrowcreated_localbaserowrowupdated"),
+        ("integrations", "0013_corehttprequestservice_formdata_httpheader_and_more"),
     ]
 
     operations = [
