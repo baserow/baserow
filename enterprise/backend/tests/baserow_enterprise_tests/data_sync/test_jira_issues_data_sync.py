@@ -1147,6 +1147,7 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
         ],
         "last_sync": None,
         "last_error": None,
+        "auto_add_new_properties": False,
         # The `jira_api_token` should not be in here.
         "jira_url": "https://test.atlassian.net",
         "jira_project_key": "",
