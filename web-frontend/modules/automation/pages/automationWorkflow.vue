@@ -11,14 +11,15 @@
         :style="{
           width: activeSidePanel ? `calc(100% - ${sidePanelWidth}px)` : '100%',
         }"
-        @click="handleEditorClick"
       >
         <client-only>
           <WorkflowEditor
             :nodes="workflowNodes"
             :read-only="isWorkflowReadOnly"
             @add-node="handleAddNode"
+            @click-node="handleClickNode"
             @remove-node="handleRemoveNode"
+            @pane-click="handlePaneClick"
           />
         </client-only>
       </div>
@@ -46,7 +47,6 @@ import {
 import AutomationHeader from '@baserow/modules/automation/components/AutomationHeader'
 import WorkflowEditor from '@baserow/modules/automation/components/workflow/WorkflowEditor.vue'
 import EditorSidePanels from '@baserow/modules/automation/components/workflow/EditorSidePanels'
-import { checkIntermediateElements } from '@baserow/modules/core/utils/dom'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 
 export default defineComponent({
@@ -64,7 +64,6 @@ export default defineComponent({
     const automationId = parseInt(params.value.automationId)
     const workflowId = parseInt(params.value.workflowId)
 
-    const editorRoot = ref(null)
     const workspace = ref(null)
     const automation = ref(null)
     const currentWorkflow = ref(null)
@@ -144,6 +143,22 @@ export default defineComponent({
       }
     }
 
+    /**
+     * When a node is clicked in `WorkflowNode`, ensure that the state
+     * is updated in the store and the node is selected.
+     * @param nodeId
+     */
+    const handleClickNode = (nodeId) => {
+      const node = store.getters['automationWorkflowNode/findById'](
+        currentWorkflow.value,
+        nodeId
+      )
+      store.dispatch('automationWorkflowNode/select', {
+        workflow: currentWorkflow.value,
+        node,
+      })
+    }
+
     const handleRemoveNode = async (nodeId) => {
       if (!currentWorkflow.value) {
         console.error('currentWorkflow is not available to remove a node.')
@@ -162,14 +177,12 @@ export default defineComponent({
       }
     }
 
-    const handleEditorClick = ($event) => {
-      if (
-        !checkIntermediateElements(editorRoot.value, $event.target, (el) => {
-          return el.classList.contains('workflow-editor__node')
-        })
-      ) {
-        store.dispatch('automationWorkflow/setActiveSidePanel', null)
-      }
+    /**
+     * When the pane is clicked, reset the active side panel to null,
+     * this will close the side panel.
+     */
+    const handlePaneClick = () => {
+      store.dispatch('automationWorkflow/setActiveSidePanel', null)
     }
 
     const activeSidePanel = computed(() => {
@@ -186,8 +199,9 @@ export default defineComponent({
       activeSidePanel,
       handleReadOnlyToggle,
       handleAddNode,
+      handleClickNode,
       handleRemoveNode,
-      handleEditorClick,
+      handlePaneClick,
     }
   },
 })
