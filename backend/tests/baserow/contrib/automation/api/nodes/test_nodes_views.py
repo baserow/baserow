@@ -93,8 +93,11 @@ def test_create_node_before(api_client, data_fixture):
 def test_create_node_before_invalid(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
+    node1_a = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow, order="1.0000"
+    )
     workflow_b = data_fixture.create_automation_workflow(user=user)
-    node1_b = data_fixture.create_local_baserow_rows_created_trigger_node(
+    data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow_b, order="1.0000"
     )
     node2_b = data_fixture.create_local_baserow_create_row_action_node(
@@ -105,7 +108,7 @@ def test_create_node_before_invalid(api_client, data_fixture):
 
     response = api_client.post(
         url,
-        {"type": "rows_created", "before_id": node1_b.id},
+        {"type": "rows_created", "before_id": node1_a.id},
         **get_api_kwargs(token),
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
