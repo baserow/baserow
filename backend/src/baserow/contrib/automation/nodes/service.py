@@ -61,17 +61,17 @@ class AutomationNodeService:
 
         # If we've been given a `before` node, validate it.
         if before:
+            if workflow.id != before.workflow_id:
+                raise AutomationNodeBeforeInvalid(
+                    "The `before` node must belong to the same workflow "
+                    "as the one supplied."
+                )
             # TODO: replace with a `before.get_type().is_trigger` check.
             if isinstance(before.get_type(), AutomationNodeTriggerType):
                 # You can't create a node before a trigger node. Even if `node_type` is
                 # a trigger, API consumers must delete `before` and then try again.
                 raise AutomationNodeBeforeInvalid(
                     "You cannot create an automation node before a trigger."
-                )
-            if workflow.id != before.workflow_id:
-                raise AutomationNodeBeforeInvalid(
-                    "The `before` node must belong to the same workflow "
-                    "as the one supplied."
                 )
 
         prepared_values = node_type.prepare_values(kwargs, user)

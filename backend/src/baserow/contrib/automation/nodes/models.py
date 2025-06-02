@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
@@ -114,8 +114,8 @@ class AutomationNode(
 
     @classmethod
     def get_unique_order_before_node(
-        cls, before: "AutomationNode", parent_node_id: Union[int, None]
-    ):
+        cls, before: "AutomationNode", parent_node_id: Optional[int]
+    ) -> Decimal:
         """
         Returns a safe order value before the given node in the given workflow.
 
