@@ -19,7 +19,6 @@
             @add-node="handleAddNode"
             @click-node="handleClickNode"
             @remove-node="handleRemoveNode"
-            @pane-click="handlePaneClick"
           />
         </client-only>
       </div>
@@ -149,14 +148,22 @@ export default defineComponent({
      * @param nodeId
      */
     const handleClickNode = (nodeId) => {
-      const node = store.getters['automationWorkflowNode/findById'](
-        currentWorkflow.value,
-        nodeId
-      )
-      store.dispatch('automationWorkflowNode/select', {
-        workflow: currentWorkflow.value,
-        node,
-      })
+      if (nodeId) {
+        const node = store.getters['automationWorkflowNode/findById'](
+          currentWorkflow.value,
+          nodeId
+        )
+        store.dispatch('automationWorkflowNode/select', {
+          workflow: currentWorkflow.value,
+          node,
+        })
+      } else {
+        /**
+         * When no node is selected, reset the active side panel to null,
+         * this will close the side panel.
+         */
+        store.dispatch('automationWorkflow/setActiveSidePanel', null)
+      }
     }
 
     const handleRemoveNode = async (nodeId) => {
@@ -177,14 +184,6 @@ export default defineComponent({
       }
     }
 
-    /**
-     * When the pane is clicked, reset the active side panel to null,
-     * this will close the side panel.
-     */
-    const handlePaneClick = () => {
-      store.dispatch('automationWorkflow/setActiveSidePanel', null)
-    }
-
     const activeSidePanel = computed(() => {
       return store.getters['automationWorkflow/getActiveSidePanel']
     })
@@ -201,7 +200,6 @@ export default defineComponent({
       handleAddNode,
       handleClickNode,
       handleRemoveNode,
-      handlePaneClick,
     }
   },
 })

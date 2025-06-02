@@ -66,12 +66,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits([
-  'add-node',
-  'remove-node',
-  'click-node',
-  'pane-click',
-])
+const emit = defineEmits(['add-node', 'remove-node', 'click-node'])
 
 const { onInit, onPaneClick } = useVueFlow()
 
@@ -187,7 +182,7 @@ onInit((vueFlowInstance) => {
 })
 
 onPaneClick(() => {
-  emit('pane-click')
+  emit('click-node', null)
 })
 
 const handleAddNode = (previousNodeId) => {
