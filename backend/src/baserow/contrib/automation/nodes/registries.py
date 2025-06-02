@@ -2,6 +2,8 @@ from typing import Any, Dict
 
 from django.contrib.auth.models import AbstractUser
 
+from rest_framework import serializers
+
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
@@ -37,6 +39,16 @@ class AutomationNodeType(
     service_type = None
     parent_property_name = "workflow"
     id_mapping_name = AUTOMATION_NODES
+
+    request_serializer_field_names = ["previous_node_output"]
+    request_serializer_field_overrides = {
+        "previous_node_output": serializers.CharField(
+            required=False,
+            default="",
+            allow_blank=True,
+            help_text="The output of the previous node.",
+        ),
+    }
 
     class SerializedDict(AutomationNodeDict):
         service: Dict

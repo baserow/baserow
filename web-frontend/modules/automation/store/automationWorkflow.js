@@ -17,6 +17,10 @@ const state = {
   selected: {},
   // A job object that tracks the progress of a workflow duplication currently running
   duplicateJob: null,
+  // Which side panel is currently active in this workflow? The options are:
+  // `null` (side panel is closed), `history` (view workflow run history) and
+  // `node` (trigger and action node edit forms).
+  activeSidePanel: null,
 }
 
 const mutations = {
@@ -52,6 +56,9 @@ const mutations = {
       const index = order.findIndex((value) => value === workflowId)
       workflow.order = index === -1 ? 0 : index + 1
     })
+  },
+  SET_ACTIVE_SIDE_PANEL(state, sidePanelType) {
+    state.activeSidePanel = sidePanelType
   },
 }
 
@@ -141,6 +148,9 @@ const actions = {
 
     commit('SET_DUPLICATE_JOB', job)
   },
+  setActiveSidePanel({ commit }, sidePanelType) {
+    commit('SET_ACTIVE_SIDE_PANEL', sidePanelType)
+  },
 }
 
 const getters = {
@@ -168,6 +178,9 @@ const getters = {
   },
   getDuplicateJob(state) {
     return state.duplicateJob
+  },
+  getActiveSidePanel(state) {
+    return state.activeSidePanel
   },
 }
 

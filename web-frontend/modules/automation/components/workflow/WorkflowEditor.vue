@@ -18,6 +18,7 @@
         :dragging="slotProps.dragging"
         :position="slotProps.position"
         :data="slotProps.data"
+        @clickNode="handleClickNode"
         @removeNode="handleRemoveNode"
       />
     </template>
@@ -65,9 +66,9 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['add-node'])
+const emit = defineEmits(['add-node', 'remove-node', 'click-node'])
 
-const { onInit } = useVueFlow()
+const { onInit, onPaneClick } = useVueFlow()
 
 const nodesDraggable = ref(false)
 const zoomOnScroll = ref(false)
@@ -180,11 +181,19 @@ onInit((vueFlowInstance) => {
   vueFlowInstance.fitView({ maxZoom: 1, minZoom: 0.5 })
 })
 
+onPaneClick(() => {
+  emit('click-node', null)
+})
+
 const handleAddNode = (previousNodeId) => {
   emit('add-node', {
     type: 'workflow-node',
     previousNodeId,
   })
+}
+
+const handleClickNode = (nodeId) => {
+  emit('click-node', nodeId)
 }
 
 const handleRemoveNode = (nodeId) => {

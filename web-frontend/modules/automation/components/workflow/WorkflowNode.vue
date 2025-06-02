@@ -1,5 +1,5 @@
 <template>
-  <div class="workflow-editor__node">
+  <div class="workflow-editor__node" @click="emit('clickNode', props.id)">
     <span>ID: {{ id }} </span>
 
     <a
@@ -53,11 +53,10 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['removeNode'])
+const emit = defineEmits(['clickNode', 'removeNode'])
 
-const editNodeContextToggle = ref(null)
 const contextMenu = ref(null)
-
+const editNodeContextToggle = ref(null)
 const openContext = () => {
   if (contextMenu.value && editNodeContextToggle.value)
     contextMenu.value.toggle(editNodeContextToggle.value, 'bottom', 'right', 0)

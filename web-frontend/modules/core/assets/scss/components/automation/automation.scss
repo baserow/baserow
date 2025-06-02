@@ -1,3 +1,13 @@
 .automation-workflow__content {
+  display: flex;
   background-color: #fafafa;
+
+  .side-panels {
+    padding: 20px;
+  }
+}
+
+.automation-workflow__side-panel {
+  flex: 1;
+  border-left: 1px solid $color-neutral-200;
 }
