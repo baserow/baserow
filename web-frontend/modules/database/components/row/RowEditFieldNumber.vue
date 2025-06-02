@@ -52,9 +52,10 @@ export default {
     },
   },
   created() {
-    // Ensure proper formatting by treating the backend value as a BigNumber, no
-    // matter what the field formatting is.
-    this.updateFormattedValue(this.field, new BigNumber(this.value))
+    // Backend values are unformatted decimals, so make sure to format them correctly.
+    if (this.value != null && this.value !== '') {
+      this.updateFormattedValue(this.field, new BigNumber(this.value))
+    }
   },
   methods: {
     initCopy(value) {
