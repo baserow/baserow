@@ -18,9 +18,10 @@ from baserow.core.services.models import Service
 __all__ = [
     "AutomationNode",
     "AutomationWorkflow",
-    "AutomationTriggerNode",
     "DuplicateAutomationWorkflowJob",
-    "LocalBaserowRowCreatedTriggerNode",
+    "LocalBaserowRowsCreatedTriggerNode",
+    "LocalBaserowRowsUpdatedTriggerNode",
+    "LocalBaserowRowsDeletedTriggerNode",
     "LocalBaserowCreateRowActionNode",
 ]
 
@@ -117,7 +118,15 @@ class AutomationTriggerNode(AutomationNode):
         abstract = True
 
 
-class LocalBaserowRowCreatedTriggerNode(AutomationTriggerNode):
+class LocalBaserowRowsCreatedTriggerNode(AutomationTriggerNode):
+    ...
+
+
+class LocalBaserowRowsUpdatedTriggerNode(AutomationTriggerNode):
+    ...
+
+
+class LocalBaserowRowsDeletedTriggerNode(AutomationTriggerNode):
     ...
 
 

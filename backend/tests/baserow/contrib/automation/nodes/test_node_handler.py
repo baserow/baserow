@@ -5,9 +5,9 @@ from baserow.contrib.automation.automation_dispatch_context import (
 )
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotInWorkflow
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import LocalBaserowRowCreatedTriggerNode
+from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowCreated
+from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyDict, AnyStr
@@ -25,7 +25,7 @@ def test_create_node(data_fixture):
         node_type, workflow=workflow, **prepared_values
     )
 
-    assert isinstance(node, LocalBaserowRowCreatedTriggerNode)
+    assert isinstance(node, LocalBaserowRowsCreatedTriggerNode)
 
 
 @pytest.mark.django_db
@@ -40,7 +40,7 @@ def test_get_nodes(data_fixture, django_assert_num_queries):
     with django_assert_num_queries(6):
         nodes = AutomationNodeHandler().get_nodes(workflow, specific=True)
         assert [n.id for n in nodes] == [node.id]
-        assert isinstance(nodes[0].service, LocalBaserowRowCreated)
+        assert isinstance(nodes[0].service, LocalBaserowRowsCreated)
 
 
 @pytest.mark.django_db

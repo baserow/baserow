@@ -7,7 +7,9 @@ from baserow.contrib.automation.automation_dispatch_context import (
 )
 from baserow.contrib.automation.nodes.models import (
     LocalBaserowCreateRowActionNode,
-    LocalBaserowRowCreatedTriggerNode,
+    LocalBaserowRowsCreatedTriggerNode,
+    LocalBaserowRowsDeletedTriggerNode,
+    LocalBaserowRowsUpdatedTriggerNode,
 )
 from baserow.contrib.automation.nodes.registries import (
     AutomationNodeActionNodeType,
@@ -16,6 +18,8 @@ from baserow.contrib.automation.nodes.registries import (
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsCreatedTriggerServiceType,
+    LocalBaserowRowsDeletedTriggerServiceType,
+    LocalBaserowRowsUpdatedTriggerServiceType,
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.services.models import Service
@@ -65,5 +69,17 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
 class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):
     type = "rows_created"
-    model_class = LocalBaserowRowCreatedTriggerNode
+    model_class = LocalBaserowRowsCreatedTriggerNode
     service_type = LocalBaserowRowsCreatedTriggerServiceType.type
+
+
+class LocalBaserowRowsUpdatedNodeTriggerType(AutomationNodeTriggerType):
+    type = "rows_updated"
+    model_class = LocalBaserowRowsUpdatedTriggerNode
+    service_type = LocalBaserowRowsUpdatedTriggerServiceType.type
+
+
+class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
+    type = "rows_deleted"
+    model_class = LocalBaserowRowsDeletedTriggerNode
+    service_type = LocalBaserowRowsDeletedTriggerServiceType.type

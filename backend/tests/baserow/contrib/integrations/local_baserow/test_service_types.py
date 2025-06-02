@@ -1,5 +1,7 @@
 from unittest.mock import Mock
 
+from django.db import transaction
+
 import pytest
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -12,6 +14,8 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowGetRowUserServiceType,
     LocalBaserowListRowsUserServiceType,
     LocalBaserowRowsCreatedTriggerServiceType,
+    LocalBaserowRowsDeletedTriggerServiceType,
+    LocalBaserowRowsUpdatedTriggerServiceType,
     LocalBaserowServiceType,
     LocalBaserowSignalTriggerTypeMixin,
     LocalBaserowTableServiceType,
@@ -2059,5 +2063,59 @@ def test_local_baserow_rows_created_trigger_service_type_handler(data_fixture):
             {f"field_{field.id}": "Construction"},
         ],
         skip_search_update=True,
+    )
+    mocked_on_event.assert_called_once()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_local_baserow_rows_updated_trigger_service_type_handler(data_fixture):
+    mocked_on_event = Mock()
+    user = data_fixture.create_user()
+    service_type = service_type_registry.get(
+        LocalBaserowRowsUpdatedTriggerServiceType.type
+    )
+    service_type.on_event = mocked_on_event
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(user, table=table)
+    model = table.get_model()
+    row1 = model.objects.create()
+    row2 = model.objects.create()
+    data_fixture.create_local_baserow_rows_updated_service(
+        table=table,
+    )
+    with transaction.atomic():
+        RowHandler().update_rows(
+            user=user,
+            table=table,
+            model=model,
+            rows_values=[
+                {"id": row1.id, f"field_{field.id}": "updated"},
+                {"id": row2.id, f"field_{field.id}": "updated"},
+            ],
+            skip_search_update=True,
+        )
+    mocked_on_event.assert_called_once()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_local_baserow_rows_deleted_trigger_service_type_handler(data_fixture):
+    mocked_on_event = Mock()
+    user = data_fixture.create_user()
+    service_type = service_type_registry.get(
+        LocalBaserowRowsDeletedTriggerServiceType.type
+    )
+    service_type.on_event = mocked_on_event
+    table = data_fixture.create_database_table(user=user)
+    model = table.get_model()
+    row1 = model.objects.create()
+    row2 = model.objects.create()
+    data_fixture.create_local_baserow_rows_updated_service(
+        table=table,
+    )
+    RowHandler().delete_rows(
+        user=user,
+        table=table,
+        model=model,
+        row_ids=[row1.id, row2.id],
     )
     mocked_on_event.assert_called_once()

@@ -6,7 +6,7 @@ from baserow.contrib.automation.nodes.node_types import (
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.local_baserow.models import (
-    LocalBaserowRowCreated,
+    LocalBaserowRowsCreated,
     LocalBaserowUpsertRow,
 )
 
@@ -31,7 +31,7 @@ class AutomationNodeFixtures:
             service_kwargs = kwargs.pop("service_kwargs", {})
             service_model = LocalBaserowUpsertRow
             if issubclass(node_type.__class__, AutomationNodeTriggerType):
-                service_model = LocalBaserowRowCreated
+                service_model = LocalBaserowRowsCreated
             kwargs["service"] = self.create_service(service_model, **service_kwargs)
 
         if "order" not in kwargs:
