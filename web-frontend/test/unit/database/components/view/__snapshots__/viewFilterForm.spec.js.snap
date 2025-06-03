@@ -2221,13 +2221,13 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                   class="rating__star baserow-icon-star rating__star--selected"
                 />
                 <i
-                  class="rating__star baserow-icon-star"
+                  class="rating__star baserow-icon-star rating__star--selected"
                 />
                 <i
-                  class="rating__star baserow-icon-star"
+                  class="rating__star baserow-icon-star rating__star--selected"
                 />
                 <i
-                  class="rating__star baserow-icon-star"
+                  class="rating__star baserow-icon-star rating__star--selected"
                 />
               </div>
             </div>
