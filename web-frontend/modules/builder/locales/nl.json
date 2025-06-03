@@ -449,7 +449,8 @@
         "openPageLabel": "Pagina openen",
         "logoutLabel": "Uitloggen",
         "refreshDataSourceLabel": "Gegevensbron verversen",
-        "deleteRowLabel": "Verwijder Rij"
+        "deleteRowLabel": "Verwijder Rij",
+        "httpRequest": "Stuur HTTP verzoek"
     },
     "widthTypes": {
         "full": "Volledige breedte",
