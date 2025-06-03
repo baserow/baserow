@@ -130,6 +130,21 @@ def test_create_node_before_invalid(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_node_before_does_not_exist(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    response = api_client.post(
+        reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id}),
+        {"type": "rows_created", "before_id": 9999999999},
+        **get_api_kwargs(token),
+    )
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
+        "detail": "The requested node does not exist.",
+    }
+
+
+@pytest.mark.django_db
 def test_create_node_invalid_body(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user, name="test")
