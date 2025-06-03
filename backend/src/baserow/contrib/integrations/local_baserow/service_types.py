@@ -95,9 +95,9 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowDeleteRow,
     LocalBaserowGetRow,
     LocalBaserowListRows,
-    LocalBaserowRowsCreated,
+    LocalBaserowRowCreated,
     LocalBaserowRowsDeleted,
-    LocalBaserowRowsUpdated,
+    LocalBaserowRowUpdated,
     LocalBaserowTableService,
     LocalBaserowTableServiceFieldMapping,
     LocalBaserowTableServiceFilter,
@@ -2580,7 +2580,7 @@ class LocalBaserowRowsCreatedTriggerServiceType(
 ):
     signal = rows_created
     type = "local_baserow_rows_created"
-    model_class = LocalBaserowRowsCreated
+    model_class = LocalBaserowRowCreated
 
 
 class LocalBaserowRowsUpdatedTriggerServiceType(
@@ -2590,7 +2590,7 @@ class LocalBaserowRowsUpdatedTriggerServiceType(
 ):
     signal = rows_updated
     type = "local_baserow_rows_updated"
-    model_class = LocalBaserowRowsUpdated
+    model_class = LocalBaserowRowUpdated
 
 
 class LocalBaserowRowsDeletedTriggerServiceType(
