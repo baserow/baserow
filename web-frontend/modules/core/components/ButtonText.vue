@@ -74,33 +74,6 @@ export default {
       type: Boolean,
       default: false,
     },
-    /**
-     * The href attribute of the button.
-     */
-    href: {
-      required: false,
-      type: [String, null],
-      default: null,
-    },
-    /**
-     * The rel attribute of the button.
-     */
-    rel: {
-      required: false,
-      type: [String, null],
-      default: null,
-    },
-    /**
-     * The target attribute of the button.
-     */
-    target: {
-      required: false,
-      type: [String, null],
-      validator(value) {
-        return ['_blank', '_self', null].includes(value)
-      },
-      default: null,
-    },
   },
   computed: {
     classes() {
@@ -110,22 +83,6 @@ export default {
         'button-text--loading': this.loading,
       }
       return classObj
-    },
-    customBind() {
-      const attr = {}
-      if (this.tag === 'a') {
-        attr.href = this.href
-        attr.target = this.target
-        attr.rel = this.rel
-      }
-
-      Object.keys(attr).forEach((key) => {
-        if (attr[key] === null) {
-          delete attr[key]
-        }
-      })
-
-      return attr
     },
   },
 }
