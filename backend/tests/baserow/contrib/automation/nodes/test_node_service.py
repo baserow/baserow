@@ -2,9 +2,15 @@ from unittest.mock import patch
 
 import pytest
 
-from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeBeforeInvalid,
+    AutomationNodeDoesNotExist,
+)
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
+from baserow.contrib.automation.nodes.models import (
+    AutomationNode,
+    LocalBaserowRowsCreatedTriggerNode,
+)
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.core.exceptions import UserNotInWorkspace
@@ -24,6 +30,61 @@ def test_create_node(mocked_signal, data_fixture):
 
     assert isinstance(node, LocalBaserowRowsCreatedTriggerNode)
     mocked_signal.send.assert_called_once_with(service, node=node, user=user)
+
+
+@pytest.mark.django_db
+def test_create_node_before(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node1 = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow, order="1.0000"
+    )
+    node3 = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, order="2.0000"
+    )
+
+    node_type = automation_node_type_registry.get("create_row")
+    node2 = AutomationNodeService().create_node(
+        user,
+        node_type,
+        workflow=workflow,
+        before=node3,
+    )
+
+    nodes = AutomationNode.objects.all()
+    assert nodes[0].id == node1.id
+    assert nodes[1].id == node2.id
+    assert nodes[2].id == node3.id
+
+
+@pytest.mark.django_db
+def test_create_node_before_invalid(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    workflow_b = data_fixture.create_automation_workflow(user=user)
+    node1_b = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow_b, order="1.0000"
+    )
+    node2_b = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow_b, order="2.0000"
+    )
+
+    node_type = automation_node_type_registry.get("create_row")
+
+    with pytest.raises(AutomationNodeBeforeInvalid) as exc:
+        AutomationNodeService().create_node(
+            user, node_type, workflow=workflow, before=node2_b
+        )
+    assert (
+        exc.value.args[0]
+        == "The `before` node must belong to the same workflow as the one supplied."
+    )
+
+    with pytest.raises(AutomationNodeBeforeInvalid) as exc:
+        AutomationNodeService().create_node(
+            user, node_type, workflow=workflow_b, before=node1_b
+        )
+    assert exc.value.args[0] == "You cannot create an automation node before a trigger."
 
 
 @pytest.mark.django_db

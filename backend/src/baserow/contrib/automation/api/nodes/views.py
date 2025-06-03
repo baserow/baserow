@@ -15,6 +15,11 @@ from baserow.api.decorators import (
 )
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
+from baserow.contrib.automation.api.nodes.errors import (
+    ERROR_AUTOMATION_NODE_BEFORE_INVALID,
+    ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+    ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
+)
 from baserow.contrib.automation.api.nodes.serializers import (
     AutomationNodeSerializer,
     CreateAutomationNodeSerializer,
@@ -22,8 +27,6 @@ from baserow.contrib.automation.api.nodes.serializers import (
     UpdateAutomationNodeSerializer,
 )
 from baserow.contrib.automation.api.workflows.errors import (
-    ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
-    ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
     ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
 )
 from baserow.contrib.automation.nodes.actions import (
@@ -34,6 +37,7 @@ from baserow.contrib.automation.nodes.actions import (
     UpdateAutomationNodeActionType,
 )
 from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeBeforeInvalid,
     AutomationNodeDoesNotExist,
     AutomationNodeNotInWorkflow,
 )
@@ -90,6 +94,8 @@ class AutomationNodesView(APIView):
     @map_exceptions(
         {
             AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
+            AutomationNodeBeforeInvalid: ERROR_AUTOMATION_NODE_BEFORE_INVALID,
+            AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
         }
     )
     @validate_body_custom_fields(

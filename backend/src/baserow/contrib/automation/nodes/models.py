@@ -1,10 +1,15 @@
+from decimal import Decimal
+from typing import List, Optional
+
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models import QuerySet
 
 from baserow.contrib.automation.workflows.models import (
     AutomationWorkflow,
     DuplicateAutomationWorkflowJob,
 )
+from baserow.core.db import get_unique_orders_before_item
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
     FractionOrderableMixin,
@@ -106,6 +111,53 @@ class AutomationNode(
     def get_last_order(cls, workflow: "AutomationWorkflow"):
         queryset = AutomationNode.objects.filter(workflow=workflow)
         return cls.get_highest_order_of_queryset(queryset)[0]
+
+    @classmethod
+    def get_unique_order_before_node(
+        cls, before: "AutomationNode", parent_node_id: Optional[int]
+    ) -> Decimal:
+        """
+        Returns a safe order value before the given node in the given workflow.
+
+        :param before: The node before which we want the safe order
+        :param parent_node_id: The id of the parent node.
+        :raises CannotCalculateIntermediateOrder: If it's not possible to find an
+            intermediate order. The full order of the items must be recalculated in this
+            case before calling this method again.
+        :return: The order value.
+        """
+
+        queryset = AutomationNode.objects.filter(workflow=before.workflow).filter(
+            parent_node_id=parent_node_id
+        )
+
+        return cls.get_unique_orders_before_item(before, queryset)[0]
+
+    @classmethod
+    def get_unique_orders_before_item(
+        cls,
+        before: Optional[models.Model],
+        queryset: QuerySet,
+        amount: int = 1,
+        field: str = "order",
+    ) -> List[Decimal]:
+        """
+        Calculates a list of unique decimal orders that can safely be used before the
+        provided `before` item.
+
+        :param before: The model instance where the before orders must be
+            calculated for.
+        :param queryset: The base queryset used to compute the value.
+        :param amount: The number of orders that must be requested. Can be higher if
+            multiple items are inserted or moved.
+        :param field: The order field name.
+        :raises CannotCalculateIntermediateOrder: If it's not possible to find an
+            intermediate order. The full order of the items must be recalculated in this
+            case before calling this method again.
+        :return: A list of decimals containing safe to use orders in order.
+        """
+
+        return get_unique_orders_before_item(before, queryset, amount, field=field)
 
 
 class AutomationActionNode(AutomationNode):
