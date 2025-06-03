@@ -18,7 +18,7 @@
         />
       </Dropdown>
     </FormGroup>
-    <hr class="margin-bottom-3 margin-top-3" />
+    <hr class="separator" />
     <FormGroup required :label="$t('nodeSidePanel.details')">
       <component
         :is="nodeType.formComponent"
