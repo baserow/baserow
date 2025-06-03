@@ -174,7 +174,8 @@
         "contactSalesMoreSeats": "Skontaktuj się z działem sprzedaży, aby uzyskać więcej miejsc",
         "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} płatnych miejsc i {free_users_count} wolnych miejsc w użyciu",
         "applicationUsersDescription": "Całkowita liczba użytkowników aplikacji w opublikowanych źródłach użytkowników budowniczego aplikacji.",
-        "applicationUsers": "Użytkownicy aplikacji"
+        "applicationUsers": "Użytkownicy aplikacji",
+        "advancedFeatureName": "Wersja Zaawansowana"
     },
     "viewDecoratorType": {
         "leftBorderColor": "Lewa granica",
