@@ -22,7 +22,6 @@
         :dragging="slotProps.dragging"
         :position="slotProps.position"
         :data="slotProps.data"
-        @clickNode="handleClickNode"
         @removeNode="handleRemoveNode"
       />
     </template>
@@ -99,8 +98,8 @@ const ADD_BUTTON_X_POS = 190
 
 watch(
   activeNodeId,
-  (newId, oldId) => {
-    addSelectedNodes([{ id: newId.toString() }])
+  (newId) => {
+    if (newId) addSelectedNodes([{ id: newId.toString() }])
   },
   { immediate: true }
 )
@@ -204,6 +203,10 @@ onPaneClick(() => {
   emit('click-node', null)
 })
 
+onNodeClick(({ node }) => {
+  if (node.type === 'workflow-node') emit('click-node', node.id)
+})
+
 const handleAddNode = (previousNodeId) => {
   emit('add-node', {
     type: 'workflow-node',
@@ -214,8 +217,4 @@ const handleAddNode = (previousNodeId) => {
 const handleRemoveNode = (nodeId) => {
   emit('remove-node', nodeId)
 }
-
-onNodeClick(({ node }) => {
-  emit('click-node', node.id)
-})
 </script>

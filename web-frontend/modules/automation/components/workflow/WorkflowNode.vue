@@ -72,7 +72,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['clickNode', 'removeNode'])
+const emit = defineEmits(['removeNode', 'duplicateNode'])
 
 const contextMenu = ref(null)
 const editNodeContextToggle = ref(null)
