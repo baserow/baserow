@@ -78,7 +78,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['add-node', 'remove-node', 'click-node', 'input'])
+const emit = defineEmits(['add-node', 'remove-node', 'input'])
 
 const { addSelectedNodes, onNodeClick, onPaneClick } = useVueFlow()
 
