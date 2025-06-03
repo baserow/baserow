@@ -1,3 +1,4 @@
+import base64
 import datetime
 from copy import deepcopy
 
@@ -9,9 +10,11 @@ import responses
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from baserow_premium.license.models import License
 from requests.auth import HTTPBasicAuth
+from responses.matchers import header_matcher
 from rest_framework.status import HTTP_200_OK, HTTP_402_PAYMENT_REQUIRED
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
+from baserow.contrib.database.data_sync.models import DataSync
 from baserow.contrib.database.fields.models import TextField
 from baserow.core.db import specific_iterator
 from baserow_enterprise.data_sync.models import JiraIssuesDataSync
@@ -433,13 +436,16 @@ def test_create_data_sync_table(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_data_sync_table(enterprise_data_fixture):
-    basic_auth_header = HTTPBasicAuth("test@test.nl", "test_token")
+    credentials = "test@test.nl:test_token"
+    encoded_credentials = base64.b64encode(credentials.encode()).decode()
+    auth_header_value = f"Basic {encoded_credentials}"
+
     responses.add(
         responses.GET,
         "https://test.atlassian.net/rest/api/2/search?startAt=0&maxResults=50",
         status=200,
         json=SINGLE_ISSUE_RESPONSE,
-        headers={"Authorization": f"Basic {basic_auth_header}"},
+        match=[header_matcher({"Authorization": auth_header_value})],
     )
 
     enterprise_data_fixture.enable_enterprise()
@@ -592,13 +598,16 @@ expand
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_data_sync_table_empty_issue(enterprise_data_fixture):
-    basic_auth_header = HTTPBasicAuth("test@test.nl", "test_token")
+    credentials = "test@test.nl:test_token"
+    encoded_credentials = base64.b64encode(credentials.encode()).decode()
+    auth_header_value = f"Basic {encoded_credentials}"
+
     responses.add(
         responses.GET,
         "https://test.atlassian.net/rest/api/2/search?startAt=0&maxResults=50",
         status=200,
         json=EMPTY_ISSUE_RESPONSE,
-        headers={"Authorization": f"Basic {basic_auth_header}"},
+        match=[header_matcher({"Authorization": auth_header_value})],
     )
 
     enterprise_data_fixture.enable_enterprise()
@@ -669,6 +678,50 @@ def test_sync_data_sync_table_empty_issue(enterprise_data_fixture):
         getattr(row, f"field_{url_field.id}")
         == "https://test.atlassian.net/browse/CRM-8"
     )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@responses.activate
+def test_sync_data_sync_table_personal_access_token(enterprise_data_fixture):
+    responses.add(
+        responses.GET,
+        "https://test.atlassian.net/rest/api/2/search?startAt=0&maxResults=50",
+        status=200,
+        json=EMPTY_ISSUE_RESPONSE,
+        match=[header_matcher({"Authorization": "Bearer FAKE_PAT"})],
+    )
+
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="jira_issues",
+        synced_properties=[
+            "jira_id",
+        ],
+        jira_url="https://test.atlassian.net",
+        jira_authentication="PERSONAL_ACCESS_TOKEN",
+        jira_project_key="",
+        jira_username="",
+        jira_api_token="FAKE_PAT",
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    jira_id_field = fields[0]
+
+    model = data_sync.table.get_model()
+    assert model.objects.all().count() == 1
+    row = model.objects.all().first()
+
+    assert getattr(row, f"field_{jira_id_field.id}") == "10007"
 
 
 @pytest.mark.django_db
@@ -1149,6 +1202,61 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
         "last_error": None,
         # The `jira_api_token` should not be in here.
         "jira_url": "https://test.atlassian.net",
+        "jira_authentication": "API_TOKEN",
         "jira_project_key": "",
         "jira_username": "test@test.nl",
+    }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_create_data_sync_personal_access_token(enterprise_data_fixture, api_client):
+    enterprise_data_fixture.enable_enterprise()
+    user, token = enterprise_data_fixture.create_user_and_token()
+    database = enterprise_data_fixture.create_database_application(user=user)
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "jira_issues",
+            "synced_properties": ["jira_id"],
+            "jira_url": "https://test.atlassian.net",
+            "jira_authentication": "PERSONAL_ACCESS_TOKEN",
+            "jira_project_key": "",
+            "jira_username": "",
+            "jira_api_token": "test_pat",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data_sync_id = response.json()["data_sync"]["id"]
+    data_sync = DataSync.objects.get(pk=data_sync_id)
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json == {
+        "id": data_sync_id,
+        "type": "jira_issues",
+        "synced_properties": [
+            {
+                "field_id": data_sync.table.field_set.all().first().id,
+                "key": "jira_id",
+                "unique_primary": True,
+            }
+        ],
+        "last_sync": None,
+        "last_error": None,
+        "jira_url": "https://test.atlassian.net",
+        "jira_authentication": "PERSONAL_ACCESS_TOKEN",
+        "jira_project_key": "",
+        "jira_username": "",
     }

@@ -12,6 +12,9 @@ DATA_SYNC_INTERVAL_MANUAL = "MANUAL"
 DATA_SYNC_INTERVAL_DAILY = "DAILY"
 DATA_SYNC_INTERVAL_HOURLY = "HOURLY"
 
+JIRA_ISSUES_DATA_SYNC_API_TOKEN = "API_TOKEN"  # nosec B105
+JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN = "PERSONAL_ACCESS_TOKEN"  # nosec B105
+
 
 class PeriodicDataSyncInterval(models.Model):
     data_sync = models.OneToOneField(
@@ -86,13 +89,31 @@ class JiraIssuesDataSync(DataSync):
         max_length=255,
         help_text="The project key of the Jira project (e.g., PROJ).",
     )
+    jira_authentication = models.CharField(
+        choices=(
+            (JIRA_ISSUES_DATA_SYNC_API_TOKEN, JIRA_ISSUES_DATA_SYNC_API_TOKEN),
+            (
+                JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN,
+                JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN,
+            ),
+        ),
+        default=JIRA_ISSUES_DATA_SYNC_API_TOKEN,
+        db_default=JIRA_ISSUES_DATA_SYNC_API_TOKEN,
+    )
     jira_username = models.CharField(
         max_length=255,
-        help_text="The username of the Jira account used to authenticate.",
+        blank=True,
+        help_text=(
+            f"The username of the Jira account used to authenticate. Is only used if "
+            f"the `jira_authentication` is equal `{JIRA_ISSUES_DATA_SYNC_API_TOKEN}`"
+        ),
     )
     jira_api_token = models.CharField(
         max_length=255,
-        help_text="The API token of the Jira account used for authentication.",
+        help_text=(
+            "The API or personal access token of the Jira account used for "
+            "authentication."
+        ),
     )
 
 
