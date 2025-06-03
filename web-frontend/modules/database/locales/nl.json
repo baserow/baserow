@@ -209,7 +209,8 @@
         "placeholder": "Standaard tekst"
     },
     "fieldSingleSelectSubForm": {
-        "optionsLabel": "Opties"
+        "optionsLabel": "Opties",
+        "defaultOptionLabel": "Standaardoptie"
     },
     "fieldSingleSelectDropdown": {
         "notFound": "Optie niet gevonden"
@@ -882,7 +883,15 @@
     "rowHistorySidebar": {
         "you": "Jij",
         "name": "Geschiedenis",
-        "empty": "Nog geen wijzigingen. Wijzigingen in deze rij kun je hier volgen."
+        "empty": "Nog geen wijzigingen. Wijzigingen in deze rij kun je hier volgen.",
+        "created": "deze rij is aangemaakt",
+        "updated": "deze rij is bijgewerkt",
+        "submitted": "deze rij is ingediend",
+        "restored": "deze rij is hersteld",
+        "createdUndo": "rij maken ongedaan maken",
+        "updatedUndo": "rij update ongedaan maken",
+        "deletedUndo": "rij verwijderen ongedaan maken",
+        "deleted": "deze rij is verwijderd"
     },
     "viewGroupByContext": {
         "groupBy": "Groepeer op",
@@ -1145,5 +1154,13 @@
     },
     "fieldBooleanSubForm": {
         "defaultValue": "Standaard"
+    },
+    "apiDocsListTables": {
+        "listTables": "Toon alle tabellen",
+        "listTablesDescription": "Dit eindpunt werkt alleen in combinatie met token authenticatie. Het geeft een overzicht van alle tabellen waartoe het token toegang heeft (maken, lezen, bijwerken of verwijderen)."
+    },
+    "fieldMultipleSelectSubForm": {
+        "optionsLabel": "Opties",
+        "defaultOptionsLabel": "Standaardopties"
     }
 }
