@@ -79,27 +79,27 @@ export default {
      */
     href: {
       required: false,
-      type: String,
-      default: '',
+      type: [String, null],
+      default: null,
     },
     /**
      * The rel attribute of the button.
      */
     rel: {
       required: false,
-      type: String,
-      default: '',
+      type: [String, null],
+      default: null,
     },
     /**
      * The target attribute of the button.
      */
     target: {
       required: false,
-      type: String,
+      type: [String, null],
       validator(value) {
-        return ['_blank', '_self'].includes(value)
+        return ['_blank', '_self', null].includes(value)
       },
-      default: '_self',
+      default: null,
     },
   },
   computed: {
@@ -116,7 +116,7 @@ export default {
       if (this.tag === 'a') {
         attr.href = this.href
         attr.target = this.target
-        attr.rel = this.target
+        attr.rel = this.rel
       }
 
       Object.keys(attr).forEach((key) => {
