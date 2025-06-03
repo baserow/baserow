@@ -203,10 +203,6 @@ export default defineComponent({
       }
     })
 
-    const handleNodeSelected = (node) => {
-      selectedNode.value = node
-    }
-
     return {
       workspace,
       automation,
@@ -218,7 +214,6 @@ export default defineComponent({
       handleReadOnlyToggle,
       handleAddNode,
       handleRemoveNode,
-      handleNodeSelected,
       selectedNode,
       workflowId,
       isAddingNode,
