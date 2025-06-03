@@ -294,7 +294,9 @@
         "hasDateOnOrAfter": "heeft datum op of na",
         "hasNotDateOnOrAfter": "heeft geen datum op of na",
         "hasDateWithin": "heeft datum binnen",
-        "hasNotDateWithin": "heeft geen datum binnen"
+        "hasNotDateWithin": "heeft geen datum binnen",
+        "hasAnyOf": "heeft een van",
+        "hasNotAnyOf": "heeft niets van"
     },
     "viewType": {
         "grid": "Raster",
@@ -316,7 +318,8 @@
         "row": "rij",
         "view": "weergave",
         "rows": "rijen",
-        "automation_workflow": "automatiseringWorkflow"
+        "automation_workflow": "automatiseringWorkflow",
+        "automation_node": "automatisering knooppunt"
     },
     "webhook": {
         "request": "Verzoek",
@@ -470,7 +473,9 @@
         "uploadFileViaUrl": "Bestand uploaden via URL",
         "uploadFileViaUrlDescription": "Uploadt een bestand naar Baserow door het te downloaden van de opgegeven URL.",
         "fileUploads": "Bestandsuploads",
-        "sendWebhookEventsDescription": "Een vlag query parameter die webhooks triggert na de bewerking, indien ingesteld op `ja`, `yes`, `true`, `t`, `on`, `1`, `of` leeg gelaten. Standaard ingesteld op `true`."
+        "sendWebhookEventsDescription": "Een vlag query parameter die webhooks triggert na de bewerking, indien ingesteld op `ja`, `yes`, `true`, `t`, `on`, `1`, `of` leeg gelaten. Standaard ingesteld op `true`.",
+        "listTables": "Toon tabellen",
+        "apiDocs": "Toon alle tabellen"
     },
     "exporterType": {
         "csv": "Exporteren naar CSV"
