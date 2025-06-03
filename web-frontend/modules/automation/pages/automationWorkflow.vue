@@ -9,12 +9,11 @@
       <div class="automation-workflow__editor">
         <client-only>
           <WorkflowEditor
+            v-model="selectedNodeId"
             :nodes="workflowNodes"
             :read-only="isWorkflowReadOnly"
-            :active-node-id="selectedNode?.id"
             :is-adding-node="isAddingNode"
             @add-node="handleAddNode"
-            @click-node="handleClickNode"
             @remove-node="handleRemoveNode"
           />
         </client-only>
@@ -36,6 +35,7 @@ import {
   useStore,
   useContext,
   useFetch,
+  watch,
 } from '@nuxtjs/composition-api'
 import AutomationHeader from '@baserow/modules/automation/components/AutomationHeader'
 import WorkflowEditor from '@baserow/modules/automation/components/workflow/WorkflowEditor.vue'
@@ -143,30 +143,6 @@ export default defineComponent({
       }
     }
 
-    /**
-     * When a node is clicked in `WorkflowNode`, ensure that the state
-     * is updated in the store and the node is selected.
-     * @param nodeId
-     */
-    const handleClickNode = (nodeId) => {
-      if (nodeId) {
-        const node = store.getters['automationWorkflowNode/findById'](
-          currentWorkflow.value,
-          nodeId
-        )
-        store.dispatch('automationWorkflowNode/select', {
-          workflow: currentWorkflow.value,
-          node,
-        })
-      } else {
-        /**
-         * When no node is selected, reset the active side panel to null,
-         * this will close the side panel.
-         */
-        store.dispatch('automationWorkflow/setActiveSidePanel', null)
-      }
-    }
-
     const handleRemoveNode = async (nodeId) => {
       if (!currentWorkflow.value) {
         console.error('currentWorkflow is not available to remove a node.')
@@ -189,6 +165,44 @@ export default defineComponent({
     const activeSidePanel = computed(() => {
       return store.getters['automationWorkflow/getActiveSidePanel']
     })
+
+    const selectedNodeId = computed({
+      get() {
+        return selectedNode.value?.id || null
+      },
+      set(nodeId) {
+        if (nodeId) {
+          const node = store.getters['automationWorkflowNode/findById'](
+            currentWorkflow.value,
+            nodeId
+          )
+          selectedNode.value = node
+        } else {
+          selectedNode.value = null
+        }
+      },
+    })
+
+    // Watch selectedNodeId to handle node selection in the store
+    watch(selectedNodeId, (nodeId) => {
+      if (nodeId) {
+        const node = store.getters['automationWorkflowNode/findById'](
+          currentWorkflow.value,
+          nodeId
+        )
+        store.dispatch('automationWorkflowNode/select', {
+          workflow: currentWorkflow.value,
+          node,
+        })
+      } else {
+        /**
+         * When no node is selected, reset the active side panel to null,
+         * this will close the side panel.
+         */
+        store.dispatch('automationWorkflow/setActiveSidePanel', null)
+      }
+    })
+
     const handleNodeSelected = (node) => {
       selectedNode.value = node
     }
@@ -203,12 +217,12 @@ export default defineComponent({
       activeSidePanel,
       handleReadOnlyToggle,
       handleAddNode,
-      handleClickNode,
       handleRemoveNode,
       handleNodeSelected,
       selectedNode,
       workflowId,
       isAddingNode,
+      selectedNodeId,
     }
   },
 })

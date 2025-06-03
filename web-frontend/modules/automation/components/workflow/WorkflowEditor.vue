@@ -68,7 +68,7 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  activeNodeId: {
+  value: {
     type: [String, Number],
     default: null,
   },
@@ -78,11 +78,11 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['add-node', 'remove-node', 'click-node'])
+const emit = defineEmits(['add-node', 'remove-node', 'click-node', 'input'])
 
 const { addSelectedNodes, onNodeClick, onPaneClick } = useVueFlow()
 
-const { activeNodeId } = toRefs(props)
+const { value: selectedNodeId } = toRefs(props)
 
 const nodesDraggable = ref(false)
 const zoomOnScroll = ref(false)
@@ -97,7 +97,7 @@ const DATA_NODE_X_POS = 0
 const ADD_BUTTON_X_POS = 190
 
 watch(
-  activeNodeId,
+  selectedNodeId,
   (newId) => {
     if (newId) addSelectedNodes([{ id: newId.toString() }])
   },
@@ -200,11 +200,13 @@ const computedEdges = computed(() => {
 })
 
 onPaneClick(() => {
-  emit('click-node', null)
+  emit('input', null)
 })
 
 onNodeClick(({ node }) => {
-  if (node.type === 'workflow-node') emit('click-node', node.id)
+  if (node.type === 'workflow-node') {
+    emit('input', node.id)
+  }
 })
 
 const handleAddNode = (previousNodeId) => {
