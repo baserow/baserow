@@ -74,6 +74,39 @@ export default {
       type: Boolean,
       default: false,
     },
+    /**
+     * If the button is a link, this is the href.
+     */
+    href: {
+      required: false,
+      type: String,
+      default: null,
+    },
+    /**
+     * If the button is a link, this is the rel. Available values are: nofollow, noopener, noreferrer.
+     */
+    rel: {
+      required: false,
+      type: String,
+      default: null,
+      validator(value) {
+        const validRelValues = ['nofollow', 'noopener', 'noreferrer']
+        const relValues = value.split(' ')
+
+        return relValues.every((relValue) => validRelValues.includes(relValue))
+      },
+    },
+    /**
+     * If the button is a link, this is the target. Available values are: _blank, _self, _parent, _top.
+     */
+    target: {
+      required: false,
+      type: String,
+      default: null,
+      validator(value) {
+        return ['_blank', '_self', '_parent', '_top'].includes(value)
+      },
+    },
   },
   computed: {
     classes() {
@@ -83,6 +116,22 @@ export default {
         'button-text--loading': this.loading,
       }
       return classObj
+    },
+    customBind() {
+      const attr = {}
+      if (this.tag === 'a') {
+        attr.href = this.href
+        attr.target = this.target
+        attr.rel = this.rel
+      }
+
+      Object.keys(attr).forEach((key) => {
+        if (attr[key] === null) {
+          delete attr[key]
+        }
+      })
+
+      return attr
     },
   },
 }
