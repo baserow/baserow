@@ -2547,14 +2547,6 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
     def stop_listening(self):
         self.signal.disconnect(self.handler)
 
-    def after_register(self):
-        self.start_listening(self.on_event)
-        return super().after_register()
-
-    def before_unregister(self):
-        self.stop_listening()
-        return super().before_unregister()
-
     def handle_signal(self, sender, rows, table, model, **kwargs):
         serializer = get_row_serializer_class(
             model,
