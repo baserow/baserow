@@ -53,7 +53,7 @@
       ref="itemsContainer"
       class="dropdown__items"
       :class="{
-        hidden: !open,
+        hidden: !open && !openOnMount,
         'dropdown__items--fixed': fixedItemsImmutable,
         'dropdown__items--max-width': maxWidth,
       }"

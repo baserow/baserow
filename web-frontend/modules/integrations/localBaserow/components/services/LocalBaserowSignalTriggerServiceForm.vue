@@ -14,7 +14,7 @@ import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/
 import _ from 'lodash'
 
 export default defineComponent({
-  name: 'LocalBaserowRowsCreatedServiceForm',
+  name: 'LocalBaserowSignalTriggerServiceForm',
   components: { LocalBaserowServiceForm },
   props: {
     node: {

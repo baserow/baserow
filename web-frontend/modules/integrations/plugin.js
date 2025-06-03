@@ -17,6 +17,8 @@ import {
   LocalBaserowDeleteRowWorkflowServiceType,
   LocalBaserowUpdateRowWorkflowServiceType,
   LocalBaserowRowsCreatedTriggerServiceType,
+  LocalBaserowRowsUpdatedTriggerServiceType,
+  LocalBaserowRowsDeletedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import { CoreHTTPRequestServiceType } from '@baserow/modules/integrations/core/serviceTypes'
 
@@ -68,6 +70,14 @@ export default (context) => {
     app.$registry.register(
       'service',
       new LocalBaserowRowsCreatedTriggerServiceType(context)
+    )
+    app.$registry.register(
+      'service',
+      new LocalBaserowRowsUpdatedTriggerServiceType(context)
+    )
+    app.$registry.register(
+      'service',
+      new LocalBaserowRowsDeletedTriggerServiceType(context)
     )
   }
 }

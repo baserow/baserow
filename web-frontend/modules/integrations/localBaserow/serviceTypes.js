@@ -7,14 +7,14 @@ import {
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
 import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
-import LocalBaserowUpsertRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm.vue'
-import LocalBaserowUpdateRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpdateRowServiceForm.vue'
-import LocalBaserowDeleteRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowDeleteRowServiceForm.vue'
+import LocalBaserowUpsertRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm'
+import LocalBaserowUpdateRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpdateRowServiceForm'
+import LocalBaserowDeleteRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowDeleteRowServiceForm'
 import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
 import { uuid } from '@baserow/modules/core/utils/string'
 import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowAdhocHeader'
 import { DistributionViewAggregationType } from '@baserow/modules/database/viewAggregationTypes'
-import LocalBaserowRowsCreatedServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowRowsCreatedServiceForm'
+import LocalBaserowSignalTriggerServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowSignalTriggerServiceForm'
 
 export class LocalBaserowTableServiceType extends ServiceType {
   get integrationType() {
@@ -340,6 +340,10 @@ export class LocalBaserowCreateRowWorkflowServiceType extends WorkflowActionServ
     return this.app.i18n.t('serviceType.localBaserowCreateRow')
   }
 
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowCreateRowDescription')
+  }
+
   get formComponent() {
     return LocalBaserowUpsertRowServiceForm
   }
@@ -356,6 +360,10 @@ export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServ
     return this.app.i18n.t('serviceType.localBaserowUpdateRow')
   }
 
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowUpdateRowDescription')
+  }
+
   get formComponent() {
     return LocalBaserowUpdateRowServiceForm
   }
@@ -370,6 +378,10 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
 
   get name() {
     return this.app.i18n.t('serviceType.localBaserowDeleteRow')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowDeleteRowDescription')
   }
 
   get formComponent() {
@@ -393,6 +405,46 @@ export class LocalBaserowRowsCreatedTriggerServiceType extends TriggerServiceTyp
   }
 
   get formComponent() {
-    return LocalBaserowRowsCreatedServiceForm
+    return LocalBaserowSignalTriggerServiceForm
+  }
+}
+
+export class LocalBaserowRowsUpdatedTriggerServiceType extends TriggerServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
+  static getType() {
+    return 'rows_updated'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.localBaserowRowsUpdated')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowRowsUpdatedDescription')
+  }
+
+  get formComponent() {
+    return LocalBaserowSignalTriggerServiceForm
+  }
+}
+
+export class LocalBaserowRowsDeletedTriggerServiceType extends TriggerServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
+  static getType() {
+    return 'rows_deleted'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.localBaserowRowsDeleted')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowRowsDeletedDescription')
+  }
+
+  get formComponent() {
+    return LocalBaserowSignalTriggerServiceForm
   }
 }

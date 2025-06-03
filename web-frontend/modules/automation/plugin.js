@@ -19,6 +19,8 @@ import automationWorkflowNodeStore from '@baserow/modules/automation/store/autom
 import {
   LocalBaserowCreateRowActionNodeType,
   LocalBaserowRowsCreatedTriggerNodeType,
+  LocalBaserowRowsUpdatedTriggerNodeType,
+  LocalBaserowRowsDeletedTriggerNodeType,
 } from '@baserow/modules/automation/nodeTypes'
 import { DuplicateAutomationWorkflowJobType } from '@baserow/modules/automation/jobTypes'
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
@@ -61,6 +63,14 @@ export default (context) => {
     app.$registry.register(
       'node',
       new LocalBaserowRowsCreatedTriggerNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowRowsUpdatedTriggerNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowRowsDeletedTriggerNodeType(context)
     )
     app.$registry.register(
       'node',

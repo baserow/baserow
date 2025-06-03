@@ -144,6 +144,14 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * Should the dropdown automatically open by default?
+     */
+    openOnMount: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   data() {
     return {
@@ -210,6 +218,13 @@ export default {
       characterData: false,
       subtree: false,
     })
+
+    // If the dropdown is set to open by default, we want to open it.
+    if (this.openOnMount) {
+      this.$nextTick(() => {
+        this.show()
+      })
+    }
   },
   beforeDestroy() {
     this.observer.disconnect()

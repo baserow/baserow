@@ -21,6 +21,10 @@
     "localBaserowDeleteRow": "Delete a row",
     "localBaserowRowsCreated": "Rows created",
     "localBaserowRowsCreatedDescription": "Triggered when one or more rows are created in a Baserow table.",
+    "localBaserowRowsUpdated": "Rows updated",
+    "localBaserowRowsUpdatedDescription": "This node is triggered when one or more rows are updated in a Baserow table.",
+    "localBaserowRowsDeleted": "Rows deleted",
+    "localBaserowRowsDeletedDescription": "This node is triggered when one or more rows are deleted in a Baserow table.",
     "coreHTTPRequest": "Send HTTP request",
     "misconfigured": "Misconfigured",
     "trashedField": "Trashed field"

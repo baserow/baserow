@@ -29,13 +29,20 @@
     <template #node-workflow-add-button-node="slotProps">
       <WorkflowAddBtnNode
         :id="slotProps.id"
+        ref="addWorkflowBtnNode"
         :data="slotProps.data"
         :label="slotProps.label"
         :selected="slotProps.selected"
         :dragging="slotProps.dragging"
         :position="slotProps.position"
-        @addNode="handleAddNode"
+        @addNode="toggleCreateContext"
       />
+      <CreateWorkflowNodeContext
+        ref="createNodeContext"
+        :last-node-id="slotProps.id"
+        :workflow-has-trigger="workflowHasTrigger"
+        @change="createNode"
+      ></CreateWorkflowNodeContext>
     </template>
 
     <template #edge-workflow-edge="slotProps">
@@ -55,9 +62,16 @@ import { VueFlow, useVueFlow } from '@vue2-flow/core'
 import { Background } from '@vue2-flow/background'
 import { Controls } from '@vue2-flow/controls'
 import { ref, computed, watch, toRefs } from 'vue'
+import { useContext } from '@nuxtjs/composition-api'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode.vue'
 import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode.vue'
 import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge.vue'
+import CreateWorkflowNodeContext from '@baserow/modules/automation/components/workflow/CreateWorkflowNodeContext'
+
+import {
+  hideContext,
+  toggleContext,
+} from '@baserow/modules/core/composables/context'
 
 const props = defineProps({
   nodes: {
@@ -80,14 +94,18 @@ const props = defineProps({
 
 const emit = defineEmits(['add-node', 'remove-node', 'input'])
 
-const { addSelectedNodes, onNodeClick, onPaneClick } = useVueFlow()
+const { onInit, addSelectedNodes, onMove, onNodeClick, onPaneClick } = useVueFlow()
 
 const { value: selectedNodeId } = toRefs(props)
+const { app } = useContext()
 
 const nodesDraggable = ref(false)
 const zoomOnScroll = ref(false)
 const panOnScroll = ref(true)
 const zoomOnDoubleClick = ref(false)
+
+const createNodeContext = ref(null)
+const addWorkflowBtnNode = ref(null)
 
 // Constants for positioning
 const NODE_VERTICAL_SPACING = 144 // Vertical distance between the tops of consecutive data nodes
@@ -209,9 +227,32 @@ onNodeClick(({ node }) => {
   }
 })
 
-const handleAddNode = (previousNodeId) => {
+// Hide the context menu when user pan the canvas
+onMove(() => {
+  hideContext(createNodeContext.value)
+})
+
+const workflowHasTrigger = computed(() => {
+  return props.nodes.some((node) => {
+    const nodeType = app.$registry.get('node', node.type)
+    return nodeType.isTrigger
+  })
+})
+
+const toggleCreateContext = () => {
+  toggleContext(
+    createNodeContext.value,
+    addWorkflowBtnNode.value.$el,
+    'bottom',
+    'left',
+    10,
+    -225
+  )
+}
+
+const createNode = (nodeType, previousNodeId) => {
   emit('add-node', {
-    type: 'workflow-node',
+    type: nodeType,
     previousNodeId,
   })
 }

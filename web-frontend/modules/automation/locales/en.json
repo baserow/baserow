@@ -61,5 +61,8 @@
     "actionDelete": "Delete action",
     "actionDuplicate": "Duplicate action",
     "actionConfigure": "Configure"
+  },
+  "createWorkflowNodeContext": {
+    "searchPlaceholder": "Search events..."
   }
 }
