@@ -8,6 +8,7 @@
 * [Dashboard] Jira data sync personal access token authentication. [#3558](https://gitlab.com/baserow/baserow/-/issues/3558)
 
 ### Bug fixes
+* [Database] Fix rating filter style reactivity [#3523](https://gitlab.com/baserow/baserow/-/issues/3523)
 * [Builder] Login action are now executed even if the user is already authenticated [#3630](https://gitlab.com/baserow/baserow/-/issues/3630)
 * [Builder] Ensure that in the Theme settings, the Table styles are rendered in the preview panel. [#3631](https://gitlab.com/baserow/baserow/-/issues/3631)
 * [Builder] Fix styling issues when using Text element with markdown format. [#3632](https://gitlab.com/baserow/baserow/-/issues/3632)
