@@ -292,7 +292,9 @@
         "hasNotDateAfter": "nie zawiera daty po",
         "hasDateOnOrAfter": "zawiera datę równą lub po",
         "hasDateOnOrBefore": "zawiera datę równą lub przed",
-        "hasDateAfter": "zawiera datę po"
+        "hasDateAfter": "zawiera datę po",
+        "hasAnyOf": "zawiera którekolwiek z",
+        "hasNotAnyOf": "nie zawiera któregokolwiek z"
     },
     "viewType": {
         "grid": "Siatka",
@@ -310,7 +312,9 @@
         "field": "pole",
         "row": "wiersz",
         "rows": "wiersze",
-        "view": "widok"
+        "view": "widok",
+        "automation_workflow": "automatyzacja przepływu pracy",
+        "automation_node": "węzeł automatyzacji"
     },
     "webhook": {
         "request": "Wniosek",
@@ -464,7 +468,9 @@
         "uploadFileViaUrl": "Prześlij plik za pomocą adresu URL",
         "uploadFileViaUrlDescription": "Przesyła plik do Baserow, pobierając go z podanego adresu URL.",
         "fileUploads": "Przesyłanie plików",
-        "sendWebhookEventsDescription": "Flaga parametru zapytania, która wywoła webhook po tej operacji, jeśli ustawiona na `y`, `yes`, `true`, `t`, on, `1` albo pozostawiona pusta. Domyślnie `true`"
+        "sendWebhookEventsDescription": "Flaga parametru zapytania, która wywoła webhook po tej operacji, jeśli ustawiona na `y`, `yes`, `true`, `t`, on, `1` albo pozostawiona pusta. Domyślnie `true`",
+        "apiDocs": "Lista wszystkich tabel",
+        "listTables": "Lista tabel"
     },
     "exporterType": {
         "csv": "Eksport do CSV"
