@@ -116,13 +116,13 @@ class LocalBaserowDeleteRow(LocalBaserowTableService):
     row_id = FormulaField()
 
 
-class LocalBaserowRowsCreated(LocalBaserowTableService):
+class LocalBaserowRowCreated(LocalBaserowTableService):
     """
     A model for the local baserow rows created trigger service.
     """
 
 
-class LocalBaserowRowsUpdated(LocalBaserowTableService):
+class LocalBaserowRowUpdated(LocalBaserowTableService):
     """
     A model for the local baserow rows updated trigger service.
     """

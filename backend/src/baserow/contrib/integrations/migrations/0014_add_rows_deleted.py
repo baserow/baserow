@@ -12,16 +12,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RenameModel(
-            old_name="LocalBaserowRowCreated",
-            new_name="LocalBaserowRowsCreated",
-        ),
-        migrations.RenameModel(
-            old_name="LocalBaserowRowUpdated",
-            new_name="LocalBaserowRowsUpdated",
-        ),
         migrations.RemoveField(
-            model_name="localbaserowrowsupdated",
+            model_name="localbaserowrowupdated",
             name="row_id",
         ),
         migrations.CreateModel(
