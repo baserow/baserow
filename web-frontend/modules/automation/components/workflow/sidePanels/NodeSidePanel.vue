@@ -24,6 +24,8 @@
         :is="nodeType.formComponent"
         :key="node.id"
         :node="node"
+        :workflow-action="node"
+        :application="automation"
         class="node-form margin-top-2"
         @values-changed="handleNodeServiceChange"
       />
@@ -39,6 +41,7 @@ const store = useStore()
 const { app } = useContext()
 
 const workspace = inject('workspace')
+const automation = inject('automation')
 const currentWorkflow = inject('currentWorkflow')
 
 const node = computed(() => {

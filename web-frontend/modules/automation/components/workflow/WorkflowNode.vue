@@ -5,7 +5,7 @@
     </div>
 
     <h1 class="workflow-editor__node-title">
-      Row is created in Projects very long text
+      {{ props.id }} Row is created in Projects very long text
     </h1>
 
     <Badge rounded color="yellow" size="large">

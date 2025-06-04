@@ -128,7 +128,7 @@ export default defineComponent({
         isAddingNode.value = true
         const newNode = await store.dispatch('automationWorkflowNode/create', {
           workflow: currentWorkflow.value,
-          type: 'rows_created',
+          type: previousNodeId === null ? 'rows_created' : 'create_row',
           previousNodeId,
         })
 
