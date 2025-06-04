@@ -4,7 +4,6 @@
       size="large"
       show-search
       open-on-mount
-      :fixed-items="true"
       :show-input="false"
       :search-text="$t('createWorkflowNodeContext.searchPlaceholder')"
       @change="onChange"
@@ -22,13 +21,10 @@
 </template>
 
 <script>
-import Context from '@baserow/modules/core/components/Context'
-import { defineComponent, computed } from 'vue'
-import { useContext } from '@nuxtjs/composition-api'
-
-export default defineComponent({
+import context from '@baserow/modules/core/mixins/context'
+export default {
   name: 'CreateWorkflowNodeContext',
-  components: { Context },
+  mixins: [context],
   props: {
     lastNodeId: {
       type: [Number, String],
@@ -40,26 +36,20 @@ export default defineComponent({
       required: true,
     },
   },
-  emits: ['change'],
-  setup(props, { emit }) {
-    const { app } = useContext()
-
-    const onChange = (nodeType) => {
-      emit('change', nodeType, props.lastNodeId)
-    }
-
-    const nodeTypes = computed(() => {
-      return Object.values(app.$registry.getAll('node')).filter((nodeType) => {
-        return props.workflowHasTrigger
+  computed: {
+    nodeTypes() {
+      return Object.values(this.$registry.getAll('node')).filter((nodeType) => {
+        return this.workflowHasTrigger
           ? nodeType.isWorkflowAction
           : nodeType.isTrigger
       })
-    })
-
-    return {
-      onChange,
-      nodeTypes,
-    }
+    },
   },
-})
+  methods: {
+    onChange(nodeType) {
+      this.hide()
+      this.$emit('change', nodeType, this.lastNodeId)
+    },
+  },
+}
 </script>

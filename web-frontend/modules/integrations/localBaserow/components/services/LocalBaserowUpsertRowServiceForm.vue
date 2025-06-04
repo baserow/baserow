@@ -37,7 +37,16 @@ export default {
       type: Object,
       required: true,
     },
-    workflowAction: {
+    /**
+     * Returns the loading state of the workflow action. Used to
+     * determine whether to show the loading spinner in the form.
+     */
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    service: {
       type: Object,
       required: false,
       default: null,
@@ -60,26 +69,17 @@ export default {
   },
   computed: {
     /**
-     * Returns the loading state of the workflow action. Used to
-     * determine whether to show the loading spinner in the water.
-     */
-    workflowActionLoading() {
-      return this.$store.getters['builderWorkflowAction/getLoading'](
-        this.workflowAction
-      )
-    },
-    /**
      * Returns the writable fields in the schema, which the
      * `FieldMappingForm` can use to display the field mapping options.
      */
     getWritableSchemaFields() {
       if (
-        this.workflowAction.service == null ||
-        this.workflowAction.service.schema == null // have service, no table
+        this.service == null ||
+        this.service.schema == null // have service, no table
       ) {
         return []
       }
-      const schema = this.workflowAction.service.schema
+      const schema = this.service.schema
       const schemaProperties =
         schema.type === 'array' ? schema.items.properties : schema.properties
       return Object.values(schemaProperties)
@@ -88,7 +88,7 @@ export default {
     },
   },
   watch: {
-    workflowActionLoading: {
+    loading: {
       handler(value) {
         if (!value) {
           this.tableLoading = false

@@ -5,6 +5,8 @@ import {
 } from '@baserow/modules/automation/nodeTypeMixins'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
+  LocalBaserowUpdateRowWorkflowServiceType,
+  LocalBaserowDeleteRowWorkflowServiceType,
   LocalBaserowRowsCreatedTriggerServiceType,
   LocalBaserowRowsDeletedTriggerServiceType,
   LocalBaserowRowsUpdatedTriggerServiceType,
@@ -140,13 +142,51 @@ export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
   }
 
   getOrder() {
-    return 2
+    return 1
   }
 
   get serviceType() {
     return this.app.$registry.get(
       'service',
       LocalBaserowCreateRowWorkflowServiceType.getType()
+    )
+  }
+}
+
+export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
+  NodeType
+) {
+  static getType() {
+    return 'update_row'
+  }
+
+  getOrder() {
+    return 2
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowUpdateRowWorkflowServiceType.getType()
+    )
+  }
+}
+
+export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
+  NodeType
+) {
+  static getType() {
+    return 'delete_row'
+  }
+
+  getOrder() {
+    return 3
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowDeleteRowWorkflowServiceType.getType()
     )
   }
 }
