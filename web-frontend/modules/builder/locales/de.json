@@ -49,8 +49,8 @@
         "text": "Paragraph",
         "table": "Tabelle",
         "formContainer": "Formular",
-        "inputText": "Texteingabe",
-        "inputTextDescription": "Ein Texteingabe-Feld",
+        "inputText": "Dateneingabe",
+        "inputTextDescription": "Ein Dateneingabe-Feld",
         "image": "Bild",
         "tableDescription": "Ein Tabellen-Element",
         "columnDescription": "Spalten-Container",
@@ -183,7 +183,9 @@
         "openInNewTab": "In neuem Tab öffnen",
         "noDomain": "Sie benötigen mindestens eine Domäne, um Ihre Anwendung zu veröffentlichen.",
         "publishFailedDescription": "Die Veröffentlichung der Seite ist fehlgeschlagen. Bitte versuchen Sie es später erneut.",
-        "importingState": "Importiere"
+        "importingState": "Importiere",
+        "publishSucceedLink": "Seite anzeigen",
+        "addDomain": "Domain hinzufügen"
     },
     "pageActionTypes": {
         "publish": "Veröffentlichen",

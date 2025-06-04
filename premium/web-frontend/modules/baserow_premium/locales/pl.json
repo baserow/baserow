@@ -101,15 +101,29 @@
     "premiumFeatures": {
         "rowComments": "Komentarze do wierszy",
         "kanbanView": "Widok kanban",
-        "exports": "Eksport JSON i XML",
+        "exports": "Eksport tabeli",
         "admin": "Funkcjonalność administratora",
         "rowColoring": "Kolorowanie wierszy",
         "surveyForm": "Formularz ankiety",
         "publicLogoRemoval": "Usunięcie logo publicznego",
         "personalViews": "Osobiste widoki",
         "calendarView": "Widok kalendarza",
-        "aiFeatures": "Pole AI",
-        "timelineView": "Widok osi czasu"
+        "aiFeatures": "Funkcjonalności AI",
+        "timelineView": "Widok osi czasu",
+        "calendarViewContent": "Możesz podejrzeć swoje wiersze w formie kalendarza, wskazując dowolne pole daty. Doskonałe do przeglądania i śledzenia terminów, zdarzeń i harmonogramów.",
+        "rowNotificationsContent": "Bądź na bieżąco za pomocą powiadomień o komentarzach, które możesz dostosowywać. Wybierz między otrzymywaniem wszystkich komentarzy albo tylko tych, w których Ciebie wspomniano.",
+        "exportsContent": "Łatwo wyeksportuj swoje dane do dodatkowych formatów, jak Excel, JSON i XML, albo pobierz wszystkie pliki dołączone do tabeli - doskonałe do kopii zapasowych, raportów i współdzielenia z innymi.",
+        "rowNotifications": "Powiadomienia o wierszu",
+        "surveyFormContent": "Zbierz odpowiedzi na każde pytanie osobno za pomocą trybu ankiety. Uproszczona wersja widoku formularza, bez rozpraszających elementów i łatwa w użyciu.",
+        "aiFeaturesContent": "Używaj AI do automatyzacji i rozszerzania swoich przepływów pracy. Za pomocą pola podpowiedzi AI możesz generować tekst, podsumowania albo analizy bezpośrednio w komórkach na podstawie dynamicznych podpowiedzi, które mogą nawiązywać do innych pól. Możesz też poprosić AI aby wygenerowało dla Ciebie formuły.",
+        "publicLogoRemovalContent": "Usuń logo Baserow z widoków publicznych, aby współdzielona zawartość wyglądała schludniej i bardziej firmowo.",
+        "kanbanViewContent": "Zorganizuj wizualnie swoje dane na tablicy Kanban. Karty są pogrupowane w stosy na podstawie pola pojedynczego wyboru. Możesz je przenosić przeciągając i upuszczając je pomiędzy stosami.",
+        "rowCommentsContent": "Współpracuj bezpośrednio w tabeli. Dodawaj komentarze do poszczególnych wierszy, wzmiankuj członków zespołu i utrzymuj konwersację w kontekście.",
+        "timelineViewContent": "Wyświetlaj wiersze wzdłuż horyzontalnej linii czasu używając daty początkowej i daty końcowej. Doskonałe do planowania projektów i map drogowych.",
+        "chartWidget": "Widget wykresu",
+        "chartWidgetContent": "Wizualizuj swoje dane na wykresach na pulpitach. Użyj dowolnej tabeli jako źródła danych, dodaj wiele serii, grupuj albo sortuj po polach za pomocą bogatych opcji podsumowania.",
+        "rowColoringContent": "Podświetlaj wiersze kolorami na podstawie pola pojedynczego wyboru lub własnych warunków. To pozwala łatwo zauważyć wzorce i priorytety.",
+        "personalViewsContent": "Twórz widoki, które są dostępne tylko dla autora. To daje przestrzeń do eksperymentów, filtrowania i sortowania danych bez wpływania na przestrzeń pracy u innych."
     },
     "licenses": {
         "titleNoLicenses": "Nie znaleziono licencji",
@@ -160,7 +174,8 @@
         "contactSalesMoreSeats": "Skontaktuj się z działem sprzedaży, aby uzyskać więcej miejsc",
         "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} płatnych miejsc i {free_users_count} wolnych miejsc w użyciu",
         "applicationUsersDescription": "Całkowita liczba użytkowników aplikacji w opublikowanych źródłach użytkowników budowniczego aplikacji.",
-        "applicationUsers": "Użytkownicy aplikacji"
+        "applicationUsers": "Użytkownicy aplikacji",
+        "advancedFeatureName": "Wersja Zaawansowana"
     },
     "viewDecoratorType": {
         "leftBorderColor": "Lewa granica",
@@ -317,7 +332,8 @@
         "noCompatibleDateFields": "Brakuje pól dat w tabeli. Proszę najpierw dodać datę początkową i końcową do tabeli.",
         "incompatibleFieldsErrorTitle": "Niekompatybilne pola",
         "dateOnly": "tylko data",
-        "includeTime": "data i czas"
+        "includeTime": "data i czas",
+        "forceTimezone": "{timezone}"
     },
     "timelineTimescaleContext": {
         "disabledTooltip": "Ta opcja jest dostępna tylko dla pól daty, które mają włączone \"uwzględnij czas\".",
@@ -355,5 +371,12 @@
     },
     "timelineGridRow": {
         "days": "0|1 dzień| {count} dni"
+    },
+    "paidFeaturesModal": {
+        "viewPricing": "Zobacz cennik",
+        "description": "Ta funkcjonalność jest dostępna w planie {plan}. Aby uzyskać do niej dostęp, zmień swój plan na wyższy uruchamiając subskrypcję. Kliknij na przycisk poniżej, aby zapoznać się z naszymi płatnymi planami."
+    },
+    "kanbanView": {
+        "addStack": "Dodaj stos"
     }
 }

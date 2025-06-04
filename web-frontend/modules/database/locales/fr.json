@@ -209,7 +209,8 @@
         "placeholder": "Texte par défault"
     },
     "fieldSingleSelectSubForm": {
-        "optionsLabel": "Options"
+        "optionsLabel": "Options",
+        "defaultOptionLabel": "Option par défaut"
     },
     "fieldSingleSelectDropdown": {
         "notFound": "Option manquante"
@@ -882,7 +883,15 @@
     "rowHistorySidebar": {
         "you": "Vous",
         "name": "Historique",
-        "empty": "Aucun changement pour l'instant. Vous pourrez suivre les modifications apportées à cette ligne ici."
+        "empty": "Aucun changement pour l'instant. Vous pourrez suivre les modifications apportées à cette ligne ici.",
+        "updated": "a mis à jour cette ligne",
+        "submitted": "a soumis cette ligne",
+        "restored": "a restauré cette ligne",
+        "createdUndo": "a annulé la création d'une ligne",
+        "updatedUndo": "a annulé la mise à jour de lignes",
+        "deletedUndo": "a annulé la suppression d'une ligne",
+        "created": "a créé cette ligne",
+        "deleted": "a supprimé cette ligne"
     },
     "viewGroupByContext": {
         "groupBy": "Grouper par",
@@ -1145,5 +1154,13 @@
     },
     "fieldBooleanSubForm": {
         "defaultValue": "Par défaut"
+    },
+    "apiDocsListTables": {
+        "listTables": "Lister toutes les tables",
+        "listTablesDescription": "Ce point d'accès ne fonctionne qu'en combinaison avec l'authentification par jeton. Il répertorie toutes les tables pour lesquelles le jeton a un accès de création, de lecture, de mise à jour ou de suppression."
+    },
+    "fieldMultipleSelectSubForm": {
+        "defaultOptionsLabel": "Options par défaut",
+        "optionsLabel": "Options"
     }
 }

@@ -28,7 +28,8 @@
         "noSortTitle": "Sie haben noch keine Datenquellen-Sortierung erstellt",
         "thenBy": "und nach",
         "addSort": "Zusätzliche Sortierung hinzufügen",
-        "sortBy": "Sortieren nach"
+        "sortBy": "Sortieren nach",
+        "sortMisconfigured": "Das Feld, zu dem diese Sortierung gehört, wurde verworfen."
     },
     "dataProviderType": {
         "dataSource": "Datenquelle",
@@ -38,7 +39,8 @@
         "tableFieldLabel": "Tabelle",
         "viewFieldLabel": "Ansicht",
         "chooseNoView": "Nicht ausgewählt",
-        "databaseFieldLabel": "Datenbank"
+        "databaseFieldLabel": "Datenbank",
+        "dataSyncedTableDescription": "Tabelle mit synchronisierten Daten"
     },
     "integrationType": {
         "localBaserow": "Lokales Baserow",
@@ -48,7 +50,9 @@
     "serviceType": {
         "localBaserowGetRow": "Einzelne Zeile abfragen",
         "localBaserowListRows": "Mehrere Zeilen auflisten",
-        "localBaserowAggregateRows": "Feld zusammenfassen"
+        "localBaserowAggregateRows": "Feld zusammenfassen",
+        "misconfigured": "Fehlkonfiguriert",
+        "trashedField": "Verworfenes Feld"
     },
     "userSourceType": {
         "localBaserow": "Baserow-Tabellen-Authentifizierung"

@@ -281,7 +281,8 @@
     },
     "trashSidebar": {
         "title": "휴지통",
-        "unnamedWorkspace": "이름 없는 작업공간 {id}"
+        "unnamedWorkspace": "이름 없는 작업공간 {id}",
+        "workspaces": "작업공간"
     },
     "trashContents": {
         "message": "지난 {duration} 동안 삭제된 항목 복원",
@@ -946,5 +947,25 @@
     "createNewGuidedTourStep": {
         "title": "새 데이터베이스 또는 애플리케이션 만들기",
         "content": "“새로 추가…”를 클릭하여 프로젝트, 부서 또는 팀을 위한 새 데이터베이스, 애플리케이션, 또는 대시보드를 설정하세요."
+    },
+    "mcpEndpointSettings": {
+        "noEndpointsMessage": "MCP(모델 컨텍스트 프로토콜) 서버 엔드포인트가 추가되지 않았습니다. 이러한 엔드포인트는 Claude와 같은 LLM과 직접 통합하여 LLM이 Baserow에서 직접 작업을 수행하도록 하는 데 사용할 수 있습니다. 시작하려면 서버 엔드포인트를 생성하세요.",
+        "title": "MCP 서버",
+        "createEndpoint": "엔드포인트 생성",
+        "createNewTitle": "MCP 서버 엔드포인트 생성",
+        "backToOverview": "뒤로"
+    },
+    "mcpEndpoint": {
+        "endpointURLIntro": "MCP(Model Context Protocol) 서버 URL은 MCP 서버를 지원하는 모든 클라이언트에 추가할 수 있습니다. 이는 LLM이 사용자를 대신하여 작업 공간에서 작업을 수행할 수 있도록 직접 액세스하는 고유한 엔드포인트입니다.",
+        "claudeInstructions": "Claude Desktop과 Baserow MCP를 시작하는 간단한 세 단계입니다.\n\n1. 탐색 모음에서 Claude Desktop 설정을 엽니다(⌘+,).\n1. \"개발\" 탭으로 이동하여 \"구성 편집\"을 클릭합니다.\n1. 다음 JSON 구성을 `claude_desktop_config.json`에 포함합니다.",
+        "windsurfInstructions": "Windsurf에서 Cascase를 사용하여 MCP를 설정하는 간단한 두 단계입니다.\n\n1. Windsurf - 설정 -> 고급 설정 또는 명령 팔레트 -> Windsurf 설정 페이지 열기로 이동합니다.\n1. Cascade 섹션까지 아래로 스크롤하면 새 서버를 추가하고, 기존 서버를 보고, `mcp_config.json`에서 원시 JSON 구성 파일을 볼 수 있는 버튼이 있습니다. 다음 내용을 추가합니다.",
+        "detailLabel": "더보기",
+        "reveal": "전체 URL 공개",
+        "warning": "MCP URL은 Baserow의 데이터를 수정할 수 있는 권한이 있으므로 비밀번호처럼 안전하게 다루어야 합니다.",
+        "cursorInstructions": "커서와 Baserow MCP를 시작하는 간단한 세 단계입니다.\n\n1. 커서 설정(⇧+⌘+J)을 엽니다.\n1. \"MCP\" 탭으로 이동하여 \"MCP 서버 추가\"를 클릭합니다.\n1. 다음 JSON 구성을 추가합니다."
+    },
+    "mcpEndpointForm": {
+        "nameLabel": "이름",
+        "workspaceLabel": "작업공간"
     }
 }

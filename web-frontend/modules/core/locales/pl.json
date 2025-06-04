@@ -169,7 +169,8 @@
     },
     "trashSidebar": {
         "title": "Śmieci",
-        "unnamedWorkspace": "Grupa bez nazwy {id}"
+        "unnamedWorkspace": "Grupa bez nazwy {id}",
+        "workspaces": "Obszary robocze"
     },
     "trashContents": {
         "message": "Przywróć usunięte elementy z przeszłości {duration}",
@@ -731,7 +732,8 @@
         "openRouterApiKeyDescription": "Podaj klucz API dla OpenRouter, jeśli chcesz włączyć tę integrację. [jak zdobyć klucz API](https://openrouter.ai/settings/keys).",
         "openRouterOrganization": "Organizacja (opcjonalnie)",
         "openRouterModelsLabel": "Włączone Modele",
-        "openRouterModelsDescription": "Podaj listę [modeli OpenRouter](https://openrouter.ai/models) rozdzieloną przecinkiem, która może być użyta w Baserow. (np. `openai/gpt-4o,anthropic/claude-3-haiku`)"
+        "openRouterModelsDescription": "Podaj listę [modeli OpenRouter](https://openrouter.ai/models) rozdzieloną przecinkiem, która może być użyta w Baserow. (np. `openai/gpt-4o,anthropic/claude-3-haiku`)",
+        "openRouter": "OpenRouter"
     },
     "generativeAIWorkspaceSettings": {
         "changedTitle": "Ustawienia zostały poprawnie zaktualizowane",
@@ -1037,5 +1039,11 @@
     },
     "userSourceType": {
         "userCountSummary": "{count} użytkowników ({lastUpdated})"
+    },
+    "mcpEndpointSettings": {
+        "title": "Serwer MCP",
+        "createEndpoint": "Utwórz adres końcowy",
+        "backToOverview": "Powrót",
+        "createNewTitle": "Utwórz adres końcowy serwera MCP"
     }
 }

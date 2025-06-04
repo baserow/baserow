@@ -147,7 +147,8 @@
         "premiumFeatureName": "Premium",
         "enterpriseFeatureName": "Enterprise",
         "applicationUsers": "Applicatie gebruikers",
-        "applicationUsersDescription": "Het totale aantal applicatiegebruikers in gepubliceerde applicatiebouwer gebruikersbronnen."
+        "applicationUsersDescription": "Het totale aantal applicatiegebruikers in gepubliceerde applicatiebouwer gebruikersbronnen.",
+        "advancedFeatureName": "Advanced"
     },
     "viewDecoratorType": {
         "leftBorderColor": "Linkerrand",
