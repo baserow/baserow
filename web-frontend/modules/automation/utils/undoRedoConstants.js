@@ -4,5 +4,5 @@ export const AUTOMATION_ACTION_SCOPES = {
     return {
       workflow: workflowId,
     }
-  }
+  },
 }
