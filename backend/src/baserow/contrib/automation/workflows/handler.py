@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, Iterable, List, Optional
 from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
@@ -15,6 +15,7 @@ from baserow.contrib.automation.constants import (
     WORKFLOW_NAME_MAX_LEN,
 )
 from baserow.contrib.automation.models import Automation
+from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
@@ -22,7 +23,7 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowNotInAutomation,
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
+from baserow.contrib.automation.workflows.tasks import run_workflow
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.trash.handler import TrashHandler
@@ -35,19 +36,19 @@ from baserow.core.utils import (
 
 
 class AutomationWorkflowHandler:
-    allowed_fields = ["name"]
+    allowed_fields = ["name", "allow_test_run_until"]
 
     def run_workflow(
-        self, workflow: AutomationWorkflow, dispatch_context: AutomationDispatchContext
-    ):
+        self, workflow_id: int, dispatch_context: AutomationDispatchContext
+    ) -> None:
         """
         Runs the provided workflow.
 
-        :param workflow: The AutomationWorkflow that should be executed.
+        :param workflow_id: The AutomationWorkflow ID that should be executed.
         :param dispatch_context: The context used for the dispatch.
         """
 
-        return AutomationWorkflowRunner().run(workflow, dispatch_context)
+        run_workflow.delay(workflow_id, dispatch_context.event_payload)
 
     def get_workflow(
         self, workflow_id: int, base_queryset: Optional[QuerySet] = None
@@ -411,3 +412,39 @@ class AutomationWorkflowHandler:
             progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
         return workflow_instance
+
+    def get_trigger_node(
+        self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
+    ) -> Optional[AutomationNode]:
+        """Return the trigger node of a workflow, if available."""
+
+        if base_queryset is None:
+            base_queryset = AutomationNode.objects
+
+        node = (
+            base_queryset.select_related("workflow")
+            .filter(workflow=workflow)
+            .order_by("order")
+            .first()
+        )
+
+        if not node or not node.get_type().is_workflow_trigger:
+            return None
+
+        return node.specific
+
+    def get_action_nodes(
+        self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
+    ) -> Iterable[AutomationNode]:
+        """Return the action nodes of a workflow."""
+
+        if base_queryset is None:
+            base_queryset = AutomationNode.objects
+
+        nodes = (
+            base_queryset.select_related("workflow")
+            .filter(workflow=workflow)
+            .order_by("order")
+        )
+
+        return [node.specific for node in nodes if node.get_type().is_workflow_action]

@@ -46,5 +46,11 @@ def test_serializer_get_workflows(automation_fixture):
 
     workflows = serializer.get_workflows(automation)
     assert workflows == [
-        {"id": workflow.id, "name": "test", "order": 1, "automation_id": automation.id}
+        {
+            "id": workflow.id,
+            "name": "test",
+            "order": 1,
+            "automation_id": automation.id,
+            "allow_test_run_until": None,
+        }
     ]

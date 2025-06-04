@@ -20,6 +20,7 @@ from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
     UpdatedAutomationNode,
 )
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.services.handler import ServiceHandler
@@ -32,6 +33,9 @@ from baserow.core.utils import MirrorDict, extract_allowed
 
 class AutomationNodeHandler:
     allowed_fields = ["previous_node_output", "service"]
+
+    def __init__(self):
+        self.workflow_handler = AutomationWorkflowHandler()
 
     def create_node(
         self,

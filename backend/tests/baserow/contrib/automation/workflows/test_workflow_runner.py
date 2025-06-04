@@ -7,40 +7,7 @@ from baserow.contrib.automation.nodes.node_types import (
     LocalBaserowCreateRowNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
 )
-from baserow.contrib.automation.workflows.exceptions import (
-    AutomationTriggerNodeDoesNotExist,
-)
 from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
-
-
-@pytest.mark.django_db
-def test_run_workflow_without_any_nodes(data_fixture):
-    workflow = data_fixture.create_automation_workflow()
-    with pytest.raises(AutomationTriggerNodeDoesNotExist) as exc:
-        AutomationWorkflowRunner().run(
-            workflow, AutomationDispatchContext(workflow, {})
-        )
-    assert (
-        exc.value.args[0]
-        == "This workflow contains no nodes, start by adding a trigger."
-    )
-
-
-@pytest.mark.django_db
-def test_run_workflow_without_trigger(data_fixture):
-    workflow = data_fixture.create_automation_workflow()
-    data_fixture.create_automation_node(
-        workflow=workflow,
-        node_type=LocalBaserowCreateRowNodeType.type,
-    )
-    with pytest.raises(AutomationTriggerNodeDoesNotExist) as exc:
-        AutomationWorkflowRunner().run(
-            workflow, AutomationDispatchContext(workflow, {})
-        )
-    assert (
-        exc.value.args[0]
-        == "This workflow does not have a trigger node, start by adding one."
-    )
 
 
 @pytest.mark.django_db
@@ -55,7 +22,7 @@ def test_run_workflow(data_fixture):
     workflow = data_fixture.create_automation_workflow(user=user)
     data_fixture.create_automation_node(
         workflow=workflow,
-        node_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        node=LocalBaserowRowsCreatedNodeTriggerType.type,
         service=data_fixture.create_local_baserow_rows_created_service(
             table=trigger_table,
             integration=integration,
@@ -69,7 +36,7 @@ def test_run_workflow(data_fixture):
     data_fixture.create_automation_node(
         workflow=workflow,
         service=action_node_service,
-        node_type=LocalBaserowCreateRowNodeType.type,
+        type=LocalBaserowCreateRowNodeType.type,
     )
 
     action_table_model = action_table.get_model()

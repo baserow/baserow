@@ -55,7 +55,7 @@ class AutomationWorkflowService:
             context=workflow,
         )
 
-        self.handler.run_workflow(workflow, dispatch_context)
+        self.handler.run_workflow(workflow_id, dispatch_context)
 
     def get_workflow(self, user: AbstractUser, workflow_id: int) -> AutomationWorkflow:
         """

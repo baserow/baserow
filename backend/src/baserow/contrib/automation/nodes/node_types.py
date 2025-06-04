@@ -1,7 +1,8 @@
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
+from django.utils import timezone
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -60,26 +61,38 @@ class AutomationNodeTriggerType(AutomationNodeType):
         self,
         user: AbstractUser,
         service_queryset: QuerySet[Service],
-        event_payload: Optional[Dict] = None,
+        event_payload: Optional[List[Dict]] = None,
     ):
         from baserow.contrib.automation.workflows.service import (
             AutomationWorkflowService,
         )
 
+        workflow_service = AutomationWorkflowService()
+        now = timezone.now()
+
         triggers = (
             self.model_class.objects.filter(
-                service__in=service_queryset, workflow__published=True
+                service__in=service_queryset,
+            )
+            .filter(
+                Q(
+                    Q(workflow__published=True)
+                    | Q(workflow__allow_test_run_until__gte=now)
+                ),
             )
             .select_related("workflow__automation__workspace")
-            .all()
         )
 
         for trigger in triggers:
-            AutomationWorkflowService().run_workflow(
+            workflow = trigger.workflow
+            workflow_service.run_workflow(
                 user,
-                trigger.workflow,
-                AutomationDispatchContext(trigger.workflow, event_payload),
+                workflow.id,
+                AutomationDispatchContext(workflow, event_payload),
             )
+            if workflow.allow_test_run_until:
+                workflow.allow_test_run_until = None
+                workflow.save()
 
     def after_register(self):
         service_type_registry.get(self.service_type).start_listening(self.on_event)

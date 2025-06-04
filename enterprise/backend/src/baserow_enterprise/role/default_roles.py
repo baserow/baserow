@@ -29,6 +29,7 @@ from baserow.contrib.automation.workflows.operations import (
     DuplicateAutomationWorkflowOperationType,
     ReadAutomationWorkflowOperationType,
     RestoreAutomationWorkflowOperationType,
+    RunAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
 )
 from baserow.contrib.builder.data_sources.operations import (
@@ -509,6 +510,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         OrderAutomationWorkflowsOperationType,
         CreateAutomationWorkflowOperationType,
         RestoreAutomationWorkflowOperationType,
+        RunAutomationWorkflowOperationType,
         DeleteAutomationWorkflowOperationType,
         UpdateAutomationWorkflowOperationType,
         ReadAutomationWorkflowOperationType,
