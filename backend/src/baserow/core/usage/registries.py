@@ -12,11 +12,20 @@ class WorkspaceStorageUsageItemType(Instance, ABC):
     the usage of a group in a specific part of the application
     """
 
-    @abstractmethod
-    def calculate_storage_usage(self, workspace_id: int) -> UsageInMB:
+    def calculate_storage_usage_instance(self):
         """
-        Calculates the storage usage for a group
-        in a specific part of the application
+        Calculates the storage usage for the whole instance. Can be used to update
+        instance wide related usage changes.
+        """
+
+        pass
+
+    @abstractmethod
+    def calculate_storage_usage_workspace(self, workspace_id: int) -> UsageInMB:
+        """
+        Calculates the storage usage for a workspace in a specific part of the
+        application
+
         :param workspace_id: the group that the usage is calculated for
         :return: the total usage
         """

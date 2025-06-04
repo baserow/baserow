@@ -32,7 +32,7 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
         service=data_source1.service, field=field, aggregation_type="sum", order=1
     )
     LocalBaserowTableServiceAggregationSeries.objects.create(
-        service=data_source1.service, field=field_2, aggregation_type="sum", order=1
+        service=data_source1.service, field=field_2, aggregation_type="sum", order=2
     )
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=data_source1.service, field=field_3, order=1
@@ -71,8 +71,16 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
     assert response_json[0] == {
         "aggregation_group_bys": [{"field_id": field_3.id, "order": 1}],
         "aggregation_series": [
-            {"aggregation_type": "sum", "field_id": field.id, "order": 1},
-            {"aggregation_type": "sum", "field_id": field_2.id, "order": 1},
+            {
+                "aggregation_type": "sum",
+                "field_id": field.id,
+                "id": AnyInt(),
+            },
+            {
+                "aggregation_type": "sum",
+                "field_id": field_2.id,
+                "id": AnyInt(),
+            },
         ],
         "context_data": {
             "fields": {
@@ -186,12 +194,12 @@ def test_grouped_aggregate_rows_update_data_source(api_client, premium_data_fixt
         {
             "aggregation_type": "sum",
             "field_id": field.id,
-            "order": 0,
+            "id": AnyInt(),
         },
         {
             "aggregation_type": "sum",
             "field_id": field_2.id,
-            "order": 1,
+            "id": AnyInt(),
         },
     ]
     assert response_json["aggregation_group_bys"] == [

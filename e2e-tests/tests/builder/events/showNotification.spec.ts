@@ -55,7 +55,7 @@ test.describe("Builder page show notification action test suite", () => {
 
     await expect(eventsTab.getByText("Title")).toBeVisible();
 
-    await builderPagePage.changeDropdown("Show Notification", "Create Row");
+    await builderPagePage.changeDropdown("Show Notification", "Create a Row");
 
     await expect(
       eventsTab.getByText("Integration", { exact: true })

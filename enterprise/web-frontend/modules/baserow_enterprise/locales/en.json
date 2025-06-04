@@ -309,7 +309,9 @@
     "advancedWebhooks": "Advanced webhooks",
     "advancedWebhooksContent": "Trigger webhooks when a row enters a specific view — great for automating workflows based on filter conditions.",
     "fieldLevelPermissions": "Field-level permissions",
-    "fieldLevelPermissionsContent": "Control who can edit specific fields in a table. Set permissions for editors, builders, admins, or completely disable modifications to field values."
+    "fieldLevelPermissionsContent": "Control who can edit specific fields in a table. Set permissions for editors, builders, admins, or completely disable modifications to field values.",
+    "builderBranding": "Application branding",
+    "builderBrandingContent": "White label the branding of your application by removing the 'Made with Baserow' branding in the footer of your application."
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
@@ -398,12 +400,16 @@
   "jiraIssuesDataSync": {
     "jiraUrl": "Jira instance URL",
     "urlHelper": "The base URL of your Jira instance (e.g., https://your-domain.atlassian.net).",
+    "authenticationLabel": "Authentication",
+    "authenticationHelper": "Choose how to authenticate with Jira.",
     "projectKey": "Jira project key (optional)",
     "projectKeyHelper": "The project key of the Jira project (e.g., PROJ). Can be found by clicking on `Project settings` in Jira. If not provided, all the issues will be returned.",
     "jiraUsername": "Jira username",
     "usernameHelper": "The username of the Jira account used to authenticate. This is the email that you use to sign in.",
     "apiToken": "Jira API token",
-    "apiTokenHelper": "The API token of the Jira account used for authentication. Can be created at https://id.atlassian.com/manage-profile/security/api-tokens."
+    "apiTokenHelper": "The API token of the Jira account used for authentication. Can be created at https://id.atlassian.com/manage-profile/security/api-tokens.",
+    "personalAccessToken": "Jira Personal Access Token",
+    "personalAccessTokenHelper": "The API token of the Jira account used for authentication. Can be created at https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
   },
   "githubIssuesDataSync": {
     "owner": "Owner",
@@ -471,7 +477,10 @@
   "aggregationSeriesForm": {
     "aggregationFieldLabel": "Field",
     "aggregationTypeLabel": "Summary",
-    "deleteSeries": "Delete series"
+    "deleteSeries": "Delete series",
+    "chartType": "Chart type",
+    "barChart": "Bar",
+    "lineChart": "Line"
   },
   "aggregationGroupByForm": {
     "groupByFieldLabel": "Group by",

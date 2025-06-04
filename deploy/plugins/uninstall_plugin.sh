@@ -40,7 +40,7 @@ check_and_run_script(){
 run_as_docker_user(){
   CURRENT_USER=$(whoami)
   if [[ "$CURRENT_USER" != "$DOCKER_USER" ]]; then
-    gosu "$DOCKER_USER" "$@"
+    su-exec "$DOCKER_USER" "$@"
   else
     "$@"
   fi

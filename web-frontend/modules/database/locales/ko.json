@@ -72,7 +72,8 @@
     },
     "duplicateTableJobType": {
         "duplicating": "복제 중",
-        "duplicatedTitle": "테이블 복제됨"
+        "duplicatedTitle": "테이블 복제됨",
+        "name": "테이블 복제"
     },
     "apiToken": {
         "create": "생성",
@@ -262,7 +263,8 @@
         "selectTableLabel": "링크할 테이블 선택",
         "hasRelatedFieldLabel": "연결된 테이블에 관련 필드 생성",
         "limitToView": "보기를 선택하여 제한",
-        "limitToViewDescription": "이는 시각적으로만 적용됩니다. 관련 테이블이나 API를 통해 보기 외부의 관계를 만드는 것은 여전히 가능합니다."
+        "limitToViewDescription": "이는 시각적으로만 적용됩니다. 관련 테이블이나 API를 통해 보기 외부의 관계를 만드는 것은 여전히 가능합니다.",
+        "allowMultipleRelations": "다중 관계 허용"
     },
     "fieldSelectOptions": {
         "add": "옵션 추가"
@@ -281,7 +283,9 @@
         "suffixPlaceholder": "접미사",
         "separatorLabel": "천 단위 및 소수점 구분 기호",
         "spaceComma": "공백, 쉼표 (1 000 000,00)",
-        "commaPeriod": "쉼표, 마침표 (1,000,000.00)"
+        "commaPeriod": "쉼표, 마침표 (1,000,000.00)",
+        "defaultValueLabel": "기본값",
+        "defaultValuePlaceholder": "기본값 입력"
     },
     "fieldDurationSubForm": {
         "durationFormatLabel": "기간 형식"
@@ -354,7 +358,8 @@
         }
     },
     "rowEditFieldLinkRow": {
-        "addLink": "링크 선택"
+        "addLink": "링크 선택",
+        "keepOnlyOneValue": "값 하나만 유지됩니다. 이 필드는 하나의 관계만 지원하며, 하나의 관계만 남아 있을 경우 해당 값이 저장됩니다."
     },
     "tableCSVImporter": {
         "chooseFileLabel": "CSV 파일 선택",
@@ -628,7 +633,8 @@
         "duplicate": "필드 복제",
         "sortField": "정렬",
         "hideField": "필드 숨기기",
-        "dataSyncField": "필드는 읽기 전용이며 테이블의 데이터 동기화의 일부입니다."
+        "dataSyncField": "필드는 읽기 전용이며 테이블의 데이터 동기화의 일부입니다.",
+        "noWriteValues": "이 필드에 대한 변경은 제한되어 있습니다."
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "행이 필터와 일치하지 않음",
@@ -662,7 +668,8 @@
         "dropFileHere": "여기에 파일 놓기"
     },
     "gridViewFieldLinkRow": {
-        "unnamed": "이름 없는 행 {value}"
+        "unnamed": "이름 없는 행 {value}",
+        "keepOnlyOneValue": "하나의 값만 유지"
     },
     "gridViewIdentifierOptions": {
         "id": "행 식별자",
@@ -760,7 +767,7 @@
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "베이스에 대한 링크 공유",
-        "airtableShareLinkDescription": "Airtable 베이스를 가져오려면 전체 베이스에 대한 공유 링크가 필요합니다. 먼저 Airtable에서 베이스를 연 후, 오른쪽 상단의 공유 버튼을 클릭하고 \"링크로 공유\" 옵션을 선택합니다. 그런 다음, 공유 창에서 \"공개적으로 공유\" 탭을 클릭한 후 \"공유 베이스 링크 활성화\" 버튼을 눌러야 합니다. 마지막으로 생성된 공개 링크를 복사하여 아래 입력란에 붙여넣으면 됩니다.",
+        "airtableShareLinkDescription": "Airtable 베이스를 가져오려면 전체 베이스에 대한 공유 링크가 필요합니다. Airtable에서 베이스를 연 후 오른쪽 상단의 공유 버튼을 클릭하세요. 그런 다음 \"링크로 공유\" 옵션을 선택해야 합니다. 공유 모달 창에서 \"공개적으로 공유\" 탭을 클릭한 후 “공유 베이스 링크 활성화”를 클릭합니다. 그런 다음 생성된 공개 링크를 복사하여 아래 입력란에 붙여넣으세요.",
         "airtableShareLinkBeta": "이 기능은 대부분의 데이터를 가져오지만, 일부 호환되지 않는 항목이 있을 수 있습니다. 따라서 \"에어테이블 가져오기 보고서\"라는 테이블이 추가되며, 가져오지 못했거나 부분적으로만 가져온 항목들의 목록이 포함됩니다.",
         "airtableShareLinkPaste": "여기에 링크를 붙여넣으세요",
         "importButtonLabel": "Airtable에서 가져오기",
@@ -806,7 +813,8 @@
         "includeAllSelectOptions": "모든 선택 옵션 포함",
         "includeAllSelectOptionsHelper": "이 드롭다운을 사용하여 양식에 포함해야 할 선택 옵션을 선택하세요",
         "noSelectOptions": "선택할 옵션이 없습니다.",
-        "noCollaboratorsAvailable": "사용 가능한 공동 작업자가 없습니다."
+        "noCollaboratorsAvailable": "사용 가능한 공동 작업자가 없습니다.",
+        "cannotSumitValues": "이 필드는 읽기 전용이며 양식에 표시되지 않습니다."
     },
     "duplicateFieldContext": {
         "duplicate": "필드 복제",
@@ -861,7 +869,9 @@
         "addLogo": "로고 추가",
         "titlePlaceholder": "제목",
         "descriptionPlaceholder": "설명",
-        "noFields": "이 양식에는 필드가 없습니다. 왼쪽 사이드바에서 필드를 클릭하여 추가하세요."
+        "noFields": "이 양식에는 필드가 없습니다. 왼쪽 사이드바에서 필드를 클릭하여 추가하세요.",
+        "noFieldsContent": "필드를 추가하려면 왼쪽 사이드바에서 항목을 클릭하세요.",
+        "noFieldsTitle": "이 양식에는 필드가 하나도 없습니다"
     },
     "table": {
         "adjacentRow": {
@@ -1093,5 +1103,8 @@
     "createViewGuidedTourStep": {
         "title": "나만의 보기 설정",
         "content": "그리드, 캘린더, 칸반, 갤러리 등 다양한 사용자 지정 보기를 만들어 원하는 방식으로 데이터를 시각화하세요."
+    },
+    "fieldBooleanSubForm": {
+        "defaultValue": "기본값"
     }
 }

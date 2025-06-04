@@ -421,7 +421,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.33.3",
+    "VERSION": "1.33.4",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -1368,6 +1368,6 @@ BASEROW_DEADLOCK_MAX_RETRIES = max(
     1,
 )
 BASEROW_DEADLOCK_INITIAL_BACKOFF = max(
-    try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 1),
+    try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 0.2),
     0.1,
 )

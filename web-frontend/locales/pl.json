@@ -74,14 +74,17 @@
         "dashboards": "Pulpity",
         "dashboardDesc": "Wizualizuj swoje dane i metryki za pomocą wykresów, tabel lub grafów.",
         "dashboardDefaultName": "Nienazwany pulpit",
-        "dashboard": "Pulpit"
+        "dashboard": "Pulpit",
+        "cantSelectAutomationWorkflowDescription": "Automatyzacja nie mogła zostać wybrana, ponieważ nie ma żadnych przepływów pracy. Użyj paska bocznego, aby utworzyć nowy przepływ.",
+        "cantSelectAutomationWorkflowTitle": "Nie można wybrać automatyzacji."
     },
     "settingType": {
         "account": "Konto",
         "password": "Password",
         "tokens": "Tokeny bazy danych",
         "deleteAccount": "Usuń konto",
-        "emailNotifications": "Powiadomienia e-mail"
+        "emailNotifications": "Powiadomienia e-mail",
+        "mcpEndpoint": "Serwer MCP"
     },
     "userFileUploadType": {
         "file": "moje urządzenie",
@@ -289,7 +292,9 @@
         "hasNotDateAfter": "nie zawiera daty po",
         "hasDateOnOrAfter": "zawiera datę równą lub po",
         "hasDateOnOrBefore": "zawiera datę równą lub przed",
-        "hasDateAfter": "zawiera datę po"
+        "hasDateAfter": "zawiera datę po",
+        "hasAnyOf": "zawiera którekolwiek z",
+        "hasNotAnyOf": "nie zawiera któregokolwiek z"
     },
     "viewType": {
         "grid": "Siatka",
@@ -307,7 +312,9 @@
         "field": "pole",
         "row": "wiersz",
         "rows": "wiersze",
-        "view": "widok"
+        "view": "widok",
+        "automation_workflow": "automatyzacja przepływu pracy",
+        "automation_node": "węzeł automatyzacji"
     },
     "webhook": {
         "request": "Wniosek",
@@ -421,7 +428,11 @@
         "incompatiblePrimaryFieldTypeTitle": "Pole nie jest kompatybilne",
         "incompatiblePrimaryFieldTypeDescription": "Wybrane pole nie może być polem podstawowym, ponieważ jest niekompatybilne.",
         "cannotCreateRowsInTableTitle": "Nie można utworzyć wierszy",
-        "cannotCreateRowsInTableDescription": "Nie jest możliwe tworzenie wierszy w tej tabeli."
+        "cannotCreateRowsInTableDescription": "Nie jest możliwe tworzenie wierszy w tej tabeli.",
+        "databaseUniquePrimaryPropertyNotFoundTitle": "Brak unikalnej właściwości głównej",
+        "databaseUniquePrimaryPropertyNotFoundDescription": "To zazwyczaj występuje, jeśli źródło synchronizacji danych nie posiada żadnej właściwości, z której można uzyskać unikalną wartość w wierszu. Jeśli to jest tabela, to najprawdopodobniej nie ma klucza głównego.",
+        "databaseDeadlockTitle": "Akcja nie powiodła się",
+        "databaseDeadlockDescription": "Akcja nie została wykonana, ponieważ w tym samym czasie wykonano inne, sprzeczne operacje. Proszę spróbować jeszcze raz."
     },
     "importerType": {
         "csv": "Importuj plik CSV",
@@ -457,7 +468,9 @@
         "uploadFileViaUrl": "Prześlij plik za pomocą adresu URL",
         "uploadFileViaUrlDescription": "Przesyła plik do Baserow, pobierając go z podanego adresu URL.",
         "fileUploads": "Przesyłanie plików",
-        "sendWebhookEventsDescription": "Flaga parametru zapytania, która wywoła webhook po tej operacji, jeśli ustawiona na `y`, `yes`, `true`, `t`, `on`, `1` albo pozostawiona pusta. Domyślnie `true`"
+        "sendWebhookEventsDescription": "Flaga parametru zapytania, która wywoła webhook po tej operacji, jeśli ustawiona na `y`, `yes`, `true`, `t`, on, `1` albo pozostawiona pusta. Domyślnie `true`",
+        "apiDocs": "Lista wszystkich tabel",
+        "listTables": "Lista tabel"
     },
     "exporterType": {
         "csv": "Eksport do CSV"

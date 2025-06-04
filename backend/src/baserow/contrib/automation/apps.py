@@ -20,7 +20,9 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.nodes.node_types import (
             LocalBaserowCreateRowNodeType,
-            LocalBaserowRowCreatedNodeType,
+            LocalBaserowRowsCreatedNodeTriggerType,
+            LocalBaserowRowsDeletedNodeTriggerType,
+            LocalBaserowRowsUpdatedNodeTriggerType,
         )
         from baserow.contrib.automation.nodes.object_scopes import (
             AutomationNodeObjectScopeType,
@@ -125,7 +127,15 @@ class AutomationConfig(AppConfig):
             action_scope_registry.register(WorkflowActionScopeType())
 
             automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
-            automation_node_type_registry.register(LocalBaserowRowCreatedNodeType())
+            automation_node_type_registry.register(
+                LocalBaserowRowsCreatedNodeTriggerType()
+            )
+            automation_node_type_registry.register(
+                LocalBaserowRowsUpdatedNodeTriggerType()
+            )
+            automation_node_type_registry.register(
+                LocalBaserowRowsDeletedNodeTriggerType()
+            )
 
             # The signals must always be imported last because they use
             # the registries which need to be filled first.

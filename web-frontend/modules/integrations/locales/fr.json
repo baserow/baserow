@@ -9,7 +9,14 @@
         "localBaserowListRows": "Lister plusieurs lignes",
         "localBaserowAggregateRows": "Résumer une colonne",
         "trashedField": "Champ supprimé",
-        "misconfigured": "Configuration incorrecte"
+        "misconfigured": "Configuration incorrecte",
+        "localBaserowCreateRow": "Créer une ligne",
+        "localBaserowUpdateRow": "Modification d'une ligne",
+        "localBaserowDeleteRow": "Supprimer une ligne",
+        "localBaserowRowsCreated": "Des lignes sont créées",
+        "localBaserowRowsCreatedDescription": "Déclenché lorsqu'une ou plusieurs lignes sont créées dans une table Baserow.",
+        "coreHTTPRequest": "Envoyer une requête HTTP",
+        "localBaserowCreateRowDescription": "Crée une nouvelle ligne dans une table Baserow."
     },
     "localBaserowForm": {
         "user": "Utilisateur",
@@ -85,5 +92,28 @@
         "filterTabTitle": "Filtres",
         "aggregationFieldLabel": "Colonne",
         "noTableChosenForFiltering": "Sélectionnez une table pour commencer à filtrer les lignes de la source de données."
+    },
+    "coreHTTPRequestServiceForm": {
+        "httpMethod": "Méthode HTTP",
+        "queryParams": "Paramètres de requête",
+        "name": "Nom",
+        "value": "Valeur",
+        "namePlaceholder": "Nom...",
+        "headers": "En-têtes",
+        "addQueryParam": "ajouter un paramètre",
+        "addHeader": "ajouter un en-tête",
+        "formData": "Données de formulaire",
+        "addFormData": "ajouter une entrée",
+        "bodyType": "Type de contenu",
+        "bodyContent": "Contenu",
+        "urlPlaceholder": "Entrer l'url de destination...",
+        "bodyPlaceholder": "Ajouter le contenu...",
+        "timeoutPlaceholder": "Délai maximal...",
+        "nameFieldRequired": "La propriété Nom est obligatoire.",
+        "nameFieldInvalid": "Le nom ne doit contenir que des caractères alphanumériques, des tirets ou des traits de soulignement, et ne doit pas commencer par un tiret ou un trait de soulignement.",
+        "timeout": "Délai d'attente max.",
+        "url": "URL de destination",
+        "seconds": "secondes",
+        "valuePlaceholder": "Valeur..."
     }
 }

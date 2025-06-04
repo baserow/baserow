@@ -70,7 +70,12 @@
         "dashboard": "Dashboard",
         "dashboardDesc": "Visualisieren Sie Ihre Daten und Metriken mit Diagrammen, Tabellen oder Graphen.",
         "dashboards": "Dashboards",
-        "dashboardDefaultName": "Unbenanntes Dashboard"
+        "dashboardDefaultName": "Unbenanntes Dashboard",
+        "automationDesc": "Automatisieren Sie sich wiederholende Aufgaben und Workflows.",
+        "automationDefaultName": "Unbenannte Automatisierung",
+        "cantSelectAutomationWorkflowTitle": "Konnte die Automatisierung nicht auswählen.",
+        "automation": "Automatisierung",
+        "automations": "Automatisierungen"
     },
     "settingType": {
         "account": "Konto",

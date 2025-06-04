@@ -2,8 +2,15 @@ from typing import Any, Dict
 
 from django.contrib.auth.models import AbstractUser
 
+from rest_framework import serializers
+
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.types import AutomationNodeDict
+from baserow.contrib.automation.nodes.types import AutomationNodeDict
+from baserow.contrib.builder.formula_importer import import_formula
+from baserow.core.integrations.models import Integration
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
@@ -14,43 +21,195 @@ from baserow.core.registry import (
     PublicCustomFieldsInstanceMixin,
     Registry,
 )
+from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
+from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.registries import service_type_registry
+from baserow.core.services.types import DispatchResult
 
 AUTOMATION_NODES = "automation_nodes"
 
 
 class AutomationNodeType(
+    PublicCustomFieldsInstanceMixin,
     InstanceWithFormulaMixin,
     EasyImportExportMixin,
     ModelInstanceMixin,
-    PublicCustomFieldsInstanceMixin,
     Instance,
 ):
+    service_type = None
     parent_property_name = "workflow"
     id_mapping_name = AUTOMATION_NODES
 
+    request_serializer_field_names = ["previous_node_output"]
+    request_serializer_field_overrides = {
+        "previous_node_output": serializers.CharField(
+            required=False,
+            default="",
+            allow_blank=True,
+            help_text="The output of the previous node.",
+        ),
+    }
+
     class SerializedDict(AutomationNodeDict):
-        ...
+        service: Dict
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + [
+            "previous_node_output",
+            "service",
+        ]
+
+    def export_prepared_values(self, node: AutomationNode) -> Dict[Any, Any]:
+        """
+        Return a serializable dict of prepared values for the node attributes.
+
+        It is called by undo/redo ActionHandler to store the values in a way that
+        could be restored later.
+
+        :param node: The node instance to export values for.
+        :return: A dict of prepared values.
+        """
+
+        values = {key: getattr(node, key) for key in self.allowed_fields}
+        values["service"] = service_type_registry.get(
+            self.service_type
+        ).export_prepared_values(node.service.specific)
+        values["workflow"] = node.workflow_id
+        return values
+
+    def serialize_property(
+        self,
+        node: AutomationNode,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        if prop_name == "service":
+            service = node.service.specific
+            return service.get_type().export_serialized(
+                service, files_zip=files_zip, storage=storage, cache=cache
+            )
+
+        return super().serialize_property(
+            node,
+            prop_name,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+        )
+
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Any],
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ) -> Any:
+        """
+        If the workflow action has a relation to a service, this method will
+        map the service's new `integration_id` and call `import_service` on
+        the serialized service values.
+
+        :param prop_name: the name of the property being transformed.
+        :param value: the value of this property.
+        :param id_mapping: the id mapping dict.
+        :return: the deserialized version for this property.
+        """
+
+        if prop_name == "service" and value:
+            integration = None
+            serialized_service = value
+            integration_id = serialized_service.get("integration_id", None)
+            if integration_id:
+                integration_id = id_mapping["integrations"].get(
+                    integration_id, integration_id
+                )
+                integration = Integration.objects.get(id=integration_id)
+
+            return ServiceHandler().import_service(
+                integration,
+                serialized_service,
+                id_mapping,
+                storage=storage,
+                cache=cache,
+                files_zip=files_zip,
+                import_formula=import_formula,
+            )
+        return super().deserialize_property(
+            prop_name,
+            value,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
 
     def prepare_values(
         self,
         values: Dict[str, Any],
         user: AbstractUser,
         instance: AutomationNode = None,
-    ):
+    ) -> Dict[str, Any]:
         """
-        The prepare_values hook gives the possibility to change the provided values
-        that just before they are going to be used to create or update the instance. For
-        example if an ID is provided, it can be converted to a model instance. Or to
-        convert a certain date string to a date object. It's also an opportunity to add
-        specific validations.
+        Responsible for preparing the service-based trigger node. By default,
+        the only step is to pass any `service` data into the service.
 
-        :param values: The provided values.
+        :param values: The full trigger node values to prepare.
         :param user: The user on whose behalf the change is made.
-        :param instance: The current instance if it exists.
-        :return: The updated values.
+        :param instance: A `AutomationServiceNode` subclass instance.
+        :return: The modified trigger node values, prepared.
         """
 
+        service_type = service_type_registry.get(self.service_type)
+
+        if not instance:
+            # If we haven't received a trigger node instance, we're preparing
+            # as part of creating a new node. If this happens, we need to create
+            # a new service.
+            service = ServiceHandler().create_service(service_type)
+        else:
+            service = instance.service.specific
+
+        # If we received any service values, prepare them.
+        service_values = values.pop("service", None) or {}
+        prepared_service_values = service_type.prepare_values(
+            service_values, user, service
+        )
+
+        # Update the service instance with any prepared service values.
+        ServiceHandler().update_service(
+            service_type, service, **prepared_service_values
+        )
+
+        values["service"] = service
         return values
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        ...
+
+    def dispatch(
+        self,
+        automation_node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        raise InvalidServiceTypeDispatchSource("This service cannot be dispatched.")
+
+
+class AutomationNodeActionNodeType(AutomationNodeType):
+    def dispatch(
+        self,
+        automation_node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        return ServiceHandler().dispatch_service(
+            automation_node.service.specific, dispatch_context
+        )
 
 
 class AutomationNodeTypeRegistry(

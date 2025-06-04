@@ -1,18 +1,22 @@
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     Generator,
+    Generic,
     List,
     Optional,
     Tuple,
     Type,
+    TypeVar,
     Union,
 )
 
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import QuerySet
 
 from loguru import logger
@@ -56,6 +60,11 @@ from baserow.contrib.database.rows.exceptions import (
     CannotDeleteRowsInTable,
     RowDoesNotExist,
 )
+from baserow.contrib.database.rows.signals import (
+    rows_created,
+    rows_deleted,
+    rows_updated,
+)
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
@@ -86,8 +95,9 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowDeleteRow,
     LocalBaserowGetRow,
     LocalBaserowListRows,
-    LocalBaserowRowCreated,
-    LocalBaserowRowUpdated,
+    LocalBaserowRowsCreated,
+    LocalBaserowRowsDeleted,
+    LocalBaserowRowsUpdated,
     LocalBaserowTableService,
     LocalBaserowTableServiceFieldMapping,
     LocalBaserowTableServiceFilter,
@@ -133,6 +143,8 @@ class LocalBaserowServiceType(ServiceType):
     """
     The `ServiceType` for all `LocalBaserow` integration services.
     """
+
+    integration_type = LocalBaserowIntegrationType.type
 
     def get_schema_for_return_type(
         self, service: ServiceSubClass, properties: Dict[str, Any]
@@ -909,7 +921,6 @@ class LocalBaserowListRowsUserServiceType(
     one hosting the application.
     """
 
-    integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_list_rows"
     model_class = LocalBaserowListRows
     max_result_limit = 200
@@ -1255,7 +1266,6 @@ class LocalBaserowAggregateRowsUserServiceType(
     This service gives access to aggregations over fields in a Baserow table or view.
     """
 
-    integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_aggregate_rows"
     model_class = LocalBaserowAggregateRows
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
@@ -1639,7 +1649,6 @@ class LocalBaserowGetRowUserServiceType(
     Baserow instance as the one hosting the application.
     """
 
-    integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_get_row"
     model_class = LocalBaserowGetRow
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
@@ -1908,7 +1917,6 @@ class LocalBaserowUpsertRowServiceType(
     workflow actions.
     """
 
-    integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_upsert_row"
     model_class = LocalBaserowUpsertRow
     dispatch_type = DispatchTypes.DISPATCH_WORKFLOW_ACTION
@@ -2410,7 +2418,6 @@ class LocalBaserowUpsertRowServiceType(
 class LocalBaserowDeleteRowServiceType(
     LocalBaserowTableServiceType, LocalBaserowTableServiceSpecificRowMixin
 ):
-    integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_delete_row"
     model_class = LocalBaserowDeleteRow
     dispatch_type = DispatchTypes.DISPATCH_WORKFLOW_ACTION
@@ -2516,15 +2523,81 @@ class LocalBaserowDeleteRowServiceType(
         return {"data": {}, "baserow_table_model": model}
 
 
-class LocalBaserowRowCreatedTriggerServiceType(
-    LocalBaserowTableServiceType, TriggerServiceTypeMixin
-):
-    type = "local_baserow_row_created"
-    model_class = LocalBaserowRowCreated
+T = TypeVar("T", bound="Instance")
 
 
-class LocalBaserowRowUpdatedTriggerServiceType(
-    LocalBaserowTableServiceType, TriggerServiceTypeMixin
+class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
+    """
+    A mixin which `AutomationNodeType` can implement if they related to a
+    Local Baserow signal, such as `rows_created`, `rows_updated`, etc.
+
+    New trigger types should inherit from this class, set the `signal` and `handler`
+    to point to the signal/function they are related to, and only implement the
+    `start_listening` and `stop_listening` methods.
+    """
+
+    signal = None
+    on_event = None
+    model_class = None
+
+    def start_listening(self, on_event: Callable):
+        self.on_event = on_event
+        self.signal.connect(self.handler)
+
+    def stop_listening(self):
+        self.signal.disconnect(self.handler)
+
+    def after_register(self):
+        self.start_listening(self.on_event)
+        return super().after_register()
+
+    def before_unregister(self):
+        self.stop_listening()
+        return super().before_unregister()
+
+    def handle_signal(self, sender, rows, table, model, **kwargs):
+        serializer = get_row_serializer_class(
+            model,
+            RowSerializer,
+            is_response=True,
+        )
+        serialized_rows = serializer(rows, many=True).data
+        self.process_event(
+            self.model_class.objects.filter(table=table), serialized_rows
+        )
+
+    def process_event(self, *args, **kwargs):
+        return self.on_event(*args, **kwargs) if callable(self.on_event) else None
+
+    def handler(self, *args, **kwargs):
+        transaction.on_commit(lambda: self.handle_signal(*args, **kwargs))
+
+
+class LocalBaserowRowsCreatedTriggerServiceType(
+    LocalBaserowTableServiceType,
+    LocalBaserowSignalTriggerTypeMixin,
+    TriggerServiceTypeMixin,
 ):
-    type = "local_baserow_row_updated"
-    model_class = LocalBaserowRowUpdated
+    signal = rows_created
+    type = "local_baserow_rows_created"
+    model_class = LocalBaserowRowsCreated
+
+
+class LocalBaserowRowsUpdatedTriggerServiceType(
+    LocalBaserowTableServiceType,
+    LocalBaserowSignalTriggerTypeMixin,
+    TriggerServiceTypeMixin,
+):
+    signal = rows_updated
+    type = "local_baserow_rows_updated"
+    model_class = LocalBaserowRowsUpdated
+
+
+class LocalBaserowRowsDeletedTriggerServiceType(
+    LocalBaserowTableServiceType,
+    LocalBaserowSignalTriggerTypeMixin,
+    TriggerServiceTypeMixin,
+):
+    signal = rows_deleted
+    type = "local_baserow_rows_deleted"
+    model_class = LocalBaserowRowsDeleted

@@ -1,12 +1,12 @@
 {
   "name": "baserow",
-  "version": "1.33.3",
+  "version": "1.33.4",
   "private": true,
   "description": "Baserow: open source no-code database web frontend.",
   "author": "Bram Wiepjes (Baserow)",
   "license": "MIT",
   "engines": {
-    "node": ">=21.7.3 <22.0"
+    "node": ">=24.0.0 <25.0.0"
   },
   "scripts": {
     "build": "NODE_ENV=production nuxt build",
@@ -67,11 +67,13 @@
     "@tiptap/pm": "2.2.3",
     "@tiptap/suggestion": "2.2.3",
     "@tiptap/vue-2": "2.2.3",
+    "@vue2-flow/background": "^0.0.0",
+    "@vue2-flow/core": "^0.0.0",
     "@vuelidate/core": "^2.0.3",
     "@vuelidate/validators": "^2.0.4",
     "antlr4": "4.9.3",
     "async-mutex": "0.4.0",
-    "axios": "^1.7.4",
+    "axios": "^1.8.2",
     "bignumber.js": "9.1.1",
     "chart.js": "3.9.1",
     "chartjs-adapter-moment": "1.0.1",
@@ -87,14 +89,14 @@
     "moment": "^2.30.1",
     "moment-guess": "^1.2.4",
     "moment-timezone": "0.5.43",
-    "node-sass": "8.0.0",
+    "node-sass": "9.0.0",
     "normalize-scss": "^7.0.1",
-    "nuxt": "2.17.2",
+    "nuxt": "2.18.1",
     "papaparse": "5.4.1",
-    "path-to-regexp": "^1.8.0",
+    "path-to-regexp": "^1.9.0",
     "posthog-js": "^1.232.4",
     "resize-observer-polyfill": "^1.5.1",
-    "sass-loader": "10.4.1",
+    "sass-loader": "10.5.2",
     "serve-static": "^2.2.0",
     "thenby": "^1.3.4",
     "tiptap-markdown": "^0.8.9",
@@ -103,6 +105,13 @@
     "vue-chartjs": "^5.3.2",
     "vue2-smooth-scroll": "^1.6.0",
     "vuejs-datepicker": "1.6.2"
+  },
+  "resolutions": {
+    "elliptic": "^6.6.1",
+    "ws": "^7.5.10",
+    "cross-spawn": "^7.0.5",
+    "braces": "^3.0.3",
+    "glob-parent": "^5.1.2"
   },
   "devDependencies": {
     "@babel/core": "7.23.6",

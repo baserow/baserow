@@ -16,6 +16,7 @@ from baserow.core.registry import (
     InstanceWithFormulaMixin,
     ModelInstanceMixin,
     ModelRegistryMixin,
+    PublicCustomFieldsInstanceMixin,
     Registry,
 )
 from baserow.core.services.dispatch_context import DispatchContext
@@ -31,8 +32,7 @@ class DispatchTypes(str, Enum):
     DISPATCH_WORKFLOW_ACTION = "dispatch-action"
     # A `ServiceType` which is used by a `DataSource`.
     DISPATCH_DATA_SOURCE = "dispatch-data-source"
-
-    # A `ServiceType` which is used by a `AutomationNode`.
+    # A `ServiceType` which is used by an `AutomationTriggerNode`.
     DISPATCH_TRIGGER = "dispatch-trigger"
 
 
@@ -40,6 +40,7 @@ class ServiceType(
     InstanceWithFormulaMixin,
     EasyImportExportMixin[ServiceSubClass],
     ModelInstanceMixin[ServiceSubClass],
+    PublicCustomFieldsInstanceMixin,
     CustomFieldsInstanceMixin,
     Instance,
     ABC,
@@ -70,6 +71,18 @@ class ServiceType(
     # should be chosen, or via a `WorkflowAction`, in which case
     # `DISPATCH_WORKFLOW_ACTION` should be chosen.
     dispatch_type = None
+
+    # By default all service data should be hidden
+    public_serializer_field_names = []
+    public_serializer_field_overrides = {}
+
+    def get_integration_type(self):
+        from baserow.core.integrations.registries import integration_type_registry
+
+        if self.integration_type:
+            return integration_type_registry.get(self.integration_type)
+
+        return None
 
     def get_id_property(self, service: Service) -> str:
         """
@@ -363,6 +376,14 @@ class ServiceType(
 
 class TriggerServiceTypeMixin:
     service_type = DispatchTypes.DISPATCH_TRIGGER
+
+    @abstractmethod
+    def start_listening(self, on_event: Callable):
+        ...
+
+    @abstractmethod
+    def stop_listening(self, on_event: Callable):
+        ...
 
 
 ServiceTypeSubClass = TypeVar("ServiceTypeSubClass", bound=ServiceType)

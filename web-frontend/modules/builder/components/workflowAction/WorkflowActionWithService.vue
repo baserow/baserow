@@ -1,20 +1,21 @@
 <template>
-  <UpsertRowWorkflowActionForm
+  <component
+    :is="serviceType.formComponent"
+    :application="builder"
     :workflow-action="workflowAction"
     :default-values="defaultValues.service"
     @values-changed="values.service = { ...workflowAction.service, ...$event }"
   >
-  </UpsertRowWorkflowActionForm>
+  </component>
 </template>
 
 <script>
-import UpsertRowWorkflowActionForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
-  name: 'CreateRowWorkflowAction',
-  components: { UpsertRowWorkflowActionForm },
+  name: 'WorkflowActionWithWithService',
   mixins: [form],
+  inject: ['builder'],
   props: {
     workflowAction: {
       type: Object,
@@ -29,6 +30,14 @@ export default {
         service: {},
       },
     }
+  },
+  computed: {
+    workflowActionType() {
+      return this.$registry.get('workflowAction', this.workflowAction.type)
+    },
+    serviceType() {
+      return this.workflowActionType.serviceType
+    },
   },
 }
 </script>

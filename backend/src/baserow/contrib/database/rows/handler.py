@@ -83,6 +83,7 @@ from .operations import (
     UpdateDatabaseRowOperationType,
 )
 from .signals import (
+    before_rows_create,
     before_rows_delete,
     before_rows_update,
     row_orders_recalculated,
@@ -805,6 +806,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         else:
             prepared_values = values
 
+        before_return = before_rows_create.send(
+            self, user=user, table=table, model=model
+        )
+
         row_values, manytomany_values = self.extract_manytomany_values(
             prepared_values, model
         )
@@ -861,6 +866,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             m2m_change_tracker=m2m_change_tracker,
             fields=fields,
             dependant_fields=dependant_fields,
+            before_return=before_return,
         )
 
         return instance
@@ -1177,6 +1183,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
         report.update({index: err for index, err in errors.items()})
 
+        before_return = before_rows_create.send(
+            self, user=user, table=table, model=model
+        )
+
         rows_relationships = []
         for index, row in enumerate(
             prepared_rows_values, start=-len(prepared_rows_values)
@@ -1272,6 +1282,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 m2m_change_tracker=m2m_change_tracker,
                 fields=updated_fields,
                 dependant_fields=dependant_fields,
+                before_return=before_return,
             )
 
         return CreatedRowsData(rows_to_return, report)
@@ -2355,7 +2366,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         row.order = self.get_unique_orders_before_row(before_row, model)[0]
-        row.save()
+        row.save(update_fields=["order", "updated_on"])
 
         # All fields must be marked as updated because the lookup fields can depend
         # on the row order. Only fields that are specifically marked as

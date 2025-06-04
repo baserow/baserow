@@ -1,8 +1,11 @@
 from abc import ABC
 from decimal import Decimal
 
+from django.db.models import QuerySet
+
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import WidgetDict
+from baserow.contrib.dashboard.widgets.types import UpdatedWidget
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -33,6 +36,17 @@ class WidgetType(
     id_mapping_name = DASHBOARD_WIDGETS
     allowed_fields = ["title", "description"]
 
+    def enhance_queryset(self, queryset: QuerySet[Widget]) -> QuerySet[Widget]:
+        """
+        Enhances the queryset to fetch data in a more efficient way.
+
+        :param queryset: The queryset that lists the widgets.
+        :return: The same queryset with proper select_related and/or prefetch_related to
+            reduce the number of queries necessary to fetch the data.
+        """
+
+        return queryset
+
     def before_create(self, user, dashboard: Dashboard):
         """
         This function allows you to perform checks and operations
@@ -45,6 +59,17 @@ class WidgetType(
         """
 
         pass
+
+    def after_update(self, updated_widget: UpdatedWidget, **kwargs) -> UpdatedWidget:
+        """
+        Method to do any post-update actions based on the widget type.
+
+        :param updated_widget: The updated widget instance.
+        :param kwargs: The original values passed for update.
+        :return instance: The original or modified updated widget instance.
+        """
+
+        return updated_widget
 
     def prepare_value_for_db(self, values: dict, instance: Widget | None = None):
         """

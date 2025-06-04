@@ -9,6 +9,7 @@
       <span v-if="showElementId" class="element--element-id">{{
         element.id
       }}</span>
+      <!-- See element store to understand why we are using the element uid as key here -->
       <component
         :is="component"
         :key="element._.uid"
@@ -25,7 +26,7 @@
 </template>
 
 <script>
-import { resolveColor } from '@baserow/modules/core/utils/colors'
+import { resolveColor, colorContrast } from '@baserow/modules/core/utils/colors'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 import {
@@ -182,7 +183,6 @@ export default {
                 this.colorVariables
               )
             : 'none',
-
         '--element-background-image':
           this.element.style_background_file !== null
             ? `url(${this.element.style_background_file.url})`
@@ -220,6 +220,15 @@ export default {
           this.element.style_background_radius || 0
         }px`,
         '--element-border-radius': `${this.element.style_border_radius || 0}px`,
+      }
+
+      if (this.element.style_background === BACKGROUND_TYPES.COLOR) {
+        styles['--element-background-color-contrast'] = colorContrast(
+          this.resolveColor(
+            this.element.style_background_color,
+            this.colorVariables
+          )
+        )
       }
 
       if (this.element.style_background_file !== null) {

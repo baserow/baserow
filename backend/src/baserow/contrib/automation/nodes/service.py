@@ -1,11 +1,15 @@
-from typing import List
+from typing import Iterable, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.models import AutomationWorkflow
+from baserow.contrib.automation.nodes.exceptions import AutomationNodeBeforeInvalid
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.nodes.node_types import AutomationNodeType
+from baserow.contrib.automation.nodes.node_types import (
+    AutomationNodeTriggerType,
+    AutomationNodeType,
+)
 from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
     DeleteAutomationNodeOperationType,
@@ -34,6 +38,7 @@ class AutomationNodeService:
         user: AbstractUser,
         node_type: AutomationNodeType,
         workflow: AutomationWorkflow,
+        before: Optional[AutomationNode] = None,
         **kwargs,
     ) -> AutomationNode:
         """
@@ -42,6 +47,7 @@ class AutomationNodeService:
         :param user: The user trying to create the automation node.
         :param node_type: The type of the automation node.
         :param workflow: The workflow the automation node is associated with.
+        :param before: If set, the new node is inserted before this node.
         :param kwargs: Additional attributes of the automation node.
         :return: The created automation node.
         """
@@ -53,10 +59,25 @@ class AutomationNodeService:
             context=workflow,
         )
 
+        # If we've been given a `before` node, validate it.
+        if before:
+            if workflow.id != before.workflow_id:
+                raise AutomationNodeBeforeInvalid(
+                    "The `before` node must belong to the same workflow "
+                    "as the one supplied."
+                )
+            # TODO: replace with a `before.get_type().is_trigger` check.
+            if isinstance(before.get_type(), AutomationNodeTriggerType):
+                # You can't create a node before a trigger node. Even if `node_type` is
+                # a trigger, API consumers must delete `before` and then try again.
+                raise AutomationNodeBeforeInvalid(
+                    "You cannot create an automation node before a trigger."
+                )
+
         prepared_values = node_type.prepare_values(kwargs, user)
 
         new_node = self.handler.create_node(
-            node_type, workflow=workflow, **prepared_values
+            node_type, workflow=workflow, before=before, **prepared_values
         )
 
         automation_node_created.send(
@@ -91,13 +112,15 @@ class AutomationNodeService:
         self,
         user: AbstractUser,
         workflow: AutomationWorkflow,
-    ) -> List[AutomationNode]:
+        specific: Optional[bool] = True,
+    ) -> Iterable[AutomationNode]:
         """
         Returns all the automation nodes for a specific workflow that can be
         accessed by the user.
 
         :param user: The user trying to get the workflow_actions.
         :param workflow: The workflow the automation node is associated with.
+        :param specific: If True, returns the specific node type.
         :return: The automation nodes of the workflow.
         """
 
@@ -115,7 +138,9 @@ class AutomationNodeService:
             workspace=workflow.automation.workspace,
         )
 
-        return self.handler.get_nodes(workflow, base_queryset=user_nodes)
+        return self.handler.get_nodes(
+            workflow, specific=specific, base_queryset=user_nodes
+        )
 
     def update_node(
         self, user: AbstractUser, node_id: int, **kwargs
@@ -138,7 +163,8 @@ class AutomationNodeService:
             context=node,
         )
 
-        updated_node = self.handler.update_node(node, **kwargs)
+        prepared_values = node.get_type().prepare_values(kwargs, user, node)
+        updated_node = self.handler.update_node(node, **prepared_values)
 
         automation_node_updated.send(self, user=user, node=updated_node.node)
 
@@ -193,7 +219,7 @@ class AutomationNodeService:
         )
 
         all_nodes = self.handler.get_nodes(
-            workflow, base_queryset=AutomationNode.objects
+            workflow, specific=False, base_queryset=AutomationNode.objects
         )
 
         user_nodes = CoreHandler().filter_queryset(

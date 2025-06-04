@@ -1,10 +1,16 @@
 import pytest
 
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotInWorkflow
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import LocalBaserowRowCreatedTriggerNode
+from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
+from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
+from baserow.core.services.types import DispatchResult
+from baserow.core.utils import MirrorDict
+from baserow.test_utils.helpers import AnyDict, AnyStr
 
 
 @pytest.mark.django_db
@@ -12,23 +18,29 @@ def test_create_node(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
 
-    node_type = automation_node_type_registry.get("row_created")
+    node_type = automation_node_type_registry.get("rows_created")
     prepared_values = node_type.prepare_values({}, user)
 
     node = AutomationNodeHandler().create_node(
         node_type, workflow=workflow, **prepared_values
     )
 
-    assert isinstance(node, LocalBaserowRowCreatedTriggerNode)
+    assert isinstance(node, LocalBaserowRowsCreatedTriggerNode)
 
 
 @pytest.mark.django_db
-def test_get_nodes(data_fixture):
-    node = data_fixture.create_automation_node()
+def test_get_nodes(data_fixture, django_assert_num_queries):
+    node = data_fixture.create_local_baserow_rows_created_trigger_node()
+    workflow = node.workflow
 
-    nodes_qs = AutomationNodeHandler().get_nodes(node.workflow)
+    with django_assert_num_queries(1):
+        nodes_qs = AutomationNodeHandler().get_nodes(workflow, specific=False)
+        assert [n.id for n in nodes_qs.all()] == [node.id]
 
-    assert [n.id for n in nodes_qs.all()] == [node.id]
+    with django_assert_num_queries(6):
+        nodes = AutomationNodeHandler().get_nodes(workflow, specific=True)
+        assert [n.id for n in nodes] == [node.id]
+        assert isinstance(nodes[0].service, LocalBaserowRowsCreated)
 
 
 @pytest.mark.django_db
@@ -47,25 +59,24 @@ def test_update_node(data_fixture):
 
     assert node.previous_node_output == ""
 
-    node_instance = AutomationNodeHandler().update_node(
+    updated_node = AutomationNodeHandler().update_node(
         node, previous_node_output="foo result"
     )
 
-    assert node_instance == UpdatedAutomationNode(
-        node=node,
-        original_values={"previous_node_output": ""},
-        new_values={"previous_node_output": "foo result"},
-    )
-    assert node.previous_node_output == "foo result"
+    assert updated_node.node.previous_node_output == "foo result"
 
 
 @pytest.mark.django_db
 def test_export_prepared_values(data_fixture):
     node = data_fixture.create_automation_node()
 
-    values = AutomationNodeHandler().export_prepared_values(node)
+    values = node.get_type().export_prepared_values(node)
 
-    assert values == {"previous_node_output": ""}
+    assert values == {
+        "service": AnyDict(),
+        "workflow": node.workflow_id,
+        "previous_node_output": "",
+    }
 
 
 @pytest.mark.django_db
@@ -154,8 +165,8 @@ def test_export_node(data_fixture):
         "parent_node_id": None,
         "previous_node_id": None,
         "previous_node_output": "foo",
-        "service_id": node.service.id,
-        "type": "row_created",
+        "service": AnyDict(),
+        "type": "rows_created",
         "workflow_id": node.workflow.id,
     }
 
@@ -171,8 +182,9 @@ def test_import_node(data_fixture):
     assert workflow.automation_workflow_nodes.count() == 1
 
     exported_node = AutomationNodeHandler().export_node(node)
+    id_mapping = {"integrations": MirrorDict()}
 
-    result = AutomationNodeHandler().import_node(workflow, exported_node, {})
+    result = AutomationNodeHandler().import_node(workflow, exported_node, id_mapping)
     assert workflow.automation_workflow_nodes.count() == 2
 
     assert result == workflow.automation_workflow_nodes.all()[1].specific
@@ -189,8 +201,9 @@ def test_import_nodes(data_fixture):
     assert workflow.automation_workflow_nodes.count() == 1
 
     exported_node = AutomationNodeHandler().export_node(node)
+    id_mapping = {"integrations": MirrorDict()}
 
-    result = AutomationNodeHandler().import_nodes(workflow, [exported_node], {})
+    result = AutomationNodeHandler().import_nodes(workflow, [exported_node], id_mapping)
     assert workflow.automation_workflow_nodes.count() == 2
 
     assert result[0] == workflow.automation_workflow_nodes.all()[1].specific
@@ -208,11 +221,51 @@ def test_import_node_only(data_fixture):
 
     exported_node = AutomationNodeHandler().export_node(node)
 
-    id_mapping = {}
+    id_mapping = {"integrations": MirrorDict()}
     new_node = AutomationNodeHandler().import_node_only(
         workflow, exported_node, id_mapping
     )
     assert workflow.automation_workflow_nodes.count() == 2
 
     assert new_node == workflow.automation_workflow_nodes.all()[1].specific
-    assert id_mapping == {"automation_nodes": {node.id: new_node.id}}
+    assert id_mapping == {
+        "integrations": MirrorDict(),
+        "automation_nodes": {node.id: new_node.id},
+        "services": {node.service_id: new_node.service_id},
+    }
+
+
+@pytest.mark.django_db
+def test_dispatch_node(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    node = data_fixture.create_automation_node(user=user, type="create_row")
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=node.workflow.automation
+    )
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+
+    node.service.table = table
+    node.service.integration = integration
+    node.service.field_mappings.create(field=text_field, value="'Hello world!'")
+
+    # Ensure table is empty
+    assert table.get_model().objects.count() == 0
+
+    dispatch_context = AutomationDispatchContext(node.workflow, None)
+
+    # Dispatch the node
+    dispatch_result = AutomationNodeHandler().dispatch_node(node, dispatch_context)
+
+    # Ensure the table now has a new row
+    row = table.get_model().objects.all()[0]
+    assert getattr(row, f"field_{text_field.id}") == "Hello world!"
+
+    assert dispatch_result == DispatchResult(
+        data={
+            "id": row.id,
+            "order": AnyStr(),
+            f"field_{text_field.id}": "Hello world!",
+        },
+        status=200,
+    )

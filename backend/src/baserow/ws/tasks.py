@@ -187,18 +187,56 @@ def broadcast_to_users_individual_payloads(
 
 
 @app.task(bind=True)
+def broadcast_many_to_channel_group(
+    self,
+    payloads: list[tuple[str, dict]],
+    ignore_web_socket_id: str | None = None,
+    exclude_user_ids: list[int] | None = None,
+):
+    """
+    Broadcasts a list of JSON payloads to all the users within the channel workspace
+     having the provided name for each payload.
+
+    :param payload: A list of pairs: channel workspace and payload dictionary
+        containing data that must be broadcast. Each pair can be sent to a different
+        channel group.
+    :param ignore_web_socket_id: The web socket id to which messages must not be
+        sent. This is normally the web socket id that has originally made the change
+        request.
+    :param exclude_user_ids: A list of User ids which should be excluded from
+        receiving messages.
+    """
+
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+
+    channel_layer = get_channel_layer()
+    for channel_group_name, payload in payloads:
+        async_to_sync(send_message_to_channel_group)(
+            channel_layer,
+            channel_group_name,
+            {
+                "type": "broadcast_to_group",
+                "payload": payload,
+                "ignore_web_socket_id": ignore_web_socket_id,
+                "exclude_user_ids": exclude_user_ids,
+            },
+        )
+
+
+@app.task(bind=True)
 def broadcast_to_channel_group(
     self,
-    workspace,
+    channel_group_name,
     payload,
     ignore_web_socket_id=None,
     exclude_user_ids=None,
 ):
     """
-    Broadcasts a JSON payload all the users within the channel workspace having the
+    Broadcasts a JSON payload all the users within the channel group having the
     provided name.
 
-    :param workspace: The name of the channel workspace where the payload must be
+    :param channel_group_name: The name of the channel group where the payload must be
         broadcast to.
     :type workspace: str
     :param payload: A dictionary object containing the payload that must be broadcast.
@@ -218,7 +256,7 @@ def broadcast_to_channel_group(
     channel_layer = get_channel_layer()
     async_to_sync(send_message_to_channel_group)(
         channel_layer,
-        workspace,
+        channel_group_name,
         {
             "type": "broadcast_to_group",
             "payload": payload,

@@ -1,6 +1,7 @@
 import WidgetService from '@baserow/modules/dashboard/services/widget'
 import DataSourceService from '@baserow/modules/dashboard/services/dataSource'
 import IntegrationService from '@baserow/modules/core/services/integration'
+import Vue from 'vue'
 import debounce from 'lodash/debounce'
 
 export const state = () => ({
@@ -64,6 +65,9 @@ export const mutations = {
   },
   UPDATE_WIDGET(state, { widgetId, values }) {
     const widget = state.widgets.find((widget) => widget.id === widgetId)
+    if (Array.isArray(values.series_config)) {
+      Vue.set(widget, 'series_config', [...values.series_config])
+    }
     Object.assign(widget, values)
   },
   DELETE_WIDGET(state, widgetId) {

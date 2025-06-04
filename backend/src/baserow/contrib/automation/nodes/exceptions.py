@@ -20,3 +20,11 @@ class AutomationNodeDoesNotExist(Exception):
             *args,
             **kwargs,
         )
+
+
+class AutomationNodeBeforeInvalid(Exception):
+    """
+    Raised when trying to create an automation node `before` another, but it is invalid.
+    This can happen if the `before` is a trigger, or if `before.workflow` belongs to a
+    different workflow to the one supplied.
+    """

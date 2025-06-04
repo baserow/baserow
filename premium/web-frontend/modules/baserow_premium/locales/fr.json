@@ -147,7 +147,8 @@
         "supportFeatureName": "Support",
         "enterpriseFeatureName": "Enterprise",
         "applicationUsers": "Utilisateurs des applications",
-        "applicationUsersDescription": "Le nombre total d'utilisateurs de chaque source d'utilisateurs des applications publiées."
+        "applicationUsersDescription": "Le nombre total d'utilisateurs de chaque source d'utilisateurs des applications publiées.",
+        "advancedFeatureName": "Avancé"
     },
     "viewDecoratorType": {
         "onlyOneDecoratorPerView": "Vous ne pouvez utiliser qu'une seule décoration de ce type par vue",

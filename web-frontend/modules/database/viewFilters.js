@@ -2327,7 +2327,7 @@ export class MultipleSelectHasFilterType extends ViewFilterType {
 
   getName() {
     const { i18n } = this.app
-    return i18n.t('viewFilter.has')
+    return i18n.t('viewFilter.hasAnyOf')
   }
 
   getExample() {
@@ -2376,7 +2376,7 @@ export class MultipleSelectHasNotFilterType extends ViewFilterType {
 
   getName() {
     const { i18n } = this.app
-    return i18n.t('viewFilter.hasNot')
+    return i18n.t('viewFilter.hasNotAnyOf')
   }
 
   getExample() {

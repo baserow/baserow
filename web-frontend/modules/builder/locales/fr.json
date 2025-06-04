@@ -491,7 +491,8 @@
         "createRowLabel": "Création de ligne",
         "logoutLabel": "Déconnexion",
         "refreshDataSourceLabel": "Actualiser une source de données",
-        "deleteRowLabel": "Supprimer une ligne"
+        "deleteRowLabel": "Supprimer une ligne",
+        "httpRequest": "Envoyer une requête HTTP"
     },
     "getFormulaComponent": {
         "errorTooltip": "Référence invalide"

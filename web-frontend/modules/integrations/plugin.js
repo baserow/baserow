@@ -7,12 +7,18 @@ import it from '@baserow/modules/integrations/locales/it.json'
 import pl from '@baserow/modules/integrations/locales/pl.json'
 import ko from '@baserow/modules/integrations/locales/ko.json'
 
-import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/integrationTypes'
+import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
+import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import {
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
-} from '@baserow/modules/integrations/serviceTypes'
+  LocalBaserowCreateRowWorkflowServiceType,
+  LocalBaserowDeleteRowWorkflowServiceType,
+  LocalBaserowUpdateRowWorkflowServiceType,
+  LocalBaserowRowsCreatedTriggerServiceType,
+} from '@baserow/modules/integrations/localBaserow/serviceTypes'
+import { CoreHTTPRequestServiceType } from '@baserow/modules/integrations/core/serviceTypes'
 
 export default (context) => {
   const { app, isDev } = context
@@ -44,4 +50,24 @@ export default (context) => {
     'service',
     new LocalBaserowAggregateRowsServiceType(context)
   )
+  app.$registry.register(
+    'service',
+    new LocalBaserowCreateRowWorkflowServiceType(context)
+  )
+  app.$registry.register(
+    'service',
+    new LocalBaserowUpdateRowWorkflowServiceType(context)
+  )
+  app.$registry.register(
+    'service',
+    new LocalBaserowDeleteRowWorkflowServiceType(context)
+  )
+  app.$registry.register('service', new CoreHTTPRequestServiceType(context))
+
+  if (app.$featureFlagIsEnabled(FF_AUTOMATION)) {
+    app.$registry.register(
+      'service',
+      new LocalBaserowRowsCreatedTriggerServiceType(context)
+    )
+  }
 }

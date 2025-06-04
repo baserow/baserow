@@ -1,5 +1,34 @@
 # Changelog
 
+## Released 1.33.4
+
+### New features
+* [Builder] Add the HTTP request action to request endpoint [#3234](https://gitlab.com/baserow/baserow/-/issues/3234)
+* [Dashboard] Add ability to choose between bar and line series [#3514](https://gitlab.com/baserow/baserow/-/issues/3514)
+* [Dashboard] Jira data sync personal access token authentication. [#3558](https://gitlab.com/baserow/baserow/-/issues/3558)
+
+### Bug fixes
+* [Database] Fix rating filter style reactivity [#3523](https://gitlab.com/baserow/baserow/-/issues/3523)
+* [Builder] Login action are now executed even if the user is already authenticated [#3630](https://gitlab.com/baserow/baserow/-/issues/3630)
+* [Builder] Ensure that in the Theme settings, the Table styles are rendered in the preview panel. [#3631](https://gitlab.com/baserow/baserow/-/issues/3631)
+* [Builder] Fix styling issues when using Text element with markdown format. [#3632](https://gitlab.com/baserow/baserow/-/issues/3632)
+* [Builder] Fix code blocks in markdown code for text element [#3634](https://gitlab.com/baserow/baserow/-/issues/3634)
+* [Database] Fixed bug where formula values reset when moving rows. [#3640](https://gitlab.com/baserow/baserow/-/issues/3640)
+* [Database] Fix bug where empty numeric fields were displayed as `NaN` in the row edit modal and in forms [#3651](https://gitlab.com/baserow/baserow/-/issues/3651)
+* [Builder] Data input type was lost between two reload
+
+### Refactors
+* [Database] Send row history broadcast per table, not per row [#3646](https://gitlab.com/baserow/baserow/-/issues/3646)
+* [Core] Add pytest-testmon to only run tests affected by changes.
+* [Core] Automatically fill the premium seats when registering the license.
+* [Database] Introduced `calculate_storage_usage_workspace` hook and `before_rows_create` signal.
+* [Core] Minor guided tour changes for reversed trial.
+* [Database] Rename 'has' to 'has any of' 
+* [Builder] Retry workflow actions on deadlocks
+* [Core] Updated backend dependencies to fix dependency security vulnerabilities.
+* [Core] Updated frontend dependencies to fix dependency security vulnerabilities.
+
+
 ## Released 1.33.3
 
 ### New features

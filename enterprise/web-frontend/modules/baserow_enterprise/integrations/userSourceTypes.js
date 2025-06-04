@@ -1,5 +1,5 @@
 import { UserSourceType } from '@baserow/modules/core/userSourceTypes'
-import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/integrationTypes'
+import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import LocalBaserowUserSourceForm from '@baserow_enterprise/integrations/localBaserow/components/userSources/LocalBaserowUserSourceForm'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
 import moment from '@baserow/modules/core/moment'

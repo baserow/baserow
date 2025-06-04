@@ -288,7 +288,16 @@
         "coBranding": "공동 브랜딩 로고 교체",
         "support": "직접지원",
         "chartWidget": "차트 위젯",
-        "advancedWebhooks": "고급 웹훅"
+        "advancedWebhooks": "고급 웹훅",
+        "ssoContent": "SAML, Google, Facebook, GitHub, GitLab, 또는 OpenID Connect를 통해 안전하고 간편한 로그인을 활성화하세요. 여러 인증 제공자를 동시에 지원합니다. Baserow 자체와 애플리케이션 빌더의 인증 시스템 모두 SSO(Single Sign-On)를 지원합니다.",
+        "rbacContent": "정밀하게 권한을 관리하세요. 작업공간, 데이터베이스, 또는 테이블 수준에서 관리자, 빌더, 편집자, 댓글 작성자, 보기 전용 사용자와 같은 역할을 지정할 수 있습니다. 팀 단위로 접근 권한을 관리하는 것도 가능합니다.",
+        "advancedWebhooksContent": "행이 특정 보기에 들어올 때 웹훅을 트리거하세요. 필터 조건을 기반으로 워크플로를 자동화하는 데 유용합니다.",
+        "auditLogsContent": "무슨 일이 일어났는지 모두 추적할 수 있어요. 인스턴스나 워크스페이스에서 이루어진 모든 작업 기록을 확인하고, 사용자나 작업 유형 등으로 손쉽게 필터링할 수 있습니다.",
+        "dataSyncContent": "다른 Baserow 테이블이나 Jira, GitHub, GitLab, HubSpot과 같은 외부 소스와 동기화하여 테이블을 자동으로 최신 상태로 유지하세요.",
+        "coBrandingContent": "Baserow 인터페이스에 사용자 지정 로고를 설정해보세요. 단, \"powered by Baserow\" 문구는 함께 표시됩니다.",
+        "supportContent": "도움이 필요할 때 언제든지 지원을 받아보세요. 플랫폼 내에서 직접 Baserow 팀에 문의할 수 있습니다.",
+        "fieldLevelPermissions": "필드 수준 권한",
+        "fieldLevelPermissionsContent": "테이블에서 특정 필드를 누가 편집할 수 있는지 제어하세요. 편집자, 빌더, 관리자에 대해 권한을 설정하거나, 필드 값 수정을 완전히 비활성화할 수 있습니다."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "직접지원"
@@ -487,5 +496,44 @@
     },
     "webhook": {
         "rowsEnterVieweventType": "행이 뷰에 입력됨"
+    },
+    "fieldPermissionModal": {
+        "allowInForms": "이 필드는 양식을 통해 생성된 행에서 설정할 수 있도록 허용합니다",
+        "linkRowWarning": "이 필드는 ‘테이블에 연결’ 필드입니다. 연결된 테이블에서 값이 변경되지 않도록 하려면, 연결된 테이블에서도 적절한 권한을 설정해야 합니다.",
+        "builderTitle": "빌더 이상",
+        "title": "필드 권한 편집",
+        "description": "{fieldName}의 값을 편집할 수 있는 사람을 선택하세요.",
+        "question": "이 필드를 누가 편집할 수 있나요?",
+        "editorTitle": "편집자 이상(기본값)",
+        "editorDescription": "편집자, 빌더 및 관리자 역할이 있는 사용자",
+        "builderDescription": "빌더 및 관리자 역할이 있는 사용자",
+        "adminTitle": "관리자만",
+        "adminDescription": "관리자 역할이 있는 사용자",
+        "nobodyTitle": "아무도",
+        "nobodyDescription": "사용자 없음"
+    },
+    "fileInputElementForm": {
+        "required": "필수",
+        "multiple": "여러 파일?",
+        "fileTypes": "파일 유형",
+        "fileTypesHelper": "파일 입력 시 허용되는 파일 확장자를 한 줄에 하나씩 선택하세요(예: jpg, png, svg, pdf). image/*, video/* 또는 audio/*를 지정하여 이러한 유형의 모든 파일을 허용할 수 있습니다. 모든 파일 유형을 허용하려면 비워 두세요.",
+        "helpTextTitle": "도움말",
+        "defaultNameTitle": "초기 파일 이름|초기 파일 이름",
+        "defaultNamePlaceholder": "파일 이름을 입력하세요...|파일 이름을 입력하세요...",
+        "defaultNameHelp": "이름의 수는 URL의 수와 일치해야 합니다.",
+        "defaultUrlTitle": "초기 파일 URL|초기 파일 URL",
+        "defaultUrlPlaceholder": "기본 URL을 입력하세요...|기본 URL을 입력하세요...",
+        "helpTextPlaceholder": "비워두면 기본값이 사용됩니다...",
+        "preview": "이미지 미리보기?",
+        "maxFileSize": "최대 파일 크기",
+        "maxFileSizePlaceholder": "숫자를 입력하세요...",
+        "addFileType": "파일 유형 추가"
+    },
+    "fileInputElement": {
+        "defaultHelpText": "파일을 이곳에 끌어다 놓거나 클릭하여 선택하세요",
+        "fileSizeExceeded": "파일이 너무 큽니다. 최대 {max}MB입니다."
+    },
+    "fieldPermissionsMenuItem": {
+        "label": "필드 권한 편집"
     }
 }

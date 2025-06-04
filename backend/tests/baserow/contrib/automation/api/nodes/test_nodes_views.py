@@ -8,7 +8,8 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.test_utils.helpers import AnyInt, AnyStr
+from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
 
 API_URL_BASE = "api:automation:nodes"
 API_URL_LIST = f"{API_URL_BASE}:list"
@@ -36,7 +37,7 @@ def test_create_node(api_client, data_fixture):
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
     response = api_client.post(
         url,
-        {"type": "row_created"},
+        {"type": "rows_created"},
         **get_api_kwargs(token),
     )
 
@@ -45,11 +46,102 @@ def test_create_node(api_client, data_fixture):
         "id": 1,
         "order": AnyStr(),
         "previous_node_output": "",
-        "service": AnyInt(),
-        "type": "row_created",
+        "service": AnyDict(),
+        "type": "rows_created",
         "workflow": AnyInt(),
     }
     assert workflow.automation_workflow_nodes.count() == 1
+
+
+@pytest.mark.django_db
+def test_create_node_before(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node1 = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow, order="1.0000"
+    )
+    node3 = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, order="2.0000"
+    )
+
+    url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
+    response = api_client.post(
+        url,
+        {"type": "rows_created", "before_id": node3.id},
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "id": AnyInt(),
+        "order": "1.50000000000000000000",
+        "previous_node_output": "",
+        "service": AnyDict(),
+        "type": "rows_created",
+        "workflow": workflow.id,
+    }
+
+    node2 = AutomationNode.objects.get(id=response.json()["id"])
+    nodes = AutomationNode.objects.all()
+
+    assert nodes[0].id == node1.id
+    assert nodes[1].id == node2.id
+    assert nodes[2].id == node3.id
+
+
+@pytest.mark.django_db
+def test_create_node_before_invalid(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node1_a = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow, order="1.0000"
+    )
+    workflow_b = data_fixture.create_automation_workflow(user=user)
+    data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow_b, order="1.0000"
+    )
+    node2_b = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow_b, order="2.0000"
+    )
+
+    url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
+
+    response = api_client.post(
+        url,
+        {"type": "rows_created", "before_id": node1_a.id},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_BEFORE_INVALID",
+        "detail": "You cannot create an automation node before a trigger.",
+    }
+
+    response = api_client.post(
+        url,
+        {"type": "rows_created", "before_id": node2_b.id},
+        **get_api_kwargs(token),
+    )
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_BEFORE_INVALID",
+        "detail": "The `before` node must belong to the same workflow "
+        "as the one supplied.",
+    }
+
+
+@pytest.mark.django_db
+def test_create_node_before_does_not_exist(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    response = api_client.post(
+        reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id}),
+        {"type": "rows_created", "before_id": 9999999999},
+        **get_api_kwargs(token),
+    )
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
+        "detail": "The requested node does not exist.",
+    }
 
 
 @pytest.mark.django_db
@@ -88,7 +180,7 @@ def test_create_node_invalid_workflow(api_client, data_fixture):
     url = reverse(API_URL_LIST, kwargs={"workflow_id": 999})
     response = api_client.post(
         url,
-        {"type": "row_created"},
+        {"type": "rows_created"},
         **get_api_kwargs(token),
     )
 
@@ -107,7 +199,7 @@ def test_create_node_undo_redo(api_client, data_fixture):
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
     api_kwargs = get_api_kwargs(token)
-    response = api_client.post(url, {"type": "row_created"}, **api_kwargs)
+    response = api_client.post(url, {"type": "rows_created"}, **api_kwargs)
     assert response.status_code == HTTP_200_OK
 
     assert workflow.automation_workflow_nodes.count() == 1
@@ -143,8 +235,8 @@ def test_get_node(api_client, data_fixture):
             "id": node.id,
             "order": AnyStr(),
             "previous_node_output": "",
-            "service": AnyInt(),
-            "type": "row_created",
+            "service": AnyDict(),
+            "type": "rows_created",
             "workflow": node.workflow.id,
         },
     ]
@@ -366,14 +458,15 @@ def test_update_node(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
-    payload = {"previous_node_output": "foo", "type": "row_created"}
+    payload = {"previous_node_output": "foo", "type": "rows_created"}
     response = api_client.patch(update_url, payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": node.id,
         "order": AnyStr(),
+        "service": AnyDict(),
         "previous_node_output": "foo",
-        "type": "row_created",
+        "type": "rows_created",
         "workflow": workflow.id,
     }
 
@@ -384,7 +477,7 @@ def test_update_node_invalid_node(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": 100})
-    payload = {"previous_node_output": "foo", "type": "row_created"}
+    payload = {"previous_node_output": "foo", "type": "rows_created"}
     response = api_client.patch(update_url, payload, **api_kwargs)
 
     assert response.status_code == HTTP_404_NOT_FOUND
@@ -402,7 +495,7 @@ def test_update_node_undo_redo(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
-    payload = {"previous_node_output": "foo", "type": "row_created"}
+    payload = {"previous_node_output": "foo", "type": "rows_created"}
     response = api_client.patch(update_url, payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert response.json()["previous_node_output"] == "foo"

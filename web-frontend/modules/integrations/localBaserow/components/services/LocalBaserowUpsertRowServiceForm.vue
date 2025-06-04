@@ -2,6 +2,7 @@
   <form @submit.prevent>
     <LocalBaserowServiceForm
       :enable-row-id="enableRowId"
+      :application="application"
       :default-values="defaultValues"
       @table-changed="handleTableChange"
       @values-changed="emitServiceChange($event)"
@@ -32,6 +33,10 @@ export default {
   },
   mixins: [form],
   props: {
+    application: {
+      type: Object,
+      required: true,
+    },
     workflowAction: {
       type: Object,
       required: false,

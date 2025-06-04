@@ -277,12 +277,13 @@ class BuilderConfig(AppConfig):
 
         from .workflow_actions.registries import builder_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (
+            CoreHttpRequestActionType,
             CreateRowWorkflowActionType,
             DeleteRowWorkflowActionType,
             LogoutWorkflowActionType,
             NotificationWorkflowActionType,
             OpenPageWorkflowActionType,
-            RefreshDataSourceWorkflowAction,
+            RefreshDataSourceWorkflowActionType,
             UpdateRowWorkflowActionType,
         )
 
@@ -293,8 +294,9 @@ class BuilderConfig(AppConfig):
         builder_workflow_action_type_registry.register(DeleteRowWorkflowActionType())
         builder_workflow_action_type_registry.register(LogoutWorkflowActionType())
         builder_workflow_action_type_registry.register(
-            RefreshDataSourceWorkflowAction()
+            RefreshDataSourceWorkflowActionType()
         )
+        builder_workflow_action_type_registry.register(CoreHttpRequestActionType())
 
         from .elements.collection_field_types import (
             BooleanCollectionFieldType,

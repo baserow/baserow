@@ -21,7 +21,11 @@ from baserow.contrib.database.fields.models import (
 from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.features import DATA_SYNC
 
-from .models import JiraIssuesDataSync
+from .models import (
+    JIRA_ISSUES_DATA_SYNC_API_TOKEN,
+    JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN,
+    JiraIssuesDataSync,
+)
 
 
 class JiraIDDataSyncProperty(DataSyncProperty):
@@ -155,10 +159,17 @@ class JiraURLDataSyncProperty(DataSyncProperty):
 class JiraIssuesDataSyncType(DataSyncType):
     type = "jira_issues"
     model_class = JiraIssuesDataSync
-    allowed_fields = ["jira_url", "jira_project_key", "jira_username", "jira_api_token"]
+    allowed_fields = [
+        "jira_url",
+        "jira_project_key",
+        "jira_authentication",
+        "jira_username",
+        "jira_api_token",
+    ]
     request_serializer_field_names = [
         "jira_url",
         "jira_project_key",
+        "jira_authentication",
         "jira_username",
         "jira_api_token",
     ]
@@ -167,6 +178,7 @@ class JiraIssuesDataSyncType(DataSyncType):
     serializer_field_names = [
         "jira_url",
         "jira_project_key",
+        "jira_authentication",
         "jira_username",
     ]
 
@@ -212,6 +224,16 @@ class JiraIssuesDataSyncType(DataSyncType):
 
     def _fetch_issues(self, instance, progress_builder: ChildProgressBuilder):
         headers = {"Content-Type": "application/json"}
+        kwargs = {}
+
+        if instance.jira_authentication == JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN:
+            headers["Authorization"] = f"Bearer {instance.jira_api_token}"
+
+        if instance.jira_authentication == JIRA_ISSUES_DATA_SYNC_API_TOKEN:
+            kwargs["auth"] = HTTPBasicAuth(
+                instance.jira_username, instance.jira_api_token
+            )
+
         issues = []
         start_at = 0
         max_results = 50
@@ -227,12 +249,7 @@ class JiraIssuesDataSyncType(DataSyncType):
                 if instance.jira_project_key:
                     url += f"&jql=project={instance.jira_project_key}"
 
-                response = advocate.get(
-                    url,
-                    auth=HTTPBasicAuth(instance.jira_username, instance.jira_api_token),
-                    headers=headers,
-                    timeout=10,
-                )
+                response = advocate.get(url, headers=headers, timeout=10, **kwargs)
                 if not response.ok:
                     try:
                         json = response.json()

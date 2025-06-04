@@ -1,9 +1,11 @@
-FROM node:21.7.3-bookworm as base
+FROM node:24-bookworm as base
 
 ARG UID
 ENV UID=${UID:-9999}
 ARG GID
 ENV GID=${GID:-9999}
+ENV NODE_OPTIONS=--openssl-legacy-provider
+
 
 # Perform all OS package installation and cleanup in one single command to reduce the
 # size of the created layer.
@@ -16,11 +18,16 @@ RUN apt-get update && \
     dos2unix \
     tini \
     git \
-    gosu \
     && apt-get autoclean \
     && apt-get clean \
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
+
+# Install su-exec as a safer alternative to gosu
+RUN curl -L -o /usr/local/bin/su-exec.c https://github.com/ncopa/su-exec/raw/master/su-exec.c \
+    && gcc -Wall -Werror -static -o /usr/local/bin/su-exec /usr/local/bin/su-exec.c \
+    && chmod 0755 /usr/local/bin/su-exec \
+    && rm /usr/local/bin/su-exec.c
 
 # The node image already creates a non-root user to run as, update its ids so they
 # match the provided UID and GID we wish to build and run this image with.
@@ -34,7 +41,6 @@ USER $UID:$GID
 
 # Create and install the dependencies in separate COPY commands
 COPY --chown=$UID:$GID ./web-frontend/package.json ./web-frontend/yarn.lock /baserow/web-frontend/
-
 
 WORKDIR /baserow/web-frontend
 

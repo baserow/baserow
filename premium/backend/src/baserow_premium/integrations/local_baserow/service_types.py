@@ -124,6 +124,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         self,
         service: LocalBaserowGroupedAggregateRows,
         aggregation_series: list[ServiceAggregationSeriesDict] | None = None,
+        id_mapping: dict | None = None,
     ):
         with atomic_if_not_already():
             table_fields = service.table.field_set.all()
@@ -181,7 +182,6 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
 
                 return True
 
-            service.service_aggregation_series.all().delete()
             if aggregation_series is not None:
                 if (
                     len(aggregation_series)
@@ -191,15 +191,69 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                         detail=f"The number of series exceeds the maximum allowed length of {settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES}.",
                         code="max_length_exceeded",
                     )
-                LocalBaserowTableServiceAggregationSeries.objects.bulk_create(
-                    [
-                        LocalBaserowTableServiceAggregationSeries(
-                            **agg_series, service=service, order=index
-                        )
-                        for index, agg_series in enumerate(aggregation_series)
-                        if validate_agg_series(agg_series)
+
+                existing_series = service.service_aggregation_series.all()
+                existing_series_by_id = {
+                    series.id: series for series in existing_series
+                }
+
+                # If id_mapping is provided we assume that we are importing
+                id_mapping_old_series_ids = []
+                if id_mapping is not None:
+                    if "service_aggregation_series" not in id_mapping:
+                        id_mapping["service_aggregation_series"] = {}
+                    id_mapping_old_series_ids = [
+                        current_series.pop("id", None)
+                        for current_series in aggregation_series
                     ]
+
+                series_to_add = []
+                series_to_update = []
+                order = 1
+                for agg_series in aggregation_series:
+                    validate_agg_series(agg_series)
+
+                    if "id" in agg_series:
+                        if agg_series["id"] not in existing_series_by_id:
+                            raise DRFValidationError(
+                                detail=f"The series with id {agg_series['id']} does not exist.",
+                                code="invalid_series",
+                            )
+                        to_update = existing_series_by_id.pop(agg_series["id"])
+                        to_update.field_id = agg_series["field_id"]
+                        to_update.aggregation_type = agg_series["aggregation_type"]
+                        to_update.order = order
+                        series_to_update.append(to_update)
+                    else:
+                        series_to_add.append(
+                            LocalBaserowTableServiceAggregationSeries(
+                                **agg_series, service=service, order=order
+                            )
+                        )
+                    order += 1
+
+                LocalBaserowTableServiceAggregationSeries.objects.bulk_update(
+                    series_to_update,
+                    fields=["field_id", "aggregation_type", "order"],
                 )
+
+                created_series = (
+                    LocalBaserowTableServiceAggregationSeries.objects.bulk_create(
+                        series_to_add
+                    )
+                )
+
+                if id_mapping is not None:
+                    for i in range(len(created_series)):
+                        id_mapping["service_aggregation_series"][
+                            id_mapping_old_series_ids[i]
+                        ] = created_series[i].id
+
+                service.service_aggregation_series.filter(
+                    id__in=existing_series_by_id.keys()
+                ).delete()
+
+                service.refresh_from_db()
 
     def _update_service_aggregation_group_bys(
         self,
@@ -389,6 +443,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         if prop_name == "service_aggregation_series":
             return [
                 {
+                    "id": series.id,
                     "field_id": series.field_id,
                     "aggregation_type": series.aggregation_type,
                 }
@@ -463,7 +518,8 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 else:
                     sort["reference"] = None
 
-        self._update_service_aggregation_series(service, series)
+        # TODO: update id_mapping?
+        self._update_service_aggregation_series(service, series, id_mapping)
         self._update_service_aggregation_group_bys(service, group_bys)
         self._update_service_sorts(
             service, [sort for sort in sorts if sort["reference"] is not None]

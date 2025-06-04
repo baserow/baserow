@@ -21,25 +21,57 @@
 import { Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS,
-  Title,
-  Tooltip,
-  Legend,
-  BarElement,
+  ArcElement,
   LineElement,
+  BarElement,
+  PointElement,
+  BarController,
+  BubbleController,
+  DoughnutController,
+  LineController,
+  PieController,
+  PolarAreaController,
+  RadarController,
+  ScatterController,
   CategoryScale,
   LinearScale,
-  PointElement,
+  LogarithmicScale,
+  RadialLinearScale,
+  TimeScale,
+  TimeSeriesScale,
+  Decimation,
+  Filler,
+  Legend,
+  Title,
+  Tooltip,
+  SubTitle,
 } from 'chart.js'
 
 ChartJS.register(
-  Title,
-  Tooltip,
-  Legend,
+  ArcElement,
+  LineElement,
   BarElement,
+  PointElement,
+  BarController,
+  BubbleController,
+  DoughnutController,
+  LineController,
+  PieController,
+  PolarAreaController,
+  RadarController,
+  ScatterController,
   CategoryScale,
   LinearScale,
-  PointElement,
-  LineElement
+  LogarithmicScale,
+  RadialLinearScale,
+  TimeScale,
+  TimeSeriesScale,
+  Decimation,
+  Filler,
+  Legend,
+  Title,
+  Tooltip,
+  SubTitle
 )
 
 export default {
@@ -52,6 +84,10 @@ export default {
     },
     dataSourceData: {
       type: Object,
+      required: true,
+    },
+    seriesConfig: {
+      type: Array,
       required: true,
     },
   },
@@ -125,12 +161,14 @@ export default {
         return this.getGroupByValue(`field_${primaryField.metadata.id}`, item)
       })
       const datasets = []
-      for (const [index, series] of this.seriesConfig.entries()) {
+      for (const [index, series] of this.chartSeries.entries()) {
         const seriesData = this.result.map((item) => {
           return item[`${series.fieldName}_${series.aggregationType}`]
         })
         const label = this.getLabel(series.fieldName, series.aggregationType)
+        const seriesConfig = this.getIndividualSeriesConfig(series.id)
         datasets.push({
+          type: seriesConfig.series_chart_type?.toLowerCase() || 'bar',
           data: seriesData,
           label,
           ...this.chartColors[index],
@@ -144,12 +182,14 @@ export default {
     chartDataNoGrouping() {
       const labels = ['']
       const datasets = []
-      for (const [index, series] of this.seriesConfig.entries()) {
+      for (const [index, series] of this.chartSeries.entries()) {
         const seriesData = [
           this.result[`${series.fieldName}_${series.aggregationType}`],
         ]
         const label = this.getLabel(series.fieldName, series.aggregationType)
+        const seriesConfig = this.getIndividualSeriesConfig(series.id)
         datasets.push({
+          type: seriesConfig.series_chart_type?.toLowerCase() || 'bar',
           data: seriesData,
           label,
           ...this.chartColors[index],
@@ -160,9 +200,10 @@ export default {
         datasets,
       }
     },
-    seriesConfig() {
+    chartSeries() {
       return this.dataSource.aggregation_series.map((item) => {
         return {
+          id: item.id,
           fieldName: `field_${item.field_id}`,
           aggregationType: item.aggregation_type,
         }
@@ -228,6 +269,9 @@ export default {
       }
 
       return item[fieldName] ?? ''
+    },
+    getIndividualSeriesConfig(seriesId) {
+      return this.seriesConfig.find((item) => item.series_id === seriesId) || {}
     },
   },
 }

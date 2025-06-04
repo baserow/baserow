@@ -44,7 +44,14 @@ class CreateAutomationNodeActionType(UndoableActionType):
         workflow: AutomationWorkflow,
         data: dict,
     ) -> AutomationNode:
-        node = AutomationNodeService().create_node(user, node_type, workflow, **data)
+        before_id = data.pop("before_id", None)
+        before = (
+            AutomationNodeService().get_node(user, before_id) if before_id else None
+        )
+
+        node = AutomationNodeService().create_node(
+            user, node_type, workflow, before, **data
+        )
 
         cls.register_action(
             user=user,
@@ -125,6 +132,7 @@ class UpdateAutomationNodeActionType(UndoableActionType):
             scope=cls.scope(updated_node.node.workflow.id),
             workspace=updated_node.node.workflow.automation.workspace,
         )
+
         return updated_node.node
 
     @classmethod

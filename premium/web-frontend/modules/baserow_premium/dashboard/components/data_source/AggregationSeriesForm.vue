@@ -31,6 +31,7 @@
         horizontal
         horizontal-narrow
         :disabled="disabled"
+        class="margin-bottom-2"
       >
         <Dropdown
           v-model="values.field_id"
@@ -43,6 +44,32 @@
             :name="field.name"
             :value="field.id"
             :icon="fieldIconClass(field)"
+          >
+          </DropdownItem>
+        </Dropdown>
+      </FormGroup>
+      <FormGroup
+        small-label
+        :label="$t('aggregationSeriesForm.chartType')"
+        required
+        horizontal
+        horizontal-narrow
+      >
+        <Dropdown
+          :value="currentSeriesConfig.series_chart_type || 'BAR'"
+          :error="fieldHasErrors('chart_type')"
+          @change="seriesChartTypeChanged"
+        >
+          <DropdownItem
+            :name="$t('aggregationSeriesForm.barChart')"
+            :value="'BAR'"
+            icon="baserow-icon-bar-chart"
+          >
+          </DropdownItem>
+          <DropdownItem
+            :name="$t('aggregationSeriesForm.lineChart')"
+            :value="'LINE'"
+            icon="baserow-icon-line-chart"
           >
           </DropdownItem>
         </Dropdown>
@@ -89,14 +116,19 @@ export default {
       required: false,
       default: false,
     },
+    widget: {
+      type: Object,
+      required: true,
+    },
   },
   setup() {
     return { v$: useVuelidate() }
   },
   data() {
     return {
-      allowedValues: ['field_id', 'aggregation_type'],
+      allowedValues: ['id', 'field_id', 'aggregation_type'],
       values: {
+        id: null,
         field_id: null,
         aggregation_type: null,
       },
@@ -158,6 +190,14 @@ export default {
     compatibleTableFieldIds() {
       return this.compatibleFields.map((field) => field.id)
     },
+    currentSeriesConfig() {
+      const series = this.aggregationSeries[this.seriesIndex]
+      return (
+        this.widget.series_config.find(
+          (item) => item.series_id === series.id
+        ) || {}
+      )
+    },
   },
   mounted() {
     this.v$.$touch()
@@ -207,6 +247,13 @@ export default {
         this.values.field_id = null
       }
       this.v$.values.aggregation_type.$touch()
+    },
+    seriesChartTypeChanged(chartType) {
+      const seriesConfig = {
+        series_id: this.aggregationSeries[this.seriesIndex].id,
+        series_chart_type: chartType,
+      }
+      this.$emit('series-config-changed', seriesConfig)
     },
   },
 }

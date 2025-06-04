@@ -247,7 +247,17 @@
         "invalidBaseUrl": "De ingevoerde URL is geen geldige provider URL",
         "callbackUrl": "Callback URL",
         "baseUrl": "URL",
-        "duplicateBaseUrl": "De ingevoerde URL bestaat al bij een andere provider"
+        "duplicateBaseUrl": "De ingevoerde URL bestaat al bij een andere provider",
+        "defaultAttrs": "Standaard",
+        "emailAttrKeyHelper": "Het e-mailadres dat als gebruikersnaam voor de gebruiker wordt gebruikt. ",
+        "firstNameAttrKey": "Voornaam",
+        "lastNameAttrKey": "Achternaam",
+        "lastNameAttrKeyHelper": "Achternaam van de gebruiker (optioneel). Wis deze waarde om de volledige naam op te geven via 'Voornaam'.",
+        "responseSettings": "OIDC-responsattributen",
+        "firstNameAttrKeyHelper": "De voornaam van de gebruiker of de volledige naam als 'Achternaam' niet is opgegeven.",
+        "useIdToken": "Gebruik id-token om gebruikersinformatie te verkrijgen",
+        "customAttrs": "Maatwerk",
+        "emailAttrKey": "E-mail"
     },
     "enterpriseFeatures": {
         "sso": "Single Sign On",
@@ -266,7 +276,9 @@
         "advancedWebhooksContent": "Trigger webhooks wanneer een rij een specifieke weergave binnenkomt - geweldig voor het automatiseren van workflows op basis van filtervoorwaarden.",
         "fieldLevelPermissions": "Machtigingen op veldniveau",
         "auditLogsContent": "Volg alles wat er gebeurt. Bekijk een volledige geschiedenis van acties in je instantie of werkruimte, filterbaar op gebruiker, actie en meer.",
-        "fieldLevelPermissionsContent": "Bepaal wie specifieke velden in een tabel kan bewerken. Stel rechten in voor editors, builders, admins of schakel wijzigingen aan veldwaarden volledig uit."
+        "fieldLevelPermissionsContent": "Bepaal wie specifieke velden in een tabel kan bewerken. Stel rechten in voor editors, builders, admins of schakel wijzigingen aan veldwaarden volledig uit.",
+        "builderBranding": "Applicatie branding",
+        "builderBrandingContent": "White label de branding van je applicatie door de 'Gemaakt met Baserow'-branding in de voettekst van je applicatie te verwijderen."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Directe ondersteuning"
@@ -474,7 +486,10 @@
     "aggregationSeriesForm": {
         "aggregationTypeLabel": "Samenvatting",
         "deleteSeries": "Serie verwijderen",
-        "aggregationFieldLabel": "Veld"
+        "aggregationFieldLabel": "Veld",
+        "chartType": "Grafiektype",
+        "barChart": "Staaf",
+        "lineChart": "Lijn"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Groep door",
@@ -538,5 +553,8 @@
     },
     "fieldPermissionsMenuItem": {
         "label": "Veldmachtigingen bewerken"
+    },
+    "advanced": {
+        "license": "Advanced"
     }
 }

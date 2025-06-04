@@ -307,7 +307,7 @@ class CustomFieldsInstanceMixin:
 
 class PublicCustomFieldsInstanceMixin(CustomFieldsInstanceMixin):
     """
-    A mixin for instance with custom fields but some field should remains private
+    A mixin for instance with custom fields but some field should remain private
     when used in some APIs.
     """
 

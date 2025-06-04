@@ -3,6 +3,7 @@ from rest_framework.status import (
     HTTP_401_UNAUTHORIZED,
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
+    HTTP_409_CONFLICT,
 )
 
 ERROR_GROUP_DOES_NOT_EXIST = (
@@ -54,4 +55,11 @@ ERROR_FEATURE_DISABLED = (
     "ERROR_FEATURE_DISABLED",
     HTTP_403_FORBIDDEN,
     "This feature is disabled.",
+)
+
+ERROR_DATABASE_DEADLOCK = (
+    "ERROR_DATABASE_DEADLOCK",
+    HTTP_409_CONFLICT,
+    "The requested resource is already being updated or used by another operation, "
+    "please try again after other concurrent operations have finished.",
 )

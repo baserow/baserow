@@ -17,7 +17,7 @@ Software versions are divided into the following groups:
 | Chrome         | Latest             | Latest          | Latest               |
 | Edge           | Latest             | Latest          | Latest               |
 | Python         | >=3.11.0           | 3.11.2          | latest 3.11.x        |
-| Node.js        | >= 21.7.0          | 21.7.3          | >= 21.7.0            |
+| Node.js        | >= 24.0.0          | 24.0.0          | >= 24.0.0            |
 | Docker         | >= 19.03           | Latest          | Latest               |
 | docker-compose | >= 1.19.0          | Latest          | Latest               |
 | PostgreSQL     | >= 12              | 12.18           | 15+                  |

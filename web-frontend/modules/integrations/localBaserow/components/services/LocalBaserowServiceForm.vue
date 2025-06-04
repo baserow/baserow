@@ -8,7 +8,7 @@
     >
       <IntegrationDropdown
         v-model="values.integration_id"
-        :application="builder"
+        :application="application"
         :integrations="integrations"
         :integration-type="integrationType"
       />
@@ -38,7 +38,7 @@
 
 <script>
 import LocalBaserowTableSelector from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableSelector'
-import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/integrationTypes'
+import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import form from '@baserow/modules/core/mixins/form'
@@ -57,8 +57,11 @@ export default {
     InjectedFormulaInput,
   },
   mixins: [form],
-  inject: ['builder'],
   props: {
+    application: {
+      type: Object,
+      required: true,
+    },
     enableRowId: {
       type: Boolean,
       required: false,
@@ -77,7 +80,9 @@ export default {
   },
   computed: {
     integrations() {
-      return this.$store.getters['integration/getIntegrations'](this.builder)
+      return this.$store.getters['integration/getIntegrations'](
+        this.application
+      )
     },
     fakeTableId: {
       get() {
@@ -99,7 +104,7 @@ export default {
     },
     selectedIntegration() {
       return this.$store.getters['integration/getIntegrationById'](
-        this.builder,
+        this.application,
         this.values.integration_id
       )
     },

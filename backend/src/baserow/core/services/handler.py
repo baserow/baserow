@@ -217,7 +217,10 @@ class ServiceHandler:
         :return: The result of dispatching the service.
         """
 
-        if service.integration_id is None:
+        if (
+            service.integration_id is None
+            and service.get_type().integration_type is not None
+        ):
             raise ServiceImproperlyConfigured("The integration property is missing.")
 
         return service.get_type().dispatch(service, dispatch_context)

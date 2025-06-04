@@ -15,8 +15,17 @@ import { registerRealtimeEvents } from '@baserow/modules/automation/realtime'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import automationApplicationStore from '@baserow/modules/automation/store/automationApplication'
 import automationWorkflowStore from '@baserow/modules/automation/store/automationWorkflow'
+import automationWorkflowNodeStore from '@baserow/modules/automation/store/automationWorkflowNode'
+import {
+  LocalBaserowCreateRowActionNodeType,
+  LocalBaserowRowsCreatedTriggerNodeType,
+} from '@baserow/modules/automation/nodeTypes'
 import { DuplicateAutomationWorkflowJobType } from '@baserow/modules/automation/jobTypes'
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
+import {
+  HistoryEditorSidePanelType,
+  NodeEditorSidePanelType,
+} from '@baserow/modules/automation/editorSidePanelTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -38,6 +47,7 @@ export default (context) => {
 
   store.registerModule('automationApplication', automationApplicationStore)
   store.registerModule('automationWorkflow', automationWorkflowStore)
+  store.registerModule('automationWorkflowNode', automationWorkflowNodeStore)
   store.registerModule(
     'template/automationApplication',
     automationApplicationStore
@@ -49,10 +59,17 @@ export default (context) => {
       new AutomationApplicationType(context)
     )
     app.$registry.register(
+      'node',
+      new LocalBaserowRowsCreatedTriggerNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowCreateRowActionNodeType(context)
+    )
+    app.$registry.register(
       'job',
       new DuplicateAutomationWorkflowJobType(context)
     )
-
     app.$registry.registerNamespace('automationSettings')
     app.$registry.register(
       'automationSettings',
@@ -61,6 +78,14 @@ export default (context) => {
     app.$registry.register(
       'automationSettings',
       new IntegrationsAutomationSettingsType(context)
+    )
+    app.$registry.register(
+      'editorSidePanel',
+      new NodeEditorSidePanelType(context)
+    )
+    app.$registry.register(
+      'editorSidePanel',
+      new HistoryEditorSidePanelType(context)
     )
   }
 }

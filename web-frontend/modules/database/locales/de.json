@@ -747,7 +747,8 @@
     },
     "duplicateTableJobType": {
         "duplicating": "Duplizieren",
-        "duplicatedTitle": "Tabelle dupliziert"
+        "duplicatedTitle": "Tabelle dupliziert",
+        "name": "Tabelle duplizieren"
     },
     "formViewModePreviewForm": {
         "titlePlaceholder": "Titel",

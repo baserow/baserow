@@ -11,7 +11,8 @@
         "exporterType": {
             "json": "Nach JSON exportieren",
             "xml": "Exportieren nach XML",
-            "excel": "In Excel exportieren"
+            "excel": "In Excel exportieren",
+            "file": "Dateien exportieren"
         },
         "deactivated": "Verfügbar in der Premium-Version"
     },
@@ -340,5 +341,15 @@
     },
     "tableExcelExporter": {
         "includeHeader": "Feldnamen als Überschrift einfügen"
+    },
+    "paidFeaturesModal": {
+        "description": "Diese Funktion ist nur mit einem {plan}-Abonnement verfügbar. Um darauf zuzugreifen, aktualisieren Sie bitte Ihr Konto, indem Sie ein Abonnement abschließen. Klicken Sie auf die Schaltfläche unten, um unsere Preisoptionen zu sehen.",
+        "viewPricing": "Preismodelle anzeigen"
+    },
+    "kanbanView": {
+        "addStack": "Stapel hinzurüfen"
+    },
+    "tableFileExporter": {
+        "organizeFiles": "Dateien nach Zeilen-ID gruppieren"
     }
 }

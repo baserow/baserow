@@ -252,8 +252,11 @@ def test_row_orders_recalculated(mock_broadcast_to_channel_group, data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
+@patch("baserow.ws.registries.broadcast_many_to_channel_group")
 @patch("baserow.ws.registries.broadcast_to_channel_group")
-def test_rows_history_updated(mock_broadcast_channel_group, data_fixture):
+def test_rows_history_updated(
+    mock_broadcast_channel_group, mock_broadcast_many_channel_group, data_fixture
+):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(table=table)
@@ -320,50 +323,63 @@ def test_rows_history_updated(mock_broadcast_channel_group, data_fixture):
             None,
             None,
         ),
-        call.delay(
-            f"table-{table.id}-row-{row1.id}",
-            {
-                "type": "row_history_updated",
-                "row_history_entry": {
-                    "id": AnyInt(),
-                    "action_type": "update_rows",
-                    "action_command_type": "DO",
-                    "user": OrderedDict([("id", user.id), ("name", user.first_name)]),
-                    "timestamp": "2023-03-30T00:00:00Z",
-                    "before": {f"field_{field.id}": "row 1"},
-                    "after": {f"field_{field.id}": "row 1 updated"},
-                    "fields_metadata": {
-                        f"field_{field.id}": {"id": field.id, "type": "text"}
-                    },
-                },
-                "table_id": table.id,
-                "row_id": row1.id,
-            },
-            None,
-            None,
-        ),
-        call.delay(
-            f"table-{table.id}-row-{row2.id}",
-            {
-                "type": "row_history_updated",
-                "row_history_entry": {
-                    "id": AnyInt(),
-                    "action_type": "update_rows",
-                    "action_command_type": "DO",
-                    "user": OrderedDict([("id", user.id), ("name", user.first_name)]),
-                    "timestamp": "2023-03-30T00:00:00Z",
-                    "before": {f"field_{field.id}": "row 2"},
-                    "after": {f"field_{field.id}": "row 2 updated"},
-                    "fields_metadata": {
-                        f"field_{field.id}": {"id": field.id, "type": "text"}
-                    },
-                },
-                "table_id": table.id,
-                "row_id": row2.id,
-            },
-            None,
-            None,
-        ),
     ]
 
+    row_history_many_broadcast_calls = [
+        call.delay(
+            [
+                (
+                    f"table-{table.id}-row-{row1.id}",
+                    {
+                        "type": "row_history_updated",
+                        "row_history_entry": {
+                            "id": AnyInt(),
+                            "action_type": "update_rows",
+                            "action_command_type": "DO",
+                            "user": OrderedDict(
+                                [("id", user.id), ("name", user.first_name)]
+                            ),
+                            "timestamp": "2023-03-30T00:00:00Z",
+                            "before": {f"field_{field.id}": "row 1"},
+                            "after": {f"field_{field.id}": "row 1 updated"},
+                            "fields_metadata": {
+                                f"field_{field.id}": {"id": field.id, "type": "text"}
+                            },
+                        },
+                        "table_id": table.id,
+                        "row_id": row1.id,
+                    },
+                ),
+                (
+                    f"table-{table.id}-row-{row2.id}",
+                    {
+                        "type": "row_history_updated",
+                        "row_history_entry": {
+                            "id": AnyInt(),
+                            "action_type": "update_rows",
+                            "action_command_type": "DO",
+                            "user": OrderedDict(
+                                [("id", user.id), ("name", user.first_name)]
+                            ),
+                            "timestamp": "2023-03-30T00:00:00Z",
+                            "before": {f"field_{field.id}": "row 2"},
+                            "after": {f"field_{field.id}": "row 2 updated"},
+                            "fields_metadata": {
+                                f"field_{field.id}": {"id": field.id, "type": "text"}
+                            },
+                        },
+                        "table_id": table.id,
+                        "row_id": row2.id,
+                    },
+                ),
+            ],
+            # limit to channel/user - empty here
+            None,
+            None,
+        )
+    ]
+
+    assert (
+        mock_broadcast_many_channel_group.mock_calls == row_history_many_broadcast_calls
+    )
     assert mock_broadcast_channel_group.mock_calls == table_and_row_broadcast_calls

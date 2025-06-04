@@ -47,7 +47,14 @@
         "localBaserowListRows": "Rijen ophalen",
         "localBaserowAggregateRows": "Veld samenvatten",
         "misconfigured": "Verkeerd geconfigureerd",
-        "trashedField": "In prullenbak gestopt veld"
+        "trashedField": "In prullenbak gestopt veld",
+        "localBaserowUpdateRow": "Een rij bijwerken",
+        "localBaserowCreateRow": "Een rij maken",
+        "localBaserowDeleteRow": "Een rij verwijderen",
+        "localBaserowRowsCreatedDescription": "Wordt geactiveerd wanneer er een of meer rijen worden gemaakt in een Baserow-tabel.",
+        "coreHTTPRequest": "Stuur HTTP verzoek",
+        "localBaserowRowsCreated": "Rijen aangemaakt",
+        "localBaserowCreateRowDescription": "Maak een nieuwe rij in een Baserow tabel."
     },
     "userSourceType": {
         "localBaserow": "Baserow tabel authenticatie"
@@ -85,5 +92,28 @@
         "aggregationTypeLabel": "Aggregatie",
         "searchFieldPlaceHolder": "Voer een zoekterm in...",
         "noTableChosenForFiltering": "Kies een tabel om te beginnen met het gebruik van gegevensbronfilters."
+    },
+    "coreHTTPRequestServiceForm": {
+        "namePlaceholder": "Naam...",
+        "valuePlaceholder": "Waarde...",
+        "headers": "Headers",
+        "addQueryParam": "queryparameter toevoegen",
+        "addHeader": "header toevoegen",
+        "formData": "Formuliergegevens",
+        "addFormData": "formuliergegevens toevoegen",
+        "bodyType": "Body type",
+        "bodyContent": "Body inhoud",
+        "urlPlaceholder": "Voer de eindpunt-URL in...",
+        "bodyPlaceholder": "Verzoektekst toevoegen...",
+        "timeoutPlaceholder": "Time-out invoeren...",
+        "nameFieldRequired": "De eigenschap naam is vereist.",
+        "nameFieldInvalid": "De naam mag alleen alfanumerieke tekens, streepjes en onderstrepingstekens bevatten en mag niet beginnen met een streepje of onderstrepingsteken.",
+        "queryParams": "Query-parameters",
+        "url": "Endpoint URL",
+        "value": "Waarde",
+        "seconds": "seconden",
+        "httpMethod": "HTTP methode",
+        "timeout": "Time-out",
+        "name": "Naam"
     }
 }

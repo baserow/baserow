@@ -170,6 +170,9 @@ sort: .check-dev
 test: .check-dev
 	$(VPYTEST) $(BACKEND_TESTS_DIRS) || exit;
 
+test-diff: .check-dev
+	$(VPYTEST) $(BACKEND_TESTS_DIRS) --testmon || exit;
+
 test-coverage: .check-dev
 	$(VPYTEST) -n 10 --cov-report term --cov-report html:reports/html --cov=src $(BACKEND_TESTS_DIRS) || exit;
 
@@ -184,6 +187,9 @@ test-regenerate-ci-durations: .check-dev
 
 test-parallel: .check-dev
 	$(VPYTEST) $(BACKEND_TESTS_DIRS) -n 10 || exit;
+
+test-diff-parallel: .check-dev
+	$(VPYTEST) $(BACKEND_TESTS_DIRS) --testmon -n 10 || exit;
 
 .make-django-cmd: .check-dev
 	for pkg_dir in $(SOURCE_DIRS); do echo $$pkg_dir ; cd $$pkg_dir ; \
