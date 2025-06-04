@@ -19,6 +19,8 @@
   background-color: $white;
   border-left: 1px solid $palette-neutral-200;
   overflow-y: auto;
+  max-width: 350px;
+  min-width: 250px;
 }
 
 .automation-workflow__editor {
