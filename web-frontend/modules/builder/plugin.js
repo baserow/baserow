@@ -23,7 +23,7 @@ import pageParameterStore from '@baserow/modules/builder/store/pageParameter'
 import dataSourceContentStore from '@baserow/modules/builder/store/dataSourceContent'
 import elementContentStore from '@baserow/modules/builder/store/elementContent'
 import themeStore from '@baserow/modules/builder/store/theme'
-import workflowActionStore from '@baserow/modules/builder/store/workflowAction'
+import builderWorkflowActionStore from '@baserow/modules/builder/store/builderWorkflowAction'
 import formDataStore from '@baserow/modules/builder/store/formData'
 import { registerRealtimeEvents } from '@baserow/modules/builder/realtime'
 import {
@@ -174,7 +174,7 @@ export default (context) => {
   store.registerModule('dataSourceContent', dataSourceContentStore)
   store.registerModule('elementContent', elementContentStore)
   store.registerModule('theme', themeStore)
-  store.registerModule('workflowAction', workflowActionStore)
+  store.registerModule('builderWorkflowAction', builderWorkflowActionStore)
   store.registerModule('formData', formDataStore)
 
   app.$registry.registerNamespace('builderSettings')

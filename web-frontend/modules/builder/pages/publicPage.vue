@@ -155,7 +155,7 @@ export default {
           builder,
           page: sharedPage,
         }),
-        store.dispatch('workflowAction/fetchPublished', {
+        store.dispatch('builderWorkflowAction/fetchPublished', {
           page: sharedPage,
         }),
       ])
@@ -226,7 +226,7 @@ export default {
           page,
         }),
         store.dispatch('element/fetchPublished', { builder, page }),
-        store.dispatch('workflowAction/fetchPublished', { page }),
+        store.dispatch('builderWorkflowAction/fetchPublished', { page }),
       ])
     } catch (error) {
       if (error.response?.status === 401) {
@@ -445,10 +445,10 @@ export default {
         builder: this.builder,
         page: this.currentPage,
       })
-      await this.$store.dispatch('workflowAction/fetchPublished', {
+      await this.$store.dispatch('builderWorkflowAction/fetchPublished', {
         page: this.currentPage,
       })
-      await this.$store.dispatch('workflowAction/fetchPublished', {
+      await this.$store.dispatch('builderWorkflowAction/fetchPublished', {
         page: this.sharedPage,
       })
 

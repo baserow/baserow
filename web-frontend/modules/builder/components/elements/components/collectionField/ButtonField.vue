@@ -30,12 +30,12 @@ export default {
         recordIndexPath
       )
       const workflowActions = this.$store.getters[
-        'workflowAction/getElementWorkflowActions'
+        'builderWorkflowAction/getElementWorkflowActions'
       ](this.elementPage, this.element.id)
       return workflowActions
         .filter((wa) => wa.event === this.eventName)
         .some((workflowAction) =>
-          this.$store.getters['workflowAction/getDispatching'](
+          this.$store.getters['builderWorkflowAction/getDispatching'](
             workflowAction,
             dispatchedById
           )

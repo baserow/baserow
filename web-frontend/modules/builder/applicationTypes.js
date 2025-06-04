@@ -132,7 +132,7 @@ export class BuilderApplicationType extends ApplicationType {
           builder,
           page: sharedPage,
         }),
-        store.dispatch('workflowAction/fetch', { page: sharedPage }),
+        store.dispatch('builderWorkflowAction/fetch', { page: sharedPage }),
       ])
 
       // Initialize application shared stuff like data sources

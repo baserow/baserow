@@ -96,7 +96,7 @@ export class Event {
         }
       }
 
-      this.store.dispatch('workflowAction/setDispatching', {
+      this.store.dispatch('builderWorkflowAction/setDispatching', {
         workflowAction,
         dispatchedById,
         isDispatching: true,
@@ -116,7 +116,7 @@ export class Event {
           }
         )
       } finally {
-        this.store.dispatch('workflowAction/setDispatching', {
+        this.store.dispatch('builderWorkflowAction/setDispatching', {
           workflowAction,
           dispatchedById: null,
           isDispatching: false,

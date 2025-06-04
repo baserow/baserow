@@ -854,7 +854,7 @@ export class PreviousActionDataProviderType extends DataProviderType {
     const page = applicationContext.page
 
     const previousActions = this.app.store.getters[
-      'workflowAction/getElementPreviousWorkflowActions'
+      'builderWorkflowAction/getElementPreviousWorkflowActions'
     ](page, applicationContext.element.id, applicationContext.workflowAction)
 
     const previousActionSchema = _.chain(previousActions)
@@ -888,7 +888,7 @@ export class PreviousActionDataProviderType extends DataProviderType {
       const workflowActionId = parseInt(pathParts[1])
 
       const action = this.app.store.getters[
-        'workflowAction/getWorkflowActionById'
+        'builderWorkflowAction/getWorkflowActionById'
       ](page, workflowActionId)
 
       if (!action) {
