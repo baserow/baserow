@@ -273,7 +273,17 @@
         "callbackUrl": "URL de callback",
         "secret": "Secret",
         "baseUrlPlaceholder": "URL de base du fournisseur d'authentification",
-        "duplicateBaseUrl": "L'URL saisie existe déjà dans un autre fournisseur"
+        "duplicateBaseUrl": "L'URL saisie existe déjà dans un autre fournisseur",
+        "useIdToken": "Utiliser le jeton d'identification (id token) pour obtenir les informations des utilisateurs",
+        "responseSettings": "Attributs de la réponse OIDC",
+        "defaultAttrs": "Par défaut",
+        "customAttrs": "Personnalisés",
+        "emailAttrKey": "Courriel",
+        "firstNameAttrKeyHelper": "Le prénom de l'utilisateur ou le nom complet si le « Nom » n'est pas fourni.",
+        "lastNameAttrKeyHelper": "Nom de famille de l'utilisateur (facultatif). Effacez cette valeur pour fournir le nom complet via \"Prénom\".",
+        "firstNameAttrKey": "Prénom",
+        "emailAttrKeyHelper": "L'adresse électronique qui sera utilisée comme identifiant d'utilisateur. ",
+        "lastNameAttrKey": "Nom"
     },
     "loginButton": {
         "continueWith": "Poursuivre avec"
@@ -295,7 +305,9 @@
         "ssoContent": "Permet des connexions sécurisées et transparentes avec SAML, Google, Facebook, GitHub, GitLab ou OpenID Connect. Supporte plusieurs fournisseurs à la fois. Notez que Baserow, en tant qu'outil, et le système d'authentification du constructeur d'applications prennent tous deux en charge le SSO.",
         "dataSyncContent": "Maintenez automatiquement les tables à jour en les synchronisant avec d'autres tables Baserow ou des sources externes comme Jira, GitHub, GitLab ou HubSpot.",
         "fieldLevelPermissionsContent": "Contrôlez qui peut modifier des champs spécifiques d'une table. Définissez des autorisations pour les Éditeurs, les Architectes, les Administrateurs, ou désactivez complètement les modifications des valeurs de ces champs.",
-        "advancedWebhooksContent": "Déclencher des webhooks lorsqu'une ligne entre dans une vue spécifique - idéal pour l'automatisation des scénarios basés sur des conditions complexes."
+        "advancedWebhooksContent": "Déclencher des webhooks lorsqu'une ligne entre dans une vue spécifique - idéal pour l'automatisation des scénarios basés sur des conditions complexes.",
+        "builderBranding": "Branding de l'application",
+        "builderBrandingContent": "Votre application en marque blanche avec la suppression du tampon « Made with Baserow » dans le pied de page de votre application."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Assistance"
@@ -474,7 +486,10 @@
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "Champ",
         "aggregationTypeLabel": "Résumé",
-        "deleteSeries": "Supprimer la série"
+        "deleteSeries": "Supprimer la série",
+        "lineChart": "Ligne",
+        "barChart": "Barre",
+        "chartType": "Type de graphique"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Grouper par",
@@ -538,5 +553,8 @@
     },
     "fieldPermissionsMenuItem": {
         "label": "Modifier les droits d'accès"
+    },
+    "advanced": {
+        "license": "Avancé"
     }
 }
