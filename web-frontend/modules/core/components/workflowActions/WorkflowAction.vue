@@ -69,7 +69,7 @@ export default {
   },
   methods: {
     ...mapActions({
-      actionUpdateWorkflowAction: 'workflowAction/updateDebounced',
+      actionUpdateWorkflowAction: 'builderWorkflowAction/updateDebounced',
     }),
     async updateWorkflowAction(values) {
       if (this.$refs.actionForm && !this.$refs.actionForm.isFormValid()) {
