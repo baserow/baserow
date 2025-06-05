@@ -8,7 +8,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.nodes.models import (
-    AutomationNode,
+    AutomationActionNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowRowsCreatedTriggerNode,
     LocalBaserowRowsDeletedTriggerNode,
@@ -32,7 +32,7 @@ class AutomationNodeActionNodeType(AutomationNodeType):
 
     def dispatch(
         self,
-        automation_node: AutomationNode,
+        automation_node: AutomationActionNode,
         dispatch_context: AutomationDispatchContext,
     ) -> DispatchResult:
         return ServiceHandler().dispatch_service(
