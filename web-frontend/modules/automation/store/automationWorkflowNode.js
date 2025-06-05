@@ -123,9 +123,6 @@ const actions = {
         dispatch('select', { workflow, node })
       })
 
-      // Refresh nodes from server
-      await dispatch('fetch', { workflow })
-
       return node
     } catch (error) {
       // If API fails, remove the temporary node

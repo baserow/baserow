@@ -35,10 +35,9 @@ import {
   useStore,
   useContext,
   useFetch,
-  watch,
 } from '@nuxtjs/composition-api'
 import AutomationHeader from '@baserow/modules/automation/components/AutomationHeader'
-import WorkflowEditor from '@baserow/modules/automation/components/workflow/WorkflowEditor.vue'
+import WorkflowEditor from '@baserow/modules/automation/components/workflow/WorkflowEditor'
 import EditorSidePanels from '@baserow/modules/automation/components/workflow/EditorSidePanels'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 
@@ -158,32 +157,25 @@ export default defineComponent({
       return store.getters['automationWorkflow/getActiveSidePanel']
     })
 
-    const selectedNode = computed(() => {
-      return store.getters['automationWorkflowNode/getSelected'](
-        currentWorkflow.value
-      )
-    })
-
     const selectedNodeId = computed({
       get() {
-        return selectedNode.value?.id || null
+        const selectedNode = store.getters[
+          'automationWorkflowNode/getSelected'
+        ](currentWorkflow.value)
+        return selectedNode?.id || null
       },
       set(nodeId) {
+        let nodeToSelect = null
         if (nodeId) {
-          const node = store.getters['automationWorkflowNode/findById'](
+          nodeToSelect = store.getters['automationWorkflowNode/findById'](
             currentWorkflow.value,
             nodeId
           )
-          store.dispatch('automationWorkflowNode/select', {
-            workflow: currentWorkflow.value,
-            node,
-          })
-        } else {
-          store.dispatch('automationWorkflowNode/select', {
-            workflow: currentWorkflow.value,
-            node: null,
-          })
         }
+        store.dispatch('automationWorkflowNode/select', {
+          workflow: currentWorkflow.value,
+          node: nodeToSelect,
+        })
       },
     })
 
@@ -198,10 +190,9 @@ export default defineComponent({
       handleReadOnlyToggle,
       handleAddNode,
       handleRemoveNode,
-      selectedNode,
+      selectedNodeId,
       workflowId,
       isAddingNode,
-      selectedNodeId,
     }
   },
 })
