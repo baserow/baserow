@@ -2446,3 +2446,66 @@ def test_formula_referencing_lookup_with_same_name_field_in_linked_table_being_r
 
     assert table_2_lookup.error is None
     assert table_2_formula.error is None
+
+
+@pytest.mark.django_db
+def test_formula_lookup_same_table_relationship_different_row(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table_1 = data_fixture.create_database_table(user=user, name="table_1")
+
+    table_1_name = FieldHandler().create_field(
+        user,
+        table_1,
+        "text",
+        name="name",
+    )
+    table_1_link = FieldHandler().create_field(
+        user,
+        table_1,
+        "link_row",
+        name="link",
+        link_row_table=table_1,
+    )
+    table_1_formula = FieldHandler().create_field(
+        user,
+        table_1,
+        "formula",
+        name="formula",
+        formula=f'join(lookup("link", "name"), "")',
+    )
+    row_handler = RowHandler()
+    row_1 = row_handler.create_row(
+        user=user,
+        table=table_1,
+        values={
+            table_1_name.db_column: "Row 1",
+        },
+    )
+    row_2 = row_handler.create_row(
+        user=user,
+        table=table_1,
+        values={
+            table_1_name.db_column: "Row 2",
+            table_1_link.db_column: [row_1.id],
+        },
+    )
+    row_3 = row_handler.create_row(
+        user=user,
+        table=table_1,
+        values={
+            table_1_name.db_column: "Row 3",
+            table_1_link.db_column: [],
+        },
+    )
+    row_3 = row_handler.update_row(
+        user=user,
+        table=table_1,
+        row=row_3,
+        values={
+            table_1_link.db_column: [row_1.id],
+        },
+    )
+    assert getattr(row_2, table_1_formula.db_column) == "Row 1"
+    assert getattr(row_3, table_1_formula.db_column) == "Row 1"
