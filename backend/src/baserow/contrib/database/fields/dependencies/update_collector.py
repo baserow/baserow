@@ -166,6 +166,16 @@ class PathBasedUpdateStatementCollector:
         if starting_row_ids is not None and not self.connection_is_broken:
             if len(path_to_starting_table) == 0:
                 path_to_starting_table_id_column = "id"
+            # If the path back to the starting table is a relationship pointing to the
+            # same table, then the `starting_row_ids` are directly related to the same
+            # table. We then can't go through the through table because the reversed
+            # lookup would use the `to` starting row and not `from`. This causes rows
+            # with a relation to another row to not be updated.
+            elif (
+                len(path_to_starting_table) == 1
+                and path_to_starting_table[0].link_row_table_id == self.table.id
+            ):
+                path_to_starting_table_id_column = "id"
             else:
                 path_to_starting_table_id_column = (
                     "__".join([p.db_column for p in path_to_starting_table]) + "__id"
