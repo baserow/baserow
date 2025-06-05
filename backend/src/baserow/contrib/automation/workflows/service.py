@@ -2,7 +2,6 @@ from typing import Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
-
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.operations import OrderAutomationWorkflowsOperationType
