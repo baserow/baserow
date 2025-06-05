@@ -1029,7 +1029,7 @@
   },
   "databaseStep": {
     "title": "Create your first database",
-    "description": "Select what where you'd like to start from:",
+    "description": "Select where you'd like to start from:",
     "databaseNameLabel": "Database name",
     "scratch": "Scratch",
     "import": "File",
