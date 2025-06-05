@@ -60,7 +60,6 @@ export default defineComponent({
     const workspace = ref(null)
     const automation = ref(null)
     const currentWorkflow = ref(null)
-    const selectedNode = ref(null)
     const isAddingNode = ref(false)
 
     const sidePanelWidth = 360
@@ -126,16 +125,11 @@ export default defineComponent({
     const handleAddNode = async ({ previousNodeId }) => {
       try {
         isAddingNode.value = true
-        const newNode = await store.dispatch('automationWorkflowNode/create', {
+        await store.dispatch('automationWorkflowNode/create', {
           workflow: currentWorkflow.value,
           type: previousNodeId === null ? 'rows_created' : 'create_row',
           previousNodeId,
         })
-
-        currentWorkflow.value = { ...currentWorkflow.value }
-        if (newNode) {
-          selectedNode.value = newNode
-        }
       } catch (err) {
         console.error('Failed to add node:', err)
       } finally {
@@ -153,9 +147,7 @@ export default defineComponent({
           workflow: currentWorkflow.value,
           nodeId: parseInt(nodeId),
         })
-        if (selectedNode.value && selectedNode.value.id === parseInt(nodeId)) {
-          selectedNode.value = null
-        }
+
         currentWorkflow.value = { ...currentWorkflow.value }
       } catch (err) {
         console.error('Failed to delete node:', err)
@@ -164,6 +156,12 @@ export default defineComponent({
 
     const activeSidePanel = computed(() => {
       return store.getters['automationWorkflow/getActiveSidePanel']
+    })
+
+    const selectedNode = computed(() => {
+      return store.getters['automationWorkflowNode/getSelected'](
+        currentWorkflow.value
+      )
     })
 
     const selectedNodeId = computed({
@@ -176,31 +174,17 @@ export default defineComponent({
             currentWorkflow.value,
             nodeId
           )
-          selectedNode.value = node
+          store.dispatch('automationWorkflowNode/select', {
+            workflow: currentWorkflow.value,
+            node,
+          })
         } else {
-          selectedNode.value = null
+          store.dispatch('automationWorkflowNode/select', {
+            workflow: currentWorkflow.value,
+            node: null,
+          })
         }
       },
-    })
-
-    // Watch selectedNodeId to handle node selection in the store
-    watch(selectedNodeId, (nodeId) => {
-      if (nodeId) {
-        const node = store.getters['automationWorkflowNode/findById'](
-          currentWorkflow.value,
-          nodeId
-        )
-        store.dispatch('automationWorkflowNode/select', {
-          workflow: currentWorkflow.value,
-          node,
-        })
-      } else {
-        /**
-         * When no node is selected, reset the active side panel to null,
-         * this will close the side panel.
-         */
-        store.dispatch('automationWorkflow/setActiveSidePanel', null)
-      }
     })
 
     return {

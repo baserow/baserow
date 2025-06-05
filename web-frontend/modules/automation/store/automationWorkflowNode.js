@@ -115,12 +115,13 @@ const actions = {
         this.$client
       ).create(workflow.id, type, beforeId)
 
-      // Make it the currently selected node
-      dispatch('select', { workflow, node })
-
       // Remove temp node and add real one
       commit('DELETE_ITEM', { workflow, nodeId: tempId })
       commit('ADD_ITEM_AT', { workflow, node, index: nodeIndex })
+
+      setTimeout(() => {
+        dispatch('select', { workflow, node })
+      })
 
       // Refresh nodes from server
       await dispatch('fetch', { workflow })
