@@ -235,7 +235,8 @@
         "placeholder": "기본 텍스트"
     },
     "fieldSingleSelectSubForm": {
-        "optionsLabel": "옵션"
+        "optionsLabel": "옵션",
+        "defaultOptionLabel": "기본 옵션"
     },
     "fieldSingleSelectDropdown": {
         "notFound": "옵션을 찾을 수 없습니다"
@@ -912,7 +913,15 @@
     "rowHistorySidebar": {
         "name": "히스토리",
         "empty": "아직 변경 사항이 없습니다. 이 행에 대한 모든 변경 사항을 여기에서 추적할 수 있습니다.",
-        "you": "당신"
+        "you": "당신",
+        "created": "이 행을 생성했습니다",
+        "updated": "이 행을 업데이트했습니다",
+        "submitted": "이 행을 제출했습니다",
+        "deleted": "이 행을 삭제했습니다",
+        "createdUndo": "행 생성 취소",
+        "updatedUndo": "행 업데이트 취소",
+        "deletedUndo": "행 삭제 취소",
+        "restored": "이 행을 복원했습니다"
     },
     "fieldPasswordSubForm": {
         "description": "비밀번호 필드로 직접적으로 할 수 있는 것은 아직 없습니다. 이는 애플리케이션 빌더의 사용자 인증에서만 사용됩니다."
@@ -1106,5 +1115,13 @@
     },
     "fieldBooleanSubForm": {
         "defaultValue": "기본값"
+    },
+    "fieldMultipleSelectSubForm": {
+        "optionsLabel": "옵션",
+        "defaultOptionsLabel": "기본 옵션"
+    },
+    "apiDocsListTables": {
+        "listTablesDescription": "이 엔드포인트는 토큰 인증과 함께만 작동합니다. 토큰이 생성, 읽기, 업데이트 또는 삭제 권한을 가진 모든 테이블을 나열합니다.",
+        "listTables": "모든 테이블 목록"
     }
 }
