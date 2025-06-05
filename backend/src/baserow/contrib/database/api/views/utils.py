@@ -215,9 +215,7 @@ def paginate_and_serialize_queryset(
     page = paginator.paginate_queryset(queryset, request)
 
     limit_linked_items = parse_limit_linked_items_params(request)
-    extra_kwargs = (
-        {"limit_linked_items": limit_linked_items} if limit_linked_items else None
-    )
+    extra_kwargs = {"limit_linked_items": limit_linked_items}
 
     serializer_class = get_row_serializer_class(
         queryset.model,

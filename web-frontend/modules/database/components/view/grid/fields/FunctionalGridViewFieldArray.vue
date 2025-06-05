@@ -16,10 +16,12 @@
       :class="[
         data.staticClass,
         data.class,
-        props.row._?.fetching ? 'array-field__item--loading' : '',
+        $options.methods.isFetchingRow(props)
+          ? 'array-field__item--loading'
+          : '',
       ]"
     >
-      <div v-if="props.row._?.fetching" class="loading"></div>
+      <div v-if="$options.methods.isFetchingRow(props)" class="loading"></div>
       <span v-else>...</span>
     </div>
     <slot></slot>
@@ -37,8 +39,11 @@ export default {
     shouldFetchRow(props) {
       return (
         props.value?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
-        !props.row._?.fetched
+        !props.row._?.fullyLoaded
       )
+    },
+    isFetchingRow(props) {
+      return props.row._?.fetching
     },
   },
 }

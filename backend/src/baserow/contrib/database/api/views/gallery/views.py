@@ -239,15 +239,13 @@ class GalleryViewView(APIView):
         page = paginator.paginate_queryset(queryset, request, self)
 
         limit_linked_items = parse_limit_linked_items_params(request)
-        extra_kwargs = (
-            {"limit_linked_items": limit_linked_items} if limit_linked_items else None
-        )
+        serializer_extra_kwargs = {"limit_linked_items": limit_linked_items}
 
         serializer_class = get_row_serializer_class(
             model,
             RowSerializer,
             is_response=True,
-            extra_kwargs=extra_kwargs,
+            extra_kwargs=serializer_extra_kwargs,
         )
         serializer = serializer_class(page, many=True)
 
@@ -378,6 +376,7 @@ class PublicGalleryViewRowsView(APIView):
                 ),
             ),
             SEARCH_MODE_API_PARAM,
+            LIMIT_LINKED_ITEMS_API_PARAM,
         ],
         tags=["Database table gallery view"],
         operation_id="public_list_database_table_gallery_view_rows",
@@ -490,8 +489,15 @@ class PublicGalleryViewRowsView(APIView):
         paginator = GalleryLimitOffsetPagination()
         page = paginator.paginate_queryset(queryset, request, self)
 
+        limit_linked_items = parse_limit_linked_items_params(request)
+        serializer_extra_kwargs = {"limit_linked_items": limit_linked_items}
+
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, field_ids=field_ids
+            model,
+            RowSerializer,
+            is_response=True,
+            field_ids=field_ids,
+            extra_kwargs=serializer_extra_kwargs,
         )
         serializer = serializer_class(page, many=True)
 

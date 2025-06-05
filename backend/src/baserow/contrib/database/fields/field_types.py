@@ -2788,7 +2788,7 @@ class LinkRowFieldType(
         """
 
         required = kwargs.pop("required", False)
-        kwargs.pop("limit_linked_items", None)  # This is not needed here.
+        kwargs.pop("limit_linked_items", None)  # not needed in the request.
 
         if instance.link_row_multiple_relationships is False:
             kwargs["max_length"] = 1

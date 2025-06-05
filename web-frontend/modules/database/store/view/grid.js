@@ -97,7 +97,7 @@ function populateRows({
   return newRows
 }
 
-export function populateRow(row, metadata = {}) {
+export function populateRow(row, metadata = {}, fullyLoaded = true) {
   row._ = {
     metadata: getRowMetadata(row, metadata),
     persistentId: uuid(),
@@ -116,10 +116,11 @@ export function populateRow(row, metadata = {}) {
     // between cells.
     selected: false,
     selectedFieldId: -1,
-    // When loaded together with other rows, some fields might not be fetched completely.
-    // This flag indicates that the row has been fetched completely.
+    // When loaded together with other rows, some fields might not be fetched
+    // completely. This flag indicates that the row has been fully loaded, including all
+    // the linked items and array values.
     fetching: false,
-    fetched: false,
+    fullyLoaded,
   }
 
   return row
@@ -501,7 +502,7 @@ export const mutations = {
     if (index !== -1) {
       const existingRowState = state.rows[index]
       existingRowState._.fetching = value
-      existingRowState._.fetched = !value
+      existingRowState._.fullyLoaded = !value
     }
   },
   UPDATE_ROW_IN_BUFFER(state, { row, values, metadata = false }) {
@@ -868,7 +869,7 @@ export const actions = {
 
           data.results.forEach((row) => {
             const metadata = extractRowMetadata(data, row.id)
-            populateRow(row, metadata)
+            populateRow(row, metadata, false)
           })
           commit('ADD_ROWS', {
             rows: data.results,
@@ -1040,7 +1041,7 @@ export const actions = {
     }
     data.results.forEach((row) => {
       const metadata = extractRowMetadata(data, row.id)
-      populateRow(row, metadata)
+      populateRow(row, metadata, false)
     })
     commit('CLEAR_ROWS')
     commit('ADD_ROWS', {
@@ -1134,7 +1135,7 @@ export const actions = {
         // at the same scroll offset.
         data.results.forEach((row) => {
           const metadata = extractRowMetadata(data, row.id)
-          populateRow(row, metadata)
+          populateRow(row, metadata, false)
         })
         commit('ADD_ROWS', {
           rows: data.results,

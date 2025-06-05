@@ -27,7 +27,7 @@ import {
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
-export function populateRow(row, metadata = {}) {
+export function populateRow(row, metadata = {}, fullyLoaded = true) {
   row._ = {
     metadata: getRowMetadata(row, metadata),
     // Whether the row should be displayed based on the current activeSearchTerm term.
@@ -36,6 +36,8 @@ export function populateRow(row, metadata = {}) {
     // Could be empty even when matchSearch is true when there is no
     // activeSearchTerm term applied.
     fieldSearchMatches: [],
+    fetching: false,
+    fullyLoaded,
   }
   return row
 }
@@ -46,7 +48,7 @@ export function populateDateStack(stack, data) {
   })
   stack.results.forEach((row) => {
     const metadata = extractRowMetadata(data, row.id)
-    populateRow(row, metadata)
+    populateRow(row, metadata, false)
   })
   return stack
 }
@@ -219,6 +221,17 @@ export const mutations = {
   },
   SET_ADHOC_FILTERING(state, adhocFiltering) {
     state.adhocFiltering = adhocFiltering
+  },
+  SET_ROW_FETCHING(state, { row, value }) {
+    Object.keys(state.dateStacks).forEach((stack) => {
+      const rows = state.dateStacks[stack].results
+      const index = rows.findIndex((item) => item?.id === row.id)
+      if (index !== -1) {
+        const existingRowState = rows[index]
+        existingRowState._.fetching = value
+        existingRowState._.fullyLoaded = !value
+      }
+    })
   },
 }
 
@@ -407,7 +420,8 @@ export const actions = {
     const newRows = data.rows[date].results
     const newCount = data.rows[date].count
     newRows.forEach((row) => {
-      populateRow(row)
+      const metadata = extractRowMetadata(data, row.id)
+      populateRow(row, metadata, false)
     })
     commit('ADD_ROWS_TO_STACK', { date, count: newCount, rows: newRows })
     dispatch('updateSearch', { fields })
@@ -856,6 +870,35 @@ export const actions = {
         values: { ...oldRowValues },
       })
       throw error
+    }
+  },
+  /**
+   * Used when row data needs to be directly re-fetched from the Backend and
+   * the other (background) row needs to be refreshed. For example, when editing
+   * row from a *different* table using ForeignRowEditModal or just RowEditModal
+   * component in general.
+   */
+  async refreshRowFromBackend(
+    { commit, getters, rootGetters },
+    { table, row }
+  ) {
+    const gridId = getters.getLastCalendarId
+    const publicUrl = rootGetters['page/view/public/getIsPublic']
+    const publicAuthToken = rootGetters['page/view/public/getAuthToken']
+    commit('SET_ROW_FETCHING', { row, value: true })
+    try {
+      const { data } = await ViewService(this.$client).fetchRow(
+        table.id,
+        row.id,
+        gridId,
+        publicUrl,
+        publicAuthToken
+      )
+      // Use the return value to update the desired row with latest values from the
+      // backend.
+      commit('UPDATE_ROW', { row, values: data })
+    } finally {
+      commit('SET_ROW_FETCHING', { row, value: false })
     }
   },
   /**

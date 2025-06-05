@@ -716,6 +716,7 @@ class PublicGridViewRowsView(APIView):
             SEARCH_VALUE_API_PARAM,
             SEARCH_MODE_API_PARAM,
             *ADHOC_FILTERS_API_PARAMS,
+            LIMIT_LINKED_ITEMS_API_PARAM,
             OpenApiParameter(
                 name="group_by",
                 location=OpenApiParameter.QUERY,

@@ -299,6 +299,7 @@ class PublicTimelineViewRowsView(APIView):
             EXCLUDE_FIELDS_API_PARAM,
             SEARCH_VALUE_API_PARAM,
             SEARCH_MODE_API_PARAM,
+            LIMIT_LINKED_ITEMS_API_PARAM,
         ],
         tags=["Database table timeline view"],
         operation_id="public_list_database_table_timeline_view_rows",

@@ -42,6 +42,7 @@
               <component
                 :is="getCardComponent(field)"
                 v-if="!loading"
+                :row="row"
                 :field="field"
                 :value="row['field_' + field.id]"
                 :workspace-id="workspaceId"

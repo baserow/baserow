@@ -197,12 +197,12 @@ class KanbanViewView(APIView):
         ) = prepare_kanban_view_parameters(request)
 
         model = view.table.get_model()
+
         limit_linked_items = parse_limit_linked_items_params(request)
-        extra_kwargs = (
-            {"limit_linked_items": limit_linked_items} if limit_linked_items else None
-        )
+        serializer_extra_kwargs = {"limit_linked_items": limit_linked_items}
+
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, extra_kwargs=extra_kwargs
+            model, RowSerializer, is_response=True, extra_kwargs=serializer_extra_kwargs
         )
         rows = get_rows_grouped_by_single_select_field(
             view=view,
@@ -291,6 +291,7 @@ class PublicKanbanViewView(APIView):
                 ),
             ),
             *ADHOC_FILTERS_API_PARAMS,
+            LIMIT_LINKED_ITEMS_API_PARAM,
         ],
         tags=["Database table kanban view"],
         operation_id="public_list_database_table_kanban_view_rows",
@@ -375,11 +376,15 @@ class PublicKanbanViewView(APIView):
             view_type=view_type,
         )
 
+        limit_linked_items = parse_limit_linked_items_params(request)
+        serializer_extra_kwargs = {"limit_linked_items": limit_linked_items}
+
         serializer_class = get_row_serializer_class(
             model,
             RowSerializer,
             is_response=True,
             field_ids=field_ids,
+            extra_kwargs=serializer_extra_kwargs,
         )
         rows = get_rows_grouped_by_single_select_field(
             view=view,

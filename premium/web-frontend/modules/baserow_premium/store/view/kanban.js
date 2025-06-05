@@ -21,12 +21,12 @@ import {
   getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 
-export function populateRow(row, metadata = {}) {
+export function populateRow(row, metadata = {}, fullyLoaded = true) {
   row._ = {
     metadata: getRowMetadata(row, metadata),
     dragging: false,
     fetching: false,
-    fetched: false,
+    fullyLoaded,
   }
   return row
 }
@@ -37,7 +37,7 @@ export function populateStack(stack, data) {
   })
   stack.results.forEach((row) => {
     const metadata = extractRowMetadata(data, row.id)
-    populateRow(row, metadata)
+    populateRow(row, metadata, false)
   })
   return stack
 }
@@ -190,7 +190,7 @@ export const mutations = {
       if (index !== -1) {
         const existingRowState = rows[index]
         existingRowState._.fetching = value
-        existingRowState._.fetched = !value
+        existingRowState._.fullyLoaded = !value
       }
     })
   },
@@ -288,7 +288,8 @@ export const actions = {
     const count = data.rows[selectOptionId].count
     const rows = data.rows[selectOptionId].results
     rows.forEach((row) => {
-      populateRow(row)
+      const metadata = extractRowMetadata(data, row.id)
+      populateRow(row, metadata, false)
     })
     commit('ADD_ROWS_TO_STACK', { selectOptionId, count, rows })
   },
@@ -647,7 +648,7 @@ export const actions = {
     { commit, getters, rootGetters },
     { table, row }
   ) {
-    const gridId = getters.getLastGridId
+    const gridId = getters.getLastKanbanId
     const publicUrl = rootGetters['page/view/public/getIsPublic']
     const publicAuthToken = rootGetters['page/view/public/getAuthToken']
     commit('SET_ROW_FETCHING', { row, value: true })

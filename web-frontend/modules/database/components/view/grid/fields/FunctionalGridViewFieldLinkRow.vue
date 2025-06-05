@@ -41,7 +41,7 @@ export default {
     shouldFetchRow(props) {
       return (
         props.value?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
-        !props.row._?.fetched
+        !props.row._?.fullyLoaded
       )
     },
   },

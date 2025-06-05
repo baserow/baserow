@@ -61,8 +61,8 @@ def get_row_serializer_class(
 
     :param model: The model for which to generate a serializer.
     :type model: Model
-    :param base_class: The base serializer class that will be extended when generating
-        the serializer. By default this is a regular ModelSerializer.
+    :param base_class: The base serializer class that will be extended when
+        generating the serializer. By default this is a regular ModelSerializer.
     :type base_class: ModelSerializer
     :param is_response: Indicates if the serializer is going to be used for a response
         instead of handling input data. If that is the case other serializer fields

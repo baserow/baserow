@@ -99,7 +99,6 @@
       :hidden-fields="hiddenFields"
       :show-hidden-fields="showHiddenFieldsInRowModal"
       :all-fields-in-table="fields"
-      :store-prefix="storePrefix"
       @toggle-hidden-fields-visibility="
         showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal
       "

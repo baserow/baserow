@@ -2,9 +2,9 @@
   <component
     :is="$options.methods.getComponent(props.field, parent.$registry)"
     v-if="$options.methods.getComponent(props.field, parent.$registry)"
+    :row="props.row"
     :field="props.field"
     :value="props.value"
-    :row="props.row"
   ></component>
   <div v-else class="grid-view__cell cell-error">Unknown Field Type</div>
 </template>

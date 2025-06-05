@@ -60,7 +60,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
   const fieldOptionsStore =
     fieldOptions !== undefined ? fieldOptions : fieldOptionsStoreFactory()
 
-  const populateRow = (row, metadata = {}) => {
+  const populateRow = (row, metadata = {}, fullyLoaded) => {
     if (customPopulateRow) {
       customPopulateRow(row, metadata)
     }
@@ -77,8 +77,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     // implementation is finished.
     row._.matchSearch = true
     row._.fieldSearchMatches = []
-    row._.fetched = false
+
     row._.fetching = false
+    row._.fullyLoaded = fullyLoaded
     return row
   }
 
@@ -235,7 +236,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       if (index !== -1) {
         const existingRowState = state.rows[index]
         existingRowState._.fetching = value
-        existingRowState._.fetched = !value
+        existingRowState._.fullyLoaded = !value
       }
     },
     UPDATE_ROW_AT_INDEX(state, { index, values }) {
@@ -341,7 +342,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       const rows = Array(data.count).fill(null)
       data.results.forEach((row, index) => {
         const metadata = extractRowMetadata(data, row.id)
-        rows[index] = populateRow(row, metadata)
+        rows[index] = populateRow(row, metadata, false)
       })
       commit('SET_ROWS', rows)
       return data
@@ -534,7 +535,11 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
 
           data.results.forEach((row, index) => {
             const metadata = extractRowMetadata(data, row.id)
-            rows[rangeToFetch.offset + index] = populateRow(row, metadata)
+            rows[rangeToFetch.offset + index] = populateRow(
+              row,
+              metadata,
+              false
+            )
           })
 
           if (includeFieldOptions) {
@@ -668,7 +673,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { table, row }
     ) {
       commit('SET_ROW_FETCHING', { row, value: true })
-      const gridId = getters.getLastGridId
+      const gridId = getters.getViewId
       const publicUrl = rootGetters['page/view/public/getIsPublic']
       const publicAuthToken = rootGetters['page/view/public/getAuthToken']
       try {

@@ -15,12 +15,15 @@ export default {
     shouldFetchRow() {
       return (
         this.value?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
-        !this.row._?.fetched
+        !this.row._?.fullyLoaded
       )
+    },
+    isFetchingRow() {
+      return this.row._?.fetching || false
     },
   },
   mounted() {
-    if (this.shouldFetchRow && !this.row._?.fetching) {
+    if (this.shouldFetchRow && !this.isFetchingRow) {
       this.$emit('refresh-row')
     }
   },

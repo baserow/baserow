@@ -347,7 +347,6 @@
         )
       "
       :show-hidden-fields="showHiddenFieldsInRowModal"
-      :store-prefix="storePrefix"
       @toggle-hidden-fields-visibility="
         showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal
       "

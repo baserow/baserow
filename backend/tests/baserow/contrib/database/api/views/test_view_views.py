@@ -19,7 +19,12 @@ from rest_framework.status import (
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.handler import ViewHandler, ViewIndexingHandler
-from baserow.contrib.database.views.models import GridView, GridViewFieldOptions, View
+from baserow.contrib.database.views.models import (
+    GalleryViewFieldOptions,
+    GridView,
+    GridViewFieldOptions,
+    View,
+)
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.trash.handler import TrashHandler
@@ -1194,14 +1199,13 @@ def test_loading_a_sortable_view_will_create_an_index(
 def test_can_limit_linked_items_in_views(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()
     table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
-    grid = data_fixture.create_grid_view(user=user, table=table_a)
-    gallery = data_fixture.create_gallery_view(user=user, table=table_a)
 
     rows_b = RowHandler().force_create_rows(user, table_b, [{}] * 3).created_rows
     RowHandler().force_create_rows(
         user, table_a, [{link_a_to_b.db_column: [row.id for row in rows_b]}]
     )
 
+    grid = data_fixture.create_grid_view(user=user, table=table_a)
     grid_url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
     resp = api_client.get(grid_url, HTTP_AUTHORIZATION=f"JWT {token}", format="json")
     assert resp.status_code == HTTP_200_OK
@@ -1216,6 +1220,7 @@ def test_can_limit_linked_items_in_views(data_fixture, api_client):
     assert resp.status_code == HTTP_200_OK
     assert len(resp.json()["results"][0][link_a_to_b.db_column]) == 2
 
+    gallery = data_fixture.create_gallery_view(user=user, table=table_a)
     gallery_url = reverse(
         "api:database:views:gallery:list", kwargs={"view_id": gallery.id}
     )
@@ -1229,6 +1234,46 @@ def test_can_limit_linked_items_in_views(data_fixture, api_client):
         HTTP_AUTHORIZATION=f"JWT {token}",
         format="json",
     )
+    assert resp.status_code == HTTP_200_OK
+    assert len(resp.json()["results"][0][link_a_to_b.db_column]) == 2
+
+
+@pytest.mark.django_db
+def test_can_limit_linked_items_in_public_views(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+
+    rows_b = RowHandler().force_create_rows(user, table_b, [{}] * 3).created_rows
+    RowHandler().force_create_rows(
+        user, table_a, [{link_a_to_b.db_column: [row.id for row in rows_b]}]
+    )
+
+    grid = data_fixture.create_grid_view(user=user, table=table_a, public=True)
+    GridViewFieldOptions.objects.update(hidden=False)
+    grid_url = reverse(
+        "api:database:views:grid:public_rows", kwargs={"slug": grid.slug}
+    )
+    resp = api_client.get(grid_url, format="json")
+    assert resp.status_code == HTTP_200_OK
+    assert len(resp.json()["results"][0][link_a_to_b.db_column]) == 3
+
+    # Limit the linked items to 2
+    resp = api_client.get(f"{grid_url}?limit_linked_items=2", format="json")
+    assert resp.status_code == HTTP_200_OK
+    assert len(resp.json()["results"][0][link_a_to_b.db_column]) == 2
+
+    gallery = data_fixture.create_gallery_view(user=user, table=table_a, public=True)
+    GalleryViewFieldOptions.objects.update(hidden=False)
+
+    gallery_url = reverse(
+        "api:database:views:gallery:public_rows", kwargs={"slug": gallery.slug}
+    )
+    resp = api_client.get(gallery_url, format="json")
+    assert resp.status_code == HTTP_200_OK
+    assert len(resp.json()["results"][0][link_a_to_b.db_column]) == 3
+
+    # Limit the linked items to 2
+    resp = api_client.get(f"{gallery_url}?limit_linked_items=2", format="json")
     assert resp.status_code == HTTP_200_OK
     assert len(resp.json()["results"][0][link_a_to_b.db_column]) == 2
 

@@ -37,7 +37,7 @@
         </a>
       </component>
       <div
-        v-if="shouldFetchRow && row._?.fetching"
+        v-if="shouldFetchRow && isFetchingRow"
         class="grid-field-many-to-many__item grid-field-many-to-many__item--loading"
       >
         <div class="loading"></div>
@@ -65,6 +65,7 @@
       :value="value"
       :multiple="field.link_row_multiple_relationships"
       :persistent-field-options-key="getPersistentFieldOptionsKey(field.id)"
+      :store-prefix="storePrefix"
       @selected="addValue(value, $event)"
       @unselected="removeValue({}, value, $event.row.id)"
       @hidden="hideModal"
@@ -76,6 +77,7 @@
       :fields-sortable="false"
       :can-modify-fields="false"
       :read-only="readOnly"
+      :store-prefix="storePrefix"
       @hidden="hideModal"
       @refresh-row="$emit('refresh-row')"
     ></ForeignRowEditModal>
@@ -89,7 +91,7 @@ import { getPersistentFieldOptionsKey } from '@baserow/modules/database/utils/fi
 import { isElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import linkRowField from '@baserow/modules/database/mixins/linkRowField'
-import arrayField from '@baserow/modules/database/mixins/arrayField'
+import arrayLoading from '@baserow/modules/database/mixins/arrayLoading'
 import SelectRowModal from '@baserow/modules/database/components/row/SelectRowModal'
 import ForeignRowEditModal from '@baserow/modules/database/components/row/ForeignRowEditModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -99,7 +101,7 @@ import { isPrintableUnicodeCharacterKeyPress } from '@baserow/modules/core/utils
 export default {
   name: 'GridViewFieldLinkRow',
   components: { ForeignRowEditModal, SelectRowModal },
-  mixins: [gridField, linkRowField, arrayField],
+  mixins: [gridField, linkRowField, arrayLoading],
   data() {
     return {
       modalOpen: false,

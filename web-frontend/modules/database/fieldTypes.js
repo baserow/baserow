@@ -1626,7 +1626,7 @@ export class LinkRowFieldType extends FieldType {
       const fieldValue = row[`field_${field.id}`]
       return (
         fieldValue?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
-        !row._?.fetched
+        !row._?.fullyLoaded
       )
     })
   }

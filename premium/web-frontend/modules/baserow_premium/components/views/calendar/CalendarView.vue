@@ -22,7 +22,6 @@
       :hidden-fields="hiddenFields"
       :show-hidden-fields="showHiddenFieldsInRowModal"
       :all-fields-in-table="fields"
-      :store-prefix="storePrefix"
       @toggle-hidden-fields-visibility="
         showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal
       "
@@ -52,7 +51,7 @@
         )
       "
       :show-hidden-fields="showHiddenFieldsInRowModal"
-      :store-prefix="storePrefix"
+      @refresh-row="refreshRow"
       @hidden="$emit('selected-row', undefined)"
       @toggle-hidden-fields-visibility="
         showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal
@@ -159,6 +158,7 @@ export default {
     return {
       showHiddenFieldsInRowModal: false,
       selectedRow: null,
+      refreshingRow: false,
     }
   },
   computed: {
@@ -297,7 +297,29 @@ export default {
       this.selectedRow = row
       this.$refs.cardContext.toggleNextToMouse(event)
     },
-
+    /**
+     * Calls action in the store to refresh row directly from the backend - f. ex.
+     * when editing row from a different table, when editing is complete, we need
+     * to refresh the 'main' row that's 'under' the RowEdit modal.
+     */
+    refreshRow(row) {
+      if (this.refreshingRow) {
+        return
+      }
+      this.refreshingRow = true
+      this.$nextTick(async () => {
+        try {
+          await this.$store.dispatch(
+            this.storePrefix + 'view/calendar/refreshRowFromBackend',
+            { table: this.table, row }
+          )
+        } catch (error) {
+          notifyIf(error, 'row')
+        } finally {
+          this.refreshingRow = false
+        }
+      })
+    },
     async deleteRow(row) {
       try {
         this.$refs.cardContext.hide()

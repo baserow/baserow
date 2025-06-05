@@ -246,11 +246,10 @@ class CalendarViewView(APIView):
         )
 
         limit_linked_items = parse_limit_linked_items_params(request)
-        extra_kwargs = (
-            {"limit_linked_items": limit_linked_items} if limit_linked_items else None
-        )
+        serializer_extra_kwargs = {"limit_linked_items": limit_linked_items}
+
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, extra_kwargs=extra_kwargs
+            model, RowSerializer, is_response=True, extra_kwargs=serializer_extra_kwargs
         )
 
         grouped_rows_serialized = {}
@@ -344,6 +343,7 @@ class PublicCalendarViewView(APIView):
                 required=False,
             ),
             *ADHOC_FILTERS_API_PARAMS,
+            LIMIT_LINKED_ITEMS_API_PARAM,
         ],
         tags=["Database table calendar view"],
         operation_id="public_list_database_table_calendar_view_rows",
@@ -428,11 +428,15 @@ class PublicCalendarViewView(APIView):
             combine_filters=True,
         )
 
+        limit_linked_items = parse_limit_linked_items_params(request)
+        serializer_extra_kwargs = {"limit_linked_items": limit_linked_items}
+
         serializer_class = get_row_serializer_class(
             model,
             RowSerializer,
             is_response=True,
             field_ids=field_ids,
+            extra_kwargs=serializer_extra_kwargs,
         )
 
         for key, value in grouped_rows.items():
