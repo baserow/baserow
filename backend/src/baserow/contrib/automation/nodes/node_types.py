@@ -88,7 +88,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
             workflow_service.run_workflow(
                 user,
                 workflow.id,
-                AutomationDispatchContext(workflow, event_payload),
+                event_payload,
             )
             if workflow.allow_test_run_until:
                 workflow.allow_test_run_until = None

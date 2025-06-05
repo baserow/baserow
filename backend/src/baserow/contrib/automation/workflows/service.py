@@ -1,10 +1,8 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
-from baserow.contrib.automation.automation_dispatch_context import (
-    AutomationDispatchContext,
-)
+
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.operations import OrderAutomationWorkflowsOperationType
@@ -36,14 +34,14 @@ class AutomationWorkflowService:
         self,
         user: AbstractUser,
         workflow_id: int,
-        dispatch_context: AutomationDispatchContext,
+        event_payload: Optional[List[Dict]] = None,
     ):
         """
         Runs the workflow with the given ID.
 
         :param user: The user trying to run the workflow.
         :param workflow_id: The ID of the workflow to run.
-        :param dispatch_context: The context in which the workflow is run.
+        :param event_payload: The payload from the action.
         """
 
         workflow = self.handler.get_workflow(workflow_id)
@@ -55,7 +53,7 @@ class AutomationWorkflowService:
             context=workflow,
         )
 
-        self.handler.run_workflow(workflow_id, dispatch_context)
+        self.handler.run_workflow(workflow_id, event_payload)
 
     def get_workflow(self, user: AbstractUser, workflow_id: int) -> AutomationWorkflow:
         """

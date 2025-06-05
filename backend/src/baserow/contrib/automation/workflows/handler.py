@@ -39,16 +39,16 @@ class AutomationWorkflowHandler:
     allowed_fields = ["name", "allow_test_run_until"]
 
     def run_workflow(
-        self, workflow_id: int, dispatch_context: AutomationDispatchContext
+        self, workflow_id: int, event_payload: Optional[List[Dict]] = None
     ) -> None:
         """
         Runs the provided workflow.
 
         :param workflow_id: The AutomationWorkflow ID that should be executed.
-        :param dispatch_context: The context used for the dispatch.
+        :param event_payload: The payload from the action.
         """
 
-        run_workflow.delay(workflow_id, dispatch_context.event_payload)
+        run_workflow.delay(workflow_id, event_payload)
 
     def get_workflow(
         self, workflow_id: int, base_queryset: Optional[QuerySet] = None
