@@ -29,7 +29,12 @@ class AutomationWorkflowRunner:
     def run(
         self, workflow: AutomationWorkflow, dispatch_context: AutomationDispatchContext
     ):
-        for node in self.workflow_handler.get_action_nodes(workflow):
+        nodes = self.node_handler.get_nodes(workflow).order_by("order")
+        action_nodes = [
+            node.specific for node in nodes if node.get_type().is_workflow_action
+        ]
+
+        for node in action_nodes:
             node_type: Type[AutomationNodeActionNodeType] = node.get_type()
             try:
                 dispatch_context = node_type.dispatch(node, dispatch_context)

@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
 from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
@@ -12,7 +12,6 @@ from baserow.contrib.automation.constants import (
     WORKFLOW_NAME_MAX_LEN,
 )
 from baserow.contrib.automation.models import Automation
-from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
@@ -409,19 +408,3 @@ class AutomationWorkflowHandler:
             progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
         return workflow_instance
-
-    def get_action_nodes(
-        self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
-    ) -> Iterable[AutomationNode]:
-        """Return the action nodes of a workflow."""
-
-        if base_queryset is None:
-            base_queryset = AutomationNode.objects
-
-        nodes = (
-            base_queryset.select_related("workflow")
-            .filter(workflow=workflow)
-            .order_by("order")
-        )
-
-        return [node.specific for node in nodes if node.get_type().is_workflow_action]
