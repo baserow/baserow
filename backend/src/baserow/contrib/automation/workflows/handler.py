@@ -7,9 +7,6 @@ from django.core.files.storage import Storage
 from django.db import IntegrityError
 from django.db.models import QuerySet
 
-from baserow.contrib.automation.automation_dispatch_context import (
-    AutomationDispatchContext,
-)
 from baserow.contrib.automation.constants import (
     IMPORT_SERIALIZED_IMPORTING,
     WORKFLOW_NAME_MAX_LEN,
@@ -412,26 +409,6 @@ class AutomationWorkflowHandler:
             progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
         return workflow_instance
-
-    def get_trigger_node(
-        self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
-    ) -> Optional[AutomationNode]:
-        """Return the trigger node of a workflow, if available."""
-
-        if base_queryset is None:
-            base_queryset = AutomationNode.objects
-
-        node = (
-            base_queryset.select_related("workflow")
-            .filter(workflow=workflow)
-            .order_by("order")
-            .first()
-        )
-
-        if not node or not node.get_type().is_workflow_trigger:
-            return None
-
-        return node.specific
 
     def get_action_nodes(
         self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
