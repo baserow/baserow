@@ -93,9 +93,27 @@ export default {
           })
         }
 
-        navigator.clipboard.write([new ClipboardItem(clipboardConfig)])
+        try {
+          await navigator.clipboard.write([new ClipboardItem(clipboardConfig)])
+        } catch (e) {
+          // On chrome if document is not focused, clipboard operations will fail
+          // @TODO: Should we warn the user?
+          if (!document.hasFocus()) {
+            return
+          }
+          throw e
+        }
       } else if (typeof navigator.clipboard?.writeText !== 'undefined') {
-        navigator.clipboard.writeText(tsvData)
+        try {
+          navigator.clipboard.writeText(tsvData)
+        } catch (e) {
+          // On chrome if document is not focused, clipboard operations will fail
+          // @TODO: Should we warn the user?
+          if (!document.hasFocus()) {
+            return
+          }
+          throw e
+        }
       } else {
         const richClipboardConfig = { 'text/plain': tsvData }
         if (htmlData) {
