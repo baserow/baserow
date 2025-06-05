@@ -62,7 +62,6 @@ import { VueFlow, useVueFlow } from '@vue2-flow/core'
 import { Background } from '@vue2-flow/background'
 import { Controls } from '@vue2-flow/controls'
 import { ref, computed, watch, toRefs } from 'vue'
-import { ref, computed } from 'vue'
 import {
   useContext,
   nextTick,
@@ -97,7 +96,7 @@ const refs = instance.proxy.$refs
 
 const emit = defineEmits(['add-node', 'remove-node', 'input'])
 
-const { onInit, addSelectedNodes, onMove, onNodeClick, onPaneClick } = useVueFlow()
+const { addSelectedNodes, onMove, onNodeClick, onPaneClick } = useVueFlow()
 
 const { value: selectedNodeId } = toRefs(props)
 const { app } = useContext()
@@ -246,10 +245,7 @@ const toggleCreateContext = async (nodeId) => {
   const nodeContext = refs[`createNodeContext-${nodeId}`]
   activeCreateNodeContext.value = nodeContext
   const nodeAddBtn = refs[`addWorkflowBtnNode-${nodeId}`]
-  const bounds = nodeAddBtn.$el.getBoundingClientRect()
   nodeContext.show(nodeAddBtn.$el, 'bottom', 'left', 10, -225)
-  nodeContext.$el.style.top = `${bounds.top}px`
-  nodeContext.$el.style.left = `${bounds.left}px`
 }
 
 const createNode = (nodeType, previousNodeId) => {

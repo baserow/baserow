@@ -51,7 +51,7 @@ const mutations = {
     updateCachedValues(workflow)
   },
   ADD_ITEM_AT(state, { workflow, node, index }) {
-    workflow.nodes.splice(index, 0, node)
+    workflow.nodes.splice(index, 0, populateNode(node))
     updateCachedValues(workflow)
   },
   SELECT_ITEM(state, { workflow, node }) {
