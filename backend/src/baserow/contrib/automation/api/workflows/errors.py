@@ -29,15 +29,3 @@ ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW = (
     HTTP_400_BAD_REQUEST,
     "The node id {e.node_id} does not belong to the workflow.",
 )
-
-ERROR_AUTOMATION_WORKFLOW_IS_EMPTY = (
-    "ERROR_AUTOMATION_WORKFLOW_IS_EMPTY",
-    HTTP_400_BAD_REQUEST,
-    "The workflow {e.workflow_id} contains no nodes, start by adding a trigger.",
-)
-
-ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE = (
-    "ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE",
-    HTTP_400_BAD_REQUEST,
-    "The node {e.node_id} has a misconfigured service.",
-)
