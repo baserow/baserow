@@ -6,27 +6,20 @@
       @read-only-toggled="handleReadOnlyToggle"
     />
     <div class="layout__col-2-2 automation-workflow__content">
-      <div
-        ref="editorRoot"
-        :style="{
-          width: activeSidePanel ? `calc(100% - ${sidePanelWidth}px)` : '100%',
-        }"
-      >
+      <div class="automation-workflow__editor">
         <client-only>
           <WorkflowEditor
+            v-model="selectedNodeId"
             :nodes="workflowNodes"
             :read-only="isWorkflowReadOnly"
+            :is-adding-node="isAddingNode"
             @add-node="handleAddNode"
-            @click-node="handleClickNode"
             @remove-node="handleRemoveNode"
           />
         </client-only>
       </div>
-      <div
-        v-if="activeSidePanel"
-        class="automation-workflow__side-panel"
-        :style="{ width: sidePanelWidth + 'px' }"
-      >
+
+      <div v-if="activeSidePanel" class="automation-workflow__side-panel">
         <EditorSidePanels :active-side-panel="activeSidePanel" />
       </div>
     </div>
@@ -44,7 +37,7 @@ import {
   useFetch,
 } from '@nuxtjs/composition-api'
 import AutomationHeader from '@baserow/modules/automation/components/AutomationHeader'
-import WorkflowEditor from '@baserow/modules/automation/components/workflow/WorkflowEditor.vue'
+import WorkflowEditor from '@baserow/modules/automation/components/workflow/WorkflowEditor'
 import EditorSidePanels from '@baserow/modules/automation/components/workflow/EditorSidePanels'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 
@@ -66,6 +59,7 @@ export default defineComponent({
     const workspace = ref(null)
     const automation = ref(null)
     const currentWorkflow = ref(null)
+    const isAddingNode = ref(false)
 
     const sidePanelWidth = 360
 
@@ -129,40 +123,16 @@ export default defineComponent({
 
     const handleAddNode = async ({ previousNodeId }) => {
       try {
+        isAddingNode.value = true
         await store.dispatch('automationWorkflowNode/create', {
           workflow: currentWorkflow.value,
-          type: 'rows_created',
+          type: previousNodeId === null ? 'rows_created' : 'create_row',
           previousNodeId,
         })
-
-        // Force a refresh of the workflow nodes by creating a new reference
-        currentWorkflow.value = { ...currentWorkflow.value }
       } catch (err) {
         console.error('Failed to add node:', err)
-      }
-    }
-
-    /**
-     * When a node is clicked in `WorkflowNode`, ensure that the state
-     * is updated in the store and the node is selected.
-     * @param nodeId
-     */
-    const handleClickNode = (nodeId) => {
-      if (nodeId) {
-        const node = store.getters['automationWorkflowNode/findById'](
-          currentWorkflow.value,
-          nodeId
-        )
-        store.dispatch('automationWorkflowNode/select', {
-          workflow: currentWorkflow.value,
-          node,
-        })
-      } else {
-        /**
-         * When no node is selected, reset the active side panel to null,
-         * this will close the side panel.
-         */
-        store.dispatch('automationWorkflow/setActiveSidePanel', null)
+      } finally {
+        isAddingNode.value = false
       }
     }
 
@@ -177,7 +147,6 @@ export default defineComponent({
           nodeId: parseInt(nodeId),
         })
 
-        // Force a refresh of the workflow nodes by creating a new reference
         currentWorkflow.value = { ...currentWorkflow.value }
       } catch (err) {
         console.error('Failed to delete node:', err)
@@ -186,6 +155,28 @@ export default defineComponent({
 
     const activeSidePanel = computed(() => {
       return store.getters['automationWorkflow/getActiveSidePanel']
+    })
+
+    const selectedNodeId = computed({
+      get() {
+        const selectedNode = store.getters[
+          'automationWorkflowNode/getSelected'
+        ](currentWorkflow.value)
+        return selectedNode?.id || null
+      },
+      set(nodeId) {
+        let nodeToSelect = null
+        if (nodeId) {
+          nodeToSelect = store.getters['automationWorkflowNode/findById'](
+            currentWorkflow.value,
+            nodeId
+          )
+        }
+        store.dispatch('automationWorkflowNode/select', {
+          workflow: currentWorkflow.value,
+          node: nodeToSelect,
+        })
+      },
     })
 
     return {
@@ -198,8 +189,10 @@ export default defineComponent({
       activeSidePanel,
       handleReadOnlyToggle,
       handleAddNode,
-      handleClickNode,
       handleRemoveNode,
+      selectedNodeId,
+      workflowId,
+      isAddingNode,
     }
   },
 })

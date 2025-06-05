@@ -56,5 +56,10 @@
     "localBaserowRowsCreatedDescription": "This node is triggered when one or more rows are created in a Baserow table.",
     "localBaserowCreateRow": "Create row",
     "localBaserowCreateRowDescription": "This node creates a new row in a Baserow table."
+  },
+  "workflowNode": {
+    "actionDelete": "Delete action",
+    "actionDuplicate": "Duplicate action",
+    "actionConfigure": "Configure"
   }
 }

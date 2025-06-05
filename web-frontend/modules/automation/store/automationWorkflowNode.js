@@ -1,3 +1,4 @@
+import { uuid } from '@baserow/modules/core/utils/string'
 import AutomationWorkflowNodeService from '@baserow/modules/automation/services/automationWorkflowNode'
 import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 
@@ -73,86 +74,54 @@ const actions = {
     { commit, dispatch, getters },
     { workflow, type, previousNodeId = null }
   ) {
-    // Create a temporary node with a unique temporary ID
-    const tempId = `temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-
-    // Get existing nodes
+    // Get existing nodes to determine beforeId
     const existingNodes = getters.getNodes(workflow)
 
-    // Calculate position
-    let tempOrder
-    let nodeIndex
+    let beforeId = null
+    let nodeIndex = 0
 
-    if (previousNodeId === null) {
-      // Add at the beginning
-      tempOrder = existingNodes.length > 0 ? existingNodes[0].order - 1 : 1
-      nodeIndex = 0
-    } else {
-      // Find the previous node
+    if (previousNodeId) {
+      // Find the previous node and get the next one as beforeId
       const prevNodeIndex = existingNodes.findIndex(
         (n) => n.id.toString() === previousNodeId.toString()
       )
 
       if (prevNodeIndex === -1) {
-        // Previous node not found, add at the end
-        tempOrder = existingNodes.length + 1
+        // Previous node not found, add at the end (beforeId = null)
+        beforeId = null
         nodeIndex = existingNodes.length
       } else {
         // Add after the specified node
-        const prevNode = existingNodes[prevNodeIndex]
         const nextNode = existingNodes[prevNodeIndex + 1]
-
-        // Calculate order between prev and next nodes or after prev if it's the last
-        tempOrder = nextNode
-          ? prevNode.order + (nextNode.order - prevNode.order) / 2
-          : prevNode.order + 1
-
+        beforeId = nextNode ? nextNode.id : null
         nodeIndex = prevNodeIndex + 1
       }
     }
 
-    // Create the temporary node
+    // Create a temporary node for optimistic UI
+    const tempId = uuid()
     const tempNode = {
       id: tempId,
       type,
       workflow_id: workflow.id,
-      order: tempOrder,
     }
 
-    // Apply optimistic create with position
+    // Apply optimistic create
     commit('ADD_ITEM_AT', { workflow, node: tempNode, index: nodeIndex })
 
     try {
-      // Send API request
+      // Send API request with beforeId
       const { data: node } = await AutomationWorkflowNodeService(
         this.$client
-      ).create(workflow.id, type)
-
-      // Make it the currently selected node
-      dispatch('select', { workflow, node })
-
-      // Calculate the final order for server
-      const nodesWithoutTemp = getters
-        .getNodes(workflow)
-        .filter((n) => n.id !== tempId)
-        .map((n) => n.id)
-
-      // Insert the real node ID at the same position as the temp node was
-      const newFinalOrderIds = [...nodesWithoutTemp]
-      newFinalOrderIds.splice(nodeIndex, 0, node.id)
+      ).create(workflow.id, type, beforeId)
 
       // Remove temp node and add real one
       commit('DELETE_ITEM', { workflow, nodeId: tempId })
-      commit('ADD_ITEM', { workflow, node })
+      commit('ADD_ITEM_AT', { workflow, node, index: nodeIndex })
 
-      // Order the nodes correctly
-      commit('ORDER_ITEMS', { workflow, order: newFinalOrderIds })
-
-      // Send the order to the server
-      await AutomationWorkflowNodeService(this.$client).order(
-        workflow.id,
-        newFinalOrderIds
-      )
+      setTimeout(() => {
+        dispatch('select', { workflow, node })
+      })
 
       return node
     } catch (error) {
