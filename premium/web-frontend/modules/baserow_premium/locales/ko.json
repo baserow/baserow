@@ -240,7 +240,8 @@
         "enterpriseFeatureName": "엔터프라이즈",
         "supportFeatureName": "지원",
         "applicationUsersDescription": "게시된 애플리케이션 빌더 사용자 소스에 있는 총 애플리케이션 사용자 수입니다.",
-        "applicationUsers": "어플리케이션 사용자"
+        "applicationUsers": "어플리케이션 사용자",
+        "advancedFeatureName": "고급"
     },
     "viewDecoratorType": {
         "leftBorderColor": "왼쪽 테두리",
