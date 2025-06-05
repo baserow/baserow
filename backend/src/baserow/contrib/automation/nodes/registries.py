@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -23,7 +23,7 @@ from baserow.core.registry import (
 )
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.handler import ServiceHandler
-from baserow.core.services.registries import service_type_registry
+from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
 from baserow.core.services.types import DispatchResult
 
 AUTOMATION_NODES = "automation_nodes"
@@ -59,6 +59,11 @@ class AutomationNodeType(
             "previous_node_output",
             "service",
         ]
+
+    def get_service_type(self) -> Optional[ServiceTypeSubClass]:
+        return (
+            service_type_registry.get(self.service_type) if self.service_type else None
+        )
 
     def export_prepared_values(self, node: AutomationNode) -> Dict[Any, Any]:
         """

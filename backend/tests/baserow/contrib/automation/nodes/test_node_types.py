@@ -5,6 +5,9 @@ import pytest
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.nodes.node_types import AutomationNodeTriggerType
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.core.exceptions import InstanceTypeDoesNotExist
 
 
 @pytest.mark.django_db
@@ -102,3 +105,30 @@ def test_service_node_type_rows_created_prepare_values_without_instance(data_fix
     new_service = result["service"]
     assert isinstance(new_service, type(node.service))
     assert new_service.id != node.service.id
+
+
+def signal_trigger_node_types():
+    return [
+        node_type
+        for node_type in automation_node_type_registry.get_all()
+        if issubclass(node_type.__class__, AutomationNodeTriggerType)
+    ]
+
+
+@pytest.mark.parametrize("node_type", signal_trigger_node_types())
+def test_registering_signal_node_type_connects_to_signal(node_type):
+    try:
+        automation_node_type_registry.get(node_type.type)
+    except InstanceTypeDoesNotExist:
+        automation_node_type_registry.register(node_type)
+    service_type = node_type.get_service_type()
+    registered_handlers = [receiver[1]() for receiver in service_type.signal.receivers]
+    assert service_type.handler in registered_handlers
+
+
+@pytest.mark.parametrize("node_type", signal_trigger_node_types())
+def test_unregistering_signal_node_type_disconnects_from_signal(node_type):
+    automation_node_type_registry.unregister(node_type.type)
+    service_type = node_type.get_service_type()
+    registered_handlers = [receiver[1]() for receiver in service_type.signal.receivers]
+    assert service_type.handler not in registered_handlers
