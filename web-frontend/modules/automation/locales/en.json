@@ -57,7 +57,7 @@
     "localBaserowCreateRow": "Create row",
     "localBaserowCreateRowDescription": "This node creates a new row in a Baserow table."
   },
-  "workflow": {
+  "workflowNode": {
     "actionDelete": "Delete action",
     "actionDuplicate": "Duplicate action",
     "actionConfigure": "Configure"

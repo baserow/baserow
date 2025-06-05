@@ -9,7 +9,7 @@
     </h1>
 
     <Badge rounded color="yellow" size="large">
-      {{ $t('workflow.actionConfigure') }}</Badge
+      {{ $t('workflowNode.actionConfigure') }}</Badge
     >
 
     <a
@@ -29,14 +29,14 @@
             @click="emit('duplicateNode', props.id)"
           >
             <i class="context__menu-item-icon iconoir-copy"></i>
-            {{ $t('workflow.actionDuplicate') }}
+            {{ $t('workflowNode.actionDuplicate') }}
           </a>
           <a
             class="context__menu-item-link context__menu-item-link--delete"
             @click="emit('removeNode', props.id)"
           >
             <i class="context__menu-item-icon iconoir-bin"></i>
-            {{ $t('workflow.actionDelete') }}
+            {{ $t('workflowNode.actionDelete') }}
           </a>
         </li>
       </ul>
