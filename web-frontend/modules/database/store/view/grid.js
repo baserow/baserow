@@ -1887,7 +1887,6 @@ export const actions = {
       const gridId = getters.getLastGridId
       const publicUrl = rootGetters['page/view/public/getIsPublic']
       const publicAuthToken = rootGetters['page/view/public/getAuthToken']
-      console.log(gridId, row.id, publicUrl, publicAuthToken)
       const { data } = await ViewService(this.$client).fetchRow(
         table.id,
         row.id,

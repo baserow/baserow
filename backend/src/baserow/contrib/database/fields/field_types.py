@@ -5207,6 +5207,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         "formula_type",
     ]
     allowed_fields = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + CORE_FORMULA_FIELDS
+    serializer_extra_args = ["limit_linked_items"]
     request_serializer_field_names = (
         BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES + CORE_FORMULA_FIELDS
     )
@@ -5292,19 +5293,38 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         formula_type = self.to_baserow_formula_type(formula_field_instance)
         return formula_type.get_baserow_field_instance_and_type()
 
+    def _filter_serializer_field_kwargs(
+        self, field_type: FieldType, **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Filters the serializer kwargs to only include those that are relevant for
+        the formula field type.
+        """
+
+        kwargs_to_remove = set(self.serializer_extra_args) - set(
+            getattr(field_type, "serializer_extra_args", [])
+        )
+
+        return {
+            key: value for key, value in kwargs.items() if key not in kwargs_to_remove
+        }
+
     def get_serializer_field(self, instance: FormulaField, **kwargs):
         (
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(instance)
-        return field_type.get_serializer_field(field_instance, **kwargs)
+
+        field_kwargs = self._filter_serializer_field_kwargs(field_type, **kwargs)
+        return field_type.get_serializer_field(field_instance, **field_kwargs)
 
     def get_response_serializer_field(self, instance, **kwargs):
         (
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(instance)
-        return field_type.get_response_serializer_field(field_instance, **kwargs)
+        field_kwargs = self._filter_serializer_field_kwargs(field_type, **kwargs)
+        return field_type.get_response_serializer_field(field_instance, **field_kwargs)
 
     def get_model_field(self, instance: FormulaField, **kwargs):
         # When typed_table is False we are constructing a table model without

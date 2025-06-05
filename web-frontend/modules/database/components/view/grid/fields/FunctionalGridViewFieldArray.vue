@@ -6,18 +6,40 @@
     :class="[data.staticClass, data.class]"
     :field="props.field"
     :value="props.value"
+    :row="props.row"
     :selected="props.selected"
     v-on="listeners"
   >
+    <div
+      v-if="$options.methods.shouldFetchRow(props)"
+      class="array-field__item"
+      :class="[
+        data.staticClass,
+        data.class,
+        props.row._?.fetching ? 'array-field__item--loading' : '',
+      ]"
+    >
+      <div v-if="props.row._?.fetching" class="loading"></div>
+      <span v-else>...</span>
+    </div>
     <slot></slot>
   </component>
 </template>
 
 <script>
 import FunctionalFormulaArrayItems from '@baserow/modules/database/components/formula/array/FunctionalFormulaArrayItems'
+import { LINKED_ITEMS_DEFAULT_LOAD_COUNT } from '@baserow/modules/database/constants'
 
 export default {
   name: 'FunctionalGridViewFieldArray',
   components: { FunctionalFormulaArrayItems },
+  methods: {
+    shouldFetchRow(props) {
+      return (
+        props.value?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
+        !props.row._?.fetched
+      )
+    },
+  },
 }
 </script>

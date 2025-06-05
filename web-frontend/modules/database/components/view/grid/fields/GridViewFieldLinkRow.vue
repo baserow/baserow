@@ -89,6 +89,7 @@ import { getPersistentFieldOptionsKey } from '@baserow/modules/database/utils/fi
 import { isElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import linkRowField from '@baserow/modules/database/mixins/linkRowField'
+import arrayField from '@baserow/modules/database/mixins/arrayField'
 import SelectRowModal from '@baserow/modules/database/components/row/SelectRowModal'
 import ForeignRowEditModal from '@baserow/modules/database/components/row/ForeignRowEditModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -98,7 +99,7 @@ import { isPrintableUnicodeCharacterKeyPress } from '@baserow/modules/core/utils
 export default {
   name: 'GridViewFieldLinkRow',
   components: { ForeignRowEditModal, SelectRowModal },
-  mixins: [gridField, linkRowField],
+  mixins: [gridField, linkRowField, arrayField],
   data() {
     return {
       modalOpen: false,

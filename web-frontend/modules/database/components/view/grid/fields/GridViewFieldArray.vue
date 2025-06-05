@@ -2,6 +2,7 @@
   <FunctionalGridViewFieldArray
     :field="field"
     :value="value"
+    :row="row"
     :selected="selected"
     v-on="$listeners"
     @show="showModal"
@@ -25,11 +26,12 @@ import FunctionalGridViewFieldArray from '@baserow/modules/database/components/v
 import gridField from '@baserow/modules/database/mixins/gridField'
 import FileFieldModal from '@baserow/modules/database/components/field/FileFieldModal.vue'
 import { isElement } from '@baserow/modules/core/utils/dom'
+import arrayField from '@baserow/modules/database/mixins/arrayField'
 
 export default {
   name: 'GridViewFieldArray',
   components: { FileFieldModal, FunctionalGridViewFieldArray },
-  mixins: [gridField],
+  mixins: [gridField, arrayField],
   props: {
     selected: {
       type: Boolean,

@@ -1,6 +1,5 @@
 import { getPrimaryOrFirstField } from '@baserow/modules/database/utils/field'
 import BigNumber from 'bignumber.js'
-import { LINKED_ITEMS_DEFAULT_LOAD_COUNT } from '@baserow/modules/database/constants'
 
 export default {
   data() {
@@ -56,23 +55,12 @@ export default {
         return this.value
       }
     },
-    shouldFetchRow() {
-      return (
-        this.value?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
-        !this.row._?.fetched
-      )
-    },
     canAddValue() {
       return (
         this.field.link_row_multiple_relationships ||
         (Array.isArray(this.value) && this.value.length < 1)
       )
     },
-  },
-  mounted() {
-    if (this.shouldFetchRow && !this.row._?.fetching) {
-      this.$emit('refresh-row')
-    }
   },
   methods: {
     /**

@@ -1130,6 +1130,7 @@ class BaserowFormulaArrayType(
         "array_formula_type",
     ]
     can_group_by = False
+    serializer_extra_args = ["limit_linked_items"]
 
     def __init__(self, sub_type: BaserowFormulaValidType, **kwargs):
         super().__init__(**kwargs)
@@ -1241,7 +1242,10 @@ class BaserowFormulaArrayType(
     def get_serializer_field(self, instance, **kwargs) -> Optional[Field]:
         required = kwargs.get("required", False)
 
-        from baserow.contrib.database.api.fields.serializers import ArrayValueSerializer
+        from baserow.contrib.database.api.fields.serializers import (
+            ArrayValueSerializer,
+            LimitListSerializer,
+        )
 
         (
             instance,
@@ -1253,11 +1257,12 @@ class BaserowFormulaArrayType(
             )
         else:
             serializer = field_type.get_response_serializer_field(instance)
-        return serializers.ListSerializer(
+        return LimitListSerializer(
             **{
                 "required": required,
                 "allow_null": not required,
                 "child": serializer,
+                "limit": kwargs.pop("limit_linked_items", None),
                 **kwargs,
             }
         )

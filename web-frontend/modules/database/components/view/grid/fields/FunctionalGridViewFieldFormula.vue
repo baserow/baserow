@@ -4,6 +4,7 @@
     v-if="$options.methods.getComponent(props.field, parent.$registry)"
     :field="props.field"
     :value="props.value"
+    :row="props.row"
   ></component>
   <div v-else class="grid-view__cell cell-error">Unknown Field Type</div>
 </template>
