@@ -22,6 +22,7 @@
       :hidden-fields="hiddenFields"
       :show-hidden-fields="showHiddenFieldsInRowModal"
       :all-fields-in-table="fields"
+      :store-prefix="storePrefix"
       @toggle-hidden-fields-visibility="
         showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal
       "
@@ -51,6 +52,7 @@
         )
       "
       :show-hidden-fields="showHiddenFieldsInRowModal"
+      :store-prefix="storePrefix"
       @hidden="$emit('selected-row', undefined)"
       @toggle-hidden-fields-visibility="
         showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal

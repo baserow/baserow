@@ -113,6 +113,7 @@
         )
       "
       :show-hidden-fields="showHiddenFieldsInRowModal"
+      :store-prefix="storePrefix"
       @hidden="$emit('selected-row', undefined)"
       @toggle-hidden-fields-visibility="
         showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal
@@ -147,6 +148,7 @@
       :hidden-fields="hiddenFields"
       :show-hidden-fields="showHiddenFieldsInRowModal"
       :all-fields-in-table="fields"
+      :store-prefix="storePrefix"
       @toggle-hidden-fields-visibility="
         showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal
       "
@@ -302,6 +304,7 @@ export default {
       //
       showHiddenFieldsInRowModal: false,
       enableAutoScroll: false,
+      refreshingRow: false,
     }
   },
   computed: {
@@ -721,15 +724,23 @@ export default {
      * when editing row from a different table, when editing is complete, we need
      * to refresh the 'main' row that's 'under' the RowEdit modal.
      */
-    async refreshRow(row) {
-      try {
-        await this.$store.dispatch(
-          this.storePrefix + 'view/timeline/refreshRowFromBackend',
-          { table: this.table, row }
-        )
-      } catch (error) {
-        notifyIf(error, 'row')
+    refreshRow(row) {
+      if (this.refreshingRow) {
+        return
       }
+      this.refreshingRow = true
+      this.$nextTick(async () => {
+        try {
+          await this.$store.dispatch(
+            this.storePrefix + 'view/timeline/refreshRowFromBackend',
+            { table: this.table, row }
+          )
+        } catch (error) {
+          notifyIf(error, 'row')
+        } finally {
+          this.refreshingRow = false
+        }
+      })
     },
     /**
      * Calls the fieldCreated callback and shows the hidden fields section

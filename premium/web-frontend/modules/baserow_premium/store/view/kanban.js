@@ -25,6 +25,8 @@ export function populateRow(row, metadata = {}) {
   row._ = {
     metadata: getRowMetadata(row, metadata),
     dragging: false,
+    fetching: false,
+    fetched: false,
   }
   return row
 }
@@ -180,6 +182,17 @@ export const mutations = {
   },
   UPDATE_ROW_VALUES(state, { row, values }) {
     Object.assign(row, values)
+  },
+  SET_ROW_FETCHING(state, { row, value }) {
+    Object.keys(state.stacks).forEach((stack) => {
+      const rows = state.stacks[stack].results
+      const index = rows.findIndex((item) => item?.id === row.id)
+      if (index !== -1) {
+        const existingRowState = rows[index]
+        existingRowState._.fetching = value
+        existingRowState._.fetched = !value
+      }
+    })
   },
   UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
     updateRowMetadataType(row, rowMetadataType, updateFunction)
@@ -630,11 +643,28 @@ export const actions = {
    * row from a *different* table using ForeignRowEditModal or just RowEditModal
    * component in general.
    */
-  async refreshRowFromBackend({ commit, getters, dispatch }, { table, row }) {
-    const { data } = await RowService(this.$client).get(table.id, row.id)
-    // Use the return value to update the desired row with latest values from the
-    // backend.
-    commit('UPDATE_ROW', { row, values: data })
+  async refreshRowFromBackend(
+    { commit, getters, rootGetters },
+    { table, row }
+  ) {
+    const gridId = getters.getLastGridId
+    const publicUrl = rootGetters['page/view/public/getIsPublic']
+    const publicAuthToken = rootGetters['page/view/public/getAuthToken']
+    commit('SET_ROW_FETCHING', { row, value: true })
+    try {
+      const { data } = await ViewService(this.$client).fetchRow(
+        table.id,
+        row.id,
+        gridId,
+        publicUrl,
+        publicAuthToken
+      )
+      // Use the return value to update the desired row with latest values from the
+      // backend.
+      commit('UPDATE_ROW', { row, values: data })
+    } finally {
+      commit('SET_ROW_FETCHING', { row, value: false })
+    }
   },
   /**
    * The dragging of rows to other stacks and position basically consists of three+

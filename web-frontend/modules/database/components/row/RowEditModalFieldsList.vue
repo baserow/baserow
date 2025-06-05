@@ -27,6 +27,7 @@
         :sortable="sortable && fieldIsSortable(field)"
         :can-modify-fields="canModifyFields"
         :all-fields-in-table="allFieldsInTable"
+        :store-prefix="storePrefix"
         @field-updated="$emit('field-updated', $event)"
         @field-deleted="$emit('field-deleted')"
         @update="$emit('update', $event)"
@@ -91,6 +92,10 @@ export default {
     },
     allFieldsInTable: {
       type: Array,
+      required: true,
+    },
+    storePrefix: {
+      type: String,
       required: true,
     },
   },

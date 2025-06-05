@@ -37,6 +37,11 @@ export default {
       required: false,
       default: () => true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: null,
+    },
   },
   methods: {
     /**

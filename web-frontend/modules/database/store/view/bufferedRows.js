@@ -11,6 +11,7 @@ import {
   getRowSortFunction,
   matchSearchFilters,
 } from '@baserow/modules/database/utils/view'
+import ViewService from '@baserow/modules/database/services/view'
 import RowService from '@baserow/modules/database/services/row'
 import {
   extractRowReadOnlyValues,
@@ -76,6 +77,8 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     // implementation is finished.
     row._.matchSearch = true
     row._.fieldSearchMatches = []
+    row._.fetched = false
+    row._.fetching = false
     return row
   }
 
@@ -225,6 +228,14 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         Object.assign(state.rows[index], values)
       } else {
         Object.assign(row, values)
+      }
+    },
+    SET_ROW_FETCHING(state, { row, value }) {
+      const index = state.rows.findIndex((item) => item?.id === row.id)
+      if (index !== -1) {
+        const existingRowState = state.rows[index]
+        existingRowState._.fetching = value
+        existingRowState._.fetched = !value
       }
     },
     UPDATE_ROW_AT_INDEX(state, { index, values }) {
@@ -652,11 +663,28 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      * row from a *different* table using ForeignRowEditModal or just RowEditModal
      * component in general.
      */
-    async refreshRowFromBackend({ commit, getters, dispatch }, { table, row }) {
-      const { data } = await RowService(this.$client).get(table.id, row.id)
-      // Use the return value to update the desired row with latest values from the
-      // backend.
-      commit('UPDATE_ROW', { row, values: data })
+    async refreshRowFromBackend(
+      { commit, getters, rootGetters },
+      { table, row }
+    ) {
+      commit('SET_ROW_FETCHING', { row, value: true })
+      const gridId = getters.getLastGridId
+      const publicUrl = rootGetters['page/view/public/getIsPublic']
+      const publicAuthToken = rootGetters['page/view/public/getAuthToken']
+      try {
+        const { data } = await ViewService(this.$client).fetchRow(
+          table.id,
+          row.id,
+          gridId,
+          publicUrl,
+          publicAuthToken
+        )
+        // Use the return value to update the desired row with latest values from the
+        // backend.
+        commit('UPDATE_ROW', { row, values: data })
+      } finally {
+        commit('SET_ROW_FETCHING', { row, value: false })
+      }
     },
     /**
      * Creates a new row and adds it to the store if needed.

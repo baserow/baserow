@@ -42,13 +42,6 @@
   }
 }
 
-.grid-field-many-to-many__item--loading {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .grid-field-many-to-many__item {
   white-space: nowrap;
   padding: 0 5px;
@@ -69,6 +62,12 @@
 
     .grid-view__column--matches-search & {
       background-color: $color-primary-200;
+    }
+
+    &.grid-field-many-to-many__item--loading {
+      width: 30px;
+      align-items: center;
+      background-color: revert;
     }
   }
 

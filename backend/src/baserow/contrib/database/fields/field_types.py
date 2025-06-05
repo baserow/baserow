@@ -78,11 +78,11 @@ from baserow.contrib.database.api.fields.serializers import (
     FileFieldRequestSerializer,
     FileFieldResponseSerializer,
     IntegerOrStringField,
+    LimitListSerializer,
     LinkRowFieldSerializerMixin,
     LinkRowRequestSerializer,
     LinkRowValueSerializer,
     ListOrStringField,
-    ListSerializer,
     MustBeEmptyField,
     PasswordSerializer,
     SelectOptionSerializer,
@@ -2818,7 +2818,7 @@ class LinkRowFieldType(
                 },
             )
 
-        return ListSerializer(
+        return LimitListSerializer(
             child=inner_serializer(),
             **{
                 "required": False,

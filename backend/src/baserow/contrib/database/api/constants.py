@@ -270,7 +270,7 @@ LIMIT_LINKED_ITEMS_API_PARAM = OpenApiParameter(
     location=OpenApiParameter.QUERY,
     type=OpenApiTypes.INT,
     description=(
-        "If provided, the number of linked rows to return. If not provided, "
-        "all linked rows will be returned."
+        "if provided, the maximum number of relationships per link row field "
+        "in the response. If not provided, all the relationships will be returned."
     ),
 )

@@ -19,6 +19,7 @@
         :database="database"
         :can-modify-fields="canModifyFields"
         :all-fields-in-table="allFieldsInTable"
+        :store-prefix="storePrefix"
         @field-updated="$emit('field-updated', $event)"
         @field-deleted="$emit('field-deleted')"
         @order-fields="$emit('order-fields', $event)"
@@ -44,6 +45,7 @@
           :database="database"
           :can-modify-fields="canModifyFields"
           :all-fields-in-table="allFieldsInTable"
+          :store-prefix="storePrefix"
           @field-updated="$emit('field-updated', $event)"
           @field-deleted="$emit('field-deleted')"
           @toggle-field-visibility="$emit('toggle-field-visibility', $event)"
@@ -133,6 +135,10 @@ export default {
       type: Object,
       required: false,
       default: () => ({}),
+    },
+    storePrefix: {
+      type: String,
+      required: true,
     },
   },
   data() {

@@ -1,8 +1,6 @@
 import { getPrimaryOrFirstField } from '@baserow/modules/database/utils/field'
 import BigNumber from 'bignumber.js'
 import { LINKED_ITEMS_DEFAULT_LOAD_COUNT } from '@baserow/modules/database/constants'
-import RowService from '@baserow/modules/database/services/row'
-import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   data() {
@@ -12,8 +10,6 @@ export default {
       // one relationship can persist.
       removingRelationships: false,
       removingRelationShipIds: [],
-      loadingAllValues: false,
-      fetchedAllValues: false,
     }
   },
   computed: {
@@ -60,10 +56,10 @@ export default {
         return this.value
       }
     },
-    allValuesLoaded() {
+    shouldFetchRow() {
       return (
-        this.value?.length !== LINKED_ITEMS_DEFAULT_LOAD_COUNT ||
-        this.fetchedAllValues
+        this.value?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
+        !this.row._?.fetched
       )
     },
     canAddValue() {
@@ -73,37 +69,9 @@ export default {
       )
     },
   },
-  async mounted() {
-    if (!this.allValuesLoaded) {
-      this.loadingAllValues = true
-      try {
-        const { data: row } = await RowService(this.$client).get(
-          this.field.table_id,
-          this.row.id,
-          false
-        )
-        for (const viewType of Object.values(this.$registry.getAll('view'))) {
-          await viewType.rowLoaded(
-            { store: this.$store },
-            this.field.table_id,
-            this.$store.getters['field/getAll'],
-            this.row,
-            row,
-            {},
-            [this.field.id],
-            'page/'
-          )
-        }
-        this.$store.dispatch('rowModal/updated', {
-          tableId: this.field.table_id,
-          values: row,
-        })
-        this.fetchedAllValues = true
-      } catch (error) {
-        notifyIf(error, 'row')
-      } finally {
-        this.loadingAllValues = false
-      }
+  mounted() {
+    if (this.shouldFetchRow && !this.row._?.fetching) {
+      this.$emit('refresh-row')
     }
   },
   methods: {

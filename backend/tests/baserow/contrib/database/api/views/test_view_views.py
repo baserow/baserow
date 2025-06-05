@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
+from django.db.models import Q
 from django.shortcuts import reverse
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
@@ -17,11 +18,12 @@ from rest_framework.status import (
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.views.handler import ViewIndexingHandler
-from baserow.contrib.database.views.models import GridView, View
+from baserow.contrib.database.views.handler import ViewHandler, ViewIndexingHandler
+from baserow.contrib.database.views.models import GridView, GridViewFieldOptions, View
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.trash.handler import TrashHandler
+from baserow.test_utils.helpers import AnyStr
 
 
 @pytest.fixture(autouse=True)
@@ -205,7 +207,7 @@ def test_list_views_doesnt_do_n_queries(api_client, data_fixture):
             **{"HTTP_AUTHORIZATION": f"JWT {token}"},
         )
         assert response.status_code == HTTP_200_OK
-        response_json = response.json()
+        response.json()
 
     view_4 = data_fixture.create_grid_view(table=table_1, order=3)
 
@@ -215,7 +217,7 @@ def test_list_views_doesnt_do_n_queries(api_client, data_fixture):
             **{"HTTP_AUTHORIZATION": f"JWT {token}"},
         )
         assert response.status_code == HTTP_200_OK
-        response_json = response.json()
+        response.json()
 
     assert len(query_for_n.captured_queries) >= len(
         query_for_n_plus_one.captured_queries
@@ -1229,3 +1231,147 @@ def test_can_limit_linked_items_in_views(data_fixture, api_client):
     )
     assert resp.status_code == HTTP_200_OK
     assert len(resp.json()["results"][0][link_a_to_b.db_column]) == 2
+
+
+@pytest.mark.django_db
+def test_get_public_row(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="password", first_name="Test1"
+    )
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    number_field = data_fixture.create_number_field(table=table)
+    boolean_field = data_fixture.create_boolean_field(table=table)
+
+    row_1, row_2, row_3, row_4 = (
+        RowHandler()
+        .force_create_rows(
+            user,
+            table,
+            [
+                {},
+                {
+                    f"field_{text_field.id}": "Green",
+                    f"field_{number_field.id}": 10,
+                    f"field_{boolean_field.id}": False,
+                },
+                {
+                    f"field_{text_field.id}": "Orange",
+                    f"field_{number_field.id}": 100,
+                    f"field_{boolean_field.id}": True,
+                },
+                {
+                    f"field_{text_field.id}": "Purple",
+                    f"field_{number_field.id}": 1000,
+                    f"field_{boolean_field.id}": False,
+                },
+            ],
+        )
+        .created_rows
+    )
+
+    # Non-existent view
+    url = reverse(
+        "api:database:views:public_row", kwargs={"slug": 999, "row_id": row_1.id}
+    )
+    response = api_client.get(url)
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
+
+    # Not allow access to rows of a private view
+    private_view = data_fixture.create_grid_view(table=table)
+    url = reverse(
+        "api:database:views:public_row",
+        kwargs={"slug": private_view.slug, "row_id": row_1.id},
+    )
+    response = api_client.get(url)
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
+
+    # Public view, non-existent row
+    public_view = data_fixture.create_grid_view(table=table, public=True)
+    url = reverse(
+        "api:database:views:public_row",
+        kwargs={"slug": public_view.slug, "row_id": 999},
+    )
+    response = api_client.get(url)
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_ROW_DOES_NOT_EXIST"
+
+    # Public view, existing row, but not available in the view due to filters
+    public_view_without_row_1 = data_fixture.create_grid_view(table=table, public=True)
+    data_fixture.create_view_filter(
+        view=public_view_without_row_1, user=user, field=text_field, type="not_empty"
+    )
+    url = reverse(
+        "api:database:views:public_row",
+        kwargs={"slug": public_view_without_row_1.slug, "row_id": row_1.id},
+    )
+    response = api_client.get(url)
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_ROW_DOES_NOT_EXIST"
+
+    # Row 2 is available in the view, so it should return the row data
+    url = reverse(
+        "api:database:views:public_row",
+        kwargs={"slug": public_view_without_row_1.slug, "row_id": row_2.id},
+    )
+    response = api_client.get(url)
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "id": row_2.id,
+        "order": AnyStr(),
+        f"field_{text_field.id}": "Green",
+        f"field_{number_field.id}": "10",
+        f"field_{boolean_field.id}": False,
+    }
+
+    # Public, password protected view, without proper password header
+    password_protected_view = data_fixture.create_grid_view(
+        table=table, public=True, public_view_password="password"
+    )
+
+    url = reverse(
+        "api:database:views:public_row",
+        kwargs={"slug": password_protected_view.slug, "row_id": 1},
+    )
+    response = api_client.get(url)
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW"
+
+    # public, password protected view, with proper password header
+    public_view_token = ViewHandler().encode_public_view_token(password_protected_view)
+    url = reverse(
+        "api:database:views:public_row",
+        kwargs={"slug": password_protected_view.slug, "row_id": row_2.id},
+    )
+    response = api_client.get(
+        url, HTTP_BASEROW_VIEW_AUTHORIZATION=f"JWT {public_view_token}"
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json == {
+        "id": row_2.id,
+        "order": AnyStr(),
+        f"field_{text_field.id}": "Green",
+        f"field_{number_field.id}": "10",
+        f"field_{boolean_field.id}": False,
+    }
+
+    # only the visible fields are returned (show only the text field)
+    GridViewFieldOptions.objects.filter(
+        Q(field=number_field) | Q(field=boolean_field), grid_view=public_view
+    ).update(hidden=True)
+
+    url = reverse(
+        "api:database:views:public_row",
+        kwargs={"slug": public_view.slug, "row_id": row_2.id},
+    )
+    response = api_client.get(url)
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json == {
+        "id": row_2.id,
+        "order": AnyStr(),
+        f"field_{text_field.id}": "Green",
+    }

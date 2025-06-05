@@ -99,6 +99,7 @@
       :hidden-fields="hiddenFields"
       :show-hidden-fields="showHiddenFieldsInRowModal"
       :all-fields-in-table="fields"
+      :store-prefix="storePrefix"
       @toggle-hidden-fields-visibility="
         showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal
       "
@@ -370,18 +371,23 @@ export default {
      * when editing row from a different table, when editing is complete, we need
      * to refresh the 'main' row that's 'under' the RowEdit modal.
      */
-    async refreshRow(row) {
-      try {
-        await this.$store.dispatch(
-          this.storePrefix + 'view/kanban/refreshRowFromBackend',
-          {
-            table: this.table,
-            row,
-          }
-        )
-      } catch (error) {
-        notifyIf(error, 'row')
+    refreshRow(row) {
+      if (this.refreshingRow) {
+        return
       }
+      this.refreshingRow = true
+      this.$nextTick(async () => {
+        try {
+          await this.$store.dispatch(
+            this.storePrefix + 'view/kanban/refreshRowFromBackend',
+            { table: this.table, row }
+          )
+        } catch (error) {
+          notifyIf(error, 'row')
+        } finally {
+          this.refreshingRow = false
+        }
+      })
     },
     /**
      * Populates a new row and opens the row edit modal

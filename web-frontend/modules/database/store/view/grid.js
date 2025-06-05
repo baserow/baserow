@@ -116,6 +116,10 @@ export function populateRow(row, metadata = {}) {
     // between cells.
     selected: false,
     selectedFieldId: -1,
+    // When loaded together with other rows, some fields might not be fetched completely.
+    // This flag indicates that the row has been fetched completely.
+    fetching: false,
+    fetched: false,
   }
 
   return row
@@ -490,6 +494,14 @@ export const mutations = {
     const oldIndex = state.rows.findIndex((item) => item.id === row.id)
     if (oldIndex !== -1) {
       state.rows.splice(index, 0, state.rows.splice(oldIndex, 1)[0])
+    }
+  },
+  SET_ROW_FETCHING(state, { row, value }) {
+    const index = state.rows.findIndex((item) => item.id === row.id)
+    if (index !== -1) {
+      const existingRowState = state.rows[index]
+      existingRowState._.fetching = value
+      existingRowState._.fetched = !value
     }
   },
   UPDATE_ROW_IN_BUFFER(state, { row, values, metadata = false }) {
@@ -1766,11 +1778,11 @@ export const actions = {
 
     if (getters.areMultiSelectRowsWithinBuffer) {
       const selectedRows = getters.getSelectedRows
-      const needsDataRefetch = fields.some((field) => {
+      const shouldRefetchFieldData = fields.some((field) => {
         const fieldType = this.$registry.get('field', field.type)
-        return fieldType.needsDataRefetch(field, selectedRows)
+        return fieldType.shouldRefetchFieldData(field, selectedRows)
       })
-      if (!needsDataRefetch) {
+      if (!shouldRefetchFieldData) {
         rows = getters.getSelectedRows
       }
     }
@@ -1866,11 +1878,29 @@ export const actions = {
    * row from a *different* table using ForeignRowEditModal or just RowEditModal
    * component in general.
    */
-  async refreshRowFromBackend({ commit, getters, dispatch }, { table, row }) {
-    const { data } = await RowService(this.$client).get(table.id, row.id)
+  async refreshRowFromBackend(
+    { commit, getters, rootGetters },
+    { table, row }
+  ) {
+    commit('SET_ROW_FETCHING', { row, value: true })
+    try {
+      const gridId = getters.getLastGridId
+      const publicUrl = rootGetters['page/view/public/getIsPublic']
+      const publicAuthToken = rootGetters['page/view/public/getAuthToken']
+      console.log(gridId, row.id, publicUrl, publicAuthToken)
+      const { data } = await ViewService(this.$client).fetchRow(
+        table.id,
+        row.id,
+        gridId,
+        publicUrl,
+        publicAuthToken
+      )
+      commit('UPDATE_ROW_IN_BUFFER', { row, values: data })
+    } finally {
+      commit('SET_ROW_FETCHING', { row, value: false })
+    }
     // Use the return value to update the desired row with latest values from the
     // backend.
-    commit('UPDATE_ROW_IN_BUFFER', { row, values: data })
   },
   /**
    * Called when the user wants to create a new row. Optionally a `before` row

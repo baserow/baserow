@@ -989,7 +989,7 @@ export class FieldType extends Registerable {
    * @param {Array} rows - The rows to check.
    * @returns {boolean} - True if data needs to be refetched, false otherwise.
    */
-  needsDataRefetch(field, rows) {
+  shouldRefetchFieldData(field, rows) {
     return false
   }
 }
@@ -1621,11 +1621,13 @@ export class LinkRowFieldType extends FieldType {
     return false
   }
 
-  needsDataRefetch(field, rows) {
+  shouldRefetchFieldData(field, rows) {
     return rows.some((row) => {
-      console.log(row)
       const fieldValue = row[`field_${field.id}`]
-      return fieldValue?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT
+      return (
+        fieldValue?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
+        !row._?.fetched
+      )
     })
   }
 }

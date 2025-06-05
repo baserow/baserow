@@ -6,13 +6,6 @@
   padding: 0;
 }
 
-.field-link-row__item--loading {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .field-link-row__item {
   padding: 0 5px;
   margin-bottom: 5px;
@@ -25,6 +18,13 @@
 
   &:not(:last-child) {
     margin-right: 5px;
+  }
+
+  &.field-link-row__item--loading {
+    align-items: center;
+    justify-content: center;
+    background-color: revert;
+    width: 30px;
   }
 }
 

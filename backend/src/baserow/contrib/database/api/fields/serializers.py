@@ -266,7 +266,7 @@ class IntegerOrStringField(serializers.Field):
         return value
 
 
-class ListSerializer(serializers.ListSerializer):
+class LimitListSerializer(serializers.ListSerializer):
     def __init__(self, *args, **kwargs):
         self.limit = kwargs.pop("limit", None)
         super().__init__(*args, **kwargs)

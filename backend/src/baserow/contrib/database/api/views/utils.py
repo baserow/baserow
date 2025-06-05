@@ -175,12 +175,13 @@ def _get_paginator(request: Request) -> Pageable:
     return paginator
 
 
-def parse_limit_linked_items_params(request):
+def parse_limit_linked_items_params(request) -> Optional[int]:
     """
     Parses the limit linked items parameters from the request.
 
     :param request: The request containing the limit linked items parameters.
-    :return: The parsed limit linked items parameters.
+    :return: The parsed limit linked items parameters as an integer, or None if not set
+        or invalid.
     """
 
     value = 0

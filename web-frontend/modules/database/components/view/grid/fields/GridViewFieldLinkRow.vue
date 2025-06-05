@@ -29,7 +29,7 @@
           class="grid-field-many-to-many__loading"
         ></span>
         <a
-          v-else-if="!loadingAllValues && canAccessLinkedTable"
+          v-else-if="!shouldFetchRow && canAccessLinkedTable"
           class="grid-field-many-to-many__remove"
           @click.prevent.stop="removeValue($event, value, item.id)"
         >
@@ -37,13 +37,13 @@
         </a>
       </component>
       <div
-        v-if="loadingAllValues"
-        class="grid-field-many-to-many__item--loading"
+        v-if="shouldFetchRow && row._?.fetching"
+        class="grid-field-many-to-many__item grid-field-many-to-many__item--loading"
       >
         <div class="loading"></div>
       </div>
       <a
-        v-if="!loadingAllValues && canAccessLinkedTable && canAddValue"
+        v-if="!shouldFetchRow && canAccessLinkedTable && canAddValue"
         class="grid-field-many-to-many__item grid-field-many-to-many__item--link"
         @click.prevent="showModal()"
       >

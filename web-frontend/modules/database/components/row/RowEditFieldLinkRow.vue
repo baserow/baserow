@@ -22,19 +22,22 @@
           class="field-link-row__loading"
         ></span>
         <a
-          v-else-if="!loadingAllValues && !readOnly"
+          v-else-if="!shouldFetchRow && !readOnly"
           class="field-link-row__remove"
           @click.prevent.stop="removeValue($event, value, item.id)"
         >
           <i class="iconoir-cancel"></i>
         </a>
       </li>
+      <li
+        v-if="shouldFetchRow && row._?.fetching"
+        class="field-link-row__item field-link-row__item--loading"
+      >
+        <div class="loading"></div>
+      </li>
     </ul>
-    <div v-if="loadingAllValues" class="field-link-row__item--loading">
-      <div class="loading"></div>
-    </div>
     <a
-      v-if="!loadingAllValues && !readOnly && canAddValue"
+      v-if="!shouldFetchRow && !readOnly && canAddValue"
       class="add"
       @click.prevent="$refs.selectModal.show()"
     >
