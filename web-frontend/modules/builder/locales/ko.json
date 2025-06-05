@@ -691,7 +691,8 @@
         "updateRowLabel": "행 업데이트",
         "deleteRowLabel": "행 삭제",
         "logoutLabel": "로그아웃",
-        "refreshDataSourceLabel": "데이터 소스 새로 고침"
+        "refreshDataSourceLabel": "데이터 소스 새로 고침",
+        "httpRequest": "HTTP 요청 보내기"
     },
     "notificationWorkflowActionForm": {
         "titleLabel": "제목",
