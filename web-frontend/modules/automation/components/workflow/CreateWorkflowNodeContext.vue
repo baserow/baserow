@@ -1,5 +1,5 @@
 <template>
-  <Context class="workflow_node_context">
+  <Context class="workflow-node__context">
     <Dropdown
       size="large"
       show-search
