@@ -16,14 +16,15 @@ test.describe("Automation application test suite", () => {
       "Ensure the default automation name is displayed in the sidebar."
     ).toBeVisible();
 
-    const workflowLink = page.locator(".tree__item .tree__sub-link", { hasText: "Workflow" });
+    const workflowLink = page.getByRole("link", { name: "Workflow" });
     await expect(
       workflowLink,
       "Ensure the default Workflow has been created and is visible."
     ).toBeVisible();
 
+    const createNodeButton = page.getByRole("button", { name: "Create automation node" });
     await expect(
-      page.locator("button.button-floating--primary:has(i.iconoir-plus)"),
+      createNodeButton,
       "Ensure the button to create a node is visible."
     ).toBeVisible();
   });
@@ -42,14 +43,15 @@ test.describe("Automation application test suite", () => {
       "Ensure the custom automation name is displayed in the sidebar."
     ).toBeVisible();
 
-    const workflowLink = page.locator(".tree__item .tree__sub-link", { hasText: "Workflow" });
+    const workflowLink = page.getByRole("link", { name: "Workflow" });
     await expect(
       workflowLink,
       "Ensure the default Workflow has been created and is visible."
     ).toBeVisible();
 
+    const createNodeButton = page.getByRole("button", { name: "Create automation node" });
     await expect(
-      page.locator("button.button-floating--primary:has(i.iconoir-plus)"),
+      createNodeButton,
       "Ensure the button to create a node is visible."
     ).toBeVisible();
   });

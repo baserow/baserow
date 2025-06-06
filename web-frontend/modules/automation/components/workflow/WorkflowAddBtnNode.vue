@@ -4,6 +4,7 @@
     size="small"
     :disabled="props.data.disabled"
     @click="handleClick"
+    title="Create automation node"
   ></ButtonFloating>
 </template>
 
