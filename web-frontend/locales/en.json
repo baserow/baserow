@@ -109,7 +109,8 @@
     "minMaxValueField": "The field value must be between {min} and {max}.",
     "invalidURL": "Please enter a valid URL.",
     "email": "The field must be an email.",
-    "alreadyInUse": "This field name is already in use."
+    "alreadyInUse": "This field name is already in use.",
+    "copyFailed": "Copy to clipboard failed. Please try again."
   },
   "permission": {
     "admin": "Admin",
