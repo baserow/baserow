@@ -2,8 +2,7 @@
   <component
     :is="serviceType.formComponent"
     :application="builder"
-    :service="defaultValues.service"
-    :loading="workflowActionLoading"
+    :workflow-action="workflowAction"
     :default-values="defaultValues.service"
     @values-changed="values.service = { ...workflowAction.service, ...$event }"
   >
@@ -14,7 +13,7 @@
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
-  name: 'WorkflowActionWithService',
+  name: 'WorkflowActionWithWithService',
   mixins: [form],
   inject: ['builder'],
   props: {
@@ -33,11 +32,6 @@ export default {
     }
   },
   computed: {
-    workflowActionLoading() {
-      return this.$store.getters['builderWorkflowAction/getLoading'](
-        this.workflowAction
-      )
-    },
     workflowActionType() {
       return this.$registry.get('workflowAction', this.workflowAction.type)
     },
