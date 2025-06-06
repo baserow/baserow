@@ -246,9 +246,9 @@ def test_create_subject_unsupported_type(
 def test_create_subject_unknown_subject(data_fixture, enterprise_data_fixture):
     user = data_fixture.create_user()
     team = enterprise_data_fixture.create_team()
-    assert not User.objects.filter(pk=123).exists()
+    assert not User.objects.filter(pk=999999).exists()
     with pytest.raises(TeamSubjectDoesNotExist):
-        TeamHandler().create_subject(user, {"pk": 123}, "auth.User", team)
+        TeamHandler().create_subject(user, {"pk": 999999}, "auth.User", team)
 
 
 @pytest.mark.django_db
