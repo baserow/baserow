@@ -2,7 +2,8 @@ import re
 
 from django.conf import settings
 from django.db.models import F
-
+from django.db.models import Case, When, Value, CharField
+from django.db.models.expressions import Subquery
 from baserow_premium.api.integrations.local_baserow.serializers import (
     LocalBaserowTableServiceAggregationGroupBySerializer,
     LocalBaserowTableServiceAggregationSeriesSerializer,
@@ -642,6 +643,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 queryset, model_field, agg_series.field, include_agg_type=True
             )
 
+        # TODO:
         for key, value in combined_agg_dict.items():
             if isinstance(value, AnnotatedAggregation):
                 queryset = queryset.annotate(**value.annotations)
@@ -696,6 +698,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 for field_order_by in field_order_bys:
                     sorts.append(field_order_by)
 
+        # TODO:
         queryset = queryset.annotate(**sort_annotations)
 
         def process_individual_result(result: dict):
@@ -711,11 +714,35 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             return result
 
         if len(group_by_values) > 0:
+            bucket_db_column = group_by_values[0]
+            top_buckets = queryset
+            top_buckets = top_buckets.annotate(**combined_agg_dict)
+            top_buckets = top_buckets.order_by(*sorts)
+            top_buckets = top_buckets.values(f"{bucket_db_column}")
+            top_buckets = top_buckets[
+                :3  # settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
+            ]
+
+            print(top_buckets)
+
+            bucket_annotation = {
+                f"{bucket_db_column}_bucket": Case(
+                    When(
+                        **{f"{bucket_db_column}__in": Subquery(top_buckets)},
+                        then=F(bucket_db_column),
+                    ),
+                    default=Value("Other"),
+                    output_field=CharField(),
+                ),
+            }
+
+            queryset = self.build_queryset(
+                service, table, dispatch_context, model=model
+            )
+            queryset = queryset.annotate(**bucket_annotation)
+            queryset = queryset.values(f"{bucket_db_column}_bucket")
             queryset = queryset.annotate(**combined_agg_dict)
             queryset = queryset.order_by(*sorts)
-            queryset = queryset[
-                : settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
-            ]
 
             results = [process_individual_result(result) for result in queryset]
         else:
