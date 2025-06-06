@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import DatabaseError, transaction
 
 from celery_singleton import DuplicateTaskError, Singleton
@@ -14,6 +15,7 @@ from baserow.contrib.database.search.exceptions import (
     PostgresFullTextSearchDisabledException,
 )
 from baserow.contrib.database.search.types import SearchTableState
+from baserow.contrib.database.table.exceptions import TableDoesNotExist
 
 
 def get_lock_key_name(table_id):
@@ -74,7 +76,11 @@ def do_table_search_data_update(
     from baserow.contrib.database.search.handler import SearchHandler
     from baserow.contrib.database.table.handler import TableHandler
 
-    table = TableHandler().get_table(table_id)
+    try:
+        table = TableHandler().get_table(table_id)
+    except TableDoesNotExist:
+        logger.warning(f"Table with id {table_id} doesn't exist.")
+        return
     if not SearchHandler._should_migrate(table):
         logger.info(f"Table {table} disabled from migration")
         return
@@ -82,7 +88,9 @@ def do_table_search_data_update(
         with transaction.atomic():
             SearchHandler.create_search_table_for_workspace(table.database.workspace_id)
     except DatabaseError:
-        logger.info("Workspace migrated to new search table")
+        logger.info(
+            f"Workspace {table.database.workspace_id} migrated " "to new search table"
+        )
 
     if not SearchHandler.migrate_table_tsvectors(table):
         # table was already migrated, just update from latest changes
@@ -98,8 +106,8 @@ def do_table_search_data_update(
             )
             SearchHandler.cleanup_old_vectors(table)
 
-        logger.info("Scheduling update if needed")
         if get_search_data_update_lock_key(table_id):
+            logger.info(f"Scheduling another update for {table_id}")
             schedule_table_search_data_update.delay(table_id=table_id)
 
 

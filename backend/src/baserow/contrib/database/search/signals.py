@@ -1,19 +1,23 @@
 from typing import TYPE_CHECKING
 
+from django.db import transaction
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 
 from loguru import logger
 
 from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.search.handler import drop_table
 from baserow.contrib.database.search.tasks import schedule_table_search_data_update
 from baserow.contrib.database.search.types import SearchTableState
+from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.tasks import (
     enqueue_task_on_commit_swallowing_any_exceptions,
 )
 from baserow.contrib.database.views.signals import view_loaded
 from baserow.core.models import Workspace
 from baserow.core.signals import workspace_created
+from baserow.core.trash.signals import permanently_deleted
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
@@ -24,6 +28,40 @@ def create_search_table_for_workspace(sender, workspace: "Workspace", **kwargs):
     from baserow.contrib.database.search.handler import SearchHandler
 
     SearchHandler.create_search_table_for_workspace(workspace)
+
+
+@receiver(permanently_deleted, sender="row")
+def handle_permanently_deleted_row(
+    sender, trash_item_id, trash_item, parent_id, *args, **kwargs
+):
+    from baserow.contrib.database.search.handler import SearchHandler
+
+    table = TableHandler().get_table(parent_id)
+    SearchHandler.cleanup_table_rows_vectors(table, [trash_item_id])
+
+
+@receiver(permanently_deleted, sender="rows")
+def handle_permanently_deleted_rows(
+    sender, trash_item_id, trash_item, parent_id, *args, **kwargs
+):
+    from baserow.contrib.database.search.handler import SearchHandler
+
+    table = TableHandler().get_table(parent_id)
+    SearchHandler.cleanup_table_rows_vectors(table, trash_item.row_ids)
+
+
+# @receiver(permanently_deleted, sender='table')
+# def handle_permanently_deleted_table(sender, trash_item_id, trash_item, parent_id, *args, **kwargs):
+#     from baserow.contrib.database.search.handler import SearchHandler
+#     SearchHandler.cleanup_table_rows_vectors(trash_item)
+
+
+@receiver(permanently_deleted, sender="workspace")
+def handle_permanently_deleted_workspace(
+    sender, trash_item_id, trash_item, parent_id, *args, **kwargs
+):
+    from baserow.contrib.database.search.handler import SearchHandler
+    search_table = SearchHandler.remove_search_table_for_workspace(trash_item_id)
 
 
 # @receiver([rows_updated, rows_deleted, rows_created])
@@ -79,14 +117,14 @@ def view_loaded_maybe_create_tsvector(
 
 
 @receiver(post_delete, sender=Field)
-def clean_up_tsv_after_field_deleted(sender, instance, **kwargs):
+def clean_up_tsv_after_field_deleted(sender, instance, origin, **kwargs):
     from baserow.contrib.database.search.handler import SearchHandler
 
     SearchHandler.after_field_perm_delete(instance)
 
-
-@receiver(post_delete, sender=Workspace)
-def clean_up_workspace_search(sender, instance, using, origin, **kwargs):
-    from baserow.contrib.database.search.handler import SearchHandler
-
-    SearchHandler.remove_search_table_for_workspace(instance.id)
+#
+# @receiver(post_delete, sender=Workspace)
+# def clean_up_workspace_search(sender, instance, using, origin, **kwargs):
+#     from baserow.contrib.database.search.handler import SearchHandler
+#
+#     SearchHandler.remove_search_table_for_workspace(instance.id)

@@ -3,6 +3,8 @@ from io import BytesIO
 from unittest.mock import Mock
 
 import pytest
+from django.conf import settings
+
 from baserow_premium.generative_ai.managers import AIFileManager
 
 from baserow.contrib.database.rows.handler import RowHandler
@@ -48,7 +50,7 @@ def test_upload_files_from_file_field(premium_data_fixture):
 
     assert len(generative_ai_model_type._files) == 1
     assert generative_ai_model_type._files[file_ids[0]]["file_name"].endswith(
-        os.path.join(settings.MEDIA_ROOT, f"/user_files/{user_file_1.name}")
+        os.path.join(settings.MEDIA_ROOT, f"/user_files/{user_file_1.name}"))
 
 
 @pytest.mark.django_db

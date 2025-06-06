@@ -51,7 +51,6 @@ class FieldFixtures:
     def create_tsv_for_field(self, field):
         table: "Table" = field.table
         # migrated, or during migration
-        print("adding tsv from fixture", table, table.search_data_state)
         if table.search_data_state in {SearchTableState.DONE, SearchTableState.INITED}:
             return
         with safe_django_schema_editor() as schema_editor:
@@ -60,7 +59,6 @@ class FieldFixtures:
             )
             tsv_model_field = model._meta.get_field(field.tsv_db_column)
             schema_editor.add_field(model, tsv_model_field)
-            print("tsv in", field, tsv_model_field)
 
     def create_select_option(self, user=None, **kwargs):
         if "value" not in kwargs:

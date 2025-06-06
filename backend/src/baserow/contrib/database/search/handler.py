@@ -232,7 +232,6 @@ class _SearchHandler(
                     name=field.tsv_index_name,
                 ),
             )
-        print("added tsv", field, field.table, to_model, tsv_model_field)
 
     @classmethod
     def after_field_perm_delete(
@@ -1221,7 +1220,9 @@ class SearchHandler(_SearchHandler):
                 )
                 if svect.value:
                     inserts.append(svect)
-        logger.info(f"Adding {len(inserts)} entries to {search_model} since {tstamp}")
+        logger.info(
+            f"Adding {len(inserts)} entries to {search_model} since {tstamp} for {table}"
+        )
         search_model.objects.bulk_create(inserts)
 
     @classmethod
@@ -1251,7 +1252,10 @@ class SearchHandler(_SearchHandler):
                 if updated_fields is not None
                 else None
             )
-
+            # this will be enqueued in various situations:
+            # * when a field is added or modified
+            # * when a field, or its parents (table, database, workspace) is
+            # permanently removed
             enqueue_task_on_commit_swallowing_any_exceptions(
                 lambda: schedule_table_search_data_update.delay(
                     table.id,
@@ -1560,8 +1564,33 @@ class SearchHandler(_SearchHandler):
             return fobj["field"].id
 
         field_ids = [_get_id(f) for f in fields]
-
+        logger.info(
+            f"{search_table}: removing {field_ids} fields for {table}"
+        )
         search_table.objects.filter(field_id__in=field_ids).delete()
+
+    @classmethod
+    def cleanup_table_rows_vectors(cls, table: "Table", rows: list[int] | None = None):
+        """
+        Removes specific rows from search data table, or clear whole table data.
+
+        :param table:
+        :param rows:
+        :return:
+        """
+
+        field_ids = [
+            f["field"].id
+            for f in table.get_model().get_field_objects(include_trash=True)
+        ]
+        search_table = cls.get_search_table_model(table.database.workspace_id)
+        filters = {"field_id__in": field_ids}
+        if rows:
+            filters["row_id__in"] = rows
+        logger.info(
+            f"{search_table}: removing {len(rows) if rows else 'all'} rows for {table}"
+        )
+        search_table.objects.filter(**filters).delete()
 
     @classmethod
     def cleanup_old_vectors(cls, table: "Table", *fields: "int|FieldObject"):
