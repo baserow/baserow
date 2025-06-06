@@ -1,4 +1,11 @@
-class AutomationWorkflowNotInAutomation(Exception):
+from baserow.contrib.automation.exceptions import AutomationError
+
+
+class AutomationWorkflowError(AutomationError):
+    pass
+
+
+class AutomationWorkflowNotInAutomation(AutomationWorkflowError):
     """When the specified workflow does not belong to a specific automation."""
 
     def __init__(self, workflow_id=None, *args, **kwargs):
@@ -10,7 +17,7 @@ class AutomationWorkflowNotInAutomation(Exception):
         )
 
 
-class AutomationWorkflowNameNotUnique(Exception):
+class AutomationWorkflowNameNotUnique(AutomationWorkflowError):
     """When a new workflow's name conflicts an existing name."""
 
     def __init__(self, name=None, automation_id=None, *args, **kwargs):
@@ -24,7 +31,7 @@ class AutomationWorkflowNameNotUnique(Exception):
         )
 
 
-class AutomationWorkflowDoesNotExist(Exception):
+class AutomationWorkflowDoesNotExist(AutomationWorkflowError):
     """When the workflow doesn't exist."""
 
     pass

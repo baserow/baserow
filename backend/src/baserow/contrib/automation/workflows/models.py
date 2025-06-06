@@ -40,6 +40,8 @@ class AutomationWorkflow(
 
     order = models.PositiveIntegerField()
 
+    allow_test_run_until = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         ordering = ("order",)
         unique_together = [["automation", "name"]]

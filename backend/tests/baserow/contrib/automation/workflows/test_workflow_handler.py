@@ -223,4 +223,4 @@ def test_export_prepared_values(data_fixture):
 
     result = AutomationWorkflowHandler().export_prepared_values(workflow)
 
-    assert result == {"name": "test"}
+    assert result == {"name": "test", "allow_test_run_until": None}

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -27,11 +27,25 @@ from baserow.core.utils import ChildProgressBuilder
 class AutomationWorkflowService:
     def __init__(self):
         self.handler = AutomationWorkflowHandler()
-        self.automation_handler = AutomationHandler()
+
+    def run_workflow(
+        self,
+        workflow_id: int,
+        event_payload: Optional[List[Dict]] = None,
+        user: Optional[AbstractUser] = None,
+    ):
+        """
+        Runs the workflow with the given ID.
+
+        :param workflow_id: The ID of the workflow to run.
+        :param event_payload: The payload from the action.
+        """
+
+        self.handler.run_workflow(workflow_id, event_payload)
 
     def get_workflow(self, user: AbstractUser, workflow_id: int) -> AutomationWorkflow:
         """
-        Returns a AutomationWorkflow instance by its ID.
+        Returns an AutomationWorkflow instance by its ID.
 
         :param user: The user requesting the workflow.
         :param workflow_id: The ID of the workflow.
@@ -59,12 +73,12 @@ class AutomationWorkflowService:
         Returns a new instance of AutomationWorkflow.
 
         :param user: The user trying to create the workflow.
-        :param automation: The automation the workflow belongs to.
+        :param automation_id: The automation workflow belongs to.
         :param name: The name of the workflow.
         :return: The newly created AutomationWorkflow instance.
         """
 
-        automation = self.automation_handler.get_automation(automation_id)
+        automation = AutomationHandler().get_automation(automation_id)
 
         CoreHandler().check_permissions(
             user,

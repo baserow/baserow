@@ -366,10 +366,10 @@ case "$1" in
       if [[ -n "${BASEROW_RUN_MINIMAL}" && $BASEROW_AMOUNT_OF_WORKERS == "1" ]]; then
         export OTEL_SERVICE_NAME="celery-worker-combined"
         echo "Starting combined celery and export worker..."
-        start_celery_worker -Q celery,export -n default-worker@%h "${@:2}"
+        start_celery_worker -Q celery,export,automation_workflow -n default-worker@%h "${@:2}"
       else
         export OTEL_SERVICE_NAME="celery-worker"
-        start_celery_worker -Q celery -n default-worker@%h "${@:2}"
+        start_celery_worker -Q celery,automation_workflow -n default-worker@%h "${@:2}"
       fi
     ;;
     celery-worker-healthcheck)

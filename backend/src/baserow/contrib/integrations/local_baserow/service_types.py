@@ -18,6 +18,7 @@ from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
+from django.dispatch import Signal
 
 from loguru import logger
 from rest_framework import serializers
@@ -2528,7 +2529,7 @@ T = TypeVar("T", bound="Instance")
 
 class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
     """
-    A mixin which `AutomationNodeType` can implement if they related to a
+    A mixin which `AutomationNodeType` can implement if they are related to a
     Local Baserow signal, such as `rows_created`, `rows_updated`, etc.
 
     New trigger types should inherit from this class, set the `signal` and `handler`
@@ -2536,7 +2537,7 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
     `start_listening` and `stop_listening` methods.
     """
 
-    signal = None
+    signal: Optional[Signal] = None
     on_event = None
     model_class = None
 
@@ -2547,15 +2548,18 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
     def stop_listening(self):
         self.signal.disconnect(self.handler)
 
-    def handle_signal(self, sender, rows, table, model, **kwargs):
+    def handle_signal(self, sender, user, rows, table, model, **kwargs):
         serializer = get_row_serializer_class(
             model,
             RowSerializer,
             is_response=True,
         )
         serialized_rows = serializer(rows, many=True).data
+
         self.process_event(
-            self.model_class.objects.filter(table=table), serialized_rows
+            self.model_class.objects.filter(table=table),
+            serialized_rows,
+            user=user,
         )
 
     def process_event(self, *args, **kwargs):

@@ -1,0 +1,2 @@
+class AutomationError(Exception):
+    pass

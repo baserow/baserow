@@ -12,7 +12,7 @@ from baserow.core.exceptions import InstanceTypeDoesNotExist
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.automation.nodes.node_types.AutomationWorkflowHandler.run_workflow"
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowService.run_workflow"
 )
 def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_fixture):
     user = data_fixture.create_user()
@@ -39,7 +39,7 @@ def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_f
         },
     ]
 
-    node.get_type().on_event(service_queryset, event_payload)
+    node.get_type().on_event(service_queryset, event_payload, user=user)
     mock_run_workflow.assert_called_once()
 
 
