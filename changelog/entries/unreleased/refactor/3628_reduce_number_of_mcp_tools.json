@@ -1,0 +1,8 @@
+{
+  "type": "refactor",
+  "message": "Reduce number of MCP tools by using single tool for rows list and delete.",
+  "domain": "database",
+  "issue_number": null,
+  "bullet_points": [],
+  "created_at": "2025-06-04"
+}
