@@ -68,9 +68,9 @@ import {
   nextTick,
   getCurrentInstance,
 } from '@nuxtjs/composition-api'
-import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode.vue'
-import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode.vue'
-import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge.vue'
+import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
+import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode'
+import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge'
 import CreateWorkflowNodeContext from '@baserow/modules/automation/components/workflow/CreateWorkflowNodeContext'
 
 const props = defineProps({
@@ -106,8 +106,6 @@ const nodesDraggable = ref(false)
 const zoomOnScroll = ref(false)
 const panOnScroll = ref(true)
 const zoomOnDoubleClick = ref(false)
-
-const activeCreateNodeContext = ref(null)
 
 // Constants for positioning
 const NODE_VERTICAL_SPACING = 144 // Vertical distance between the tops of consecutive data nodes
@@ -238,16 +236,18 @@ onNodeClick(({ node }) => {
   }
 })
 
-// Hide the context menu when user pan the canvas
-onMove(() => {
-  activeCreateNodeContext.value?.hide()
-})
-
 const workflowHasTrigger = computed(() => {
   return props.nodes.some((node) => {
     const nodeType = app.$registry.get('node', node.type)
     return nodeType.isTrigger
   })
+})
+
+const activeCreateNodeContext = ref(null)
+
+// Hide the active node create context when user pan the canvas
+onMove(() => {
+  activeCreateNodeContext.value?.hide()
 })
 
 const toggleCreateContext = async (nodeId) => {
