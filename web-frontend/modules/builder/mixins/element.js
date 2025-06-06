@@ -16,7 +16,7 @@ export default {
   computed: {
     workflowActionsInProgress() {
       const workflowActions = this.$store.getters[
-        'workflowAction/getElementWorkflowActions'
+        'builderWorkflowAction/getElementWorkflowActions'
       ](this.elementPage, this.element.id)
       const { recordIndexPath } = this.applicationContext
       const dispatchedById = this.elementType.uniqueElementId(
@@ -24,7 +24,7 @@ export default {
         recordIndexPath
       )
       return workflowActions.some((workflowAction) =>
-        this.$store.getters['workflowAction/getDispatching'](
+        this.$store.getters['builderWorkflowAction/getDispatching'](
           workflowAction,
           dispatchedById
         )
@@ -96,7 +96,7 @@ export default {
         }
 
         const workflowActions = this.$store.getters[
-          'workflowAction/getElementWorkflowActions'
+          'builderWorkflowAction/getElementWorkflowActions'
         ](this.elementPage, this.element.id).filter(
           ({ event: eventName }) => eventName === event.name
         )

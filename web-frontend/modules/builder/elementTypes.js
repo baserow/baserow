@@ -276,7 +276,7 @@ export class ElementType extends Registerable {
    */
   workflowActionsInError({ page, element, builder }) {
     const workflowActions = this.app.store.getters[
-      'workflowAction/getElementWorkflowActions'
+      'builderWorkflowAction/getElementWorkflowActions'
     ](page, element.id)
     return workflowActions.some((workflowAction) => {
       const workflowActionType = this.app.$registry.get(
@@ -833,7 +833,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
    */
   isInError({ workspace, page, element, builder }) {
     const workflowActions = this.app.store.getters[
-      'workflowAction/getElementWorkflowActions'
+      'builderWorkflowAction/getElementWorkflowActions'
     ](page, element.id)
 
     if (!workflowActions.length) {
@@ -1589,7 +1589,7 @@ export class ButtonElementType extends ElementType {
     }
 
     const workflowActions = this.app.store.getters[
-      'workflowAction/getElementWorkflowActions'
+      'builderWorkflowAction/getElementWorkflowActions'
     ](page, element.id)
 
     if (!workflowActions.length) {
@@ -2436,7 +2436,7 @@ export class MenuElementType extends ElementType {
     }
 
     const workflowActions = this.app.store.getters[
-      'workflowAction/getElementWorkflowActions'
+      'builderWorkflowAction/getElementWorkflowActions'
     ](page, element.id)
 
     const hasInvalidMenuItem = element.menu_items.some((menuItem) => {

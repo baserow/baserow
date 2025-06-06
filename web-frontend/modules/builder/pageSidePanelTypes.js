@@ -160,7 +160,7 @@ export class EventsPageSidePanelType extends pageSidePanelType {
       return false
     }
     const workflowActions = this.app.store.getters[
-      'workflowAction/getElementWorkflowActions'
+      'builderWorkflowAction/getElementWorkflowActions'
     ](page, element.id)
     return workflowActions.some((workflowAction) => {
       const workflowActionType = this.app.$registry.get(

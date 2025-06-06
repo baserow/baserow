@@ -117,9 +117,9 @@ export default {
   methods: {
     ...mapActions({
       actionFetchIntegrations: 'integration/fetch',
-      actionCreateWorkflowAction: 'workflowAction/create',
-      actionDeleteWorkflowAction: 'workflowAction/delete',
-      actionOrderWorkflowActions: 'workflowAction/order',
+      actionCreateWorkflowAction: 'builderWorkflowAction/create',
+      actionDeleteWorkflowAction: 'builderWorkflowAction/delete',
+      actionOrderWorkflowActions: 'builderWorkflowAction/order',
     }),
     getIcon(expanded) {
       return expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'

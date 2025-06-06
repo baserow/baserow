@@ -206,7 +206,7 @@ export class WorkflowActionServiceType extends WorkflowActionType {
         return [key, value]
       })
     )
-    return this.app.store.dispatch('workflowAction/dispatchAction', {
+    return this.app.store.dispatch('builderWorkflowAction/dispatchAction', {
       workflowActionId: id,
       data: result,
       files,
