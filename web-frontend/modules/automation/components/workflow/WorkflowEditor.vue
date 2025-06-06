@@ -63,6 +63,7 @@ import { Background } from '@vue2-flow/background'
 import { Controls } from '@vue2-flow/controls'
 import { ref, computed, watch, toRefs } from 'vue'
 import {
+  inject,
   useContext,
   nextTick,
   getCurrentInstance,
@@ -123,6 +124,7 @@ watch(
   { immediate: true }
 )
 
+const automation = inject('automation')
 const displayNodes = computed(() => {
   const vueFlowNodes = []
   // props.nodes should already be sorted by 'order' from the store getter
@@ -158,12 +160,20 @@ const displayNodes = computed(() => {
     let currentY = INITIAL_Y_POS
     sortedDataNodes.forEach((dataNode) => {
       const dataNodePosition = { x: DATA_NODE_X_POS, y: currentY }
+      const nodeType = app.$registry.get('node', dataNode.type)
       vueFlowNodes.push({
         ...dataNode,
         type: 'workflow-node',
+        label: nodeType.getLabel({
+          automation: automation.value,
+          node: dataNode,
+        }),
         id: dataNode.id.toString(),
         position: dataNodePosition,
-        data: { readOnly: props.readOnly },
+        data: {
+          readOnly: props.readOnly,
+          isInError: nodeType.isInError({ service: dataNode.service }),
+        },
       })
 
       // Add an Add Node Button node below it

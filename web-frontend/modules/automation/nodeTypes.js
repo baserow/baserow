@@ -15,12 +15,23 @@ import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/
 
 export class NodeType extends Registerable {
   /**
-   * The display name of the node type.
+   * The display name of the node type, we use this value
+   * in create/update node lists.
    * The name is derived from the service type's name.
    * @returns {string} - The display name for the node.
    */
   get name() {
     return this.serviceType.name
+  }
+
+  /**
+   * The display label of the node type, we use this value
+   * in the editor when rendering the node. By default, it
+   * just returns the name, but can be overridden.
+   * @returns {string} - The display label for the node.
+   */
+  getLabel({ node }) {
+    return this.name
   }
 
   /**
@@ -72,13 +83,52 @@ export class NodeType extends Registerable {
    * method, but can be overridden by the node type.
    * @returns {boolean} - Whether the properties are in-error.
    */
-  isInError({ node, automation }) {
-    return this.serviceType.isInError({ service: node.service })
+  isInError({ service }) {
+    return this.serviceType.isInError({ service })
+  }
+}
+
+export class LocalBaserowNodeType extends NodeType {
+  /**
+   * Responsible for returning contextual data for a node label template.
+   * At the moment we only refer to the table name.
+   *
+   * @param automation - the automation the node belongs to.
+   * @param node - The node for which the label context is being retrieved.
+   * @returns {object} - An object containing the table name.
+   */
+  getLabelContext({ automation, node }) {
+    const integration = this.app.store.getters[
+      'integration/getIntegrationById'
+    ](automation, node.service?.integration_id)
+    const databases = integration?.context_data?.databases || []
+    const tableSelected = databases
+      .map((database) => database.tables)
+      .flat()
+      .find(({ id }) => id === node.service.table_id)
+
+    return { tableName: tableSelected?.name }
+  }
+
+  /**
+   * Responsible for returning this Local Baserow node's label, which is
+   * displayed in the editor.
+   *
+   * @param automation - The automation the node belongs to.
+   * @param node - The node for which the label is being retrieved.
+   * @returns {string} - if a table name is found, it returns the label
+   *  referencing the table name, otherwise it returns the node's `name`.
+   */
+  getLabel({ automation, node }) {
+    const { tableName } = this.getLabelContext({ automation, node })
+    return tableName
+      ? this.app.i18n.t(this.labelTemplateName, { tableName })
+      : this.name
   }
 }
 
 export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin(
-  NodeType
+  LocalBaserowNodeType
 ) {
   static getType() {
     return 'rows_created'
@@ -86,6 +136,10 @@ export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin
 
   getOrder() {
     return 1
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowRowsCreatedLabel'
   }
 
   get serviceType() {
@@ -97,7 +151,7 @@ export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin
 }
 
 export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin(
-  NodeType
+  LocalBaserowNodeType
 ) {
   static getType() {
     return 'rows_updated'
@@ -105,6 +159,10 @@ export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin
 
   getOrder() {
     return 2
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowRowsUpdatedLabel'
   }
 
   get serviceType() {
@@ -116,7 +174,7 @@ export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin
 }
 
 export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin(
-  NodeType
+  LocalBaserowNodeType
 ) {
   static getType() {
     return 'rows_deleted'
@@ -124,6 +182,10 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
 
   getOrder() {
     return 3
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowRowsDeletedLabel'
   }
 
   get serviceType() {
@@ -135,7 +197,7 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
 }
 
 export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
-  NodeType
+  LocalBaserowNodeType
 ) {
   static getType() {
     return 'create_row'
@@ -143,6 +205,10 @@ export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
 
   getOrder() {
     return 1
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowCreateRowLabel'
   }
 
   get serviceType() {
@@ -154,7 +220,7 @@ export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
 }
 
 export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
-  NodeType
+  LocalBaserowNodeType
 ) {
   static getType() {
     return 'update_row'
@@ -162,6 +228,10 @@ export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
 
   getOrder() {
     return 2
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowUpdateRowLabel'
   }
 
   get serviceType() {
@@ -173,7 +243,7 @@ export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
 }
 
 export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
-  NodeType
+  LocalBaserowNodeType
 ) {
   static getType() {
     return 'delete_row'
@@ -181,6 +251,10 @@ export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
 
   getOrder() {
     return 3
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowDeleteRowLabel'
   }
 
   get serviceType() {

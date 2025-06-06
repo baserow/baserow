@@ -389,9 +389,18 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
   }
 }
 
-export class LocalBaserowRowsCreatedTriggerServiceType extends TriggerServiceTypeMixin(
+export class LocalBaserowTriggerServiceType extends TriggerServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
+  isInError({ service }) {
+    if (service === undefined) {
+      return false
+    }
+    return Boolean(!service.table_id)
+  }
+}
+
+export class LocalBaserowRowsCreatedTriggerServiceType extends LocalBaserowTriggerServiceType {
   static getType() {
     return 'rows_created'
   }
@@ -409,9 +418,7 @@ export class LocalBaserowRowsCreatedTriggerServiceType extends TriggerServiceTyp
   }
 }
 
-export class LocalBaserowRowsUpdatedTriggerServiceType extends TriggerServiceTypeMixin(
-  LocalBaserowTableServiceType
-) {
+export class LocalBaserowRowsUpdatedTriggerServiceType extends LocalBaserowTriggerServiceType {
   static getType() {
     return 'rows_updated'
   }
@@ -429,9 +436,7 @@ export class LocalBaserowRowsUpdatedTriggerServiceType extends TriggerServiceTyp
   }
 }
 
-export class LocalBaserowRowsDeletedTriggerServiceType extends TriggerServiceTypeMixin(
-  LocalBaserowTableServiceType
-) {
+export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowTriggerServiceType {
   static getType() {
     return 'rows_deleted'
   }
