@@ -6,37 +6,33 @@ test.describe("Automation node test suite", () => {
   });
 
   test("Can create an automation node", async ({ page }) => {
-    const createNodeButton = await page.locator(
-      "button.button-floating--primary:has(i.iconoir-plus)"
-    );
+    const createNodeButton = page.getByRole("button", { name: "Create automation node" });
     createNodeButton.click();
 
-    const nodeDiv = page.locator("div.workflow-editor__node", {
-      hasText: /^ID:\s*\d+/,
+    const nodeDiv = page.getByRole('heading', {
+      name: /^\d+ Row is created/,
+      level: 1,
     });
     await expect(nodeDiv).toBeVisible();
   });
 
   test("Can delete an automation node", async ({ page }) => {
-    const createNodeButton = await page.locator(
-      "button.button-floating--primary:has(i.iconoir-plus)"
-    );
+    const createNodeButton = page.getByRole("button", { name: "Create automation node" });
     createNodeButton.click();
 
-    const node = page.locator("div.workflow-editor__node", {
-      hasText: /^ID:\s*\d+/,
+    const nodeDiv = page.getByRole('heading', {
+      name: /^\d+ Row is created/,
+      level: 1,
     });
-    await expect(node).toBeVisible();
+    await expect(nodeDiv).toBeVisible();
 
-    const nodeMenuButton = node.locator(".workflow-editor__node-more-icon");
+    const nodeMenuButton = page.getByRole("button", { name: "Node options" });
     await nodeMenuButton.click();
 
-    const deleteNodeLink = page.locator(".context__menu-item-link--delete", {
-      hasText: "Delete node",
-    });
-    await deleteNodeLink.waitFor({ state: "visible" });
-    deleteNodeLink.click();
+    const deleteNodeButton = page.getByRole("button", { name: "Delete action" });
+    await deleteNodeButton.waitFor({ state: "visible" });
+    deleteNodeButton.click();
 
-    await expect(node).not.toBeVisible();
+    await expect(nodeDiv).not.toBeVisible();
   });
 });
