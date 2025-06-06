@@ -19,9 +19,9 @@
 
     <a
       v-if="!props.data.readOnly"
+      ref="editNodeContextToggle"
       role="button"
       title="Node options"
-      ref="editNodeContextToggle"
       class="workflow-editor__node-more-icon"
       @click="openContext()"
     >
