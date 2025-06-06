@@ -11,7 +11,6 @@ from baserow.contrib.automation.workflows.operations import (
     DeleteAutomationWorkflowOperationType,
     DuplicateAutomationWorkflowOperationType,
     ReadAutomationWorkflowOperationType,
-    RunAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
 )
 from baserow.contrib.automation.workflows.signals import (
@@ -31,26 +30,16 @@ class AutomationWorkflowService:
 
     def run_workflow(
         self,
-        user: AbstractUser,
         workflow_id: int,
         event_payload: Optional[List[Dict]] = None,
+        user: Optional[AbstractUser] = None,
     ):
         """
         Runs the workflow with the given ID.
 
-        :param user: The user trying to run the workflow.
         :param workflow_id: The ID of the workflow to run.
         :param event_payload: The payload from the action.
         """
-
-        workflow = self.handler.get_workflow(workflow_id)
-
-        CoreHandler().check_permissions(
-            user,
-            RunAutomationWorkflowOperationType.type,
-            workspace=workflow.automation.workspace,
-            context=workflow,
-        )
 
         self.handler.run_workflow(workflow_id, event_payload)
 

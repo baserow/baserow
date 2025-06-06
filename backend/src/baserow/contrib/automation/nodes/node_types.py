@@ -59,9 +59,9 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
     def on_event(
         self,
-        user: AbstractUser,
         service_queryset: QuerySet[Service],
         event_payload: Optional[List[Dict]] = None,
+        user: Optional[AbstractUser] = None,
     ):
         from baserow.contrib.automation.workflows.service import (
             AutomationWorkflowService,
@@ -86,9 +86,9 @@ class AutomationNodeTriggerType(AutomationNodeType):
         for trigger in triggers:
             workflow = trigger.workflow
             workflow_service.run_workflow(
-                user,
                 workflow.id,
                 event_payload,
+                user=user,
             )
             if workflow.allow_test_run_until:
                 workflow.allow_test_run_until = None

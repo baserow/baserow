@@ -29,7 +29,3 @@ class DuplicateAutomationWorkflowOperationType(AutomationWorkflowOperationType):
 
 class RestoreAutomationWorkflowOperationType(AutomationWorkflowOperationType):
     type = "automation.workflow.restore"
-
-
-class RunAutomationWorkflowOperationType(AutomationWorkflowOperationType):
-    type = "automation.workflow.run"

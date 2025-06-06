@@ -2565,7 +2565,9 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
         serialized_rows = serializer(rows, many=True).data
 
         self.process_event(
-            user, self.model_class.objects.filter(table=table), serialized_rows
+            self.model_class.objects.filter(table=table),
+            serialized_rows,
+            user=user,
         )
 
     def process_event(self, *args, **kwargs):

@@ -39,7 +39,7 @@ def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_f
         },
     ]
 
-    node.get_type().on_event(user, service_queryset, event_payload)
+    node.get_type().on_event(service_queryset, event_payload, user=user)
     mock_run_workflow.assert_called_once()
 
 
