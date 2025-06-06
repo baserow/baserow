@@ -21,10 +21,11 @@ $z-index-context: 7 !default;
 // The tooltip is only visible on hover and because of that it can be over the modals
 // and contexts.
 $z-index-tooltip: 8 !default;
+$z-index-dropdown-items: 9 !default;
 
 // The toasts will be on top of anything else, because the message is temporary
 // and must always be visible.
-$z-index-toasts: 9 !default;
+$z-index-toasts: 10 !default;
 
 // This is an overlay over all element, so it must be the highest.
 $z-index-guided-tour-container: 99 !default;
