@@ -32,9 +32,7 @@ class AutomationWorkflowRunner:
     ):
         base_queryset = AutomationNode.objects.order_by("order")
         nodes = self.node_handler.get_nodes(workflow, base_queryset=base_queryset)
-        action_nodes = [
-            node for node in nodes if node.get_type().is_workflow_action
-        ]
+        action_nodes = [node for node in nodes if node.get_type().is_workflow_action]
 
         for node in action_nodes:
             node_type: Type[AutomationNodeActionNodeType] = node.get_type()
