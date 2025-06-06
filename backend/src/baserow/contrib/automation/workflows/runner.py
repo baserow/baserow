@@ -6,6 +6,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
 )
+from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeActionNodeType
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
@@ -29,7 +30,8 @@ class AutomationWorkflowRunner:
     def run(
         self, workflow: AutomationWorkflow, dispatch_context: AutomationDispatchContext
     ):
-        nodes = self.node_handler.get_nodes(workflow).order_by("order")
+        base_queryset = AutomationNode.objects.order_by("order")
+        nodes = self.node_handler.get_nodes(workflow, base_queryset=base_queryset)
         action_nodes = [
             node.specific for node in nodes if node.get_type().is_workflow_action
         ]
