@@ -48,7 +48,7 @@
         <Button
           type="primary"
           size="large"
-          :href="$config.BASEROW_PRICING_URL"
+          :href="getPricingURL"
           target="_blank"
           tag="a"
           >{{ $t('paidFeaturesModal.viewPricing') }}</Button
@@ -68,6 +68,8 @@
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
 import MarkdownIt from '@baserow/modules/core/components/MarkdownIt'
+import SettingsService from '@baserow/modules/core/services/settings'
+import { getPricingURL } from '@baserow_premium/utils/pricing'
 
 export default {
   name: 'PaidFeaturesModal',
@@ -88,9 +90,13 @@ export default {
   data() {
     return {
       selectedType: null,
+      instanceId: null,
     }
   },
   computed: {
+    getPricingURL() {
+      return this.$config.BASEROW_PRICING_URL || getPricingURL(this.instanceId)
+    },
     paidFeaturePlans() {
       const plans = {}
       Object.values(this.$registry.getAll('paidFeature')).forEach((feature) => {
@@ -124,9 +130,26 @@ export default {
     },
   },
   methods: {
+    async loadInstanceID() {
+      if (this.instanceId === null && this.$store.getters['auth/isStaff']) {
+        try {
+          // It is okay to not show a loading animation here because the request is
+          // very fast, and if no instance ID is provided, then the user is still
+          // redirected to the pricing page, but without the instance ID. I specifically
+          // don't want to show an animation because in the SaaS we're also showing a
+          // loading animation directly next to it. It gets a bit crowned, and it's not
+          // needed.
+          const { data: instanceData } = await SettingsService(
+            this.$client
+          ).getInstanceID()
+          this.instanceId = instanceData.instance_id
+        } catch (e) {}
+      }
+    },
     show() {
       this.selectedType = this.initialSelectedType
       modal.methods.show.bind(this)()
+      this.loadInstanceID()
     },
   },
 }
