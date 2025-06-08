@@ -2,13 +2,13 @@ import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { getValueAtPath } from '@baserow/modules/core/utils/object'
 import _ from 'lodash'
 
-export class PreviousActionDataProviderType extends DataProviderType {
+export class PreviousNodeDataProviderType extends DataProviderType {
   static getType() {
-    return 'previous_action'
+    return 'previous_node'
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.previousAction')
+    return this.app.i18n.t('dataProviderType.previousNode')
   }
 
   get needBackendContext() {
@@ -36,7 +36,7 @@ export class PreviousActionDataProviderType extends DataProviderType {
   }
 
   getDataContent(applicationContext) {
-    return applicationContext.previousActionResults
+    return applicationContext.previousNodeResults
   }
 
   getDataSchema(applicationContext) {
@@ -78,13 +78,13 @@ export class PreviousActionDataProviderType extends DataProviderType {
       const workflow = applicationContext?.workflow
       const nodeId = parseInt(pathParts[1])
 
-      const action = this.app.store.getters['automationWorkflowNode/findById'](
+      const node = this.app.store.getters['automationWorkflowNode/findById'](
         workflow,
         nodeId
       )
 
-      if (!action) {
-        return `action_${nodeId}`
+      if (!node) {
+        return `node_${nodeId}`
       }
     }
     return super.getPathTitle(applicationContext, pathParts)
