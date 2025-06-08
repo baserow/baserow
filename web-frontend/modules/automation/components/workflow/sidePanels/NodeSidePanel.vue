@@ -34,11 +34,22 @@
 </template>
 
 <script setup>
-import { inject, useStore, useContext, computed } from '@nuxtjs/composition-api'
+import {
+  inject,
+  provide,
+  useStore,
+  useContext,
+  computed,
+} from '@nuxtjs/composition-api'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
+import AutomationBuilderFormulaInput from '@baserow/modules/automation/components/AutomationBuilderFormulaInput'
+import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation/enums'
 
 const store = useStore()
 const { app } = useContext()
+
+provide('formulaComponent', AutomationBuilderFormulaInput)
+provide('dataProvidersAllowed', DATA_PROVIDERS_ALLOWED_NODE_ACTIONS)
 
 const workspace = inject('workspace')
 const automation = inject('automation')
@@ -49,6 +60,13 @@ const node = computed(() => {
     currentWorkflow.value
   )
 })
+
+provide('applicationContext', {
+  node: node.value,
+  automation: automation.value,
+  workflow: currentWorkflow.value,
+})
+
 const nodeType = computed(() => {
   return app.$registry.get('node', node.value.type)
 })

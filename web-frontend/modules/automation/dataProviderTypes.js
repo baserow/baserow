@@ -1,0 +1,92 @@
+import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
+import { getValueAtPath } from '@baserow/modules/core/utils/object'
+import _ from 'lodash'
+
+export class PreviousActionDataProviderType extends DataProviderType {
+  static getType() {
+    return 'previous_action'
+  }
+
+  get name() {
+    return this.app.i18n.t('dataProviderType.previousAction')
+  }
+
+  get needBackendContext() {
+    return true
+  }
+
+  getActionDispatchContext(applicationContext) {
+    return {
+      ...this.getDataContent(applicationContext),
+      current_dispatch_id: applicationContext.currentDispatchId,
+    }
+  }
+
+  getDataChunk(applicationContext, path) {
+    const content = this.getDataContent(applicationContext)
+    return getValueAtPath(content, path.join('.'))
+  }
+
+  getNodeSchema({ automation, node }) {
+    if (node?.type) {
+      const nodeType = this.app.$registry.get('node', node.type)
+      return nodeType.getDataSchema({ automation, node })
+    }
+    return null
+  }
+
+  getDataContent(applicationContext) {
+    return applicationContext.previousActionResults
+  }
+
+  getDataSchema(applicationContext) {
+    const { automation, workflow, node: currentNode } = applicationContext
+
+    // TODO: currently finds nodes "before" the current node in the workflow
+    //  exclusively using the `order` property. This will require more nuance
+    //  in the future, as we might want to consider other factors.
+    const previousNodes = this.app.store.getters[
+      'automationWorkflowNode/getNodes'
+    ](workflow).filter((node) => node.order < currentNode.order)
+
+    const previousNodeSchema = _.chain(previousNodes)
+      // Retrieve the associated schema for each node
+      .map((previousNode) => [
+        previousNode,
+        this.getNodeSchema({ automation, node: previousNode }),
+      ])
+      // Remove nodes without schema
+      .filter(([_, schema]) => schema)
+      // Add an index number to the schema title for each node of the same type.
+      // For example if we have 2 update and create row nodes we want their
+      // titles to be: [Update row,  Create row, Update row 2, Create row 2]
+      .groupBy('0.type')
+      .flatMap((previousNodes) =>
+        previousNodes.map(([previousNode, schema], index) => [
+          previousNode.id,
+          { ...schema, title: `${schema.title} ${index ? index + 1 : ''}` },
+        ])
+      )
+      // Create the schema object
+      .fromPairs()
+      .value()
+    return { type: 'object', properties: previousNodeSchema }
+  }
+
+  getPathTitle(applicationContext, pathParts) {
+    if (pathParts.length === 2) {
+      const workflow = applicationContext?.workflow
+      const nodeId = parseInt(pathParts[1])
+
+      const action = this.app.store.getters['automationWorkflowNode/findById'](
+        workflow,
+        nodeId
+      )
+
+      if (!action) {
+        return `action_${nodeId}`
+      }
+    }
+    return super.getPathTitle(applicationContext, pathParts)
+  }
+}

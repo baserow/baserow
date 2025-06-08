@@ -86,6 +86,22 @@ export class NodeType extends Registerable {
   isInError({ service }) {
     return this.serviceType.isInError({ service })
   }
+
+  /**
+   * Generates the data schema for the node, used by the data provider.
+   * Constructed by retrieving the service schema for this node's service.
+   * @param automation - The automation the node belongs to.
+   * @param node - The node for which the data schema is being generated.
+   * @returns {object} - The data schema for the node.
+   */
+  getDataSchema({ automation, node }) {
+    const serviceSchema = this.serviceType.getDataSchema(node.service)
+    return {
+      title: this.getLabel({ automation, node }),
+      type: 'object',
+      properties: serviceSchema?.properties,
+    }
+  }
 }
 
 export class LocalBaserowNodeType extends NodeType {
