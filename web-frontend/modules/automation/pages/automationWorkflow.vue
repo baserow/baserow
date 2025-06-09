@@ -22,6 +22,7 @@
             @add-node="handleAddNode"
             @remove-node="handleRemoveNode"
             @replace-node="handleReplaceNode"
+            @reorder-nodes="handleReorderNodes"
           />
         </client-only>
       </div>
@@ -194,28 +195,15 @@ export default defineComponent({
       })
     }
 
-    const activeSidePanel = computed(() => {
-      return store.getters['automationWorkflow/getActiveSidePanel']
-    })
-
-    const selectedNodeId = computed({
-      get() {
-        return workflow.value.selectedNodeId
-      },
-      set(nodeId) {
-        let nodeToSelect = null
-        if (nodeId) {
-          nodeToSelect = store.getters['automationWorkflowNode/findById'](
-            workflow.value,
-            nodeId
-          )
-        }
-        store.dispatch('automationWorkflowNode/select', {
-          workflow: workflow.value,
-          node: nodeToSelect,
-        })
-      },
-    })
+    /**
+     * Handles reordering of workflow nodes (frontend-only until API is ready)
+     */
+    const handleReorderNodes = (reorderData) => {
+      store.dispatch('automationWorkflowNode/reorder', {
+        workflow: workflow.value,
+        reorderData,
+      })
+    }
 
     /**
      * When the route changes (i.e. leave, such as going to the dashboard, or update,
@@ -246,6 +234,29 @@ export default defineComponent({
       next()
     }
 
+    const activeSidePanel = computed(() => {
+      return store.getters['automationWorkflow/getActiveSidePanel']
+    })
+
+    const selectedNodeId = computed({
+      get() {
+        return workflow.value.selectedNodeId
+      },
+      set(nodeId) {
+        let nodeToSelect = null
+        if (nodeId) {
+          nodeToSelect = store.getters['automationWorkflowNode/findById'](
+            workflow.value,
+            nodeId
+          )
+        }
+        store.dispatch('automationWorkflowNode/select', {
+          workflow: workflow.value,
+          node: nodeToSelect,
+        })
+      },
+    })
+
     return {
       workspace,
       automation,
@@ -264,6 +275,7 @@ export default defineComponent({
       workflowId,
       isAddingNode,
       onRouteChange,
+      handleReorderNodes,
     }
   },
 })
