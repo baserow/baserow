@@ -22,6 +22,7 @@
             @add-node="handleAddNode"
             @remove-node="handleRemoveNode"
             @replace-node="handleReplaceNode"
+            @reorder-nodes="handleReorderNodes"
           />
         </client-only>
       </div>
