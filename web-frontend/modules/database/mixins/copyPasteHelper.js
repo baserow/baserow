@@ -61,14 +61,22 @@ export default {
       table.appendChild(tbody)
       return table.outerHTML
     },
+    showCopyClipboardError() {
+      this.$store.dispatch(
+        'toast/error',
+        {
+          title: this.$t('action.copyToClipboard'),
+          message: this.$t('error.copyFailed'),
+        },
+        { root: true }
+      )
+    },
     async copySelectionToClipboard(selectionPromise, includeHeader = false) {
       const { textData, jsonData } = await selectionPromise.then(
         ([fields, rows]) =>
           this.prepareValuesForCopy(fields, rows, includeHeader)
       )
       const tsvData = this.$papa.unparse(textData, PAPA_CONFIG)
-      // The HTML table renders a structured table when pasted into an email or rich
-      // text document.
       const htmlData = this.prepareHTMLData(textData, includeHeader)
       try {
         localStorage.setItem(
@@ -76,13 +84,24 @@ export default {
           JSON.stringify({ text: tsvData, json: jsonData })
         )
       } catch (e) {
-        // If the local storage is full then we just ignore it.
-        // @TODO: Should we warn the user?
+        this.showCopyClipboardError()
       }
 
-      // Firefox does not have the ClipboardItem type enabled by default, so we
-      // need to check if it is available. Safari instead, needs the
-      // ClipboardItem type to save async data to the clipboard.
+      try {
+        await this.writeToClipboard(tsvData, htmlData)
+      } catch (e) {
+        if (!document.hasFocus()) {
+          window.addEventListener(
+            'focus',
+            () => this.writeToClipboard(tsvData, htmlData),
+            { once: true }
+          )
+        } else {
+          this.showCopyClipboardError()
+        }
+      }
+    },
+    async writeToClipboard(tsvData, htmlData) {
       if (typeof ClipboardItem !== 'undefined') {
         const clipboardConfig = {
           'text/plain': new Blob([tsvData], { type: 'text/plain' }),
@@ -92,10 +111,9 @@ export default {
             type: 'text/html',
           })
         }
-
-        navigator.clipboard.write([new ClipboardItem(clipboardConfig)])
+        await navigator.clipboard.write([new ClipboardItem(clipboardConfig)])
       } else if (typeof navigator.clipboard?.writeText !== 'undefined') {
-        navigator.clipboard.writeText(tsvData)
+        await navigator.clipboard.writeText(tsvData)
       } else {
         const richClipboardConfig = { 'text/plain': tsvData }
         if (htmlData) {
