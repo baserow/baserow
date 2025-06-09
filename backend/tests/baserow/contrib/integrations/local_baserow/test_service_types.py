@@ -52,12 +52,14 @@ def test_local_baserow_table_service_before_dispatch_validation_error(
         cls().resolve_service_formulas(service_without_table, dispatch_context)
     assert exc.value.args[0] == "The table property is missing."
 
-    service_with_trashed_table = Mock(table_id=trashed_table.id)
+    service_with_trashed_table = Mock(table_id=trashed_table.id, table=trashed_table)
     with pytest.raises(ServiceImproperlyConfigured) as exc:
         cls().resolve_service_formulas(service_with_trashed_table, dispatch_context)
     assert exc.value.args[0] == "The specified table is trashed"
 
-    service_with_table_in_trashed_database = Mock(table_id=table_in_trashed_database.id)
+    service_with_table_in_trashed_database = Mock(
+        table_id=table_in_trashed_database.id, table=table_in_trashed_database
+    )
     with pytest.raises(ServiceImproperlyConfigured) as exc:
         cls().resolve_service_formulas(
             service_with_table_in_trashed_database, dispatch_context
@@ -1109,7 +1111,7 @@ def test_local_baserow_table_service_type_after_update_table_change_deletes_filt
     change_table_from_None_to_Table = {"table": (None, mock_to_table)}
     change_table_from_Table_to_Table = {"table": (mock_from_table, mock_to_table)}
 
-    service_type_cls = LocalBaserowTableServiceType
+    service_type_cls = LocalBaserowListRowsUserServiceType
     service_type_cls.model_class = Mock()
     service_type = service_type_cls()
 
@@ -1118,12 +1120,12 @@ def test_local_baserow_table_service_type_after_update_table_change_deletes_filt
     assert not mock_instance.service_sorts.all.return_value.delete.called
 
     service_type.after_update(mock_instance, {}, change_table_from_None_to_Table)
-    assert not mock_instance.service_filters.return_value.all.return_value.delete.called
-    assert not mock_instance.service_sorts.return_value.all.return_value.delete.called
+    assert not mock_instance.service_filters.all.return_value.delete.called
+    assert not mock_instance.service_sorts.all.return_value.delete.called
 
     service_type.after_update(mock_instance, {}, change_table_from_Table_to_Table)
-    assert mock_instance.service_filters.return_value.all.return_value.delete.called
-    assert mock_instance.service_sorts.return_value.all.return_value.delete.called
+    assert mock_instance.service_filters.all.return_value.delete.called
+    assert mock_instance.service_sorts.all.return_value.delete.called
 
 
 @pytest.mark.django_db

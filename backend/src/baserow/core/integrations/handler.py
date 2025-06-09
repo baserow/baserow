@@ -46,12 +46,13 @@ class IntegrationHandler:
 
         try:
             if specific:
-                integration = queryset.get(id=integration_id)
+                gen_integration = queryset.get(id=integration_id)
                 # We use the enhanced version of the queryset to get the related
                 # fields. This is also responsible for returning the specific instance.
                 integration = (
-                    integration.get_type().get_queryset().get(id=integration_id)
+                    gen_integration.get_type().get_queryset().get(id=integration_id)
                 )
+                integration.application = gen_integration.application
             else:
                 integration = queryset.get(id=integration_id)
         except Integration.DoesNotExist:

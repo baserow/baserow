@@ -21,7 +21,7 @@ USED_PROPERTIES_CACHE_KEY_PREFIX = "used_properties_for_page"
 BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60 * 60
 
 # The duration of the cached public `get_public_builder_by_domain_name` view.
-BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS = 60 * 60
+BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS = 60 * 60 * 2  # 2 hours
 
 # The duration of the cached public properties for the builder API views.
 BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS = 60
@@ -107,7 +107,7 @@ class BuilderHandler:
             # unique invalidate key for all.
             invalidate_key=self._get_builder_public_properties_version_cache(builder),
             timeout=settings.BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS
-            if builder.workspace_id
+            if not builder.workspace_id
             else BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS,
         )
 

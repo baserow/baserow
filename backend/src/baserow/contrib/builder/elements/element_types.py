@@ -339,6 +339,9 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
             ),
         }
 
+    def enhance_queryset(self, queryset):
+        return super().enhance_queryset(queryset).prefetch_related("fields")
+
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "data_source_id": None,

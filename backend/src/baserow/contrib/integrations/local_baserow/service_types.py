@@ -101,8 +101,6 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowRowsUpdated,
     LocalBaserowTableService,
     LocalBaserowTableServiceFieldMapping,
-    LocalBaserowTableServiceFilter,
-    LocalBaserowTableServiceSort,
     LocalBaserowUpsertRow,
     Service,
 )
@@ -123,15 +121,9 @@ from baserow.core.services.registries import (
     ServiceType,
     TriggerServiceTypeMixin,
 )
-from baserow.core.services.types import (
-    DispatchResult,
-    ServiceDict,
-    ServiceFilterDictSubClass,
-    ServiceSortDictSubClass,
-    ServiceSubClass,
-)
+from baserow.core.services.types import DispatchResult, ServiceDict, ServiceSubClass
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
-from baserow.core.utils import atomic_if_not_already
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
@@ -252,8 +244,13 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         )
 
     def enhance_queryset(self, queryset):
-        return queryset.select_related(
-            "table__database__workspace",
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .select_related(
+                "table__database__workspace",
+                "table__data_sync",
+            )
         )
 
     def resolve_service_formulas(
@@ -275,13 +272,11 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if service.table_id is None:
             raise ServiceImproperlyConfigured("The table property is missing.")
 
-        try:
-            table = TableHandler().get_table(service.table_id)
-        except TableDoesNotExist as e:
-            raise ServiceImproperlyConfigured("The specified table is trashed") from e
+        if TrashHandler.item_has_a_trashed_parent(service.table, check_item_also=True):
+            raise ServiceImproperlyConfigured("The specified table is trashed")
 
         resolved_values = super().resolve_service_formulas(service, dispatch_context)
-        resolved_values["table"] = table
+        resolved_values["table"] = service.table
 
         return resolved_values
 
@@ -326,15 +321,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if prop_name == "table_id" and "database_tables" in id_mapping:
             return id_mapping["database_tables"].get(value, None)
 
-        if "database_fields" in id_mapping and prop_name in ["filters", "sortings"]:
-            return [
-                {
-                    **item,
-                    "field_id": id_mapping["database_fields"][item["field_id"]],
-                }
-                for item in value
-            ]
-
         return super().deserialize_property(
             prop_name,
             value,
@@ -344,123 +330,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             cache=cache,
             **kwargs,
         )
-
-    def create_instance_from_serialized(
-        self,
-        serialized_values,
-        id_mapping,
-        files_zip=None,
-        storage=None,
-        cache=None,
-        **kwargs,
-    ) -> ServiceSubClass:
-        """
-        Responsible for creating the `filters` and `sortings`.
-
-        :param serialized_values: The serialized values we'll use to import.
-        :param id_mapping: The id_mapping dictionary.
-        :return: A Service.
-        """
-
-        filters = serialized_values.pop("filters", [])
-        sortings = serialized_values.pop("sortings", [])
-
-        service = super().create_instance_from_serialized(
-            serialized_values,
-            id_mapping,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-            **kwargs,
-        )
-
-        # Create filters
-        LocalBaserowTableServiceFilter.objects.bulk_create(
-            [
-                LocalBaserowTableServiceFilter(
-                    **service_filter,
-                    order=index,
-                    service=service,
-                )
-                for index, service_filter in enumerate(filters)
-            ]
-        )
-
-        # Create sortings
-        LocalBaserowTableServiceSort.objects.bulk_create(
-            [
-                LocalBaserowTableServiceSort(
-                    **service_sorting,
-                    order=index,
-                    service=service,
-                )
-                for index, service_sorting in enumerate(sortings)
-            ]
-        )
-
-        return service
-
-    def update_service_sortings(
-        self,
-        service: Union[LocalBaserowGetRow, LocalBaserowListRows],
-        service_sorts: Optional[List[ServiceSortDictSubClass]] = None,
-    ):
-        with atomic_if_not_already():
-            service.service_sorts(manager="objects_and_trash").all().delete()
-            LocalBaserowTableServiceSort.objects.bulk_create(
-                [
-                    LocalBaserowTableServiceSort(
-                        **service_sort, service=service, order=index
-                    )
-                    for index, service_sort in enumerate(service_sorts)
-                ]
-            )
-
-    def update_service_filters(
-        self,
-        service: Union[LocalBaserowGetRow, LocalBaserowListRows],
-        service_filters: Optional[List[ServiceFilterDictSubClass]] = None,
-    ):
-        with atomic_if_not_already():
-            service.service_filters(manager="objects_and_trash").all().delete()
-            LocalBaserowTableServiceFilter.objects.bulk_create(
-                [
-                    LocalBaserowTableServiceFilter(
-                        **service_filter, service=service, order=index
-                    )
-                    for index, service_filter in enumerate(service_filters)
-                ]
-            )
-
-    def after_update(
-        self,
-        instance: ServiceSubClass,
-        values: Dict,
-        changes: Dict[str, Tuple],
-    ) -> None:
-        """
-        Responsible for updating service filters and sorts which have been
-        PATCHED to the data source / service endpoint. At the moment we
-        destroy all current filters and sorts, and create the ones present
-        in `service_filters` / `service_sorts` respectively.
-
-        :param instance: The service we want to manage filters/sorts for.
-        :param values: A dictionary which may contain filters/sorts.
-        :param changes: A dictionary containing all changes which were made to the
-            service prior to `after_update` being called.
-        """
-
-        # Following a Table change, from one Table to another, we drop all filters
-        # and sorts. This is due to the fact that both point at specific table fields.
-        from_table, to_table = changes.get("table", (None, None))
-        if from_table and to_table:
-            instance.service_filters(manager="objects_and_trash").all().delete()
-            instance.service_sorts(manager="objects_and_trash").all().delete()
-        else:
-            if "service_filters" in values:
-                self.update_service_filters(instance, values["service_filters"])
-            if "service_sorts" in values:
-                self.update_service_sortings(instance, values["service_sorts"])
 
     def prepare_values(
         self,
@@ -796,7 +665,6 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
         return (
             super()
             .enhance_queryset(queryset)
-            .select_related("view__content_type")
             .prefetch_related(
                 "view__viewfilter_set",
                 "view__filter_groups",
@@ -858,14 +726,14 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
             if view_id is not None:
                 try:
                     view = ViewService().get_view(user, view_id)
-                except ViewDoesNotExist:
+                except ViewDoesNotExist as exc:
                     raise DRFValidationError(
                         detail={
                             "detail": f"The view with ID {view_id} does not exist.",
                             "error": "view_does_not_exist",
                         },
                         code="view_does_not_exist",
-                    )
+                    ) from exc
 
                 # If we're PATCHing with a `table_id` alongside the `view_id`,
                 # validate with that table, otherwise we're PATCHing with just a
@@ -1081,64 +949,6 @@ class LocalBaserowListRowsUserServiceType(
 
         return [field_dbname]
 
-    def serialize_property(
-        self,
-        service: ServiceSubClass,
-        prop_name: str,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ):
-        """
-        Responsible for serializing the `filters` and `sortings` properties.
-
-        :param service: The LocalBaserowListRows service.
-        :param prop_name: The property name we're serializing.
-        :return: Any
-        """
-
-        if prop_name == "filters":
-            return self.serialize_filters(service)
-
-        if prop_name == "sortings":
-            return self.serialize_sortings(service)
-
-        return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
-        )
-
-    def deserialize_property(
-        self,
-        prop_name: str,
-        value: Any,
-        id_mapping: Dict[str, Any],
-        files_zip=None,
-        storage=None,
-        cache=None,
-        **kwargs,
-    ):
-        """
-        Responsible for deserializing the `filters` property.
-
-        :param prop_name: the name of the property being transformed.
-        :param value: the value of this property.
-        :param id_mapping: the id mapping dict.
-        :return: the deserialized version for this property.
-        """
-
-        if prop_name == "filters":
-            return self.deserialize_filters(value, id_mapping)
-
-        return super().deserialize_property(
-            prop_name,
-            value,
-            id_mapping,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-            **kwargs,
-        )
-
     def dispatch_data(
         self,
         service: LocalBaserowListRows,
@@ -1173,7 +983,11 @@ class LocalBaserowListRowsUserServiceType(
             )
 
             # Ensure that only used fields are fetched from the database.
-            queryset = queryset.only(*available_fields.intersection(only_field_names))
+            queryset = queryset.only(
+                # We keep the order field here as the serializer needs it
+                *available_fields.intersection(only_field_names),
+                "order",
+            )
 
         if dispatch_context.only_record_id is not None:
             queryset = queryset.filter(id=dispatch_context.only_record_id)
@@ -1348,7 +1162,11 @@ class LocalBaserowAggregateRowsUserServiceType(
         return None
 
     def enhance_queryset(self, queryset):
-        return super().enhance_queryset(queryset).select_related("field")
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .prefetch_related("field__table__database")
+        )
 
     @property
     def simple_formula_fields(self):
@@ -1477,29 +1295,6 @@ class LocalBaserowAggregateRowsUserServiceType(
             values["field_id"] = instance.field.id
         return values
 
-    def serialize_property(
-        self,
-        service: ServiceSubClass,
-        prop_name: str,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ):
-        """
-        Responsible for serializing the `filters` properties.
-
-        :param service: The LocalBaserowAggregateRows service.
-        :param prop_name: The property name we're serializing.
-        :return: Any
-        """
-
-        if prop_name == "filters":
-            return self.serialize_filters(service)
-
-        return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
-        )
-
     def deserialize_property(
         self,
         prop_name: str,
@@ -1518,9 +1313,6 @@ class LocalBaserowAggregateRowsUserServiceType(
         :param id_mapping: the id mapping dict.
         :return: the deserialized version for this property.
         """
-
-        if prop_name == "filters":
-            return self.deserialize_filters(value, id_mapping)
 
         if prop_name == "field_id":
             return id_mapping.get("database_fields", {}).get(value, value)
@@ -1769,57 +1561,6 @@ class LocalBaserowGetRowUserServiceType(
             return []
 
         return [field_dbname]
-
-    def serialize_property(
-        self,
-        service: ServiceSubClass,
-        prop_name: str,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ):
-        """
-        Responsible for serializing the `filters`.
-
-        :param service: The LocalBaserowListRows service.
-        :param prop_name: The property name we're serializing.
-        :return: Any
-        """
-
-        if prop_name == "filters":
-            return self.serialize_filters(service)
-
-        return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
-        )
-
-    def deserialize_property(
-        self,
-        prop_name: str,
-        value: Any,
-        id_mapping: Dict[str, Any],
-        files_zip=None,
-        storage=None,
-        cache=None,
-        **kwargs,
-    ):
-        """
-        Get the view & table ID from the mapping if it exists and also updates the
-        row_id, search_query & filters formulas.
-        """
-
-        if prop_name == "filters":
-            return self.deserialize_filters(value, id_mapping)
-
-        return super().deserialize_property(
-            prop_name,
-            value,
-            id_mapping,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-            **kwargs,
-        )
 
     def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         """
