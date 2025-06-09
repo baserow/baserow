@@ -67,7 +67,7 @@ test.describe("Builder page test suite", () => {
       page.locator(".modal__box").getByText("Add new element")
     ).toBeHidden();
     await expect(
-      page.locator(".element-preview__name").getByText("Heading")
+      page.locator(".element-preview__name-tag").getByText("Heading")
     ).toBeVisible();
   });
 
@@ -83,7 +83,7 @@ test.describe("Builder page test suite", () => {
       page.locator(".modal__box").getByText("Add new element")
     ).toBeHidden();
     await expect(
-      page.locator(".element-preview__name").getByText("Heading")
+      page.locator(".element-preview__name-tag").getByText("Heading")
     ).toBeVisible();
   });
 

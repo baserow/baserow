@@ -1,11 +1,9 @@
-.link-navigation-selection-form__navigate-option-page-path {
-  overflow: hidden;
-  height: 36px;
-  width: 196px;
+.link-navigation-selection-form__navigate-option-page-name {
+  @extend %ellipsis;
 }
 
-.link-navigation-selection-form__navigate-option-page-path > span {
-  height: 30px;
-  display: inline-block;
-  text-wrap: nowrap;
+.link-navigation-selection-form__navigate-option-page-path {
+  color: $color-neutral-600;
+
+  @extend %ellipsis;
 }

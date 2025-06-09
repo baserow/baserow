@@ -5,16 +5,21 @@
     :class="{
       'element-preview--active': isSelected,
       'element-preview--parent-of-selected': isParentOfSelectedElement,
-      'element-preview--in-error': inError,
+      'element-preview--in-error': !!errorMessage,
       'element-preview--first-element': isFirstElement,
       'element-preview--not-visible':
         !isVisible && !isSelected && !isParentOfSelectedElement,
     }"
     @click="onSelect"
   >
-    <div v-if="isSelected" class="element-preview__name">
-      {{ elementType.name }}
-      <i v-if="!isVisible" class="iconoir-eye-off" />
+    <div v-if="isSelected" class="element-preview__tags">
+      <div class="element-preview__name-tag">
+        {{ elementType.name }}
+        <i v-if="!isVisible" class="iconoir-eye-off" />
+      </div>
+      <div v-if="errorMessage" class="element-preview__error-tag">
+        {{ errorMessage }}
+      </div>
     </div>
     <InsertElementButton
       v-show="isSelected"
@@ -53,11 +58,6 @@
       ref="addElementModal"
       :page="elementPage"
     />
-
-    <i
-      v-if="inError"
-      class="element-preview__error-icon iconoir-warning-circle"
-    ></i>
   </div>
 </template>
 
@@ -243,8 +243,8 @@ export default {
         this.element.parent_element_id
       )
     },
-    inError() {
-      return this.elementType.isInError({
+    errorMessage() {
+      return this.elementType.getErrorMessage({
         workspace: this.workspace,
         page: this.elementPage,
         element: this.element,

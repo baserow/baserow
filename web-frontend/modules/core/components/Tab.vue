@@ -21,6 +21,11 @@ export default {
       default: null,
       required: false,
     },
+    tooltipPosition: {
+      type: String,
+      default: null,
+      required: false,
+    },
     to: {
       type: Object,
       default: () => undefined,

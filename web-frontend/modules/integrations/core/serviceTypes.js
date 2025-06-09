@@ -15,13 +15,14 @@ export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
     return this.app.i18n.t('serviceType.coreHTTPRequest')
   }
 
-  isInError({ service }) {
-    // We check undefined because the url is not returned in public mode the the
+  getErrorMessage({ service }) {
+    // We check undefined because the url is not returned in public mode the
     // property is just ignored
-    if (service === undefined || service.url === undefined) {
-      return false
+    if (service !== undefined && service.url !== undefined && !service.url) {
+      return this.app.i18n.t('serviceType.errorUrlMissing')
     }
-    return !service.url
+
+    return super.getErrorMessage({ service })
   }
 
   getDataSchema(service) {

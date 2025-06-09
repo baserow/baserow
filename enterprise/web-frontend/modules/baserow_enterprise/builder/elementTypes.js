@@ -54,21 +54,27 @@ export class AuthFormElementType extends ElementType {
     return [new AfterLoginEvent({ ...this.app })]
   }
 
-  isInError({ builder, element }) {
+  getErrorMessage({ workspace, page, element, builder }) {
     if (!element.user_source_id) {
-      return true
+      return this.$t('elementType.errorUserSourceMissing')
     }
     const userSource = this.app.store.getters['userSource/getUserSourceById'](
       builder,
       element.user_source_id
     )
     if (!userSource) {
-      return true
+      return this.$t('elementType.errorUserSourceMissing')
     }
     const userSourceType = this.app.$registry.get('userSource', userSource.type)
     const loginOptions = userSourceType.getLoginOptions(userSource)
 
-    return Object.keys(loginOptions).length === 0
+    const hasLoginOptions = Object.keys(loginOptions).length !== 0
+
+    if (!hasLoginOptions) {
+      return this.app.i18n.t('elementType.errorUserSourceHasNoLoginOption')
+    }
+
+    return super.getErrorMessage({ workspace, page, element, builder })
   }
 }
 

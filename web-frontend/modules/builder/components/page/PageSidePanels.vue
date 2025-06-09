@@ -5,6 +5,7 @@
         v-for="pageSidePanelType in pageSidePanelTypes"
         :key="pageSidePanelType.getType()"
         :tooltip="getTooltipMessage(pageSidePanelType)"
+        tooltip-position="bottom-left"
         :title="pageSidePanelType.label"
         :append-icon="
           pageSidePanelType.isInError(sidePanelContext)
@@ -73,7 +74,7 @@ export default {
       if (this.element && pageSidePanelType.isDeactivated(this.element)) {
         return pageSidePanelType.getDeactivatedText()
       } else if (pageSidePanelType.isInError(this.sidePanelContext)) {
-        return pageSidePanelType.getInErrorText()
+        return pageSidePanelType.getErrorMessage(this.sidePanelContext)
       }
       return null
     },
