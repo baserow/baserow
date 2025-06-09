@@ -29,6 +29,14 @@ export class UserSourceType extends Registerable {
   }
 
   /**
+   * Return the generated uid for this data source. Should reflect the backend
+   * generation.
+   */
+  genUid(userSource) {
+    throw new Error('Must be set on the type.')
+  }
+
+  /**
    * The form to edit this user source.
    */
   get formComponent() {

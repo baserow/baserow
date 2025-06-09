@@ -344,7 +344,7 @@ class UserSourceHandler:
             cache=cache,
         )
 
-        # generates the user source uid from user source type once the instance is c
+        # Generates the user source uid from user source type once the instance is
         # created. This will prevent duplicate and keep the gen_uid logic.
         user_source.uid = user_source_type.gen_uid(user_source)
         user_source.save()

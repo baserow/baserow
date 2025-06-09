@@ -269,9 +269,10 @@ class DomainHandler:
         domain.save()
 
         # We need a stable/predictable uuid for published user sources. That's why we
-        # overrides the generated uuid with the uuid from the original user_source
-        # prefixed by the domain id. For a certain domain the domain id is always
-        # the same as long as you don't recreate it.
+        # override the generated uuid with the uuid from the original user_source
+        # prefixed with the domain id.
+        # For a certain domain the domain id is always the same as long as you don't
+        # recreate it.
         for imported_user_source, original_user_source in zip(
             duplicate_builder.user_sources.all(), builder.user_sources.all()
         ):
