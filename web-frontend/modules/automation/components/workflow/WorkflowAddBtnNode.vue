@@ -1,11 +1,36 @@
 <template>
-  <ButtonFloating
-    icon="iconoir-plus"
-    size="small"
-    :disabled="props.data.disabled"
-    :title="displayTitle"
-    @click="handleClick"
-  ></ButtonFloating>
+  <div
+    :class="{
+      'workflow-add-button-container': true,
+      'workflow-add-button-container--drop-zone': props.data.isDropZone,
+      'workflow-add-button-container--active-drop-zone':
+        props.data.isActiveDropZone,
+    }"
+    :data-id="props.id"
+  >
+    <ButtonFloating
+      class="workflow-add-button-floating"
+      :icon="iconClass"
+      size="small"
+      :disabled="props.data.disabled"
+      :title="displayTitle"
+      @click="handleClick"
+      @pointerdown="handlePointerDown"
+      @pointerup="handlePointerUp"
+    ></ButtonFloating>
+    <div
+      v-if="props.data.isDropZone"
+      class="workflow-add-button-drop-zone"
+      :class="{
+        'workflow-add-button-drop-zone--active': props.data.isActiveDropZone,
+      }"
+    >
+      <div
+        v-if="props.data.isActiveDropZone"
+        class="workflow-add-button-placeholder"
+      ></div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -27,7 +52,11 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['addNode'])
+const emit = defineEmits(['addNode', 'mousedown', 'mouseup'])
+
+const iconClass = computed(() => {
+  return props.data.isActiveDropZone ? 'iconoir-check' : 'iconoir-plus'
+})
 
 /**
  * Computed property to determine the display title of the button.
@@ -48,5 +77,13 @@ const handleClick = () => {
   if (!props.data.disabled) {
     emit('addNode', props.data.nodeId)
   }
+}
+
+const handlePointerDown = (event) => {
+  emit('mousedown', event)
+}
+
+const handlePointerUp = (event) => {
+  emit('mouseup', event)
 }
 </script>
