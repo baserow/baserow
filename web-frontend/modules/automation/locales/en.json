@@ -65,6 +65,8 @@
     "actionConfigure": "Configure"
   },
   "createWorkflowNodeContext": {
-    "searchPlaceholder": "Search events..."
+    "searchPlaceholderTrigger": "Search for a trigger...",
+    "searchPlaceholderActions": "Search for actions...",
+    "noResults": "No results found"
   }
 }

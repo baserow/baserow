@@ -1,11 +1,16 @@
 <template>
-  <Context class="workflow-node__context">
+  <Context class="workflow-node__context" @shown="$refs.nodeDropdown.show()">
     <Dropdown
+      ref="nodeDropdown"
       size="large"
       show-search
       open-on-mount
       :show-input="false"
-      :search-text="$t('createWorkflowNodeContext.searchPlaceholder')"
+      :search-text="
+        workflowHasTrigger
+          ? $t('createWorkflowNodeContext.searchPlaceholderActions')
+          : $t('createWorkflowNodeContext.searchPlaceholderTrigger')
+      "
       @change="onChange"
     >
       <DropdownItem
@@ -16,6 +21,9 @@
         :value="nodeType.getType()"
         :description="nodeType.description"
       ></DropdownItem>
+      <template #emptyState>
+        {{ $t('createWorkflowNodeContext.noResults') }}
+      </template>
     </Dropdown>
   </Context>
 </template>

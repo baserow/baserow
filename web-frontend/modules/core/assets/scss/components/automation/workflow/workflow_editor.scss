@@ -72,5 +72,9 @@
   color: $palette-neutral-1200;
   min-width: 0;
 
+  &:last-child {
+    margin-bottom: 30px;
+  }
+
   @extend %ellipsis;
 }
