@@ -9,7 +9,7 @@ test.describe("Automation application test suite", () => {
     // Create an automation application
     await page.locator(".sidebar__new").getByText("Add new").click();
     await page.locator(".context__menu").getByText("Automation").click();
-    await page.locator(".modal__wrapper").getByText("Add automation").click();
+    await page.locator(".modal__box").getByText("Add automation").click();
 
     await expect(
       page.locator(".tree__link").getByText("Untitled Automation"),
@@ -22,7 +22,9 @@ test.describe("Automation application test suite", () => {
       "Ensure the default Workflow has been created and is visible."
     ).toBeVisible();
 
-    const createNodeButton = page.getByRole("button", { name: "Create automation node" });
+    const createNodeButton = page.getByRole("button", {
+      name: "Create automation node",
+    });
     await expect(
       createNodeButton,
       "Ensure the button to create a node is visible."
@@ -35,8 +37,8 @@ test.describe("Automation application test suite", () => {
     await page.locator(".context__menu").getByText("Automation").click();
 
     // Specify a custom name for the automation
-    await page.locator(".modal__wrapper input").fill("Foo Automation");
-    await page.locator(".modal__wrapper").getByText("Add automation").click();
+    await page.locator(".modal__box input").fill("Foo Automation");
+    await page.locator(".modal__box").getByText("Add automation").click();
 
     await expect(
       page.locator(".tree__link").getByText("Foo Automation"),
@@ -49,7 +51,9 @@ test.describe("Automation application test suite", () => {
       "Ensure the default Workflow has been created and is visible."
     ).toBeVisible();
 
-    const createNodeButton = page.getByRole("button", { name: "Create automation node" });
+    const createNodeButton = page.getByRole("button", {
+      name: "Create automation node",
+    });
     await expect(
       createNodeButton,
       "Ensure the button to create a node is visible."

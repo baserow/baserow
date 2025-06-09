@@ -13,11 +13,11 @@ test.describe("Automation workflow test suite", () => {
     await page.getByText("Create workflow").waitFor();
 
     await page
-      .locator(".modal__wrapper")
+      .locator(".modal__box")
       .getByPlaceholder("Enter a name...")
       .fill(workflowName);
 
-    await page.locator(".button").getByText("Add workflow").click();
+    await page.getByRole("button").getByText("Add workflow").click();
 
     await expect(page.getByText("Create workflow")).toBeHidden();
 
@@ -25,8 +25,10 @@ test.describe("Automation workflow test suite", () => {
       page.locator(".tree__link").getByText("Test Automation"),
       "Ensure the default automation name is displayed in the sidebar."
     ).toBeVisible();
-  
-    const createNodeButton = page.getByRole("button", { name: "Create automation node" });
+
+    const createNodeButton = page.getByRole("button", {
+      name: "Create automation node",
+    });
     await expect(
       createNodeButton,
       "Ensure the button to create a node is visible."
@@ -42,13 +44,17 @@ test.describe("Automation workflow test suite", () => {
     await expect(page.getByText("Duplicate")).toBeHidden();
 
     // Ensure the duplicated workflow is visible
-    const workflowLink = page.getByRole("link", { name: `${defaultWorkflowName} 2` });
+    const workflowLink = page.getByRole("link", {
+      name: `${defaultWorkflowName} 2`,
+    });
     await expect(
       workflowLink,
       "Ensure the duplicated workflow is displayed in the sidebar."
     ).toBeVisible();
 
-    const createNodeButton = page.getByRole("button", { name: "Create automation node" });
+    const createNodeButton = page.getByRole("button", {
+      name: "Create automation node",
+    });
     await expect(
       createNodeButton,
       "Ensure the button to create a node is visible."
@@ -72,7 +78,7 @@ test.describe("Automation workflow test suite", () => {
 
     // Type new workflow name
     const newWorkflowName = "My new workflow name";
-    await editable.type(newWorkflowName);
+    await editable.fill(newWorkflowName);
 
     // Click outside to cause a blur event so that the name is saved
     await page.locator("body").click();
@@ -83,7 +89,9 @@ test.describe("Automation workflow test suite", () => {
       "Ensure the renamed workflow is displayed in the sidebar."
     ).toBeVisible();
 
-    const createNodeButton = page.getByRole("button", { name: "Create automation node" });
+    const createNodeButton = page.getByRole("button", {
+      name: "Create automation node",
+    });
     await expect(
       createNodeButton,
       "Ensure the button to create a node is visible."
@@ -104,7 +112,9 @@ test.describe("Automation workflow test suite", () => {
       "Ensure the workflow is no longer visible in the sidebar."
     ).not.toBeVisible();
 
-    const workspaceName = page.locator('.dashboard__header').getByText("Default workspace");
+    const workspaceName = page
+      .locator(".dashboard__header")
+      .getByText("Default workspace");
     await expect(
       workspaceName,
       "Ensure that the dashboard page is shown after workflow is deleted."

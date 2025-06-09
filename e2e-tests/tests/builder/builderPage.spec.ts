@@ -11,11 +11,11 @@ test.describe("Builder page test suite", () => {
     await page.getByText("New page").click();
     await page.getByText("Create page").waitFor();
     await page
-      .locator(".modal__wrapper")
+      .locator(".modal__box")
       .getByPlaceholder("Enter a name...")
       .fill("Super page");
     await page
-      .locator(".modal__wrapper")
+      .locator(".modal__box")
       .getByPlaceholder("Enter a path...")
       .fill("/complex/path");
     await page.locator(".button").getByText("Add page").click();
@@ -36,11 +36,11 @@ test.describe("Builder page test suite", () => {
     await page.getByText("Page settings").click();
 
     await page
-      .locator(".modal__wrapper")
+      .locator(".modal__box")
       .getByPlaceholder("Enter a name...")
       .fill("New page name");
     await page
-      .locator(".modal__wrapper")
+      .locator(".modal__box")
       .getByPlaceholder("Enter a path...")
       .fill("/new/path");
 
@@ -94,7 +94,7 @@ test.describe("Builder page test suite", () => {
     await page.getByText("Page settings").click();
 
     await page
-      .locator(".modal__wrapper")
+      .locator(".modal__box")
       .getByPlaceholder("Enter a name...")
       .fill("New page name");
 
