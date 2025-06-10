@@ -4,6 +4,7 @@
       v-for="itemType in pageHeaderItemTypes"
       :key="itemType.getType()"
       class="header__filter-item"
+      :data-highlight="`builder-${itemType.type}`"
     >
       <a
         :ref="`button_${itemType.type}`"

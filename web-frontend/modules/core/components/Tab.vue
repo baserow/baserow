@@ -36,6 +36,11 @@ export default {
       required: false,
       default: null,
     },
+    highlight: {
+      type: [String, null],
+      required: false,
+      default: null,
+    },
   },
   data() {
     return {

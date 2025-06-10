@@ -12,6 +12,7 @@
             : null
         "
         :disabled="!element || pageSidePanelType.isDeactivated(element)"
+        :highlight="`builder-panel-${pageSidePanelType.getType()}`"
       >
         <ReadOnlyForm
           v-if="element"

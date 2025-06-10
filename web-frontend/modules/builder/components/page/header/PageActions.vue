@@ -5,6 +5,7 @@
         v-if="actionType.isActive({ page: currentPage, workspace })"
         :key="actionType.getType()"
         class="header__filter-item header__filter-item--right"
+        :data-highlight="`builder-page-action-${actionType.getType()}`"
       >
         <Button
           :ref="`button_${actionType.type}`"
