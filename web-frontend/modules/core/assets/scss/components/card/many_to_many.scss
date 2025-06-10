@@ -22,6 +22,12 @@
   &:not(:last-child) {
     margin-right: 5px;
   }
+
+  &.card-many-to-many__item--loading {
+    background-color: revert;
+    align-items: center;
+    width: 30px;
+  }
 }
 
 .card-many-to-many__name {

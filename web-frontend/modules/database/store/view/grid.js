@@ -30,6 +30,7 @@ import {
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
+import { LINKED_ITEMS_LOAD_ALL } from '@baserow/modules/database/constants'
 
 const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
@@ -96,7 +97,7 @@ function populateRows({
   return newRows
 }
 
-export function populateRow(row, metadata = {}) {
+export function populateRow(row, metadata = {}, fullyLoaded = true) {
   row._ = {
     metadata: getRowMetadata(row, metadata),
     persistentId: uuid(),
@@ -115,6 +116,11 @@ export function populateRow(row, metadata = {}) {
     // between cells.
     selected: false,
     selectedFieldId: -1,
+    // When loaded together with other rows, some fields might not be fetched
+    // completely. This flag indicates that the row has been fully loaded, including all
+    // the linked items and array values.
+    fetching: false,
+    fullyLoaded,
   }
 
   return row
@@ -491,6 +497,14 @@ export const mutations = {
       state.rows.splice(index, 0, state.rows.splice(oldIndex, 1)[0])
     }
   },
+  SET_ROW_FETCHING(state, { row, value }) {
+    const index = state.rows.findIndex((item) => item.id === row.id)
+    if (index !== -1) {
+      const existingRowState = state.rows[index]
+      existingRowState._.fetching = value
+      existingRowState._.fullyLoaded = !value
+    }
+  },
   UPDATE_ROW_IN_BUFFER(state, { row, values, metadata = false }) {
     const index = state.rows.findIndex((item) => item.id === row.id)
     if (index !== -1) {
@@ -855,7 +869,7 @@ export const actions = {
 
           data.results.forEach((row) => {
             const metadata = extractRowMetadata(data, row.id)
-            populateRow(row, metadata)
+            populateRow(row, metadata, false)
           })
           commit('ADD_ROWS', {
             rows: data.results,
@@ -1027,7 +1041,7 @@ export const actions = {
     }
     data.results.forEach((row) => {
       const metadata = extractRowMetadata(data, row.id)
-      populateRow(row, metadata)
+      populateRow(row, metadata, false)
     })
     commit('CLEAR_ROWS')
     commit('ADD_ROWS', {
@@ -1121,7 +1135,7 @@ export const actions = {
         // at the same scroll offset.
         data.results.forEach((row) => {
           const metadata = extractRowMetadata(data, row.id)
-          populateRow(row, metadata)
+          populateRow(row, metadata, false)
         })
         commit('ADD_ROWS', {
           rows: data.results,
@@ -1760,19 +1774,29 @@ export const actions = {
     const [minFieldIndex, maxFieldIndex] =
       getters.getMultiSelectFieldIndexSorted
 
-    let rows = []
+    let rows = null
     fields = fields.slice(minFieldIndex, maxFieldIndex + 1)
 
     if (getters.areMultiSelectRowsWithinBuffer) {
-      rows = getters.getSelectedRows
-    } else {
-      // Fetch rows from backend
+      const selectedRows = getters.getSelectedRows
+      const shouldRefetchFieldData = fields.some((field) => {
+        const fieldType = this.$registry.get('field', field.type)
+        return fieldType.shouldRefetchFieldData(field, selectedRows)
+      })
+      if (!shouldRefetchFieldData) {
+        rows = getters.getSelectedRows
+      }
+    }
+
+    if (rows === null) {
+      // Fetch missing rows or missing field data from the backend
       const [minRowIndex, maxRowIndex] = getters.getMultiSelectRowIndexSorted
       const limit = maxRowIndex - minRowIndex + 1
       rows = await dispatch('fetchRowsByIndex', {
         startIndex: minRowIndex,
         limit,
         fields,
+        limitLinkedItems: LINKED_ITEMS_LOAD_ALL,
       })
     }
 
@@ -1786,7 +1810,7 @@ export const actions = {
    */
   async fetchRowsByIndex(
     { getters, rootGetters },
-    { startIndex, limit, fields, excludeFields }
+    { startIndex, limit, fields, excludeFields, limitLinkedItems }
   ) {
     if (fields !== undefined) {
       fields = fields.map((field) => `field_${field.id}`)
@@ -1811,6 +1835,7 @@ export const actions = {
       includeFields: fields,
       excludeFields,
       excludeCount: getters.canExcludeCount,
+      limitLinkedItems,
     })
     return data.results
   },
@@ -1854,11 +1879,28 @@ export const actions = {
    * row from a *different* table using ForeignRowEditModal or just RowEditModal
    * component in general.
    */
-  async refreshRowFromBackend({ commit, getters, dispatch }, { table, row }) {
-    const { data } = await RowService(this.$client).get(table.id, row.id)
+  async refreshRowFromBackend(
+    { commit, getters, rootGetters },
+    { table, row }
+  ) {
+    commit('SET_ROW_FETCHING', { row, value: true })
+    try {
+      const gridId = getters.getLastGridId
+      const publicUrl = rootGetters['page/view/public/getIsPublic']
+      const publicAuthToken = rootGetters['page/view/public/getAuthToken']
+      const { data } = await ViewService(this.$client).fetchRow(
+        table.id,
+        row.id,
+        gridId,
+        publicUrl,
+        publicAuthToken
+      )
+      commit('UPDATE_ROW_IN_BUFFER', { row, values: data })
+    } finally {
+      commit('SET_ROW_FETCHING', { row, value: false })
+    }
     // Use the return value to update the desired row with latest values from the
     // backend.
-    commit('UPDATE_ROW_IN_BUFFER', { row, values: data })
   },
   /**
    * Called when the user wants to create a new row. Optionally a `before` row

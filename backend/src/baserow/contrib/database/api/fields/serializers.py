@@ -3,6 +3,7 @@ from typing import Optional
 
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError
+from django.db.models.manager import BaseManager
 from django.utils.functional import lazy
 
 from drf_spectacular.types import OpenApiTypes
@@ -263,6 +264,18 @@ class IntegerOrStringField(serializers.Field):
 
     def to_representation(self, value):
         return value
+
+
+class LimitListSerializer(serializers.ListSerializer):
+    def __init__(self, *args, **kwargs):
+        self.limit = kwargs.pop("limit", None)
+        super().__init__(*args, **kwargs)
+
+    def to_representation(self, data):
+        data = data.all() if isinstance(data, BaseManager) else data
+        if self.limit is not None:
+            data = data[: self.limit]
+        return super().to_representation(data)
 
 
 class FileFieldRequestSerializer(serializers.ListField):

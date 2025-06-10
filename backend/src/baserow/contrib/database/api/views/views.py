@@ -43,6 +43,12 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_FIELD_NOT_IN_TABLE,
 )
 from baserow.contrib.database.api.fields.serializers import LinkRowValueSerializer
+from baserow.contrib.database.api.rows.errors import ERROR_ROW_DOES_NOT_EXIST
+from baserow.contrib.database.api.rows.serializers import (
+    RowSerializer,
+    get_example_row_serializer_class,
+    get_row_serializer_class,
+)
 from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIST
 from baserow.contrib.database.api.views.serializers import (
     CreateViewGroupBySerializer,
@@ -56,6 +62,7 @@ from baserow.contrib.database.fields.exceptions import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field, LinkRowField
+from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.actions import (
@@ -91,6 +98,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewDecorationNotSupported,
     ViewDoesNotExist,
     ViewDoesNotSupportFieldOptions,
+    ViewDoesNotSupportListingRows,
     ViewFilterDoesNotExist,
     ViewFilterGroupDoesNotExist,
     ViewFilterNotSupported,
@@ -137,6 +145,7 @@ from .errors import (
     ERROR_VIEW_DECORATION_VALUE_PROVIDER_NOT_COMPATIBLE,
     ERROR_VIEW_DOES_NOT_EXIST,
     ERROR_VIEW_DOES_NOT_SUPPORT_FIELD_OPTIONS,
+    ERROR_VIEW_DOES_NOT_SUPPORT_LISTING_ROWS,
     ERROR_VIEW_FILTER_DOES_NOT_EXIST,
     ERROR_VIEW_FILTER_GROUP_DOES_NOT_EXIST,
     ERROR_VIEW_FILTER_NOT_SUPPORTED,
@@ -2376,3 +2385,70 @@ class ViewGroupByView(APIView):
         )
 
         return Response(status=204)
+
+
+class PublicViewGetRowView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="slug",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.STR,
+                required=True,
+                description="The slug of the view from which to get the row data.",
+            ),
+            OpenApiParameter(
+                name="row_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                required=True,
+                description="The ID of the row to retrieve from the public view.",
+            ),
+        ],
+        tags=["Database table views"],
+        operation_id="get_public_view_row",
+        description=(
+            "Returns the data for a specific row in a publicly shared view, "
+            "identified by the view’s slug and the row’s ID."
+        ),
+        request=None,
+        responses={
+            200: get_example_row_serializer_class(
+                example_type="public_get", user_field_names=True
+            ),
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW"]),
+            404: get_error_schema(
+                ["ERROR_VIEW_DOES_NOT_EXIST", "ERROR_ROW_DOES_NOT_EXIST"]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            NoAuthorizationToPubliclySharedView: ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
+            RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
+            ViewDoesNotSupportListingRows: ERROR_VIEW_DOES_NOT_SUPPORT_LISTING_ROWS,
+        }
+    )
+    def get(self, request: Request, slug: str, row_id: int) -> Response:
+        handler = ViewHandler()
+        view = handler.get_public_view_by_slug(
+            request.user,
+            slug,
+            authorization_token=get_public_view_authorization_token(request),
+        ).specific
+
+        queryset, field_ids, _ = handler.get_public_rows_queryset_and_field_ids(view)
+
+        row = queryset.filter(id=row_id).first()
+        if row is None:
+            raise RowDoesNotExist("The row does not exist in the view.")
+
+        serializer_class = get_row_serializer_class(
+            row._meta.model, RowSerializer, is_response=True, field_ids=field_ids
+        )
+        return Response(serializer_class(row).data)

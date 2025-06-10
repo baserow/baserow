@@ -437,6 +437,9 @@ export default {
       // global keyboard shortcut must be blocked if a single line text field cell is
       // in an editing state for example.
       selectedCellComponents: [],
+      // Set to true when the row is being refreshed to avoid multiple fields
+      // submitting multiple refresh requests at the same time.
+      refreshingRow: false,
     }
   },
   computed: {
@@ -781,18 +784,23 @@ export default {
      * when editing row from a different table, when editing is complete, we need
      * to refresh the 'main' row that's 'under' the RowEdit modal.
      */
-    async refreshRow(row) {
-      try {
-        await this.$store.dispatch(
-          this.storePrefix + 'view/grid/refreshRowFromBackend',
-          {
-            table: this.table,
-            row,
-          }
-        )
-      } catch (error) {
-        notifyIf(error, 'row')
+    refreshRow(row) {
+      if (this.refreshingRow) {
+        return
       }
+      this.refreshingRow = true
+      this.$nextTick(async () => {
+        try {
+          await this.$store.dispatch(
+            this.storePrefix + 'view/grid/refreshRowFromBackend',
+            { table: this.table, row }
+          )
+        } catch (error) {
+          notifyIf(error, 'row')
+        } finally {
+          this.refreshingRow = false
+        }
+      })
     },
     /**
      * Called when a cell value has been updated. This can for example happen via the

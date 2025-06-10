@@ -8,6 +8,7 @@ It's used in the grid view cell, row edit modal, gallery card, etc.
       :is="$options.methods.getComponent(props.field, parent.$registry)"
       v-for="(item, index) in props.value || []"
       :key="index"
+      :row="props.row"
       :field="props.field"
       :value="$options.methods.getValue(props.field, parent.$registry, item)"
       :selected="props.selected"

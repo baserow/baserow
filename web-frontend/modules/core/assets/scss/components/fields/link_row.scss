@@ -19,6 +19,13 @@
   &:not(:last-child) {
     margin-right: 5px;
   }
+
+  &.field-link-row__item--loading {
+    align-items: center;
+    justify-content: center;
+    background-color: revert;
+    width: 30px;
+  }
 }
 
 .field-link-row__name {

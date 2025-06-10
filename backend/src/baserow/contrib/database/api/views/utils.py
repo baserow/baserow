@@ -15,7 +15,10 @@ from baserow.api.pagination import (
     PageNumberPagination,
     PageNumberPaginationWithoutCount,
 )
-from baserow.contrib.database.api.constants import EXCLUDE_COUNT_API_PARAM
+from baserow.contrib.database.api.constants import (
+    EXCLUDE_COUNT_API_PARAM,
+    LIMIT_LINKED_ITEMS_API_PARAM,
+)
 from baserow.contrib.database.api.rows.serializers import (
     RowSerializer,
     get_row_serializer_class,
@@ -172,6 +175,27 @@ def _get_paginator(request: Request) -> Pageable:
     return paginator
 
 
+def parse_limit_linked_items_params(request) -> Optional[int]:
+    """
+    Parses the limit linked items parameters from the request.
+
+    :param request: The request containing the limit linked items parameters.
+    :return: The parsed limit linked items parameters as an integer, or None if not set
+        or invalid.
+    """
+
+    value = 0
+
+    limit_linked_items = request.GET.get(LIMIT_LINKED_ITEMS_API_PARAM.name, None)
+    if limit_linked_items is not None:
+        try:
+            value = int(limit_linked_items)
+        except ValueError:
+            pass
+
+    return value if value > 0 else None
+
+
 def paginate_and_serialize_queryset(
     queryset: QuerySet[GeneratedTableModel],
     request: Request,
@@ -189,11 +213,16 @@ def paginate_and_serialize_queryset(
 
     paginator = _get_paginator(request)
     page = paginator.paginate_queryset(queryset, request)
+
+    limit_linked_items = parse_limit_linked_items_params(request)
+    extra_kwargs = {"limit_linked_items": limit_linked_items}
+
     serializer_class = get_row_serializer_class(
         queryset.model,
         RowSerializer,
         is_response=True,
         field_ids=field_ids,
+        extra_kwargs=extra_kwargs,
     )
     serializer = serializer_class(page, many=True)
 

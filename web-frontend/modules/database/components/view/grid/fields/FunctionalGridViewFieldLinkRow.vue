@@ -22,6 +22,28 @@
           }}
         </span>
       </div>
+      <div
+        v-if="$options.methods.shouldFetchRow(props)"
+        class="grid-field-many-to-many__item"
+      >
+        ...
+      </div>
     </div>
   </div>
 </template>
+
+<script>
+import { LINKED_ITEMS_DEFAULT_LOAD_COUNT } from '@baserow/modules/database/constants'
+
+export default {
+  name: 'FunctionalGridViewFieldLinkRow',
+  methods: {
+    shouldFetchRow(props) {
+      return (
+        props.value?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
+        !props.row._?.fullyLoaded
+      )
+    },
+  },
+}
+</script>

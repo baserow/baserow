@@ -78,6 +78,7 @@ from baserow.contrib.database.api.fields.serializers import (
     FileFieldRequestSerializer,
     FileFieldResponseSerializer,
     IntegerOrStringField,
+    LimitListSerializer,
     LinkRowFieldSerializerMixin,
     LinkRowRequestSerializer,
     LinkRowValueSerializer,
@@ -1060,7 +1061,7 @@ class DateFieldType(FieldType):
             ),
         )
     }
-    serializer_extra_kwargs = {"date_force_timezone_offset": {"write_only": True}}
+    serializer_field_extra_kwargs = {"date_force_timezone_offset": {"write_only": True}}
     api_exceptions_map = {
         DateForceTimezoneOffsetValueError: ERROR_DATE_FORCE_TIMEZONE_OFFSET_ERROR
     }
@@ -2176,6 +2177,7 @@ class LinkRowFieldType(
         "link_row_table_primary_field",
         "link_row_multiple_relationships",
     ]
+    serializer_extra_args = ["limit_linked_items"]
     serializer_mixins = [LinkRowFieldSerializerMixin]
     serializer_field_overrides = {
         "link_row_table_id": serializers.IntegerField(
@@ -2786,6 +2788,8 @@ class LinkRowFieldType(
         """
 
         required = kwargs.pop("required", False)
+        kwargs.pop("limit_linked_items", None)  # not needed in the request.
+
         if instance.link_row_multiple_relationships is False:
             kwargs["max_length"] = 1
         return LinkRowRequestSerializer(required=required, **kwargs)
@@ -2803,21 +2807,24 @@ class LinkRowFieldType(
 
         link_row_join: LinkRowJoin = kwargs.pop("link_row_join", None)
         if link_row_join is None:
-            return serializers.ListSerializer(
-                child=LinkRowValueSerializer(), **{"required": False, **kwargs}
+            inner_serializer = LinkRowValueSerializer
+        else:
+            inner_serializer = type(
+                str("LinkRowLookupValueSerializer"),
+                (LinkRowValueSerializer,),
+                {
+                    f"{target_field.field_ref}": target_field.field_serializer
+                    for target_field in link_row_join.target_fields
+                },
             )
-        attrs = {
-            f"{target_field.field_ref}": target_field.field_serializer
-            for target_field in link_row_join.target_fields
-        }
-        base_class = LinkRowValueSerializer
-        inner_serializer = type(
-            str("LinkRowLookupValueSerializer"),
-            (base_class,),
-            attrs,
-        )
-        return serializers.ListSerializer(
-            child=inner_serializer(), **{"required": False, **kwargs}
+
+        return LimitListSerializer(
+            child=inner_serializer(),
+            **{
+                "required": False,
+                "limit": kwargs.pop("limit_linked_items", None),
+                **kwargs,
+            },
         )
 
     def get_serializer_help_text(self, instance):
@@ -5200,6 +5207,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         "formula_type",
     ]
     allowed_fields = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + CORE_FORMULA_FIELDS
+    serializer_extra_args = ["limit_linked_items"]
     request_serializer_field_names = (
         BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES + CORE_FORMULA_FIELDS
     )
@@ -5285,19 +5293,38 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         formula_type = self.to_baserow_formula_type(formula_field_instance)
         return formula_type.get_baserow_field_instance_and_type()
 
+    def _filter_serializer_field_kwargs(
+        self, field_type: FieldType, **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Filters the serializer kwargs to only include those that are relevant for
+        the formula field type.
+        """
+
+        kwargs_to_remove = set(self.serializer_extra_args) - set(
+            getattr(field_type, "serializer_extra_args", [])
+        )
+
+        return {
+            key: value for key, value in kwargs.items() if key not in kwargs_to_remove
+        }
+
     def get_serializer_field(self, instance: FormulaField, **kwargs):
         (
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(instance)
-        return field_type.get_serializer_field(field_instance, **kwargs)
+
+        field_kwargs = self._filter_serializer_field_kwargs(field_type, **kwargs)
+        return field_type.get_serializer_field(field_instance, **field_kwargs)
 
     def get_response_serializer_field(self, instance, **kwargs):
         (
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(instance)
-        return field_type.get_response_serializer_field(field_instance, **kwargs)
+        field_kwargs = self._filter_serializer_field_kwargs(field_type, **kwargs)
+        return field_type.get_response_serializer_field(field_instance, **field_kwargs)
 
     def get_model_field(self, instance: FormulaField, **kwargs):
         # When typed_table is False we are constructing a table model without

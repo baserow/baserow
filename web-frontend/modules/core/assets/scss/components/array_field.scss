@@ -18,6 +18,12 @@
     white-space: initial;
     display: flex;
   }
+
+  &.array-field__item--loading {
+    align-items: center;
+    background-color: revert;
+    width: 30px;
+  }
 }
 
 .array-field__ellipsis,

@@ -181,6 +181,8 @@ describe('KanbanView component', () => {
         metadata: {},
         dragging: false,
         loading: true,
+        fetching: false,
+        fullyLoaded: false,
       },
     }
     expect(mockDeleteRowHandler.mock.calls[0][0]).toEqual(expectedRow)
@@ -258,6 +260,8 @@ describe('KanbanView component', () => {
         metadata: {},
         dragging: false,
         loading: true,
+        fetching: false,
+        fullyLoaded: false,
       },
     }
     expect(mockDeleteRowHandler.mock.calls[0][0]).toEqual(expectedRow)

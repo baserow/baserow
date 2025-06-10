@@ -6,6 +6,7 @@ from .views import (
     DuplicateViewView,
     OrderViewsView,
     PublicViewAuthView,
+    PublicViewGetRowView,
     PublicViewInfoView,
     PublicViewLinkRowFieldLookupView,
     RotateViewSlugView,
@@ -107,5 +108,10 @@ urlpatterns = view_type_registry.api_urls + [
         r"(?P<slug>[-\w]+)/public/info/$",
         PublicViewInfoView.as_view(),
         name="public_info",
+    ),
+    re_path(
+        r"(?P<slug>[-\w]+)/row/(?P<row_id>[0-9]+)/$",
+        PublicViewGetRowView.as_view(),
+        name="public_row",
     ),
 ]

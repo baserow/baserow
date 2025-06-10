@@ -26,6 +26,7 @@ from baserow.contrib.database.api.constants import (
     EXCLUDE_COUNT_API_PARAM,
     EXCLUDE_FIELDS_API_PARAM,
     INCLUDE_FIELDS_API_PARAM,
+    LIMIT_LINKED_ITEMS_API_PARAM,
     ONLY_COUNT_API_PARAM,
     PAGINATION_API_PARAMS,
     SEARCH_MODE_API_PARAM,
@@ -145,6 +146,7 @@ class GridViewView(APIView):
             EXCLUDE_FIELDS_API_PARAM,
             SEARCH_VALUE_API_PARAM,
             SEARCH_MODE_API_PARAM,
+            LIMIT_LINKED_ITEMS_API_PARAM,
         ],
         tags=["Database table grid view"],
         operation_id="list_database_table_grid_view_rows",
@@ -714,6 +716,7 @@ class PublicGridViewRowsView(APIView):
             SEARCH_VALUE_API_PARAM,
             SEARCH_MODE_API_PARAM,
             *ADHOC_FILTERS_API_PARAMS,
+            LIMIT_LINKED_ITEMS_API_PARAM,
             OpenApiParameter(
                 name="group_by",
                 location=OpenApiParameter.QUERY,

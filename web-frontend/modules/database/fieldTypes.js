@@ -163,6 +163,7 @@ import RowEditFieldFormula from '@baserow/modules/database/components/row/RowEdi
 import {
   DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY,
   DEFAULT_SORT_TYPE_KEY,
+  LINKED_ITEMS_DEFAULT_LOAD_COUNT,
 } from '@baserow/modules/database/constants'
 import ViewService from '@baserow/modules/database/services/view'
 import FormService from '@baserow/modules/database/services/view/form'
@@ -976,6 +977,21 @@ export class FieldType extends Registerable {
   toBaserowFormulaType(field) {
     return this.getType()
   }
+
+  /**
+   * Checks if all required data for the given field and rows is loaded. Returns true if
+   * any data is missing and needs to be refetched from the server. This is useful, for
+   * example, when copying link row fields with many relations: not all related data is
+   * loaded immediately for performance reasons, but full data is needed for copy/paste
+   * operations.
+   *
+   * @param {Object} field - The field object.
+   * @param {Array} rows - The rows to check.
+   * @returns {boolean} - True if data needs to be refetched, false otherwise.
+   */
+  shouldRefetchFieldData(field, rows) {
+    return false
+  }
 }
 
 class SelectOptionBaseFieldType extends FieldType {
@@ -1603,6 +1619,16 @@ export class LinkRowFieldType extends FieldType {
     }
 
     return false
+  }
+
+  shouldRefetchFieldData(field, rows) {
+    return rows.some((row) => {
+      const fieldValue = row[`field_${field.id}`]
+      return (
+        fieldValue?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
+        !row._?.fullyLoaded
+      )
+    })
   }
 }
 
