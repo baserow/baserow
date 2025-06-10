@@ -40,7 +40,6 @@
       <CreateWorkflowNodeContext
         :ref="`createNodeContext-${slotProps.id}`"
         :last-node-id="slotProps.data.nodeId"
-        :workflow-has-trigger="workflowHasTrigger"
         @change="createNode"
       ></CreateWorkflowNodeContext>
     </template>

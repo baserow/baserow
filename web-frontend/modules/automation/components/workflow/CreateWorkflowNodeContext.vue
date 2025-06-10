@@ -7,9 +7,9 @@
       open-on-mount
       :show-input="false"
       :search-text="
-        workflowHasTrigger
-          ? $t('createWorkflowNodeContext.searchPlaceholderActions')
-          : $t('createWorkflowNodeContext.searchPlaceholderTrigger')
+        !lastNodeId
+          ? $t('createWorkflowNodeContext.searchPlaceholderTrigger')
+          : $t('createWorkflowNodeContext.searchPlaceholderActions')
       "
       @change="onChange"
     >
@@ -38,10 +38,6 @@ export default {
       type: [Number, String],
       required: false,
       default: null,
-    },
-    workflowHasTrigger: {
-      type: Boolean,
-      required: true,
     },
   },
   computed: {
