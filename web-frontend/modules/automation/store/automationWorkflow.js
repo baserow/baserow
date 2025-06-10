@@ -2,6 +2,7 @@ import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import AutomationWorkflowService from '@baserow/modules/automation/services/workflow'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
+import { AUTOMATION_ACTION_SCOPES } from '@baserow/modules/automation/utils/undoRedoConstants'
 
 export function populateAutomationWorkflow(workflow) {
   return {
@@ -69,7 +70,7 @@ const actions = {
   forceCreate({ commit }, { automation, workflow }) {
     commit('ADD_ITEM', { automation, workflow })
   },
-  selectById({ commit, getters }, { automation, workflowId }) {
+  selectById({ commit, dispatch, getters }, { automation, workflowId }) {
     const type = AutomationApplicationType.getType()
 
     // Check if the selected application is an automation
@@ -82,11 +83,22 @@ const actions = {
     // Check if the provided workflowId is found in the selected automation.
     const workflow = getters.getById(automation, workflowId)
 
+    dispatch(
+      'undoRedo/updateCurrentScopeSet',
+      AUTOMATION_ACTION_SCOPES.workflow(workflow.id),
+      { root: true }
+    )
+
     commit('SET_SELECTED', { automation, workflow })
 
     return workflow
   },
-  unselect({ commit }) {
+  unselect({ commit, dispatch }) {
+    dispatch(
+      'undoRedo/updateCurrentScopeSet',
+      AUTOMATION_ACTION_SCOPES.workflow(null),
+      { root: true }
+    )
     commit('UNSELECT')
   },
   async forceDelete({ commit }, { automation, workflow }) {
