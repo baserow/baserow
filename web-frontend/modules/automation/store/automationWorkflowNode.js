@@ -103,6 +103,10 @@ const actions = {
         beforeId = nextNode ? nextNode.id : null
         nodeIndex = prevNodeIndex + 1
       }
+    } else if (existingNodes.length > 0) {
+      // previousNodeId is null and there are existing nodes - add at the beginning
+      beforeId = existingNodes[0].id
+      nodeIndex = 0
     }
 
     // Create a temporary node for optimistic UI

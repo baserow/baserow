@@ -39,7 +39,7 @@
       />
       <CreateWorkflowNodeContext
         :ref="`createNodeContext-${slotProps.id}`"
-        :last-node-id="slotProps.id"
+        :last-node-id="slotProps.data.nodeId"
         :workflow-has-trigger="workflowHasTrigger"
         @change="createNode"
       ></CreateWorkflowNodeContext>
@@ -110,6 +110,7 @@ const zoomOnDoubleClick = ref(false)
 // Constants for positioning
 const NODE_VERTICAL_SPACING = 144 // Vertical distance between the tops of consecutive data nodes
 const ADD_BUTTON_OFFSET_Y = 92 // Vertical offset of add button relative to the data node above it
+const INITIAL_ADD_BUTTON_OFFSET_Y = 52
 const INITIAL_Y_POS = 0
 const DATA_NODE_X_POS = 0
 const ADD_BUTTON_X_POS = 190
@@ -145,16 +146,21 @@ const displayNodes = computed(() => {
   }
 
   // Not readOnly mode: intersperse workflow-add-button-node nodes
-  if (sortedDataNodes.length === 0) {
-    // No data nodes, show a single add button to start the flow
+  if (!workflowHasTrigger.value) {
+    // No nodes, show a single add button to start the flow
     vueFlowNodes.push({
       id: 'initial-workflow-add-button-node',
       type: 'workflow-add-button-node',
       label: '',
-      position: { x: ADD_BUTTON_X_POS, y: ADD_BUTTON_OFFSET_Y },
+      position: {
+        x: ADD_BUTTON_X_POS,
+        y: INITIAL_Y_POS - INITIAL_ADD_BUTTON_OFFSET_Y,
+      },
       data: { nodeId: null, disabled: props.isAddingNode }, // No preceding data node
     })
-  } else {
+  }
+
+  if (sortedDataNodes.length > 0) {
     let currentY = INITIAL_Y_POS
     sortedDataNodes.forEach((dataNode) => {
       const dataNodePosition = { x: DATA_NODE_X_POS, y: currentY }

@@ -47,9 +47,7 @@ export default {
   computed: {
     nodeTypes() {
       return Object.values(this.$registry.getAll('node')).filter((nodeType) => {
-        return this.workflowHasTrigger
-          ? nodeType.isWorkflowAction
-          : nodeType.isTrigger
+        return !this.lastNodeId ? nodeType.isTrigger : nodeType.isWorkflowAction
       })
     },
   },
