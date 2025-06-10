@@ -111,6 +111,7 @@ from .exceptions import (
     ViewDecorationNotSupported,
     ViewDoesNotExist,
     ViewDoesNotSupportFieldOptions,
+    ViewDoesNotSupportListingRows,
     ViewFilterDoesNotExist,
     ViewFilterGroupDoesNotExist,
     ViewFilterNotSupported,
@@ -2796,6 +2797,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param apply_filters: Whether to apply view filters to the resulting queryset.
         :param search_mode: The type of search to perform if a search term is provided.
         :return: The appropriate queryset for the provided view.
+        :raises ViewDoesNotSupportListingRows: When the view type does not support
+            listing rows (i.e. a form view).
         """
 
         if model is None:
@@ -2803,7 +2806,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         queryset = model.objects.all().enhance_by_fields()
 
-        view_type = view_type_registry.get_by_model(view.specific_class)
+        view_type: ViewType = view_type_registry.get_by_model(view.specific_class)
+        if not view_type.can_list_rows:
+            raise ViewDoesNotSupportListingRows(
+                f"The view type {view_type.type} does not support listing rows."
+            )
+
         if view_type.can_filter and apply_filters:
             queryset = self.apply_filters(view, queryset)
         if view_type.can_sort and apply_sorts:
@@ -2812,6 +2820,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 queryset,
                 only_sort_by_field_ids,
             )
+
         if search is not None:
             queryset = queryset.search_all_fields(
                 search, only_search_by_field_ids, search_mode
@@ -3517,16 +3526,16 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
     def get_public_rows_queryset_and_field_ids(
         self,
         view: View,
-        search: str = None,
-        search_mode: Optional[SearchModes] = None,
-        order_by: str = None,
-        group_by: str = None,
-        include_fields: str = None,
-        exclude_fields: str = None,
-        adhoc_filters: Optional[AdHocFilters] = None,
-        table_model: Type[GeneratedTableModel] = None,
-        view_type=None,
-    ):
+        search: str | None = None,
+        search_mode: SearchModes | None = None,
+        order_by: str | None = None,
+        group_by: str | None = None,
+        include_fields: str | None = None,
+        exclude_fields: str | None = None,
+        adhoc_filters: AdHocFilters | None = None,
+        table_model: Type[GeneratedTableModel] | None = None,
+        view_type: ViewType | None = None,
+    ) -> Tuple[QuerySet, List[int], List[django_models.Model]]:
         """
         This function constructs a queryset which applies all the filters
         and restrictions required to only return rows that are supposed to
@@ -3550,6 +3559,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             - A queryset of rows.
             - A list of field_ids of the fields that are visible.
             - A list of field_options of the fields that are visible.
+        :raises ViewDoesNotSupportListingRows: When the view type does not support
+            listing rows (i.e. a form view).
         """
 
         if table_model is None:
@@ -3557,6 +3568,11 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         if view_type is None:
             view_type = view_type_registry.get_by_model(view)
+
+        if not view_type.can_list_rows:
+            raise ViewDoesNotSupportListingRows(
+                f"The view type {view_type.type} does not support listing rows."
+            )
 
         if adhoc_filters is None:
             adhoc_filters = AdHocFilters()

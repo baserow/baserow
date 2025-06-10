@@ -1333,6 +1333,17 @@ def test_get_public_row(api_client, data_fixture):
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
 
+    # Not allow acces rows via a form view
+    form_view = data_fixture.create_form_view(table=table, public=True)
+    for row_id in [row_1.id, row_2.id, row_3.id, row_4.id]:
+        url = reverse(
+            "api:database:views:public_row",
+            kwargs={"slug": form_view.slug, "row_id": row_1.id},
+        )
+        response = api_client.get(url)
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_SUPPORT_LISTING_ROWS"
+
     # Public view, non-existent row
     public_view = data_fixture.create_grid_view(table=table, public=True)
     url = reverse(

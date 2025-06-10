@@ -25,6 +25,7 @@ from baserow.contrib.database.views.exceptions import (
     UnrelatedFieldError,
     ViewDoesNotExist,
     ViewDoesNotSupportFieldOptions,
+    ViewDoesNotSupportListingRows,
     ViewFilterDoesNotExist,
     ViewFilterGroupDoesNotExist,
     ViewFilterNotSupported,
@@ -2408,6 +2409,30 @@ def test_get_public_rows_queryset_and_field_ids_include_exclude_fields(data_fixt
 
     assert queryset.count() == 3
     assert field_ids == [field.id]
+
+
+@pytest.mark.django_db
+def test_get_public_rows_raises_with_form_view(data_fixture):
+    form_view = data_fixture.create_form_view(public=True)
+    field = data_fixture.create_number_field(table=form_view.table)
+
+    model = form_view.table.get_model()
+    model.objects.create(**{f"field_{field.id}": 1})
+
+    with pytest.raises(ViewDoesNotSupportListingRows):
+        ViewHandler().get_public_rows_queryset_and_field_ids(form_view)
+
+
+@pytest.mark.django_db
+def test_get_rows_raises_with_form_view(data_fixture):
+    form_view = data_fixture.create_form_view(public=True)
+    field = data_fixture.create_number_field(table=form_view.table)
+
+    model = form_view.table.get_model()
+    model.objects.create(**{f"field_{field.id}": 1})
+
+    with pytest.raises(ViewDoesNotSupportListingRows):
+        ViewHandler().get_queryset(form_view)
 
 
 @pytest.mark.django_db

@@ -233,6 +233,13 @@ def get_example_row_serializer_class(
             "add_metadata": False,
             "read_only_fields": False,
         },
+        "public_get": {
+            "class_name": "ExamplePublicRowResponseSerializer",
+            "add_id": True,
+            "add_order": True,
+            "add_metadata": False,
+            "read_only_fields": True,
+        },
     }
 
     class_name = config[example_type]["class_name"]

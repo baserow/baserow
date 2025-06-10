@@ -46,6 +46,7 @@ from baserow.contrib.database.api.fields.serializers import LinkRowValueSerializ
 from baserow.contrib.database.api.rows.errors import ERROR_ROW_DOES_NOT_EXIST
 from baserow.contrib.database.api.rows.serializers import (
     RowSerializer,
+    get_example_row_serializer_class,
     get_row_serializer_class,
 )
 from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIST
@@ -97,6 +98,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewDecorationNotSupported,
     ViewDoesNotExist,
     ViewDoesNotSupportFieldOptions,
+    ViewDoesNotSupportListingRows,
     ViewFilterDoesNotExist,
     ViewFilterGroupDoesNotExist,
     ViewFilterNotSupported,
@@ -143,6 +145,7 @@ from .errors import (
     ERROR_VIEW_DECORATION_VALUE_PROVIDER_NOT_COMPATIBLE,
     ERROR_VIEW_DOES_NOT_EXIST,
     ERROR_VIEW_DOES_NOT_SUPPORT_FIELD_OPTIONS,
+    ERROR_VIEW_DOES_NOT_SUPPORT_LISTING_ROWS,
     ERROR_VIEW_FILTER_DOES_NOT_EXIST,
     ERROR_VIEW_FILTER_GROUP_DOES_NOT_EXIST,
     ERROR_VIEW_FILTER_NOT_SUPPORTED,
@@ -2412,7 +2415,9 @@ class PublicViewGetRowView(APIView):
         ),
         request=None,
         responses={
-            200: PublicViewInfoSerializer,
+            200: get_example_row_serializer_class(
+                example_type="public_get", user_field_names=True
+            ),
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
             401: get_error_schema(["ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW"]),
             404: get_error_schema(
@@ -2426,6 +2431,7 @@ class PublicViewGetRowView(APIView):
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             NoAuthorizationToPubliclySharedView: ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
+            ViewDoesNotSupportListingRows: ERROR_VIEW_DOES_NOT_SUPPORT_LISTING_ROWS,
         }
     )
     def get(self, request: Request, slug: str, row_id: int) -> Response:

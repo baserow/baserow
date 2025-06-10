@@ -109,6 +109,10 @@ class ViewDoesNotSupportFieldOptions(Exception):
     """Raised when a view type does not support field options."""
 
 
+class ViewDoesNotSupportListingRows(Exception):
+    """Raised when a view type does not support listing rows."""
+
+
 class FieldAggregationNotSupported(Exception):
     """Raised when the view type does not support field aggregation."""
 

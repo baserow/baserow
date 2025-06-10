@@ -19,12 +19,17 @@ export default {
       )
     },
     isFetchingRow() {
-      return this.row._?.fetching || false
+      return this.row._?.fetching ?? false
     },
   },
-  mounted() {
-    if (this.shouldFetchRow && !this.isFetchingRow) {
-      this.$emit('refresh-row')
-    }
+  watch: {
+    row: {
+      handler() {
+        if (this.shouldFetchRow && !this.isFetchingRow) {
+          this.$emit('refresh-row')
+        }
+      },
+      immediate: true,
+    },
   },
 }
