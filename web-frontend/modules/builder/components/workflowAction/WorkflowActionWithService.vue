@@ -34,7 +34,7 @@ export default {
   },
   computed: {
     workflowActionLoading() {
-      return this.$store.getters['workflowAction/getLoading'](
+      return this.$store.getters['builderWorkflowAction/getLoading'](
         this.workflowAction
       )
     },
