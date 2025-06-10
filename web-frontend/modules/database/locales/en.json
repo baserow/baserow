@@ -1064,7 +1064,10 @@
     "next": "Next",
     "fields": "Select the fields you would like to sync",
     "create": "Create and sync table",
-    "error": "Something went wrong during the sync"
+    "error": "Something went wrong during the sync",
+    "autoAddLabel": "Auto add new properties",
+    "autoAddHelper": "Automatically adds and synchronizes newly available properties to the table. Note that in order for this to work, all properties must be synced."
+
   },
   "syncTableModal": {
     "title": "Sync {name}",

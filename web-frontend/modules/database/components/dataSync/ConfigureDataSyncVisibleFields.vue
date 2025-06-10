@@ -17,12 +17,31 @@
           :key="property.key"
           class="margin-top-2"
           small
-          :value="syncedProperties.includes(property.key)"
-          :disabled="property.unique_primary || updateLoading"
+          :value="
+            syncedProperties.includes(property.key) || autoAddNewProperties
+          "
+          :disabled="
+            property.unique_primary || autoAddNewProperties || updateLoading
+          "
           @input=";[toggleVisibleField(property.key), (completed = false)]"
         >
           <i :class="getFieldTypeIconClass(property.field_type)"></i>
           {{ property.name }}</SwitchInput
+        >
+      </FormGroup>
+      <FormGroup
+        small-label
+        class="margin-top-2"
+        :helper-text="$t('createDataSync.autoAddHelper')"
+      >
+        <SwitchInput
+          v-model="autoAddNewProperties"
+          class="margin-top-2"
+          small
+          :disabled="updateLoading"
+          @input="completed = false"
+        >
+          {{ $t('createDataSync.autoAddLabel') }}</SwitchInput
         >
       </FormGroup>
       <Error :error="error"></Error>
@@ -85,6 +104,7 @@ export default {
     return {
       completed: false,
       syncTableValue: true,
+      autoAddNewProperties: false,
     }
   },
   mounted() {
@@ -92,6 +112,7 @@ export default {
     this.syncedProperties = this.table.data_sync.synced_properties.map(
       (p) => p.key
     )
+    this.autoAddNewProperties = this.table.data_sync.auto_add_new_properties
     this.fetchExistingProperties(this.table)
   },
   methods: {
@@ -103,6 +124,7 @@ export default {
         this.table,
         {
           synced_properties: this.syncedProperties,
+          auto_add_new_properties: this.autoAddNewProperties,
         },
         this.syncTableValue
       )
