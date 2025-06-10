@@ -32,13 +32,14 @@ export default defineComponent({
     defaultValues.value = { ...props.service }
 
     const emitServiceChange = (newValues) => {
-      const updated = { ...defaultValues, ...newValues }
       const differences = Object.fromEntries(
-        Object.entries(updated).filter(
-          ([key, value]) => !_.isEqual(value, defaultValues[key])
+        Object.entries(newValues).filter(
+          ([key, value]) => !_.isEqual(value, defaultValues.value[key])
         )
       )
-      emit('values-changed', differences)
+      if (Object.keys(differences).length > 0) {
+        emit('values-changed', differences)
+      }
     }
 
     return {

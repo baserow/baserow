@@ -133,14 +133,12 @@ const displayNodes = computed(() => {
     return sortedDataNodes.map((node) => {
       const position = { x: DATA_NODE_X_POS, y: currentY }
       currentY += NODE_VERTICAL_SPACING // Increment Y for the next node
-      const nodeType = app.$registry.get('node', node.type)
-
       return {
         ...node,
         id: node.id.toString(), // VueFlow expects string IDs
         position,
         type: 'workflow-node',
-        data: { readOnly: props.readOnly, isTrigger: nodeType.isTrigger },
+        data: { readOnly: props.readOnly },
       }
     })
   }
@@ -177,7 +175,6 @@ const displayNodes = computed(() => {
         data: {
           readOnly: props.readOnly,
           isTrigger: nodeType.isTrigger,
-          isInError: nodeType.isInError({ service: dataNode.service }),
         },
       })
 

@@ -53,6 +53,14 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * The icon which is shown inside the editor's node.
+   * @returns {string} - The node's icon class.
+   */
+  get iconClass() {
+    return 'iconoir-table'
+  }
+
+  /**
    * The node type's image, which will be displayed in dropdowns.
    * @returns - The node's image.
    */

@@ -23,9 +23,10 @@
       <component
         :is="nodeType.formComponent"
         :key="node.id"
-        :service="node.service"
         :loading="nodeLoading"
+        :service="node.service"
         :application="automation"
+        :default-values="node.service"
         class="node-form margin-top-2"
         @values-changed="handleNodeServiceChange"
       />
@@ -44,6 +45,7 @@ import {
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AutomationBuilderFormulaInput from '@baserow/modules/automation/components/AutomationBuilderFormulaInput'
 import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation/enums'
+import _ from 'lodash'
 
 const store = useStore()
 const { app } = useContext()

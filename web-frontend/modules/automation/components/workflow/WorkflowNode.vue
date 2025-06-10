@@ -8,17 +8,16 @@
     "
   >
     <div class="workflow-editor__node-icon">
-      <i class="iconoir-table"></i>
+      <i :class="loading ? 'loading' : nodeType.iconClass"></i>
     </div>
 
     <h1 class="workflow-editor__node-title">{{ props.label }}</h1>
 
-    <Badge v-if="props.data.isInError" rounded color="yellow" size="large">
+    <Badge v-if="isInError" rounded color="yellow" size="large">
       {{ $t('workflowNode.actionConfigure') }}</Badge
     >
 
     <a
-      v-if="!props.data.readOnly"
       ref="editNodeContextToggle"
       role="button"
       title="Node options"
@@ -57,6 +56,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useVueFlow } from '@vue2-flow/core'
+import { useStore, useContext, inject, computed } from '@nuxtjs/composition-api'
 
 const { onMove } = useVueFlow()
 const props = defineProps({
@@ -78,7 +78,7 @@ const props = defineProps({
   },
   data: {
     type: Object,
-    default: () => ({ readOnly: false, isInError: false }),
+    default: () => ({ readOnly: false }),
   },
 })
 
@@ -91,6 +91,25 @@ const openContext = () => {
     contextMenu.value.toggle(editNodeContextToggle.value, 'bottom', 'left', 0)
   }
 }
+
+const store = useStore()
+const { app } = useContext()
+const currentWorkflow = inject('currentWorkflow')
+const node = computed(() => {
+  return store.getters['automationWorkflowNode/findById'](
+    currentWorkflow.value,
+    props.id
+  )
+})
+const nodeType = computed(() => {
+  return app.$registry.get('node', node.value.type)
+})
+const loading = computed(() => {
+  return store.getters['automationWorkflowNode/getLoading'](node.value)
+})
+const isInError = computed(() => {
+  return nodeType.value.isInError({ service: node.value.service })
+})
 
 // Hide the context menu when user pan the canvas
 onMove(() => {
