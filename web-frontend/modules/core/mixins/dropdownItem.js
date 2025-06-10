@@ -81,8 +81,8 @@ export default {
       this.$emit('click', value)
     },
     hover(value, disabled) {
-      if (!disabled && this.parent.hover !== value) {
-        this.parent.hover = value
+      if (!disabled && this.parent.focusedDropdownItem !== value) {
+        this.parent.focusedDropdownItem = value
       }
     },
     search(query) {
@@ -90,11 +90,10 @@ export default {
       return this.isVisible(query)
     },
     isVisible(query) {
-      if (!query) {
-        return true
-      }
+      if (!query) return true
+      if (query.trim().length === 0) return false
       const regex = new RegExp('(' + escapeRegExp(query) + ')', 'i')
-      return this.name.match(regex) || this.alias?.match(regex)
+      return Boolean(this.name.match(regex) || this.alias?.match(regex))
     },
     isActive(value) {
       if (this.multiple.value) {
@@ -105,7 +104,7 @@ export default {
       }
     },
     isHovering(value) {
-      return this.parent.hover === value
+      return this.parent.focusedDropdownItem === value
     },
   },
 }

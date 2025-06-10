@@ -5,41 +5,130 @@ import {
 } from '@baserow/modules/automation/nodeTypeMixins'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
+  LocalBaserowUpdateRowWorkflowServiceType,
+  LocalBaserowDeleteRowWorkflowServiceType,
   LocalBaserowRowsCreatedTriggerServiceType,
+  LocalBaserowRowsDeletedTriggerServiceType,
+  LocalBaserowRowsUpdatedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
+import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
 
 export class NodeType extends Registerable {
+  /**
+   * The display name of the node type, we use this value
+   * in create/update node lists.
+   * The name is derived from the service type's name.
+   * @returns {string} - The display name for the node.
+   */
   get name() {
     return this.serviceType.name
   }
 
+  /**
+   * The display label of the node type, we use this value
+   * in the editor when rendering the node. By default, it
+   * just returns the name, but can be overridden.
+   * @returns {string} - The display label for the node.
+   */
+  getLabel({ node }) {
+    return this.name
+  }
+
+  /**
+   * The node type's description.
+   * The description is derived from the service type's description.
+   * @returns {string} - The node's description.
+   */
   get description() {
     return this.serviceType.description
   }
 
+  /**
+   * New nodes must implement this method to return their
+   * specific service type.
+   * @throws {Error} If the method is not implemented.
+   */
   get serviceType() {
     throw new Error('This method must be implemented')
   }
 
-  get iconClass() {
-    return null
+  /**
+   * The node type's image, which will be displayed in dropdowns.
+   * @returns - The node's image.
+   */
+  get image() {
+    return localBaserowIntegration
   }
 
+  /**
+   * The node type's editor component. Not yet implemented.
+   * @returns {object|null} - The node's editor component.
+   */
   get component() {
     return null
   }
 
+  /**
+   * The node type's form component.
+   * The component is derived from the service type's form component.
+   * @returns {object} - The node's form component.
+   */
   get formComponent() {
     return this.serviceType.formComponent
   }
 
-  isInError({ node, automation }) {
-    return this.serviceType.isInError({ service: node.service })
+  /**
+   * Returns whether the node is in-error or not.
+   * By default, this is derived from the service type's `isInError`
+   * method, but can be overridden by the node type.
+   * @returns {boolean} - Whether the properties are in-error.
+   */
+  isInError({ service }) {
+    return this.serviceType.isInError({ service })
+  }
+}
+
+export class LocalBaserowNodeType extends NodeType {
+  /**
+   * Responsible for returning contextual data for a node label template.
+   * At the moment we only refer to the table name.
+   *
+   * @param automation - the automation the node belongs to.
+   * @param node - The node for which the label context is being retrieved.
+   * @returns {object} - An object containing the table name.
+   */
+  getLabelContext({ automation, node }) {
+    const integration = this.app.store.getters[
+      'integration/getIntegrationById'
+    ](automation, node.service?.integration_id)
+    const databases = integration?.context_data?.databases || []
+    const tableSelected = databases
+      .map((database) => database.tables)
+      .flat()
+      .find(({ id }) => id === node.service.table_id)
+
+    return { tableName: tableSelected?.name }
+  }
+
+  /**
+   * Responsible for returning this Local Baserow node's label, which is
+   * displayed in the editor.
+   *
+   * @param automation - The automation the node belongs to.
+   * @param node - The node for which the label is being retrieved.
+   * @returns {string} - if a table name is found, it returns the label
+   *  referencing the table name, otherwise it returns the node's `name`.
+   */
+  getLabel({ automation, node }) {
+    const { tableName } = this.getLabelContext({ automation, node })
+    return tableName
+      ? this.app.i18n.t(this.labelTemplateName, { tableName })
+      : this.name
   }
 }
 
 export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin(
-  NodeType
+  LocalBaserowNodeType
 ) {
   static getType() {
     return 'rows_created'
@@ -47,6 +136,10 @@ export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin
 
   getOrder() {
     return 1
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowRowsCreatedLabel'
   }
 
   get serviceType() {
@@ -57,21 +150,117 @@ export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin
   }
 }
 
-export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
-  NodeType
+export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin(
+  LocalBaserowNodeType
 ) {
   static getType() {
-    return 'create_row'
+    return 'rows_updated'
   }
 
   getOrder() {
     return 2
   }
 
+  get labelTemplateName() {
+    return 'nodeType.localBaserowRowsUpdatedLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowRowsUpdatedTriggerServiceType.getType()
+    )
+  }
+}
+
+export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin(
+  LocalBaserowNodeType
+) {
+  static getType() {
+    return 'rows_deleted'
+  }
+
+  getOrder() {
+    return 3
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowRowsDeletedLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowRowsDeletedTriggerServiceType.getType()
+    )
+  }
+}
+
+export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
+  LocalBaserowNodeType
+) {
+  static getType() {
+    return 'create_row'
+  }
+
+  getOrder() {
+    return 1
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowCreateRowLabel'
+  }
+
   get serviceType() {
     return this.app.$registry.get(
       'service',
       LocalBaserowCreateRowWorkflowServiceType.getType()
+    )
+  }
+}
+
+export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
+  LocalBaserowNodeType
+) {
+  static getType() {
+    return 'update_row'
+  }
+
+  getOrder() {
+    return 2
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowUpdateRowLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowUpdateRowWorkflowServiceType.getType()
+    )
+  }
+}
+
+export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
+  LocalBaserowNodeType
+) {
+  static getType() {
+    return 'delete_row'
+  }
+
+  getOrder() {
+    return 3
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowDeleteRowLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowDeleteRowWorkflowServiceType.getType()
     )
   }
 }

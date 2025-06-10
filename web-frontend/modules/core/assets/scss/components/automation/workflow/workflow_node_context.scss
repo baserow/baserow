@@ -1,0 +1,12 @@
+.workflow-node__context {
+  width: 500px;
+  border: none;
+
+  .dropdown__items {
+    width: 500px;
+  }
+
+  .select__items {
+    max-height: fit-content;
+  }
+}

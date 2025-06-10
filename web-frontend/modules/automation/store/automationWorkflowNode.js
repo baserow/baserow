@@ -12,20 +12,24 @@ const updateCachedValues = (workflow) => {
   )
 }
 
+export function populateNode(node) {
+  return { ...node, _: { loading: false } }
+}
+
 const mutations = {
   SET_ITEMS(state, { workflow, nodes }) {
-    workflow.nodes = nodes || []
+    workflow.nodes = nodes.map((node) => populateNode(node))
     workflow.selectedNode = null
     updateCachedValues(workflow)
   },
   ADD_ITEM(state, { workflow, node }) {
-    workflow.nodes.push(node)
+    workflow.nodes.push(populateNode(node))
     updateCachedValues(workflow)
   },
   UPDATE_ITEM(state, { workflow, node, values }) {
     const index = workflow.nodes.findIndex((item) => item.id === node.id)
     if (index !== -1) {
-      Object.assign(workflow.nodes[index], values)
+      Object.assign(workflow.nodes[index], populateNode(values))
     }
     updateCachedValues(workflow)
   },
@@ -47,11 +51,14 @@ const mutations = {
     updateCachedValues(workflow)
   },
   ADD_ITEM_AT(state, { workflow, node, index }) {
-    workflow.nodes.splice(index, 0, node)
+    workflow.nodes.splice(index, 0, populateNode(node))
     updateCachedValues(workflow)
   },
   SELECT_ITEM(state, { workflow, node }) {
     workflow.selectedNode = node
+  },
+  SET_LOADING(state, { node, value }) {
+    node._.loading = value
   },
 }
 
@@ -96,6 +103,10 @@ const actions = {
         beforeId = nextNode ? nextNode.id : null
         nodeIndex = prevNodeIndex + 1
       }
+    } else if (existingNodes.length > 0) {
+      // previousNodeId is null and there are existing nodes - add at the beginning
+      beforeId = existingNodes[0].id
+      nodeIndex = 0
     }
 
     // Create a temporary node for optimistic UI
@@ -120,7 +131,8 @@ const actions = {
       commit('ADD_ITEM_AT', { workflow, node, index: nodeIndex })
 
       setTimeout(() => {
-        dispatch('select', { workflow, node })
+        const populatedNode = getters.findById(workflow, node.id)
+        dispatch('select', { workflow, node: populatedNode })
       })
 
       return node
@@ -132,6 +144,7 @@ const actions = {
   },
   async update({ commit, getters }, { workflow, nodeId, values }) {
     const node = getters.findById(workflow, nodeId)
+    commit('SET_LOADING', { node, value: true })
     const originalNode = { ...node }
     commit('UPDATE_ITEM', { workflow, node, values })
 
@@ -154,6 +167,8 @@ const actions = {
       })
       commit('UPDATE_ITEM', { workflow, node, values: rollbackValues })
       throw error
+    } finally {
+      commit('SET_LOADING', { node, value: false })
     }
   },
   async delete({ commit, dispatch, getters }, { workflow, nodeId }) {
@@ -210,6 +225,9 @@ const getters = {
   getSelected: (state) => (workflow) => {
     if (!workflow) return null
     return workflow.selectedNode
+  },
+  getLoading: (state) => (node) => {
+    return node._.loading || false
   },
 }
 

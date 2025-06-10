@@ -121,12 +121,12 @@ export default defineComponent({
       isWorkflowReadOnly.value = newReadOnlyState
     }
 
-    const handleAddNode = async ({ previousNodeId }) => {
+    const handleAddNode = async ({ type, previousNodeId }) => {
       try {
         isAddingNode.value = true
         await store.dispatch('automationWorkflowNode/create', {
           workflow: currentWorkflow.value,
-          type: previousNodeId === null ? 'rows_created' : 'create_row',
+          type,
           previousNodeId,
         })
       } catch (err) {

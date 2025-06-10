@@ -23,8 +23,8 @@
       <component
         :is="nodeType.formComponent"
         :key="node.id"
-        :node="node"
-        :workflow-action="node"
+        :service="node.service"
+        :loading="nodeLoading"
         :application="automation"
         class="node-form margin-top-2"
         @values-changed="handleNodeServiceChange"
@@ -62,6 +62,10 @@ const handleNodeServiceChange = (newServiceChanges) => {
     values: updatedNode,
   })
 }
+
+const nodeLoading = computed(() => {
+  return store.getters['automationWorkflowNode/getLoading'](node.value)
+})
 
 const nodeTypes = computed(() => app.$registry.getOrderedList('node'))
 const siblingNodeTypes = computed(() =>

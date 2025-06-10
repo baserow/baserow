@@ -4,11 +4,9 @@
       <i class="iconoir-table"></i>
     </div>
 
-    <h1 class="workflow-editor__node-title">
-      {{ props.id }} Row is created in Projects very long text
-    </h1>
+    <h1 class="workflow-editor__node-title">{{ props.label }}</h1>
 
-    <Badge rounded color="yellow" size="large">
+    <Badge v-if="props.data.isInError" rounded color="yellow" size="large">
       {{ $t('workflowNode.actionConfigure') }}</Badge
     >
 
@@ -68,7 +66,7 @@ const props = defineProps({
   },
   data: {
     type: Object,
-    default: () => ({ readOnly: false }),
+    default: () => ({ readOnly: false, isInError: false }),
   },
 })
 

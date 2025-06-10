@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent>
     <LocalBaserowServiceForm
-      :application="automation"
+      :application="application"
       :default-values="defaultValues"
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
@@ -9,25 +9,27 @@
 </template>
 
 <script>
-import { defineComponent, ref, inject } from 'vue'
+import { defineComponent, ref } from 'vue'
 import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm'
 import _ from 'lodash'
 
 export default defineComponent({
-  name: 'LocalBaserowRowsCreatedServiceForm',
+  name: 'LocalBaserowSignalTriggerServiceForm',
   components: { LocalBaserowServiceForm },
   props: {
-    node: {
+    application: {
+      type: Object,
+      required: true,
+    },
+    service: {
       type: Object,
       required: true,
     },
   },
   emits: ['values-changed'],
   setup(props, { emit }) {
-    const automation = inject('automation')
-
     const defaultValues = ref({})
-    defaultValues.value = { ...props.node.service }
+    defaultValues.value = { ...props.service }
 
     const emitServiceChange = (newValues) => {
       const updated = { ...defaultValues, ...newValues }
@@ -40,7 +42,6 @@ export default defineComponent({
     }
 
     return {
-      automation,
       defaultValues,
       emitServiceChange,
     }

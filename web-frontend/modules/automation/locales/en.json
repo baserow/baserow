@@ -52,14 +52,21 @@
     "description": "When this automation has run, the results will be shown here."
   },
   "nodeType": {
-    "localBaserowRowsCreated": "Rows created",
-    "localBaserowRowsCreatedDescription": "This node is triggered when one or more rows are created in a Baserow table.",
-    "localBaserowCreateRow": "Create row",
-    "localBaserowCreateRowDescription": "This node creates a new row in a Baserow table."
+    "localBaserowRowsCreatedLabel": "Rows are created in {tableName}",
+    "localBaserowRowsUpdatedLabel": "Rows are updated in {tableName}",
+    "localBaserowRowsDeletedLabel": "Rows are deleted in {tableName}",
+    "localBaserowCreateRowLabel": "Create a row in {tableName}",
+    "localBaserowUpdateRowLabel": "Update a row in {tableName}",
+    "localBaserowDeleteRowLabel": "Delete a row in {tableName}"
   },
   "workflowNode": {
     "actionDelete": "Delete action",
     "actionDuplicate": "Duplicate action",
     "actionConfigure": "Configure"
+  },
+  "createWorkflowNodeContext": {
+    "searchPlaceholderTrigger": "Search for a trigger...",
+    "searchPlaceholderActions": "Search for actions...",
+    "noResults": "No results found"
   }
 }

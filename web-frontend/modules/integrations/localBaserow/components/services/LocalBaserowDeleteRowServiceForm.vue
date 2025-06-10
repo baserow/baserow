@@ -6,7 +6,7 @@
 import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm'
 
 export default {
-  name: 'DeleteRowWorkflowActionForm',
+  name: 'LocalBaserowDeleteRowServiceForm',
   components: {
     LocalBaserowServiceForm,
   },
