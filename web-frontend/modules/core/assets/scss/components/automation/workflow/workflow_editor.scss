@@ -14,6 +14,15 @@
   @include rounded($rounded-xl);
 }
 
+.workflow-editor__node::before {
+  content: attr(data-before-label);
+  position: absolute;
+  top: -25px;
+  left: 0;
+  color: $palette-neutral-900;
+  font-weight: 500;
+}
+
 .workflow-editor__node-more-icon {
   color: $palette-neutral-800;
   font-size: 20px;

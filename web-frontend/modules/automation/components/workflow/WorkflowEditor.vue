@@ -175,6 +175,7 @@ const displayNodes = computed(() => {
         position: dataNodePosition,
         data: {
           readOnly: props.readOnly,
+          isTrigger: nodeType.isTrigger,
           isInError: nodeType.isInError({ service: dataNode.service }),
         },
       })

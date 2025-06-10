@@ -1,5 +1,12 @@
 <template>
-  <div class="workflow-editor__node">
+  <div
+    class="workflow-editor__node"
+    :data-before-label="
+      props.data.isTrigger
+        ? $t('workflowNode.beforeLabelTrigger')
+        : $t('workflowNode.beforeLabelAction')
+    "
+  >
     <div class="workflow-editor__node-icon">
       <i class="iconoir-table"></i>
     </div>
@@ -20,6 +27,7 @@
     </a>
 
     <Context ref="contextMenu" overflow-scroll max-height-if-outside-viewport>
+      <div class="context__menu-title">{{ label }} ({{ props.id }})</div>
       <ul class="context__menu">
         <li class="context__menu-item">
           <a
@@ -76,7 +84,7 @@ const contextMenu = ref(null)
 const editNodeContextToggle = ref(null)
 const openContext = () => {
   if (contextMenu.value && editNodeContextToggle.value) {
-    contextMenu.value.toggle(editNodeContextToggle.value, 'bottom', 'right', 0)
+    contextMenu.value.toggle(editNodeContextToggle.value, 'bottom', 'left', 0)
   }
 }
 

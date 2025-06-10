@@ -62,7 +62,9 @@
   "workflowNode": {
     "actionDelete": "Delete action",
     "actionDuplicate": "Duplicate action",
-    "actionConfigure": "Configure"
+    "actionConfigure": "Configure",
+    "beforeLabelTrigger": "Starts when",
+    "beforeLabelAction": "Then"
   },
   "createWorkflowNodeContext": {
     "searchPlaceholderTrigger": "Search for a trigger...",
