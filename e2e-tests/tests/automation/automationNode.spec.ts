@@ -1,5 +1,7 @@
 import { expect, test } from "../baserowTest";
 
+import { createAutomationNode } from "../../fixtures/automation/automationNode";
+
 test.describe("Automation node test suite", () => {
   test.beforeEach(async ({ automationWorkflowPage }) => {
     await automationWorkflowPage.goto();
@@ -7,21 +9,28 @@ test.describe("Automation node test suite", () => {
 
   test("Can create an automation node", async ({ page }) => {
     const createNodeButton = page.getByRole("button", { name: "Create automation node" });
-    createNodeButton.click();
+    await createNodeButton.click();
 
-    const nodeDiv = page.getByRole('heading', {
-      name: /^\d+ Row is created/,
+    const rowsCreatedOption = page.getByText("Rows created")
+    await expect(rowsCreatedOption).toBeVisible();
+    await rowsCreatedOption.click();
+    
+    const nodeDiv = page.getByRole("heading", {
+      name: "Rows Created",
       level: 1,
     });
     await expect(nodeDiv).toBeVisible();
   });
 
-  test("Can delete an automation node", async ({ page }) => {
-    const createNodeButton = page.getByRole("button", { name: "Create automation node" });
-    createNodeButton.click();
+  test("Can delete an automation node", async ({ page, automationWorkflowPage }) => {
+    await createAutomationNode(automationWorkflowPage.automationWorkflow, "rows_created")
 
-    const nodeDiv = page.getByRole('heading', {
-      name: /^\d+ Row is created/,
+    // TODO: Remove this manual reload once real-time events have been
+    // implemented for automations.
+    await page.reload();
+
+    const nodeDiv = page.getByRole("heading", {
+      name: "Rows Created",
       level: 1,
     });
     await expect(nodeDiv).toBeVisible();
