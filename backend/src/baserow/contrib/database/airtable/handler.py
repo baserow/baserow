@@ -3,6 +3,7 @@ import re
 from collections import defaultdict
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from http import HTTPStatus
 from io import BytesIO, IOBase
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -36,6 +37,7 @@ from baserow.core.export_serialized import CoreExportSerializedStructure
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig
+from baserow.core.user_files.exceptions import FileDownloadFailed
 from baserow.core.utils import (
     ChildProgressBuilder,
     Progress,
@@ -51,8 +53,10 @@ from .exceptions import (
     AirtableSkipCellValue,
 )
 from .import_report import (
+    ERROR_TYPE_OTHER,
     ERROR_TYPE_UNSUPPORTED_FEATURE,
     SCOPE_AUTOMATIONS,
+    SCOPE_CELL,
     SCOPE_FIELD,
     SCOPE_INTERFACES,
     SCOPE_VIEW,
@@ -115,6 +119,12 @@ class AirtableFileImport:
                 request_id=self.request_id,
                 cookies=self.cookies,
             )
+
+        if response.status_code != 200:
+            raise FileDownloadFailed(
+                f"Downloading file {name} failed with status code {response.status_code}."
+            )
+
         stream = BytesIO(response.content)
         try:
             yield stream
@@ -177,7 +187,9 @@ class AirtableHandler:
         return request_id, init_data, cookies
 
     @staticmethod
-    def make_airtable_request(init_data: dict, request_id: str, **kwargs) -> Response:
+    def make_airtable_request(
+        init_data: dict, request_id: str, headers=None, **kwargs
+    ) -> Response:
         """
         Helper method to make a valid request to to Airtable with the correct headers
         and params.
@@ -185,9 +197,13 @@ class AirtableHandler:
         :param init_data: The init_data returned by the initially requested shared base.
         :param request_id: The request_id returned by the initially requested shared
             base.
+        :param headers: The headers to be passed into the `requests` request.
         :param kwargs: THe kwargs that must be passed into the `requests.get` method.
         :return: The requests Response object related to the request.
         """
+
+        if headers is None:
+            headers = BASE_HEADERS
 
         application_id = list(init_data["rawApplications"].keys())[0]
         client_code_version = init_data["codeVersion"]
@@ -208,7 +224,7 @@ class AirtableHandler:
                 "X-Requested-With": "XMLHttpRequest",
                 "x-time-zone": "Europe/Amsterdam",
                 "x-user-locale": "en",
-                **BASE_HEADERS,
+                **headers,
             },
             timeout=3 * 60,  # it can take quite a while for Airtable to respond.
             **kwargs,
@@ -315,6 +331,7 @@ class AirtableHandler:
         request_id: str,
         cookies: dict,
         stream=True,
+        headers=None,
     ) -> Response:
         """
         :param row_id: The Airtable row id of the attachment that must be fetched.
@@ -331,6 +348,7 @@ class AirtableHandler:
         :param stream: Indicates whether the request should be streamed. This could be
             useful if we want to show a progress bar. It will directly be passed into
             the `requests` request.
+        :param headers: The headers to be passed into the `requests` request.
         :return: The `requests` response containing the result.
         """
 
@@ -348,6 +366,7 @@ class AirtableHandler:
             params={"stringifiedObjectParams": json.dumps(stringified_object_params)},
             cookies=cookies,
             allow_redirects=True,
+            headers=headers,
         )
         return response
 
@@ -827,6 +846,56 @@ class AirtableHandler:
         return exported_tables, files_to_download
 
     @classmethod
+    def check_files_are_downloadable(
+        cls,
+        files_to_download: dict,
+        init_data: dict,
+        request_id: str,
+        cookies: dict,
+        import_report: AirtableImportReport,
+    ):
+        """
+        Checks if the files are downloadable by making a request to the file url
+        and fetching few first bytes.
+
+        :param files_to_download: A dict containing the files to download.
+        :param init_data: The init_data, extracted from the initial page related to the
+            shared base.
+        :param request_id: The request_id returned by the initially requested shared
+            base.
+        :param cookies: The cookies dict returned by the initially requested shared
+            base.
+        """
+
+        for file_name, download_file in files_to_download.items():
+            headers = BASE_HEADERS.copy()
+            headers["Range"] = "bytes=0-5"
+
+            if download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH:
+                response = requests.get(
+                    download_file.url, headers=headers
+                )  # nosec B113
+            elif download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_ATTACHMENT_ENDPOINT:
+                response = AirtableHandler.fetch_attachment(
+                    row_id=download_file.row_id,
+                    column_id=download_file.column_id,
+                    attachment_id=download_file.attachment_id,
+                    init_data=init_data,
+                    request_id=request_id,
+                    cookies=cookies,
+                    headers=headers,
+                )
+
+            if response.status_code not in [HTTPStatus.OK, HTTPStatus.PARTIAL_CONTENT]:
+                import_report.add_failed(
+                    file_name,
+                    SCOPE_CELL,
+                    "",
+                    ERROR_TYPE_OTHER,
+                    f"File {file_name} could not be downloaded (HTTP {response.status_code}).",
+                )
+
+    @classmethod
     def to_baserow_database_export(
         cls,
         init_data: dict,
@@ -945,6 +1014,8 @@ class AirtableHandler:
             **DatabaseExportSerializedStructure.database(tables=exported_tables)
         )
 
+        report_items_count = len(import_report.items)
+
         # After all the tables have been converted to Baserow format, we must
         # download all the user files. Because we first want to the whole conversion to
         # be completed and because we want this to be added to the progress bar, this is
@@ -957,6 +1028,18 @@ class AirtableHandler:
             config,
             progress.create_child_builder(represents_progress=500),
             download_files_buffer,
+        )
+
+        cls.check_files_are_downloadable(
+            files_to_download,
+            init_data,
+            request_id,
+            cookies,
+            import_report,
+        )
+
+        import_report.append_items_to_exported_table(
+            exported_database, import_report.items[report_items_count:]
         )
 
         return exported_database, user_files_zip

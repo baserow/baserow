@@ -50,3 +50,9 @@ class MaximumUniqueTriesError(Exception):
     Raised when the maximum tries has been exceeded while generating a unique user file
     string.
     """
+
+
+class FileDownloadFailed(Exception):
+    """
+    Raised when a file download fails.
+    """

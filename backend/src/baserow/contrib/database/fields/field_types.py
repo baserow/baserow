@@ -157,7 +157,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
-from baserow.core.user_files.exceptions import UserFileDoesNotExist
+from baserow.core.user_files.exceptions import FileDownloadFailed, UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import grouper, list_to_comma_separated_string
 
@@ -3971,16 +3971,20 @@ class FileFieldType(FieldType):
             if files_zip is None:
                 files.append(file)
             else:
-                with files_zip.open(file["name"]) as stream:
-                    # Try to upload the user file with the original name to make sure
-                    # that if the was already uploaded, it will not be uploaded again.
-                    user_file = user_file_handler.upload_user_file(
-                        None, file["original_name"], stream, storage=storage
-                    )
+                try:
+                    with files_zip.open(file["name"]) as stream:
+                        # Try to upload the user file with the original name
+                        # to make sure that if the was already uploaded, it will
+                        # not be uploaded again.
+                        user_file = user_file_handler.upload_user_file(
+                            None, file["original_name"], stream, storage=storage
+                        )
 
-                value = user_file.serialize()
-                value["visible_name"] = file["visible_name"]
-                files.append(value)
+                    value = user_file.serialize()
+                    value["visible_name"] = file["visible_name"]
+                    files.append(value)
+                except FileDownloadFailed:
+                    logger.exception(f"File {file['name']} not found.")
 
         setattr(row, field_name, files)
 
