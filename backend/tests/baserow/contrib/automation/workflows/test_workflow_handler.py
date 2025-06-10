@@ -41,7 +41,7 @@ def test_get_workflow_excludes_trashed_application(data_fixture):
 @pytest.mark.django_db
 def test_get_workflows(data_fixture):
     workflow = data_fixture.create_automation_workflow()
-    workflows = AutomationWorkflowHandler().get_workflows(workflow.id)
+    workflows = AutomationWorkflowHandler().get_workflows(workflow.automation.id)
     assert [w.id for w in workflows] == [workflow.id]
 
 
