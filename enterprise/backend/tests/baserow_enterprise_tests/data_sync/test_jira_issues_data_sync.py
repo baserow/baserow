@@ -1256,6 +1256,7 @@ def test_create_data_sync_personal_access_token(enterprise_data_fixture, api_cli
         ],
         "last_sync": None,
         "last_error": None,
+        "auto_add_new_properties": False,
         "jira_url": "https://test.atlassian.net",
         "jira_authentication": "PERSONAL_ACCESS_TOKEN",
         "jira_project_key": "",
