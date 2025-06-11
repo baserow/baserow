@@ -18,6 +18,7 @@ import automationWorkflowStore from '@baserow/modules/automation/store/automatio
 import automationWorkflowNodeStore from '@baserow/modules/automation/store/automationWorkflowNode'
 import {
   LocalBaserowCreateRowActionNodeType,
+  LocalBaserowUpdateRowActionNodeType,
   LocalBaserowRowsCreatedTriggerNodeType,
   LocalBaserowRowsUpdatedTriggerNodeType,
   LocalBaserowRowsDeletedTriggerNodeType,
@@ -75,6 +76,10 @@ export default (context) => {
     app.$registry.register(
       'node',
       new LocalBaserowCreateRowActionNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowUpdateRowActionNodeType(context)
     )
     app.$registry.register(
       'job',
