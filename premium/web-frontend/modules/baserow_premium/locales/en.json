@@ -364,5 +364,8 @@
   },
   "publicViewExport": {
     "export": "Export"
+  },
+  "chart": {
+    "other": "Other"
   }
 }
