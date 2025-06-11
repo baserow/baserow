@@ -149,7 +149,7 @@ class FieldType(
     `FieldHandler::get_unique_row_values` method.
     """
 
-    can_have_db_index = False
+    _can_have_db_index = False
     """
     Indicates whether a `db_index` can be true on the model field. If so, then it's
     optionally possible for to add an index to the field.
@@ -1630,6 +1630,18 @@ class FieldType(
         """
 
         return self._can_be_primary_field
+
+    def can_have_db_index(self, field_or_values: Union[Field, dict]) -> bool:
+        """
+        Override this method if this field type can have an index.
+
+        :param field_or_values: The field object or the values to create/update it.
+            It accepts either because in some cases the field object doesn't exist,
+            but we do need to check if the field can be primary.
+        :return: True if the field can have an index
+        """
+
+        return self._can_have_db_index
 
     @cached_property
     def _can_filter_by(self) -> bool:
