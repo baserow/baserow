@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Union
 
+from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.config.celery import app
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -8,6 +9,7 @@ from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 
 
 @app.task(bind=True, queue="automation_workflow")
+@atomic_with_retry_on_deadlock()
 def run_workflow(
     self, workflow_id: int, event_payload: Optional[Union[Dict, List[Dict]]]
 ):
