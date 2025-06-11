@@ -11,8 +11,7 @@
     <div
       class="grid-view__row"
       :class="{
-        'grid-view__row--selected': isCheckboxSelected(row.id),
-        'grid-view__row--highlighted': isRowHighlighted(row.id),
+        'grid-view__row--selected': isRowHighlighted(row),
         'grid-view__row--loading': row._.loading,
         'grid-view__row--hover': row._.hover,
         'grid-view__row--warning':
@@ -53,23 +52,18 @@
             }"
           >
             <div
-              v-if="!readOnly && canDrag"
-              v-show="!row._.loading"
-              class="grid-view__row-drag"
-              @mousedown="startDragging($event, row)"
-            ></div>
-            <div
-              v-show="!row._.loading"
+              v-if="(isCheckboxSelected(row.id) || row._.hover) && !readOnly"
               class="grid-view__row-checkbox"
-              :class="{
-                'grid-view__row-checkbox--checked': isCheckboxSelected(row.id),
-                'grid-view__row-checkbox--disabled': isCheckboxDisabled(row),
-              }"
-              @click.stop="handleCheckboxClick"
             >
-              <i v-if="isCheckboxSelected(row.id)" class="iconoir-check"></i>
+              <Checkbox
+                :checked="isCheckboxSelected(row.id)"
+                :disabled="isCheckboxDisabled(row.id)"
+                :size="'small'"
+                @input="toggleRowCheckbox"
+              ></Checkbox>
             </div>
             <div
+              v-else
               class="grid-view__row-count"
               :class="{
                 'grid-view__row-count--small': rowIdentifier > 9999,
@@ -77,8 +71,15 @@
               }"
               :title="rowIdentifier"
             >
-              {{ rowIdentifier }}
+              <div class="grid-view__row-count-content">
+                {{ rowIdentifier }}
+              </div>
             </div>
+            <div
+              v-if="!readOnly && canDrag"
+              class="grid-view__row-drag"
+              @mousedown="startDragging($event, row)"
+            ></div>
             <component
               :is="rowExpandButton"
               v-if="!row._.loading"
@@ -301,13 +302,13 @@ export default {
     },
   },
   methods: {
-    isCheckboxDisabled(row) {
+    isCheckboxDisabled(rowId) {
       const checkboxSelectedRows =
         this.$store.state[this.storePrefix + 'view/grid'].checkboxSelectedRows
       return (
         checkboxSelectedRows.length >=
           this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT &&
-        !checkboxSelectedRows.includes(row.id)
+        !checkboxSelectedRows.includes(rowId)
       )
     },
     isCheckboxSelected(rowId) {
@@ -315,12 +316,12 @@ export default {
         this.storePrefix + 'view/grid'
       ].checkboxSelectedRows.includes(rowId)
     },
-    isRowHighlighted() {
-      const selectionType =
-        this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
+    isRowHighlighted(row) {
+      // const selectionType =
+      //   this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
       return (
-        selectionType === GRID_VIEW_MULTI_SELECT_AREA &&
-        this.row._.selectedBy.length > 0
+        // selectionType === GRID_VIEW_MULTI_SELECT_AREA &&
+        row._.selectedBy.length > 0
       )
     },
     isCellSelected(fieldId) {
@@ -342,6 +343,9 @@ export default {
       const selectionType =
         this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
       if (selectionType !== GRID_VIEW_MULTI_SELECT_AREA) {
+        if (this.isCheckboxSelected(rowId)) {
+          position.selected = true
+        }
         return position
       }
 
@@ -465,17 +469,10 @@ export default {
     canWriteFieldValues(field) {
       return this.$registry.get('field', field.type).canWriteFieldValues(field)
     },
-    handleCheckboxClick(event) {
-      if (this.readOnly || this.hasReachedSelectionLimit) {
-        return
-      }
-      event.preventDefault()
-      event.stopPropagation()
+    toggleRowCheckbox() {
       this.$store.dispatch(
         this.storePrefix + 'view/grid/toggleCheckboxRowSelection',
-        {
-          row: this.row,
-        }
+        { row: this.row }
       )
     },
   },

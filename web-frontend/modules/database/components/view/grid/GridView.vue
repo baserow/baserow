@@ -919,10 +919,6 @@ export default {
           fieldTailIndex: this.allVisibleFields.length - 1,
         }
       )
-      this.$store.dispatch(this.storePrefix + 'view/grid/addRowSelectedBy', {
-        row,
-        field: this.fields[0],
-      })
     },
     async addRow(before = null, values = {}) {
       try {
@@ -1051,28 +1047,6 @@ export default {
     },
     showRowContext(event, row) {
       this.selectedRow = row
-      const selectionType =
-        this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
-
-      if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
-        this.$refs.rowContext.toggleNextToMouse(event)
-      }
-
-      if (
-        selectionType === GRID_VIEW_MULTI_SELECT_AREA &&
-        row._.selectedBy.length > 0
-      ) {
-        this.$store.dispatch(this.storePrefix + 'view/grid/setMultipleSelect', {
-          rowHeadIndex: this.$store.getters[
-            this.storePrefix + 'view/grid/getRowIndexById'
-          ](row.id),
-          rowTailIndex: this.$store.getters[
-            this.storePrefix + 'view/grid/getRowIndexById'
-          ](row.id),
-          fieldHeadIndex: 0,
-          fieldTailIndex: this.allVisibleFields.length - 1,
-        })
-      }
       this.$refs.rowContext.toggleNextToMouse(event)
     },
     /**

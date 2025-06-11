@@ -182,9 +182,7 @@ describe('GridView checkbox selection', () => {
 
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.grid-view__row-checkbox--checked').exists()).toBe(
-      true
-    )
+    expect(wrapper.find('.checkbox--checked').exists()).toBe(true)
   })
 
   test('different context menus for checked vs unchecked rows', async () => {

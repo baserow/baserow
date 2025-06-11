@@ -33,6 +33,7 @@ import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/gr
 import {
   GRID_VIEW_MULTI_SELECT_AREA,
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
+  LINKED_ITEMS_LOAD_ALL,
 } from '@baserow/modules/database/constants'
 
 const ORDER_STEP = '1'
@@ -1564,10 +1565,7 @@ export const actions = {
   setAddRowHover({ commit }, value) {
     commit('SET_ADD_ROW_HOVER', value)
   },
-  setSelectedCell(
-    { commit, getters, rootGetters },
-    { rowId, fieldId, fields }
-  ) {
+  setSelectedCell({ commit, getters }, { rowId, fieldId, fields }) {
     commit('SET_SELECTED_CELL', { rowId, fieldId })
 
     const rowIndex = getters.getRowIndexById(rowId)
@@ -1863,6 +1861,7 @@ export const actions = {
           limit: this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT,
           fields,
           rowIds: selectedRowIds,
+          limitLinkedItems: LINKED_ITEMS_LOAD_ALL,
         }
       }
     } else {
@@ -3428,20 +3427,21 @@ export const actions = {
   toggleCheckboxRowSelection({ commit, dispatch, state, getters }, { row }) {
     const rowId = row.id
     const limit = this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT
+    const checked = state.checkboxSelectedRows.includes(rowId)
 
-    if (
-      !state.checkboxSelectedRows.includes(rowId) &&
-      state.checkboxSelectedRows.length >= limit
-    ) {
+    if (!checked && state.checkboxSelectedRows.length >= limit) {
       return
     }
 
-    if (!state.checkboxSelectedRows.includes(rowId)) {
+    if (!checked) {
       commit('ADD_CHECKBOX_SELECTED_ROW', rowId)
+    } else if (state.checkboxSelectedRows.length === 1) {
+      dispatch('clearCheckboxSelections')
+      commit('SET_MULTISELECT_ACTIVE', false)
+      commit('SET_SELECTION_TYPE', null)
     } else {
       commit('REMOVE_CHECKBOX_SELECTED_ROW', rowId)
     }
-
     if (
       state.checkboxSelectedRows.length > 0 &&
       getters.getSelectionType !== GRID_VIEW_MULTI_SELECT_CHECKBOX

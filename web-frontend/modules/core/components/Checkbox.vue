@@ -96,6 +96,17 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * The size of the button.
+     */
+    size: {
+      required: false,
+      type: String,
+      default: 'regular',
+      validator(value) {
+        return ['small', 'regular'].includes(value)
+      },
+    },
   },
   data() {
     return {
@@ -116,6 +127,7 @@ export default {
         'checkbox--disabled': this.disabled,
         'checkbox--checked': this.checked,
         'checkbox--error': this.error,
+        'checkbox--small': this.size === 'small',
       }
     },
     hasSlot() {
