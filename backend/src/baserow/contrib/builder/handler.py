@@ -20,11 +20,8 @@ USED_PROPERTIES_CACHE_KEY_PREFIX = "used_properties_for_page"
 # The duration of the cached public element, data source and workflow action API views.
 BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60 * 60
 
-# The duration of the cached public `get_public_builder_by_domain_name` view.
-BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS = 60 * 60 * 2  # 2 hours
-
 # The duration of the cached public properties for the builder API views.
-BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS = 60
+BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS = 60 * 10
 
 SENTINEL = "__no_results__"
 

@@ -256,6 +256,8 @@ class LocalBaserowTableServiceFilterableMixin:
             view_filter_builder = ViewHandler().get_filter_builder(service.view, model)
             queryset = view_filter_builder.apply_to_queryset(queryset)
 
+        # If there are filters pointing to trashed fields, throw an exception.
+        # We won't allow the service to be dispatched as it could leak data.
         if len(service.service_filters_with_untrashed_fields) != len(
             service.service_filters.all()
         ):
@@ -265,8 +267,6 @@ class LocalBaserowTableServiceFilterableMixin:
 
         service_filter_builder = FilterBuilder(filter_type=service.filter_type)
         for service_filter in service.service_filters_with_untrashed_fields:
-            if not service_filter.field_id and service_filter.field.trashed:
-                continue
             field_object = model._field_objects[service_filter.field_id]
             field_name = field_object["name"]
             model_field = model._meta.get_field(field_name)
@@ -578,6 +578,8 @@ class LocalBaserowTableServiceSortableMixin:
         :return: A list of `OrderBy` expressions.
         """
 
+        # If there are sorts pointing to trashed fields, throw an exception.
+        # We won't allow the service to be dispatched as it could leak data.
         if len(service.service_sorts_with_untrashed_fields) != len(
             service.service_sorts.all()
         ):
