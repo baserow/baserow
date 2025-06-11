@@ -3214,6 +3214,10 @@ export class FileFieldType extends FieldType {
     return 'file'
   }
 
+  getEmptyValue(field) {
+    return []
+  }
+
   static getIconClass() {
     return 'iconoir-empty-page'
   }
