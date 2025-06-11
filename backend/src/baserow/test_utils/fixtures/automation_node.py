@@ -3,6 +3,7 @@ from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
     AutomationNodeTriggerType,
     LocalBaserowCreateRowNodeType,
+    LocalBaserowUpdateRowNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -53,5 +54,12 @@ class AutomationNodeFixtures:
         return self.create_automation_node(
             user=user,
             type=LocalBaserowCreateRowNodeType.type,
+            **kwargs,
+        )
+    
+    def create_local_baserow_create_row_action_node(self, user=None, **kwargs):
+        return self.create_automation_node(
+            user=user,
+            type=LocalBaserowUpdateRowNodeType.type,
             **kwargs,
         )
