@@ -285,12 +285,6 @@ export const getters = {
   getSelectedId(state) {
     return state.selected.id || 0
   },
-  getDatabase: (state, getters, rootState, rootGetters) => (tableId) => {
-    return rootGetters['application/getAll'].find((application) => {
-      const tables = application.tables ?? []
-      return tables.find((table) => table.id === tableId)
-    })
-  },
 }
 
 export default {

@@ -16,7 +16,6 @@ export const state = () => ({
   loading: false,
   loaded: false,
   items: [],
-  database: {},
 })
 
 export const mutations = {
@@ -59,9 +58,6 @@ export const mutations = {
     })
     state.selected = {}
   },
-  SET_DATABASE(state, database) {
-    state.database = database
-  },
 }
 
 export const actions = {
@@ -97,10 +93,6 @@ export const actions = {
     })
 
     commit('SET_ITEMS', fields)
-
-    const database = rootGetters['table/getDatabase'](fields[0].table_id)
-    commit('SET_DATABASE', database)
-
     commit('SET_LOADING', false)
     commit('SET_LOADED', true)
 
@@ -362,9 +354,6 @@ export const getters = {
   },
   getAll(state) {
     return state.items
-  },
-  getDatabase(state) {
-    return state.database
   },
 }
 

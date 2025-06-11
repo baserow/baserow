@@ -68,7 +68,10 @@
             <i class="form-view__edit-icon iconoir-edit-pencil"></i
           ></a>
         </div>
-        <p v-if="cannotSubmitValues" class="error form-view__field-read-only">
+        <p
+          v-if="!readOnly && cannotSubmitValues"
+          class="error form-view__field-read-only"
+        >
           <i class="iconoir-warning-triangle"></i>
           {{ $t('formViewField.cannotSumitValues') }}
         </p>
