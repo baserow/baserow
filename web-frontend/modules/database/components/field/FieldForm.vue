@@ -89,6 +89,11 @@
           @suggested-field-name="handleSuggestedFieldName($event)"
         />
       </template>
+      <FormGroup :label="$t('fieldForm.dbIndex')" :small-label="true" required>
+        <div class="control__elements">
+          <Checkbox v-model="values.db_index">Index</Checkbox>
+        </div>
+      </FormGroup>
       <FormGroup
         v-if="showDescription"
         :error="fieldHasErrors('description')"
@@ -164,11 +169,12 @@ export default {
   },
   data() {
     return {
-      allowedValues: ['name', 'type', 'description'],
+      allowedValues: ['name', 'type', 'description', 'db_index'],
       values: {
         name: this.defaultValues.name,
         type: this.forcedType || this.defaultValues.type,
         description: this.defaultValues.description,
+        db_index: this.defaultValues.db_index,
       },
       isPrefilledWithSuggestedFieldName: false,
       oldValueType: null,
