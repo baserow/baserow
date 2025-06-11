@@ -32,7 +32,7 @@ class EnterpriseBuilderCustomCodeSerializer(serializers.Serializer):
     )
 
     class Meta:
-        ref_name = "EntrepriseBuilderCustomCodeApplication"
+        ref_name = "EnterpriseBuilderCustomCodeApplication"
 
     @extend_schema_field(CustomScriptSerializer(many=True))
     def get_scripts(self, instance: Builder) -> List:

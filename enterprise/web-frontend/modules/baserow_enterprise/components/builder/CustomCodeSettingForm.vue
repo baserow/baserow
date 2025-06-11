@@ -26,7 +26,7 @@
     >
       <CodeEditor
         v-model="values.custom_code.js"
-        language="js"
+        language="javascript"
         :placeholder="$t('customCodeSettingForm.customJSPlaceholder')"
       />
     </FormGroup>
