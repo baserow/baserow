@@ -1551,7 +1551,7 @@ def test_record_element_is_valid(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_repeat_element_import_export(data_fixture):
+def test_repeat_element_import_export(data_fixture, enable_singleton_testing):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(workspace=workspace)

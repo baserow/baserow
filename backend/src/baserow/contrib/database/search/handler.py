@@ -2,6 +2,7 @@ import math
 import traceback
 from datetime import datetime
 from enum import Enum
+from functools import partial
 from typing import TYPE_CHECKING, List, NamedTuple, Optional, Self, Type
 
 from django.conf import settings
@@ -12,6 +13,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import connection, transaction
 from django.db.models import Expression, Func, Model, Q, QuerySet, TextField, Value
 from django.db.models.aggregates import Max
+from django.db.transaction import on_commit
 from django.utils.encoding import force_str
 
 from django_cte import CTEQuerySet, With
@@ -32,6 +34,7 @@ from baserow.contrib.database.search.regexes import (
 )
 from baserow.contrib.database.search.tasks import (
     create_search_table_for_workspace,
+    migrate_search_data_table,
     schedule_table_search_data_update,
 )
 from baserow.contrib.database.search.types import SearchTableState
@@ -39,7 +42,6 @@ from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.table.constants import (
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
 )
-from baserow.core.models import Workspace
 from baserow.core.psycopg import sql
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.utils import ChildProgressBuilder, exception_capturer
@@ -47,7 +49,6 @@ from baserow.core.utils import ChildProgressBuilder, exception_capturer
 if TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field
     from baserow.contrib.database.fields.registries import FieldType
-    from baserow.contrib.database.table.handler import TableForUpdate
     from baserow.contrib.database.table.models import (
         FieldObject,
         GeneratedTableModel,
@@ -302,7 +303,7 @@ class _SearchHandler(
         return FieldWithSearchVector(field, search_vector)
 
     @classmethod
-    def sync_tsvector_columns(cls, table: "TableForUpdate") -> "TableForUpdate":
+    def sync_tsvector_columns(cls, table: "Table") -> "Table":
         """
         Responsible for creating all the `tsvector` columns for each field in `table`.
 
@@ -313,12 +314,12 @@ class _SearchHandler(
         logger.error(f"Called sync_tsvecotr_columns on {table}")
         from baserow.contrib.database.fields.models import Field
 
-        if table.search_data_state == SearchTableState.DONE:
-            logger.error(f"Table {table} already migrated")
-            return
-
         if not cls.full_text_enabled():
             raise PostgresFullTextSearchDisabledException()
+
+        if table.search_data_state == SearchTableState.READY:
+            logger.warning(f"Table {table} is migrated")
+            return table
 
         # Prepare a fresh model we can use to create the column.
         model = table.get_model(force_add_tsvectors=True)
@@ -384,7 +385,7 @@ class _SearchHandler(
             and report on this methods progress to the parent of the progress_builder.
         """
 
-        if SearchHandler._should_migrate(table):
+        if SearchHandler._is_active(table):
             logger.error(f"Called update_tsvector_columns_locked on {table}")
             return
 
@@ -455,7 +456,7 @@ class _SearchHandler(
         :return: None
         """
 
-        if SearchHandler._should_migrate(table):
+        if SearchHandler._is_active(table):
             logger.error(f"Called update_tsvector_columns on {table}")
             return
 
@@ -948,34 +949,25 @@ class SearchHandler(_SearchHandler):
         return model
 
     @classmethod
-    def create_search_table_for_workspace(cls, workspace: "Workspace|int"):
+    def create_search_table_for_workspace(cls, workspace_id: int):
         from baserow.contrib.database.models import WorkspaceDatabaseSettings
         from baserow.contrib.database.search.models import SearchTableBase
-
-        if isinstance(workspace, int):
-            workspace_id = workspace
-        else:
-            workspace_id = workspace.id
 
         workspace_settings, _created = WorkspaceDatabaseSettings.objects.get_or_create(
             workspace_id=workspace_id
         )
-
         search_table = cls.get_search_table_model(workspace_id)
         # TODO: handle search table schema changes with .search_table_version value
-        create_table(search_table)
 
-        workspace_settings.search_table_version = SearchTableBase.version
-        workspace_settings.save()
+        if workspace_settings.search_table_version is None:
+            create_table(search_table)
+            workspace_settings.search_table_version = SearchTableBase.version
+            workspace_settings.save(update_fields=["search_table_version"])
+
         return search_table
 
     @classmethod
-    def remove_search_table_for_workspace(cls, workspace: "Workspace|int"):
-        if isinstance(workspace, int):
-            workspace_id = workspace
-        else:
-            workspace_id = workspace.id
-
+    def remove_search_table_for_workspace(cls, workspace_id: int):
         search_table = cls.get_search_table_model(workspace_id)
         drop_table(search_table)
 
@@ -993,8 +985,6 @@ class SearchHandler(_SearchHandler):
         """
 
         workspace_id = table.database.workspace_id
-        if not cls._supports_search(table, check_table_state=False):
-            raise ValueError("Not supported")
 
         logger.info(f"start migrating {table}.")
         search_table_name = cls._get_search_table_table_name(workspace_id)
@@ -1017,7 +1007,7 @@ class SearchHandler(_SearchHandler):
         logger.info("copy data done. updating last sets.")
 
     @classmethod
-    def _get_rows_with_emtpy_tsv_columns(
+    def _get_queryset_for_rows_with_emtpy_tsv_columns(
         cls,
         table: "Table",
         query: QuerySet | None = None,
@@ -1031,7 +1021,7 @@ class SearchHandler(_SearchHandler):
         :param query: optional base queryset
         :param fields: optional list of fields to query for tsv vectors
         :param since: optional min created/updated on timestamp
-        :return: list of row ids
+        :return: Queryset with rows that have empty values in tsv columns
         """
 
         model = table.get_model()
@@ -1048,7 +1038,7 @@ class SearchHandler(_SearchHandler):
         if not query:
             query = model.objects.all()
         if since:
-            query.filter(Q(created_on__gte=since) | Q(updated_on__gte=since))
+            query.filter(Q(updated_on__gt=since))
         qfilters = Q()
         for field in fields:
             qfilters = qfilters | Q(**{f"{field.tsv_column}__isnull": True})
@@ -1066,15 +1056,11 @@ class SearchHandler(_SearchHandler):
         """
         Returns a list of rows for a table, that have empty tsv vectors for selected
         fields.
-
-        :param table:
-        :param query:
-        :param fields:
-        :param since:
-        :return:
         """
 
-        q = cls._get_rows_with_emtpy_tsv_columns(table, query, fields, since)
+        q = cls._get_queryset_for_rows_with_emtpy_tsv_columns(
+            table, query, fields, since
+        )
         return list(q.values_list("id", flat=True))
 
     @classmethod
@@ -1085,46 +1071,38 @@ class SearchHandler(_SearchHandler):
         :return:
         """
 
-        if table.search_data_state in {SearchTableState.DONE, SearchTableState.INITED}:
-            logger.info(
-                f"Table migration done or started for {table}: {table.search_data_state}"
-            )
-            return False
-        if table.search_data_state == SearchTableState.DISABLED:
-            logger.info(f"Table migration blocked for {table}")
-            return False
+        if not cls.full_text_enabled():
+            return
+        if cls._is_migrated(table):
+            logger.warning(f"Table already migrated {table}")
+            return
+        if not cls._is_active(table):
+            logger.warning(f"Table migration blocked for {table}")
+            return
 
-        with transaction.atomic():
-            table.search_data_state = SearchTableState.INITED
-            table.save()
         try:
-            logger.info(f"migrating from tsv to search data in {table}")
+            logger.info(f"Migrating from tsv to search data in {table}")
+
             with transaction.atomic():
                 empty_vector_row_ids = cls.get_rows_with_empty_tsv_columns(table)
 
                 # migrate rows that have tsvector columns filled
-                try:
-                    cls._migrate_table_tsvectors(table)
-                except ValueError:
-                    return False
+                cls._migrate_table_tsvectors(table)
 
                 if empty_vector_row_ids:
                     # migrate rows that we know have empty tsv columns.
                     cls.update_search_data_for_table(
                         table, row_ids=empty_vector_row_ids, skip_table_checks=True
                     )
-            with transaction.atomic():
-                table.search_data_state = SearchTableState.DONE
-                table.save()
+                table.search_data_state = SearchTableState.READY
+                table.save(update_fields=["search_data_state"])
 
-            logger.info(f"done migrating from tsv to search data in {table}")
+            logger.debug(f"Done migrating from tsv to search data in {table}")
         except Exception as err:
-            logger.opt(exception=err).error(f"erorr when migrating: {err}")
-            # reset the state
-            with transaction.atomic():
-                table.search_data_state = None
-                table.save()
-        return True
+            logger.opt(exception=err).error(
+                f"Error when migrating search data for {table}: {err}"
+            )
+            return
 
     @classmethod
     def update_search_data_for_table(
@@ -1132,7 +1110,8 @@ class SearchHandler(_SearchHandler):
         table: "Table",
         field_ids_to_restrict_update_to: Optional[List[int]] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
-        changed_since: datetime | bool | None = None,
+        update_tsvectors_for_rows_changed_since: datetime | None = None,
+        update_tsvectors_for_changed_rows_only: bool | None = None,
         row_ids: list[int] | None = None,
         skip_table_checks: bool = False,
     ):
@@ -1144,29 +1123,34 @@ class SearchHandler(_SearchHandler):
             the source of data for the update. If not provided, all searchable fields
             will be used.
         :param progress_builder:
-        :param changed_since: Optional datetime or `True` to restrict rows newer
-            than the `changed_since`. If the value is `True`, rows newer than the last
-            search table update for any of requested field will be used.
-            A datetime object will be used to filter rows newer than the datetime
-            value.
+        :param update_tsvectors_for_rows_changed_since: Optional datetime to restrict
+            update to rows newer than the provided value.
+        :param update_tsvectors_for_changed_rows_only: Optional flag to restrict
+            update to rows that changed since the last update. The last update timestamp
+            is calculated as a max updated_on value for any field for a table.
         :param row_ids: Optional list of row ids to use for the update.
         :param skip_table_checks: Optional flag to skip a check if table has been
             migrated.
         :return:
         """
 
+        if (
+            update_tsvectors_for_rows_changed_since
+            and update_tsvectors_for_changed_rows_only
+        ):
+            raise ValueError("Only one of changed_since, changed should be specified")
+
         # If the installation is set up so that full-text search is not
         # used, and that compat mode is used, then raise an exception.
         # Also, the table should be migrated already.
-
-        if not cls._should_migrate(table):
-            logger.warning(f"SearchHandler.update_search_data_for_table called")
-            return
-        if not (
-            SearchHandler.full_text_enabled()
-            and cls._supports_search(table, check_table_state=not skip_table_checks)
-        ):
+        if not SearchHandler.full_text_enabled():
             raise PostgresFullTextSearchDisabledException()
+        if not (cls._is_migrated(table) or skip_table_checks):
+            logger.warning(
+                f"Called SearchHandler.update_search_data_for_table "
+                f"on not migrated table {table}"
+            )
+            return
 
         workspace_id = table.database.workspace_id
         search_model = cls.get_search_table_model(workspace_id)
@@ -1188,9 +1172,9 @@ class SearchHandler(_SearchHandler):
         query: QuerySet = model.objects.all()
         tstamp = None
 
-        if isinstance(changed_since, datetime):
-            tstamp = changed_since
-        elif changed_since is True:
+        if update_tsvectors_for_rows_changed_since:
+            tstamp = update_tsvectors_for_rows_changed_since
+        elif update_tsvectors_for_changed_rows_only:
             tstamp = (
                 search_model.objects.filter(field_id__in=field_ids)
                 .aggregate(last_updated_on=Max("updated_on"))
@@ -1221,7 +1205,8 @@ class SearchHandler(_SearchHandler):
                 if svect.value:
                     inserts.append(svect)
         logger.info(
-            f"Adding {len(inserts)} entries to {search_model} since {tstamp} for {table}"
+            f"Adding {len(inserts)} entries "
+            f"to {search_model} since {tstamp} for {table}"
         )
         search_model.objects.bulk_create(inserts)
 
@@ -1237,16 +1222,14 @@ class SearchHandler(_SearchHandler):
         updated_fields: Optional[List["Field"]] = None,
         create_missing_workspace_configuration: bool = False,
     ):
-        if not cls._should_migrate(table):
+        if not cls._is_active(table):
             return super()._trigger_async_tsvector_task_if_needed(
                 table, update_tsvectors_for_changed_rows_only, updated_fields
             )
-
-        if cls._supports_search(table) or create_missing_workspace_configuration:
-            from baserow.contrib.database.tasks import (
-                enqueue_task_on_commit_swallowing_any_exceptions,
-            )
-
+        # not migrated yet
+        if cls._can_migrate(table):
+            on_commit(partial(migrate_search_data_table.delay, table_id=table.id))
+        else:
             searchable_updated_fields_ids = (
                 [field.id for field in updated_fields]
                 if updated_fields is not None
@@ -1256,12 +1239,12 @@ class SearchHandler(_SearchHandler):
             # * when a field is added or modified
             # * when a field, or its parents (table, database, workspace) is
             # permanently removed
-            enqueue_task_on_commit_swallowing_any_exceptions(
-                lambda: schedule_table_search_data_update.delay(
+            on_commit(
+                partial(
+                    schedule_table_search_data_update,
                     table.id,
                     update_tsvectors_for_changed_rows_only=update_tsvectors_for_changed_rows_only,
                     field_ids_to_restrict_update_to=searchable_updated_fields_ids,
-                    # reate_missing_workspace_configuration=create_missing_workspace_configuration,
                 )
             )
 
@@ -1391,7 +1374,7 @@ class SearchHandler(_SearchHandler):
 
         table = field.table
         # use old search handler for not migrated tables
-        if not cls._should_migrate(table):
+        if not cls._is_active(table):
             return super().after_field_created(
                 field, skip_search_updates=skip_search_updates
             )
@@ -1404,11 +1387,21 @@ class SearchHandler(_SearchHandler):
             )
 
     @classmethod
-    def _should_migrate(cls, table: "Table") -> bool:
+    def _is_active(cls, table: "Table") -> bool:
+        """
+        Tells if a table supports search data table migration. A table can be
+        marked as disabled - it should not be migrated to search data table
+        infrastructure.
+        """
+
         return table.search_data_state != SearchTableState.DISABLED
 
     @classmethod
-    def _supports_search(cls, table: "Table", check_table_state: bool = True) -> bool:
+    def _is_migrated(cls, table):
+        return table.search_data_state == SearchTableState.READY
+
+    @classmethod
+    def _can_migrate(cls, table: "Table", check_table_state: bool = True) -> bool:
         """
         Checks if a table supports new search table layout. Checks for two conditions:
         * if a workspace has settings table present, and search table model
@@ -1421,7 +1414,7 @@ class SearchHandler(_SearchHandler):
         :return:
         """
 
-        if not cls._should_migrate(table):
+        if not (cls._is_active(table) and cls.full_text_enabled()):
             return False
         try:
             workspace_settings = table.database.workspace.workspacedatabasesettings
@@ -1430,7 +1423,7 @@ class SearchHandler(_SearchHandler):
         if check_table_state:
             return (
                 workspace_settings.search_table_version == SearchTableBase.version
-                and table.search_data_state == SearchTableState.DONE
+                and not cls._is_migrated(table)
             )
         else:
             return workspace_settings.search_table_version == SearchTableBase.version
@@ -1443,10 +1436,7 @@ class SearchHandler(_SearchHandler):
 
         previous_table = TableHandler().get_table(original_table_id)
 
-        if not (
-            cls._should_migrate(previous_table)
-            and cls._should_migrate(moved_field.table)
-        ):
+        if not (cls._is_active(previous_table) and cls._is_active(moved_field.table)):
             return super().after_field_moved_between_tables(
                 moved_field, original_table_id=original_table_id
             )
@@ -1471,12 +1461,10 @@ class SearchHandler(_SearchHandler):
         """
 
         table = field.table
-        if not cls._should_migrate(table):
+        if not cls._is_active(table):
             return super().after_field_perm_delete(field)
 
-        cls._trigger_async_tsvector_task_if_needed(
-            table, update_tsvectors_for_changed_rows_only=False
-        )
+        cls.cleanup_table_rows_vectors(table, field_ids=[field.id])
 
     @classmethod
     def entire_field_values_changed_or_created(
@@ -1494,7 +1482,7 @@ class SearchHandler(_SearchHandler):
             here.
         """
 
-        if not cls._should_migrate(table):
+        if not cls._is_active(table):
             return super().entire_field_values_changed_or_created(
                 table, updated_fields=updated_fields
             )
@@ -1522,7 +1510,7 @@ class SearchHandler(_SearchHandler):
             return
         table = updated_fields[0].table
 
-        if not cls._should_migrate(table):
+        if not cls._is_active(table):
             return super().all_fields_values_changed_or_created(
                 updated_fields=updated_fields
             )
@@ -1544,51 +1532,76 @@ class SearchHandler(_SearchHandler):
                 )
             )
 
+    # @classmethod
+    # def cleanup_field_vectors(cls, table: "Table", *fields: "int|Field"):
+    #     """
+    #     Removes a specific field(s) from search table.
+    #     """
+    #
+    #     if not cls.full_text_enabled():
+    #         return
+    #     if not cls._is_migrated(table):
+    #         logger.warning(
+    #             f"Called SearchHandler.cleanup_field_vectors "
+    #             f"on not migrated table {table}"
+    #         )
+    #         return
+    #     workspace_id = table.database.workspace_id
+    #     search_table = cls.get_search_table_model(workspace_id)
+    #
+    #     if not fields:
+    #         raise ValueError("No fields selected")
+    #
+    #     def _get_id(fobj) -> int:
+    #         if isinstance(fobj, int):
+    #             return fobj
+    #         return fobj["field"].id
+    #
+    #     field_ids = [_get_id(f) for f in fields]
+    #     logger.info(f"{search_table}: removing {field_ids} fields for {table}")
+    #     search_table.objects.filter(field_id__in=field_ids).delete()
+
     @classmethod
-    def cleanup_field_vectors(cls, table: "Table", *fields: "int|Field"):
+    def cleanup_table_rows_vectors(
+        cls,
+        table: "Table",
+        row_ids: list[int] | None = None,
+        field_ids: list[int] | None = None,
+    ):
         """
-        Removes a specific field(s) from search table.
-        """
+        Removes rows for specific fields.
 
-        if not cls._supports_search(table):
-            raise ValueError("Table search version mismatch")
-        workspace_id = table.database.workspace_id
-        search_table = cls.get_search_table_model(workspace_id)
+        If no field_ids is provided, all fields from table will be used.
 
-        if not fields:
-            raise ValueError("No fields selected")
-
-        def _get_id(fobj) -> int:
-            if isinstance(fobj, int):
-                return fobj
-            return fobj["field"].id
-
-        field_ids = [_get_id(f) for f in fields]
-        logger.info(
-            f"{search_table}: removing {field_ids} fields for {table}"
-        )
-        search_table.objects.filter(field_id__in=field_ids).delete()
-
-    @classmethod
-    def cleanup_table_rows_vectors(cls, table: "Table", rows: list[int] | None = None):
-        """
-        Removes specific rows from search data table, or clear whole table data.
-
-        :param table:
-        :param rows:
-        :return:
+        If no row_ids is provided, all rows for all fields from a table will be removed.
         """
 
-        field_ids = [
+        if not cls.full_text_enabled():
+            return
+        if not cls._is_migrated(table):
+            logger.warning(
+                f"Called SearchHandler.cleanup_table_rows_vectors "
+                f"on not migrated table {table}"
+            )
+            return
+        all_field_ids = [
             f["field"].id
             for f in table.get_model().get_field_objects(include_trash=True)
         ]
+
+        if field_ids is None:
+            field_ids = all_field_ids
+        else:
+            for field_id in field_ids:
+                if field_id not in all_field_ids:
+                    raise ValueError(f"Field {field_id} is not present in {table}")
+
         search_table = cls.get_search_table_model(table.database.workspace_id)
         filters = {"field_id__in": field_ids}
-        if rows:
-            filters["row_id__in"] = rows
+        if row_ids:
+            filters["row_id__in"] = row_ids
         logger.info(
-            f"{search_table}: removing {len(rows) if rows else 'all'} rows for {table}"
+            f"{search_table}: removing {len(row_ids) if row_ids else 'all'} rows for {table}"
         )
         search_table.objects.filter(**filters).delete()
 
@@ -1598,12 +1611,16 @@ class SearchHandler(_SearchHandler):
         Removes stale search vector rows (older than latest) from search table.
         """
 
-        if not cls._supports_search(table):
-            raise ValueError("Table search version mismatch")
+        if not cls.full_text_enabled():
+            return
+        if not cls._is_migrated(table):
+            logger.warning(
+                f"Called SearchHandler.cleanup_old_vectors "
+                f"on not migrated table {table}"
+            )
+            return
         workspace_id = table.database.workspace_id
         search_table = cls.get_search_table_model(workspace_id)
-
-        params = []
 
         if not fields:
             fields = table.get_model().get_field_objects()
@@ -1614,20 +1631,26 @@ class SearchHandler(_SearchHandler):
             return fobj["field"].id
 
         field_ids = [_get_id(f) for f in fields]
-        where = " WHERE field_id =any(%s) "
-        params.append(field_ids)
+        where = sql.SQL(" WHERE field_id =any(%s) ")
 
-        q = f""" WITH src_q as (SELECT row_id, field_id, max(updated_on) as max_updated_on
-                from {search_table._meta.db_table} {where} group by row_id, field_id)
-                DELETE FROM  {search_table._meta.db_table} as t
+        query = sql.SQL(
+            """ WITH src_q as (SELECT row_id, field_id, max(updated_on) as max_updated_on
+                from {} {} group by row_id, field_id)
+                DELETE FROM {} as t
                     USING src_q where
                             (src_q.row_id = t.row_id
                             AND src_q.field_id = t.field_id
                             AND t.updated_on < src_q.max_updated_on)
-        """  # nosec B608
+        """
+        ).format(
+            sql.Identifier(search_table._meta.db_table),
+            where,
+            sql.Identifier(search_table._meta.db_table),
+        )  # nosec B608
+        params = [field_ids]
 
         with connection.cursor() as c:
-            c.execute(q, params)
+            c.execute(query, params)
 
     @classmethod
     def clear_search_data_table(cls, table_or_search_table: "Table|SearchTableBase"):
@@ -1658,9 +1681,7 @@ class SearchHandler(_SearchHandler):
 
         # cls.sync_tsvector_columns(table)
         cls._trigger_async_tsvector_task_if_needed(
-            table,
-            update_tsvectors_for_changed_rows_only=True,
-            create_missing_workspace_configuration=True,
+            table, update_tsvectors_for_changed_rows_only=True
         )
 
     @classmethod
@@ -1729,11 +1750,17 @@ class SearchHandler(_SearchHandler):
 
 
 def drop_table(tmodel):
-    with safe_django_schema_editor() as se:
-        se.delete_model(tmodel)
+    # regular schema editor doesn't support IF EXISTS, and there may be a case when
+    # a workspace doesn't have the table.
+    query = sql.SQL("DROP TABLE IF EXISTS {} CASCADE").format(
+        sql.Identifier(tmodel._meta.db_table)
+    )
+    with connection.cursor() as c:
+        c.execute(query)
 
 
 def create_table(tmodel):
+    drop_table(tmodel)
     with safe_django_schema_editor() as se:
         se.create_model(tmodel)
 
@@ -1809,19 +1836,30 @@ class SearchTerm:
         )
         return cte
 
-    def add_to_queryset(self, q: CTEQuerySet, alias: str | None = None) -> CTEQuerySet:
+    def add_to_queryset(
+        self, queryset: CTEQuerySet, alias: str | None = None
+    ) -> CTEQuerySet:
         cte = self.get_cte(alias)
-        return cte.join(q, id=cte.col.row_id).with_cte(cte)
-
-
-ALL_FIELDS = "*"
+        return cte.join(queryset, id=cte.col.row_id).with_cte(cte)
 
 
 class SearchBuilder:
+    """
+    Helper class to create a proper search query. It should be used as an entry point
+    in building a query:
+
+    # create a search builder to search a table
+    >>> sb = SearchBuilder(table)
+    # add term to be searched for
+    >>> sb.add_term('some term')
+    # generate queryset
+    >>> queryset = sb.get_queryset()
+    """
+
     def __init__(
         self,
         table: "Table",
-        search_model: "SearchTableBase",
+        search_model: "SearchTableBase" = None,
         model: "GeneratedTableModel|None" = None,
     ):
         self.table = table
@@ -1834,24 +1872,17 @@ class SearchBuilder:
         # search model to fields search
         self.related_searches: dict[str, SearchTerm] = {}
 
-    def add_term(self, term, *fields: "FieldObject|int|str") -> Self:
-        if not fields or fields[0] == ALL_FIELDS:
-            fields = self.fields
+    def add_term(self, term, field_ids: list[int] | None = None) -> Self:
+        """
+        Adds a term to search. Search can be for all fields in the table, or to selected
+        fields only.
+        """
 
-        for _field in fields:
-            if isinstance(_field, int):
-                field: FieldObject = next(
-                    [f for f in self.fields if f["field"].id == _field], None
-                )
-            elif isinstance(_field, str):
-                field: FieldObject = next(
-                    [f for f in self.fields if f["name"] == _field], None
-                )
-            else:
-                field = _field
-            if not field:
-                raise ValueError(f"Field {_field} is not proper")
-            sterm = self._get_term(term, field["type"], field["field"])
+        for field_def in self.fields:
+            field, field_type = field_def["field"], field_def["type"]
+            if field_ids and field.id not in field_ids:
+                continue
+            sterm = self._get_term(term, field_type=field_type, field=field)
             self._add_term(sterm)
         return self
 
@@ -1879,16 +1910,14 @@ class SearchBuilder:
 
         if not isinstance(queryset, CTEQuerySet):
             if queryset is None:
-                q = TableModelQuerySet(model=self.model)
+                queryset = TableModelQuerySet(model=self.model)
             else:
-                q = TableModelQuerySet(query=queryset.query, model=self.model)
-        else:
-            q = queryset
+                queryset = TableModelQuerySet(query=queryset.query, model=self.model)
 
         for idx, (
             table_name,
             term,
         ) in enumerate(self.related_searches.items()):
             alias = f"cte_{idx}"
-            q = term.add_to_queryset(q, alias)
-        return q.order_by("id").distinct("id")
+            queryset = term.add_to_queryset(queryset, alias)
+        return queryset.order_by("id").distinct("id")

@@ -725,7 +725,7 @@ class LocalBaserowTableServiceSearchableMixin:
                 f.tsv_db_column
                 if (
                     SearchHandler.full_text_enabled()
-                    and table.search_data_state != SearchTableState.DONE
+                    and table.search_data_state != SearchTableState.READY
                 )
                 else f.db_column
                 for f in fields

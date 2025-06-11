@@ -620,7 +620,7 @@ def test_upload_user_file_by_url_with_invalid_content_type(
 
     httpretty.register_uri(
         httpretty.GET,
-        remote_file,
+        "https://baserow.io/",
         body=b"Hello World",
         status=200,
         content_type="foobar/barfoo",

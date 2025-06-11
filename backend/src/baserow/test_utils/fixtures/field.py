@@ -50,8 +50,8 @@ class FieldFixtures:
 
     def create_tsv_for_field(self, field):
         table: "Table" = field.table
-        # migrated, or during migration
-        if table.search_data_state in {SearchTableState.DONE, SearchTableState.INITED}:
+        # table migrated or ready for migration, so we won't create tsv
+        if table.search_data_state != SearchTableState.DISABLED:
             return
         with safe_django_schema_editor() as schema_editor:
             model = field.table.get_model(

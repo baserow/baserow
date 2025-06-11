@@ -4,8 +4,7 @@ from typing import List, Optional
 
 from django.conf import settings
 from django.core.cache import cache
-from django.core.exceptions import ObjectDoesNotExist
-from django.db import DatabaseError, transaction
+from django.db import transaction
 
 from celery_singleton import DuplicateTaskError, Singleton
 from loguru import logger
@@ -30,7 +29,7 @@ def set_search_data_update_lock_key(table_id: int):
     return cache.set(
         key=get_lock_key_name(table_id),
         value=True,
-        timeout=20,
+        timeout=settings.SEARCH_DATA_UPDATE_GRACE_PERIOD * 2,
     )
 
 
@@ -38,20 +37,17 @@ def clear_search_update_lock_key(table_id: int):
     return cache.delete(key=get_lock_key_name(table_id))
 
 
-@app.task(
-    queue="export",
-    time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
-)
+@app.task(queue="export")
 def schedule_table_search_data_update(table_id: int, *args, **kwargs):
     # key exists, not scheduling anything
     if get_search_data_update_lock_key(table_id):
-        logger.info(f"already scheduled: {table_id}")
+        logger.warning(f"Search daa already scheduled for table {table_id}")
         return
     set_search_data_update_lock_key(table_id)
     try:
         # run after a small delay.
-        do_table_search_data_update.apply_async(
-            countdown=3, kwargs={"table_id": table_id, **kwargs}, args=args
+        do_table_search_data_update.s(table_id=table_id, *args, **kwargs).apply_async(
+            countdown=settings.SEARCH_DATA_UPDATE_GRACE_PERIOD
         )
     except DuplicateTaskError:
         pass
@@ -62,7 +58,6 @@ def schedule_table_search_data_update(table_id: int, *args, **kwargs):
     base=Singleton,
     unique_on="table_id",
     lock_expiry=settings.AUTO_INDEX_LOCK_EXPIRY,
-    time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
     raise_on_duplicate=True,
 )
 def do_table_search_data_update(
@@ -70,45 +65,43 @@ def do_table_search_data_update(
     update_tsvectors_for_changed_rows_only: bool = True,
     field_ids_to_restrict_update_to: list[int] | None = None,
 ):
-    # allow scheduling next items
+    # Allow scheduling next items
     clear_search_update_lock_key(table_id)
 
     from baserow.contrib.database.search.handler import SearchHandler
     from baserow.contrib.database.table.handler import TableHandler
 
+    if not SearchHandler.full_text_enabled():
+        return
     try:
         table = TableHandler().get_table(table_id)
     except TableDoesNotExist:
         logger.warning(f"Table with id {table_id} doesn't exist.")
         return
-    if not SearchHandler._should_migrate(table):
+    if not SearchHandler._is_active(table):
         logger.info(f"Table {table} disabled from migration")
         return
-    try:
-        with transaction.atomic():
-            SearchHandler.create_search_table_for_workspace(table.database.workspace_id)
-    except DatabaseError:
-        logger.info(
-            f"Workspace {table.database.workspace_id} migrated " "to new search table"
-        )
 
-    if not SearchHandler.migrate_table_tsvectors(table):
-        # table was already migrated, just update from latest changes
-        logger.info(
-            f"Running regular update: {table} "
-            f"for {field_ids_to_restrict_update_to or 'all' } fields"
-        )
-        with transaction.atomic():
-            SearchHandler.update_search_data_for_table(
-                table,
-                field_ids_to_restrict_update_to=field_ids_to_restrict_update_to,
-                changed_since=update_tsvectors_for_changed_rows_only,
+    if not SearchHandler._is_migrated(table):
+        logger.warning(f"table {table} not migrated")
+        return
+        if not SearchHandler.migrate_table_tsvectors(table):
+            # table was already migrated, just update from latest changes
+            logger.info(
+                f"Running regular update: {table} "
+                f"for {field_ids_to_restrict_update_to or 'all' } fields"
             )
-            SearchHandler.cleanup_old_vectors(table)
+    with transaction.atomic():
+        SearchHandler.update_search_data_for_table(
+            table,
+            field_ids_to_restrict_update_to=field_ids_to_restrict_update_to,
+            update_tsvectors_for_changed_rows_only=update_tsvectors_for_changed_rows_only,
+        )
+        SearchHandler.cleanup_old_vectors(table)
 
-        if get_search_data_update_lock_key(table_id):
-            logger.info(f"Scheduling another update for {table_id}")
-            schedule_table_search_data_update.delay(table_id=table_id)
+    if get_search_data_update_lock_key(table_id):
+        logger.info(f"Scheduling another update for {table_id}")
+        schedule_table_search_data_update(table_id=table_id)
 
 
 @app.task(
@@ -122,19 +115,17 @@ def create_search_table_for_workspace(workspace_id: int):
 
     from baserow.contrib.database.search.handler import SearchHandler
 
-    SearchHandler.create_search_table_for_workspace(workspace=workspace_id)
+    SearchHandler.create_search_table_for_workspace(workspace_id)
 
 
 @app.task(
     queue="export",
-    time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
+    base=Singleton,
+    unique_on="table_id",
+    lock_expiry=settings.AUTO_INDEX_LOCK_EXPIRY,
+    raise_on_duplicate=True,
 )
-def async_update_tsvector_columns(
-    table_id: int,
-    update_tsvectors_for_changed_rows_only: bool,
-    field_ids_to_restrict_update_to: Optional[List[int]] = None,
-    create_missing_workspace_configuration: bool = False,
-):
+def migrate_search_data_table(table_id: int):
     """
     Responsible for asynchronously updating the `tsvector` columns on a table.
 
@@ -146,45 +137,33 @@ def async_update_tsvector_columns(
         provided ids will have their tsv columns updated.
     """
 
+    if get_search_data_update_lock_key(table_id):
+        logger.debug(f"search data lock present for {table_id}")
+        return
+    set_search_data_update_lock_key(table_id)
+
     from baserow.contrib.database.search.handler import SearchHandler
-    from baserow.contrib.database.table.models import Table
+    from baserow.contrib.database.table.handler import Table, TableHandler
 
     try:
-        table = Table.objects_and_trash.get(id=table_id)
+        table = TableHandler().get_table(table_id)
     except Table.DoesNotExist:
         logger.warning(
             f"Could not find table with id {table_id} to update tsvector columns."
         )
         return
-    if create_missing_workspace_configuration and table.search_data_state not in {
-        SearchTableState.INITED,
-        SearchTableState.DONE,
-        SearchTableState.DISABLED,
-    }:
-        logger.info(
-            f"Attempt to create workspace settings for {table.database.workspace_id}"
-        )
-        try:
-            SearchHandler.create_search_table_for_workspace(table.database.workspace_id)
-            SearchHandler.migrate_table_tsvectors(table)
-        except Exception as err:
-            logger.opt(exception=err).error(
-                f"Cannot create workspace settings and migrate {table}: {err}"
-            )
+    # ensure we have workspace-wide settings and table
 
-    else:
-        logger.info(
-            f"No migration needed, updating search data for "
-            f"table {table}: {table.search_data_state}"
+    SearchHandler.create_search_table_for_workspace(table.database.workspace_id)
+    if table.search_data_state in {SearchTableState.READY, SearchTableState.DISABLED}:
+        return
+    logger.info(f"Attempt to migrate {table}")
+    try:
+        SearchHandler.migrate_table_tsvectors(table)
+    except Exception as err:
+        logger.opt(exception=err).error(
+            f"Cannot create workspace settings and migrate {table}: {err}"
         )
-        try:
-            SearchHandler.update_search_data_for_table(
-                table,
-                changed_since=update_tsvectors_for_changed_rows_only,
-                field_ids_to_restrict_update_to=field_ids_to_restrict_update_to,
-            )
-        except PostgresFullTextSearchDisabledException:
-            logger.debug("Postgres full-text search is disabled.")
 
 
 @app.task(
@@ -213,27 +192,24 @@ def async_update_multiple_fields_tsvector_columns(
         .select_related("table")
         .order_by("table_id")
     )
+
     for _, field_group in itertools.groupby(fields, lambda f: f.table_id):
         table_fields = list(field_group)
         table = table_fields[0].table
         try:
             SearchHandler.update_search_data_for_table(
                 table,
-                changed_since=update_tsvectors_for_changed_rows_only,
                 field_ids_to_restrict_update_to=[f.id for f in table_fields],
+                update_tsvectors_for_changed_rows_only=update_tsvectors_for_changed_rows_only,
             )
         except PostgresFullTextSearchDisabledException:
             logger.debug("Postgres full-text search is disabled.")
             break
-        except Exception:
-            tb = traceback.format_exc()
+        except Exception as err:
             field_ids = ", ".join(str(field.id) for field in field_group)
-            logger.error(
-                "Failed to update tsvector columns for fields {field_ids} "
-                "in table {table_id} because of: \n{tb}.",
-                field_ids=field_ids,
-                table_id=table.id,
-                tb=tb,
+            logger.opt(exception=err).error(
+                f"Failed to update tsvector columns for fields {field_ids} "
+                f"in table {table} because of {err}."
             )
 
 

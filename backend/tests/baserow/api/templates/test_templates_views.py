@@ -275,7 +275,9 @@ def test_async_install_template_schedule_job(
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
-def test_async_install_template_serializer(api_client, data_fixture):
+def test_async_install_template_serializer(
+    api_client, data_fixture, enable_singleton_testing
+):
     user, token = data_fixture.create_user_and_token(
         email="test_1@test.nl", password="password", first_name="Test1"
     )

@@ -331,7 +331,9 @@ def test_import_export_last_modified_by_field(data_fixture):
 
 @pytest.mark.field_last_modified_by
 @pytest.mark.django_db(transaction=True)
-def test_get_set_export_serialized_value_last_modified_by_field(data_fixture):
+def test_get_set_export_serialized_value_last_modified_by_field(
+    data_fixture, enable_singleton_testing
+):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     imported_workspace = data_fixture.create_workspace(user=user)

@@ -947,6 +947,14 @@ INITIAL_MIGRATION_FULL_TEXT_SEARCH_MAX_FIELD_LIMIT = int(
     )
 )
 
+# Grace period between table data update and search data update to avoid multiple small
+# updates in favour of slightly delayed, accumulated updates. If changes to a table
+# happen in a burst, and search accuracy is not a priority, it's advised to increase
+# grace period to bulk multiple changes into one search data update.
+SEARCH_DATA_UPDATE_GRACE_PERIOD = float(
+    os.getenv("BASEROW_SEARCH_DATA_UPDATE_GRACE_PERIOD", 3)
+)
+
 
 # set max events to be returned by every ICal feed. Empty value means no limit.
 BASEROW_ICAL_VIEW_MAX_EVENTS = try_int(

@@ -87,7 +87,9 @@ def test_import_context_addition_sets_schema_property(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_import_export_collection_element_type(collection_element_mixin_fixture):
+def test_import_export_collection_element_type(
+    collection_element_mixin_fixture, enable_singleton_testing
+):
     workspace = collection_element_mixin_fixture["workspace"]
 
     config = ImportExportConfig(include_permission_data=False)

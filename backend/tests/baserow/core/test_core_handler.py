@@ -1186,7 +1186,7 @@ def test_get_template(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_export_import_workspace_application(data_fixture):
+def test_export_import_workspace_application(data_fixture, enable_singleton_testing):
     workspace = data_fixture.create_workspace()
     imported_workspace = data_fixture.create_workspace()
     database = data_fixture.create_database_application(workspace=workspace)
@@ -1234,7 +1234,9 @@ def test_sync_and_install_all_templates(data_fixture, tmpdir):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_sync_and_install_single_template(data_fixture, tmpdir):
+def test_sync_and_install_single_template(
+    data_fixture, tmpdir, enable_singleton_testing
+):
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
     handler = CoreHandler()
 

@@ -151,12 +151,12 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, CTEQuerySet):
 
         table: Table = self.model.get_parent()
         # use workspace-wide search, if a table is marked as migrated
-        if table.search_data_state == SearchTableState.DONE:
+        if table.search_data_state == SearchTableState.READY:
             search_model = SearchHandler.get_search_table_model(
                 table.database.workspace_id
             )
             sb = SearchBuilder(table, search_model, self.model)
-            sb.add_term(sanitized_search, only_search_by_field_ids or "*")
+            sb.add_term(sanitized_search, only_search_by_field_ids)
             q = sb.get_queryset(self)
             return q
         else:
@@ -1008,6 +1008,7 @@ class Table(
         return (
             SearchHandler.full_text_enabled()
             and self.needs_background_update_column_added
+            and not SearchHandler._is_migrated(self)
         )
 
     @property
@@ -1231,7 +1232,7 @@ class Table(
             default=1,
         )
 
-        if self.search_data_state != SearchTableState.DONE:
+        if self.search_data_state != SearchTableState.READY:
             self._add_search_tsvector_fields_to_model(
                 field_attrs, indexes, force_add_tsvectors
             )

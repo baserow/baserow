@@ -152,7 +152,7 @@ def test_create_example_table(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_fill_table_with_initial_data(data_fixture):
+def test_fill_table_with_initial_data(data_fixture, enable_singleton_testing):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
 
@@ -1108,7 +1108,7 @@ def test_usage_is_calculated_correctly_when_rows_are_deleted(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 def test_usage_is_calculated_correctly_when_a_template_is_installed(
-    data_fixture, tmpdir
+    data_fixture, tmpdir, enable_singleton_testing
 ):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)

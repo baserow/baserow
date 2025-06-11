@@ -84,7 +84,9 @@ def test_multiple_collaborators_field_type_update(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_get_set_export_serialized_value_multiple_collaborators_field(data_fixture):
+def test_get_set_export_serialized_value_multiple_collaborators_field(
+    data_fixture, enable_singleton_testing
+):
     user = data_fixture.create_user(email="user1@baserow.io")
     user_2 = data_fixture.create_user(email="user2@baserow.io")
     user_3 = data_fixture.create_user(email="user3@baserow.io")

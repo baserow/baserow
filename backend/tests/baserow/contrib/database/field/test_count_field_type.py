@@ -319,7 +319,7 @@ def test_can_batch_update_count_field_value(
 
 @pytest.mark.django_db(transaction=True)
 def test_import_export_tables_with_count_fields(
-    data_fixture, django_assert_num_queries
+    data_fixture, django_assert_num_queries, enable_singleton_testing
 ):
     user = data_fixture.create_user()
     imported_workspace = data_fixture.create_workspace(user=user)

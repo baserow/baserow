@@ -83,7 +83,9 @@ def test_import_applications_with_non_existing_file(
 
 @pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
-def test_import_applications(data_fixture, api_client, tmpdir, use_tmp_media_root):
+def test_import_applications(
+    data_fixture, api_client, tmpdir, use_tmp_media_root, enable_singleton_testing
+):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
 

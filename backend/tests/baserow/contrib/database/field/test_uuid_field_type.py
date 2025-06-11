@@ -249,7 +249,9 @@ def test_import_export_uuid_field(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_get_set_export_serialized_value_uuid_field(data_fixture):
+def test_get_set_export_serialized_value_uuid_field(
+    data_fixture, enable_singleton_testing
+):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     imported_workspace = data_fixture.create_workspace(user=user)

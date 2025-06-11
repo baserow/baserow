@@ -6,8 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0099_mcpendpoint"),
-        ("database", "0189_alter_tableusageupdate_id_and_more"),
+        ("database", "0190_datasync_auto_add_new_properties"),
     ]
 
     operations = [
@@ -31,9 +30,7 @@ class Migration(migrations.Migration):
             name="search_data_state",
             field=models.CharField(
                 choices=[
-                    ("not_inited", "Not Inited"),
-                    ("inited", "Inited"),
-                    ("done", "Done"),
+                    ("ready", "Ready"),
                     ("disabled", "Disabled"),
                 ],
                 default=None,

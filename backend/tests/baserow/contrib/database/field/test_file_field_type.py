@@ -208,7 +208,7 @@ def test_file_field_type(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.field_file
-def test_import_export_file_field(data_fixture, tmpdir):
+def test_import_export_file_field(data_fixture, tmpdir, enable_singleton_testing):
     user = data_fixture.create_user()
     imported_workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(user=user)

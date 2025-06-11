@@ -780,7 +780,9 @@ def test_delete_table_still_if_locked_for_key_share(api_client, data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_async_duplicate_interesting_table(api_client, data_fixture):
+def test_async_duplicate_interesting_table(
+    api_client, data_fixture, enable_singleton_testing
+):
     user_1, token_1 = data_fixture.create_user_and_token(
         email="test_1@test.nl", password="password", first_name="Test1"
     )

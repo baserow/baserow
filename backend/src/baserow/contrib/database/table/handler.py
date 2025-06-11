@@ -317,7 +317,6 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
 
         try:
             table = base_queryset.select_related(
-                "database__workspace",
                 "data_sync",
                 "database__workspace__workspacedatabasesettings",
             ).get(id=table_id)

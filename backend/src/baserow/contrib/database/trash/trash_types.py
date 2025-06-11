@@ -56,11 +56,11 @@ class TableTrashableItemType(TrashableItemType):
         self, trashed_entry, trash_item_lookup_cache: Dict[str, Any] = None
     ):
         try:
-            return self.model_class.trash.get(id=trashed_entry.trash_item_id).select_related('database',
-                                                                                             'database__workspace')
+            return self.model_class.trash.select_related("database__workspace").get(
+                id=trashed_entry.trash_item_id
+            )
         except self.model_class.DoesNotExist:
             raise TrashItemDoesNotExist()
-
 
     def fields_to_restore(self, trashed_item: Table, trash_entry: TrashEntry):
         for field in trashed_item.field_set(manager="objects_and_trash").all():
@@ -132,8 +132,6 @@ class TableTrashableItemType(TrashableItemType):
             # it still exists.
             trash_item_lookup_cache["row_table_model_cache"].pop(trashed_item.id, None)
 
-        # # This cannot be executed post-delete, because we need access to model fields.
-        # SearchHandler.cleanup_table_rows_vectors(table=trashed_item)
         try:
             Table.objects_and_trash.select_for_update(of=("self",)).get(
                 id=trashed_item.id
@@ -256,7 +254,8 @@ class FieldTrashableItemType(TrashableItemType):
             from_model = table.get_model(field_ids=[], fields=[field])
             model_field = from_model._meta.get_field(field.db_column)
             schema_editor.remove_field(from_model, model_field)
-
+            # must call it here, because we need field.id
+            SearchHandler.cleanup_table_rows_vectors(table, field_ids=[field.id])
             field.delete()
 
         # After the field is deleted we are going to call the after_delete method of
@@ -283,7 +282,9 @@ class RowTrashableItemType(TrashableItemType):
     @staticmethod
     def _get_table(parent_id):
         try:
-            return Table.objects_and_trash.select_related('database', 'database__workspace').get(id=parent_id)
+            return Table.objects_and_trash.select_related(
+                "database", "database__workspace"
+            ).get(id=parent_id)
         except Table.DoesNotExist:
             # The parent table must have been actually deleted, in which case the
             # row itself no longer exits.
@@ -392,7 +393,9 @@ class RowsTrashableItemType(TrashableItemType):
     @staticmethod
     def _get_table(parent_id):
         try:
-            return Table.objects_and_trash.select_related('database', 'database__workspace').get(id=parent_id)
+            return Table.objects_and_trash.select_related(
+                "database", "database__workspace"
+            ).get(id=parent_id)
         except Table.DoesNotExist:
             # The parent table must have been actually deleted, in which case the
             # row itself no longer exits.

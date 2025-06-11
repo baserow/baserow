@@ -31,7 +31,7 @@ class WorkspaceFixtures:
             )
 
         # ensure workspace-wide database settings
-        SearchHandler.create_search_table_for_workspace(workspace)
+        SearchHandler.create_search_table_for_workspace(workspace.id)
         return workspace
 
     def create_user_workspace(self, **kwargs):

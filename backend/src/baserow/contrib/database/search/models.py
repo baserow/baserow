@@ -30,6 +30,12 @@ class SearchTableBase(models.Model):
         abstract = True
         managed = False
 
+    # Ideally, this table should not have a primary key, but since Django ORM requires
+    # one to be present, and this table can grow even for small workspaces, primary key
+    # field should provide sufficient value space here.
+    id = models.BigAutoField(
+        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+    )
     row_id = models.IntegerField(null=False)
     field_id = models.IntegerField(null=False)
     updated_on = models.DateTimeField(auto_now_add=True, auto_now=True, null=False)
@@ -48,11 +54,15 @@ def get_search_indexes(workspace_id: int) -> list[models.Index]:
     indexes = [
         models.Index(
             fields=(
-                "row_id",
                 "field_id",
+                "row_id",
                 "updated_on",
             ),
             name=f"database_workspace_{workspace_id}_search_field_updated_on_idx",
+        ),
+        models.Index(
+            fields=("field_id",),
+            name=f"database_workspace_{workspace_id}_field_id_idx",
         ),
         GinIndex(
             fields=("value",),
