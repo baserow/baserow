@@ -132,3 +132,43 @@ def test_unregistering_signal_node_type_disconnects_from_signal(node_type):
     service_type = node_type.get_service_type()
     registered_handlers = [receiver[1]() for receiver in service_type.signal.receivers]
     assert service_type.handler not in registered_handlers
+
+
+@pytest.mark.django_db
+def test_automation_node_type_update_row_prepare_values_with_instance(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    node = data_fixture.create_automation_node(user=user, type="update_row")
+
+    values = {"service": {}}
+    result = node.get_type().prepare_values(values, user, instance=node)
+    assert result == {"service": node.service}
+
+
+@pytest.mark.django_db
+def test_automation_node_type_update_row_prepare_values_without_instance(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    node = data_fixture.create_automation_node(user=user, type="update_row")
+
+    values = {"service": {}}
+    result = node.get_type().prepare_values(values, user)
+
+    # Since we didn't pass in a service, a new service is created
+    new_service = result["service"]
+    assert isinstance(new_service, type(node.service))
+    assert new_service.id != node.service.id
+
+
+@patch("baserow.contrib.automation.nodes.registries.ServiceHandler.dispatch_service")
+@pytest.mark.django_db
+def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
+    mock_dispatch_result = MagicMock()
+    mock_dispatch.return_value = mock_dispatch_result
+
+    user, _ = data_fixture.create_user_and_token()
+    node = data_fixture.create_automation_node(user=user, type="update_row")
+
+    dispatch_context = AutomationDispatchContext(node.workflow, None)
+    result = node.get_type().dispatch(node, dispatch_context)
+
+    assert result == mock_dispatch_result
+    mock_dispatch.assert_called_once_with(node.service.specific, dispatch_context)
