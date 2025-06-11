@@ -11,12 +11,8 @@ test.describe("Automation node test suite", () => {
     const createNodeButton = page.getByRole("button", { name: "Create automation node" });
     await createNodeButton.click();
 
-    const rowsCreatedOption = page.getByText("Rows created")
-    await expect(rowsCreatedOption).toBeVisible();
-    await rowsCreatedOption.click();
-    
     const nodeDiv = page.getByRole("heading", {
-      name: "Rows Created",
+      name: "Row is created",
       level: 1,
     });
     await expect(nodeDiv).toBeVisible();
@@ -30,7 +26,7 @@ test.describe("Automation node test suite", () => {
     await page.reload();
 
     const nodeDiv = page.getByRole("heading", {
-      name: "Rows Created",
+      name: "Row is created",
       level: 1,
     });
     await expect(nodeDiv).toBeVisible();
