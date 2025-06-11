@@ -150,21 +150,18 @@ export class DataProviderType extends Registerable {
    * This function returns an object that can be read by the data explorer to display
    * the data available from each data provider.
    *
-   * Make sure to implement `getDataContent`, `getDataSchema` and `getContextDataSchema` for every data provider
-   * if they should show data in the data explorer.
+   * Make sure to implement `getDataContent`, `getDataSchema` and `getContextDataSchema`
+   * for every data provider if they should show data in the data explorer.
    *
    * @param {Object} applicationContext the application context.
    * @returns {{identifier: string, name: string, nodes: []}}
    */
   getNodes(applicationContext) {
     const schema = this.getDataSchema(applicationContext)
-
     if (schema === null) {
       return {}
     }
-
-    const result = this._toNode(applicationContext, [this.type], schema)
-    return result
+    return this._toNode(applicationContext, [this.type], schema)
   }
 
   /**

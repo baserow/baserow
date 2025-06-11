@@ -18,6 +18,7 @@
     >
 
     <a
+      v-if="!props.data.readOnly"
       ref="editNodeContextToggle"
       role="button"
       title="Node options"
@@ -94,10 +95,10 @@ const openContext = () => {
 
 const store = useStore()
 const { app } = useContext()
-const currentWorkflow = inject('currentWorkflow')
+const workflow = inject('workflow')
 const node = computed(() => {
   return store.getters['automationWorkflowNode/findById'](
-    currentWorkflow.value,
+    workflow.value,
     props.id
   )
 })

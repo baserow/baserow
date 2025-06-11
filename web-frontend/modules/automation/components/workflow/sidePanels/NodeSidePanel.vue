@@ -1,7 +1,10 @@
 <template>
   <ReadOnlyForm
     v-if="node"
-    :read-only="!$hasPermission('automation.node.update', node, workspace.id)"
+    :read-only="
+      workflowReadOnly ||
+      !$hasPermission('automation.node.update', node, workspace.id)
+    "
   >
     <FormGroup required :label="$t('nodeSidePanel.action')">
       <Dropdown
@@ -42,10 +45,10 @@ import {
   useContext,
   computed,
 } from '@nuxtjs/composition-api'
+import { reactive } from 'vue'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AutomationBuilderFormulaInput from '@baserow/modules/automation/components/AutomationBuilderFormulaInput'
 import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation/enums'
-import _ from 'lodash'
 
 const store = useStore()
 const { app } = useContext()
@@ -55,19 +58,31 @@ provide('dataProvidersAllowed', DATA_PROVIDERS_ALLOWED_NODE_ACTIONS)
 
 const workspace = inject('workspace')
 const automation = inject('automation')
-const currentWorkflow = inject('currentWorkflow')
+const workflow = inject('workflow')
+const workflowReadOnly = inject('workflowReadOnly')
 
 const node = computed(() => {
-  return store.getters['automationWorkflowNode/getSelected'](
-    currentWorkflow.value
-  )
+  return store.getters['automationWorkflowNode/getSelected'](workflow.value)
 })
 
-provide('applicationContext', {
-  node: node.value,
-  automation: automation.value,
-  workflow: currentWorkflow.value,
+/**
+ * The application context is provided as a reactive object
+ * as the `node` (the selected node) will change. If it's not
+ * reactive, the components that consume this context will not
+ * update when the node changes.
+ */
+const applicationContext = reactive({
+  get node() {
+    return node.value
+  },
+  get automation() {
+    return automation.value
+  },
+  get workflow() {
+    return workflow.value
+  },
 })
+provide('applicationContext', applicationContext)
 
 const nodeType = computed(() => {
   return app.$registry.get('node', node.value.type)
@@ -77,7 +92,7 @@ const handleNodeServiceChange = (newServiceChanges) => {
   const updatedNode = { ...node.value }
   updatedNode.service = { ...updatedNode.service, ...newServiceChanges }
   store.dispatch('automationWorkflowNode/update', {
-    workflow: currentWorkflow.value,
+    workflow: workflow.value,
     nodeId: updatedNode.id,
     values: updatedNode,
   })
