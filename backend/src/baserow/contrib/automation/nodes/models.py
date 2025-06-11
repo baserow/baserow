@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from django.db.models import QuerySet
+from django.db.models import Manager, QuerySet
 
 from baserow.contrib.automation.workflows.models import (
     AutomationWorkflow,
@@ -33,6 +33,26 @@ __all__ = [
 
 def get_default_node_content_type():
     return ContentType.objects.get_for_model(AutomationNode)
+
+
+class AutomationNodeTrashManager(models.Manager):
+    """
+    Manager for the AutomationNode model.
+
+    Ensure all trashed relations are excluded from the default queryset.
+    """
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .filter(
+                trashed=False,
+                workflow__trashed=False,
+                workflow__automation__trashed=False,
+                workflow__automation__workspace__trashed=False,
+            )
+        )
 
 
 class AutomationNode(
@@ -92,6 +112,9 @@ class AutomationNode(
     )
 
     previous_node_output = models.CharField(default="")
+
+    objects = AutomationNodeTrashManager()
+    objects_and_trash = Manager()
 
     class Meta:
         ordering = ("order", "id")

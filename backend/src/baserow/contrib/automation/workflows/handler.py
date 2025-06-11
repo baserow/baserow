@@ -60,7 +60,7 @@ class AutomationWorkflowHandler:
         """
 
         if base_queryset is None:
-            base_queryset = AutomationWorkflow.objects
+            base_queryset = AutomationWorkflow.objects.all()
 
         try:
             return base_queryset.select_related("automation__workspace").get(

@@ -3,12 +3,16 @@ import pytest
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
-from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotInWorkflow
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeDoesNotExist,
+    AutomationNodeNotInWorkflow,
+)
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
 from baserow.core.services.types import DispatchResult
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyDict, AnyStr
 
@@ -44,12 +48,41 @@ def test_get_nodes(data_fixture, django_assert_num_queries):
 
 
 @pytest.mark.django_db
+def test_get_nodes_excludes_trashed_application(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    node = data_fixture.create_local_baserow_rows_created_trigger_node()
+    workflow = node.workflow
+    automation = workflow.automation
+
+    # Trash the automation application
+    TrashHandler.trash(user, automation.workspace, automation, automation)
+
+    nodes_qs = AutomationNodeHandler().get_nodes(workflow, specific=False)
+    assert nodes_qs.count() == 0
+
+
+@pytest.mark.django_db
 def test_get_node(data_fixture):
     node = data_fixture.create_automation_node()
 
     node_instance = AutomationNodeHandler().get_node(node.id)
 
     assert node_instance.specific == node
+
+
+@pytest.mark.django_db
+def test_get_node_excludes_trashed_application(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    node = data_fixture.create_automation_node()
+    workflow = node.workflow
+    automation = workflow.automation
+
+    TrashHandler.trash(user, automation.workspace, automation, automation)
+
+    with pytest.raises(AutomationNodeDoesNotExist) as e:
+        AutomationNodeHandler().get_node(node.id)
+
+    assert str(e.value) == f"The node {node.id} does not exist."
 
 
 @pytest.mark.django_db
@@ -119,6 +152,22 @@ def test_order_nodes(data_fixture):
 
     order = AutomationNodeHandler().get_nodes_order(workflow)
     assert order == [node_2.id, node_1.id]
+
+
+@pytest.mark.django_db
+def test_order_nodes_excludes_trashed_application(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node_1 = data_fixture.create_automation_node(user=user, workflow=workflow)
+    node_2 = data_fixture.create_automation_node(user=user, workflow=workflow)
+    automation = workflow.automation
+
+    TrashHandler.trash(user, automation.workspace, automation, automation)
+
+    with pytest.raises(AutomationNodeNotInWorkflow) as e:
+        AutomationNodeHandler().order_nodes(workflow, [node_2.id, node_1.id])
+
+    assert str(e.value) == f"The node {node_2.id} does not belong to the workflow."
 
 
 @pytest.mark.django_db

@@ -11,6 +11,7 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowNotInAutomation,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.core.trash.handler import TrashHandler
 
 WORKFLOWS_MODULE = "baserow.contrib.automation.workflows"
 HANDLER_MODULE = f"{WORKFLOWS_MODULE}.handler"
@@ -22,6 +23,39 @@ TRASH_TYPES_PATH = f"{WORKFLOWS_MODULE}.trash_types"
 def test_get_workflow(data_fixture):
     workflow = data_fixture.create_automation_workflow()
     assert AutomationWorkflowHandler().get_workflow(workflow.id).id == workflow.id
+
+
+@pytest.mark.django_db
+def test_get_workflow_excludes_trashed_application(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    automation = workflow.automation
+
+    # Trash the automation application
+    TrashHandler.trash(user, automation.workspace, automation, automation)
+
+    with pytest.raises(AutomationWorkflowDoesNotExist):
+        AutomationWorkflowHandler().get_workflow(workflow.id)
+
+
+@pytest.mark.django_db
+def test_get_workflows(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    workflows = AutomationWorkflowHandler().get_workflows(workflow.automation.id)
+    assert [w.id for w in workflows] == [workflow.id]
+
+
+@pytest.mark.django_db
+def test_get_workflows_excludes_trashed_application(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    automation = workflow.automation
+
+    # Trash the automation application
+    TrashHandler.trash(user, automation.workspace, automation, automation)
+
+    workflows = AutomationWorkflowHandler().get_workflows(workflow.id)
+    assert workflows.count() == 0
 
 
 @pytest.mark.django_db
@@ -160,6 +194,31 @@ def test_order_workflows(data_fixture):
     workflow_2.refresh_from_db()
 
     assert workflow_1.order > workflow_2.order
+
+
+@pytest.mark.django_db
+def test_order_workflows_excludes_trashed_application(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow_1 = data_fixture.create_automation_workflow(
+        automation=automation, name="test1", order=10
+    )
+    workflow_2 = data_fixture.create_automation_workflow(
+        automation=automation, name="test2", order=20
+    )
+
+    # Trash the automation application
+    TrashHandler.trash(user, automation.workspace, automation, automation)
+
+    with pytest.raises(AutomationWorkflowNotInAutomation) as e:
+        AutomationWorkflowHandler().order_workflows(
+            automation, [workflow_2.id, workflow_1.id]
+        )
+
+    assert (
+        str(e.value)
+        == f"The workflow {workflow_2.id} does not belong to the automation."
+    )
 
 
 @pytest.mark.django_db

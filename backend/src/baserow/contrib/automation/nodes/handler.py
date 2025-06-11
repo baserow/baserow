@@ -85,7 +85,9 @@ class AutomationNodeHandler:
         if base_queryset is None:
             base_queryset = AutomationNode.objects.all()
 
-        nodes = base_queryset.filter(workflow=workflow)
+        nodes = base_queryset.select_related("workflow__automation__workspace").filter(
+            workflow=workflow
+        )
 
         if specific:
             nodes = specific_iterator(nodes.select_related("content_type"))
@@ -119,7 +121,7 @@ class AutomationNodeHandler:
         """
 
         if base_queryset is None:
-            base_queryset = AutomationNode.objects
+            base_queryset = AutomationNode.objects.all()
 
         try:
             return (

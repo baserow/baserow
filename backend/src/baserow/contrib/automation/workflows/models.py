@@ -21,6 +21,25 @@ if typing.TYPE_CHECKING:
     from baserow.contrib.automation.models import Automation
 
 
+class AutomationWorkflowTrashManager(models.Manager):
+    """
+    Manager for the AutomationWorkflow model.
+
+    Ensure all trashed relations are excluded from the default queryset.
+    """
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .filter(
+                trashed=False,
+                automation__trashed=False,
+                automation__workspace__trashed=False,
+            )
+        )
+
+
 class AutomationWorkflow(
     HierarchicalModelMixin,
     TrashableModelMixin,
@@ -41,6 +60,9 @@ class AutomationWorkflow(
     order = models.PositiveIntegerField()
 
     allow_test_run_until = models.DateTimeField(null=True, blank=True)
+
+    objects = AutomationWorkflowTrashManager()
+    objects_and_trash = models.Manager()
 
     class Meta:
         ordering = ("order",)
