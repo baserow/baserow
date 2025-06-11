@@ -299,12 +299,6 @@ export default {
       bodyAttrs: {
         class: 'public-page',
       },
-      script: [
-        {
-          src: 'https://cdn.jsdelivr.net/npm/lodash@4.17.20/lodash.min.js',
-          defer: true,
-        },
-      ],
     }
 
     if (this.faviconLink) {

@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="CustomCode",
+            name="BuilderCustomCode",
             fields=[
                 (
                     "id",
@@ -45,7 +45,7 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
-            name="CustomScript",
+            name="BuilderCustomScript",
             fields=[
                 (
                     "id",

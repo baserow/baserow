@@ -49,14 +49,10 @@ export default {
           values,
         })
       } catch (error) {
-        let title = this.$t('generalSettings.cantUpdateApplicationTitle')
-        let message = this.$t(
+        const title = this.$t('generalSettings.cantUpdateApplicationTitle')
+        const message = this.$t(
           'generalSettings.cantUpdateApplicationDescription'
         )
-        if (values?.favicon_file?.name) {
-          title = this.$t('generalSettings.cantUploadFaviconTitle')
-          message = this.$t('generalSettings.cantUploadFaviconDescription')
-        }
         this.$store.dispatch('toast/error', { title, message })
         this.$refs.settingsForm.reset()
       }

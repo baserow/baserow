@@ -1,7 +1,7 @@
 import { BuilderSettingType } from '@baserow/modules/builder/builderSettingTypes'
 import CustomCodeSetting from '@baserow_enterprise/components/builder/CustomCodeSetting'
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import { AuditLogPaidFeature } from '@baserow_enterprise/paidFeatures'
+import { BuilderCustomCodePaidFeature } from '@baserow_enterprise/paidFeatures'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export class CustomCodeBuilderSettingType extends BuilderSettingType {
@@ -46,7 +46,7 @@ export class CustomCodeBuilderSettingType extends BuilderSettingType {
     ) {
       return [
         PaidFeaturesModal,
-        { 'initial-selected-type': AuditLogPaidFeature.getType() },
+        { 'initial-selected-type': BuilderCustomCodePaidFeature.getType() },
       ]
     }
     return null

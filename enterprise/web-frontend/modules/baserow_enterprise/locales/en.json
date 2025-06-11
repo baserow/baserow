@@ -311,7 +311,11 @@
     "fieldLevelPermissions": "Field-level permissions",
     "fieldLevelPermissionsContent": "Control who can edit specific fields in a table. Set permissions for editors, builders, admins, or completely disable modifications to field values.",
     "builderBranding": "Application branding",
-    "builderBrandingContent": "White label the branding of your application by removing the 'Made with Baserow' branding in the footer of your application."
+    "builderBrandingContent": "White label the branding of your application by removing the 'Made with Baserow' branding in the footer of your application.",
+    "builderFileInputElement": "File input element",
+    "builderFileInputElementContent": "The file input element allows you to add a field to your application pages for uploading files. Give your users the ability to store important documents or images.",
+    "builderCustomCode": "Custom code for applications",
+    "builderCustomCodeContent": "You can add custom CSS/Javascript code to make your application even more customized. For example, you can integrate external services like analytics or social media, or finely define how your application should look and behave."
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"

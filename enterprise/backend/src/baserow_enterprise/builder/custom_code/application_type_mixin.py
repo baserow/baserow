@@ -1,13 +1,12 @@
 from baserow_premium.license.handler import LicenseHandler
 
-from baserow.contrib.builder.application_types import BuilderApplicationType
 from baserow.contrib.builder.models import Builder
-from baserow_enterprise.builder.custom_code.models import CustomScript
-from baserow_enterprise.builder.custom_code.types import EnterpriseBuilderDict
+from baserow_enterprise.builder.custom_code.models import BuilderCustomScript
+from baserow_enterprise.builder.custom_code.types import BuilderCustomCodeDict
 from baserow_enterprise.features import BUILDER_CUSTOM_CODE
 
 
-class EnterpriseBuilderApplicationType(BuilderApplicationType):
+class CustomCodeBuilderApplicationTypeMixin:
     @property
     def serializer_field_names(self):
         return super().serializer_field_names + [
@@ -32,18 +31,20 @@ class EnterpriseBuilderApplicationType(BuilderApplicationType):
     @property
     def serializer_mixins(self):
         from baserow_enterprise.api.builder.custom_code.serializers import (
-            EnterpriseBuilderSerializer,
+            EnterpriseBuilderCustomCodeSerializer,
         )
 
-        return super().serializer_mixins + [EnterpriseBuilderSerializer]
+        return super().serializer_mixins + [EnterpriseBuilderCustomCodeSerializer]
 
     @property
     def public_serializer_mixins(self):
         from baserow_enterprise.api.builder.custom_code.serializers import (
-            EnterpriseBuilderSerializer,
+            EnterpriseBuilderCustomCodeSerializer,
         )
 
-        return super().public_serializer_mixins + [EnterpriseBuilderSerializer]
+        return super().public_serializer_mixins + [
+            EnterpriseBuilderCustomCodeSerializer
+        ]
 
     @property
     def serializer_field_overrides(self):
@@ -81,11 +82,11 @@ class EnterpriseBuilderApplicationType(BuilderApplicationType):
         bulk = []
         for order, fdata in enumerate(scripts):
             fdata.pop("id", None)
-            bulk.append(CustomScript(builder=instance, order=order, **fdata))
+            bulk.append(BuilderCustomScript(builder=instance, order=order, **fdata))
 
-        CustomScript.objects.bulk_create(bulk)
+        BuilderCustomScript.objects.bulk_create(bulk)
 
-    def after_update(self, instance, values):
+    def _update_scripts_and_custom_code(self, instance, values):
         """
         Handles custom code and scripts.
         """
@@ -97,7 +98,7 @@ class EnterpriseBuilderApplicationType(BuilderApplicationType):
             return
 
         if "scripts" in values:
-            # Bulk delete the existing ones on the service.
+            # Bulk delete the existing ones on the builder.
             instance.scripts.all().delete()
 
             self._create_scripts_in_bulk(instance, values["scripts"])
@@ -106,6 +107,15 @@ class EnterpriseBuilderApplicationType(BuilderApplicationType):
             instance.custom_code.css = values["custom_code"].get("css", "")
             instance.custom_code.js = values["custom_code"].get("js", "")
             instance.custom_code.save()
+
+    def after_update(self, instance, values):
+        """
+        Handles custom code and scripts.
+        """
+
+        super().after_update(instance, values)
+
+        self._update_scripts_and_custom_code(instance, values)
 
     def after_create(
         self,
@@ -116,7 +126,9 @@ class EnterpriseBuilderApplicationType(BuilderApplicationType):
         Handles custom code and scripts.
         """
 
-        self.after_update(instance, values)
+        super().after_create(instance, values)
+
+        self._update_scripts_and_custom_code(instance, values)
 
     def _get_base_enhanced_queryset(self, queryset):
         enhanced_queryset = super()._get_base_enhanced_queryset(queryset)
@@ -129,7 +141,7 @@ class EnterpriseBuilderApplicationType(BuilderApplicationType):
         files_zip=None,
         storage=None,
         progress_builder=None,
-    ) -> EnterpriseBuilderDict:
+    ) -> BuilderCustomCodeDict:
         """
         Serializes the scripts and the custom_code properties.
         """
@@ -152,7 +164,7 @@ class EnterpriseBuilderApplicationType(BuilderApplicationType):
             for s in builder.scripts.all()
         ]
 
-        return EnterpriseBuilderDict(
+        return BuilderCustomCodeDict(
             **builder_dict,
             scripts=scripts,
             custom_code={"css": builder.custom_code.css, "js": builder.custom_code.js},

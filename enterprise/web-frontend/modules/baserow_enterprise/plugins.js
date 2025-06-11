@@ -114,6 +114,8 @@ export class EnterprisePlugin extends BaserowPlugin {
     const script = []
     const link = []
 
+    console.log(builder)
+
     builder.scripts.forEach((s) => {
       if (!s.url) {
         return

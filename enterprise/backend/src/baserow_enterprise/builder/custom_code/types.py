@@ -3,6 +3,6 @@ from typing import Dict, List
 from baserow.contrib.builder.types import BuilderDict
 
 
-class EnterpriseBuilderDict(BuilderDict):
+class BuilderCustomCodeDict(BuilderDict):
     scripts: List[Dict]
     custom_code: Dict

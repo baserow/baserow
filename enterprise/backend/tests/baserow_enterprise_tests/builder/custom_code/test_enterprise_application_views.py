@@ -5,7 +5,7 @@ from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED, HTTP_404_N
 
 from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.models import Builder
-from baserow_enterprise.builder.custom_code.models import CustomScript
+from baserow_enterprise.builder.custom_code.models import BuilderCustomScript
 
 
 @pytest.mark.django_db
@@ -24,7 +24,7 @@ def test_get_enterprise_builder_application(
     application.custom_code.js = "testJs"
     application.custom_code.save()
 
-    custom_script = CustomScript.objects.create(builder=application, order=1)
+    custom_script = BuilderCustomScript.objects.create(builder=application, order=1)
 
     url = reverse("api:applications:item", kwargs={"application_id": application.id})
 

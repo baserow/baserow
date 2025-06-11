@@ -20,6 +20,7 @@ export default {
     language: {
       type: String,
       default: 'javascript',
+      validator: (value) => ['javascript', 'css'].includes(value),
     },
     value: {
       type: String,

@@ -81,7 +81,7 @@ class BaserowEnterpriseConfig(AppConfig):
         email_context_registry.register(EnterpriseEmailContextType())
 
         from baserow.core.registries import application_type_registry
-        from baserow_enterprise.builder.custom_code.application_types import (
+        from baserow_enterprise.builder.application_types import (
             EnterpriseBuilderApplicationType,
         )
 

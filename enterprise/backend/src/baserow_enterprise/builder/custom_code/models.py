@@ -20,7 +20,7 @@ class CrossoriginType(models.TextChoices):
     CREDENTIALS = "credentials", "Use credentials"
 
 
-class CustomCode(models.Model):
+class BuilderCustomCode(models.Model):
     builder = AutoOneToOneField(
         "builder.Builder",
         on_delete=models.CASCADE,
@@ -33,7 +33,7 @@ class CustomCode(models.Model):
     js = models.TextField(help_text="Custom JavaScript code.", blank=True)
 
 
-class CustomScript(models.Model):
+class BuilderCustomScript(models.Model):
     builder = models.ForeignKey(
         "builder.Builder",
         on_delete=models.CASCADE,
