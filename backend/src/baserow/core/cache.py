@@ -233,12 +233,12 @@ class GlobalCache:
                 # We check again to make sure it hasn't been populated in the meantime
                 # while acquiring the lock
                 if cached is SENTINEL:
+                    logger.debug(f"Global cache miss for: {key}")
                     if callable(default):
                         cached = default()
                     else:
                         cached = default
 
-                    logger.debug(f"Global cache miss for: {key}")
                     cache.set(
                         cache_key_to_use,
                         cached,
