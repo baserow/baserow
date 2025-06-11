@@ -56,11 +56,7 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.errors import ERROR_BUILDER_DOES_NOT_EXIST
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
-from baserow.contrib.builder.handler import (
-    BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS,
-    BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
-    BuilderHandler,
-)
+from baserow.contrib.builder.handler import BuilderHandler
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.service import BuilderService
@@ -80,6 +76,12 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.user_source_user import UserSourceUser
+
+# The duration of the cached public element, data source and workflow action API views.
+BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60 * 60
+
+# The duration of the cached public `get_public_builder_by_domain_name` view.
+BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS = 60 * 60
 
 
 class PublicBuilderByDomainNameView(APIView):

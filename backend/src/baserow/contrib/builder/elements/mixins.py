@@ -173,7 +173,7 @@ class CollectionElementTypeMixin:
         property_options: List[Dict]
 
     def enhance_queryset(self, queryset):
-        return queryset.prefetch_related("property_options")
+        return super().enhance_queryset(queryset).prefetch_related("property_options")
 
     def after_update(
         self, instance: CollectionElementSubClass, values, changes: Dict[str, Tuple]

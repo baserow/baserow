@@ -1,7 +1,17 @@
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Tuple, Type
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 from django.core.exceptions import ValidationError
-from django.db.models import OrderBy, QuerySet
+from django.db.models import OrderBy, Prefetch, QuerySet
 
 from baserow.contrib.builder.data_providers.exceptions import (
     DataProviderChunkInvalidException,
@@ -17,7 +27,13 @@ from baserow.contrib.integrations.local_baserow.api.serializers import (
     LocalBaserowTableServiceFilterSerializerMixin,
     LocalBaserowTableServiceSortSerializerMixin,
 )
-from baserow.contrib.integrations.local_baserow.models import LocalBaserowViewService
+from baserow.contrib.integrations.local_baserow.models import (
+    LocalBaserowGetRow,
+    LocalBaserowListRows,
+    LocalBaserowTableServiceFilter,
+    LocalBaserowTableServiceSort,
+    LocalBaserowViewService,
+)
 from baserow.core.formula import BaserowFormula, resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
@@ -29,8 +45,14 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfigured,
     ServiceSortPropertyDoesNotExist,
 )
-from baserow.core.services.types import ServiceDict, ServiceSubClass
+from baserow.core.services.types import (
+    ServiceDict,
+    ServiceFilterDictSubClass,
+    ServiceSortDictSubClass,
+    ServiceSubClass,
+)
 from baserow.core.services.utils import ServiceAdhocRefinements
+from baserow.core.utils import atomic_if_not_already
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
@@ -55,6 +77,20 @@ class LocalBaserowTableServiceFilterableMixin:
         filter_type: str
         filters: List[Dict]
 
+    def enhance_queryset(self, queryset):
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .prefetch_related(
+                Prefetch(
+                    "service_filters",
+                    queryset=LocalBaserowTableServiceFilter.objects.select_related(
+                        "field"
+                    ).all(),
+                ),
+            )
+        )
+
     def serialize_filters(self, service: ServiceSubClass):
         """
         Responsible for serializing the service `filters`.
@@ -70,8 +106,31 @@ class LocalBaserowTableServiceFilterableMixin:
                 "value": f.value,
                 "value_is_formula": f.value_is_formula,
             }
-            for f in service.service_filters.all()
+            for f in service.service_filters_with_untrashed_fields
         ]
+
+    def serialize_property(
+        self,
+        service: ServiceSubClass,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        """
+        Responsible for serializing the `filters` properties.
+
+        :param service: The LocalBaserowListRows service.
+        :param prop_name: The property name we're serializing.
+        :return: Any
+        """
+
+        if prop_name == "filters":
+            return self.serialize_filters(service)
+
+        return super().serialize_property(
+            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+        )
 
     def deserialize_filters(self, value, id_mapping):
         """
@@ -98,11 +157,56 @@ class LocalBaserowTableServiceFilterableMixin:
                     )
                     if "database_field_select_options" in id_mapping
                     and f["value"].isdigit()
+                    and not f["value_is_formula"]
                     else f["value"]
                 ),
             }
             for f in value
         ]
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ) -> ServiceSubClass:
+        """
+        Responsible for creating the `filters`.
+
+        :param serialized_values: The serialized values we'll use to import.
+        :param id_mapping: The id_mapping dictionary.
+        :return: A Service.
+        """
+
+        filters = serialized_values.pop("filters", [])
+
+        service = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+        # Create filters
+        LocalBaserowTableServiceFilter.objects.bulk_create(
+            [
+                LocalBaserowTableServiceFilter(
+                    **service_filter,
+                    order=index,
+                    service=service,
+                )
+                for index, service_filter in enumerate(
+                    self.deserialize_filters(filters, id_mapping)
+                )
+            ]
+        )
+
+        return service
 
     def get_used_field_names(
         self,
@@ -120,7 +224,7 @@ class LocalBaserowTableServiceFilterableMixin:
         if isinstance(used_fields_from_parent, list):
             return used_fields_from_parent + [
                 f"field_{service_filter.field_id}"
-                for service_filter in service.service_filters.all()
+                for service_filter in service.service_filters_with_untrashed_fields
             ]
 
         return None
@@ -154,17 +258,15 @@ class LocalBaserowTableServiceFilterableMixin:
 
         # If there are filters pointing to trashed fields, throw an exception.
         # We won't allow the service to be dispatched as it could leak data.
-        if (
-            service.service_filters(manager="objects_and_trash")
-            .filter(field__trashed=True)
-            .exists()
+        if len(service.service_filters_with_untrashed_fields) != len(
+            service.service_filters.all()
         ):
             raise ServiceFilterPropertyDoesNotExist(
                 f"One or more filtered properties no longer exist.",
             )
 
         service_filter_builder = FilterBuilder(filter_type=service.filter_type)
-        for service_filter in service.service_filters.all():
+        for service_filter in service.service_filters_with_untrashed_fields:
             field_object = model._field_objects[service_filter.field_id]
             field_name = field_object["name"]
             model_field = model._meta.get_field(field_name)
@@ -205,7 +307,7 @@ class LocalBaserowTableServiceFilterableMixin:
 
         yield from super().formula_generator(service)
 
-        for service_filter in service.service_filters.all():
+        for service_filter in service.service_filters_with_untrashed_fields:
             if service_filter.value_is_formula:
                 # Service types like LocalBaserowGetRow do not have a value attribute.
                 new_formula = yield service_filter.value
@@ -223,7 +325,7 @@ class LocalBaserowTableServiceFilterableMixin:
     ) -> QuerySet:
         """
         Responsible for applying the filters to the queryset. If the dispatch
-        context contains any adhoc-filters, they are applied ontop of existing
+        context contains any adhoc-filters, they are applied on top of existing
         service and view filters.
 
         :param service: the service instance.
@@ -254,6 +356,52 @@ class LocalBaserowTableServiceFilterableMixin:
             queryset = adhoc_filters.apply_to_queryset(model, queryset)
         return queryset
 
+    def update_service_filters(
+        self,
+        service: Union[LocalBaserowGetRow, LocalBaserowListRows],
+        service_filters: Optional[List[ServiceFilterDictSubClass]] = None,
+    ):
+        with atomic_if_not_already():
+            service.service_filters.all().delete()
+            LocalBaserowTableServiceFilter.objects.bulk_create(
+                [
+                    LocalBaserowTableServiceFilter(
+                        **service_filter, service=service, order=index
+                    )
+                    for index, service_filter in enumerate(service_filters)
+                ]
+            )
+
+    def after_update(
+        self,
+        instance: ServiceSubClass,
+        values: Dict,
+        changes: Dict[str, Tuple],
+    ) -> None:
+        """
+        Responsible for updating service filters which have been
+        PATCHED to the data source / service endpoint. At the moment we
+        destroy all current filters, and create the ones present
+        in `service_filters`.
+
+        :param instance: The service we want to manage filters for.
+        :param values: A dictionary which may contain filters.
+        :param changes: A dictionary containing all changes which were made to the
+            service prior to `after_update` being called.
+        """
+
+        super().after_update(instance, values, changes)
+
+        # Following a Table change, from one Table to another, we drop all filters.
+        # This is due to the fact that they point at specific table fields.
+        from_table, to_table = changes.get("table", (None, None))
+
+        if from_table and to_table:
+            instance.service_filters.all().delete()
+        else:
+            if "service_filters" in values:
+                self.update_service_filters(instance, values["service_filters"])
+
 
 class LocalBaserowTableServiceSortableMixin:
     """
@@ -268,6 +416,20 @@ class LocalBaserowTableServiceSortableMixin:
     class SerializedDict(ServiceDict):
         sortings: List[Dict]
 
+    def enhance_queryset(self, queryset):
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .prefetch_related(
+                Prefetch(
+                    "service_sorts",
+                    queryset=LocalBaserowTableServiceSort.objects.select_related(
+                        "field"
+                    ).all(),
+                ),
+            )
+        )
+
     def serialize_sortings(self, service: ServiceSubClass):
         """
         Responsible for serializing the service `sortings`.
@@ -281,8 +443,97 @@ class LocalBaserowTableServiceSortableMixin:
                 "field_id": s.field_id,
                 "order_by": s.order_by,
             }
-            for s in service.service_sorts.all()
+            for s in service.service_sorts_with_untrashed_fields
         ]
+
+    def serialize_property(
+        self,
+        service: ServiceSubClass,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        """
+        Responsible for serializing the `sortings` properties.
+
+        :param service: The LocalBaserowListRows service.
+        :param prop_name: The property name we're serializing.
+        :return: Any
+        """
+
+        if prop_name == "sortings":
+            return self.serialize_sortings(service)
+
+        return super().serialize_property(
+            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+        )
+
+    def deserialize_sorts(self, value, id_mapping):
+        """
+        Deserializes the sorts by mapping the field_id to the new field_id if it
+        exists in the id_mapping.
+
+        :param value: the value of this property.
+        :param id_mapping: the id mapping dict.
+        :return: the deserialized version for the sort.
+        """
+
+        return [
+            {
+                **f,
+                "field_id": (
+                    id_mapping["database_fields"][f["field_id"]]
+                    if "database_fields" in id_mapping
+                    else f["field_id"]
+                ),
+            }
+            for f in value
+        ]
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ) -> ServiceSubClass:
+        """
+        Responsible for creating the `sortings`.
+
+        :param serialized_values: The serialized values we'll use to import.
+        :param id_mapping: The id_mapping dictionary.
+        :return: A Service.
+        """
+
+        sortings = serialized_values.pop("sortings", [])
+
+        service = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+        # Create sortings
+        LocalBaserowTableServiceSort.objects.bulk_create(
+            [
+                LocalBaserowTableServiceSort(
+                    **service_sorting,
+                    order=index,
+                    service=service,
+                )
+                for index, service_sorting in enumerate(
+                    self.deserialize_sorts(sortings, id_mapping)
+                )
+            ]
+        )
+
+        return service
 
     def get_used_field_names(
         self,
@@ -300,7 +551,7 @@ class LocalBaserowTableServiceSortableMixin:
         if isinstance(used_fields_from_parent, list):
             return used_fields_from_parent + [
                 f"field_{service_sort.field_id}"
-                for service_sort in service.service_sorts.all()
+                for service_sort in service.service_sorts_with_untrashed_fields
             ]
 
         return None
@@ -328,16 +579,15 @@ class LocalBaserowTableServiceSortableMixin:
         """
 
         # If there are sorts pointing to trashed fields, throw an exception.
-        if (
-            service.service_sorts(manager="objects_and_trash")
-            .filter(field__trashed=True)
-            .exists()
+        # We won't allow the service to be dispatched as it could leak data.
+        if len(service.service_sorts_with_untrashed_fields) != len(
+            service.service_sorts.all()
         ):
             raise ServiceSortPropertyDoesNotExist(
-                f"One or more sorted properties no longer exist.",
+                "One or more sorted properties no longer exist.",
             )
 
-        service_sorts = service.service_sorts.all()
+        service_sorts = service.service_sorts_with_untrashed_fields
         sort_ordering = [service_sort.get_order_by() for service_sort in service_sorts]
 
         if not sort_ordering and service.view:
@@ -380,6 +630,52 @@ class LocalBaserowTableServiceSortableMixin:
             if view_sorts:
                 queryset = queryset.order_by(*view_sorts)
         return queryset
+
+    def update_service_sortings(
+        self,
+        service: Union[LocalBaserowGetRow, LocalBaserowListRows],
+        service_sorts: Optional[List[ServiceSortDictSubClass]] = None,
+    ):
+        with atomic_if_not_already():
+            service.service_sorts.all().delete()
+            LocalBaserowTableServiceSort.objects.bulk_create(
+                [
+                    LocalBaserowTableServiceSort(
+                        **service_sort, service=service, order=index
+                    )
+                    for index, service_sort in enumerate(service_sorts)
+                ]
+            )
+
+    def after_update(
+        self,
+        instance: ServiceSubClass,
+        values: Dict,
+        changes: Dict[str, Tuple],
+    ) -> None:
+        """
+        Responsible for updating service sorts which have been
+        PATCHED to the data source / service endpoint. At the moment we
+        destroy all current sorts, and create the ones present
+        in `service_sorts`.
+
+        :param instance: The service we want to manage sorts for.
+        :param values: A dictionary which may contain sorts.
+        :param changes: A dictionary containing all changes which were made to the
+            service prior to `after_update` being called.
+        """
+
+        super().after_update(instance, values, changes)
+
+        # Following a Table change, from one Table to another, we drop all filters
+        # and sorts. This is due to the fact that both point at specific table fields.
+        from_table, to_table = changes.get("table", (None, None))
+
+        if from_table and to_table:
+            instance.service_sorts.all().delete()
+        else:
+            if "service_sorts" in values:
+                self.update_service_sortings(instance, values["service_sorts"])
 
 
 class LocalBaserowTableServiceSearchableMixin:

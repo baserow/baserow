@@ -258,9 +258,9 @@ CACHES = {
 }
 
 BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = int(
-    # Default TTL is 10 minutes: 60 seconds * 10
+    # Default TTL is 2 hours
     os.getenv("BASEROW_BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS")
-    or 600
+    or 60 * 10 * 2
 )
 BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
     # Default TTL is 5 minutes
