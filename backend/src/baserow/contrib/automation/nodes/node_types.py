@@ -10,6 +10,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.nodes.models import (
     AutomationActionNode,
     LocalBaserowCreateRowActionNode,
+    LocalBaserowUpdateRowActionNode,
     LocalBaserowRowsCreatedTriggerNode,
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
@@ -52,6 +53,11 @@ class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
 class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
     type = "create_row"
     model_class = LocalBaserowCreateRowActionNode
+
+
+class LocalBaserowUpdateRowNodeType(LocalBaserowUpsertRowNodeType):
+    type = "update_row"
+    model_class = LocalBaserowUpdateRowActionNode
 
 
 class AutomationNodeTriggerType(AutomationNodeType):

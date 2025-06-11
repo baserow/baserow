@@ -28,6 +28,7 @@ __all__ = [
     "LocalBaserowRowsUpdatedTriggerNode",
     "LocalBaserowRowsDeletedTriggerNode",
     "LocalBaserowCreateRowActionNode",
+    "LocalBaserowUpdateRowActionNode",
 ]
 
 
@@ -206,4 +207,8 @@ class LocalBaserowRowsDeletedTriggerNode(AutomationTriggerNode):
 
 
 class LocalBaserowCreateRowActionNode(AutomationActionNode):
+    ...
+
+
+class LocalBaserowUpdateRowActionNode(AutomationActionNode):
     ...
