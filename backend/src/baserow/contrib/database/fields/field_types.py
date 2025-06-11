@@ -415,6 +415,7 @@ class TextFieldType(CollationSortMixin, FieldType):
     allowed_fields = ["text_default"]
     serializer_field_names = ["text_default"]
     _can_group_by = True
+    can_have_db_index = True
 
     can_upsert = True
 

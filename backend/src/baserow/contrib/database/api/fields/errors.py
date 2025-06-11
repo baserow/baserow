@@ -51,6 +51,11 @@ ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE = (
     HTTP_400_BAD_REQUEST,
     "The field type {e.field_type} is not compatible with the primary field.",
 )
+ERROR_DB_INDEX_NOT_SUPPORTED = (
+    "ERROR_DB_INDEX_NOT_SUPPORTED",
+    HTTP_400_BAD_REQUEST,
+    "The field type {e.field_type} does not support database indexes.",
+)
 ERROR_SELF_REFERENCING_LINK_ROW_CANNOT_HAVE_RELATED_FIELD = (
     "ERROR_SELF_REFERENCING_LINK_ROW_CANNOT_HAVE_RELATED_FIELD",
     HTTP_400_BAD_REQUEST,

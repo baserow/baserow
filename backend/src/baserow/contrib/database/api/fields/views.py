@@ -37,6 +37,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_CANNOT_CHANGE_FIELD_TYPE,
     ERROR_CANNOT_CREATE_FIELD_TYPE,
     ERROR_CANNOT_DELETE_PRIMARY_FIELD,
+    ERROR_DB_INDEX_NOT_SUPPORTED,
     ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT,
     ERROR_FIELD_CIRCULAR_REFERENCE,
     ERROR_FIELD_DOES_NOT_EXIST,
@@ -74,6 +75,7 @@ from baserow.contrib.database.fields.exceptions import (
     CannotChangeFieldType,
     CannotCreateFieldType,
     CannotDeletePrimaryField,
+    DbIndexNotSupportedError,
     FailedToLockFieldDueToConflict,
     FieldDoesNotExist,
     FieldIsAlreadyPrimary,
@@ -272,6 +274,7 @@ class FieldsView(APIView):
             CircularFieldDependencyError: ERROR_FIELD_CIRCULAR_REFERENCE,
             FailedToLockTableDueToConflict: ERROR_FAILED_TO_LOCK_TABLE_DUE_TO_CONFLICT,
             CannotCreateFieldType: ERROR_CANNOT_CREATE_FIELD_TYPE,
+            DbIndexNotSupportedError: ERROR_DB_INDEX_NOT_SUPPORTED,
         }
     )
     def post(self, request, data, table_id):
@@ -418,6 +421,7 @@ class FieldView(APIView):
             ImmutableFieldType: ERROR_IMMUTABLE_FIELD_TYPE,
             ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
             SelectOptionDoesNotBelongToField: ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
+            DbIndexNotSupportedError: ERROR_DB_INDEX_NOT_SUPPORTED,
         }
     )
     @require_request_data_type(dict)

@@ -71,6 +71,7 @@ from .dependencies.update_collector import FieldUpdateCollector
 from .exceptions import (
     CannotChangeFieldType,
     CannotDeletePrimaryField,
+    DbIndexNotSupportedError,
     FailedToLockFieldDueToConflict,
     FieldDoesNotExist,
     FieldIsAlreadyPrimary,
@@ -333,12 +334,16 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             "read_only",
             "immutable_type",
             "immutable_properties",
+            "db_index",
         ] + field_type.allowed_fields
         field_values = extract_allowed(kwargs, allowed_fields)
         last_order = model_class.get_last_order(table)
 
         if primary and not field_type.can_be_primary_field(field_values):
             raise IncompatiblePrimaryFieldTypeError(field_type.type)
+
+        if kwargs.get("db_index", False) and not field_type.can_have_db_index:
+            raise DbIndexNotSupportedError(field_type.type)
 
         num_fields = table.field_set.count()
         if (num_fields + 1) > settings.MAX_FIELD_LIMIT:
@@ -533,6 +538,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             "read_only",
             "immutable_type",
             "immutable_properties",
+            "db_index",
         ] + to_field_type.allowed_fields
         field_values = extract_allowed(kwargs, allowed_fields)
 
@@ -540,6 +546,12 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             raise IncompatiblePrimaryFieldTypeError(to_field_type_name)
 
         if baserow_field_type_changed:
+            if old_field.db_index and not to_field_type.can_have_db_index:
+                field_values["db_index"] = False
+
+            if kwargs.get("db_index", False) and not to_field_type.can_have_db_index:
+                raise DbIndexNotSupportedError(to_field_type.type)
+
             ViewHandler().before_field_type_change(field)
             dependants_broken_due_to_type_change = (
                 from_field_type.get_dependants_which_will_break_when_field_type_changes(
@@ -548,8 +560,10 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             )
             new_model_class = to_field_type.model_class
             field.change_polymorphic_type_to(new_model_class)
-
         else:
+            if kwargs.get("db_index", False) and not from_field_type.can_have_db_index:
+                raise DbIndexNotSupportedError(to_field_type.type)
+
             dependants_broken_due_to_type_change = []
 
         self._validate_name_and_optionally_rename_if_collision(
