@@ -83,12 +83,7 @@ class AutomationNodeHandler:
         """
 
         if base_queryset is None:
-            base_queryset = AutomationNode.objects.filter(
-                trashed=False,
-                workflow__trashed=False,
-                workflow__automation__trashed=False,
-                workflow__automation__workspace__trashed=False,
-            )
+            base_queryset = AutomationNode.objects.all()
 
         nodes = base_queryset.select_related("workflow__automation__workspace").filter(
             workflow=workflow
@@ -126,12 +121,7 @@ class AutomationNodeHandler:
         """
 
         if base_queryset is None:
-            base_queryset = AutomationNode.objects.filter(
-                trashed=False,
-                workflow__trashed=False,
-                workflow__automation__trashed=False,
-                workflow__automation__workspace__trashed=False,
-            )
+            base_queryset = AutomationNode.objects.all()
 
         try:
             return (
@@ -211,13 +201,7 @@ class AutomationNodeHandler:
         """
 
         if base_qs is None:
-            base_qs = AutomationNode.objects.filter(
-                workflow=workflow,
-                trashed=False,
-                workflow__trashed=False,
-                workflow__automation__trashed=False,
-                workflow__automation__workspace__trashed=False,
-            )
+            base_qs = AutomationNode.objects.filter(workflow=workflow)
 
         try:
             full_order = AutomationNode.order_objects(base_qs, order)

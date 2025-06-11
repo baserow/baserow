@@ -60,11 +60,7 @@ class AutomationWorkflowHandler:
         """
 
         if base_queryset is None:
-            base_queryset = AutomationWorkflow.objects.filter(
-                trashed=False,
-                automation__trashed=False,
-                automation__workspace__trashed=False,
-            )
+            base_queryset = AutomationWorkflow.objects.all()
 
         try:
             return base_queryset.select_related("automation__workspace").get(
@@ -81,11 +77,7 @@ class AutomationWorkflowHandler:
         """
 
         if base_queryset is None:
-            base_queryset = AutomationWorkflow.objects.filter(
-                trashed=False,
-                automation__trashed=False,
-                automation__workspace__trashed=False,
-            )
+            base_queryset = AutomationWorkflow.objects.all()
 
         return base_queryset.filter(automation=automation).prefetch_related(
             "automation__workspace"
@@ -193,12 +185,7 @@ class AutomationWorkflowHandler:
         """
 
         if base_qs is None:
-            base_qs = AutomationWorkflow.objects.filter(
-                automation=automation,
-                trashed=False,
-                automation__trashed=False,
-                automation__workspace__trashed=False,
-            )
+            base_qs = AutomationWorkflow.objects.filter(automation=automation)
 
         try:
             return AutomationWorkflow.order_objects(base_qs, order)
