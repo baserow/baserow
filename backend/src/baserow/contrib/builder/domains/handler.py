@@ -249,14 +249,6 @@ class DomainHandler:
             builder, import_export_config, None, default_storage
         )
 
-        # Update user_source uid to have something stable per domain.
-        # This is mainly because we want a token generated for one version of a site
-        # to still be valid if we redeploy the website.
-        exported_builder["user_sources"] = [
-            {**user_source, "uid": f"domain_{domain.id}__{user_source['uid']}"}
-            for user_source in exported_builder["user_sources"]
-        ]
-
         if progress:
             progress.increment(by=50)
 
@@ -275,6 +267,17 @@ class DomainHandler:
         domain.published_to = duplicate_builder
         domain.last_published = datetime.now(tz=timezone.utc)
         domain.save()
+
+        # We need a stable/predictable uuid for published user sources. That's why we
+        # override the generated uuid with the uuid from the original user_source
+        # prefixed with the domain id.
+        # For a certain domain the domain id is always the same as long as you don't
+        # recreate it.
+        for imported_user_source, original_user_source in zip(
+            duplicate_builder.user_sources.all(), builder.user_sources.all()
+        ):
+            imported_user_source.uid = f"domain_{domain.id}__{original_user_source.uid}"
+            imported_user_source.save()
 
         # Invalidate the public builder-by-domain cache after a new publication.
         DomainHandler.invalidate_public_builder_by_domain_cache(domain.domain_name)

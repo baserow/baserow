@@ -28,6 +28,9 @@ class UserSourceFixtures:
         kwargs["content_type"] = ContentType.objects.get_for_model(model_class)
         user_source = model_class.objects.create(application=application, **kwargs)
 
+        user_source.uid = user_source.get_type().gen_uid(user_source)
+        user_source.save()
+
         return user_source
 
     def create_user_sources_with_primary_keys(

@@ -344,6 +344,11 @@ class UserSourceHandler:
             cache=cache,
         )
 
+        # Generates the user source uid from user source type once the instance is
+        # created. This will prevent duplicate and keep the gen_uid logic.
+        user_source.uid = user_source_type.gen_uid(user_source)
+        user_source.save()
+
         id_mapping["user_sources"][serialized_user_source["id"]] = user_source.id
 
         return user_source
