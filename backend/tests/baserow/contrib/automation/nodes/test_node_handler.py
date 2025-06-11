@@ -15,6 +15,7 @@ from baserow.core.services.types import DispatchResult
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyDict, AnyStr
+from baserow.contrib.database.rows.handler import RowHandler
 
 
 @pytest.mark.django_db
@@ -285,7 +286,7 @@ def test_import_node_only(data_fixture):
 
 
 @pytest.mark.django_db
-def test_dispatch_node(data_fixture):
+def test_dispatch_node_create_row(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     node = data_fixture.create_automation_node(user=user, type="create_row")
     integration = data_fixture.create_local_baserow_integration(
@@ -315,6 +316,55 @@ def test_dispatch_node(data_fixture):
             "id": row.id,
             "order": AnyStr(),
             f"field_{text_field.id}": "Hello world!",
+        },
+        status=200,
+    )
+
+
+@pytest.mark.django_db
+def test_dispatch_node_update_row(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    node = data_fixture.create_automation_node(user=user, type="update_row")
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=node.workflow.automation
+    )
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    field_name = f"field_{text_field.id}"
+    RowHandler().create_rows(
+        user,
+        table,
+        [
+            {field_name: "'hello'"},
+        ],
+    )
+
+    # Verify the state of the initial row
+    assert table.get_model().objects.count() == 1
+    row = table.get_model().objects.get()
+    
+    assert getattr(row, field_name) == "'hello'"
+
+    node.service.table = table
+    node.service.row_id = f"'{row.id}'"
+    node.service.integration = integration
+    node.service.field_mappings.create(field=text_field, value="'goodbye'")
+
+    # Dispatch the node
+    dispatch_context = AutomationDispatchContext(node.workflow, None)
+    dispatch_result = AutomationNodeHandler().dispatch_node(node, dispatch_context)
+
+    # Ensure the table still only has one row
+    assert table.get_model().objects.count() == 1
+
+    row.refresh_from_db()
+    assert getattr(row, field_name) == "goodbye"
+
+    assert dispatch_result == DispatchResult(
+        data={
+            "id": row.id,
+            "order": AnyStr(),
+            field_name: "goodbye",
         },
         status=200,
     )
