@@ -1,5 +1,4 @@
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
-import { getValueAtPath } from '@baserow/modules/core/utils/object'
 import _ from 'lodash'
 
 export class PreviousNodeDataProviderType extends DataProviderType {
@@ -11,32 +10,12 @@ export class PreviousNodeDataProviderType extends DataProviderType {
     return this.app.i18n.t('dataProviderType.previousNode')
   }
 
-  get needBackendContext() {
-    return true
-  }
-
-  getActionDispatchContext(applicationContext) {
-    return {
-      ...this.getDataContent(applicationContext),
-      current_dispatch_id: applicationContext.currentDispatchId,
-    }
-  }
-
-  getDataChunk(applicationContext, path) {
-    const content = this.getDataContent(applicationContext)
-    return getValueAtPath(content, path.join('.'))
-  }
-
   getNodeSchema({ automation, node }) {
     if (node?.type) {
       const nodeType = this.app.$registry.get('node', node.type)
       return nodeType.getDataSchema({ automation, node })
     }
     return null
-  }
-
-  getDataContent(applicationContext) {
-    return applicationContext.previousNodeResults
   }
 
   getDataSchema(applicationContext) {

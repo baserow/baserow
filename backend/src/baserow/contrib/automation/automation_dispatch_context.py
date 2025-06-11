@@ -1,8 +1,13 @@
 from typing import Dict, List, Optional, Union
 
+from baserow.contrib.automation.data_providers.registries import (
+    automation_data_provider_type_registry,
+)
+from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.models import Service
+from baserow.core.services.types import DispatchResult
 from baserow.core.services.utils import ServiceAdhocRefinements
 
 
@@ -25,8 +30,29 @@ class AutomationDispatchContext(DispatchContext):
         """
 
         self.workflow = workflow
-        self.event_payload = event_payload
+        self.previous_nodes_results: Union[Dict[int, any], List[Dict[int, any]]] = {}
+        self.initialize_trigger_results(event_payload)
         super().__init__()
+
+    @property
+    def data_provider_registry(self):
+        return automation_data_provider_type_registry
+
+    def initialize_trigger_results(self, event_payload: Optional[List[Dict]]):
+        """
+        Responsible for finding the trigger node in the workflow and storing the
+        event payload in the `previous_nodes_results` dictionary, if we've been
+        given any.
+
+        :param event_payload: The event data from the trigger node.
+        """
+
+        trigger_node = self.workflow.get_trigger(specific=False)
+        if event_payload and trigger_node:
+            self.update_result_cache(trigger_node.id, event_payload)
+
+    def update_result_cache(self, node: AutomationNode, dispatch_data: Dict[any, any]):
+        self.previous_nodes_results[node.id] = dispatch_data
 
     def range(self, service: Service):
         pass

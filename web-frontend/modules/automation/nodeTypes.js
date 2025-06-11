@@ -96,6 +96,16 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * Returns this node's data type, used by the `getDataSchema` method
+   * to inform the schema about what kind of data type this node returns.
+   *
+   * @returns {string} - The data type of the node, which is 'object' by default.
+   */
+  get dataType() {
+    return 'object'
+  }
+
+  /**
    * Generates the data schema for the node, used by the data provider.
    * Constructed by retrieving the service schema for this node's service.
    * @param automation - The automation the node belongs to.
@@ -105,9 +115,10 @@ export class NodeType extends Registerable {
   getDataSchema({ automation, node }) {
     const serviceSchema = this.serviceType.getDataSchema(node.service)
     return {
+      type: this.dataType,
       title: this.getLabel({ automation, node }),
-      type: 'object',
-      properties: serviceSchema?.properties,
+      properties: serviceSchema.properties || {},
+      items: serviceSchema.items || [],
     }
   }
 }
@@ -151,8 +162,19 @@ export class LocalBaserowNodeType extends NodeType {
   }
 }
 
+export class LocalBaserowSignalTriggerType extends LocalBaserowNodeType {
+  /**
+   * All Local Baserow signal triggers return an array of rows,
+   * so we override the `dataType` method to return 'array'.
+   * @returns {string} - The data type of the node, which is 'array'.
+   */
+  get dataType() {
+    return 'array'
+  }
+}
+
 export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin(
-  LocalBaserowNodeType
+  LocalBaserowSignalTriggerType
 ) {
   static getType() {
     return 'rows_created'
@@ -175,7 +197,7 @@ export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin
 }
 
 export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin(
-  LocalBaserowNodeType
+  LocalBaserowSignalTriggerType
 ) {
   static getType() {
     return 'rows_updated'
@@ -198,7 +220,7 @@ export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin
 }
 
 export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin(
-  LocalBaserowNodeType
+  LocalBaserowSignalTriggerType
 ) {
   static getType() {
     return 'rows_deleted'
