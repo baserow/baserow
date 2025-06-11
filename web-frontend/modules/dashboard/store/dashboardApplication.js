@@ -124,12 +124,19 @@ export const actions = {
   handleWidgetUpdated({ commit }, widget) {
     commit('UPDATE_WIDGET', { widgetId: widget.id, values: widget })
   },
-  async updateDataSource({ commit, dispatch }, { dataSourceId, values }) {
+  async updateDataSource(
+    { commit, dispatch },
+    { dataSourceId, values, widget }
+  ) {
     commit('UPDATE_DATA', { dataSourceId, values: null })
     const { data } = await DataSourceService(this.$client).update(
       dataSourceId,
       values
     )
+    if (widget) {
+      const widgetType = this.$registry.get('dashboardWidget', widget.type)
+      await widgetType.dataSourceUpdated(widget, data)
+    }
     await dispatch('handleDataSourceUpdated', data)
   },
   async handleDataSourceUpdated({ commit, dispatch }, dataSource) {

@@ -32,7 +32,7 @@ export class Registerable {
    * of all registered items.
    * @returns order weight. Lower value first in the list.
    */
-  getSort() {
+  getOrder() {
     return 0
   }
 

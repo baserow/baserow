@@ -56,7 +56,10 @@
         horizontal-narrow
       >
         <Dropdown
-          :value="currentSeriesConfig.series_chart_type || 'BAR'"
+          :value="
+            currentSeriesConfig.series_chart_type ||
+            widget.default_series_chart_type
+          "
           :error="fieldHasErrors('chart_type')"
           @change="seriesChartTypeChanged"
         >

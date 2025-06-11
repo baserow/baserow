@@ -61,6 +61,7 @@ export default {
           {
             dataSourceId: this.dataSource.id,
             values: changedDataSourceValues,
+            widget: this.widget,
           }
         )
       } catch (error) {
