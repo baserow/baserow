@@ -20,10 +20,10 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.nodes.node_types import (
             LocalBaserowCreateRowNodeType,
-            LocalBaserowUpdateRowNodeType,
             LocalBaserowRowsCreatedNodeTriggerType,
             LocalBaserowRowsDeletedNodeTriggerType,
             LocalBaserowRowsUpdatedNodeTriggerType,
+            LocalBaserowUpdateRowNodeType,
         )
         from baserow.contrib.automation.nodes.object_scopes import (
             AutomationNodeObjectScopeType,

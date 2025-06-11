@@ -10,10 +10,10 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.nodes.models import (
     AutomationActionNode,
     LocalBaserowCreateRowActionNode,
-    LocalBaserowUpdateRowActionNode,
     LocalBaserowRowsCreatedTriggerNode,
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
+    LocalBaserowUpdateRowActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.integrations.local_baserow.service_types import (

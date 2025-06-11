@@ -397,7 +397,7 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
 
     trigger_service = data_fixture.create_local_baserow_rows_created_service(
         table=table_1,
-        integration=data_fixture.create_local_baserow_integration(user=user)
+        integration=data_fixture.create_local_baserow_integration(user=user),
     )
     data_fixture.create_automation_node(
         user=user, workflow=workflow, type="rows_created", service=trigger_service
@@ -412,7 +412,7 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
 
     action_service = data_fixture.create_local_baserow_upsert_row_service(
         table=table_2,
-        integration=data_fixture.create_local_baserow_integration(user=user)
+        integration=data_fixture.create_local_baserow_integration(user=user),
     )
     action_service.field_mappings.create(
         field=fields_2[0],
@@ -424,7 +424,7 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
         type="create_row",
         service=action_service,
     )
-    
+
     # Enable the test run
     url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
     api_client.patch(
@@ -470,7 +470,7 @@ def test_run_workflow_with_action_create_row(data_fixture):
     # Create a trigger node
     trigger_service = data_fixture.create_local_baserow_rows_created_service(
         table=table_1,
-        integration=data_fixture.create_local_baserow_integration(user=user)
+        integration=data_fixture.create_local_baserow_integration(user=user),
     )
     data_fixture.create_automation_node(
         user=user, workflow=workflow, type="rows_created", service=trigger_service
@@ -479,7 +479,7 @@ def test_run_workflow_with_action_create_row(data_fixture):
     # Create a "create_row" action node
     action_service = data_fixture.create_local_baserow_upsert_row_service(
         table=table_2,
-        integration=data_fixture.create_local_baserow_integration(user=user)
+        integration=data_fixture.create_local_baserow_integration(user=user),
     )
     action_service.field_mappings.create(
         field=field_2,
@@ -541,7 +541,7 @@ def test_run_workflow_with_action_update_row(data_fixture):
     # Create a trigger node
     trigger_service = data_fixture.create_local_baserow_rows_created_service(
         table=table_1,
-        integration=data_fixture.create_local_baserow_integration(user=user)
+        integration=data_fixture.create_local_baserow_integration(user=user),
     )
     data_fixture.create_automation_node(
         user=user, workflow=workflow, type="rows_created", service=trigger_service
@@ -554,7 +554,7 @@ def test_run_workflow_with_action_update_row(data_fixture):
         integration=data_fixture.create_local_baserow_integration(user=user),
         row_id=f"'{row_id}'",
     )
-    
+
     action_service.field_mappings.create(
         field=field_2,
         value="'goodbye'",

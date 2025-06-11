@@ -10,12 +10,12 @@ from baserow.contrib.automation.nodes.exceptions import (
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
 from baserow.core.services.types import DispatchResult
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyDict, AnyStr
-from baserow.contrib.database.rows.handler import RowHandler
 
 
 @pytest.mark.django_db
@@ -342,7 +342,7 @@ def test_dispatch_node_update_row(data_fixture):
     # Verify the state of the initial row
     assert table.get_model().objects.count() == 1
     row = table.get_model().objects.get()
-    
+
     assert getattr(row, field_name) == "'hello'"
 
     node.service.table = table

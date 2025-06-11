@@ -1,11 +1,11 @@
 from typing import Dict, List, Optional, Union
 
-from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.config.celery import app
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
+from baserow.core.db import atomic_with_retry_on_deadlock
 
 
 @app.task(bind=True, queue="automation_workflow")
