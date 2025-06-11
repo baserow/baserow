@@ -91,7 +91,7 @@
         />
         <div class="form-view__field-options">
           <FormGroup
-            v-if="Object.keys(fieldComponents).length > 1"
+            v-if="Object.keys(fieldComponents).length > 1 && !readOnly"
             horizontal
             :label="$t('formViewField.showFieldAs')"
             required
