@@ -15,6 +15,7 @@
         class="tree__link"
         :class="{ 'tree__link--empty': application.name === '' }"
         :title="application.name"
+        :aria-label="application.name"
         @click="$emit('selected', application)"
       >
         <i class="tree__icon" :class="application._.type.iconClass"></i>

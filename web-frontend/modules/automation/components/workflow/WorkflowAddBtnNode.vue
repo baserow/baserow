@@ -3,6 +3,7 @@
     icon="iconoir-plus"
     size="small"
     :disabled="props.data.disabled"
+    title="Create automation node"
     @click="handleClick"
   ></ButtonFloating>
 </template>

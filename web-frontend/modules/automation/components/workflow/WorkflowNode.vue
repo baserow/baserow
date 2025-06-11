@@ -20,6 +20,8 @@
     <a
       v-if="!props.data.readOnly"
       ref="editNodeContextToggle"
+      role="button"
+      title="Node options"
       class="workflow-editor__node-more-icon"
       @click="openContext()"
     >
@@ -38,6 +40,8 @@
             {{ $t('workflowNode.actionDuplicate') }}
           </a>
           <a
+            role="button"
+            title="Delete action"
             class="context__menu-item-link context__menu-item-link--delete"
             @click="emit('removeNode', props.id)"
           >
