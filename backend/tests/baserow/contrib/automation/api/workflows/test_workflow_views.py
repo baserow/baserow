@@ -450,3 +450,64 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     assert model.objects.count() == 1
     row = model.objects.order_by("-id").first()
     assert getattr(row, f"field_{fields_2[0].id}") == "A new row"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_workflow_with_action_create_row(data_fixture):
+    user, token = data_fixture.create_user_and_token()
+
+    # Create the first table - this is what will trigger the workflow.
+    table_1 = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table_1)
+
+    # Create the second table - this is the table whose row will be updated
+    # by the workflow.
+    table_2 = data_fixture.create_database_table(user=user)
+    field_2 = data_fixture.create_text_field(table=table_2)
+
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    # Create a trigger node
+    trigger_service = data_fixture.create_local_baserow_rows_created_service(
+        table=table_1,
+        integration=data_fixture.create_local_baserow_integration(user=user)
+    )
+    data_fixture.create_automation_node(
+        user=user, workflow=workflow, type="rows_created", service=trigger_service
+    )
+
+    # Create a "create_row" action node
+    action_service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table_2,
+        integration=data_fixture.create_local_baserow_integration(user=user)
+    )
+    action_service.field_mappings.create(
+        field=field_2,
+        value="'A new row in table 2'",
+    )
+    data_fixture.create_automation_node(
+        user=user,
+        workflow=workflow,
+        type="create_row",
+        service=action_service,
+    )
+
+    # publish the workflow
+    workflow.published = True
+    workflow.save()
+
+    # Insert a row in the first table to cause the trigger node to run
+    RowHandler().create_row(
+        user=user,
+        table=table_1,
+        values={field_1.id: "New row in table 1"},
+    )
+
+    assert table_1.get_model().objects.count() == 1
+    table_1_row = table_1.get_model().objects.get()
+    assert getattr(table_1_row, f"field_{field_1.id}") == "New row in table 1"
+
+    # Now the 2nd table should have a new row entry
+    assert table_2.get_model().objects.count() == 1
+    table_2_row = table_2.get_model().objects.get()
+    assert getattr(table_2_row, f"field_{field_2.id}") == "A new row in table 2"
