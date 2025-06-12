@@ -1,10 +1,5 @@
-from unittest.mock import patch
-
 import pytest
 
-from baserow.contrib.automation.automation_dispatch_context import (
-    AutomationDispatchContext,
-)
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeNotInWorkflow,
@@ -12,12 +7,10 @@ from baserow.contrib.automation.nodes.exceptions import (
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
-from baserow.core.services.types import DispatchResult
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
-from baserow.test_utils.helpers import AnyDict, AnyStr
+from baserow.test_utils.helpers import AnyDict
 
 
 @pytest.mark.django_db
