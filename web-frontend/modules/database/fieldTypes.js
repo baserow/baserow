@@ -861,13 +861,12 @@ export class FieldType extends Registerable {
    * to determine if the field will be shown in form views.
    */
   canSubmitAnonymousValues(field) {
-    const database = this.app.store.getters['field/getDatabase']
     return (
       !this.isReadOnlyField(field) &&
       this.app.$hasPermission(
         'database.table.field.submit_anonymous_values',
         field,
-        database.workspace.id
+        field.workspace_id
       )
     )
   }
