@@ -12,7 +12,7 @@ class AutomationDispatchContext(DispatchContext):
     def __init__(
         self,
         workflow: AutomationWorkflow,
-        event_payload: Optional[Union[Dict, List[Dict]]],
+        event_payload: Optional[Union[Dict, List[Dict]]] = None,
     ):
         """
         The `DispatchContext` implementation for automations. This context is provided

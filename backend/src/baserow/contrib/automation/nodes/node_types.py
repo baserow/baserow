@@ -13,6 +13,7 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowRowsCreatedTriggerNode,
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
+    LocalBaserowUpdateRowActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.integrations.local_baserow.service_types import (
@@ -54,6 +55,11 @@ class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
     model_class = LocalBaserowCreateRowActionNode
 
 
+class LocalBaserowUpdateRowNodeType(LocalBaserowUpsertRowNodeType):
+    type = "update_row"
+    model_class = LocalBaserowUpdateRowActionNode
+
+
 class AutomationNodeTriggerType(AutomationNodeType):
     is_workflow_trigger = True
 
@@ -92,7 +98,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
             )
             if workflow.allow_test_run_until:
                 workflow.allow_test_run_until = None
-                workflow.save(updated_fields=["allow_test_run_until"])
+                workflow.save(update_fields=["allow_test_run_until"])
 
     def after_register(self):
         service_type_registry.get(self.service_type).start_listening(self.on_event)

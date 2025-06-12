@@ -23,6 +23,7 @@ class AutomationConfig(AppConfig):
             LocalBaserowRowsCreatedNodeTriggerType,
             LocalBaserowRowsDeletedNodeTriggerType,
             LocalBaserowRowsUpdatedNodeTriggerType,
+            LocalBaserowUpdateRowNodeType,
         )
         from baserow.contrib.automation.nodes.object_scopes import (
             AutomationNodeObjectScopeType,
@@ -127,6 +128,7 @@ class AutomationConfig(AppConfig):
             action_scope_registry.register(WorkflowActionScopeType())
 
             automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
+            automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
             automation_node_type_registry.register(
                 LocalBaserowRowsCreatedNodeTriggerType()
             )

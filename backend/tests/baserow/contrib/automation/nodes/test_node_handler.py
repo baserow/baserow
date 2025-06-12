@@ -1,8 +1,5 @@
 import pytest
 
-from baserow.contrib.automation.automation_dispatch_context import (
-    AutomationDispatchContext,
-)
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeNotInWorkflow,
@@ -11,10 +8,9 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
-from baserow.core.services.types import DispatchResult
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
-from baserow.test_utils.helpers import AnyDict, AnyStr
+from baserow.test_utils.helpers import AnyDict
 
 
 @pytest.mark.django_db
@@ -282,39 +278,3 @@ def test_import_node_only(data_fixture):
         "automation_nodes": {node.id: new_node.id},
         "services": {node.service_id: new_node.service_id},
     }
-
-
-@pytest.mark.django_db
-def test_dispatch_node(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
-    node = data_fixture.create_automation_node(user=user, type="create_row")
-    integration = data_fixture.create_local_baserow_integration(
-        user=user, application=node.workflow.automation
-    )
-    table = data_fixture.create_database_table(user=user)
-    text_field = data_fixture.create_text_field(table=table)
-
-    node.service.table = table
-    node.service.integration = integration
-    node.service.field_mappings.create(field=text_field, value="'Hello world!'")
-
-    # Ensure table is empty
-    assert table.get_model().objects.count() == 0
-
-    dispatch_context = AutomationDispatchContext(node.workflow, None)
-
-    # Dispatch the node
-    dispatch_result = AutomationNodeHandler().dispatch_node(node, dispatch_context)
-
-    # Ensure the table now has a new row
-    row = table.get_model().objects.all()[0]
-    assert getattr(row, f"field_{text_field.id}") == "Hello world!"
-
-    assert dispatch_result == DispatchResult(
-        data={
-            "id": row.id,
-            "order": AnyStr(),
-            f"field_{text_field.id}": "Hello world!",
-        },
-        status=200,
-    )

@@ -383,26 +383,25 @@ def test_disable_workflow_test_run(api_client, data_fixture):
     assert workflow.allow_test_run_until is None
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_run_workflow_in_test_mode(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
 
     # First create a trigger node
-    table, fields, _ = data_fixture.build_table(
+    table_1, fields_1, _ = data_fixture.build_table(
         user=user,
         columns=[("Name", "text"), ("Color", "text")],
         rows=[["BMW", "Blue"]],
     )
 
-    trigger_node = data_fixture.create_automation_node(
-        user=user, workflow=workflow, type="rows_created"
+    trigger_service = data_fixture.create_local_baserow_rows_created_service(
+        table=table_1,
+        integration=data_fixture.create_local_baserow_integration(user=user),
     )
-    trigger_node.service.integration.authorized_user = user
-    trigger_node.service.integration.save()
-
-    trigger_node.service.table = table
-    trigger_node.service.save()
+    data_fixture.create_automation_node(
+        user=user, workflow=workflow, type="rows_created", service=trigger_service
+    )
 
     # Next create an action node
     table_2, fields_2, _ = data_fixture.build_table(
@@ -411,20 +410,20 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
         rows=[],
     )
 
-    action_node = data_fixture.create_automation_node(
-        user=user,
-        workflow=workflow,
-        type="create_row",
+    action_service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table_2,
+        integration=data_fixture.create_local_baserow_integration(user=user),
     )
-    action_node.service.integration.authorized_user = user
-    action_node.service.integration.save()
-
-    action_node.service.table = table_2
-    action_node.service.field_mappings.create(
+    action_service.field_mappings.create(
         field=fields_2[0],
         value="'A new row'",
     )
-    action_node.service.save()
+    data_fixture.create_automation_node(
+        user=user,
+        workflow=workflow,
+        type="create_row",
+        service=action_service,
+    )
 
     # Enable the test run
     url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
@@ -439,15 +438,15 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     row_handler = RowHandler()
     row_handler.create_row(
         user=user,
-        table=table,
+        table=table_1,
         values={
-            fields[0].id: "New Name",
-            fields[1].id: "New Color",
+            fields_1[0].id: "New Name",
+            fields_1[1].id: "New Color",
         },
     )
 
     # Now the 2nd table should have a new row entry
-    model = table.get_model()
+    model = table_2.get_model()
+    assert model.objects.count() == 1
     row = model.objects.order_by("-id").first()
-    assert getattr(row, f"field_{fields[0].id}") == "New Name"
-    assert getattr(row, f"field_{fields[1].id}") == "New Color"
+    assert getattr(row, f"field_{fields_2[0].id}") == "A new row"
