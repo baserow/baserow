@@ -755,6 +755,8 @@ class FakeDispatchContext(DispatchContext):
         self._public_allowed_properties = kwargs.pop("public_allowed_properties", None)
         self._searchable_fields = kwargs.pop("searchable_fields", [])
         self._search_query = kwargs.pop("search_query", None)
+        self._count = kwargs.pop("count", 100)
+
         for key, value in kwargs.items():
             setattr(self, key, value)
 
@@ -783,7 +785,7 @@ class FakeDispatchContext(DispatchContext):
         return None
 
     def range(self, service):
-        return [0, 100]
+        return [0, self._count]
 
     def __getitem__(self, key: str) -> Any:
         if key == "test":

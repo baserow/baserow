@@ -131,6 +131,7 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
         "context_data": None,
         "context_data_schema": None,
         "dashboard_id": dashboard.id,
+        "default_result_count": 20,
         "filter_type": "AND",
         "filters": [],
         "sortings": [],

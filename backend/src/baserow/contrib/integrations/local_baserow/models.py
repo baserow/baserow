@@ -98,6 +98,12 @@ class LocalBaserowListRows(
     A model for the local baserow list rows service configuration data.
     """
 
+    default_result_count = models.PositiveIntegerField(
+        default=20,
+        db_default=20,
+        help_text="The default record count returned with each page.",
+    )
+
 
 class LocalBaserowAggregateRows(
     LocalBaserowViewService, LocalBaserowFilterableServiceMixin, SearchableServiceMixin

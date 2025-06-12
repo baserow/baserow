@@ -138,15 +138,17 @@ class BuilderDispatchContext(DispatchContext):
             except ValueError:
                 offset = 0
 
-            try:
-                count = int(self.request.GET.get("count", 20))
-            except ValueError:
-                count = 20
+            count = None
+            if "count" in self.request.GET:
+                try:
+                    count = int(self.request.GET["count"])
+                except ValueError:
+                    pass
 
         # max prevent negative values
         return [
             max(0, offset),
-            max(1, count),
+            max(0, count) if count is not None else None,
         ]
 
     def get_element_property_options(self) -> Dict[str, Dict[str, bool]]:

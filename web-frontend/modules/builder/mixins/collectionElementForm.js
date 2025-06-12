@@ -156,7 +156,9 @@ export default {
       if (!this.selectedDataSourceType) {
         return 20
       }
-      return this.selectedDataSourceType.maxResultLimit
+      return this.selectedDataSourceType.getMaxResultLimit(
+        this.selectedDataSource
+      )
     },
     elementHasContent() {
       const { element } = this.applicationContext
