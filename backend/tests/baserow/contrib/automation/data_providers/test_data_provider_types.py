@@ -25,7 +25,7 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
         workflow=workflow, previous_node=trigger
     )
     dispatch_context = AutomationDispatchContext(workflow, [{"field_1": "Horse"}])
-    dispatch_context.update_result_cache(first_action, {"field_2": "Badger"})
+    dispatch_context.register_node_result(first_action, {"field_2": "Badger"})
 
     # `first_action` referencing the trigger input data.
     assert (

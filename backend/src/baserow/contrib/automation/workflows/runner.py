@@ -38,6 +38,6 @@ class AutomationWorkflowRunner:
             node_type: Type[AutomationNodeActionNodeType] = node.get_type()
             try:
                 dispatch_result = node_type.dispatch(node, dispatch_context)
-                dispatch_context.update_result_cache(node, dispatch_result.data)
+                dispatch_context.register_node_result(node, dispatch_result.data)
             except ServiceImproperlyConfigured as e:
                 raise AutomationNodeMisconfiguredService(node.id) from e

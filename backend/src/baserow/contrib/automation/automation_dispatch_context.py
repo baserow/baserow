@@ -30,14 +30,14 @@ class AutomationDispatchContext(DispatchContext):
 
         self.workflow = workflow
         self.previous_nodes_results: Dict[int, any] = {}
-        self.initialize_trigger_results(event_payload)
+        self._initialize_trigger_results(event_payload)
         super().__init__()
 
     @property
     def data_provider_registry(self):
         return automation_data_provider_type_registry
 
-    def initialize_trigger_results(
+    def _initialize_trigger_results(
         self,
         event_payload: Optional[Union[List[Dict[any, any]], Dict[any, any]]] = None,
     ):
@@ -51,9 +51,9 @@ class AutomationDispatchContext(DispatchContext):
 
         trigger_node = self.workflow.get_trigger(specific=False)
         if event_payload and trigger_node:
-            self.update_result_cache(trigger_node, event_payload)
+            self.register_node_result(trigger_node, event_payload)
 
-    def update_result_cache(self, node: AutomationNode, dispatch_data: Dict[any, any]):
+    def register_node_result(self, node: AutomationNode, dispatch_data: Dict[any, any]):
         self.previous_nodes_results[node.id] = dispatch_data
 
     def range(self, service: Service):
