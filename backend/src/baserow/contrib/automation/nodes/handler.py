@@ -345,14 +345,3 @@ class AutomationNodeHandler:
         id_mapping["automation_nodes"][serialized_node["id"]] = node_instance.id
 
         return node_instance
-
-    def dispatch_node(
-        self,
-        node: AutomationNode,
-        dispatch_context: AutomationDispatchContext,
-    ) -> DispatchResult:
-        """
-        Dispatch the automation node.
-        """
-
-        return node.get_type().dispatch(node, dispatch_context)
