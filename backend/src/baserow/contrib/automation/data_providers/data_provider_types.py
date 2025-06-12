@@ -18,8 +18,6 @@ class AutomationDataProviderType(DataProviderType, ABC):
 
 
 class PreviousNodeProviderType(AutomationDataProviderType):
-    """ """
-
     type = "previous_node"
 
     def get_data_chunk(
