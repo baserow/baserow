@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 from unittest.mock import patch
 
 from django.conf import settings as django_settings
+from django.core.cache import cache
 from django.core.management import call_command
 from django.db import DEFAULT_DB_ALIAS, OperationalError, connection
 from django.db.migrations.executor import MigrationExecutor
@@ -98,9 +99,13 @@ def api_request_factory():
 
 
 @pytest.fixture(autouse=True)
-def reset_cache():
-    """Automatically reset the short cache before each test."""
+def clear_cache():
+    """Automatically clear all caches before each test."""
 
+    # fakeredis cache
+    cache.clear()
+
+    # Thread-local cache
     with local_cache.context():
         yield
 
