@@ -14,8 +14,10 @@ from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.db import models
 from django.db.models import Field as DjangoModelFieldClass
 from django.db.models import JSONField, Q, QuerySet, Value
+from django.db.models.sql.compiler import SQLUpdateCompiler
 
-from django_cte.cte import CTEManager, CTEQuerySet
+from django_cte.cte import CTEManager, CTEQuery, CTEQuerySet
+from django_cte.query import COMPILER_TYPES, CTECompiler, CTEUpdateQuery
 from loguru import logger
 from opentelemetry import trace
 
@@ -107,7 +109,59 @@ def get_row_needs_background_update_index(table):
     )
 
 
-class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, CTEQuerySet):
+class CTEUpdateReturningIdsQueryCompiler(SQLUpdateCompiler):
+    def as_sql(self, *args, **kwargs):
+        def _as_sql():
+            sql, params = super(CTEUpdateReturningIdsQueryCompiler, self).as_sql(
+                *args, **kwargs
+            )
+            return sql + " RETURNING id", params
+
+        return CTECompiler.generate_sql(self.connection, self.query, _as_sql)
+
+    def execute_sql(self, result_type):
+        cursor = super(SQLUpdateCompiler, self).execute_sql(result_type)
+        return [res[0] for res in cursor.fetchall()]
+
+
+class CTEUpdateRerurningQuery(CTEUpdateQuery, CTEQuery):
+    pass
+
+
+COMPILER_TYPES[CTEUpdateRerurningQuery] = CTEUpdateReturningIdsQueryCompiler
+
+
+class BaserowCTEQuery(CTEQuery):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.returning_ids = False
+
+    def chain(self, klass=None):
+        if self.returning_ids:
+            clone = super(CTEQuery, self).chain(CTEUpdateRerurningQuery)
+        else:
+            clone = super().chain(klass=klass)
+        clone.returning_ids = self.returning_ids
+        return clone
+
+
+class BaserowCTEQuerySet(CTEQuerySet):
+    """QuerySet with support for Common Table Expressions"""
+
+    def __init__(self, model=None, query=None, using=None, hints=None):
+        # Only create an instance of a Query if this is the first invocation in
+        # a query chain.
+        if query is None:
+            query = BaserowCTEQuery(model)
+
+        super().__init__(model, query, using, hints)
+
+    def update_returning_ids(self, **kwargs):
+        self.query.returning_ids = True
+        return super().update(**kwargs)
+
+
+class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
     def _insert(self, objs, fields, *args, **kwargs):
         """
         We never want to include TSVector fields when inserting rows, we manage them
