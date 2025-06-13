@@ -37,11 +37,13 @@
     "integrationMessage": "You can create new integrations by adding data source, action or user authentication."
   },
   "automationHeader": {
-    "runOnceBtn": "Run once",
+    "startTestRun": "Start test run",
+    "stopTestRun": "Stop test run",
     "publishBtn": "Publish",
     "settingsBtn": "Settings",
     "historyBtn": "History",
-    "switchLabel": "Draft"
+    "switchLabel": "Draft",
+    "readOnlyLabel": "Read only"
   },
   "dataProviderType": {
     "previousNode": "Previous node"
