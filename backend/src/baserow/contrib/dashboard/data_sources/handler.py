@@ -303,8 +303,9 @@ class DashboardDataSourceHandler:
                 "The service type is missing."
             )
 
+        specific_service = ServiceHandler().get_service(data_source.service.id)
         service_dispatch = self.service_handler.dispatch_service(
-            data_source.service.specific, dispatch_context
+            specific_service, dispatch_context
         )
 
         return service_dispatch.data
