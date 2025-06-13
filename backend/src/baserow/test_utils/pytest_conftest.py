@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 from unittest.mock import patch
 
 from django.conf import settings as django_settings
-from django.core import cache
+from django.core.cache import cache
 from django.core.management import call_command
 from django.db import DEFAULT_DB_ALIAS, OperationalError, connection
 from django.db.migrations.executor import MigrationExecutor
@@ -99,9 +99,13 @@ def api_request_factory():
 
 
 @pytest.fixture(autouse=True)
-def reset_cache():
-    """Automatically reset the short cache before each test."""
+def clear_cache():
+    """Automatically clear all caches before each test."""
 
+    # fakeredis cache
+    cache.clear()
+
+    # Thread-local cache
     with local_cache.context():
         yield
 
@@ -721,53 +725,6 @@ def migrator(second_separate_database_for_migrations, reset_schema):
 @pytest.fixture
 def disable_full_text_search(settings):
     settings.USE_PG_FULLTEXT_SEARCH = False
-
-
-@pytest.fixture
-def enable_singleton_testing(settings):
-    # celery-singleton uses redis to store the lock state
-    # so we need to mock redis to make sure the tests don't fail
-    settings.CACHES = {
-        **django_settings.CACHES,
-        "default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
-    }
-    from fakeredis import FakeRedis, FakeServer
-
-    fake_redis_server = FakeServer()
-    with patch(
-        "baserow.celery_singleton_backend.get_redis_connection",
-        lambda *a, **kw: FakeRedis(server=fake_redis_server),
-    ):
-        yield
-
-
-@pytest.fixture
-def enable_locmem_testing(settings):
-    """
-    Enables in-memory cache and redis for a test
-
-    :param settings:
-    :return:
-    """
-
-    # celery-singleton uses redis to store the lock state
-    # so we need to mock redis to make sure the tests don't fail
-    settings.CACHES = {
-        **django_settings.CACHES,
-        "default": {
-            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": "testloc",
-        },
-    }
-    from fakeredis import FakeRedis, FakeServer
-
-    fake_redis_server = FakeServer()
-    with patch(
-        "baserow.celery_singleton_backend.get_redis_connection",
-        lambda *a, **kw: FakeRedis(server=fake_redis_server),
-    ):
-        yield
-        cache.cache.clear()
 
 
 @pytest.fixture(autouse=True)

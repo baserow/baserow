@@ -155,9 +155,7 @@ def test_count_grid_with_compat_mode(api_client, data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_search_grid_with_full_text_with_count_mode(
-    api_client, data_fixture, enable_singleton_testing
-):
+def test_search_grid_with_full_text_with_count_mode(api_client, data_fixture):
     with transaction.atomic():
         user, jwt_token = data_fixture.create_user_and_token()
         table = data_fixture.create_database_table(user=user)
@@ -201,9 +199,7 @@ def test_search_grid_with_full_text_with_count_mode(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_count_grid_with_full_text_with_count_mode(
-    api_client, data_fixture, enable_singleton_testing
-):
+def test_count_grid_with_full_text_with_count_mode(api_client, data_fixture):
     with transaction.atomic():
         user, jwt_token = data_fixture.create_user_and_token()
         table = data_fixture.create_database_table(user=user)

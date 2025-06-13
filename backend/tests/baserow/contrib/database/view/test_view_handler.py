@@ -3025,7 +3025,7 @@ def test_order_views_ownership_type(data_fixture):
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
-def test_creating_view_sort_creates_a_new_index(data_fixture, enable_singleton_testing):
+def test_creating_view_sort_creates_a_new_index(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(user=user, table=table)
@@ -3056,7 +3056,7 @@ def test_creating_view_sort_creates_a_new_index(data_fixture, enable_singleton_t
 )
 @pytest.mark.django_db(transaction=True)
 def test_updating_view_sorts_creates_a_new_index_and_delete_the_unused_one(
-    data_fixture, enable_singleton_testing
+    data_fixture,
 ):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -3113,9 +3113,7 @@ def test_updating_view_sorts_creates_a_new_index_and_delete_the_unused_one(
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
-def test_perm_deleting_view_remove_index_if_unused(
-    data_fixture, enable_singleton_testing
-):
+def test_perm_deleting_view_remove_index_if_unused(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     database = table.database
@@ -3155,9 +3153,7 @@ def test_perm_deleting_view_remove_index_if_unused(
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
-def test_duplicating_table_do_not_duplicate_indexes(
-    data_fixture, enable_singleton_testing
-):
+def test_duplicating_table_do_not_duplicate_indexes(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(user=user, table=table)
@@ -3186,9 +3182,7 @@ def test_duplicating_table_do_not_duplicate_indexes(
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
-def test_deleting_a_field_of_a_view_sort_update_view_indexes(
-    data_fixture, enable_singleton_testing
-):
+def test_deleting_a_field_of_a_view_sort_update_view_indexes(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(user=user, table=table)
@@ -3217,7 +3211,7 @@ def test_deleting_a_field_of_a_view_sort_update_view_indexes(
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
 def test_changing_a_field_type_of_a_view_sort_to_non_orderable_one_delete_view_index(
-    data_fixture, enable_singleton_testing
+    data_fixture,
 ):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -3249,7 +3243,6 @@ def test_changing_a_field_type_of_a_view_sort_to_non_orderable_one_delete_view_i
 def test_loading_a_view_checks_for_db_index_without_additional_queries(
     mocked_view_index_update_task,
     data_fixture,
-    enable_singleton_testing,
     django_assert_num_queries,
 ):
     user = data_fixture.create_user()
@@ -3307,9 +3300,7 @@ def test_loading_a_view_checks_for_db_index_without_additional_queries(
     AUTO_INDEX_VIEW_ENABLED=True,
 )
 @pytest.mark.django_db(transaction=True)
-def test_update_index_replaces_index_with_diff_collation(
-    settings, data_fixture, enable_singleton_testing
-):
+def test_update_index_replaces_index_with_diff_collation(settings, data_fixture):
     with patch("baserow.core.db.get_collation_name", new=lambda: None):
         user = data_fixture.create_user()
         table = data_fixture.create_database_table(user=user)
@@ -3346,9 +3337,7 @@ def test_update_index_replaces_index_with_diff_collation(
     AUTO_INDEX_VIEW_ENABLED=True,
 )
 @pytest.mark.django_db(transaction=True)
-def test_view_loaded_replaces_index_with_diff_collation(
-    settings, data_fixture, enable_singleton_testing
-):
+def test_view_loaded_replaces_index_with_diff_collation(settings, data_fixture):
     with patch("baserow.core.db.get_collation_name", new=lambda: None):
         user = data_fixture.create_user()
         table = data_fixture.create_database_table(user=user)

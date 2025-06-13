@@ -274,11 +274,7 @@ def test_get_job(data_fixture, api_client):
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.flaky(retries=3, delay=1)
 def test_cancel_job_running(
-    data_fixture,
-    api_client,
-    test_thread,
-    mutable_job_type_registry,
-    enable_locmem_testing,
+    data_fixture, api_client, test_thread, mutable_job_type_registry
 ):
     # marker that the job started
     m_start = threading.Event()
@@ -363,11 +359,7 @@ def test_cancel_job_running(
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.flaky(retries=3, delay=1)
 def test_cancel_job_pending(
-    data_fixture,
-    api_client,
-    test_thread,
-    mutable_job_type_registry,
-    enable_locmem_testing,
+    data_fixture, api_client, test_thread, mutable_job_type_registry
 ):
     # marker that the job started
     m_start = threading.Event()
@@ -437,11 +429,7 @@ def test_cancel_job_pending(
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.flaky(retries=3, delay=1)
 def test_cancel_job_finished(
-    data_fixture,
-    api_client,
-    test_thread,
-    mutable_job_type_registry,
-    enable_locmem_testing,
+    data_fixture, api_client, test_thread, mutable_job_type_registry
 ):
     # marker that the job started
     m_start = threading.Event()
