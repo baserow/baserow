@@ -158,7 +158,7 @@ class PathBasedUpdateStatementCollector:
         path_to_starting_table: List[LinkRowField],
         starting_row_ids: StartingRowIdsType,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]],
-    ) -> int:
+    ) -> List[int]:
         model = field_cache.get_model(self.table)
         qs = model.objects_and_trash
         # If the connection is broken back to the starting table then there is no
@@ -195,7 +195,7 @@ class PathBasedUpdateStatementCollector:
             # set this per row attribute.
             self.update_statements.pop(ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME, None)
 
-        updated_rows = 0
+        updated_row_ids = []
         if self.update_statements:
             annotations, filters = {}, Q()
 
@@ -223,12 +223,12 @@ class PathBasedUpdateStatementCollector:
                         }
                     ) | ~Q(**{field: expr})
 
-            updated_rows = (
+            updated_row_ids = (
                 qs.annotate(**annotations)
                 .filter(filters)
-                .update(**self.update_statements)
+                .update_returning_ids(**self.update_statements)
             )
-        return updated_rows
+        return len(updated_row_ids)
 
     def _include_rows_connected_to_deleted_m2m_relationships(
         self,
