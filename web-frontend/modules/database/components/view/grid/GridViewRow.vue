@@ -52,7 +52,7 @@
             }"
           >
             <div
-              v-if="(isCheckboxSelected(row.id) || row._.hover) && !readOnly"
+              v-if="isCheckboxSelected(row.id) || row._.hover"
               class="grid-view__row-checkbox"
             >
               <Checkbox

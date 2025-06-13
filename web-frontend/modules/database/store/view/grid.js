@@ -558,6 +558,14 @@ export const mutations = {
         continue
       }
 
+      // When row is added, we set UUID as temporary id. Once backend
+      // returns the row with proper ID we need to make sure that the
+      // checkbox selection is properly updated.
+      const selectedIndex = state.checkboxSelectedRows.indexOf(oldRow.id)
+      if (selectedIndex !== -1) {
+        state.checkboxSelectedRows[selectedIndex] = newRow.id
+      }
+
       stateRowsCopy[index].id = newRow.id
       stateRowsCopy[index].order = new BigNumber(newRow.order)
       stateRowsCopy[index]._.loading = false
