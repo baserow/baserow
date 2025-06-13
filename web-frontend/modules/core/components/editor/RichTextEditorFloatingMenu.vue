@@ -14,113 +14,119 @@
     }"
     :should-show="() => true"
   >
-    <div
-      v-if="!expanded"
-      class="rich-text-editor__floating-menu rich-text-editor__floating-menu--collapsed"
-    >
-      <div class="rich-text-editor__floating-menu-button">
-        <button class="is-active" @click.stop.prevent="expand()">
-          <i :class="activeNodeIcon"></i>
-        </button>
-      </div>
-    </div>
-    <div
-      v-else
-      class="rich-text-editor__floating-menu rich-text-editor__floating-menu--expanded"
-    >
+    <div :style="{ visibility: 'visible' }">
       <div
-        :title="$t('richTextEditorFloatingMenu.paragraph')"
-        class="rich-text-editor__floating-menu-button"
+        v-if="!expanded"
+        class="rich-text-editor__floating-menu rich-text-editor__floating-menu--collapsed"
       >
-        <button
-          :class="{ 'is-active': activeNode == 'p' }"
-          @click.stop.prevent="editor.chain().focus().setParagraph().run()"
-        >
-          <i class="baserow-icon-paragraph"></i>
-        </button>
+        <div class="rich-text-editor__floating-menu-button">
+          <button class="is-active" @click.stop.prevent="expand()">
+            <i :class="activeNodeIcon"></i>
+          </button>
+        </div>
       </div>
       <div
-        :title="$t('richTextEditorFloatingMenu.heading1')"
-        class="rich-text-editor__floating-menu-button"
+        v-else
+        class="rich-text-editor__floating-menu rich-text-editor__floating-menu--expanded"
       >
-        <button
-          :class="{ 'is-active': activeNode == 'h1' }"
-          @click.stop.prevent="
-            editor.chain().focus().toggleHeading({ level: 1 }).run()
-          "
+        <div
+          :title="$t('richTextEditorFloatingMenu.paragraph')"
+          class="rich-text-editor__floating-menu-button"
         >
-          <i class="baserow-icon-heading-1"></i>
-        </button>
-      </div>
-      <div
-        :title="$t('richTextEditorFloatingMenu.heading2')"
-        class="rich-text-editor__floating-menu-button"
-      >
-        <button
-          :class="{ 'is-active': activeNode == 'h2' }"
-          @click.stop.prevent="
-            editor.chain().focus().toggleHeading({ level: 2 }).run()
-          "
+          <button
+            :class="{ 'is-active': activeNode == 'p' }"
+            @click.stop.prevent="editor.chain().focus().setParagraph().run()"
+          >
+            <i class="baserow-icon-paragraph"></i>
+          </button>
+        </div>
+        <div
+          :title="$t('richTextEditorFloatingMenu.heading1')"
+          class="rich-text-editor__floating-menu-button"
         >
-          <i class="baserow-icon-heading-2"></i>
-        </button>
-      </div>
-      <div
-        :title="$t('richTextEditorFloatingMenu.heading3')"
-        class="rich-text-editor__floating-menu-button"
-      >
-        <button
-          :class="{ 'is-active': activeNode == 'h3' }"
-          @click.stop.prevent="
-            editor.chain().focus().toggleHeading({ level: 3 }).run()
-          "
+          <button
+            :class="{ 'is-active': activeNode == 'h1' }"
+            @click.stop.prevent="
+              editor.chain().focus().toggleHeading({ level: 1 }).run()
+            "
+          >
+            <i class="baserow-icon-heading-1"></i>
+          </button>
+        </div>
+        <div
+          :title="$t('richTextEditorFloatingMenu.heading2')"
+          class="rich-text-editor__floating-menu-button"
         >
-          <i class="baserow-icon-heading-3"></i>
-        </button>
-      </div>
-      <div
-        :title="$t('richTextEditorFloatingMenu.code')"
-        class="rich-text-editor__floating-menu-button"
-      >
-        <button
-          :class="{ 'is-active': activeNode == 'code' }"
-          @click.stop.prevent="editor.chain().focus().toggleCodeBlock().run()"
+          <button
+            :class="{ 'is-active': activeNode == 'h2' }"
+            @click.stop.prevent="
+              editor.chain().focus().toggleHeading({ level: 2 }).run()
+            "
+          >
+            <i class="baserow-icon-heading-2"></i>
+          </button>
+        </div>
+        <div
+          :title="$t('richTextEditorFloatingMenu.heading3')"
+          class="rich-text-editor__floating-menu-button"
         >
-          <i class="iconoir-code"></i>
-        </button>
-      </div>
-      <div
-        :title="$t('richTextEditorFloatingMenu.orderedList')"
-        class="rich-text-editor__floating-menu-button"
-      >
-        <button
-          :class="{ 'is-active': activeNode == 'ol' }"
-          @click.stop.prevent="editor.chain().focus().toggleOrderedList().run()"
+          <button
+            :class="{ 'is-active': activeNode == 'h3' }"
+            @click.stop.prevent="
+              editor.chain().focus().toggleHeading({ level: 3 }).run()
+            "
+          >
+            <i class="baserow-icon-heading-3"></i>
+          </button>
+        </div>
+        <div
+          :title="$t('richTextEditorFloatingMenu.code')"
+          class="rich-text-editor__floating-menu-button"
         >
-          <i class="baserow-icon-ordered-list"></i>
-        </button>
-      </div>
-      <div
-        :title="$t('richTextEditorFloatingMenu.unorderedList')"
-        class="rich-text-editor__floating-menu-button"
-      >
-        <button
-          :class="{ 'is-active': activeNode == 'ul' }"
-          @click.stop.prevent="editor.chain().focus().toggleBulletList().run()"
+          <button
+            :class="{ 'is-active': activeNode == 'code' }"
+            @click.stop.prevent="editor.chain().focus().toggleCodeBlock().run()"
+          >
+            <i class="iconoir-code"></i>
+          </button>
+        </div>
+        <div
+          :title="$t('richTextEditorFloatingMenu.orderedList')"
+          class="rich-text-editor__floating-menu-button"
         >
-          <i class="iconoir-list"></i>
-        </button>
-      </div>
-      <div
-        :title="$t('richTextEditorFloatingMenu.taskList')"
-        class="rich-text-editor__floating-menu-button"
-      >
-        <button
-          :class="{ 'is-active': activeNode == 'tl' }"
-          @click.stop.prevent="editor.chain().focus().toggleTaskList().run()"
+          <button
+            :class="{ 'is-active': activeNode == 'ol' }"
+            @click.stop.prevent="
+              editor.chain().focus().toggleOrderedList().run()
+            "
+          >
+            <i class="baserow-icon-ordered-list"></i>
+          </button>
+        </div>
+        <div
+          :title="$t('richTextEditorFloatingMenu.unorderedList')"
+          class="rich-text-editor__floating-menu-button"
         >
-          <i class="iconoir-task-list"></i>
-        </button>
+          <button
+            :class="{ 'is-active': activeNode == 'ul' }"
+            @click.stop.prevent="
+              editor.chain().focus().toggleBulletList().run()
+            "
+          >
+            <i class="iconoir-list"></i>
+          </button>
+        </div>
+        <div
+          :title="$t('richTextEditorFloatingMenu.taskList')"
+          class="rich-text-editor__floating-menu-button"
+        >
+          <button
+            :class="{ 'is-active': activeNode == 'tl' }"
+            @click.stop.prevent="editor.chain().focus().toggleTaskList().run()"
+          >
+            <i class="iconoir-task-list"></i>
+          </button>
+        </div>
       </div>
     </div>
   </FloatingMenu>
