@@ -43,6 +43,9 @@
     "historyBtn": "History",
     "switchLabel": "Draft"
   },
+  "dataProviderType": {
+    "previousNode": "Previous node"
+  },
   "nodeSidePanel": {
     "action": "Action",
     "details": "Details"

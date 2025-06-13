@@ -28,9 +28,7 @@ const mutations = {
   },
   UPDATE_ITEM(state, { workflow, node, values }) {
     const index = workflow.nodes.findIndex((item) => item.id === node.id)
-    if (index !== -1) {
-      Object.assign(workflow.nodes[index], populateNode(values))
-    }
+    Object.assign(workflow.nodes[index], values)
     updateCachedValues(workflow)
   },
   DELETE_ITEM(state, { workflow, nodeId }) {
@@ -142,30 +140,34 @@ const actions = {
       throw error
     }
   },
-  async update({ commit, getters }, { workflow, nodeId, values }) {
-    const node = getters.findById(workflow, nodeId)
-    commit('SET_LOADING', { node, value: true })
-    const originalNode = { ...node }
+  forceUpdate({ commit, dispatch }, { workflow, node, values }) {
     commit('UPDATE_ITEM', { workflow, node, values })
+  },
+  async update({ commit, dispatch, getters }, { workflow, nodeId, values }) {
+    const oldValues = {}
+    const newValues = {}
+    const node = getters.findById(workflow, nodeId)
+    Object.keys(values).forEach((name) => {
+      if (Object.prototype.hasOwnProperty.call(node, name)) {
+        oldValues[name] = node[name]
+        newValues[name] = values[name]
+      }
+    })
 
+    await dispatch('forceUpdate', { workflow, node, values: newValues })
+
+    commit('SET_LOADING', { node, value: true })
     try {
-      const { data: updatedNodeData } = await AutomationWorkflowNodeService(
+      const { data: updatedNode } = await AutomationWorkflowNodeService(
         this.$client
-      ).update(node.id, values)
-
-      const serverValues = Object.keys(values).reduce((result, key) => {
-        result[key] = updatedNodeData[key]
-        return result
-      }, {})
-      commit('UPDATE_ITEM', { workflow, node, values: serverValues })
-
-      return updatedNodeData
-    } catch (error) {
-      const rollbackValues = {}
-      Object.keys(values).forEach((key) => {
-        rollbackValues[key] = originalNode[key]
+      ).update(node.id, newValues)
+      await dispatch('forceUpdate', {
+        workflow,
+        node,
+        values: updatedNode,
       })
-      commit('UPDATE_ITEM', { workflow, node, values: rollbackValues })
+    } catch (error) {
+      commit('UPDATE_ITEM', { workflow, node, values: oldValues })
       throw error
     } finally {
       commit('SET_LOADING', { node, value: false })
@@ -227,7 +229,7 @@ const getters = {
     return workflow.selectedNode
   },
   getLoading: (state) => (node) => {
-    return node._.loading || false
+    return node._.loading
   },
 }
 

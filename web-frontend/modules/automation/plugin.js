@@ -29,6 +29,7 @@ import {
   HistoryEditorSidePanelType,
   NodeEditorSidePanelType,
 } from '@baserow/modules/automation/editorSidePanelTypes'
+import { PreviousNodeDataProviderType } from '@baserow/modules/automation/dataProviderTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -60,6 +61,10 @@ export default (context) => {
     app.$registry.register(
       'application',
       new AutomationApplicationType(context)
+    )
+    app.$registry.register(
+      'automationDataProvider',
+      new PreviousNodeDataProviderType(context)
     )
     app.$registry.register(
       'node',

@@ -67,6 +67,7 @@ import {
   nextTick,
   getCurrentInstance,
 } from '@nuxtjs/composition-api'
+import { uuid } from '@baserow/modules/core/utils/string'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
 import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode'
 import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge'
@@ -76,10 +77,6 @@ const props = defineProps({
   nodes: {
     type: Array,
     required: true,
-  },
-  readOnly: {
-    type: Boolean,
-    default: false,
   },
   value: {
     type: [String, Number],
@@ -106,6 +103,8 @@ const zoomOnScroll = ref(false)
 const panOnScroll = ref(true)
 const zoomOnDoubleClick = ref(false)
 
+const workflowReadOnly = inject('workflowReadOnly')
+
 // Constants for positioning
 const NODE_VERTICAL_SPACING = 144 // Vertical distance between the tops of consecutive data nodes
 const ADD_BUTTON_OFFSET_Y = 92 // Vertical offset of add button relative to the data node above it
@@ -128,42 +127,26 @@ const displayNodes = computed(() => {
   // props.nodes should already be sorted by 'order' from the store getter
   const sortedDataNodes = [...props.nodes]
 
-  if (props.readOnly) {
-    let currentY = INITIAL_Y_POS
-    return sortedDataNodes.map((node) => {
-      const position = { x: DATA_NODE_X_POS, y: currentY }
-      currentY += NODE_VERTICAL_SPACING // Increment Y for the next node
-      const nodeType = app.$registry.get('node', node.type)
-
-      return {
-        ...node,
-        id: node.id.toString(), // VueFlow expects string IDs
-        position,
-        type: 'workflow-node',
-        data: { readOnly: props.readOnly, isTrigger: nodeType.isTrigger },
-      }
-    })
-  }
-
-  // Not readOnly mode: intersperse workflow-add-button-node nodes
+  // If we don't have a trigger, add the first add button node.
   if (!workflowHasTrigger.value) {
     // No nodes, show a single add button to start the flow
     vueFlowNodes.push({
-      id: 'initial-workflow-add-button-node',
+      id: uuid(),
       type: 'workflow-add-button-node',
-      label: '',
       position: {
         x: ADD_BUTTON_X_POS,
         y: INITIAL_Y_POS - INITIAL_ADD_BUTTON_OFFSET_Y,
       },
-      data: { nodeId: null, disabled: props.isAddingNode }, // No preceding data node
+      data: {
+        nodeId: null,
+        disabled: props.isAddingNode || workflowReadOnly.value,
+      },
     })
   }
 
   if (sortedDataNodes.length > 0) {
     let currentY = INITIAL_Y_POS
     sortedDataNodes.forEach((dataNode) => {
-      const dataNodePosition = { x: DATA_NODE_X_POS, y: currentY }
       const nodeType = app.$registry.get('node', dataNode.type)
       vueFlowNodes.push({
         ...dataNode,
@@ -173,25 +156,25 @@ const displayNodes = computed(() => {
           node: dataNode,
         }),
         id: dataNode.id.toString(),
-        position: dataNodePosition,
+        position: { x: DATA_NODE_X_POS, y: currentY },
         data: {
-          readOnly: props.readOnly,
+          readOnly: workflowReadOnly.value,
           isTrigger: nodeType.isTrigger,
-          isInError: nodeType.isInError({ service: dataNode.service }),
         },
       })
 
       // Add an Add Node Button node below it
-      const addButtonPosition = {
-        x: ADD_BUTTON_X_POS,
-        y: currentY + ADD_BUTTON_OFFSET_Y,
-      }
-
       vueFlowNodes.push({
-        id: `workflow-add-button-node-${dataNode.id}`,
-        data: { nodeId: dataNode.id, disabled: props.isAddingNode },
+        id: uuid(),
         type: 'workflow-add-button-node',
-        position: addButtonPosition,
+        position: {
+          x: ADD_BUTTON_X_POS,
+          y: currentY + ADD_BUTTON_OFFSET_Y,
+        },
+        data: {
+          nodeId: dataNode.id,
+          disabled: props.isAddingNode || workflowReadOnly.value,
+        },
       })
 
       // Increment Y for the next node
@@ -205,7 +188,7 @@ const computedEdges = computed(() => {
   const edges = []
   const currentNodesToProcess = displayNodes.value
 
-  if (props.readOnly) {
+  if (workflowReadOnly.value) {
     const dataNodesOnly = displayNodes.value
     for (let i = 0; i < dataNodesOnly.length - 1; i++) {
       const sourceNode = dataNodesOnly[i]
@@ -233,26 +216,30 @@ const computedEdges = computed(() => {
   return edges
 })
 
+/**
+ * When the pane is clicked, we emit `null` which
+ * clears the selected node in the node store.
+ */
 onPaneClick(() => {
   emit('input', null)
 })
 
+/**
+ * When a 'workflow-node' node is clicked, we emit the node's
+ * ID to set it as the selected node in the node store.
+ */
 onNodeClick(({ node }) => {
   if (node.type === 'workflow-node') {
     emit('input', node.id)
   }
 })
 
-const workflowHasTrigger = computed(() => {
-  return props.nodes.some((node) => {
-    const nodeType = app.$registry.get('node', node.type)
-    return nodeType.isTrigger
-  })
-})
-
+/**
+ * When the pane is moved, if we have an active 'create node context',
+ * we hide it. This is to ensure that the context menu does not stay
+ * open when the user interacts with the workflow.
+ */
 const activeCreateNodeContext = ref(null)
-
-// Hide the active node create context when user pan the canvas
 onMove(() => {
   activeCreateNodeContext.value?.hide()
 })
@@ -264,6 +251,13 @@ const toggleCreateContext = async (nodeId) => {
   const nodeAddBtn = refs[`addWorkflowBtnNode-${nodeId}`]
   nodeContext.show(nodeAddBtn.$el, 'bottom', 'left', 10, -225)
 }
+
+const workflowHasTrigger = computed(() => {
+  return props.nodes.some((node) => {
+    const nodeType = app.$registry.get('node', node.type)
+    return nodeType.isTrigger
+  })
+})
 
 const createNode = (nodeType, previousNodeId) => {
   emit('add-node', {

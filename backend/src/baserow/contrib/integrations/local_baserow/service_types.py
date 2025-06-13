@@ -2282,6 +2282,12 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
     on_event = None
     model_class = None
 
+    # Local Baserow signal triggers (e.g. rows created, updated, deleted)
+    # all return an array of rows, even if only a single row is affected.
+    # We set `returns_list` to `True` so that when we generate the schema,
+    # the `type` is set to `array` instead of `object`.
+    returns_list = True
+
     def start_listening(self, on_event: Callable):
         self.on_event = on_event
         self.signal.connect(self.handler)
@@ -2311,8 +2317,8 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
 
 
 class LocalBaserowRowsCreatedTriggerServiceType(
-    LocalBaserowTableServiceType,
     LocalBaserowSignalTriggerTypeMixin,
+    LocalBaserowTableServiceType,
     TriggerServiceTypeMixin,
 ):
     signal = rows_created
@@ -2321,8 +2327,8 @@ class LocalBaserowRowsCreatedTriggerServiceType(
 
 
 class LocalBaserowRowsUpdatedTriggerServiceType(
-    LocalBaserowTableServiceType,
     LocalBaserowSignalTriggerTypeMixin,
+    LocalBaserowTableServiceType,
     TriggerServiceTypeMixin,
 ):
     signal = rows_updated
@@ -2331,8 +2337,8 @@ class LocalBaserowRowsUpdatedTriggerServiceType(
 
 
 class LocalBaserowRowsDeletedTriggerServiceType(
-    LocalBaserowTableServiceType,
     LocalBaserowSignalTriggerTypeMixin,
+    LocalBaserowTableServiceType,
     TriggerServiceTypeMixin,
 ):
     signal = rows_deleted

@@ -159,10 +159,9 @@ export default {
       return this.editor.getJSON()
     },
     nodes() {
-      const nodes = this.dataProviders
+      return this.dataProviders
         .map((dataProvider) => dataProvider.getNodes(this.applicationContext))
         .filter((dataProviderNodes) => dataProviderNodes.nodes?.length > 0)
-      return nodes
     },
     nodeSelected() {
       return this.dataNodeSelected?.attrs?.path || null

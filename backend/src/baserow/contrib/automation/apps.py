@@ -139,6 +139,15 @@ class AutomationConfig(AppConfig):
                 LocalBaserowRowsDeletedNodeTriggerType()
             )
 
+            from baserow.contrib.automation.data_providers.data_provider_types import (
+                PreviousNodeProviderType,
+            )
+            from baserow.contrib.automation.data_providers.registries import (
+                automation_data_provider_type_registry,
+            )
+
+            automation_data_provider_type_registry.register(PreviousNodeProviderType())
+
             # The signals must always be imported last because they use
             # the registries which need to be filled first.
             import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401

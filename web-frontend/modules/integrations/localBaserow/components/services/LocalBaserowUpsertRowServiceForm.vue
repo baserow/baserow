@@ -65,6 +65,7 @@ export default {
       },
       state: null,
       tableLoading: false,
+      skipFirstValuesEmit: true,
     }
   },
   computed: {
@@ -113,9 +114,8 @@ export default {
      */
     emitServiceChange(newValues) {
       if (this.isFormValid()) {
-        const updated = { ...this.defaultValues, ...newValues }
         const differences = Object.fromEntries(
-          Object.entries(updated).filter(
+          Object.entries(newValues).filter(
             ([key, value]) => !_.isEqual(value, this.defaultValues[key])
           )
         )
@@ -128,7 +128,9 @@ export default {
           this.values.field_mappings = []
           differences.field_mappings = []
         }
-        this.$emit('values-changed', differences)
+        if (Object.keys(differences).length > 0) {
+          this.$emit('values-changed', differences)
+        }
       }
     },
   },

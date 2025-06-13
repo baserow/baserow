@@ -19,6 +19,7 @@ from baserow.core.mixins import (
 
 if typing.TYPE_CHECKING:
     from baserow.contrib.automation.models import Automation
+    from baserow.contrib.automation.nodes.models import AutomationTriggerNode
 
 
 class AutomationWorkflowTrashManager(models.Manager):
@@ -75,6 +76,14 @@ class AutomationWorkflow(
     def get_last_order(cls, automation: "Automation"):
         queryset = AutomationWorkflow.objects.filter(automation=automation)
         return cls.get_highest_order_of_queryset(queryset) + 1
+
+    def get_trigger(
+        self, specific: bool = True
+    ) -> typing.Optional["AutomationTriggerNode"]:
+        node = self.automation_workflow_nodes.order_by("order").first()
+        if not node or not node.get_type().is_workflow_trigger:
+            return None
+        return node.specific if specific else node
 
 
 class DuplicateAutomationWorkflowJob(

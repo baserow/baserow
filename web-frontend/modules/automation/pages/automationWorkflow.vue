@@ -11,7 +11,6 @@
           <WorkflowEditor
             v-model="selectedNodeId"
             :nodes="workflowNodes"
-            :read-only="isWorkflowReadOnly"
             :is-adding-node="isAddingNode"
             @add-node="handleAddNode"
             @remove-node="handleRemoveNode"
@@ -58,37 +57,31 @@ export default defineComponent({
 
     const workspace = ref(null)
     const automation = ref(null)
-    const currentWorkflow = ref(null)
+    const workflow = ref(null)
     const isAddingNode = ref(false)
 
     const sidePanelWidth = 360
 
     useFetch(async () => {
       try {
-        const fetchedAutomation = await store.dispatch(
+        automation.value = await store.dispatch(
           'application/selectById',
           automationId
         )
-        automation.value = fetchedAutomation
-
-        const fetchedWorkspace = await store.dispatch(
+        workspace.value = await store.dispatch(
           'workspace/selectById',
-          fetchedAutomation.workspace.id
+          automation.value.workspace.id
         )
-        workspace.value = fetchedWorkspace
-
-        const fetchedWorkflow = store.getters['automationWorkflow/getById'](
-          fetchedAutomation,
+        workflow.value = store.getters['automationWorkflow/getById'](
+          automation.value,
           workflowId
         )
-        currentWorkflow.value = fetchedWorkflow
-
         await store.dispatch('automationWorkflow/selectById', {
-          automation: fetchedAutomation,
+          automation: automation.value,
           workflowId,
         })
         await store.dispatch('automationWorkflowNode/fetch', {
-          workflow: currentWorkflow.value,
+          workflow: workflow.value,
         })
 
         const applicationType = app.$registry.get(
@@ -97,7 +90,7 @@ export default defineComponent({
         )
         await applicationType.loadExtraData(automation.value)
 
-        currentWorkflow.value = { ...currentWorkflow.value }
+        workflow.value = { ...workflow.value }
       } catch (e) {
         return error({
           statusCode: 404,
@@ -108,24 +101,23 @@ export default defineComponent({
 
     provide('workspace', workspace)
     provide('automation', automation)
-    provide('currentWorkflow', currentWorkflow)
+    provide('workflow', workflow)
 
-    const isWorkflowReadOnly = ref(false)
+    const workflowReadOnly = ref(false)
     const workflowNodes = computed(() => {
-      return store.getters['automationWorkflowNode/getNodes'](
-        currentWorkflow.value
-      )
+      return store.getters['automationWorkflowNode/getNodes'](workflow.value)
     })
 
     const handleReadOnlyToggle = (newReadOnlyState) => {
-      isWorkflowReadOnly.value = newReadOnlyState
+      workflowReadOnly.value = newReadOnlyState
     }
+    provide('workflowReadOnly', workflowReadOnly)
 
     const handleAddNode = async ({ type, previousNodeId }) => {
       try {
         isAddingNode.value = true
         await store.dispatch('automationWorkflowNode/create', {
-          workflow: currentWorkflow.value,
+          workflow: workflow.value,
           type,
           previousNodeId,
         })
@@ -137,17 +129,17 @@ export default defineComponent({
     }
 
     const handleRemoveNode = async (nodeId) => {
-      if (!currentWorkflow.value) {
-        console.error('currentWorkflow is not available to remove a node.')
+      if (!workflow.value) {
+        console.error('workflow is not available to remove a node.')
         return
       }
       try {
         await store.dispatch('automationWorkflowNode/delete', {
-          workflow: currentWorkflow.value,
+          workflow: workflow.value,
           nodeId: parseInt(nodeId),
         })
 
-        currentWorkflow.value = { ...currentWorkflow.value }
+        workflow.value = { ...workflow.value }
       } catch (err) {
         console.error('Failed to delete node:', err)
       }
@@ -161,19 +153,19 @@ export default defineComponent({
       get() {
         const selectedNode = store.getters[
           'automationWorkflowNode/getSelected'
-        ](currentWorkflow.value)
+        ](workflow.value)
         return selectedNode?.id || null
       },
       set(nodeId) {
         let nodeToSelect = null
         if (nodeId) {
           nodeToSelect = store.getters['automationWorkflowNode/findById'](
-            currentWorkflow.value,
+            workflow.value,
             nodeId
           )
         }
         store.dispatch('automationWorkflowNode/select', {
-          workflow: currentWorkflow.value,
+          workflow: workflow.value,
           node: nodeToSelect,
         })
       },
@@ -182,9 +174,9 @@ export default defineComponent({
     return {
       workspace,
       automation,
-      currentWorkflow,
+      workflow,
       sidePanelWidth,
-      isWorkflowReadOnly,
+      workflowReadOnly,
       workflowNodes,
       activeSidePanel,
       handleReadOnlyToggle,
