@@ -4,6 +4,7 @@ from copy import deepcopy
 from unittest.mock import patch
 
 from dotenv import dotenv_values
+from fakeredis import FakeConnection, FakeServer
 
 from baserow.config.settings.utils import str_to_bool
 
@@ -59,9 +60,17 @@ USER_THUMBNAILS = {"tiny": [21, 21]}
 # because that is default value in `base.py`.
 MEDIA_URL = "http://localhost:8000/media/"
 
+
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://localhost:6379/1",
+        "OPTIONS": {
+            "CONNECTION_POOL_KWARGS": {
+                "connection_class": FakeConnection,
+                "server": FakeServer(),
+            }
+        },
         "KEY_PREFIX": "baserow-default-cache",
         "VERSION": VERSION,
     },

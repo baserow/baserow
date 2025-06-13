@@ -17,7 +17,7 @@ from baserow.core.user_files.handler import UserFileHandler
 
 
 @pytest.mark.django_db(transaction=True)
-def test_textfield_get_search_expression(data_fixture, enable_singleton_testing):
+def test_textfield_get_search_expression(data_fixture):
     with transaction.atomic():
         user = data_fixture.create_user()
         database = data_fixture.create_database_application(user=user)
@@ -41,7 +41,7 @@ def test_textfield_get_search_expression(data_fixture, enable_singleton_testing)
 
 
 @pytest.mark.django_db(transaction=True)
-def test_longtextfield_get_search_expression(data_fixture, enable_singleton_testing):
+def test_longtextfield_get_search_expression(data_fixture):
     with transaction.atomic():
         user = data_fixture.create_user()
         database = data_fixture.create_database_application(user=user)
@@ -65,7 +65,7 @@ def test_longtextfield_get_search_expression(data_fixture, enable_singleton_test
 
 
 @pytest.mark.django_db(transaction=True)
-def test_numberfield_get_search_expression(data_fixture, enable_singleton_testing):
+def test_numberfield_get_search_expression(data_fixture):
     with transaction.atomic():
         user = data_fixture.create_user()
         database = data_fixture.create_database_application(user=user)
@@ -89,9 +89,7 @@ def test_numberfield_get_search_expression(data_fixture, enable_singleton_testin
 
 
 @pytest.mark.django_db(transaction=True)
-def test_filefield_get_search_expression(
-    data_fixture, tmpdir, enable_singleton_testing
-):
+def test_filefield_get_search_expression(data_fixture, tmpdir):
     with transaction.atomic():
         user = data_fixture.create_user()
         database = data_fixture.create_database_application(user=user)
@@ -139,7 +137,7 @@ def test_filefield_get_search_expression(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_urlfield_get_search_expression(data_fixture, enable_singleton_testing):
+def test_urlfield_get_search_expression(data_fixture):
     with transaction.atomic():
         user = data_fixture.create_user()
         database = data_fixture.create_database_application(user=user)
@@ -163,7 +161,7 @@ def test_urlfield_get_search_expression(data_fixture, enable_singleton_testing):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_emailfield_get_search_expression(data_fixture, enable_singleton_testing):
+def test_emailfield_get_search_expression(data_fixture):
     with transaction.atomic():
         user = data_fixture.create_user()
         database = data_fixture.create_database_application(user=user)
@@ -187,9 +185,7 @@ def test_emailfield_get_search_expression(data_fixture, enable_singleton_testing
 
 
 @pytest.mark.django_db(transaction=True)
-def test_datefield_without_time_get_search_expression(
-    data_fixture, enable_singleton_testing
-):
+def test_datefield_without_time_get_search_expression(data_fixture):
     with transaction.atomic():
         user = data_fixture.create_user()
         database = data_fixture.create_database_application(user=user)
@@ -213,9 +209,7 @@ def test_datefield_without_time_get_search_expression(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_datefield_with_time_get_search_expression(
-    data_fixture, enable_singleton_testing
-):
+def test_datefield_with_time_get_search_expression(data_fixture):
     with transaction.atomic():
         user = data_fixture.create_user()
         database = data_fixture.create_database_application(user=user)
@@ -241,9 +235,7 @@ def test_datefield_with_time_get_search_expression(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_singleselectfield_get_search_expression(
-    data_fixture, enable_singleton_testing
-):
+def test_singleselectfield_get_search_expression(data_fixture):
     with transaction.atomic():
         user = data_fixture.create_user()
 
@@ -274,7 +266,7 @@ def test_singleselectfield_get_search_expression(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_multiselectfield_get_search_expression(data_fixture, enable_singleton_testing):
+def test_multiselectfield_get_search_expression(data_fixture):
     with transaction.atomic():
         user = data_fixture.create_user()
 
@@ -327,9 +319,7 @@ def test_multiselectfield_get_search_expression(data_fixture, enable_singleton_t
 
 
 @pytest.mark.django_db(transaction=True)
-def test_collaboratorfield_get_search_expression(
-    data_fixture, enable_singleton_testing
-):
+def test_collaboratorfield_get_search_expression(data_fixture):
     with transaction.atomic():
         workspace = data_fixture.create_workspace()
         creator = data_fixture.create_user(workspace=workspace)
@@ -370,7 +360,6 @@ def test_collaboratorfield_get_search_expression(
 @pytest.mark.django_db(transaction=True)
 def test_lookupfield_get_search_expression(
     data_fixture,
-    enable_singleton_testing,
     django_assert_num_queries,
 ):
     with transaction.atomic():
@@ -441,7 +430,6 @@ def test_lookupfield_get_search_expression(
 @pytest.mark.django_db(transaction=True)
 def test_linkrowfield_get_search_expression(
     data_fixture,
-    enable_singleton_testing,
     django_assert_num_queries,
 ):
     with transaction.atomic():
@@ -503,7 +491,6 @@ def test_linkrowfield_get_search_expression(
 @pytest.mark.django_db(transaction=True)
 def test_linkrowfield_get_search_expression_to_formula_button(
     data_fixture,
-    enable_singleton_testing,
     django_assert_num_queries,
 ):
     with transaction.atomic():
@@ -580,9 +567,7 @@ def make_big_string(n: int) -> str:
 
 
 @pytest.mark.django_db(transaction=True)
-def test_massive_textfield_get_search_expression(
-    data_fixture, enable_singleton_testing
-):
+def test_massive_textfield_get_search_expression(data_fixture):
     with transaction.atomic():
         user = data_fixture.create_user()
         database = data_fixture.create_database_application(user=user)
@@ -609,9 +594,7 @@ def test_massive_textfield_get_search_expression(
 
 @pytest.mark.field_last_modified_by
 @pytest.mark.django_db(transaction=True)
-def test_last_modified_by_field_get_search_expression(
-    data_fixture, enable_singleton_testing
-):
+def test_last_modified_by_field_get_search_expression(data_fixture):
     with transaction.atomic():
         user_adam = data_fixture.create_user(
             email="user1@baserow.io", first_name="Adam"
@@ -658,7 +641,7 @@ def test_last_modified_by_field_get_search_expression(
 
 @pytest.mark.field_duration
 @pytest.mark.django_db(transaction=True)
-def test_duration_field_get_search_expression(data_fixture, enable_singleton_testing):
+def test_duration_field_get_search_expression(data_fixture):
     with transaction.atomic():
         user = data_fixture.create_user()
         database = data_fixture.create_database_application(user=user)
