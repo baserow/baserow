@@ -19,6 +19,7 @@ import { formulaFieldArrayFilterMixin } from '@baserow/modules/database/arrayFil
 import {
   parseNumberValue,
   formatNumberValue,
+  formatDecimalNumber,
 } from '@baserow/modules/database/utils/number'
 
 import moment from '@baserow/modules/core/moment'
@@ -1782,7 +1783,7 @@ export class NumberFieldType extends FieldType {
   }
 
   toHumanReadableString(field, value, delimiter = ', ') {
-    return NumberFieldType.formatNumber(field, value)
+    return formatDecimalNumber(field, value)
   }
 
   getDocsDataType(field) {

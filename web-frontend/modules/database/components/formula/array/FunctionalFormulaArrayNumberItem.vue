@@ -17,13 +17,13 @@
 </template>
 
 <script>
-import { formatFrontendNumber } from '@baserow/modules/database/utils/number'
+import { formatDecimalNumber } from '@baserow/modules/database/utils/number'
 
 export default {
   name: 'FunctionalFormulaArrayNumberItem',
   methods: {
     formatFrontendNumber(field, value) {
-      return formatFrontendNumber(field, value)
+      return formatDecimalNumber(field, value)
     },
   },
 }
