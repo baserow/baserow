@@ -283,3 +283,89 @@ def test_export_prepared_values(data_fixture):
     result = AutomationWorkflowHandler().export_prepared_values(workflow)
 
     assert result == {"name": "test", "allow_test_run_until": None}
+
+
+@pytest.mark.django_db
+def test_get_node_hierarchy(data_fixture, django_assert_num_queries):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow,
+    )
+    first_action = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+    )
+    second_action = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+    )
+
+    with django_assert_num_queries(1):
+        hierarchy = AutomationWorkflowHandler().get_node_hierarchy(workflow)
+
+    assert hierarchy == {
+        trigger.id: {
+            "workflow": {"id": workflow.id},
+            "node": {"id": trigger.id},
+            "previous_node": None,
+            "next_node": {"id": first_action.id},
+        },
+        first_action.id: {
+            "workflow": {"id": workflow.id},
+            "node": {"id": first_action.id},
+            "previous_node": {"id": trigger.id},
+            "next_node": {"id": second_action.id},
+        },
+        second_action.id: {
+            "workflow": {"id": workflow.id},
+            "node": {"id": second_action.id},
+            "previous_node": {"id": first_action.id},
+            "next_node": None,
+        },
+    }
+
+
+@pytest.mark.django_db
+def test_update_node_hierarchy(data_fixture, django_assert_num_queries):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow,
+        skip_hierarchy_update=True,
+    )
+    assert trigger.previous_node_id is None
+    first_action = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        skip_hierarchy_update=True,
+    )
+    assert first_action.previous_node_id is None
+    second_action = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        skip_hierarchy_update=True,
+    )
+    assert second_action.previous_node_id is None
+
+    with django_assert_num_queries(3):
+        AutomationWorkflowHandler().update_node_hierarchy(workflow)
+
+    trigger.refresh_from_db(fields=["previous_node_id"])
+    assert trigger.previous_node_id is None
+
+    first_action.refresh_from_db(fields=["previous_node_id"])
+    assert first_action.previous_node_id == trigger.id
+
+    second_action.refresh_from_db(fields=["previous_node_id"])
+    assert second_action.previous_node_id == first_action.id
+
+    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+    AutomationNodeHandler().delete_node(user, first_action)
+
+    trigger.refresh_from_db(fields=["previous_node_id"])
+    assert trigger.previous_node_id is None
+
+    first_action.refresh_from_db(fields=["trashed", "previous_node_id"])
+    assert first_action.trashed
+    assert first_action.previous_node_id == trigger.id
+
+    second_action.refresh_from_db(fields=["previous_node_id"])
+    assert second_action.previous_node_id == trigger.id

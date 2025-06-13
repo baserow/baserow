@@ -34,6 +34,7 @@ class AutomationNodeHandler:
         node_type: AutomationNodeType,
         workflow: AutomationWorkflow,
         before: Optional[AutomationNode] = None,
+        skip_hierarchy_update: bool = False,
         **kwargs,
     ) -> AutomationNode:
         """
@@ -43,6 +44,7 @@ class AutomationNodeHandler:
         :param workflow: The workflow the automation node is associated with.
         :param before: If provided and no order is provided, will place the new node
             before the given node.
+        :param skip_hierarchy_update: If True, the hierarchy update will be skipped.
         :return: The newly created automation node instance.
         """
 
@@ -60,7 +62,30 @@ class AutomationNodeHandler:
         node = node_type.model_class(order=order, **allowed_prepared_values)
         node.save()
 
+        if not skip_hierarchy_update:
+            # As we've created a new node, we need to update the hierarchy.
+            from baserow.contrib.automation.workflows.handler import (
+                AutomationWorkflowHandler,
+            )
+
+            AutomationWorkflowHandler().update_node_hierarchy(workflow)
+            node.refresh_from_db(fields=["previous_node_id"])
+
         return node
+
+    def get_default_sorted_nodes(
+        self,
+    ) -> QuerySet[AutomationNode]:
+        """
+        The base queryset we'll use for getting a *sorted* queryset of nodes.
+        Currently, it returns all the nodes ordered by their order field.
+        In the future however, this will be extended to take more complex workflow
+        groups into account.
+
+        :return: A queryset of ordered AutomationNode.
+        """
+
+        return AutomationNode.objects.order_by("order")
 
     def get_nodes(
         self,
@@ -79,7 +104,7 @@ class AutomationNodeHandler:
         """
 
         if base_queryset is None:
-            base_queryset = AutomationNode.objects.all()
+            base_queryset = self.get_default_sorted_nodes()
 
         nodes = base_queryset.select_related("workflow__automation__workspace").filter(
             workflow=workflow
@@ -147,6 +172,9 @@ class AutomationNodeHandler:
 
         node.save()
 
+        # TODO: once you can move nodes (e.g. with a `before` or `parent_node_id`
+        #       change, we need to call `update_node_hierarchy`.
+
         new_node_values = node.get_type().export_prepared_values(node)
         updated_node = UpdatedAutomationNode(
             node, original_node_values, new_node_values
@@ -174,7 +202,8 @@ class AutomationNodeHandler:
         """
 
         return [
-            node.id for node in workflow.automation_workflow_nodes.order_by("order")
+            node.id
+            for node in self.get_default_sorted_nodes().filter(workflow=workflow)
         ]
 
     def order_nodes(
