@@ -31,6 +31,9 @@ class FormulaFieldVisitor(BaserowFormulaImporter):
         self.results = {}
         self.extra_context = kwargs
 
+    def get_data_provider_type_registry(self):
+        return builder_data_provider_type_registry
+
     def visit(self, tree: Tree) -> Set[str]:
         """
         Due to the way the formula parsing works, the properties that are found by
@@ -65,7 +68,7 @@ class FormulaFieldVisitor(BaserowFormulaImporter):
             # e.g. "current_record" from the rest of the path, e.g. ["property_33"]
             data_provider_name, *path = to_path(unquoted_arg[1:-1])
 
-            data_provider_type = builder_data_provider_type_registry.get(
+            data_provider_type = self.get_data_provider_type_registry().get(
                 data_provider_name
             )
 
@@ -76,7 +79,7 @@ class FormulaFieldVisitor(BaserowFormulaImporter):
                 )
             except InvalidBaserowFormula:
                 # If the property extraction failed because of an Invalid formula
-                # we can ignore it. May be the related data source is gone.
+                # we can ignore it. Maybe the related data source is gone.
                 pass
 
 
@@ -160,7 +163,7 @@ def get_data_source_property_names(
 
     This function will update the results dict. It will only update the
     "internal" keys, since data source property names are only required by
-    the backend..
+    the backend.
     """
 
     results = {}
