@@ -2,7 +2,7 @@ import {
   ServiceType,
   WorkflowActionServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
-import CoreHTTPRequestServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPRequestServiceForm.vue'
+import CoreHTTPRequestServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPRequestServiceForm'
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -13,6 +13,10 @@ export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
 
   get name() {
     return this.app.i18n.t('serviceType.coreHTTPRequest')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.coreHTTPRequestDescription')
   }
 
   getErrorMessage({ service }) {
