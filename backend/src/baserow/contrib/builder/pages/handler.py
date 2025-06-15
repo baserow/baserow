@@ -516,7 +516,7 @@ class PageHandler:
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
-    ) -> List[PageDict]:
+    ) -> PageDict:
         """
         Serializes the given page.
 

@@ -24,6 +24,7 @@ def test_automation_export_serialized(data_fixture):
         "name": automation.name,
         "order": automation.order,
         "type": "automation",
+        "integrations": [],
         "workflows": [],
     }
 
@@ -52,6 +53,7 @@ def test_automation_import_serialized_without_workflows(data_fixture):
         "name": "Automation 1",
         "order": 99,
         "type": "automation",
+        "integrations": [],
         "workflows": [],
     }
 
@@ -77,6 +79,7 @@ def test_automation_import_serialized_with_workflows(data_fixture):
         "name": "Automation 1",
         "order": 99,
         "type": "automation",
+        "integrations": [],
         "workflows": [serialized_workflow],
     }
 

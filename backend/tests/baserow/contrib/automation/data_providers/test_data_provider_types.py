@@ -50,3 +50,16 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
         exc.value.args[0]
         == "The previous node id is not present in the dispatch context results"
     )
+
+
+@pytest.mark.django_db
+def test_previous_node_data_provider_import_path():
+    data_provider = PreviousNodeProviderType()
+    path = ["1", "0", "field_1"]
+
+    valid_id_mapping = {"automation_workflow_nodes": {1: 2}}
+    invalid_id_mapping = {"automation_workflow_nodes": {3: 4}}
+
+    assert data_provider.import_path(path, {}) == ["1", "0", "field_1"]
+    assert data_provider.import_path(path, invalid_id_mapping) == ["1", "0", "field_1"]
+    assert data_provider.import_path(path, valid_id_mapping) == ["2", "0", "field_1"]

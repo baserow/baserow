@@ -7,9 +7,9 @@ from rest_framework import serializers
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.formula_importer import import_formula
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
-from baserow.contrib.builder.formula_importer import import_formula
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
@@ -53,6 +53,8 @@ class AutomationNodeType(
 
     class SerializedDict(AutomationNodeDict):
         service: Dict
+        parent_node_id: Optional[int]
+        previous_node_id: Optional[int]
 
     @property
     def allowed_fields(self):
@@ -126,6 +128,9 @@ class AutomationNodeType(
         :param id_mapping: the id mapping dict.
         :return: the deserialized version for this property.
         """
+
+        if prop_name in ["previous_node_id", "parent_node_id"] and value:
+            return id_mapping["automation_workflow_nodes"][value]
 
         if prop_name == "service" and value:
             integration = None
@@ -203,7 +208,7 @@ class AutomationNodeType(
         self,
         automation_node: AutomationNode,
         dispatch_context: AutomationDispatchContext,
-    ) -> DispatchResult:
+    ):
         raise InvalidServiceTypeDispatchSource("This service cannot be dispatched.")
 
 

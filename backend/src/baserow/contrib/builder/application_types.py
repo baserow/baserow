@@ -265,7 +265,7 @@ class BuilderApplicationType(ApplicationType):
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
-    ) -> List[Page]:
+    ) -> List[Integration]:
         """
         Import integrations to builder. This method has to be compatible with the output
         of `export_integrations_serialized`.

@@ -322,7 +322,7 @@ class AutomationNodeHandler:
     def import_node_only(
         self,
         workflow: AutomationWorkflow,
-        serialized_node: Dict[str, Any],
+        serialized_node: AutomationNodeDict,
         id_mapping: Dict[str, Dict[int, int]],
         *args: Any,
         **kwargs: Any,

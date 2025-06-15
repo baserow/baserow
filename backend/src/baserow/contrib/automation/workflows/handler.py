@@ -342,12 +342,20 @@ class AutomationWorkflowHandler:
 
         imported_nodes = []
 
+        # Sort the serialized nodes so that we import:
+        # root-level nodes first (those without a parent)
+        # and then sort by their `order` ASC.
+        def node_priority_sort(n):
+            return n.get("parent_node_id") is None, n.get("order", 0)
+
+        prioritized_nodes = sorted(serialized_nodes, key=node_priority_sort)
+
         # True if we have imported at least one node on last iteration
         was_imported = True
         while was_imported:
             was_imported = False
 
-            for serialized_node in serialized_nodes:
+            for serialized_node in prioritized_nodes:
                 parent_node_id = serialized_node["parent_node_id"]
                 # check that the node has not already been imported in a
                 # previous pass or if the parent doesn't exist yet.
@@ -377,7 +385,7 @@ class AutomationWorkflowHandler:
     def import_workflows(
         self,
         automation: Automation,
-        serialized_workflows: List[Dict[str, Any]],
+        serialized_workflows: List[AutomationWorkflowDict],
         id_mapping: Dict[str, Dict[int, int]],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -436,7 +444,7 @@ class AutomationWorkflowHandler:
     def import_workflow(
         self,
         automation: Automation,
-        serialized_workflow: Dict[str, Any],
+        serialized_workflow: AutomationWorkflowDict,
         id_mapping: Dict[str, Dict[int, int]],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,

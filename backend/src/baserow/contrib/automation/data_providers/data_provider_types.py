@@ -33,3 +33,21 @@ class PreviousNodeProviderType(AutomationDataProviderType):
             )
             raise DataProviderChunkInvalidException(message)
         return get_value_at_path(previous_node_results, rest)
+
+    def import_path(self, path, id_mapping, **kwargs):
+        """
+        Update the previous node ID of the path.
+
+        :param path: the path part list.
+        :param id_mapping: The id_mapping of the process import.
+        :return: The updated path.
+        """
+
+        previous_node_id, *rest = path
+
+        if "automation_workflow_nodes" in id_mapping:
+            previous_node_id = id_mapping["automation_workflow_nodes"].get(
+                int(previous_node_id), previous_node_id
+            )
+
+        return [str(previous_node_id), *rest]
