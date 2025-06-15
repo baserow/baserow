@@ -602,6 +602,8 @@ class PageHandler:
             when we have foreign keys that need to be migrated.
         :param files_zip: Contains files to import if any.
         :param storage: Storage to get the files from.
+        :param progress: A progress object that can be used to report progress.
+        :param cache: A cache to use for the import.
         :return: the newly created instances.
         """
 
@@ -679,6 +681,8 @@ class PageHandler:
             when we have foreign keys that need to be migrated.
         :param files_zip: Contains files to import if any.
         :param storage: Storage to get the files from.
+        :param progress: A progress object that can be used to report progress.
+        :param cache: A cache to use for the import.
         :return: the newly created instance.
         """
 
@@ -791,6 +795,8 @@ class PageHandler:
             when we have foreign keys that need to be migrated.
         :param files_zip: Contains files to import if any.
         :param storage: Storage to get the files from.
+        :param progress: A progress object that can be used to report progress.
+        :param cache: A cache to use for the import.
         :return: the newly created instance list.
         """
 

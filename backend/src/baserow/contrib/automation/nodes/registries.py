@@ -26,8 +26,6 @@ from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
 from baserow.core.services.types import DispatchResult
 
-AUTOMATION_NODES = "automation_nodes"
-
 
 class AutomationNodeType(
     PublicCustomFieldsInstanceMixin,
@@ -38,7 +36,7 @@ class AutomationNodeType(
 ):
     service_type = None
     parent_property_name = "workflow"
-    id_mapping_name = AUTOMATION_NODES
+    id_mapping_name = "automation_workflow_nodes"
 
     request_serializer_field_names = ["previous_node_output"]
     request_serializer_field_overrides = {
