@@ -1,12 +1,12 @@
 import random
-import threading
+from asgiref.local import Local
 
 from django.conf import settings
 
 DATABASE_READ_REPLICAS = settings.DATABASE_READ_REPLICAS
 DEFAULT_DB_ALIAS = "default"
 
-_db_state = threading.local()
+_db_state = Local()
 
 
 def set_write_mode():
@@ -46,7 +46,11 @@ class ReadReplicaRouter:
         return DEFAULT_DB_ALIAS
 
     def allow_relation(self, obj1, obj2, **hints):
-        return True
+        db_set = {DEFAULT_DB_ALIAS}
+        db_set.update(DATABASE_READ_REPLICAS)
+        if obj1._state.db in db_set and obj2._state.db in db_set:
+            return True
+        return None
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
         return db == DEFAULT_DB_ALIAS
