@@ -11,6 +11,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
+from baserow.api.applications.serializers import (
+    PublicPolymorphicApplicationResponseSerializer,
+)
 from baserow.api.decorators import map_exceptions
 from baserow.api.errors import ERROR_PERMISSION_DENIED
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
@@ -32,7 +35,6 @@ from baserow.contrib.builder.api.data_sources.serializers import (
     DispatchDataSourceRequestSerializer,
 )
 from baserow.contrib.builder.api.domains.serializers import (
-    PublicBuilderSerializer,
     PublicDataSourceSerializer,
     PublicElementSerializer,
 )
@@ -84,6 +86,12 @@ BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60 * 60
 BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS = 60 * 60
 
 
+class ForcedPublicPolymorphicApplicationResponseSerializer(
+    PublicPolymorphicApplicationResponseSerializer
+):
+    forced_type = "builder"
+
+
 class PublicBuilderByDomainNameView(APIView):
     permission_classes = (AllowAny,)
 
@@ -103,7 +111,7 @@ class PublicBuilderByDomainNameView(APIView):
             "the given domain name and its pages ."
         ),
         responses={
-            200: PublicBuilderSerializer,
+            200: ForcedPublicPolymorphicApplicationResponseSerializer,
             404: get_error_schema(["ERROR_BUILDER_DOES_NOT_EXIST"]),
         },
     )
@@ -137,7 +145,7 @@ class PublicBuilderByDomainNameView(APIView):
         builder = DomainService().get_public_builder_by_domain_name(
             AnonymousUser(), domain_name
         )
-        return PublicBuilderSerializer(builder).data
+        return PublicPolymorphicApplicationResponseSerializer(builder).data
 
 
 class PublicBuilderByIdView(APIView):
@@ -160,7 +168,7 @@ class PublicBuilderByIdView(APIView):
             "the given builder id."
         ),
         responses={
-            200: PublicBuilderSerializer,
+            200: ForcedPublicPolymorphicApplicationResponseSerializer,
             404: get_error_schema(["ERROR_BUILDER_DOES_NOT_EXIST"]),
         },
     )
@@ -177,8 +185,7 @@ class PublicBuilderByIdView(APIView):
         """
 
         builder = BuilderService().get_builder(request.user, builder_id)
-
-        return Response(PublicBuilderSerializer(builder).data)
+        return Response(PublicPolymorphicApplicationResponseSerializer(builder).data)
 
 
 class PublicElementsView(APIView):

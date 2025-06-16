@@ -123,6 +123,11 @@ export class Registry {
     return this.registry[namespace]
   }
 
+  /** Returns an array of the types */
+  getList(namespace) {
+    return Object.values(this.getAll(namespace))
+  }
+
   /**
    * Returns a list of the objects that are in the given namespace ordered by their
    * `.getOrder()` value. Lower value first then for equality, the insertion order is

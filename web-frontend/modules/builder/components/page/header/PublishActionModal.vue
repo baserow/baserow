@@ -89,6 +89,7 @@
           ref="domainSettingsModal"
           hide-after-create
           :builder="builder"
+          :workspace="workspace"
         />
       </div>
     </div>
@@ -111,6 +112,7 @@ export default {
   name: 'PublishActionModal',
   components: { BuilderSettingsModal, LastPublishedDomainDate },
   mixins: [modal, error, jobProgress],
+  inject: ['workspace'],
   props: {
     builder: {
       type: Object,

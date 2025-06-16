@@ -80,6 +80,16 @@ class BaserowEnterpriseConfig(AppConfig):
 
         email_context_registry.register(EnterpriseEmailContextType())
 
+        from baserow.core.registries import application_type_registry
+        from baserow_enterprise.builder.application_types import (
+            EnterpriseBuilderApplicationType,
+        )
+
+        # We replace the original application type with the enterprise one to
+        # add the custom code serializers
+        application_type_registry.unregister(EnterpriseBuilderApplicationType.type)
+        application_type_registry.register(EnterpriseBuilderApplicationType())
+
         action_type_registry.register(CreateTeamActionType())
         action_type_registry.register(UpdateTeamActionType())
         action_type_registry.register(DeleteTeamActionType())

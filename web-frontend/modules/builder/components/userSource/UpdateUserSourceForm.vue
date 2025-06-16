@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent="submit">
-    <FormRow>
+    <FormRow class="margin-bottom-2">
       <FormGroup
         :label="$t('updateUserSourceForm.nameFieldLabel')"
         :error-message="getFirstErrorMessage('name')"

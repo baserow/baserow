@@ -202,7 +202,9 @@ class CustomFieldsInstanceMixin:
         #    as serializers are callable) which lazy loads a serializer mixin, or
         # 2) Serializers can provide a serializer mixin directly.
         dynamic_serializer_mixins = []
-        for serializer_mixin in self.get_serializer_mixins(request_serializer):
+        for serializer_mixin in self.get_serializer_mixins(
+            request_serializer, extra_params, **kwargs
+        ):
             if isinstance(serializer_mixin, FunctionType):
                 dynamic_serializer_mixins.append(serializer_mixin())
             else:
@@ -262,7 +264,9 @@ class CustomFieldsInstanceMixin:
 
         return serializer_class(model_instance_or_instances, context=context, **kwargs)
 
-    def get_serializer_mixins(self, request_serializer: bool) -> List:
+    def get_serializer_mixins(
+        self, request_serializer: bool, extra_params: Dict, **kwargs
+    ) -> List:
         if request_serializer and self.request_serializer_mixins is not None:
             return self.request_serializer_mixins
         else:
@@ -342,6 +346,31 @@ class PublicCustomFieldsInstanceMixin(CustomFieldsInstanceMixin):
     `public_serializer_field_overrides` property.
     """
 
+    public_serializer_mixins = None
+    """
+    The serializer mixins that must be added to the public serializer. This property is
+    useful if you want to add some custom SerializerMethodField for example.
+    """
+
+    public_request_serializer_mixins = None
+    """
+    The serializer mixins that must be added to the public serializer for requests.
+    This property is useful if you want to add some custom behaviour for example.
+    """
+
+    def get_serializer_mixins(
+        self, request_serializer: bool, extra_params=None, **kwargs
+    ) -> List:
+        public = extra_params.get("public", False)
+
+        if public:
+            if request_serializer and self.public_request_serializer_mixins is not None:
+                return self.public_request_serializer_mixins
+            if self.public_serializer_mixins is not None:
+                return self.public_serializer_mixins
+
+        return super().get_serializer_mixins(request_serializer, extra_params, **kwargs)
+
     def get_field_overrides(
         self, request_serializer: bool, extra_params=None, **kwargs
     ) -> Dict:
@@ -349,7 +378,7 @@ class PublicCustomFieldsInstanceMixin(CustomFieldsInstanceMixin):
 
         if public:
             if (
-                request_serializer is not None
+                request_serializer
                 and self.public_request_serializer_field_overrides is not None
             ):
                 return self.public_request_serializer_field_overrides
@@ -365,7 +394,7 @@ class PublicCustomFieldsInstanceMixin(CustomFieldsInstanceMixin):
 
         if public:
             if (
-                request_serializer is not None
+                request_serializer
                 and self.public_request_serializer_field_names is not None
             ):
                 return self.public_request_serializer_field_names

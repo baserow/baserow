@@ -10,7 +10,7 @@
     />
 
     <p>{{ $t('localBaserowUserSourceForm.description') }}</p>
-    <FormRow>
+    <FormRow class="margin-bottom-2">
       <FormGroup
         :label="$t('localBaserowUserSourceForm.emailFieldLabel')"
         small-label

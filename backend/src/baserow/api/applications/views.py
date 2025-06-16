@@ -160,6 +160,7 @@ class ApplicationsView(APIView):
             ).data
             for application in applications
         ]
+
         return Response(data)
 
     @extend_schema(
@@ -283,7 +284,7 @@ class ApplicationView(APIView):
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Applications"],
-        operation_id="update_application",
+        operation_id="workspace_update_application",
         description=(
             "Updates the existing application related to the provided "
             "`application_id` param if the authorized user is in the application's "
@@ -354,7 +355,7 @@ class ApplicationView(APIView):
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Applications"],
-        operation_id="delete_application",
+        operation_id="workspace_delete_application",
         description=(
             "Deletes an application if the authorized user is in the application's "
             "workspace. All the related children are also going to be deleted. For example "

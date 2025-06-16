@@ -99,4 +99,71 @@ export class EnterprisePlugin extends BaserowPlugin {
   getVisuallyHiddenFeatures() {
     return []
   }
+
+  /**
+   * Adds the custom CSS/JS defined for this builder.
+   */
+  getBuilderApplicationHeaderAddition({ builder, mode }) {
+    const css = `${this.app.$config.PUBLIC_BACKEND_URL}/api/custom_code/${
+      builder.id
+    }/css/${mode === 'preview' ? '' : 'public/'}`
+    const js = `${this.app.$config.PUBLIC_BACKEND_URL}/api/custom_code/${
+      builder.id
+    }/js/${mode === 'preview' ? '' : 'public/'}`
+
+    const script = []
+    const link = []
+
+    builder.scripts.forEach((s) => {
+      if (!s.url) {
+        return
+      }
+
+      const crossorigin =
+        s.crossorigin === 'credentials'
+          ? 'use-credentials'
+          : s.crossorigin === 'anonymous'
+          ? 'anonymous'
+          : null
+
+      if (s.type === 'javascript') {
+        script.push({
+          src: s.url,
+          crossorigin,
+          defer: s.load_type === 'defer',
+          async: s.load_type === 'async',
+          body: true,
+        })
+      }
+
+      if (s.type === 'stylesheet') {
+        script.push({
+          rel: 'stylesheet',
+          href: s.url,
+          crossorigin,
+          body: true,
+        })
+      }
+    })
+
+    if (builder.custom_code.css) {
+      link.push({
+        rel: 'stylesheet',
+        href: css,
+        body: true,
+      })
+    }
+    if (builder.custom_code.js) {
+      script.push({
+        src: js,
+        defer: true,
+        body: true,
+      })
+    }
+
+    return {
+      link,
+      script,
+    }
+  }
 }

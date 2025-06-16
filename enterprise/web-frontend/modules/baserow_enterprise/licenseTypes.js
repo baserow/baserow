@@ -16,6 +16,7 @@ const commonAdvancedFeatures = [
   EnterpriseFeaturesObject.BUILDER_SSO,
   EnterpriseFeaturesObject.BUILDER_NO_BRANDING,
   EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
+  EnterpriseFeaturesObject.BUILDER_CUSTOM_CODE,
   // Only self-hosted
   EnterpriseFeaturesObject.SSO,
 ]

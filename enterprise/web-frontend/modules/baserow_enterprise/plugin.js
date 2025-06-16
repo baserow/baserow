@@ -71,8 +71,11 @@ import {
   SupportPaidFeature,
   FieldLevelPermissionsPaidFeature,
   BuilderBrandingPaidFeature,
+  BuilderCustomCodePaidFeature,
+  BuilderFileInputElementPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
+import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -204,6 +207,14 @@ export default (context) => {
   )
   app.$registry.register('paidFeature', new SupportPaidFeature(context))
   app.$registry.register('paidFeature', new BuilderBrandingPaidFeature(context))
+  app.$registry.register(
+    'paidFeature',
+    new BuilderCustomCodePaidFeature(context)
+  )
+  app.$registry.register(
+    'paidFeature',
+    new BuilderFileInputElementPaidFeature(context)
+  )
   // Register builder page decorator namespace and types
   app.$registry.registerNamespace('builderPageDecorator')
   app.$registry.register(
@@ -214,5 +225,10 @@ export default (context) => {
   app.$registry.register(
     'fieldContextItem',
     new FieldPermissionsContextItemType(context)
+  )
+
+  app.$registry.register(
+    'builderSettings',
+    new CustomCodeBuilderSettingType(context)
   )
 }

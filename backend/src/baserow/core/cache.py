@@ -12,6 +12,10 @@ from baserow.version import VERSION as BASEROW_VERSION
 
 T = TypeVar("T")
 
+# This var is to invalidate global cache when we can't bump the Baserow version for
+# some reason.
+GLOBAL_CACHE_VERSION = 1
+
 
 class LocalCache:
     """
@@ -174,7 +178,7 @@ class GlobalCache:
 
         key = key if invalidate_key is None else invalidate_key
 
-        return f"{BASEROW_VERSION}_{key}__current_version"
+        return f"{BASEROW_VERSION}_{GLOBAL_CACHE_VERSION}_{key}__current_version"
 
     def _get_cache_key_with_version(self, key: str) -> str:
         """
@@ -185,7 +189,7 @@ class GlobalCache:
         """
 
         version = cache.get(self._get_version_cache_key(key), 0)
-        return f"{BASEROW_VERSION}_{key}__version_{version}"
+        return f"{BASEROW_VERSION}_{GLOBAL_CACHE_VERSION}_{key}__version_{version}"
 
     def get(
         self,

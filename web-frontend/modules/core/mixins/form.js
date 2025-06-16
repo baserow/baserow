@@ -176,7 +176,8 @@ export default {
      */
     isFormValid(deep = false) {
       // Some forms might not do any validation themselves. If they don't, then they
-      // are by definition valid if their children are valid.c
+      // are by definition valid if their children are valid.
+
       const thisFormInvalid = 'v$' in this && this.v$.$invalid
       return !thisFormInvalid && this.areChildFormsValid(deep)
     },

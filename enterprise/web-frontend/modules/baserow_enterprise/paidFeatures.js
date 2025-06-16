@@ -233,3 +233,55 @@ export class BuilderBrandingPaidFeature extends PaidFeature {
     return this.app.i18n.t('enterpriseFeatures.builderBrandingContent')
   }
 }
+
+export class BuilderFileInputElementPaidFeature extends PaidFeature {
+  static getType() {
+    return 'builder_file_input'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-attachment'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.builderFileInputElement')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.builderFileInputElementContent')
+  }
+}
+
+export class BuilderCustomCodePaidFeature extends PaidFeature {
+  static getType() {
+    return 'builder_custom_code'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-code-brackets'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.builderCustomCode')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.builderCustomCodeContent')
+  }
+}

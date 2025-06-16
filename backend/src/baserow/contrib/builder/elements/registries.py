@@ -167,8 +167,7 @@ class ElementType(
         This hook is called right after the element has been updated.
 
         :param instance: The updated element instance.
-        :param values: The values that were passed when creating the field
-            instance.
+        :param values: The values that were passed when updating the instance.
         :param changes: A dictionary containing all changes which were made to the
             element prior to `after_update` being called.
         """

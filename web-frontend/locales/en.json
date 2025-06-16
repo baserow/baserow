@@ -12,6 +12,7 @@
     "summarize": "Summarize",
     "enabled": "Enabled",
     "disabled": "Disabled",
+    "optional": "Optional",
     "or": "or",
     "and": "and"
   },

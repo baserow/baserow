@@ -5,11 +5,6 @@
     <BuilderGeneralSettingsForm
       ref="settingsForm"
       :default-values="builder"
-      @values-changed="updateApplication($event)"
-    />
-
-    <BuilderLoginPageForm
-      :default-values="builder"
       :builder="builder"
       @values-changed="updateApplication($event)"
     />
@@ -19,13 +14,11 @@
 <script>
 import error from '@baserow/modules/core/mixins/error'
 import BuilderGeneralSettingsForm from '@baserow/modules/builder/components/form/BuilderGeneralSettingsForm'
-import BuilderLoginPageForm from '@baserow/modules/builder/components/form/BuilderLoginPageForm'
-
-import _ from 'lodash'
+import { isSubObject } from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'GeneralSettings',
-  components: { BuilderGeneralSettingsForm, BuilderLoginPageForm },
+  components: { BuilderGeneralSettingsForm },
   mixins: [error],
   provide() {
     return {
@@ -42,7 +35,7 @@ export default {
   methods: {
     async updateApplication(values) {
       // In this case there weren't any actual changes
-      if (_.isMatch(this.builder, values)) {
+      if (isSubObject(this.builder, values)) {
         return
       }
 

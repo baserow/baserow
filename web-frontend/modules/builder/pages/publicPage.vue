@@ -286,14 +286,41 @@ export default {
     }
   },
   head() {
-    return {
+    const pluginHeaders = this.$registry.getList('plugin').map((plugin) =>
+      plugin.getBuilderApplicationHeaderAddition({
+        builder: this.builder,
+        mode: this.mode,
+      })
+    )
+
+    const header = {
       titleTemplate: '',
       title: this.currentPage.name,
       bodyAttrs: {
         class: 'public-page',
       },
-      link: this.faviconLink,
     }
+
+    if (this.faviconLink) {
+      header.link = [this.faviconLink]
+    }
+
+    const result = _.mergeWith(
+      {},
+      ...pluginHeaders,
+      header,
+      (objValue, srcValue, key, object, source, stack) => {
+        switch (key) {
+          case 'link':
+          case 'script':
+            if (_.isArray(objValue)) {
+              return objValue.concat(srcValue)
+            }
+        }
+        return undefined // Default merge action
+      }
+    )
+    return result
   },
   computed: {
     elements() {
@@ -356,18 +383,16 @@ export default {
     },
     faviconLink() {
       if (this.builder.favicon_file?.url) {
-        return [
-          {
-            rel: 'icon',
-            type: this.builder.favicon_file.mime_type,
-            href: this.builder.favicon_file.url,
-            sizes: '128x128',
-            hid: true,
-          },
-        ]
-      } else {
-        return []
+        return {
+          rel: 'icon',
+          type: this.builder.favicon_file.mime_type,
+          href: this.builder.favicon_file.url,
+          sizes: '128x128',
+          hid: true,
+        }
       }
+
+      return null
     },
   },
   watch: {

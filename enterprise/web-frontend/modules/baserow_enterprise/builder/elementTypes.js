@@ -12,7 +12,7 @@ import {
   ensureString,
 } from '@baserow/modules/core/utils/validator'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
-import { AuditLogPaidFeature } from '@baserow_enterprise/paidFeatures'
+import { BuilderFileInputElementPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 import { AfterLoginEvent } from '@baserow/modules/builder/eventTypes'
 
@@ -237,7 +237,9 @@ export class FileInputElementType extends FormElementType {
     ) {
       return [
         PaidFeaturesModal,
-        { 'initial-selected-type': AuditLogPaidFeature.getType() },
+        {
+          'initial-selected-type': BuilderFileInputElementPaidFeature.getType(),
+        },
       ]
     }
     return null
