@@ -1,7 +1,8 @@
 import random
-from asgiref.local import Local
 
 from django.conf import settings
+
+from asgiref.local import Local
 
 DATABASE_READ_REPLICAS = settings.DATABASE_READ_REPLICAS
 DEFAULT_DB_ALIAS = "default"
