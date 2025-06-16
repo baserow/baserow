@@ -1631,13 +1631,12 @@ class FieldType(
 
         return self._can_be_primary_field
 
-    def can_have_db_index(self, field_or_values: Union[Field, dict]) -> bool:
+    def can_have_db_index(self, field: Field) -> bool:
         """
         Override this method if this field type can have an index.
 
-        :param field_or_values: The field object or the values to create/update it.
-            It accepts either because in some cases the field object doesn't exist,
-            but we do need to check if the field can be primary.
+        :param field: The field object related to the field that's created or updated
+            with the db_index enabled.
         :return: True if the field can have an index
         """
 

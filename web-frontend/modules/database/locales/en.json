@@ -317,6 +317,7 @@
     "nameTooLong": "This field name is too long.",
     "addDescription": "Add description",
     "dbIndex": "Index",
+    "dbIndexError": "This field type cannot have an index. Please remove it before saving or change the field type.",
     "dbIndexDescription": "Indexing can significantly improve filtering performance, but slows down create, update, and delete operations."
   },
   "fieldSelectThroughFieldSubForm": {

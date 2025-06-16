@@ -342,11 +342,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         if primary and not field_type.can_be_primary_field(field_values):
             raise IncompatiblePrimaryFieldTypeError(field_type.type)
 
-        if kwargs.get("db_index", False) and not field_type.can_have_db_index(
-            field_values
-        ):
-            raise DbIndexNotSupportedError(field_type.type)
-
         num_fields = table.field_set.count()
         if (num_fields + 1) > settings.MAX_FIELD_LIMIT:
             raise MaxFieldLimitExceeded(
@@ -380,6 +375,9 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         FieldDependencyHandler.rebuild_or_raise_if_user_doesnt_have_permissions_after(
             workspace, user, instance, field_cache, ReadFieldOperationType.type
         )
+
+        if instance.db_index and not field_type.can_have_db_index(instance):
+            raise DbIndexNotSupportedError(field_type.type)
 
         # Add the field to the table schema.
         with safe_django_schema_editor(atomic=False) as schema_editor:
@@ -548,14 +546,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             raise IncompatiblePrimaryFieldTypeError(to_field_type_name)
 
         if baserow_field_type_changed:
-            if old_field.db_index and not to_field_type.can_have_db_index(field_values):
-                field_values["db_index"] = False
-
-            if kwargs.get("db_index", False) and not to_field_type.can_have_db_index(
-                field_values
-            ):
-                raise DbIndexNotSupportedError(to_field_type.type)
-
             ViewHandler().before_field_type_change(field)
             dependants_broken_due_to_type_change = (
                 from_field_type.get_dependants_which_will_break_when_field_type_changes(
@@ -565,11 +555,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             new_model_class = to_field_type.model_class
             field.change_polymorphic_type_to(new_model_class)
         else:
-            if kwargs.get("db_index", False) and not from_field_type.can_have_db_index(
-                field_values
-            ):
-                raise DbIndexNotSupportedError(to_field_type.type)
-
             dependants_broken_due_to_type_change = []
 
         self._validate_name_and_optionally_rename_if_collision(
@@ -585,6 +570,12 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         FieldDependencyHandler.rebuild_or_raise_if_user_doesnt_have_permissions_after(
             workspace, user, field, field_cache, ReadFieldOperationType.type
         )
+
+        if field.db_index and not to_field_type.can_have_db_index(field):
+            # If the user explicitly set the `db_index` to true, but it's not compatible,
+            # then we want to fail hard so that the user is aware.
+            raise DbIndexNotSupportedError(to_field_type.type)
+
         # If no converter is found we are going to convert to field using the
         # lenient schema editor which will alter the field's type and set the data
         # value to null if it can't be converted.
@@ -602,6 +593,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 from_model_field, to_model_field
             )
         ):
+            print("1")
             update_collector.add_to_fields_type_changed(field)
         SearchHandler.entire_field_values_changed_or_created(
             field.table, updated_fields=[field]

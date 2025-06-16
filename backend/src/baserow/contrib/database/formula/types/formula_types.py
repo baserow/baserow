@@ -155,6 +155,7 @@ class BaserowFormulaTextType(
     type = "text"
     baserow_field_type = "text"
     can_order_by_in_array = True
+    can_have_db_index = True
 
     def __init__(self, *args, **kwargs):
         unwrap_cast_to_text = kwargs.pop("unwrap_cast_to_text", True)
@@ -367,6 +368,7 @@ class BaserowFormulaNumberType(
     MAX_DIGITS = 50
     can_order_by_in_array = True
     can_group_by = True
+    can_have_db_index = True
 
     def __init__(
         self,
@@ -514,6 +516,7 @@ class BaserowFormulaBooleanType(
     baserow_field_type = "boolean"
     can_order_by_in_array = True
     can_group_by = True
+    can_have_db_index = True
 
     def get_in_array_empty_value(self, field: "Field") -> Any:
         return None
@@ -825,6 +828,7 @@ class BaserowFormulaDateType(
     can_represent_date = True
     can_order_by_in_array = True
     can_group_by = True
+    can_have_db_index = True
 
     def __init__(
         self,

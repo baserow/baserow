@@ -4326,6 +4326,10 @@ export class FormulaFieldType extends mix(
   toBaserowFormulaType(field) {
     return this.getFormulaType(field).toBaserowFormulaType(field)
   }
+
+  canHaveDbIndex(fieldValues) {
+    return true
+  }
 }
 
 export class CountFieldType extends FormulaFieldType {

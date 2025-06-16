@@ -5381,6 +5381,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             blank=True,
             expression=expression,
             expression_field=expression_field_type,
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -5848,6 +5849,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(field)
         return field_type.parse_filter_value(field_instance, model_field, value)
+
+    def can_have_db_index(self, field: Field) -> bool:
+        return self.to_baserow_formula_type(field.specific).can_have_db_index
 
 
 class CountFieldType(FormulaFieldType):

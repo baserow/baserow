@@ -1377,10 +1377,16 @@ def test_create_field_with_db_index(api_client, data_fixture):
 def test_create_field_with_db_index_incompatible_field_type(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database)
 
     response = api_client.post(
         reverse("api:database:fields:list", kwargs={"table_id": table.id}),
-        {"name": "Field with index", "type": "link_row", "db_index": True},
+        {
+            "name": "Field with index",
+            "type": "link_row",
+            "db_index": True,
+            "link_row_table_id": table_2.id,
+        },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -1443,4 +1449,5 @@ def test_update_field_with_db_index_to_incompatible_type(api_client, data_fixtur
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     response_json = response.json()
-    assert response_json["db_index"] is False
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_DB_INDEX_NOT_SUPPORTED"

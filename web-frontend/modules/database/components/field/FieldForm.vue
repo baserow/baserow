@@ -8,7 +8,7 @@
       ></Tabs>
     </div>
     <div v-auto-overflow-scroll class="context__form context__form--scrollable">
-      <form @submit.prevent="submit">
+      <form @submit.prevent="beforeSubmit">
         <div v-show="selectedTabIndex === 0" class="context__form-container">
           <FormGroup :error="fieldHasErrors('name')">
             <FormInput
@@ -132,7 +132,7 @@
           >
             <div class="control__elements flex justify-content-end">
               <SwitchInput
-                :value="canHaveDbIndex && values.db_index"
+                :value="!!canHaveDbIndex && values.db_index"
                 :small="true"
                 :disabled="!canHaveDbIndex"
                 class="inline-flex"
@@ -141,6 +141,13 @@
             </div>
           </FormGroup>
           <div class="control__messages padding-top-0">
+            <p
+              v-if="dbIndexError"
+              class="control__messages--error"
+              style="max-width: 366px"
+            >
+              {{ $t('fieldForm.dbIndexError') }}
+            </p>
             <p class="control__helper-text" style="max-width: 366px">
               {{ $t('fieldForm.dbIndexDescription') }}
             </p>
@@ -214,6 +221,7 @@ export default {
       oldValueType: null,
       showDescription: false,
       selectedTabIndex: 0,
+      dbIndexError: false,
     }
   },
   computed: {
@@ -235,9 +243,8 @@ export default {
         return false
       }
 
-      return this.$registry
-        .get('field', this.values.type)
-        .canHaveDbIndex(this.values)
+      const values = Object.assign({}, this.defaultValues, this.values)
+      return this.$registry.get('field', values.type).canHaveDbIndex(values)
     },
     ...mapGetters({
       fields: 'field/getAll',
@@ -298,6 +305,14 @@ export default {
     }
   },
   methods: {
+    async submit(deep) {
+      this.dbIndexError = false
+      await form.methods.submit.bind(this)(deep)
+    },
+    showDbIndexError() {
+      this.selectedTabIndex = 1
+      this.dbIndexError = true
+    },
     mustHaveUniqueFieldName(param) {
       let fields = this.fields
       if (this.existingFieldId !== null) {
@@ -359,9 +374,24 @@ export default {
       return this.showDescription
     },
     getFormValues() {
+      // Only set the `db_index` to true if the frontend knows for certain that the
+      // field type is supported.
       return Object.assign({}, this.values, this.getChildFormsValues(), {
         db_index: this.canHaveDbIndex && this.values.db_index,
       })
+    },
+    handleErrorByForm(error) {
+      let handled = form.methods.handleErrorByForm.bind(this)(error)
+
+      if (
+        error.handler &&
+        error.handler.code === 'ERROR_DB_INDEX_NOT_SUPPORTED'
+      ) {
+        this.showDbIndexError()
+        handled = true
+      }
+
+      return handled
     },
   },
 }
