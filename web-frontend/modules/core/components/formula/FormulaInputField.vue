@@ -173,7 +173,7 @@ export default {
     },
     async isFocused(value) {
       if (!value) {
-        this.$refs.dataExplorer.hide()
+        this.$refs.dataExplorer?.hide()
         this.unSelectNode()
       } else {
         // Wait for the data explorer to appear in the DOM.

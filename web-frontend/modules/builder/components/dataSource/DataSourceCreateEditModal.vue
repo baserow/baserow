@@ -191,7 +191,7 @@ export default {
       } finally {
         this.loading = false
         await this.$nextTick()
-        this.$refs.dataSourceForm.reset()
+        this.$refs.dataSourceForm?.reset()
       }
       if (saved) {
         this.hide()

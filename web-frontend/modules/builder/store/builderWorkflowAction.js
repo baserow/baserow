@@ -47,6 +47,11 @@ const mutations = {
       (wa) => wa.id === workflowActionToUpdate.id
     )
 
+    if (index === -1) {
+      // The action might have been deleted during the debounced update
+      return
+    }
+
     const {
       id,
       page_id: pageId,

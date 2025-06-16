@@ -1743,15 +1743,22 @@ export class ChoiceElementType extends FormElementType {
    * @returns {boolean}
    */
   isValid(element, value, applicationContext) {
-    const options =
-      element.option_type === CHOICE_OPTION_TYPES.FORMULAS
-        ? ensureArray(
-            this.resolveFormula(element.formula_value, {
-              element,
-              ...applicationContext,
-            })
-          ).map(ensureStringOrInteger)
-        : this.choiceOptions(element)
+    let options
+
+    if (element.option_type === CHOICE_OPTION_TYPES.FORMULAS) {
+      try {
+        options = ensureArray(
+          this.resolveFormula(element.formula_value, {
+            element,
+            ...applicationContext,
+          })
+        ).map(ensureStringOrInteger)
+      } catch {
+        options = []
+      }
+    } else {
+      options = this.choiceOptions(element)
+    }
 
     const validOption = element.multiple
       ? options.some((option) => value.includes(option))

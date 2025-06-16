@@ -220,11 +220,14 @@ export class WorkflowActionServiceType extends WorkflowActionType {
 
     const serviceSchema = this.serviceType.getDataSchema(workflowAction.service)
 
-    return {
-      title: this.label,
-      type: 'object',
-      properties: serviceSchema?.properties,
+    if (serviceSchema?.properties) {
+      return {
+        title: this.label,
+        type: 'object',
+        properties: serviceSchema.properties,
+      }
     }
+    return null
   }
 
   isInError(workflowAction, { element, builder }) {
