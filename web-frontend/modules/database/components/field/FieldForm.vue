@@ -132,9 +132,11 @@
           >
             <div class="control__elements flex justify-content-end">
               <SwitchInput
-                v-model="values.db_index"
+                :value="canHaveDbIndex && values.db_index"
                 :small="true"
+                :disabled="!canHaveDbIndex"
                 class="inline-flex"
+                @input="values.db_index = $event"
               ></SwitchInput>
             </div>
           </FormGroup>
@@ -227,6 +229,15 @@ export default {
     },
     existingFieldId() {
       return this.defaultValues ? this.defaultValues.id : null
+    },
+    canHaveDbIndex() {
+      if (!this.values.type) {
+        return false
+      }
+
+      return this.$registry
+        .get('field', this.values.type)
+        .canHaveDbIndex(this.values)
     },
     ...mapGetters({
       fields: 'field/getAll',
@@ -346,6 +357,11 @@ export default {
     isDescriptionFieldNotEmpty() {
       this.showDescription = !!this.values.description
       return this.showDescription
+    },
+    getFormValues() {
+      return Object.assign({}, this.values, this.getChildFormsValues(), {
+        db_index: this.canHaveDbIndex && this.values.db_index,
+      })
     },
   },
 }
