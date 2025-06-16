@@ -120,6 +120,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "baserow.middleware.BaserowCustomHttp404Middleware",
     "baserow.middleware.ClearContextMiddleware",
+    "baserow.middleware.ClearDBStateMiddleware",
 ]
 
 if otel_is_enabled():
@@ -238,6 +239,40 @@ else:
         DATABASES["default"]["OPTIONS"] = json.loads(
             os.getenv("DATABASE_OPTIONS", "{}")
         )
+
+DATABASE_READ_REPLICAS = []
+
+# Loop over all environment variables to extract read only replicas. Multiple nodes can
+# be added providing `DATABASE_READ_{n}_URL`, or DATABASE_READ_{n}_NAME, where {n} is
+# the key of the read-only instance.
+for key, value in os.environ.items():
+    if key.startswith("DATABASE_READ_REPLICA_") and key.endswith("_URL"):
+        suffix = key[len("DATABASE_READ_REPLICA_") : -len("_URL")]
+        db_key = f"read_{suffix}"
+        DATABASES[db_key] = dj_database_url.parse(value, conn_max_age=600)
+        DATABASE_READ_REPLICAS.append(db_key)
+    elif key.startswith("DATABASE_READ_") and key.endswith("_NAME"):
+        suffix = key[len("DATABASE_READ_") : -len("_NAME")]
+        db_key = f"read_{suffix}"
+
+        DATABASES[db_key] = {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv(f"DATABASE_READ_{suffix}_NAME"),
+            "USER": os.getenv(f"DATABASE_READ_{suffix}_USER"),
+            "PASSWORD": os.getenv(f"DATABASE_READ_{suffix}_PASSWORD"),
+            "HOST": os.getenv(f"DATABASE_READ_{suffix}_HOST"),
+            "PORT": os.getenv(f"DATABASE_READ_{suffix}_PORT"),
+        }
+
+        options = os.getenv(f"DATABASE_READ_{suffix}_OPTIONS")
+        if options:
+            DATABASES[db_key]["OPTIONS"] = json.loads(options)
+
+        DATABASE_READ_REPLICAS.append(db_key)
+
+
+DATABASE_ROUTERS = ["baserow.config.db_routers.ReadReplicaRouter"]
+
 
 GENERATED_MODEL_CACHE_NAME = "generated-models"
 CACHES = {
