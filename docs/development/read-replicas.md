@@ -6,8 +6,7 @@ to made specifically.
 
 ## Docker compose
 
-Copy the contents of `docs/development/init` to the root of your Baserow project, and
-replace the first part of your `docker-compose.dev.yml` with the following:
+Replace the first part of your `docker-compose.dev.yml` with the following:
 
 ```
 version: "3.4"
@@ -23,7 +22,7 @@ services:
       POSTGRES_DB: ${DATABASE_NAME:-baserow}
     volumes:
       - pgdata-primary:/var/lib/postgresql/data
-      - ./init/primary-init.sh:/docker-entrypoint-initdb.d/primary-init.sh:ro
+      - ./docs/development/init/primary-init.sh:/docker-entrypoint-initdb.d/primary-init.sh:ro
     command: >
       postgres -c wal_level=replica
                -c max_wal_senders=10
@@ -43,7 +42,7 @@ services:
       REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-replicatorpass}
     volumes:
       - pgdata-replica-1:/var/lib/postgresql/data
-      - ./init/replica-entrypoint.sh:/scripts/replica-entrypoint.sh:ro
+      - ./docs/development/init/replica-entrypoint.sh:/scripts/replica-entrypoint.sh:ro
     user: postgres
     depends_on:
       - db
@@ -61,13 +60,29 @@ services:
       REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-replicatorpass}
     volumes:
       - pgdata-replica-2:/var/lib/postgresql/data
-      - ./init/replica-entrypoint.sh:/scripts/replica-entrypoint.sh:ro
+      - ./docs/development/init/replica-entrypoint.sh:/scripts/replica-entrypoint.sh:ro
     user: postgres
     depends_on:
       - db
     entrypoint: [ "/scripts/replica-entrypoint.sh" ]
     networks:
       - local
+```
+
+Add the following to the end of the file:
+
+```
+volumes:
+  pgdata-primary:
+  pgdata-replica-1:
+  pgdata-replica-2:
+```
+
+Then execute:
+
+```
+chmod +x ./docs/development/init/primary-init.sh
+chmod +x ./docs/development/init/replica-entrypoint.sh
 ```
 
 Restart your dev environment and observe that the read-only replications are accessible.
