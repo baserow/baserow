@@ -11,6 +11,7 @@
           <WorkflowEditor
             v-model="selectedNodeId"
             :nodes="workflowNodes"
+            :loading="workflowLoading"
             :is-adding-node="isAddingNode"
             @add-node="handleAddNode"
             @remove-node="handleRemoveNode"
@@ -65,11 +66,14 @@ export default defineComponent({
     const automation = ref(null)
     const workflow = ref(null)
     const isAddingNode = ref(false)
+    const workflowLoading = ref(false)
 
     const sidePanelWidth = 360
 
     useFetch(async () => {
       try {
+        workflowLoading.value = true
+
         automation.value = await store.dispatch(
           'application/selectById',
           automationId
@@ -102,6 +106,8 @@ export default defineComponent({
           statusCode: 404,
           message: 'Automation workflow or its nodes not found.',
         })
+      } finally {
+        workflowLoading.value = false
       }
     })
 
@@ -208,6 +214,7 @@ export default defineComponent({
       workspace,
       automation,
       workflow,
+      workflowLoading,
       sidePanelWidth,
       workflowReadOnly,
       workflowNodes,
