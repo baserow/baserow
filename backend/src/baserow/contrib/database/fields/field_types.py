@@ -98,6 +98,11 @@ from baserow.contrib.database.api.views.errors import (
 )
 from baserow.contrib.database.db.functions import RandomUUID
 from baserow.contrib.database.fields.exceptions import SelectOptionDoesNotBelongToField
+from baserow.contrib.database.fields.field_constraints import (
+    RatingTypeUniqueWithEmptyConstraint,
+    TextTypeUniqueWithEmptyConstraint,
+    UniqueWithEmptyConstraint,
+)
 from baserow.contrib.database.fields.filter_support.formula import (
     FormulaFieldTypeArrayFilterSupport,
 )
@@ -466,6 +471,9 @@ class TextFieldType(CollationSortMixin, FieldType):
         value = getattr(row, field.db_column)
         return collate_expression(Value(value))
 
+    def get_supported_field_constraints(self) -> List[str]:
+        return [TextTypeUniqueWithEmptyConstraint.type]
+
 
 class LongTextFieldType(CollationSortMixin, FieldType):
     type = "long_text"
@@ -535,6 +543,9 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     def get_value_for_filter(self, row: "GeneratedTableModel", field: Field) -> any:
         value = getattr(row, field.db_column)
         return collate_expression(Value(value))
+
+    def get_supported_field_constraints(self) -> List[str]:
+        return [TextTypeUniqueWithEmptyConstraint.type]
 
 
 class URLFieldType(CollationSortMixin, TextFieldMatchingRegexFieldType):
@@ -853,6 +864,9 @@ class NumberFieldType(FieldType):
             raise ValueError(f"Invalid value for number field: {value}")
         return value
 
+    def get_supported_field_constraints(self) -> List[str]:
+        return [UniqueWithEmptyConstraint.type]
+
 
 class RatingFieldType(FieldType):
     type = "rating"
@@ -983,6 +997,9 @@ class RatingFieldType(FieldType):
     ) -> bool:
         new_max_value = new_field_attrs.get("max_value", old_field.max_value)
         return old_field.max_value > new_max_value
+
+    def get_supported_field_constraints(self) -> List[str]:
+        return [RatingTypeUniqueWithEmptyConstraint.type]
 
 
 class BooleanFieldType(FieldType):

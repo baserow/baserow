@@ -708,6 +708,7 @@ class FieldType(
         values = {
             "name": field.name,
             "db_index": field.db_index,
+            "field_constraints": field.field_constraints,
         }
 
         values.update({key: getattr(field, key) for key in self.allowed_fields})
@@ -1012,6 +1013,7 @@ class FieldType(
             "db_index": field.db_index,
             "immutable_type": field.immutable_type,
             "immutable_properties": field.immutable_properties,
+            "field_constraints": field.field_constraints,
         }
 
         if include_allowed_fields:
@@ -1156,8 +1158,6 @@ class FieldType(
         update statement with the update_collector to correctly set their value after
         the row has been created.
         """
-
-        pass
 
     def get_export_serialized_value(
         self,
@@ -1990,6 +1990,20 @@ class FieldType(
 
         return field_name
 
+    def get_supported_field_constraints(self) -> List[str]:
+        """
+        Returns the supported value constraints for the field.
+        """
+
+        return []
+
+    def get_field_constraints(self, field: Field) -> List[Dict[str, Any]]:
+        """
+        Returns the value constraints applied to the field.
+        """
+
+        return field.field_constraints
+
 
 class ReadOnlyFieldType(FieldType):
     read_only = True
@@ -2420,6 +2434,15 @@ class FieldAggregationTypeRegistry(Registry):
     already_registered_exception_class = AggregationTypeAlreadyRegistered
 
 
+class FieldConstraintRegistry(Registry):
+    """
+    The registry that holds all the available field value constraints.
+    A field value constraint can be used to validate the values of a field.
+    """
+
+    name = "field_constraint"
+
+
 # A default field type registry is created here, this is the one that is used
 # throughout the whole Baserow application to add a new field type.
 field_type_registry: FieldTypeRegistry = FieldTypeRegistry()
@@ -2427,3 +2450,4 @@ field_converter_registry: FieldConverterRegistry = FieldConverterRegistry()
 field_aggregation_registry: FieldAggregationTypeRegistry = (
     FieldAggregationTypeRegistry()
 )
+field_constraint_registry: FieldConstraintRegistry = FieldConstraintRegistry()

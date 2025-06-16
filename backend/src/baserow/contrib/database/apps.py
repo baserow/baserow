@@ -167,6 +167,7 @@ class DatabaseConfig(AppConfig):
         from .export.registries import table_exporter_registry
         from .fields.registries import (
             field_aggregation_registry,
+            field_constraint_registry,
             field_converter_registry,
             field_type_registry,
         )
@@ -1050,6 +1051,16 @@ class DatabaseConfig(AppConfig):
         row_history_provider_registry.register(DeleteRowHistoryProvider())
         row_history_provider_registry.register(UpdateRowsHistoryProvider())
         row_history_provider_registry.register(RestoreFromTrashHistoryProvider())
+
+        from baserow.contrib.database.fields.field_constraints import (
+            RatingTypeUniqueWithEmptyConstraint,
+            TextTypeUniqueWithEmptyConstraint,
+            UniqueWithEmptyConstraint,
+        )
+
+        field_constraint_registry.register(TextTypeUniqueWithEmptyConstraint())
+        field_constraint_registry.register(RatingTypeUniqueWithEmptyConstraint())
+        field_constraint_registry.register(UniqueWithEmptyConstraint())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

@@ -60,6 +60,7 @@ class FieldSerializer(serializers.ModelSerializer):
             "database_id",
             "workspace_id",
             "db_index",
+            "field_constraints",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -131,7 +132,7 @@ class CreateFieldSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Field
-        fields = ("name", "type", "description", "db_index")
+        fields = ("name", "type", "description", "db_index", "field_constraints")
         extra_kwargs = {
             "description": {
                 "required": False,
@@ -150,7 +151,7 @@ class UpdateFieldSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Field
-        fields = ("name", "type", "description", "db_index")
+        fields = ("name", "type", "description", "db_index", "field_constraints")
         extra_kwargs = {
             "name": {"required": False},
             "description": {

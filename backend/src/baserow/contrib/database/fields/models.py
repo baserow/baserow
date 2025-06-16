@@ -194,6 +194,9 @@ class Field(
         "increase lookup and filter speed. Note that this comes at a performance cost "
         "when creating the row and updating the cell.",
     )
+    field_constraints = models.JSONField(
+        default=list, help_text="List of constraints that are applied to the field."
+    )
 
     class Meta:
         ordering = (

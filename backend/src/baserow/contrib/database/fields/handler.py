@@ -36,6 +36,10 @@ from baserow.contrib.database.fields.constants import (
     UPSERT_OPTION_DICT_KEY,
     DeleteFieldStrategyEnum,
 )
+from baserow.contrib.database.fields.field_constraints import (
+    build_field_constraints,
+    get_field_constraints_from_field,
+)
 from baserow.contrib.database.fields.field_converters import (
     MultipleSelectConversionConfig,
 )
@@ -73,6 +77,7 @@ from .exceptions import (
     CannotDeletePrimaryField,
     DbIndexNotSupportedError,
     FailedToLockFieldDueToConflict,
+    FieldConstraintException,
     FieldDoesNotExist,
     FieldIsAlreadyPrimary,
     FieldNotInTable,
@@ -80,6 +85,7 @@ from .exceptions import (
     IncompatibleFieldTypeForUniqueValues,
     IncompatiblePrimaryFieldTypeError,
     InvalidBaserowFieldName,
+    InvalidFieldConstraint,
     MaxFieldLimitExceeded,
     MaxFieldNameLengthExceeded,
     PrimaryFieldAlreadyExists,
@@ -148,6 +154,16 @@ def _validate_field_name(
             f"A field named {name} cannot be created as it already exists as a "
             f"reserved Baserow field name."
         )
+
+
+def _validate_field_constraints(field_type, field_constraints: List[Dict[str, Any]]):
+    supported_constraints = field_type.get_supported_field_constraints()
+    for constraint in field_constraints:
+        if constraint["type"] not in supported_constraints:
+            raise InvalidFieldConstraint(
+                field_type=field_type.type,
+                constraint_type=constraint["type"],
+            )
 
 
 T = TypeVar("T", bound="Field")
@@ -324,6 +340,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             raise PrimaryFieldAlreadyExists(
                 f"A primary field already exists for the table {table}."
             )
+        field_constraints = kwargs.get("field_constraints", None) or []
 
         # Figure out which model to use and which field types are allowed for the given
         # field type.
@@ -335,6 +352,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             "immutable_type",
             "immutable_properties",
             "db_index",
+            "field_constraints",
         ] + field_type.allowed_fields
         field_values = extract_allowed(kwargs, allowed_fields)
         last_order = model_class.get_last_order(table)
@@ -370,6 +388,8 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             **field_values,
         )
 
+        _validate_field_constraints(field_type, field_constraints)
+
         field_cache = FieldCache()
         instance.save(field_cache=field_cache, raise_if_invalid=True)
         FieldDependencyHandler.rebuild_or_raise_if_user_doesnt_have_permissions_after(
@@ -386,6 +406,18 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
 
             if skip_django_schema_editor_add_field:
                 schema_editor.add_field(to_model, model_field)
+
+            if field_constraints is not None:
+                new_constraints = build_field_constraints(
+                    instance, to_model, field_constraints
+                )
+                for constraint in new_constraints:
+                    try:
+                        schema_editor.add_constraint(to_model, constraint)
+                    except Exception:
+                        raise FieldConstraintException(
+                            f"Could not add constraint {constraint.name} on field {instance.name}."
+                        )
 
             SearchHandler.after_field_created(instance, skip_search_updates)
 
@@ -527,6 +559,8 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         baserow_field_type_changed = from_field_type.type != to_field_type_name
         field_cache = FieldCache()
 
+        field_constraints = kwargs.get("field_constraints", None) or []
+
         if baserow_field_type_changed:
             to_field_type = field_type_registry.get(to_field_type_name)
         else:
@@ -539,6 +573,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             "immutable_type",
             "immutable_properties",
             "db_index",
+            "field_constraints",
         ] + to_field_type.allowed_fields
         field_values = extract_allowed(kwargs, allowed_fields)
 
@@ -560,6 +595,8 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         self._validate_name_and_optionally_rename_if_collision(
             field, field_values, postfix_to_fix_name_collisions
         )
+
+        _validate_field_constraints(to_field_type, field_constraints)
 
         field_values = to_field_type.prepare_values(field_values, user)
         before = to_field_type.before_update(old_field, field_values, user, kwargs)
@@ -617,6 +654,9 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             from_model, old_field, field
         )
 
+        old_field_constraints = old_field.field_constraints or []
+        field_constraints_changed = old_field_constraints != field_constraints
+
         if converter:
             # If a field data converter is found we are going to use that one to alter
             # the field and maybe do some data conversion.
@@ -653,9 +693,35 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 force_alter_column,
             ) as schema_editor:
                 try:
+                    if baserow_field_type_changed or field_constraints_changed:
+                        existing_constraints = get_field_constraints_from_field(
+                            old_field, from_model
+                        )
+                        for constraint in existing_constraints:
+                            try:
+                                schema_editor.remove_constraint(to_model, constraint)
+                            except Exception:
+                                raise FieldConstraintException(
+                                    f"Could not remove constraint {constraint.name} on field {field.name}."
+                                )
+
                     schema_editor.alter_field(
                         from_model, from_model_field, to_model_field
                     )
+
+                    if (
+                        baserow_field_type_changed or field_constraints_changed
+                    ) and field_constraints:
+                        new_constraints = build_field_constraints(
+                            field, to_model, field_constraints
+                        )
+                        for constraint in new_constraints:
+                            try:
+                                schema_editor.add_constraint(to_model, constraint)
+                            except Exception:
+                                raise FieldConstraintException(
+                                    f"Could not add constraint {constraint.name} on field {field.name}."
+                                )
                 except (ProgrammingError, DataError) as e:
                     # If something is going wrong while changing the schema we will
                     # just raise a specific exception. In the future we want to have

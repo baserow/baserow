@@ -69,6 +69,7 @@ class UpdateFieldActionType(UndoableActionCustomCleanupMixin, UndoableActionType
 
         backup_data: Optional[Dict[str, Any]]
         backup_uid: Optional[str] = None
+        field_constraints: Optional[List[str]] = None
 
     @classmethod
     def do(
@@ -128,6 +129,8 @@ class UpdateFieldActionType(UndoableActionCustomCleanupMixin, UndoableActionType
             user, field, new_type_name, return_updated_fields=True, **kwargs
         )
 
+        field_constraints = kwargs.pop("field_constraints", None)
+
         table = field.table
         params = cls.Params(
             table.id,
@@ -142,6 +145,7 @@ class UpdateFieldActionType(UndoableActionCustomCleanupMixin, UndoableActionType
             original_field_params=original_exported_values,
             backup_data=optional_backup_data,
             backup_uid=backup_uuid,
+            field_constraints=field_constraints,
         )
         workspace = table.database.workspace
         cls.register_action(user, params, cls.scope(table.id), workspace)

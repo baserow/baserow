@@ -124,6 +124,16 @@
           </FormGroup>
         </div>
         <div v-show="selectedTabIndex === 1" class="context__form-container">
+          <FieldConstraintsSubForm
+            v-model="values.field_constraints"
+            :field="fieldForConstraints"
+            :disabled="defaultValues.immutable_properties"
+            :error="fieldConstraintError"
+            @constraint-added="handleConstraintAdded"
+            @constraint-removed="handleConstraintRemoved"
+            @constraint-updated="handleConstraintUpdated"
+          />
+
           <FormGroup
             :label="$t('fieldForm.dbIndex')"
             :small-label="true"
@@ -162,6 +172,7 @@ import { mapGetters } from 'vuex'
 import { required, maxLength, helpers } from '@vuelidate/validators'
 import FormTextarea from '@baserow/modules/core/components/FormTextarea'
 import { useVuelidate } from '@vuelidate/core'
+import FieldConstraintsSubForm from '@baserow/modules/database/components/field/FieldConstraintsSubForm'
 
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 import form from '@baserow/modules/core/mixins/form'
@@ -173,7 +184,7 @@ import {
 // @TODO focus form on open
 export default {
   name: 'FieldForm',
-  components: { FormTextarea },
+  components: { FormTextarea, FieldConstraintsSubForm },
   mixins: [form],
   props: {
     table: {
@@ -215,12 +226,14 @@ export default {
         type: this.forcedType || this.defaultValues.type,
         description: this.defaultValues.description,
         db_index: this.defaultValues.db_index,
+        field_constraints: this.defaultValues.field_constraints || [],
       },
       isPrefilledWithSuggestedFieldName: false,
       oldValueType: null,
       showDescription: false,
       selectedTabIndex: 0,
       dbIndexError: false,
+      fieldConstraintError: null,
     }
   },
   computed: {
@@ -244,6 +257,13 @@ export default {
 
       const values = Object.assign({}, this.defaultValues, this.values)
       return this.$registry.get('field', values.type).canHaveDbIndex(values)
+    },
+    fieldForConstraints() {
+      return {
+        type: this.values.type,
+        ...this.defaultValues,
+        ...this.values,
+      }
     },
     ...mapGetters({
       fields: 'field/getAll',
@@ -306,6 +326,7 @@ export default {
   methods: {
     async submit(deep) {
       this.dbIndexError = false
+      this.fieldConstraintError = null
       await form.methods.submit.bind(this)(deep)
     },
     showDbIndexError() {
@@ -391,7 +412,27 @@ export default {
         handled = true
       }
 
+      if (
+        error.handler &&
+        (error.handler.code === 'ERROR_FIELD_CONSTRAINT' ||
+          error.handler.code === 'ERROR_INVALID_FIELD_CONSTRAINT')
+      ) {
+        this.selectedTabIndex = 1
+        this.fieldConstraintError = error.handler.code
+        handled = true
+      }
+
       return handled
+    },
+    handleConstraintAdded(constraint) {
+      this.fieldConstraintError = null
+      this.$emit('constraint-added', constraint)
+    },
+    handleConstraintRemoved(constraint) {
+      this.$emit('constraint-removed', constraint)
+    },
+    handleConstraintUpdated({ constraint, index, updates }) {
+      this.$emit('constraint-updated', { constraint, index, updates })
     },
   },
 }

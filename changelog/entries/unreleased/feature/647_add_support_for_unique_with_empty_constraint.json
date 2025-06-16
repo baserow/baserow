@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Add support for 'unique with empty' constraint",
+    "domain": "database",
+    "issue_number": 647,
+    "bullet_points": [],
+    "created_at": "2025-07-02"
+}
