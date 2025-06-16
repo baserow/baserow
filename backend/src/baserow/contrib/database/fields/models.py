@@ -190,8 +190,8 @@ class Field(
     db_index = models.BooleanField(
         db_default=False,
         default=False,
-        help_text="If true, then an index will be applied on the Baserow field to"
-        "increase lookup and filter speed. Note that this comes a performance cost "
+        help_text="If true, then an index will be added to the Baserow field to "
+        "increase lookup and filter speed. Note that this comes at a performance cost "
         "when creating the row and updating the cell.",
     )
 

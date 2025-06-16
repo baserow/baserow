@@ -978,7 +978,6 @@ def test_all_fields_with_db_index_have_index(data_fixture):
         field = field_object["field"]
         field_type = field_object["type"]
         if field_type.can_have_db_index(field):
-            print("updating", field.name)
             field_handler.update_field(
                 user=user, table=table, field=field, db_index=True
             )
@@ -998,15 +997,12 @@ def test_all_fields_with_db_index_have_index(data_fixture):
         )
         indexes = cursor.fetchall()
 
-    print(indexes)
-
     for field_object in model._field_objects.values():
         field = field_object["field"]
         field_type = field_object["type"]
         if field_type.can_have_db_index(field):
             model_field = model._meta.get_field(field_object["name"])
             index_name = f"database_table_{table.id}_{model_field.db_column}_"
-            print(field, field_type)
             assert any(
                 indexdef[0].startswith(index_name) for indexdef in indexes
             ), f"{index_name} not found in indexes"

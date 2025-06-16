@@ -572,8 +572,8 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         if field.db_index and not to_field_type.can_have_db_index(field):
-            # If the user explicitly set the `db_index` to true, but it's not compatible,
-            # then we want to fail hard so that the user is aware.
+            # If the user explicitly set the `db_index` to true, but it's not
+            # compatible, then we want to fail hard so that the user is aware.
             raise DbIndexNotSupportedError(to_field_type.type)
 
         # If no converter is found we are going to convert to field using the
@@ -593,7 +593,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 from_model_field, to_model_field
             )
         ):
-            print("1")
             update_collector.add_to_fields_type_changed(field)
         SearchHandler.entire_field_values_changed_or_created(
             field.table, updated_fields=[field]

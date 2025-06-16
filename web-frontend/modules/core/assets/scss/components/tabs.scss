@@ -58,6 +58,11 @@
   padding: 12px 0;
   color: $palette-neutral-900;
 
+  .tabs--large & {
+    font-size: 13px;
+    line-height: 32px;
+  }
+
   .tabs__item--disabled & {
     text-decoration: none;
     cursor: not-allowed;
@@ -74,11 +79,6 @@
   .tabs__item:not(.tabs__item--disabled) &:hover {
     text-decoration: none;
     color: $palette-neutral-1200;
-  }
-
-  .tabs--large & {
-    font-size: 13px;
-    line-height: 32px;
   }
 }
 

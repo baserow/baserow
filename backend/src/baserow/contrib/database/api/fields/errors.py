@@ -55,7 +55,7 @@ ERROR_DB_INDEX_NOT_SUPPORTED = (
     "ERROR_DB_INDEX_NOT_SUPPORTED",
     HTTP_400_BAD_REQUEST,
     "The field type {e.field_type} does not support database indexes. Explicitly set "
-    "`db_index` to `false`.",
+    "`db_index` to `false` to fix this error.",
 )
 ERROR_SELF_REFERENCING_LINK_ROW_CANNOT_HAVE_RELATED_FIELD = (
     "ERROR_SELF_REFERENCING_LINK_ROW_CANNOT_HAVE_RELATED_FIELD",

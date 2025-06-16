@@ -4328,6 +4328,11 @@ export class FormulaFieldType extends mix(
   }
 
   canHaveDbIndex(fieldValues) {
+    // Not all the formula types are compatible with the indexes, but the downside
+    // is that the frontend only knows the new formula type after saving, so it's
+    // impossible to preemptively know if indexes are supported. We're therefore
+    // always allowing indexes, and if the formula type is not compatible, the
+    // backend will fail, and will show the correct error in the form.
     return true
   }
 }
