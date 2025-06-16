@@ -1,119 +1,151 @@
 <template>
-  <div v-auto-overflow-scroll class="context__form context__form--scrollable">
-    <form class="context__form-container" @submit.prevent="submit">
-      <FormGroup :error="fieldHasErrors('name')">
-        <FormInput
-          ref="name"
-          v-model="v$.values.name.$model"
-          :error="fieldHasErrors('name')"
-          :placeholder="$t('fieldForm.name')"
-          @blur="v$.values.name.$touch()"
-          @input="isPrefilledWithSuggestedFieldName = false"
-          @keydown.enter="handleKeydownEnter($event)"
-        ></FormInput>
-        <template #error>
-          {{ v$.values.name.$errors[0]?.$message }}
-        </template>
-      </FormGroup>
+  <div class="field-context__with-tabs-wrapper">
+    <div class="field-context__tabs">
+      <Tabs
+        large
+        :tab-items="[{ title: 'Basic' }, { title: 'Advanced' }]"
+        :selected-index.sync="selectedTabIndex"
+      ></Tabs>
+    </div>
+    <div v-auto-overflow-scroll class="context__form context__form--scrollable">
+      <form @submit.prevent="submit">
+        <div v-show="selectedTabIndex === 0" class="context__form-container">
+          <FormGroup :error="fieldHasErrors('name')">
+            <FormInput
+              ref="name"
+              v-model="v$.values.name.$model"
+              :error="fieldHasErrors('name')"
+              :placeholder="$t('fieldForm.name')"
+              @blur="v$.values.name.$touch()"
+              @input="isPrefilledWithSuggestedFieldName = false"
+              @keydown.enter="handleKeydownEnter($event)"
+            ></FormInput>
+            <template #error>
+              {{ v$.values.name.$errors[0]?.$message }}
+            </template>
+          </FormGroup>
 
-      <FormGroup v-if="forcedType === null" :error="fieldHasErrors('type')">
-        <Dropdown
-          ref="fieldTypesDropdown"
-          v-model="v$.values.type.$model"
-          :error="fieldHasErrors('type')"
-          :fixed-items="true"
-          :disabled="
-            defaultValues.immutable_type || defaultValues.immutable_properties
-          "
-          @hide="v$.values.type.$touch"
-        >
-          <DropdownItem
-            v-for="(fieldType, type) in fieldTypes"
-            :key="type"
-            :icon="fieldType.iconClass"
-            :name="fieldType.getName()"
-            :alias="fieldType.getAlias()"
-            :value="fieldType.type"
-            :disabled="
-              (primary && !fieldType.canBePrimaryField) ||
-              !fieldType.isEnabled(workspace) ||
-              fieldType.isDeactivated(workspace.id)
-            "
-            @click="clickOnDeactivatedItem($event, fieldType)"
+          <FormGroup v-if="forcedType === null" :error="fieldHasErrors('type')">
+            <Dropdown
+              ref="fieldTypesDropdown"
+              v-model="v$.values.type.$model"
+              :error="fieldHasErrors('type')"
+              :fixed-items="true"
+              :disabled="
+                defaultValues.immutable_type ||
+                defaultValues.immutable_properties
+              "
+              @hide="v$.values.type.$touch"
+            >
+              <DropdownItem
+                v-for="(fieldType, type) in fieldTypes"
+                :key="type"
+                :icon="fieldType.iconClass"
+                :name="fieldType.getName()"
+                :alias="fieldType.getAlias()"
+                :value="fieldType.type"
+                :disabled="
+                  (primary && !fieldType.canBePrimaryField) ||
+                  !fieldType.isEnabled(workspace) ||
+                  fieldType.isDeactivated(workspace.id)
+                "
+                @click="clickOnDeactivatedItem($event, fieldType)"
+              >
+                <i class="select__item-icon" :class="fieldType.iconClass" />
+                <span
+                  class="select__item-name-text"
+                  :title="fieldType.getName()"
+                  >{{ fieldType.getName() }}</span
+                >
+                <i
+                  v-if="fieldType.isDeactivated(workspace.id)"
+                  class="iconoir-lock"
+                ></i>
+                <component
+                  :is="
+                    fieldType.getDeactivatedClickModal(workspace.id)
+                      ? fieldType.getDeactivatedClickModal(workspace.id)[0]
+                      : null
+                  "
+                  :ref="'deactivatedClickModal-' + fieldType.type"
+                  :v-if="
+                    fieldType.isDeactivated(workspace.id) &&
+                    fieldType.getDeactivatedClickModal(workspace.id)
+                  "
+                  v-bind="
+                    fieldType.getDeactivatedClickModal(workspace.id)
+                      ? fieldType.getDeactivatedClickModal(workspace.id)[1]
+                      : null
+                  "
+                  :workspace="workspace"
+                ></component>
+              </DropdownItem>
+            </Dropdown>
+
+            <template #error> {{ $t('error.requiredField') }}</template>
+          </FormGroup>
+
+          <template
+            v-if="hasFormComponent && !defaultValues.immutable_properties"
           >
-            <i class="select__item-icon" :class="fieldType.iconClass" />
-            <span class="select__item-name-text" :title="fieldType.getName()">{{
-              fieldType.getName()
-            }}</span>
-            <i
-              v-if="fieldType.isDeactivated(workspace.id)"
-              class="iconoir-lock"
-            ></i>
             <component
-              :is="
-                fieldType.getDeactivatedClickModal(workspace.id)
-                  ? fieldType.getDeactivatedClickModal(workspace.id)[0]
-                  : null
-              "
-              :ref="'deactivatedClickModal-' + fieldType.type"
-              :v-if="
-                fieldType.isDeactivated(workspace.id) &&
-                fieldType.getDeactivatedClickModal(workspace.id)
-              "
-              v-bind="
-                fieldType.getDeactivatedClickModal(workspace.id)
-                  ? fieldType.getDeactivatedClickModal(workspace.id)[1]
-                  : null
-              "
-              :workspace="workspace"
-            ></component>
-          </DropdownItem>
-        </Dropdown>
-
-        <template #error> {{ $t('error.requiredField') }}</template>
-      </FormGroup>
-
-      <template v-if="hasFormComponent && !defaultValues.immutable_properties">
-        <component
-          :is="getFormComponent(values.type)"
-          ref="childForm"
-          :table="table"
-          :field-type="values.type"
-          :view="view"
-          :primary="primary"
-          :all-fields-in-table="allFieldsInTable"
-          :name="values.name"
-          :default-values="defaultValues"
-          :database="database"
-          @validate="v$.$touch"
-          @suggested-field-name="handleSuggestedFieldName($event)"
-        />
-      </template>
-      <FormGroup :label="$t('fieldForm.dbIndex')" :small-label="true" required>
-        <div class="control__elements">
-          <Checkbox v-model="values.db_index">Index</Checkbox>
+              :is="getFormComponent(values.type)"
+              ref="childForm"
+              :table="table"
+              :field-type="values.type"
+              :view="view"
+              :primary="primary"
+              :all-fields-in-table="allFieldsInTable"
+              :name="values.name"
+              :default-values="defaultValues"
+              :database="database"
+              @validate="v$.$touch"
+              @suggested-field-name="handleSuggestedFieldName($event)"
+            />
+          </template>
+          <FormGroup
+            v-if="showDescription"
+            :error="fieldHasErrors('description')"
+            :label="$t('fieldForm.description')"
+            :small-label="true"
+            required
+          >
+            <div class="control__elements">
+              <FormTextarea
+                ref="description"
+                v-model="values.description"
+                :min-rows="1"
+                :max-rows="16"
+                auto-expandable
+                :placeholder="$t('fieldForm.description')"
+                size="small"
+              />
+            </div>
+          </FormGroup>
         </div>
-      </FormGroup>
-      <FormGroup
-        v-if="showDescription"
-        :error="fieldHasErrors('description')"
-        :label="$t('fieldForm.description')"
-        :small-label="true"
-        required
-      >
-        <div class="control__elements">
-          <FormTextarea
-            ref="description"
-            v-model="values.description"
-            :min-rows="1"
-            :max-rows="16"
-            auto-expandable
-            :placeholder="$t('fieldForm.description')"
-            size="small"
-          />
+        <div v-show="selectedTabIndex === 1" class="context__form-container">
+          <FormGroup
+            :label="$t('fieldForm.dbIndex')"
+            :small-label="true"
+            :horizontal="true"
+            required
+          >
+            <div class="control__elements flex justify-content-end">
+              <SwitchInput
+                v-model="values.db_index"
+                :small="true"
+                class="inline-flex"
+              ></SwitchInput>
+            </div>
+          </FormGroup>
+          <div class="control__messages padding-top-0">
+            <p class="control__helper-text" style="max-width: 366px">
+              {{ $t('fieldForm.dbIndexDescription') }}
+            </p>
+          </div>
         </div>
-      </FormGroup>
-    </form>
+      </form>
+    </div>
   </div>
 </template>
 
@@ -179,6 +211,7 @@ export default {
       isPrefilledWithSuggestedFieldName: false,
       oldValueType: null,
       showDescription: false,
+      selectedTabIndex: 0,
     }
   },
   computed: {

@@ -75,6 +75,11 @@
     text-decoration: none;
     color: $palette-neutral-1200;
   }
+
+  .tabs--large & {
+    font-size: 13px;
+    line-height: 32px;
+  }
 }
 
 .tab {
