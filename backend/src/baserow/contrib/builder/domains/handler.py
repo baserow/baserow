@@ -27,19 +27,25 @@ class DomainHandler:
     allowed_fields_create = ["domain_name"]
     allowed_fields_update = ["domain_name", "last_published"]
 
-    def get_domain(self, domain_id: int, base_queryset: QuerySet = None) -> Domain:
+    def get_domain(
+        self, domain_id: int, base_queryset: QuerySet | None = None, for_update=False
+    ) -> Domain:
         """
         Gets a domain by ID
 
         :param domain_id: The ID of the domain
         :param base_queryset: Can be provided to already filter or apply performance
             improvements to the queryset when it's being executed
+        :param for_update: Ensure only one update can happen at a time.
         :raises DomainDoesNotExist: If the domain doesn't exist
         :return: The model instance of the domain
         """
 
         if base_queryset is None:
             base_queryset = Domain.objects
+
+        if for_update:
+            base_queryset = base_queryset.select_for_update(of=("self",))
 
         try:
             return base_queryset.get(id=domain_id)
@@ -227,6 +233,10 @@ class DomainHandler:
         :param domain: The object carrying the information for the publishing.
         :param progress: A progress object to track the publishing operation progress.
         """
+
+        # Make sure we are the only process to update the domain to prevent race
+        # conditions
+        domain = DomainHandler().get_domain(domain.id, for_update=True)
 
         builder = domain.builder
         workspace = builder.workspace

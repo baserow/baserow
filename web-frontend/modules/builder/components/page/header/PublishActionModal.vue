@@ -162,11 +162,19 @@ export default {
     async publishSite() {
       this.loading = true
       this.hideError()
-      const { data: job } = await PublishedDomainService(this.$client).publish({
-        id: this.selectedDomainId,
-      })
-
-      this.startJobPoller(job)
+      try {
+        const { data: job } = await PublishedDomainService(
+          this.$client
+        ).publish({
+          id: this.selectedDomainId,
+        })
+        this.startJobPoller(job)
+      } catch (error) {
+        notifyIf(error)
+      } finally {
+        this.fetchingDomains = false
+        this.loading = false
+      }
     },
     onJobFailed() {
       this.showError(
