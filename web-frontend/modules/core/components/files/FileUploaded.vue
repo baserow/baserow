@@ -27,7 +27,7 @@
         v-tooltip="$t('action.rename')"
         size="small"
         icon="iconoir-edit-pencil"
-        @click="$refs.nameEditable.edit()"
+        @click.prevent="$refs.nameEditable.edit()"
       ></ButtonIcon>
       <DownloadLink
         :filename="file.visible_name"
