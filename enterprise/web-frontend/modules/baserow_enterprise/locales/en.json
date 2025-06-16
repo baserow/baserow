@@ -315,7 +315,7 @@
     "builderFileInputElement": "File input element",
     "builderFileInputElementContent": "The file input element allows you to add a field to your application pages for uploading files. Give your users the ability to store important documents or images.",
     "builderCustomCode": "Custom code for applications",
-    "builderCustomCodeContent": "You can add custom CSS/Javascript code to make your application even more customized. For example, you can integrate external services like analytics or social media, or finely define how your application should look and behave."
+    "builderCustomCodeContent": "You can add custom CSS/JavaScript code to further customize the look and behaviour of your application. For example, you can integrate external services like analytics or social media."
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
@@ -548,13 +548,13 @@
   },
   "customCodeSettingForm": {
     "customCSS": "Custom CSS",
-    "customJS": "Custom Javascript",
+    "customJS": "Custom JavaScript",
     "customCSSPlaceholder": "Enter some custom CSS code...",
-    "customJSPlaceholder": "Enter some custom js code...",
+    "customJSPlaceholder": "Enter some custom JS code...",
     "externalScripts": "External scripts / stylesheets",
     "noScript": "Enhance your application with external scripts or stylesheets",
     "customCodeTitle": "Custom code",
-    "customCodeHelp": "The custom codes are only visible in preview or published applications, you can't see the result in the editor.",
+    "customCodeHelp": "Custom code is only visible in preview or published applications, The results aren't visible in the editor.",
     "addExternalScript": "Add an external script"
   },
   "customCodeSettingScriptForm": {
