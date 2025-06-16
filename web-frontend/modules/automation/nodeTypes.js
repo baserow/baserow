@@ -312,9 +312,7 @@ export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
   }
 }
 
-export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(
-  LocalBaserowNodeType
-) {
+export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {
     return 'http_request'
   }
