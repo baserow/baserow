@@ -9,13 +9,13 @@ from baserow.contrib.automation.automation_dispatch_context import (
 )
 from baserow.contrib.automation.nodes.models import (
     AutomationActionNode,
+    CoreHTTPRequestActionNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowDeleteRowActionNode,
     LocalBaserowRowsCreatedTriggerNode,
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
     LocalBaserowUpdateRowActionNode,
-    CoreHTTPRequestActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
