@@ -58,7 +58,7 @@ def test_builder_saml_baserow_initiated_login_view(
     )
 
     # Republish the domain to have the new provider
-    DomainHandler().publish(domain)
+    domain = DomainHandler().publish(domain)
 
     published_builder = domain.published_to
 
@@ -144,7 +144,7 @@ def test_builder_saml_assertion_consumer_service(
     )
 
     # Republish the domain to have the new provider
-    DomainHandler().publish(domain)
+    domain = DomainHandler().publish(domain)
 
     published_builder = domain.published_to
 
