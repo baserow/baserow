@@ -1,4 +1,6 @@
-from typing import List, TypedDict
+from typing import List, NotRequired, TypedDict
+
+from baserow.contrib.automation.nodes.types import AutomationNodeDict
 
 
 class AutomationWorkflowDict(TypedDict):
@@ -13,3 +15,10 @@ class AutomationDict(TypedDict):
     order: int
     type: str
     workflows: List[AutomationWorkflowDict]
+
+
+class AutomationWorkflowNodeHierarchyDict(TypedDict):
+    workflow: AutomationWorkflowDict
+    previous_node: NotRequired[AutomationNodeDict]
+    node: AutomationNodeDict
+    next_node: NotRequired[AutomationNodeDict]

@@ -6,6 +6,7 @@ from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_deleted,
 )
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.models import TrashEntry
 from baserow.core.trash.registries import TrashableItemType
 
@@ -27,15 +28,22 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         trash_entry: TrashEntry,
     ):
         super().trash(item_to_trash, requesting_user, trash_entry)
+
+        # When an automation node is trashed, re-calculate the workflow's hierarchy.
+        AutomationWorkflowHandler().update_node_hierarchy(item_to_trash.workflow)
+
         automation_node_deleted.send(
             self,
             workflow=item_to_trash.workflow,
             node_id=item_to_trash.id,
-            user=None,
+            user=requesting_user,
         )
 
     def restore(self, trashed_item: AutomationNode, trash_entry: TrashEntry):
         super().restore(trashed_item, trash_entry)
+        # When a trashed automation node is restored,
+        # re-calculate the workflow's hierarchy.
+        AutomationWorkflowHandler().update_node_hierarchy(trashed_item.workflow)
         automation_node_created.send(self, node=trashed_item, user=None)
 
     def permanently_delete_item(

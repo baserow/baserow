@@ -39,8 +39,12 @@ class AutomationNodeFixtures:
         if "order" not in kwargs:
             kwargs["order"] = AutomationNode.get_last_order(workflow)
 
+        skip_hierarchy_update = kwargs.pop("skip_hierarchy_update", False)
         return AutomationNodeHandler().create_node(
-            node_type, workflow=workflow, **kwargs
+            node_type,
+            workflow=workflow,
+            skip_hierarchy_update=skip_hierarchy_update,
+            **kwargs,
         )
 
     def create_local_baserow_rows_created_trigger_node(self, user=None, **kwargs):

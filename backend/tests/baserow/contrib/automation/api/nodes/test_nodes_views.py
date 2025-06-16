@@ -32,7 +32,10 @@ def get_api_kwargs(token):
 def test_create_node(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user, name="test")
-    assert workflow.automation_workflow_nodes.count() == 0
+    trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow
+    )
+    assert workflow.automation_workflow_nodes.count() == 1
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
     response = api_client.post(
@@ -43,14 +46,15 @@ def test_create_node(api_client, data_fixture):
 
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
-        "id": 1,
+        "id": AnyInt(),
         "order": AnyStr(),
+        "previous_node_id": trigger.id,
         "previous_node_output": "",
         "service": AnyDict(),
         "type": "rows_created",
-        "workflow": AnyInt(),
+        "workflow": workflow.id,
     }
-    assert workflow.automation_workflow_nodes.count() == 1
+    assert workflow.automation_workflow_nodes.count() == 2
 
 
 @pytest.mark.django_db
@@ -75,6 +79,7 @@ def test_create_node_before(api_client, data_fixture):
     assert response.json() == {
         "id": AnyInt(),
         "order": "1.50000000000000000000",
+        "previous_node_id": node1.id,
         "previous_node_output": "",
         "service": AnyDict(),
         "type": "rows_created",
@@ -234,6 +239,7 @@ def test_get_node(api_client, data_fixture):
         {
             "id": node.id,
             "order": AnyStr(),
+            "previous_node_id": None,
             "previous_node_output": "",
             "service": AnyDict(),
             "type": "rows_created",
@@ -465,6 +471,7 @@ def test_update_node(api_client, data_fixture):
         "id": node.id,
         "order": AnyStr(),
         "service": AnyDict(),
+        "previous_node_id": None,
         "previous_node_output": "foo",
         "type": "rows_created",
         "workflow": workflow.id,

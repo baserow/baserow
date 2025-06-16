@@ -12,7 +12,13 @@ from baserow.contrib.automation.constants import (
     WORKFLOW_NAME_MAX_LEN,
 )
 from baserow.contrib.automation.models import Automation
-from baserow.contrib.automation.types import AutomationWorkflowDict
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.types import AutomationNodeDict
+from baserow.contrib.automation.types import (
+    AutomationWorkflowDict,
+    AutomationWorkflowNodeHierarchyDict,
+)
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
@@ -274,7 +280,7 @@ class AutomationWorkflowHandler:
         workflow: AutomationWorkflow,
         *args: Any,
         **kwargs: Any,
-    ) -> List[AutomationWorkflowDict]:
+    ) -> AutomationWorkflowDict:
         """
         Serializes the given workflow.
 
@@ -408,3 +414,61 @@ class AutomationWorkflowHandler:
             progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
         return workflow_instance
+
+    def get_node_hierarchy(
+        self, workflow: AutomationWorkflow
+    ) -> Dict[int, AutomationWorkflowNodeHierarchyDict]:
+        """
+        Given an AutomationWorkflow, builds a hierarchy of nodes so that we can
+        easily determine the previous/next node relationship of our nodes.
+
+        :param workflow: The workflow for which to build the hierarchy.
+        :return: A `AutomationWorkflowNodeHierarchyDict` containing the workflow,
+            previous node, current node, and next node.
+        """
+
+        nodes = (
+            AutomationNodeHandler().get_default_sorted_nodes().filter(workflow=workflow)
+        )
+
+        hierarchy: Dict[int, AutomationWorkflowNodeHierarchyDict] = {}
+        for index, node in enumerate(nodes):
+            previous_node = nodes[index - 1] if index > 0 else None
+            next_node = nodes[index + 1] if index < len(nodes) - 1 else None
+
+            hierarchy[node.id] = AutomationWorkflowNodeHierarchyDict(
+                workflow=AutomationWorkflowDict(id=workflow.id),
+                previous_node=AutomationNodeDict(id=previous_node.id)
+                if previous_node
+                else None,
+                node=AutomationNodeDict(id=node.id),
+                next_node=AutomationNodeDict(id=next_node.id) if next_node else None,
+            )
+
+        return hierarchy
+
+    def update_node_hierarchy(self, workflow: AutomationWorkflow):
+        """
+        When a node is created, updated (assuming a new `before` or `parent_node_id`
+        is provided), or deleted, we need to update the hierarchy of the nodes to ensure
+        that their `previous_node_id` is updated accordingly.
+
+        :param workflow: The workflow whose nodes hierarchy should be updated.
+        :return: None
+        """
+
+        hierarchy = self.get_node_hierarchy(workflow)
+        nodes = AutomationNode.objects.filter(id__in=hierarchy.keys()).only(
+            "id", "previous_node_id"
+        )
+
+        updates = []
+        for node in nodes:
+            node_hierarchy = hierarchy[node.id]
+            node.previous_node_id = (node_hierarchy.get("previous_node") or {}).get(
+                "id"
+            )
+            updates.append(node)
+        AutomationNode.objects.bulk_update(
+            updates, ["previous_node_id"], batch_size=100
+        )
