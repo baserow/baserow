@@ -67,6 +67,7 @@
 </template>
 
 <script>
+import moment from '@baserow/modules/core/moment'
 import { defineComponent, ref, computed } from 'vue'
 import { useStore, inject } from '@nuxtjs/composition-api'
 import { HistoryEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
@@ -87,7 +88,6 @@ export default defineComponent({
 
     const switchValue = ref(false)
     const readOnlySwitchValue = ref(false)
-    const testRunEnabled = ref(false)
 
     // Check if in development environment
     const isDevEnvironment = computed(
@@ -95,15 +95,15 @@ export default defineComponent({
     )
 
     const workflow = inject('workflow')
-    testRunEnabled.value = workflow.value
-      ? workflow.value.allow_test_run_until !== null
-      : false // we may not have the injected workflow yet
+    const testRunEnabled = computed(() => {
+      return moment(workflow.value?.allow_test_run_until).isAfter()
+    })
+
     const toggleTestRun = async () => {
-      testRunEnabled.value = !testRunEnabled.value
       try {
         await store.dispatch('automationWorkflow/toggleTestRun', {
           workflow: workflow.value,
-          allowTestRun: testRunEnabled.value,
+          allowTestRun: !testRunEnabled.value,
         })
       } catch (error) {
         notifyIf(error, 'automationWorkflow')

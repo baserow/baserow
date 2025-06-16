@@ -94,12 +94,12 @@ const actions = {
     return workflow
   },
   unselect({ commit, dispatch }) {
+    commit('UNSELECT')
     dispatch(
       'undoRedo/updateCurrentScopeSet',
       AUTOMATION_ACTION_SCOPES.workflow(null),
       { root: true }
     )
-    commit('UNSELECT')
   },
   async forceDelete({ commit }, { automation, workflow }) {
     if (workflow._.selected) {
@@ -120,6 +120,21 @@ const actions = {
     await dispatch('selectById', { automation, workflowId: workflow.id })
 
     return workflow
+  },
+  async fetchById({ getters, commit, dispatch }, { automation, workflowId }) {
+    const { data } = await AutomationWorkflowService(this.$client).read(
+      workflowId
+    )
+    const workflow = getters.getById(automation, workflowId)
+    dispatch('forceUpdate', {
+      workflow,
+      values: {
+        ...data,
+        nodes: workflow.nodes,
+        nodeMap: workflow.nodeMap,
+      },
+    })
+    return data
   },
   async update({ dispatch }, { automation, workflow, values }) {
     const { data } = await AutomationWorkflowService(this.$client).update(

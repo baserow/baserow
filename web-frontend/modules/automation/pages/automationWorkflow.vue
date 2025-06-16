@@ -47,6 +47,12 @@ export default defineComponent({
     AutomationHeader,
     WorkflowEditor,
   },
+  beforeRouteUpdate(to, from, next) {
+    this.onRouteChange(to, from, next)
+  },
+  beforeRouteLeave(to, from, next) {
+    this.onRouteChange(to, from, next)
+  },
   layout: 'app',
   setup() {
     const store = useStore()
@@ -72,10 +78,10 @@ export default defineComponent({
           'workspace/selectById',
           automation.value.workspace.id
         )
-        workflow.value = store.getters['automationWorkflow/getById'](
-          automation.value,
-          workflowId
-        )
+        workflow.value = await store.dispatch('automationWorkflow/fetchById', {
+          automation: automation.value,
+          workflowId,
+        })
         await store.dispatch('automationWorkflow/selectById', {
           automation: automation.value,
           workflowId,
@@ -171,6 +177,33 @@ export default defineComponent({
       },
     })
 
+    /**
+     * When the route changes (i.e. leave, such as going to the dashboard, or update,
+     * such as changing workflows), we need to ensure that we unselect the current
+     * workflow and reset the selected node.
+     */
+    const onRouteChange = (_, from, next) => {
+      store.dispatch('automationWorkflow/unselect')
+      const automation = store.getters['application/get'](
+        parseInt(from.params.automationId)
+      )
+      const workflow = store.getters['automationWorkflow/getById'](
+        automation,
+        parseInt(from.params.workflowId)
+      )
+      if (automation && workflow) {
+        store.dispatch('automationWorkflowNode/select', {
+          workflow,
+          node: null,
+        })
+        store.dispatch('application/forceUpdate', {
+          application: automation,
+          data: { _loadedOnce: false },
+        })
+      }
+      next()
+    }
+
     return {
       workspace,
       automation,
@@ -185,6 +218,7 @@ export default defineComponent({
       selectedNodeId,
       workflowId,
       isAddingNode,
+      onRouteChange,
     }
   },
 })
