@@ -1,7 +1,6 @@
 <template>
   <VueFlow
     class="workflow-editor"
-    :loading="props.loading"
     :nodes="displayNodes"
     :edges="computedEdges"
     :zoom-on-scroll="false"
@@ -15,10 +14,6 @@
   >
     <Controls :show-interactive="false" />
     <Background pattern-color="#ededed" :size="3" :gap="15" />
-
-    <template #node-workflow-loading>
-      <div class="loading"></div>
-    </template>
 
     <template #node-workflow-node="slotProps">
       <WorkflowNode
@@ -92,10 +87,6 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  loading: {
-    type: Boolean,
-    default: false,
-  },
 })
 
 const instance = getCurrentInstance()
@@ -133,19 +124,6 @@ watch(
 
 const automation = inject('automation')
 const displayNodes = computed(() => {
-  if (props.loading) {
-    return [
-      {
-        id: uuid(),
-        type: 'workflow-loading',
-        position: {
-          x: ADD_BUTTON_X_POS,
-          y: INITIAL_ADD_BUTTON_OFFSET_Y,
-        },
-      },
-    ]
-  }
-
   const vueFlowNodes = []
   // props.nodes should already be sorted by 'order' from the store getter
   const sortedDataNodes = [...props.nodes]

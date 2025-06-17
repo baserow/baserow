@@ -5,20 +5,24 @@
       :automation="automation"
       @read-only-toggled="handleReadOnlyToggle"
     />
-    <div class="layout__col-2-2 automation-workflow__content">
-      <div class="automation-workflow__editor">
+    <div
+      class="layout__col-2-2 automation-workflow__content"
+      :class="{
+        'automation-workflow__content--loading': workflowLoading,
+      }"
+    >
+      <div v-if="workflowLoading" class="loading"></div>
+      <div v-else class="automation-workflow__editor">
         <client-only>
           <WorkflowEditor
             v-model="selectedNodeId"
             :nodes="workflowNodes"
-            :loading="workflowLoading"
             :is-adding-node="isAddingNode"
             @add-node="handleAddNode"
             @remove-node="handleRemoveNode"
           />
         </client-only>
       </div>
-
       <div v-if="activeSidePanel" class="automation-workflow__side-panel">
         <EditorSidePanels :active-side-panel="activeSidePanel" />
       </div>
@@ -66,7 +70,7 @@ export default defineComponent({
     const automation = ref(null)
     const workflow = ref(null)
     const isAddingNode = ref(false)
-    const workflowLoading = ref(false)
+    const workflowLoading = ref(true)
 
     const sidePanelWidth = 360
 
