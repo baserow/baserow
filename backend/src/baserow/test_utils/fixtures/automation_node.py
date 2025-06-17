@@ -3,11 +3,13 @@ from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
     AutomationNodeTriggerType,
     LocalBaserowCreateRowNodeType,
+    LocalBaserowDeleteRowNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
     LocalBaserowUpdateRowNodeType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.local_baserow.models import (
+    LocalBaserowDeleteRow,
     LocalBaserowRowsCreated,
     LocalBaserowUpsertRow,
 )
@@ -34,6 +36,8 @@ class AutomationNodeFixtures:
             service_model = LocalBaserowUpsertRow
             if issubclass(node_type.__class__, AutomationNodeTriggerType):
                 service_model = LocalBaserowRowsCreated
+            elif issubclass(node_type.__class__, LocalBaserowDeleteRowNodeType):
+                service_model = LocalBaserowDeleteRow
             kwargs["service"] = self.create_service(service_model, **service_kwargs)
 
         if "order" not in kwargs:
@@ -61,5 +65,12 @@ class AutomationNodeFixtures:
         return self.create_automation_node(
             user=user,
             type=LocalBaserowUpdateRowNodeType.type,
+            **kwargs,
+        )
+
+    def create_local_baserow_delete_row_action_node(self, user=None, **kwargs):
+        return self.create_automation_node(
+            user=user,
+            type=LocalBaserowDeleteRowNodeType.type,
             **kwargs,
         )
