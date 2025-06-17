@@ -1,7 +1,5 @@
 from celery import Celery, signals
 
-from baserow.config.db_routers import clear_db_state
-from baserow.core.cache import local_cache
 from baserow.core.telemetry.tasks import BaserowTelemetryTask
 
 app = Celery("baserow")
@@ -18,6 +16,9 @@ def clear_local(*args, **kwargs):
     db_state, so that if there is a read-only replica, it will use that until a write
     query is executed.
     """
+
+    from baserow.config.db_routers import clear_db_state
+    from baserow.core.cache import local_cache
 
     local_cache.clear()
     clear_db_state()
