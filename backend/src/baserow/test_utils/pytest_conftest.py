@@ -13,9 +13,9 @@ from unittest.mock import patch
 from django.conf import settings as django_settings
 from django.core.cache import cache
 from django.core.management import call_command
-from django.db import DEFAULT_DB_ALIAS, OperationalError, connection
+from django.db import DEFAULT_DB_ALIAS, OperationalError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
-from django.test.utils import CaptureQueriesContext
+from django.test.utils import CaptureQueriesContext, override_settings
 
 import pytest
 from faker import Faker
@@ -647,9 +647,7 @@ class TestMigrator:
 
 
 def _set_suffix_to_test_databases(suffix: str) -> None:
-    from django.conf import settings
-
-    for db_settings in settings.DATABASES.values():
+    for db_settings in django_settings.DATABASES.values():
         test_name = db_settings.get("TEST", {}).get("NAME")
 
         if not test_name:
@@ -663,9 +661,7 @@ def _set_suffix_to_test_databases(suffix: str) -> None:
 
 
 def _remove_suffix_from_test_databases(suffix: str) -> None:
-    from django.conf import settings
-
-    for db_settings in settings.DATABASES.values():
+    for db_settings in django_settings.DATABASES.values():
         db_settings["TEST"]["NAME"] = db_settings["TEST"]["NAME"].replace(suffix, "")
 
 
@@ -912,3 +908,57 @@ def baserow_db_setup(django_db_setup, django_db_blocker):
 @pytest.fixture()
 def use_tmp_media_root(tmpdir, settings):
     settings.MEDIA_ROOT = tmpdir
+
+
+def run_on_commit_hooks():
+    conn = transaction.get_connection()
+    orig = conn.validate_no_atomic_block
+    conn.validate_no_atomic_block = lambda *args, **kwargs: None
+    while conn.run_on_commit:
+        conn.run_and_clear_commit_hooks()
+    conn.validate_no_atomic_block = orig
+
+
+@pytest.fixture
+def run_on_commit():
+    """
+    Simulates transaction.on_commit behavior in a test.
+    """
+
+    yield run_on_commit_hooks
+
+
+@pytest.fixture
+def celery_task_lazy():
+    """
+    Makes celery tasks async again.
+
+    >>> with celery_task_lazy(True):
+    >>>    # schedule some tasks with on_commit()
+    >>>    on_commit(lambda: some_task.apply())
+    >>>
+    >>> # this is outside with block, so run on commit will
+    >>> # call pending tasks eagerly.
+    >>> run_on_commit()
+    """
+
+    @contextmanager
+    def switcher(lazy=True):
+        from baserow.core.tasks import app
+
+        orig_broker_write_url = app.conf.broker_write_url
+        orig_broker_read_url = app.conf.broker_read_url
+        orig_amqp = app.amqp
+        with override_settings(
+            CELERY_TASK_ALWAYS_EAGER=not lazy, CELERY_BROKER_URL="memory:///"
+        ):
+            app.conf.broker_write_url = "memory:///"
+            app.conf.broker_read_url = "memory:///"
+            del app.amqp
+            yield
+
+        app.conf.broker_write_url = orig_broker_write_url
+        app.conf.broker_read_url = orig_broker_read_url
+        app.amqp = orig_amqp
+
+    yield switcher

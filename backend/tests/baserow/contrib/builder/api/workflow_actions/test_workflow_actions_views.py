@@ -23,7 +23,6 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     UpdateRowWorkflowActionType,
 )
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
@@ -699,7 +698,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
 
 @pytest.mark.django_db(transaction=True)
 def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index_and_record_id(
-    api_client, data_fixture, enable_singleton_testing
+    api_client, data_fixture
 ):
     with transaction.atomic():
         user, token = data_fixture.create_user_and_token()
@@ -713,8 +712,6 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
                 ("Category", "text", {}),
             ],
         )
-        table.search_data_state = SearchTableState.DISABLED
-        table.save()
 
         field = table.field_set.get()
         rows = (
@@ -752,7 +749,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
             {
                 "name": "Button",
                 "type": "button",
-                "config": {"value": f"'Click me'"},
+                "config": {"value": "'Click me'"},
             },
         ],
     )
@@ -774,7 +771,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
     service.row_id = "get('current_record.id')"
     service.save()
     service.field_mappings.create(
-        field=field, value=f"concat('Updated row ', get('current_record.id'))"
+        field=field, value="concat('Updated row ', get('current_record.id'))"
     )
 
     url = reverse(
@@ -1124,15 +1121,15 @@ def workflow_action_hidden_fields_fixture(data_fixture):
     )
     service.field_mappings.create(
         field=fields[0],
-        value=f"'Palak Paneer'",
+        value="'Palak Paneer'",
     )
     service.field_mappings.create(
         field=fields[1],
-        value=f"'3'",
+        value="'3'",
     )
     service.field_mappings.create(
         field=fields[2],
-        value=f"'Green'",
+        value="'Green'",
     )
 
     return {
@@ -1220,7 +1217,7 @@ def test_notification_action_can_access_the_field_of_previous_action(
         element=button,
         event=EventTypes.CLICK,
         description=f"get('previous_action.{action_1.id}.{fields[0].db_column}')",
-        title=f"'hello world'",
+        title="'hello world'",
     )
 
     url = reverse(

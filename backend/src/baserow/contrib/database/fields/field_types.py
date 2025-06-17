@@ -733,7 +733,6 @@ class NumberFieldType(FieldType):
         default = instance.number_default
         if default is not None:
             kwargs["default"] = default
-
         return models.DecimalField(
             max_digits=self.MAX_DIGITS + kwargs["decimal_places"],
             null=True,

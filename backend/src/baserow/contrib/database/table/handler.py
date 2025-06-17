@@ -441,6 +441,7 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         database: Database,
         name: str,
         fields: List[Tuple[str, str, Dict[str, Any]]],
+        **table_kwargs,
     ) -> Table:
         """
         Creates a new table with the specified fields. Also creates a default grid view
@@ -461,6 +462,7 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
             order=last_order,
             name=name,
             needs_background_update_column_added=True,
+            **table_kwargs,
         )
 
         # Let's create the fields before creating the model so that the whole

@@ -64,6 +64,7 @@ __all__ = [
     "TableWebhookHeader",
     "TableWebhookCall",
     "FieldDependency",
+    "WorkspaceDatabaseSettings",
 ]
 
 

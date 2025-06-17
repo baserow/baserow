@@ -307,6 +307,7 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
 
                 if not trash_entry:
                     break
+
                 TrashHandler.try_perm_delete_trash_entry(
                     trash_entry, trash_item_lookup_cache
                 )

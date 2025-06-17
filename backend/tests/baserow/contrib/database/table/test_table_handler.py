@@ -152,7 +152,9 @@ def test_create_example_table(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_fill_table_with_initial_data(data_fixture, enable_singleton_testing):
+def test_fill_table_with_initial_data(
+    data_fixture,
+):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
 
@@ -619,7 +621,7 @@ def test_counting_many_rows_in_many_tables(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_duplicate_interesting_table(data_fixture):
+def test_duplicate_interesting_table(data_fixture, celery_task_lazy, run_on_commit):
     session_id = "session-id"
     user = data_fixture.create_user(session_id=session_id)
     database = data_fixture.create_database_application(user=user)
@@ -630,7 +632,11 @@ def test_duplicate_interesting_table(data_fixture):
     )
 
     table_handler = TableHandler()
-    duplicated_table = table_handler.duplicate_table(user, table)
+
+    with celery_task_lazy(True):
+        duplicated_table = table_handler.duplicate_table(user, table)
+    run_on_commit()
+
     assert (
         table_handler.get_table(duplicated_table.id).name == f"{original_table_name} 2"
     )
@@ -1108,7 +1114,7 @@ def test_usage_is_calculated_correctly_when_rows_are_deleted(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 def test_usage_is_calculated_correctly_when_a_template_is_installed(
-    data_fixture, tmpdir, enable_singleton_testing
+    data_fixture, tmpdir
 ):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -1146,9 +1152,7 @@ def test_usage_is_calculated_correctly_when_a_template_is_installed(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_usage_is_calculated_correctly_when_creating_a_new_table(
-    data_fixture, enable_singleton_testing
-):
+def test_usage_is_calculated_correctly_when_creating_a_new_table(data_fixture):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
 

@@ -20,7 +20,6 @@ from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.field_filters import FilterBuilder
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.search.handler import SearchHandler
-from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_filter_type_registry
@@ -263,7 +262,7 @@ class LocalBaserowTableServiceFilterableMixin:
             service.service_filters.all()
         ):
             raise ServiceFilterPropertyDoesNotExist(
-                f"One or more filtered properties no longer exist.",
+                "One or more filtered properties no longer exist.",
             )
 
         service_filter_builder = FilterBuilder(filter_type=service.filter_type)
@@ -719,17 +718,16 @@ class LocalBaserowTableServiceSearchableMixin:
                 return []
 
             table = fields[0].table
-
-            return used_fields_from_parent + [
-                # f.db_column
-                f.tsv_db_column
-                if (
-                    SearchHandler.full_text_enabled()
-                    and table.search_data_state != SearchTableState.READY
+            # This is needed only when a table hasn't been migrated
+            if (
+                SearchHandler.full_text_enabled()
+                # not migrated or disabled
+                and (
+                    not SearchHandler.table_is_active(table)
+                    or not SearchHandler.table_is_migrated(table)
                 )
-                else f.db_column
-                for f in fields
-            ]
+            ):
+                return used_fields_from_parent + [f.tsv_db_column for f in fields]
 
         return used_fields_from_parent
 

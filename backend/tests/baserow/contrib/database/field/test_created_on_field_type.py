@@ -146,7 +146,9 @@ def test_created_on_field_type(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_import_export_last_modified_field(data_fixture, enable_singleton_testing):
+def test_import_export_last_modified_field(
+    data_fixture,
+):
     user = data_fixture.create_user()
     imported_workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(user=user, name="Placeholder")

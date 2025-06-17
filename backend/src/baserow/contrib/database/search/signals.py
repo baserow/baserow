@@ -1,7 +1,6 @@
 from functools import partial
 
 from django.db.models.signals import post_delete
-from django.db.transaction import on_commit
 from django.dispatch import receiver
 
 from loguru import logger
@@ -12,6 +11,9 @@ from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
+from baserow.contrib.database.tasks import (
+    enqueue_task_on_commit_swallowing_any_exceptions,
+)
 from baserow.contrib.database.views.signals import view_loaded
 from baserow.core.models import Workspace
 from baserow.core.signals import workspace_created
@@ -20,6 +22,12 @@ from baserow.core.trash.signals import permanently_deleted
 
 @receiver(workspace_created)
 def create_search_table_for_workspace(sender, workspace: "Workspace", **kwargs):
+    """
+    This handler creates for any new workspace two objects accompanying:
+    * workspace-wide row for settings for all database applications
+    * per-workspace search data table.
+    """
+
     from baserow.contrib.database.search.handler import SearchHandler
 
     SearchHandler.create_search_table_for_workspace(workspace.id)
@@ -29,15 +37,17 @@ def create_search_table_for_workspace(sender, workspace: "Workspace", **kwargs):
 def handle_permanently_deleted_row(
     sender, trash_item_id, trash_item, parent_id, *args, **kwargs
 ):
+    """
+    When a row is removed physically, then search data should be cleaned from data
+    for that row.
+    """
+
     from baserow.contrib.database.search.handler import SearchHandler
 
     try:
+        # table may be already removed if this is called by parent's trash handler.
         table = TableHandler().get_table(parent_id)
     except TableDoesNotExist:
-        logger.warning(
-            f"Cannot clear row: table {parent_id} does not exist "
-            "(most likely removed too)."
-        )
         return
     SearchHandler.cleanup_table_rows_vectors(table, [trash_item_id])
 
@@ -46,15 +56,17 @@ def handle_permanently_deleted_row(
 def handle_permanently_deleted_rows(
     sender, trash_item_id, trash_item, parent_id, *args, **kwargs
 ):
+    """
+    When a set of row is removed physically, then search data should be cleaned from
+    data for those rows.
+    """
+
     from baserow.contrib.database.search.handler import SearchHandler
 
     try:
+        # table may be already removed if this is called by parent's trash handler.
         table = TableHandler().get_table(parent_id)
     except TableDoesNotExist:
-        logger.warning(
-            f"Cannot clear rows: table {parent_id} does not exist "
-            "(most likely removed too)."
-        )
         return
     SearchHandler.cleanup_table_rows_vectors(table, trash_item.row_ids)
 
@@ -65,7 +77,7 @@ def handle_permanently_deleted_workspace(
 ):
     """
     Triggered when a workspace is being removed by the trash subsystem. This handler
-    will remove search table, if it was created for the workspace.
+    will remove search table for the workspace, if it was created.
     """
 
     from baserow.contrib.database.search.handler import SearchHandler
@@ -105,7 +117,9 @@ def view_loaded_maybe_create_tsvector(
         table_id=table.id,
     )
 
-    on_commit(partial(migrate_search_data_table.delay, table_id=table.id))
+    enqueue_task_on_commit_swallowing_any_exceptions(
+        partial(migrate_search_data_table.delay, table_id=table.id)
+    )
 
 
 @receiver(post_delete, sender=Field)

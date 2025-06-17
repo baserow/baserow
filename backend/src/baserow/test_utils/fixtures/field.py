@@ -32,8 +32,6 @@ from baserow.contrib.database.fields.models import (
     UUIDField,
 )
 from baserow.contrib.database.formula import FormulaHandler
-from baserow.contrib.database.search.types import SearchTableState
-from baserow.contrib.database.table.models import Table
 
 
 class FieldFixtures:
@@ -49,10 +47,6 @@ class FieldFixtures:
             self.create_tsv_for_field(field)
 
     def create_tsv_for_field(self, field):
-        table: "Table" = field.table
-        # table migrated or ready for migration, so we won't create tsv
-        if table.search_data_state != SearchTableState.DISABLED:
-            return
         with safe_django_schema_editor() as schema_editor:
             model = field.table.get_model(
                 fields=[field], field_ids=[], add_dependencies=False

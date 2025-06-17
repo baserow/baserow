@@ -239,7 +239,7 @@ def test_list_timeline_rows_adhoc_filtering_query_param_filter(
     get_params = [
         f"filter__field_{text_field.id}__contains=a",
         f"filter__field_{text_field.id}__contains=b",
-        f"filter_type=OR",
+        "filter_type=OR",
     ]
     response = api_client.get(
         f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
@@ -405,7 +405,7 @@ def test_list_timeline_rows_adhoc_filtering_advanced_filters_are_preferred_to_ot
     get_params = [
         "filters=" + json.dumps(advanced_filters),
         f"filter__field_{text_field.id}__equal=z",
-        f"filter_type=AND",
+        "filter_type=AND",
     ]
     response = api_client.get(
         f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
@@ -710,7 +710,7 @@ def test_list_rows_include_field_options(api_client, premium_data_fixture):
 @pytest.mark.view_timeline
 @override_settings(DEBUG=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
-def test_list_rows_search(api_client, premium_data_fixture, search_mode):
+def test_list_rows_search(api_client, premium_data_fixture, search_mode, run_on_commit):
     user, token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True,
         email="test@test.nl",
@@ -737,9 +737,8 @@ def test_list_rows_search(api_client, premium_data_fixture, search_mode):
         **{f"field_{text_field.id}": "Robin Backham"}
     )
 
-    SearchHandler.update_tsvector_columns(
-        table, update_tsvectors_for_changed_rows_only=False
-    )
+    SearchHandler.mark_table_data_change(table.id)
+    run_on_commit()
 
     url = reverse("api:database:views:timeline:list", kwargs={"view_id": timeline.id})
     response = api_client.get(
@@ -1301,7 +1300,7 @@ def test_list_rows_public_with_query_param_filter(api_client, premium_data_fixtu
     get_params = [
         f"filter__field_{public_field.id}__contains=a",
         f"filter__field_{public_field.id}__contains=b",
-        f"filter_type=OR",
+        "filter_type=OR",
     ]
     response = api_client.get(f'{url}?{"&".join(get_params)}')
     response_json = response.json()
@@ -1634,7 +1633,7 @@ def test_list_rows_public_with_query_param_advanced_filters(
 @override_settings(DEBUG=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
 def test_list_rows_public_only_searches_by_visible_columns(
-    api_client, premium_data_fixture, search_mode
+    api_client, premium_data_fixture, search_mode, run_on_commit
 ):
     user, token = premium_data_fixture.create_user_and_token()
     table = premium_data_fixture.create_database_table(user=user)
@@ -1673,9 +1672,8 @@ def test_list_rows_public_only_searches_by_visible_columns(
         values={"public": search_term, "hidden": "other"},
         user_field_names=True,
     )
-    SearchHandler.update_tsvector_columns(
-        table, update_tsvectors_for_changed_rows_only=False
-    )
+
+    run_on_commit()
 
     # Get access as an anonymous user
     response = api_client.get(

@@ -2,6 +2,7 @@ import itertools
 import re
 import uuid
 from collections import defaultdict
+from copy import copy
 from types import MethodType
 from typing import Generator, Iterable, List, Optional, Type, TypedDict
 
@@ -18,7 +19,6 @@ from django.db.models.sql.compiler import SQLUpdateCompiler
 
 from django_cte.cte import CTEManager, CTEQuery, CTEQuerySet
 from django_cte.query import COMPILER_TYPES, CTECompiler, CTEUpdateQuery
-from loguru import logger
 from opentelemetry import trace
 
 from baserow.cachalot_patch import cachalot_enabled
@@ -41,11 +41,8 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.fields.registries import FieldType, field_type_registry
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
-from baserow.contrib.database.search.handler import (
-    SearchBuilder,
-    SearchHandler,
-    SearchModes,
-)
+from baserow.contrib.database.search.handler import SearchHandler, SearchModes
+from baserow.contrib.database.search.search_bulder import SearchBuilder
 from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.table.cache import (
     get_cached_model_field_attrs,
@@ -193,26 +190,26 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
             return self
 
         sanitized_search = SearchHandler.escape_postgres_query(input_search)
-        logger.debug(f"Raw query: {input_search}. Sanitized query: {sanitized_search}")
+        table: Table = self.model.get_parent()
 
         if len(sanitized_search) == 0:
             return self.filter(id__in=[])
 
-        filter_builder = FilterBuilder(filter_type=FILTER_TYPE_OR)
-
-        self._add_exact_id_search(filter_builder, input_search)
-        filter_builder.apply_to_queryset(self)
-
-        table: Table = self.model.get_parent()
         # use workspace-wide search, if a table is marked as migrated
         if table.search_data_state == SearchTableState.READY:
             search_model = SearchHandler.get_search_table_model(
                 table.database.workspace_id
             )
+
+            queryset = copy(self)
+
             sb = SearchBuilder(table, search_model, self.model)
             sb.add_term(sanitized_search, only_search_by_field_ids)
-            q = sb.get_queryset(self)
-            return q
+            sb.add_row_id_search(input_search)
+            queryset = sb.get_queryset(queryset)
+
+            return queryset
+
         else:
             # We use "raw" as we can't use XXX, so if someone had a cell for "cheese"
             # and searches for "chee", we need to be able to match it with "$$chee$$:*"
@@ -302,13 +299,15 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
 
         if not search_mode:
             search_mode = settings.DEFAULT_SEARCH_MODE
-
         # If we are searching with Postgres full text search (whether with
         # or without a COUNT)...
         if search_mode == SearchModes.MODE_FT_WITH_COUNT:
             # If `USE_PG_FULLTEXT_SEARCH` is enabled, then use
             # the Postgres full-text search functionality instead.
-            if self.model.baserow_table.tsvectors_are_supported:
+            if SearchHandler.full_text_enabled() and (
+                self.model.baserow_table.tsvectors_are_supported
+                or SearchHandler.table_is_migrated(self.model.baserow_table)
+            ):
                 return self.pg_search(search, only_search_by_field_ids)
             else:
                 # Otherwise we'll fall back to compat search.
@@ -591,12 +590,6 @@ class TableModelTrashAndObjectsManager(models.Manager):
 
     def get_queryset(self):
         qs = TableModelQuerySet(self.model, using=self._db)
-        # for field in self.model.get_fields_with_search_index(include_trash=True):
-        #     try:
-        #         qs = qs.defer(field.tsv_db_column)
-        #     except DjangoFieldDoesNotExist:
-        #         # THe model has been generated without TSVs so no need to defer.
-        #         pass
         return qs
 
 
@@ -1044,7 +1037,7 @@ class Table(
 
     search_data_state = models.CharField(
         null=True,
-        default=None,
+        default=SearchTableState.READY,
         max_length=64,
         choices=SearchTableState,
         help_text="Indicates the state of search data migration for the table, from in-table tsv columns to workspace-wide search table.",
@@ -1062,7 +1055,6 @@ class Table(
         return (
             SearchHandler.full_text_enabled()
             and self.needs_background_update_column_added
-            and not SearchHandler._is_migrated(self)
         )
 
     @property
@@ -1286,10 +1278,9 @@ class Table(
             default=1,
         )
 
-        if self.search_data_state != SearchTableState.READY:
-            self._add_search_tsvector_fields_to_model(
-                field_attrs, indexes, force_add_tsvectors
-            )
+        self._add_search_tsvector_fields_to_model(
+            field_attrs, indexes, force_add_tsvectors
+        )
 
         if self.needs_background_update_column_added:
             self._add_needs_background_update_column(field_attrs, indexes)
@@ -1409,8 +1400,8 @@ class Table(
         # constraints in the database.
         fields_query = (
             self.field_set(manager="objects_and_trash")
-            .select_related("table", "content_type")
-            .all()
+            # table->database->workspace is used by search
+            .select_related("table__database__workspace", "content_type").all()
         )
 
         # If the field ids are provided we must only fetch the fields of which the

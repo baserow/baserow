@@ -68,7 +68,7 @@ def test_perm_deleting_many_rows_at_once_only_looks_up_the_model_once(
 
     invalidate_table_in_model_cache(table.id)
     # includes search handler updates
-    with django_assert_num_queries(16):
+    with django_assert_num_queries(17):
         TrashHandler.permanently_delete_marked_trash()
 
     row_2 = handler.create_row(user=user, table=table)
@@ -96,7 +96,7 @@ def test_perm_deleting_many_rows_at_once_only_looks_up_the_model_once(
     # 9. 2 queries per item for search handler updates
     # If we weren't caching the table models an extra number of queries would be first
     # performed to lookup the table information which breaks this assertion.
-    with django_assert_num_queries(25):
+    with django_assert_num_queries(27):
         TrashHandler.permanently_delete_marked_trash()
 
 

@@ -1,6 +1,4 @@
-from collections.abc import Iterator
-from typing import NamedTuple
-
+from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
 from django.db import models
@@ -8,13 +6,17 @@ from django.db import models
 from django_cte import CTEManager
 
 
-class IndexDescription(NamedTuple):
-    fields: Iterator[str]
-    name: str
-    type: str
+class SearchValueUpdate(models.Model):
+    """
+    A helper model to store atomic search value update parameters
+    """
 
-    def get_name(self, for_table_id: int) -> str:
-        return self.name.format(for_table_id)
+    table = models.ForeignKey(
+        "database.Table", on_delete=models.CASCADE, null=False, db_index=True
+    )
+    row_ids = ArrayField(models.IntegerField(), null=True, default=None)
+    field_ids = ArrayField(models.IntegerField(), null=True, default=None)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
 
 
 class SearchTableBase(models.Model):
@@ -38,7 +40,7 @@ class SearchTableBase(models.Model):
     )
     row_id = models.IntegerField(null=False)
     field_id = models.IntegerField(null=False)
-    updated_on = models.DateTimeField(auto_now_add=True, auto_now=True, null=False)
+    updated_on = models.DateTimeField(null=False)
     value = SearchVectorField(null=False)
     objects = CTEManager()
 

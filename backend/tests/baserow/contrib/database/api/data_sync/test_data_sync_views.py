@@ -23,7 +23,6 @@ from baserow.contrib.database.data_sync.models import (
     DataSyncSyncedProperty,
     SyncDataSyncTableJob,
 )
-from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.tasks import run_async_job
@@ -922,7 +921,10 @@ def test_async_sync_data_sync_table_job_with_deleted_table(api_client, data_fixt
 
 @pytest.mark.django_db(transaction=True)
 @responses.activate
-def test_async_sync_data_sync_table(api_client, data_fixture, enable_singleton_testing):
+def test_async_sync_data_sync_table(
+    api_client,
+    data_fixture,
+):
     responses.add(
         responses.GET,
         "https://baserow.io/ical.ics",
@@ -951,8 +953,6 @@ def test_async_sync_data_sync_table(api_client, data_fixture, enable_singleton_t
     data_sync_id = response.json()["data_sync"]["id"]
     data_sync = DataSync.objects.get(pk=data_sync_id)
     table = data_sync.table
-    table.search_data_state = SearchTableState.DISABLED
-    table.save()
 
     response = api_client.post(
         reverse(

@@ -8,7 +8,7 @@ from tqdm import tqdm
 from baserow.contrib.database.search.exceptions import (
     PostgresFullTextSearchDisabledException,
 )
-from baserow.contrib.database.search.handler import SearchHandler
+from baserow.contrib.database.search.handler import SearchHandlerCompat
 from baserow.contrib.database.table.constants import (
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
 )
@@ -76,7 +76,7 @@ class Command(BaseCommand):
                     progress.increment(100)
 
                 progress.increment(0, "Updating")
-                SearchHandler.update_tsvector_columns_locked(
+                SearchHandlerCompat.update_tsvector_columns_locked(
                     table,
                     update_tsvectors_for_changed_rows_only=update_changed_rows_only,
                     progress_builder=progress.create_child_builder(

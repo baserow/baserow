@@ -310,7 +310,7 @@ class RowTrashableItemType(TrashableItemType):
         )
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.mark_table_data_change(table.id, row_ids=[trashed_item.id])
 
         rows_to_return = list(
             model.objects.all().enhance_by_fields().filter(id=trashed_item.id)
@@ -428,13 +428,19 @@ class RowsTrashableItemType(TrashableItemType):
         trashed_item.delete()
 
         updated_fields = [f["field"] for f in model._field_objects.values()]
-        dependant_fields = []
         _, dependant_fields = RowHandler().update_dependencies_of_rows_created(
             model, rows_to_restore
         )
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.field_value_updated_or_created(
+            table, row_ids=trashed_item.row_ids
+        )
+        for dependant_field in dependant_fields:
+            dependant_table = dependant_field.table
+            SearchHandler.field_value_updated_or_created(
+                dependant_table, fields=[dependant_field]
+            )
 
         if len(rows_to_restore) < 50:
             rows_to_return = list(

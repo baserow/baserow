@@ -28,10 +28,8 @@ class TableFixtures:
         storage_usage = kwargs.pop("storage_usage", None)
         if storage_usage is not None:
             usage["storage_usage"] = storage_usage
-        kwargs["search_data_state"] = (
-            # DISABLEd is a default for tests, so a table won't be migrated to
-            # search data table immediately after first data/schema change.
-            kwargs.get("search_data_state", SearchTableState.DISABLED)
+        kwargs["search_data_state"] = kwargs.get(
+            "search_data_state", SearchTableState.READY
         )
         table = Table.objects.create(**kwargs)
         if usage:

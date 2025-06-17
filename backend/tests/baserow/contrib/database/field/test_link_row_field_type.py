@@ -1185,7 +1185,9 @@ def test_link_row_field_type_api_row_views(api_client, data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.field_link_row
-def test_import_export_link_row_field(data_fixture, enable_singleton_testing):
+def test_import_export_link_row_field(
+    data_fixture,
+):
     user = data_fixture.create_user()
     imported_workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(user=user, name="Placeholder")

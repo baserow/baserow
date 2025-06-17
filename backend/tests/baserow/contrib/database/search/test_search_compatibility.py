@@ -8,7 +8,6 @@ from PIL import Image
 
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.user_files.handler import UserFileHandler
 
@@ -103,8 +102,6 @@ def test_search_compatibility_between_current_and_postgres(data_fixture, tmpdir)
                 ("Last modified by", "last_modified_by", {}),
             ],
         )
-        table.search_data_state = SearchTableState.DISABLED
-        table.save()
 
         # Multiple collaborator field setup
         multiple_collaborators_field = table.field_set.get(
@@ -225,8 +222,6 @@ def test_searching_across_fields_in_full_text_prevented(data_fixture):
                 ("Last name", "text", {}),
             ],
         )
-        table.search_data_state = SearchTableState.DISABLED
-        table.save()
 
         first_name_field = table.field_set.get(name="First name")
         last_name_field = table.field_set.get(name="Last name")
@@ -258,8 +253,6 @@ def test_cyrillic_search_is_case_insensitive(data_fixture):
                 ("Ingredient", "text", {}),
             ],
         )
-        table.search_data_state = SearchTableState.DISABLED
-        table.save()
 
         field = table.field_set.get(name="Ingredient")
         row1 = RowHandler().create_row(
