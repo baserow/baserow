@@ -1021,7 +1021,7 @@
     "delete": "Delete"
   },
   "elementsGuidedTourStep": {
-    "title": "Add elements to Your page",
+    "title": "Add elements to your page",
     "content": "Every app needs components! Add elements like tables, forms, buttons, and more to bring your app to life."
   },
   "dataGuidedTourStep": {
@@ -1031,6 +1031,10 @@
   "previewGuidedTourStep": {
     "title": "Your control center",
     "content": "This is where you configure your app’s pages. Add elements, preview the result, and structure your app exactly how you want."
+  },
+  "devicesGuidedTourStep": {
+    "title": "Preview on different devices",
+    "content": "Switch between desktop, tablet, and mobile previews to see how your app looks on different screen sizes. Make sure your design works perfectly across all devices!"
   },
   "sidePanelGuidedTourStep": {
     "title": "Side Panel: Customize Elements",

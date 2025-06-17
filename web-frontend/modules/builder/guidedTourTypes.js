@@ -57,6 +57,24 @@ class PreviewGuidedTourStep extends GuidedTourStep {
   }
 }
 
+class DevicesGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return this.app.i18n.t('devicesGuidedTourStep.title')
+  }
+
+  get content() {
+    return this.app.i18n.t('devicesGuidedTourStep.content')
+  }
+
+  get selectors() {
+    return ['[data-highlight="builder-devices"]']
+  }
+
+  get position() {
+    return 'bottom-left'
+  }
+}
+
 class SidePanelPublishGuidedTourStep extends GuidedTourStep {
   get title() {
     return this.app.i18n.t('sidePanelGuidedTourStep.title')
@@ -111,6 +129,7 @@ export class BuilderGuidedTourType extends GuidedTourType {
       new ElementsGuidedTourStep(this.app),
       new DataGuidedTourStep(this.app),
       new PreviewGuidedTourStep(this.app),
+      new DevicesGuidedTourStep(this.app),
       new SidePanelPublishGuidedTourStep(this.app),
       new PreviewPublishGuidedTourStep(this.app),
     ]
