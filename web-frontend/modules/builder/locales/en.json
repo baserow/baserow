@@ -1019,5 +1019,29 @@
   },
   "abFileInput": {
     "delete": "Delete"
+  },
+  "elementsGuidedTourStep": {
+    "title": "Add elements to your page",
+    "content": "Every app needs components! Add elements like tables, forms, buttons, and more to bring your app to life."
+  },
+  "dataGuidedTourStep": {
+    "title": "Connect your data",
+    "content": "Link your Baserow tables here to display, filter, and update your data dynamically across different elements."
+  },
+  "previewGuidedTourStep": {
+    "title": "Your control center",
+    "content": "This is where you configure your app’s pages. Add elements, preview the result, and structure your app exactly how you want."
+  },
+  "devicesGuidedTourStep": {
+    "title": "Preview on different devices",
+    "content": "Switch between desktop, tablet, and mobile previews to see how your app looks on different screen sizes. Make sure your design works perfectly across all devices!"
+  },
+  "sidePanelGuidedTourStep": {
+    "title": "Side Panel: Customize Elements",
+    "content": "**General Tab** – Configure the selected element.\n\n**Style Tab** – Customize padding, margin, borders, and more.\n\n**Visibility Tab** – Control who can see this element: logged-in users, logged-out users, or specific roles.\n\n**Events Tab** – If the element supports actions, configure them here for dynamic interactivity."
+  },
+  "previewPublishGuidedTourStep": {
+    "title": "Preview & Publish Your App",
+    "content": "Click **Preview** to test your app privately. When ready, click **Publish** to share it with the public via a domain."
   }
 }

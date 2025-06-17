@@ -10,6 +10,7 @@
         ref="previewScaled"
         class="page-preview__scaled"
         tabindex="0"
+        data-highlight="builder-preview"
         @keydown="handleKeyDown"
       >
         <ThemeProvider class="page">

@@ -18,6 +18,7 @@
           'tabs__item--active': isActive(index),
           'tabs__item--disabled': tab.disabled,
         }"
+        :data-highlight="tab.highlight"
         @click="
           tab.disabled ? $emit('click-disabled', index) : selectTab(index)
         "

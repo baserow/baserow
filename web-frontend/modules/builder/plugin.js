@@ -146,6 +146,7 @@ import {
   TextQueryParamType,
   NumericQueryParamType,
 } from '@baserow/modules/builder/queryParamTypes'
+import { BuilderGuidedTourType } from '@baserow/modules/builder/guidedTourTypes'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -413,4 +414,6 @@ export default (context) => {
   app.$registry.register('fontFamily', new GaramondFontFamilyType(context))
   app.$registry.register('fontFamily', new CourierNewFontFamilyType(context))
   app.$registry.register('fontFamily', new BrushScriptMTFontFamilyType(context))
+
+  app.$registry.register('guidedTour', new BuilderGuidedTourType(context))
 }
