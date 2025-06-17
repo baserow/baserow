@@ -29,6 +29,7 @@ from baserow.contrib.database.fields.field_filters import (
     FILTER_TYPE_AND,
     FILTER_TYPE_OR,
     FilterBuilder,
+    parse_ids_from_csv_string,
 )
 from baserow.contrib.database.fields.fields import IgnoreMissingForeignKey
 from baserow.contrib.database.fields.models import (
@@ -435,6 +436,7 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, CTEQuerySet):
         fixed_field_instance_mapping = {
             "field_created_on": CreatedOnField(),
             "field_updated_on": LastModifiedField(),
+            "field_id": None,
         }
 
         for key, values in filter_object.items():
@@ -443,6 +445,14 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, CTEQuerySet):
                 continue
 
             field_name_or_id, view_filter_name = filter_sections.groups()
+
+            if field_name_or_id == "field_id" and view_filter_name == "in":
+                if not values:
+                    continue
+                row_ids = parse_ids_from_csv_string(values[0])
+                if row_ids:
+                    filter_builder.filter(Q(id__in=row_ids))
+                continue
 
             if user_field_names and field_name_or_id in user_field_name_to_id_mapping:
                 field_id = user_field_name_to_id_mapping[field_name_or_id]

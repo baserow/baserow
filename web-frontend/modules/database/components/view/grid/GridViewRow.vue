@@ -11,7 +11,7 @@
     <div
       class="grid-view__row"
       :class="{
-        'grid-view__row--selected': row._.selectedBy.length > 0,
+        'grid-view__row--selected': isRowHighlighted(row),
         'grid-view__row--loading': row._.loading,
         'grid-view__row--hover': row._.hover,
         'grid-view__row--warning':
@@ -52,6 +52,18 @@
             }"
           >
             <div
+              v-if="isCheckboxSelected(row.id) || row._.hover"
+              class="grid-view__row-checkbox"
+            >
+              <Checkbox
+                :checked="isCheckboxSelected(row.id)"
+                :disabled="isCheckboxDisabled(row.id)"
+                :size="'small'"
+                @input="toggleRowCheckbox"
+              ></Checkbox>
+            </div>
+            <div
+              v-else
               class="grid-view__row-count"
               :class="{
                 'grid-view__row-count--small': rowIdentifier > 9999,
@@ -59,7 +71,9 @@
               }"
               :title="rowIdentifier"
             >
-              {{ rowIdentifier }}
+              <div class="grid-view__row-count-content">
+                {{ rowIdentifier }}
+              </div>
             </div>
             <div
               v-if="!readOnly && canDrag"
@@ -129,6 +143,7 @@ import GridViewCell from '@baserow/modules/database/components/view/grid/GridVie
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
 import RecursiveWrapper from '@baserow/modules/database/components/RecursiveWrapper'
+import { GRID_VIEW_MULTI_SELECT_AREA } from '@baserow/modules/database/constants'
 
 export default {
   name: 'GridViewRow',
@@ -287,6 +302,28 @@ export default {
     },
   },
   methods: {
+    isCheckboxDisabled(rowId) {
+      const checkboxSelectedRows =
+        this.$store.state[this.storePrefix + 'view/grid'].checkboxSelectedRows
+      return (
+        checkboxSelectedRows.length >=
+          this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT &&
+        !checkboxSelectedRows.includes(rowId)
+      )
+    },
+    isCheckboxSelected(rowId) {
+      return this.$store.state[
+        this.storePrefix + 'view/grid'
+      ].checkboxSelectedRows.includes(rowId)
+    },
+    isRowHighlighted(row) {
+      // const selectionType =
+      //   this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
+      return (
+        // selectionType === GRID_VIEW_MULTI_SELECT_AREA &&
+        row._.selectedBy.length > 0
+      )
+    },
     isCellSelected(fieldId) {
       return this.row._.selected && this.row._.selectedFieldId === fieldId
     },
@@ -303,6 +340,15 @@ export default {
         bottom: false,
         left: false,
       }
+      const selectionType =
+        this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
+      if (selectionType !== GRID_VIEW_MULTI_SELECT_AREA) {
+        if (this.isCheckboxSelected(rowId)) {
+          position.selected = true
+        }
+        return position
+      }
+
       if (
         this.$store.getters[this.storePrefix + 'view/grid/isMultiSelectActive']
       ) {
@@ -422,6 +468,12 @@ export default {
     },
     canWriteFieldValues(field) {
       return this.$registry.get('field', field.type).canWriteFieldValues(field)
+    },
+    toggleRowCheckbox() {
+      this.$store.dispatch(
+        this.storePrefix + 'view/grid/toggleCheckboxRowSelection',
+        { row: this.row }
+      )
     },
   },
 }

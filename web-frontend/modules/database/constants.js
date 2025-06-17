@@ -11,5 +11,9 @@ export const GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING = {
 }
 
 export const GRID_VIEW_MIN_FIELD_WIDTH = 78
+
+export const GRID_VIEW_MULTI_SELECT_AREA = 'area'
+export const GRID_VIEW_MULTI_SELECT_CHECKBOX = 'checkbox'
+
 export const LINKED_ITEMS_DEFAULT_LOAD_COUNT = 20
 export const LINKED_ITEMS_LOAD_ALL = -1

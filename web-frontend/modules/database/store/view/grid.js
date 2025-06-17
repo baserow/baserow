@@ -30,7 +30,11 @@ import {
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
-import { LINKED_ITEMS_LOAD_ALL } from '@baserow/modules/database/constants'
+import {
+  GRID_VIEW_MULTI_SELECT_AREA,
+  GRID_VIEW_MULTI_SELECT_CHECKBOX,
+  LINKED_ITEMS_LOAD_ALL,
+} from '@baserow/modules/database/constants'
 
 const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
@@ -150,6 +154,8 @@ export const state = () => ({
   multiSelectActive: false,
   // Indicates if the user is clicking and holding the mouse over a cell
   multiSelectHolding: false,
+  // Indicates the current selection type: 'checkbox', 'area', or null
+  selectionType: null,
   /**
    * The indexes for head and tail cells in a multi-select grid.
    * Multi-Select works by tracking four different indexes, these are:
@@ -214,6 +220,7 @@ export const state = () => ({
   // in the array, then that cell is a loading state. This is for example used for
   // fields that use a background worker to compute the value like the AI field.
   pendingFieldOps: {},
+  checkboxSelectedRows: [], // Array of row IDs selected by checkboxes
 })
 
 export const mutations = {
@@ -231,6 +238,8 @@ export const mutations = {
     state.activeSearchTerm = ''
     state.hideRowsNotMatchingSearch = true
     state.pendingFieldOps = {}
+    state.checkboxSelectedRows = []
+    state.selectionType = null
   },
   SET_ACTIVE_GROUP_BYS(state, groupBys) {
     state.activeGroupBys = groupBys
@@ -306,6 +315,16 @@ export const mutations = {
         state.rows.length - Math.abs(appendToRows)
       )
     }
+    rows.forEach((row) => {
+      if (state.checkboxSelectedRows.includes(row.id)) {
+        if (!row._.selectedBy) {
+          row._.selectedBy = []
+        }
+        if (!row._.selectedBy.includes(0)) {
+          row._.selectedBy.push(0)
+        }
+      }
+    })
   },
   REPLACE_ALL_FIELD_OPTIONS(state, fieldOptions) {
     state.fieldOptions = fieldOptions
@@ -428,19 +447,21 @@ export const mutations = {
     state.multiSelectHolding = value
   },
   SET_MULTISELECT_ACTIVE(state, value) {
-    state.multiSelectActive = value
+    Vue.set(state, 'multiSelectActive', value)
   },
-  CLEAR_MULTISELECT(state) {
-    state.multiSelectActive = false
+  CLEAR_AREA_SELECTION(state) {
     state.multiSelectHolding = false
     state.multiSelectHeadRowIndex = -1
     state.multiSelectHeadFieldIndex = -1
     state.multiSelectTailRowIndex = -1
     state.multiSelectTailFieldIndex = -1
   },
-  CLEAR_MULTISELECT_START(state) {
+  CLEAR_AREA_START_SELECTION(state) {
     state.multiSelectStartRowIndex = -1
     state.multiSelectStartFieldIndex = -1
+  },
+  CLEAR_CHECKBOX_SELECTION(state) {
+    state.checkboxSelectedRows = []
   },
   ADD_FIELD_TO_ROWS_IN_BUFFER(state, { field, value }) {
     const name = `field_${field.id}`
@@ -535,6 +556,14 @@ export const mutations = {
 
       if (index === -1) {
         continue
+      }
+
+      // When row is added, we set UUID as temporary id. Once backend
+      // returns the row with proper ID we need to make sure that the
+      // checkbox selection is properly updated.
+      const selectedIndex = state.checkboxSelectedRows.indexOf(oldRow.id)
+      if (selectedIndex !== -1) {
+        state.checkboxSelectedRows[selectedIndex] = newRow.id
       }
 
       stateRowsCopy[index].id = newRow.id
@@ -711,6 +740,35 @@ export const mutations = {
   },
   UPDATE_ROW_HEIGHT(state, value) {
     state.rowHeight = value
+  },
+  ADD_CHECKBOX_SELECTED_ROW(state, rowId) {
+    if (!state.checkboxSelectedRows.includes(rowId)) {
+      state.checkboxSelectedRows.push(rowId)
+    }
+  },
+  REMOVE_CHECKBOX_SELECTED_ROW(state, rowId) {
+    const index = state.checkboxSelectedRows.indexOf(rowId)
+    if (index > -1) {
+      state.checkboxSelectedRows.splice(index, 1)
+    }
+  },
+  CLEAR_CHECKBOX_SELECTED_ROWS(state) {
+    state.checkboxSelectedRows = []
+  },
+  SET_SELECTION_TYPE(state, type) {
+    state.selectionType = type
+  },
+  SET_MULTISELECT_HEAD_ROW_INDEX(state, value) {
+    state.multiSelectHeadRowIndex = value
+  },
+  SET_MULTISELECT_HEAD_FIELD_INDEX(state, value) {
+    state.multiSelectHeadFieldIndex = value
+  },
+  SET_MULTISELECT_TAIL_ROW_INDEX(state, value) {
+    state.multiSelectTailRowIndex = value
+  },
+  SET_MULTISELECT_TAIL_FIELD_INDEX(state, value) {
+    state.multiSelectTailFieldIndex = value
   },
 }
 
@@ -1515,10 +1573,7 @@ export const actions = {
   setAddRowHover({ commit }, value) {
     commit('SET_ADD_ROW_HOVER', value)
   },
-  setSelectedCell(
-    { commit, getters, rootGetters },
-    { rowId, fieldId, fields }
-  ) {
+  setSelectedCell({ commit, getters }, { rowId, fieldId, fields }) {
     commit('SET_SELECTED_CELL', { rowId, fieldId })
 
     const rowIndex = getters.getRowIndexById(rowId)
@@ -1536,6 +1591,7 @@ export const actions = {
     { commit, getters, rootGetters, dispatch },
     { direction, fields }
   ) {
+    const selectionType = getters.getSelectionType
     const rowIndex = getters.getMultiSelectStartRowIndex
     const fieldIndex = getters.getMultiSelectStartFieldIndex
     const [newRowIndex, newFieldIndex] = updatePositionFn[direction](
@@ -1549,6 +1605,13 @@ export const actions = {
     const field = visibleFieldEntries[newFieldIndex]
 
     if (row && field) {
+      if (
+        selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX &&
+        getters.hasSelectedCell
+      ) {
+        dispatch('clearCheckboxSelections')
+        dispatch('setSelectionType', { selectionType: null })
+      }
       dispatch('setSelectedCell', {
         rowId: row.id,
         fieldId: parseInt(field[0]),
@@ -1559,6 +1622,13 @@ export const actions = {
       const oldField = visibleFieldEntries[fieldIndex]
 
       if (oldRow && oldField) {
+        if (
+          selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX &&
+          getters.hasSelectedCell
+        ) {
+          dispatch('clearCheckboxSelections')
+          dispatch('setSelectionType', { selectionType: null })
+        }
         dispatch('setSelectedCell', {
           rowId: oldRow.id,
           fieldId: parseInt(oldField[0]),
@@ -1566,7 +1636,10 @@ export const actions = {
         })
       }
     }
-    dispatch('clearAndDisableMultiSelect')
+
+    if (selectionType !== GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+      dispatch('clearAndDisableMultiSelect')
+    }
   },
   setMultiSelectHolding({ commit }, value) {
     commit('SET_MULTISELECT_HOLDING', value)
@@ -1574,31 +1647,26 @@ export const actions = {
   setMultiSelectActive({ commit }, value) {
     commit('SET_MULTISELECT_ACTIVE', value)
   },
-  clearAndDisableMultiSelect({ commit }) {
-    commit('CLEAR_MULTISELECT')
+  clearCheckboxSelections({ commit }) {
+    commit('CLEAR_CHECKBOX_SELECTION')
+  },
+  clearAndDisableMultiSelect({ commit, dispatch, state }) {
+    commit('CLEAR_AREA_SELECTION')
+    dispatch('clearCheckboxSelections', { commit, state })
     commit('SET_MULTISELECT_ACTIVE', false)
+    commit('SET_SELECTION_TYPE', null)
   },
   multiSelectStart({ getters, commit, dispatch }, { rowId, fieldIndex }) {
-    commit('CLEAR_MULTISELECT')
+    dispatch('setSelectionType', { selectionType: GRID_VIEW_MULTI_SELECT_AREA })
 
     const rowIndex = getters.getRowIndexById(rowId)
-
-    // Set the head and tail index to highlight the first cell
-    dispatch('updateMultipleSelectIndexes', {
-      position: 'head',
-      rowIndex,
-      fieldIndex,
-    })
-    dispatch('updateMultipleSelectIndexes', {
-      position: 'tail',
-      rowIndex,
-      fieldIndex,
-    })
-    commit('CLEAR_MULTISELECT_START')
+    // Update the store to show that the mouse is being held for multi-select
     commit('SET_MULTISELECT_START_ROW_INDEX', rowIndex)
     commit('SET_MULTISELECT_START_FIELD_INDEX', fieldIndex)
-
-    // Update the store to show that the mouse is being held for multi-select
+    commit('SET_MULTISELECT_HEAD_ROW_INDEX', rowIndex)
+    commit('SET_MULTISELECT_HEAD_FIELD_INDEX', fieldIndex)
+    commit('SET_MULTISELECT_TAIL_ROW_INDEX', rowIndex)
+    commit('SET_MULTISELECT_TAIL_FIELD_INDEX', fieldIndex)
     commit('SET_MULTISELECT_HOLDING', true)
     // Do not enable multi-select if only a single cell is selected
     commit('SET_MULTISELECT_ACTIVE', false)
@@ -1608,6 +1676,7 @@ export const actions = {
     { rowId, fieldIndex }
   ) {
     commit('SET_MULTISELECT_ACTIVE', true)
+    dispatch('setSelectionType', { selectionType: GRID_VIEW_MULTI_SELECT_AREA })
     dispatch('setMultiSelectHeadOrTail', { rowId, fieldIndex })
   },
   multiSelectShiftChange({ getters, commit, dispatch }, { direction }) {
@@ -1624,6 +1693,9 @@ export const actions = {
 
     if (!getters.isMultiSelectActive) {
       commit('SET_MULTISELECT_ACTIVE', true)
+      dispatch('setSelectionType', {
+        selectionType: GRID_VIEW_MULTI_SELECT_AREA,
+      })
       dispatch('updateMultipleSelectIndexes', {
         position: 'head',
         rowIndex: getters.getMultiSelectStartRowIndex,
@@ -1734,10 +1806,8 @@ export const actions = {
   correctMultiSelect({ getters, commit }) {
     const headRowIndex = getters.getMultiSelectHeadRowIndex
     const tailRowIndex = getters.getMultiSelectTailRowIndex
-
     const headFieldIndex = getters.getMultiSelectHeadFieldIndex
     const tailFieldIndex = getters.getMultiSelectTailFieldIndex
-
     const startRowIndex = getters.getMultiSelectStartRowIndex
     const startFieldIndex = getters.getMultiSelectStartFieldIndex
 
@@ -1745,8 +1815,8 @@ export const actions = {
     const maxFieldIndex = getters.getNumberOfVisibleFields - 1
 
     if (headRowIndex > maxRowIndex || headFieldIndex > maxFieldIndex) {
-      commit('CLEAR_MULTISELECT')
-      commit('CLEAR_MULTISELECT_START')
+      commit('CLEAR_AREA_SELECTION')
+      commit('CLEAR_AREA_START_SELECTION')
       return
     }
 
@@ -1771,36 +1841,64 @@ export const actions = {
    * If one or more rows are not in the buffer, they are fetched from the backend.
    */
   async getCurrentSelection({ dispatch, getters }, { fields }) {
-    const [minFieldIndex, maxFieldIndex] =
-      getters.getMultiSelectFieldIndexSorted
+    const selectionType = getters.getSelectionType
+    let rows = []
+    let fieldsToUse = fields
+    let fetchParams = null
 
-    let rows = null
-    fields = fields.slice(minFieldIndex, maxFieldIndex + 1)
-
-    if (getters.areMultiSelectRowsWithinBuffer) {
-      const selectedRows = getters.getSelectedRows
-      const shouldRefetchFieldData = fields.some((field) => {
+    const allFieldsDataInBuffer = (rows, fields) => {
+      return fields.every((field) => {
         const fieldType = this.$registry.get('field', field.type)
-        return fieldType.shouldRefetchFieldData(field, selectedRows)
+        return !fieldType.shouldRefetchFieldData(field, rows)
       })
-      if (!shouldRefetchFieldData) {
+    }
+
+    if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+      const selectedRows = getters.getCheckboxSelectedRows
+      const allRowIds = getters.getAllRows.map((r) => r.id)
+      const selectedRowIds = getters.getCheckboxSelectedRowsIds
+
+      if (
+        selectedRowIds.every((id) => allRowIds.includes(id)) &&
+        allFieldsDataInBuffer(selectedRows, fields)
+      ) {
+        rows = selectedRows
+      } else {
+        fetchParams = {
+          startIndex: 0,
+          limit: this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT,
+          fields,
+          rowIds: selectedRowIds,
+          limitLinkedItems: LINKED_ITEMS_LOAD_ALL,
+        }
+      }
+    } else {
+      const [minFieldIndex, maxFieldIndex] =
+        getters.getMultiSelectFieldIndexSorted
+      fieldsToUse = fields.slice(minFieldIndex, maxFieldIndex + 1)
+
+      if (
+        getters.areMultiSelectRowsWithinBuffer &&
+        allFieldsDataInBuffer(getters.getSelectedRows, fieldsToUse)
+      ) {
         rows = getters.getSelectedRows
+      } else {
+        const [minRowIndex, maxRowIndex] = getters.getMultiSelectRowIndexSorted
+        const limit = maxRowIndex - minRowIndex + 1
+        fetchParams = {
+          startIndex: minRowIndex,
+          limit,
+          fields: fieldsToUse,
+        }
       }
     }
 
-    if (rows === null) {
-      // Fetch missing rows or missing field data from the backend
-      const [minRowIndex, maxRowIndex] = getters.getMultiSelectRowIndexSorted
-      const limit = maxRowIndex - minRowIndex + 1
-      rows = await dispatch('fetchRowsByIndex', {
-        startIndex: minRowIndex,
-        limit,
-        fields,
-        limitLinkedItems: LINKED_ITEMS_LOAD_ALL,
-      })
+    if (fetchParams) {
+      // Fetch rows from backend
+      rows = await dispatch('fetchRowsByIndex', fetchParams)
     }
 
-    return [fields, rows]
+    return [fieldsToUse, rows]
   },
   /**
    * This function is called if a user attempts to access rows that are
@@ -1810,7 +1908,7 @@ export const actions = {
    */
   async fetchRowsByIndex(
     { getters, rootGetters },
-    { startIndex, limit, fields, excludeFields, limitLinkedItems }
+    { startIndex, limit, fields, excludeFields, rowIds, limitLinkedItems }
   ) {
     if (fields !== undefined) {
       fields = fields.map((field) => `field_${field.id}`)
@@ -1836,6 +1934,7 @@ export const actions = {
       excludeFields,
       excludeCount: getters.canExcludeCount,
       limitLinkedItems,
+      rowIds,
     })
     return data.results
   },
@@ -1861,7 +1960,7 @@ export const actions = {
    * and it does not match the filters it can be removed from the store.
    */
   removeRowSelectedBy(
-    { dispatch, commit },
+    { commit, dispatch },
     { grid, row, field, fields, getScrollTop, isRowOpenedInModal = undefined }
   ) {
     commit('REMOVE_ROW_SELECTED_BY', { row, fieldId: field.id })
@@ -2504,6 +2603,7 @@ export const actions = {
     { commit, dispatch },
     { rowHeadIndex, fieldHeadIndex, rowTailIndex, fieldTailIndex }
   ) {
+    dispatch('setSelectionType', { selectionType: GRID_VIEW_MULTI_SELECT_AREA })
     dispatch('updateMultipleSelectIndexes', {
       position: 'head',
       rowIndex: rowHeadIndex,
@@ -2539,7 +2639,11 @@ export const actions = {
           ? getters.getMultiSelectTailRowIndex
           : getters.getMultiSelectHeadRowIndex
       if (Math.abs(previousIndex - rowIndex) > limit - 1) {
-        return
+        if (rowIndex > previousIndex) {
+          rowIndex = previousIndex + limit - 1
+        } else {
+          rowIndex = previousIndex - limit + 1
+        }
       }
     }
 
@@ -2982,27 +3086,33 @@ export const actions = {
     { dispatch, getters },
     { table, view, fields, getScrollTop }
   ) {
-    if (!getters.isMultiSelectActive) {
+    const selectionType = getters.getSelectionType
+    let rowsToDelete = []
+
+    if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+      rowsToDelete = getters.getCheckboxSelectedRows
+    } else if (selectionType === GRID_VIEW_MULTI_SELECT_AREA) {
+      if (getters.areMultiSelectRowsWithinBuffer) {
+        rowsToDelete = getters.getSelectedRows
+      } else {
+        const [minRowIndex, maxRowIndex] = getters.getMultiSelectRowIndexSorted
+        const limit = maxRowIndex - minRowIndex + 1
+        rowsToDelete = await dispatch('fetchRowsByIndex', {
+          startIndex: minRowIndex,
+          limit,
+          includeFields: fields,
+        })
+      }
+    }
+
+    if (rowsToDelete.length === 0) {
       return
     }
-    let rows = []
-    if (getters.areMultiSelectRowsWithinBuffer) {
-      rows = getters.getSelectedRows
-    } else {
-      // Rows not in buffer, fetch from backend
-      const [minRowIndex, maxRowIndex] = getters.getMultiSelectRowIndexSorted
-      const limit = maxRowIndex - minRowIndex + 1
 
-      rows = await dispatch('fetchRowsByIndex', {
-        startIndex: minRowIndex,
-        limit,
-        includeFields: fields,
-      })
-    }
-    const rowIdsToDelete = rows.map((r) => r.id)
+    const rowIdsToDelete = rowsToDelete.map((r) => r.id)
     await RowService(this.$client).batchDelete(table.id, rowIdsToDelete)
 
-    for (const row of rows) {
+    for (const row of rowsToDelete) {
       await dispatch('deletedExistingRow', {
         view,
         fields,
@@ -3319,8 +3429,54 @@ export const actions = {
       { root: true }
     )
   },
-  setRowHeight({ commit, dispatch }, value) {
+  setRowHeight({ commit, dispatch, getters }, value) {
     commit('UPDATE_ROW_HEIGHT', value)
+  },
+  toggleCheckboxRowSelection({ commit, dispatch, state, getters }, { row }) {
+    const rowId = row.id
+    const limit = this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT
+    const checked = state.checkboxSelectedRows.includes(rowId)
+
+    if (!checked && state.checkboxSelectedRows.length >= limit) {
+      return
+    }
+
+    if (!checked) {
+      commit('ADD_CHECKBOX_SELECTED_ROW', rowId)
+    } else if (state.checkboxSelectedRows.length === 1) {
+      dispatch('clearCheckboxSelections')
+      commit('SET_MULTISELECT_ACTIVE', false)
+      commit('SET_SELECTION_TYPE', null)
+    } else {
+      commit('REMOVE_CHECKBOX_SELECTED_ROW', rowId)
+    }
+    if (
+      state.checkboxSelectedRows.length > 0 &&
+      getters.getSelectionType !== GRID_VIEW_MULTI_SELECT_CHECKBOX
+    ) {
+      dispatch('setSelectionType', {
+        selectionType: GRID_VIEW_MULTI_SELECT_CHECKBOX,
+      })
+    }
+  },
+  setSelectionType({ commit, dispatch, getters }, { selectionType }) {
+    commit('SET_SELECTION_TYPE', selectionType)
+
+    if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+      commit('SET_MULTISELECT_ACTIVE', true)
+      commit('CLEAR_AREA_SELECTION')
+      commit('CLEAR_AREA_START_SELECTION')
+    } else if (selectionType === GRID_VIEW_MULTI_SELECT_AREA) {
+      commit('SET_MULTISELECT_ACTIVE', true)
+      dispatch('clearCheckboxSelections', { commit, state })
+    } else {
+      commit('CLEAR_AREA_SELECTION')
+      dispatch('clearCheckboxSelections', { commit, state })
+      commit('SET_MULTISELECT_ACTIVE', false)
+    }
+  },
+  clearCheckboxSelectedRows({ commit }) {
+    commit('CLEAR_CHECKBOX_SELECTED_ROWS')
   },
 }
 
@@ -3534,14 +3690,22 @@ export const getters = {
   },
   // Return all rows within a multi-select grid if they are within the current row buffer
   getSelectedRows(state, getters) {
-    const [minRow, maxRow] = getters.getMultiSelectRowIndexSorted
+    const selectionType = getters.getSelectionType
 
+    if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+      return state.rows.filter((row) =>
+        state.checkboxSelectedRows.includes(row.id)
+      )
+    }
+
+    const [minRow, maxRow] = getters.getMultiSelectRowIndexSorted
     if (getters.areMultiSelectRowsWithinBuffer) {
       return state.rows.slice(
         minRow - state.bufferStartIndex,
         maxRow - state.bufferStartIndex + 1
       )
     }
+    return []
   },
   getSelectedFields: (state, getters) => (fields) => {
     const [minField, maxField] = getters.getMultiSelectFieldIndexSorted
@@ -3583,6 +3747,17 @@ export const getters = {
   hasPendingFieldOps: (state) => (fieldId, rowId) => {
     const key = getPendingOperationKey(fieldId, rowId)
     return state.pendingFieldOps[key] !== undefined
+  },
+  getCheckboxSelectedRows: (state) => {
+    return state.rows.filter((row) =>
+      state.checkboxSelectedRows.includes(row.id)
+    )
+  },
+  getCheckboxSelectedRowsIds: (state) => {
+    return state.checkboxSelectedRows
+  },
+  getSelectionType(state) {
+    return state.selectionType
   },
 }
 

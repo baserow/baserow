@@ -82,9 +82,13 @@ exports[`GridView component with decoration Default component with first_cell de
                     class="grid-view__row-count grid-view__row-count--hide-on-hover"
                     title="2"
                   >
-                    
-            2
-          
+                    <div
+                      class="grid-view__row-count-content"
+                    >
+                      
+              2
+            
+                    </div>
                   </div>
                    
                   <div
@@ -1087,9 +1091,13 @@ exports[`GridView component with decoration Default component with unavailable d
                     class="grid-view__row-count grid-view__row-count--hide-on-hover"
                     title="2"
                   >
-                    
-            2
-          
+                    <div
+                      class="grid-view__row-count-content"
+                    >
+                      
+              2
+            
+                    </div>
                   </div>
                    
                   <div
