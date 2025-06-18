@@ -25,6 +25,7 @@
       <ButtonIcon
         v-if="!readOnly"
         v-tooltip="$t('action.rename')"
+        tag="a"
         size="small"
         icon="iconoir-edit-pencil"
         @click="$refs.nameEditable.edit()"
@@ -42,6 +43,7 @@
       <ButtonIcon
         v-if="!readOnly"
         v-tooltip="$t('action.delete')"
+        tag="a"
         size="small"
         icon="iconoir-bin"
         @click="$emit('delete')"
