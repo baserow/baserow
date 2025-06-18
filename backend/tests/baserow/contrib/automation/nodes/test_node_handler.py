@@ -206,7 +206,7 @@ def test_export_node(data_fixture):
 
     assert result == {
         "id": node.id,
-        "order": node.order,
+        "order": str(node.order),
         "parent_node_id": None,
         "previous_node_id": None,
         "previous_node_output": "foo",

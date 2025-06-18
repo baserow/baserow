@@ -94,6 +94,9 @@ class AutomationNodeType(
         storage=None,
         cache=None,
     ):
+        if prop_name == "order":
+            return str(node.order)
+
         if prop_name == "service":
             service = node.service.specific
             return service.get_type().export_serialized(

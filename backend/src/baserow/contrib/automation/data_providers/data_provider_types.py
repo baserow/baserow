@@ -4,6 +4,8 @@ from typing import List
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.builder.data_providers.exceptions import (
     DataProviderChunkInvalidException,
 )
@@ -46,8 +48,17 @@ class PreviousNodeProviderType(AutomationDataProviderType):
         previous_node_id, *rest = path
 
         if "automation_workflow_nodes" in id_mapping:
-            previous_node_id = id_mapping["automation_workflow_nodes"].get(
-                int(previous_node_id), previous_node_id
-            )
+            try:
+                previous_node_id = id_mapping["automation_workflow_nodes"][
+                    int(previous_node_id)
+                ]
+                node = AutomationNodeHandler().get_node(previous_node_id)
+            except (KeyError, AutomationNodeDoesNotExist):
+                # In the event the `previous_node_id` is not found in the `id_mapping`,
+                # or if the previous node is not exist, we return the malformed path.
+                return [str(previous_node_id), *rest]
+
+            service_type = node.service.specific.get_type()
+            rest = service_type.import_context_path(rest, id_mapping)
 
         return [str(previous_node_id), *rest]

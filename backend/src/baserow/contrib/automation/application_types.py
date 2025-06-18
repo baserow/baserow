@@ -177,6 +177,8 @@ class AutomationApplicationType(ApplicationType):
         Imports an automation application exported by the `export_serialized` method.
         """
 
+        self.cache = {}
+
         serialized_workflows = serialized_values.pop("workflows")
         serialized_integrations = serialized_values.pop("integrations")
 

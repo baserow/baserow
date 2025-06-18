@@ -2339,6 +2339,41 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
     def handler(self, *args, **kwargs):
         transaction.on_commit(lambda: self.handle_signal(*args, **kwargs))
 
+    def import_context_path(
+        self, path: List[str], id_mapping: Dict[int, int], **kwargs
+    ):
+        """
+        Updates the field ids in the path, similar to `import_path` method.
+        """
+
+        return self.import_path(path, id_mapping)
+
+    def import_path(self, path, id_mapping):
+        """
+        Import Local Baserow signal trigger service types paths.
+        """
+
+        # All Local Baserow signal trigger service types have a length of 3:
+        # {previousNodeId}.{rowIndex}.{fieldName}. By this point, we should
+        # only have two parts: {rowIndex}.{fieldName}.
+        if len(path) == 2:
+            index, field_dbname = path
+        else:
+            # In any other scenario, we have a formula that is not a format we
+            # can currently import properly, so we return the path as is.
+            return path
+
+        # When this is the case, do not attempt to import the formula.
+        if not str(field_dbname).startswith("field_"):
+            return path
+
+        # Apply the mapping in case it is present for this field
+        imported_field_dbname = (
+            self.import_property_name(field_dbname, id_mapping) or field_dbname
+        )
+
+        return [index, imported_field_dbname]
+
 
 class LocalBaserowRowsCreatedTriggerServiceType(
     LocalBaserowSignalTriggerTypeMixin,
