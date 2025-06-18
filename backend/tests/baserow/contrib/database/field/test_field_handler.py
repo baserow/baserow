@@ -1900,3 +1900,31 @@ def test_can_change_primary_field_and_update_dependencies(data_fixture):
         {"id": row_b1.id, "value": "orig1"}
     ]
     assert getattr(row_a1, lookup_new.db_column) == [{"id": row_b1.id, "value": "new1"}]
+
+
+@pytest.mark.django_db
+def test_select_options_deleted_when_field_type_changed(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    select_field = data_fixture.create_single_select_field(table=table)
+
+    handler = FieldHandler()
+
+    handler.update_field_select_options(
+        field=select_field,
+        user=user,
+        select_options=[
+            {"value": "A", "color": "blue"},
+            {"value": "B", "color": "red"},
+        ],
+    )
+
+    assert SelectOption.objects.filter(field=select_field).count() == 2
+
+    handler.update_field(
+        user=user,
+        field=select_field,
+        new_type_name="text",
+    )
+
+    assert SelectOption.objects.filter(field=select_field).count() == 0
