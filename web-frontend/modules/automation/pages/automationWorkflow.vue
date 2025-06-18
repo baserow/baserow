@@ -5,8 +5,14 @@
       :automation="automation"
       @read-only-toggled="handleReadOnlyToggle"
     />
-    <div class="layout__col-2-2 automation-workflow__content">
-      <div class="automation-workflow__editor">
+    <div
+      class="layout__col-2-2 automation-workflow__content"
+      :class="{
+        'automation-workflow__content--loading': workflowLoading,
+      }"
+    >
+      <div v-if="workflowLoading" class="loading"></div>
+      <div v-else class="automation-workflow__editor">
         <client-only>
           <WorkflowEditor
             v-model="selectedNodeId"
@@ -17,7 +23,6 @@
           />
         </client-only>
       </div>
-
       <div v-if="activeSidePanel" class="automation-workflow__side-panel">
         <EditorSidePanels :active-side-panel="activeSidePanel" />
       </div>
@@ -47,6 +52,12 @@ export default defineComponent({
     AutomationHeader,
     WorkflowEditor,
   },
+  beforeRouteUpdate(to, from, next) {
+    this.onRouteChange(to, from, next)
+  },
+  beforeRouteLeave(to, from, next) {
+    this.onRouteChange(to, from, next)
+  },
   layout: 'app',
   setup() {
     const store = useStore()
@@ -59,11 +70,14 @@ export default defineComponent({
     const automation = ref(null)
     const workflow = ref(null)
     const isAddingNode = ref(false)
+    const workflowLoading = ref(true)
 
     const sidePanelWidth = 360
 
     useFetch(async () => {
       try {
+        workflowLoading.value = true
+
         automation.value = await store.dispatch(
           'application/selectById',
           automationId
@@ -72,10 +86,10 @@ export default defineComponent({
           'workspace/selectById',
           automation.value.workspace.id
         )
-        workflow.value = store.getters['automationWorkflow/getById'](
-          automation.value,
-          workflowId
-        )
+        workflow.value = await store.dispatch('automationWorkflow/fetchById', {
+          automation: automation.value,
+          workflowId,
+        })
         await store.dispatch('automationWorkflow/selectById', {
           automation: automation.value,
           workflowId,
@@ -96,6 +110,8 @@ export default defineComponent({
           statusCode: 404,
           message: 'Automation workflow or its nodes not found.',
         })
+      } finally {
+        workflowLoading.value = false
       }
     })
 
@@ -171,10 +187,38 @@ export default defineComponent({
       },
     })
 
+    /**
+     * When the route changes (i.e. leave, such as going to the dashboard, or update,
+     * such as changing workflows), we need to ensure that we unselect the current
+     * workflow and reset the selected node.
+     */
+    const onRouteChange = (_, from, next) => {
+      store.dispatch('automationWorkflow/unselect')
+      const automation = store.getters['application/get'](
+        parseInt(from.params.automationId)
+      )
+      const workflow = store.getters['automationWorkflow/getById'](
+        automation,
+        parseInt(from.params.workflowId)
+      )
+      if (automation && workflow) {
+        store.dispatch('automationWorkflowNode/select', {
+          workflow,
+          node: null,
+        })
+        store.dispatch('application/forceUpdate', {
+          application: automation,
+          data: { _loadedOnce: false },
+        })
+      }
+      next()
+    }
+
     return {
       workspace,
       automation,
       workflow,
+      workflowLoading,
       sidePanelWidth,
       workflowReadOnly,
       workflowNodes,
@@ -185,6 +229,7 @@ export default defineComponent({
       selectedNodeId,
       workflowId,
       isAddingNode,
+      onRouteChange,
     }
   },
 })

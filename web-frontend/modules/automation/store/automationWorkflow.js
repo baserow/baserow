@@ -94,12 +94,12 @@ const actions = {
     return workflow
   },
   unselect({ commit, dispatch }) {
+    commit('UNSELECT')
     dispatch(
       'undoRedo/updateCurrentScopeSet',
       AUTOMATION_ACTION_SCOPES.workflow(null),
       { root: true }
     )
-    commit('UNSELECT')
   },
   async forceDelete({ commit }, { automation, workflow }) {
     if (workflow._.selected) {
@@ -121,6 +121,21 @@ const actions = {
 
     return workflow
   },
+  async fetchById({ getters, commit, dispatch }, { automation, workflowId }) {
+    const { data } = await AutomationWorkflowService(this.$client).read(
+      workflowId
+    )
+    const workflow = getters.getById(automation, workflowId)
+    dispatch('forceUpdate', {
+      workflow,
+      values: {
+        ...data,
+        nodes: workflow.nodes,
+        nodeMap: workflow.nodeMap,
+      },
+    })
+    return data
+  },
   async update({ dispatch }, { automation, workflow, values }) {
     const { data } = await AutomationWorkflowService(this.$client).update(
       workflow.id,
@@ -132,7 +147,7 @@ const actions = {
       return result
     }, {})
 
-    await dispatch('forceUpdate', { automation, workflow, values: update })
+    await dispatch('forceUpdate', { workflow, values: update })
   },
   async delete({ dispatch }, { automation, workflow }) {
     await AutomationWorkflowService(this.$client).delete(workflow.id)
@@ -163,6 +178,17 @@ const actions = {
   },
   setActiveSidePanel({ commit }, sidePanelType) {
     commit('SET_ACTIVE_SIDE_PANEL', sidePanelType)
+  },
+  async toggleTestRun({ dispatch }, { workflow, allowTestRun }) {
+    const {
+      data: { allow_test_run_until: allowTestRunUntil },
+    } = await AutomationWorkflowService(this.$client).update(workflow.id, {
+      allow_test_run: allowTestRun,
+    })
+    await dispatch('forceUpdate', {
+      workflow,
+      values: { allow_test_run_until: allowTestRunUntil },
+    })
   },
 }
 

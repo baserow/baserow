@@ -12,6 +12,14 @@
   overflow: hidden;
 }
 
+.automation-workflow__content--loading {
+  background-image: radial-gradient(circle, #ededed 1.4px, transparent 1.4px);
+  background-size: 15px 15px;
+  background-position: 5px 2px;
+  align-items: center;
+  justify-content: center;
+}
+
 .automation-workflow__side-panel {
   flex: 20 1 0px;
   padding: 16px;

@@ -14,6 +14,7 @@
   >
     <Controls :show-interactive="false" />
     <Background pattern-color="#ededed" :size="3" :gap="15" />
+
     <template #node-workflow-node="slotProps">
       <WorkflowNode
         :id="slotProps.id"

@@ -107,6 +107,29 @@ def test_create_workflow_duplicate_name(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_read_workflow(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(automation=automation)
+
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "id": workflow.id,
+        "order": AnyInt(),
+        "name": workflow.name,
+        "automation_id": automation.id,
+        "allow_test_run_until": None,
+    }
+
+
+@pytest.mark.django_db
 def test_update_workflow(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user=user)
