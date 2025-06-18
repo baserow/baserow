@@ -143,12 +143,11 @@
           <div class="control__messages padding-top-0">
             <p
               v-if="dbIndexError"
-              class="control__messages--error"
-              style="max-width: 366px"
+              class="control__messages--error field-context__inner-element-width"
             >
               {{ $t('fieldForm.dbIndexError') }}
             </p>
-            <p class="control__helper-text" style="max-width: 366px">
+            <p class="control__helper-text field-context__inner-element-width">
               {{ $t('fieldForm.dbIndexDescription') }}
             </p>
           </div>

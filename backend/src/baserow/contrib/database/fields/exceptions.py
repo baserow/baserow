@@ -117,7 +117,7 @@ class IncompatiblePrimaryFieldTypeError(Exception):
 
 
 class DbIndexNotSupportedError(Exception):
-    """Raised when truing to enable a db_index to a field that doesn't support is."""
+    """Raised when trying to enable a db_index to a field that doesn't support is."""
 
     def __init__(self, field_type=None, *args, **kwargs):
         self.field_type = field_type
