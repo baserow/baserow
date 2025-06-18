@@ -87,7 +87,7 @@
         {{ $t('mcpEndpoint.warning') }}
       </div>
     </div>
-    <Tabs no-padding>
+    <Tabs header-no-padding content-no-x-padding>
       <Tab title="Claude">
         <MarkdownIt
           class="mcp-endpoint__instructions margin-bottom-1"

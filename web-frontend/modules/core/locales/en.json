@@ -735,6 +735,17 @@
   "formulaInputField": {
     "errorInvalidFormula": "The formula is invalid."
   },
+  "formulaInputContext": {
+    "variables": "Variables",
+    "functions": "Functions",
+    "operators": "Operators",
+    "search": "Search",
+    "useRegularInputModalTitle": "Use regular input for this field ?",
+    "useRegularInput": "Use regular input",
+    "useAdvancedInput": "Use advanced input",
+    "useAdvancedInputModalTitle": "Use regular input for this field ?",
+    "modalMessage": "Your field’s content will be cleared and it will not be possible to recover it."
+  },
   "dataExplorer": {
     "noMatchingNodesText": "No matching results were found.",
     "noProvidersText": "No data providers were found. To get started you can, for example, add a data source or page parameter."

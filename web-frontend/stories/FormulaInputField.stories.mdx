@@ -1,0 +1,521 @@
+import { Meta, Story, Props, Canvas } from '@storybook/addon-docs/blocks'
+import { config, withDesign } from 'storybook-addon-designs'
+import { action } from '@storybook/addon-actions'
+
+import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
+
+<Meta
+    title="Baserow/Form Elements/FormulaInputField"
+    component={FormulaInputField}
+    parameters={{
+        backgrounds: {
+            default: 'light',
+            values: [
+                { name: 'white', value: '#ffffff' },
+                { name: 'light', value: '#eeeeee' },
+                { name: 'dark', value: '#222222' },
+            ],
+        },
+    }}
+    decorators={[withDesign]}
+    argTypes={{
+        value: {
+            control: {
+                type: 'text',
+            },
+            defaultValue: '',
+        },
+        placeholder: {
+            control: {
+                type: 'text',
+            },
+            defaultValue: 'Enter a formula...',
+        },
+        disabled: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        small: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        advanced: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: true,
+        },
+        dataExplorerLoading: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        contextPosition: {
+            control: {
+                type: 'select',
+                options: ['bottom', 'left', 'right'],
+            },
+            defaultValue: 'bottom',
+        },
+        readOnly: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+    }}
+/>
+
+# FormulaInputField
+
+The FormulaInputField component is used to input and edit formulas with syntax highlighting, validation, and auto-completion. It supports functions, operators, and data references.
+
+export const mockApplicationContext = {
+    page: {
+        id: 1,
+        name: 'Test Page',
+    },
+}
+
+export const mockDataProviders = [
+    {
+        type: 'current_user',
+        name: 'Current User',
+        getNodes: (applicationContext) => ({
+            icon: 'iconoir-user',
+            identifier: 'current_user',
+            name: 'Current User',
+            nodes: [
+                {
+                    name: 'Is authenticated',
+                    order: 1,
+                    type: 'boolean',
+                    icon: 'baserow-icon-circle-checked',
+                    identifier: 'is_authenticated',
+                },
+                {
+                    name: 'Id',
+                    order: 2,
+                    type: 'number',
+                    icon: 'baserow-icon-hashtag',
+                    identifier: 'id',
+                },
+                {
+                    name: 'Email',
+                    order: 3,
+                    type: 'string',
+                    icon: 'iconoir-text',
+                    identifier: 'email',
+                },
+                {
+                    name: 'Username',
+                    order: 4,
+                    type: 'string',
+                    icon: 'iconoir-text',
+                    identifier: 'username',
+                },
+                {
+                    name: 'Role',
+                    order: 5,
+                    type: 'string',
+                    icon: 'iconoir-text',
+                    identifier: 'role',
+                },
+            ],
+            order: null,
+        }),
+        getPathTitle: (applicationContext, pathParts) => {
+            // This method returns the display name for each part of the path
+            const [root, ...rest] = pathParts
+            if (root === 'current_user') {
+                if (rest.length === 0) {
+                    return 'Current User'
+                }
+                const fieldNames = {
+                    is_authenticated: 'Is authenticated',
+                    id: 'Id',
+                    email: 'Email',
+                    username: 'Username',
+                    role: 'Role',
+                }
+                return fieldNames[rest[0]] || rest[0]
+            }
+            return pathParts.join('.')
+        },
+        getDataChunk: (applicationContext, pathParts) => {
+            // This method would return actual data in a real scenario
+            // For the story, we can return mock data
+            const [field] = pathParts
+            const mockData = {
+                is_authenticated: true,
+                id: 123,
+                email: 'user@example.com',
+                username: 'johndoe',
+                role: 'admin',
+            }
+            return mockData[field] || `mock_${field}`
+        },
+    },
+]
+
+export const mockContextTabs = [
+    {
+        name: 'Functions',
+        categories: [
+            {
+                name: 'Text',
+                items: [
+                    {
+                        name: 'concat',
+                        description:
+                            'Concatenates multiple text values together',
+                        highlightingColor: 'blue',
+                        icon: 'iconoir-text',
+                        signature: {
+                            parameters: [
+                                {
+                                    name: 'text1',
+                                    type: 'text',
+                                    required: true,
+                                    description: 'First text to concatenate',
+                                },
+                                {
+                                    name: 'text2',
+                                    type: 'text',
+                                    required: false,
+                                    description:
+                                        'Additional text to concatenate',
+                                },
+                            ],
+                            variadic: true, //  unlimited arguments
+                            minArgs: 1,
+                            maxArgs: null, // null = unlimited
+                            returnType: 'text',
+                        },
+                        example: "concat('Hello', ' ', 'World')",
+                    },
+                    {
+                        name: 'upper',
+                        description: 'Converts text to uppercase',
+                        highlightingColor: 'blue',
+                        icon: 'iconoir-text',
+                        signature: {
+                            parameters: [
+                                {
+                                    name: 'text',
+                                    type: 'text',
+                                    required: true,
+                                    description: 'Text to convert to uppercase',
+                                },
+                            ],
+                            variadic: false,
+                            minArgs: 1,
+                            maxArgs: 1,
+                            returnType: 'text',
+                        },
+                        example: "upper('hello world')",
+                    },
+                    {
+                        name: 'lower',
+                        description: 'Converts text to lowercase',
+                        highlightingColor: 'blue',
+                        icon: 'iconoir-text',
+                        signature: {
+                            parameters: [
+                                {
+                                    name: 'text',
+                                    type: 'text',
+                                    required: true,
+                                    description: 'Text to convert to lowercase',
+                                },
+                            ],
+                            variadic: false,
+                            minArgs: 1,
+                            maxArgs: 1,
+                            returnType: 'text',
+                        },
+                        example: "lower('HELLO WORLD')",
+                    },
+                    {
+                        name: 'substring',
+                        description: 'Extracts a portion of text',
+                        highlightingColor: 'blue',
+                        icon: 'iconoir-text',
+                        signature: {
+                            parameters: [
+                                {
+                                    name: 'text',
+                                    type: 'text',
+                                    required: true,
+                                    description: 'Source text',
+                                },
+                                {
+                                    name: 'start',
+                                    type: 'number',
+                                    required: true,
+                                    description: 'Starting position (0-based)',
+                                },
+                                {
+                                    name: 'length',
+                                    type: 'number',
+                                    required: false,
+                                    description:
+                                        'Number of characters to extract',
+                                },
+                            ],
+                            variadic: false,
+                            minArgs: 2,
+                            maxArgs: 3,
+                            returnType: 'text',
+                        },
+                        example: "substring('Hello World', 0, 5)",
+                    },
+                ],
+            },
+            {
+                name: 'Math',
+                items: [
+                    {
+                        name: 'round',
+                        description:
+                            'Rounds a number to specified decimal places',
+                        highlightingColor: 'green',
+                        icon: 'iconoir-calculator',
+                        signature: {
+                            parameters: [
+                                {
+                                    name: 'number',
+                                    type: 'number',
+                                    required: true,
+                                    description: 'Number to round',
+                                },
+                                {
+                                    name: 'decimals',
+                                    type: 'number',
+                                    required: false,
+                                    description:
+                                        'Number of decimal places (default: 0)',
+                                },
+                            ],
+                            variadic: false,
+                            minArgs: 1,
+                            maxArgs: 2,
+                            returnType: 'number',
+                        },
+                        example: 'round(3.14159, 2)',
+                    },
+                    {
+                        name: 'sum',
+                        description: 'Calculates the sum of multiple numbers',
+                        highlightingColor: 'green',
+                        icon: 'iconoir-calculator',
+                        signature: {
+                            parameters: [
+                                {
+                                    name: 'number1',
+                                    type: 'number',
+                                    required: true,
+                                    description: 'First number to add',
+                                },
+                                {
+                                    name: 'number2',
+                                    type: 'number',
+                                    required: false,
+                                    description: 'Additional numbers to add',
+                                },
+                            ],
+                            variadic: true,
+                            minArgs: 1,
+                            maxArgs: null,
+                            returnType: 'number',
+                        },
+                        example: 'sum(1, 2, 3, 4)',
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        name: 'Operators',
+        categories: [
+            {
+                name: 'Arithmetic',
+                items: [
+                    {
+                        name: 'add',
+                        description: 'Adds two numbers',
+                        highlightingColor: 'green',
+                        icon: 'iconoir-calculator',
+                        isOperator: true,
+                        operator: '+',
+                        signature: {
+                            parameters: [
+                                {
+                                    name: 'left',
+                                    type: 'number',
+                                    required: true,
+                                    description: 'Left operand',
+                                },
+                                {
+                                    name: 'right',
+                                    type: 'number',
+                                    required: true,
+                                    description: 'Right operand',
+                                },
+                            ],
+                            variadic: false,
+                            minArgs: 2,
+                            maxArgs: 2,
+                            returnType: 'number',
+                        },
+                        example: '5 + 3',
+                    },
+                    {
+                        name: 'multiply',
+                        description: 'Multiplies two numbers',
+                        highlightingColor: 'green',
+                        icon: 'iconoir-calculator',
+                        isOperator: true,
+                        operator: '*',
+                        signature: {
+                            parameters: [
+                                {
+                                    name: 'left',
+                                    type: 'number',
+                                    required: true,
+                                    description: 'Left operand',
+                                },
+                                {
+                                    name: 'right',
+                                    type: 'number',
+                                    required: true,
+                                    description: 'Right operand',
+                                },
+                            ],
+                            variadic: false,
+                            minArgs: 2,
+                            maxArgs: 2,
+                            returnType: 'number',
+                        },
+                        example: '5 * 3',
+                    },
+                ],
+            },
+        ],
+    },
+]
+
+export const Template = (args, { argTypes }) => ({
+    components: { FormulaInputField },
+    props: Object.keys(argTypes),
+    data() {
+        return {
+            formulaValue: args.value || '',
+            advancedMode: args.advanced || false,
+            mockDataProviders,
+            mockApplicationContext,
+            mockContextTabs,
+        }
+    },
+    template: `
+    <div style="padding: 20px; max-width: 600px;">
+        <FormulaInputField 
+            v-bind="$props"
+            :value="formulaValue"
+            :advanced="advancedMode"
+            :data-providers="mockDataProviders"
+            :application-context="mockApplicationContext"
+            :context-tabs="mockContextTabs"
+            @input="onInput"
+            @update:advanced="onAdvanced"
+        />
+        
+        <!-- Display emitted formula value -->
+        <div style="margin-top: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px; border-left: 4px solid #007bff;">
+            <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">Emitted Formula:</h4>
+            <code style="background: #fff; padding: 4px 8px; border-radius: 3px; font-family: monospace; color: #e83e8c; word-break: break-all;">
+                {{ formulaValue || '(empty)' }}
+            </code>
+        </div>
+    </div>
+    `,
+    methods: {
+        onInput(value) {
+            this.formulaValue = value
+            action('input')(value)
+        },
+        onAdvanced(value) {
+            this.advancedMode = value
+            action('update:advanced')(value)
+        },
+    },
+})
+
+export const designConfig = {
+    type: 'figma',
+    url: 'https://www.figma.com/design/pARSkP8ldSqMVxV1t2gYYT/Application-builder?node-id=1314-35740&m=dev',
+}
+
+<Canvas>
+    <Story
+        name="Default"
+        parameters={{
+            design: config(designConfig),
+        }}
+        args={{
+            value: '',
+            placeholder: 'Enter a formula...',
+        }}
+    >
+        {Template.bind({})}
+    </Story>
+</Canvas>
+
+## Example
+
+```javascript
+<FormulaInputField
+    v-model="formulaValue"
+    :data-providers="dataProviders"
+    :application-context="applicationContext"
+    :context-tabs="contextTabs"
+    placeholder="Enter a formula..."
+    :advanced="true"
+    context-position="bottom"
+    @input="onFormulaChange"
+/>
+```
+
+## Features
+
+-   **Syntax Highlighting**: Functions and operators are highlighted with colors
+-   **Real-time Validation**: Shows errors for invalid formulas or incorrect function arguments
+-   **Auto-completion**: Suggests functions and operators as you type
+-   **Data Explorer**: Browse available data sources and fields
+-   **Advanced/Simple Mode**: Toggle between advanced formula editor and simple input
+-   **Function Documentation**: Shows function signatures and examples
+-   **Flexible Context Position**: Position the context menu in different locations relative to the input field
+
+## Context Positioning
+
+The `context-position` prop allows you to control where the formula context menu appears, ensuring it never covers the input field:
+
+-   **`bottom`** (default): Below the input field
+-   **`left`**: To the left side of the input field
+-   **`right`**: To the right side of the input field
+
+The context menu is automatically positioned to avoid covering the input field, maintaining optimal usability.
+
+## Props
+
+<Props of={FormulaInputField} />{' '}
