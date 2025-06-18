@@ -360,7 +360,7 @@ export default {
   },
   validations() {
     const isValidParamOrHeaderName = (name) => {
-      const validNameRegex = /^[a-zA-Z0-9-_]+$/
+      const validNameRegex = /^[a-zA-Z0-9-_.]+$/
 
       if (name[0] === '-' || name[0] === '_') {
         return false
