@@ -1,11 +1,5 @@
 <template>
-  <Context
-    overflow-scroll
-    max-height-if-outside-viewport
-    :hide-on-click-outside="false"
-    class="data-explorer"
-    @shown="onShow"
-  >
+  <div class="data-explorer">
     <div ref="wrapper">
       <div v-if="loading" class="context--loading">
         <div class="loading" />
@@ -40,11 +34,10 @@
         </div>
       </template>
     </div>
-  </Context>
+  </div>
 </template>
 
 <script>
-import context from '@baserow/modules/core/mixins/context'
 import SelectSearch from '@baserow/modules/core/components/SelectSearch'
 import DataExplorerNode from '@baserow/modules/core/components/dataExplorer/DataExplorerNode'
 
@@ -53,7 +46,6 @@ import _ from 'lodash'
 export default {
   name: 'DataExplorer',
   components: { SelectSearch, DataExplorerNode },
-  mixins: [context],
   props: {
     nodes: {
       type: Array,
@@ -124,10 +116,10 @@ export default {
       immediate: true,
     },
   },
+  mounted() {
+    this.onShow()
+  },
   methods: {
-    /**
-     * Resets state on show context
-     */
     onShow() {
       this.search = null
       this.openNodes = new Set()

@@ -5,8 +5,11 @@
       'tabs--full-height': fullHeight,
       'tabs--large-offset': largeOffset,
       'tabs--large': large,
-      'tabs--nopadding': noPadding,
+      'tabs--header-nopadding': headerNoPadding,
+      'tabs--content-no-x-padding': contentNoXPadding,
+      'tabs--content-no-padding': contentNoPadding,
       'tabs--grow-items': growItems,
+      'tabs--rounded': rounded,
     }"
   >
     <ul class="tabs__header">
@@ -72,7 +75,7 @@ export default {
       default: null,
     },
     /**
-     * Whether the tabs container should add some extra space to the left.
+     * Whether the tabs header container should add some extra space to the left.
      */
     largeOffset: {
       type: Boolean,
@@ -90,7 +93,23 @@ export default {
     /**
      * Removes the padding from the tabs container and header.
      */
-    noPadding: {
+    headerNoPadding: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    /**
+     * Removes the left and right padding from the tabs container only.
+     */
+    contentNoXPadding: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    /**
+     * Removes padding (x and y) from the tabs container only.
+     */
+    contentNoPadding: {
       type: Boolean,
       required: false,
       default: false,
@@ -107,6 +126,11 @@ export default {
       type: [Array, null],
       required: false,
       default: null,
+    },
+    rounded: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   data() {
