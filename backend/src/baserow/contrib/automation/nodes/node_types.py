@@ -10,6 +10,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.nodes.models import (
     AutomationActionNode,
     LocalBaserowCreateRowActionNode,
+    LocalBaserowDeleteRowActionNode,
     LocalBaserowRowsCreatedTriggerNode,
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
@@ -17,6 +18,7 @@ from baserow.contrib.automation.nodes.models import (
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.integrations.local_baserow.service_types import (
+    LocalBaserowDeleteRowServiceType,
     LocalBaserowRowsCreatedTriggerServiceType,
     LocalBaserowRowsDeletedTriggerServiceType,
     LocalBaserowRowsUpdatedTriggerServiceType,
@@ -58,6 +60,12 @@ class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
 class LocalBaserowUpdateRowNodeType(LocalBaserowUpsertRowNodeType):
     type = "update_row"
     model_class = LocalBaserowUpdateRowActionNode
+
+
+class LocalBaserowDeleteRowNodeType(AutomationNodeActionNodeType):
+    type = "delete_row"
+    model_class = LocalBaserowDeleteRowActionNode
+    service_type = LocalBaserowDeleteRowServiceType.type
 
 
 class AutomationNodeTriggerType(AutomationNodeType):
