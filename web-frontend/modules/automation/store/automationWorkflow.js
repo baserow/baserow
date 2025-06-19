@@ -33,7 +33,9 @@ const mutations = {
   },
   DELETE_ITEM(state, { automation, id }) {
     const index = automation.workflows.findIndex((item) => item.id === id)
-    automation.workflows.splice(index, 1)
+    if (index > -1) {
+      automation.workflows.splice(index, 1)
+    }
   },
   SET_SELECTED(state, { automation, workflow }) {
     Object.values(automation.workflows).forEach((item) => {
