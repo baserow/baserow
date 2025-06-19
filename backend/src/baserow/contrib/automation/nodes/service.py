@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
+    AutomationNodeTypeNotReplaceable,
     AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
@@ -22,6 +23,7 @@ from baserow.contrib.automation.nodes.operations import (
     ReadAutomationNodeOperationType,
     UpdateAutomationNodeOperationType,
 )
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_deleted,

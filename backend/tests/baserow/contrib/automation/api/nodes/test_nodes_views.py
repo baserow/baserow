@@ -45,6 +45,7 @@ def test_create_node(api_client, data_fixture):
     assert response.json() == {
         "id": 1,
         "order": AnyStr(),
+        "previous_node_id": None,
         "previous_node_output": "",
         "service": AnyDict(),
         "type": "create_row",
@@ -75,6 +76,7 @@ def test_create_node_before(api_client, data_fixture):
     assert response.json() == {
         "id": AnyInt(),
         "order": "1.50000000000000000000",
+        "previous_node_id": None,
         "previous_node_output": "",
         "service": AnyDict(),
         "type": "create_row",
@@ -254,6 +256,7 @@ def test_get_node(api_client, data_fixture):
         {
             "id": node.id,
             "order": AnyStr(),
+            "previous_node_id": None,
             "previous_node_output": "",
             "service": AnyDict(),
             "type": "create_row",
@@ -523,6 +526,7 @@ def test_update_node(api_client, data_fixture):
         "id": node.id,
         "order": AnyStr(),
         "service": AnyDict(),
+        "previous_node_id": None,
         "previous_node_output": "foo",
         "type": "create_row",
         "workflow": workflow.id,
@@ -574,3 +578,60 @@ def test_update_node_undo_redo(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     node.refresh_from_db()
     assert node.previous_node_output == "foo"
+
+
+@pytest.mark.django_db
+def test_update_node_type_with_irreplaceable_type(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow
+    )
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        {"type": "create_row"},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "detail": "Automation nodes can only be updated with a type of the same "
+        "category. Triggers cannot be updated with actions, and vice-versa.",
+        "error": "ERROR_AUTOMATION_NODE_NOT_REPLACEABLE",
+    }
+
+
+@pytest.mark.django_db
+def test_update_node_type_with_replaceable_type(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow
+    )
+    action_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, previous_node=trigger
+    )
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": action_node.id}),
+        {"type": "update_row"},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "id": AnyInt(),
+        "type": "update_row",
+        "workflow": workflow.id,
+        "previous_node_id": trigger.id,
+        "order": str(action_node.order),
+        "service": {
+            "id": AnyInt(),
+            "row_id": "",
+            "context_data": None,
+            "context_data_schema": None,
+            "integration_id": None,
+            "schema": None,
+            "table_id": None,
+            "field_mappings": [],
+            "type": "local_baserow_upsert_row",
+        },
+        "previous_node_output": "",
+    }

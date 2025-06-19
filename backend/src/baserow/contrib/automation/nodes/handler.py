@@ -27,7 +27,12 @@ from baserow.core.utils import MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
-    allowed_fields = ["previous_node_output", "service"]
+    allowed_fields = [
+        "service",
+        "previous_node",
+        "previous_node_id",
+        "previous_node_output",
+    ]
 
     def create_node(
         self,
@@ -50,8 +55,8 @@ class AutomationNodeHandler:
             kwargs, self.allowed_fields + node_type.allowed_fields
         )
 
-        parent_node_id = allowed_prepared_values.get("parent_node_id", None)
         if before:
+            parent_node_id = allowed_prepared_values.get("parent_node_id", None)
             order = AutomationNode.get_unique_order_before_node(before, parent_node_id)
         else:
             order = AutomationNode.get_last_order(workflow)
@@ -138,7 +143,8 @@ class AutomationNodeHandler:
         :return: The updated AutomationNode.
         """
 
-        original_node_values = node.get_type().export_prepared_values(node)
+        node_type = node.get_type()
+        original_node_values = node_type.export_prepared_values(node)
 
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
 
@@ -147,9 +153,13 @@ class AutomationNodeHandler:
 
         node.save()
 
-        new_node_values = node.get_type().export_prepared_values(node)
+        new_node_values = node_type.export_prepared_values(node)
         updated_node = UpdatedAutomationNode(
-            node, original_node_values, new_node_values
+            node=node,
+            node_id=node.id,
+            node_type=node_type.type,
+            original_values=original_node_values,
+            new_values=new_node_values,
         )
 
         return updated_node
