@@ -147,7 +147,6 @@ class ChartWidgetType(WidgetType):
                 ),
             )
             values["data_source"] = data_source
-            print(values)
         return values
 
     def before_trashed(self, instance: Widget):
