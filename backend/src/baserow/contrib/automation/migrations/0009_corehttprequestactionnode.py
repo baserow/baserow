@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("automation", "0007_localbaserowupdaterowactionnode"),
+        ("automation", "0008_localbaserowdeleterowactionnode"),
     ]
 
     operations = [
