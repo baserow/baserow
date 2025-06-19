@@ -19,9 +19,9 @@ class AutomationConfig(AppConfig):
             UpdateAutomationNodeActionType,
         )
         from baserow.contrib.automation.nodes.node_types import (
+            CoreHttpRequestNodeType,
             LocalBaserowCreateRowNodeType,
             LocalBaserowDeleteRowNodeType,
-            CoreHttpRequestNodeType,
             LocalBaserowRowsCreatedNodeTriggerType,
             LocalBaserowRowsDeletedNodeTriggerType,
             LocalBaserowRowsUpdatedNodeTriggerType,
