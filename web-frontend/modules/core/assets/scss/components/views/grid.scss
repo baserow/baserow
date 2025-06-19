@@ -652,9 +652,7 @@
   .grid-view__description-extra-icon {
     content: '';
     font-size: 8px;
-    padding: 1px;
     color: $palette-neutral-1200;
-    background-color: $color-neutral-100;
 
     @include absolute(auto, -4px, -2px, auto);
   }
