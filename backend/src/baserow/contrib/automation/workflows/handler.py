@@ -12,6 +12,7 @@ from baserow.contrib.automation.constants import (
     WORKFLOW_NAME_MAX_LEN,
 )
 from baserow.contrib.automation.models import Automation
+from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.exceptions import (
@@ -323,8 +324,8 @@ class AutomationWorkflowHandler:
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
-        cache: Optional[Dict[str, any]] = None,
-    ):
+        cache: Optional[Dict[str, Any]] = None,
+    ) -> List[AutomationNode]:
         """
         Import nodes into the provided workflow.
 
@@ -354,16 +355,14 @@ class AutomationWorkflowHandler:
         was_imported = True
         while was_imported:
             was_imported = False
+            workflow_node_mapping = id_mapping.get("automation_workflow_nodes", {})
 
             for serialized_node in prioritized_nodes:
                 parent_node_id = serialized_node["parent_node_id"]
                 # check that the node has not already been imported in a
                 # previous pass or if the parent doesn't exist yet.
-                if serialized_node["id"] not in id_mapping.get(
-                    "automation_workflow_nodes", {}
-                ) and (
-                    parent_node_id is None
-                    or parent_node_id in id_mapping.get("automation_workflow_nodes", {})
+                if serialized_node["id"] not in workflow_node_mapping and (
+                    parent_node_id is None or parent_node_id in workflow_node_mapping
                 ):
                     imported_node = AutomationNodeHandler().import_node(
                         workflow,

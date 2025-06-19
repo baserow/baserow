@@ -55,7 +55,7 @@ class PreviousNodeProviderType(AutomationDataProviderType):
                 node = AutomationNodeHandler().get_node(previous_node_id)
             except (KeyError, AutomationNodeDoesNotExist):
                 # In the event the `previous_node_id` is not found in the `id_mapping`,
-                # or if the previous node is not exist, we return the malformed path.
+                # or if the previous node does not exist, we return the malformed path.
                 return [str(previous_node_id), *rest]
 
             service_type = node.service.specific.get_type()

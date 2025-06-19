@@ -13,7 +13,7 @@ class BaserowFormulaImporter(BaserowFormulaVisitor, ABC):
 
     @abstractmethod
     def get_data_provider_type_registry(self):
-        raise NotImplementedError("This method must be implemented in subclasses.")
+        ...
 
     def __init__(self, id_mapping, **kwargs):
         self.id_mapping = id_mapping
