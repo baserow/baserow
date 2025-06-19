@@ -91,6 +91,7 @@ AIRTABLE_DATE_FILTER_VALUE_MAP = {
     "nextMonth": "{timeZone}??next_month",
     "nextNumberOfDays": "{timeZone}?{numberOfDays}?nr_days_from_now",
     "nextWeek": "{timeZone}??next_week",
+    "nextYear": "{timeZone}??next_year",
     "oneMonthAgo": "{timeZone}??one_month_ago",
     "oneWeekAgo": "{timeZone}?1?nr_weeks_ago",
     "oneMonthFromNow": "{timeZone}?1?nr_months_from_now",

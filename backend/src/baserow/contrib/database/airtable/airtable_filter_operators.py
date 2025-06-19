@@ -44,6 +44,8 @@ class AirtableDoesNotContainOperator(AirtableFilterOperator):
             return view_filter_type_registry.get("link_row_not_contains"), value
 
         if raw_airtable_column["type"] in ["multiSelect"]:
+            if not value:
+                value = []
             value = [f"{raw_airtable_column['id']}_{v}" for v in value]
             value = ",".join(value)
             return view_filter_type_registry.get("multiple_select_has_not"), value
@@ -85,6 +87,8 @@ class AirtableEqualOperator(AirtableFilterOperator):
             return view_filter_type_registry.get("single_select_equal"), value
 
         if raw_airtable_column["type"] in ["multiSelect"]:
+            if not value:
+                value = []
             value = [f"{raw_airtable_column['id']}_{v}" for v in value]
             value = ",".join(value)
             return view_filter_type_registry.get("multiple_select_has"), value
