@@ -316,6 +316,19 @@ class AutomationWorkflowHandler:
         # Return zero for now, since we don't have Triggers and Actions yet.
         return 0
 
+    def _sort_serialized_nodes_by_priority(
+        self, serialized_nodes: List[AutomationNodeDict]
+    ) -> List[AutomationNodeDict]:
+        """
+        Sorts the serialized nodes so that root-level nodes (those without a parent)
+        are first, and then sorts by their `order` ASC.
+        """
+
+        def _node_priority_sort(n):
+            return n.get("parent_node_id") is not None, n.get("order", 0)
+
+        return sorted(serialized_nodes, key=_node_priority_sort)
+
     def import_nodes(
         self,
         workflow: AutomationWorkflow,
@@ -342,14 +355,7 @@ class AutomationWorkflowHandler:
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
         imported_nodes = []
-
-        # Sort the serialized nodes so that we import:
-        # root-level nodes first (those without a parent)
-        # and then sort by their `order` ASC.
-        def node_priority_sort(n):
-            return n.get("parent_node_id") is None, n.get("order", 0)
-
-        prioritized_nodes = sorted(serialized_nodes, key=node_priority_sort)
+        prioritized_nodes = self._sort_serialized_nodes_by_priority(serialized_nodes)
 
         # True if we have imported at least one node on last iteration
         was_imported = True
