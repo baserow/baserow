@@ -2,6 +2,7 @@ from datetime import datetime
 from itertools import groupby
 
 from django.conf import settings
+from django.db import router
 from django.db.models import QuerySet
 from django.dispatch import receiver
 
@@ -75,7 +76,7 @@ class RowHistoryHandler:
         """
 
         delete_qs = RowHistory.objects.filter(action_timestamp__lt=cutoff)
-        delete_qs._raw_delete(delete_qs.db)
+        delete_qs._raw_delete(using=router.db_for_write(delete_qs.model))
 
 
 @receiver(action_done)
