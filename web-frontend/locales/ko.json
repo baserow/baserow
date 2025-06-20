@@ -109,7 +109,8 @@
         "minMaxValueField": "필드 값은 {min}에서 {max} 사이여야 합니다.",
         "invalidURL": "유효한 URL을 입력하세요.",
         "email": "필드는 이메일이어야 합니다.",
-        "alreadyInUse": "이 필드 이름은 이미 사용 중입니다."
+        "alreadyInUse": "이 필드 이름은 이미 사용 중입니다.",
+        "copyFailed": "클립보드에 복사하지 못했습니다. 다시 시도해 주세요."
     },
     "permission": {
         "admin": "관리자",
