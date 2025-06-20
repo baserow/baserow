@@ -1017,7 +1017,7 @@
     },
     "databaseStep": {
         "title": "첫 번째 데이터베이스 생성",
-        "description": "시작할 항목을 선택하세요:",
+        "description": "시작할 위치를 선택하세요:",
         "databaseNameLabel": "데이터베이스 이름",
         "scratch": "처음부터",
         "import": "파일",
@@ -1052,7 +1052,9 @@
         "next": "다음",
         "fields": "동기화하려는 필드 선택",
         "create": "테이블 생성 및 동기화",
-        "error": "동기화 중 문제가 발생했습니다"
+        "error": "동기화 중 문제가 발생했습니다",
+        "autoAddLabel": "새로운 속성을 자동으로 추가합니다",
+        "autoAddHelper": "새로 사용 가능한 속성을 테이블에 자동으로 추가하고 동기화합니다. 이 기능을 사용하려면 모든 속성이 동기화되어야 합니다."
     },
     "syncTableModal": {
         "title": "{name} 동기화",
