@@ -18,12 +18,18 @@
         "misconfigured": "잘못 구성됨",
         "trashedField": "휴지통으로 이동된 필드",
         "localBaserowRowsCreated": "행이 생성됨",
-        "localBaserowRowsCreatedDescription": "Baserow 테이블에 하나 이상의 행이 생성될 때 트리거됩니다.",
+        "localBaserowRowsCreatedDescription": "Baserow 테이블에 행이 생성될 때 트리거됩니다.",
         "localBaserowCreateRow": "행 생성",
         "localBaserowDeleteRow": "행 삭제",
         "coreHTTPRequest": "HTTP 요청 보내기",
         "localBaserowUpdateRow": "행 업데이트",
-        "localBaserowCreateRowDescription": "Baserow 테이블에 새 행을 만듭니다."
+        "localBaserowCreateRowDescription": "Baserow 테이블에 새 행을 만듭니다.",
+        "localBaserowDeleteRowDescription": "Baserow 테이블에서 행을 삭제합니다.",
+        "localBaserowRowsUpdated": "행 업데이트됨",
+        "localBaserowRowsDeleted": "행 삭제됨",
+        "localBaserowRowsDeletedDescription": "Baserow 테이블에서 행이 삭제되면 발생합니다.",
+        "localBaserowUpdateRowDescription": "Baserow 테이블의 기존 행을 업데이트합니다.",
+        "localBaserowRowsUpdatedDescription": "Baserow 테이블의 행이 업데이트될 때 트리거됩니다."
     },
     "userSourceType": {
         "localBaserow": "Baserow 테이블 인증"
