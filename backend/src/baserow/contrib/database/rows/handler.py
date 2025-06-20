@@ -19,7 +19,7 @@ from typing import (
 from django import db
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.db import connection, transaction, router
+from django.db import connection, router, transaction
 from django.db.models import Field as DjangoField
 from django.db.models import Model, Q, QuerySet, Window
 from django.db.models.expressions import RawSQL
