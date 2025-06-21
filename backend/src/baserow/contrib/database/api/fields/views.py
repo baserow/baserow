@@ -1,6 +1,7 @@
 from typing import Any, Dict
 
 from django.conf import settings
+from django.contrib.auth.hashers import check_password
 from django.db import transaction
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
@@ -57,6 +58,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
     ERROR_TABLE_HAS_NO_PRIMARY_FIELD,
 )
+from baserow.contrib.database.api.rows.errors import ERROR_ROW_DOES_NOT_EXIST
 from baserow.contrib.database.api.tables.errors import (
     ERROR_FAILED_TO_LOCK_TABLE_DUE_TO_CONFLICT,
     ERROR_TABLE_DOES_NOT_EXIST,
@@ -97,12 +99,14 @@ from baserow.contrib.database.fields.exceptions import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.job_types import DuplicateFieldJobType
+from baserow.contrib.database.fields.models import PasswordField
 from baserow.contrib.database.fields.operations import (
     CreateFieldOperationType,
     ListFieldsOperationType,
     ReadFieldOperationType,
 )
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.table.exceptions import (
     FailedToLockTableDueToConflict,
     TableDoesNotExist,
@@ -125,6 +129,8 @@ from .serializers import (
     DuplicateFieldParamsSerializer,
     FieldSerializer,
     FieldSerializerWithRelatedFields,
+    PasswordFieldAuthenticationResponseSerializer,
+    PasswordFieldAuthenticationSerializer,
     RelatedFieldsSerializer,
     UniqueRowValueParamsSerializer,
     UniqueRowValuesSerializer,
@@ -708,3 +714,68 @@ class ChangePrimaryFieldView(APIView):
             related_fields=[old_primary_field],
         )
         return Response(serializer.data)
+
+
+class PasswordFieldAuthenticationView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="field_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The field where to check the password for.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Database table fields"],
+        operation_id="password_field_authentication",
+        description=(
+            "Checks if the provided password and row matches what is stored in the "
+            "cell. The must have `allow_endpoint_authentication` set to `true` in "
+            "order to work."
+        ),
+        request=PasswordFieldAuthenticationSerializer,
+        responses={
+            200: PasswordFieldAuthenticationResponseSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_INVALID_PASSWORD_FIELD_PASSWORD",
+                ]
+            ),
+            404: get_error_schema(
+                ["ERROR_FIELD_DOES_NOT_EXIST", "ERROR_ROW_DOES_NOT_EXIST"]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
+            RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
+        }
+    )
+    @validate_body(PasswordFieldAuthenticationSerializer)
+    def post(self, request: Request, field_id: int, data: Dict[str, Any]) -> Response:
+        base_queryset = PasswordField.objects.filter(allow_endpoint_authentication=True)
+        field = FieldHandler().get_field(field_id, base_queryset=base_queryset)
+
+        model = field.table.get_model()
+        row_id = data.get("row_id")
+
+        try:
+            row = model.objects.get(id=row_id)
+        except model.DoesNotExist:
+            raise RowDoesNotExist(row_id)
+
+        raw_password = data.get("password")
+        hashed_password = getattr(row, field.db_column)
+        is_correct = check_password(raw_password, hashed_password)
+
+        serializer = PasswordFieldAuthenticationResponseSerializer(
+            {"is_correct": is_correct}
+        )
+        status_code = status.HTTP_200_OK if is_correct else status.HTTP_400_BAD_REQUEST
+        return Response(serializer.data, status=status_code)

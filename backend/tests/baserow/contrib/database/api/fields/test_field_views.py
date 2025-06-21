@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.shortcuts import reverse
 
 import pytest
@@ -1496,3 +1497,91 @@ def test_update_field_with_db_index_to_incompatible_type(api_client, data_fixtur
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_DB_INDEX_NOT_SUPPORTED"
+
+@pytest.mark.django_db
+def test_password_field_authentication_field_not_exist(api_client, data_fixture):
+    response = api_client.post(
+        reverse("api:database:fields:password_authentication", kwargs={"field_id": 0}),
+        {"row_id": 1, "password": "test"},
+        format="json",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_field_disabled(api_client, data_fixture):
+    field = data_fixture.create_password_field(allow_endpoint_authentication=False)
+
+    response = api_client.post(
+        reverse(
+            "api:database:fields:password_authentication", kwargs={"field_id": field.id}
+        ),
+        {"row_id": 1, "password": "test"},
+        format="json",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_row_does_not_exist(api_client, data_fixture):
+    field = data_fixture.create_password_field(allow_endpoint_authentication=True)
+
+    response = api_client.post(
+        reverse(
+            "api:database:fields:password_authentication", kwargs={"field_id": field.id}
+        ),
+        {"row_id": 1, "password": "test"},
+        format="json",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_ROW_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_wrong_body(api_client, data_fixture):
+    field = data_fixture.create_password_field(allow_endpoint_authentication=True)
+
+    response = api_client.post(
+        reverse(
+            "api:database:fields:password_authentication", kwargs={"field_id": field.id}
+        ),
+        {},
+        format="json",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_wrong_password(api_client, data_fixture):
+    field = data_fixture.create_password_field(allow_endpoint_authentication=True)
+    model = field.table.get_model()
+    row = model.objects.create(**{field.db_column: make_password("password")})
+
+    response = api_client.post(
+        reverse(
+            "api:database:fields:password_authentication", kwargs={"field_id": field.id}
+        ),
+        {"row_id": row.id, "password": "wrong_password"},
+        format="json",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["is_correct"] is False
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_success(api_client, data_fixture):
+    field = data_fixture.create_password_field(allow_endpoint_authentication=True)
+    model = field.table.get_model()
+    row = model.objects.create(**{field.db_column: make_password("password")})
+
+    response = api_client.post(
+        reverse(
+            "api:database:fields:password_authentication", kwargs={"field_id": field.id}
+        ),
+        {"row_id": row.id, "password": "password"},
+        format="json",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["is_correct"] is True
