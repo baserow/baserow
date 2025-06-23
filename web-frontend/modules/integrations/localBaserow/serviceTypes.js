@@ -149,7 +149,7 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
   }
 
   getMaxResultLimit(service) {
-    return this.app.$config.BUILDER_LOCAL_BASEROW_PAGE_SIZE_LIMIT
+    return this.app.$config.INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT
   }
 
   /**

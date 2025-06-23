@@ -284,7 +284,7 @@ def test_local_baserow_list_rows_service_dispatch_transform_with_default(data_fi
 
     assert len(result.data["results"]) == 10
 
-    with override_settings(BUILDER_LOCAL_BASEROW_PAGE_SIZE_LIMIT=30):
+    with override_settings(INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT=30):
         result = service_type.dispatch(service, FakeDispatchContext(count=100))
 
         assert len(result.data["results"]) == 30

@@ -843,7 +843,7 @@ class LocalBaserowListRowsUserServiceType(
         default_result_count: int
 
     def get_max_result_limit(self, service: Service):
-        return settings.BUILDER_LOCAL_BASEROW_PAGE_SIZE_LIMIT
+        return settings.INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT
 
     def get_default_result_limit(self, service: Service):
         return service.default_result_count

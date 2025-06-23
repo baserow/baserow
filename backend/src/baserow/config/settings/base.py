@@ -786,8 +786,8 @@ BATCH_ROWS_SIZE_LIMIT = int(
 )  # How many rows can be modified at once.
 
 # Maximum count of records returned by local baserow data source
-BUILDER_LOCAL_BASEROW_PAGE_SIZE_LIMIT = int(
-    os.getenv("BASEROW_BUILDER_LOCAL_BASEROW_PAGE_SIZE_LIMIT", 200)
+INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT = int(
+    os.getenv("BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT", 200)
 )
 
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.

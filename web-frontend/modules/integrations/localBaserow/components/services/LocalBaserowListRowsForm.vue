@@ -72,7 +72,7 @@
                 :placeholder="
                   $t('localBaserowListRowsForm.defaultResultCountPlaceholder')
                 "
-                :to-value="(value) => parseInt(value)"
+                :to-value="(value) => parseFloat(value)"
                 type="number"
               />
             </FormGroup>
@@ -145,11 +145,11 @@ export default {
     return {
       values: {
         default_result_count: {
-          integer: helpers.withMessage(this.$t('error.integerField'), integer),
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             required
           ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
           minValue: helpers.withMessage(
             this.$t('error.minValueField', { min: 0 }),
             minValue(0)
