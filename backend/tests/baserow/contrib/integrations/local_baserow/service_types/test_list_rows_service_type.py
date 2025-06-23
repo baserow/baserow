@@ -1,6 +1,8 @@
 from collections import defaultdict
 from unittest.mock import MagicMock, Mock, patch
 
+from django.test import override_settings
+
 import pytest
 
 from baserow.contrib.builder.data_sources.service import DataSourceService
@@ -81,6 +83,7 @@ def test_export_import_local_baserow_list_rows_service(data_fixture):
         table=view.table,
         search_query="get('page_parameter.id')",
         filter_type="OR",
+        default_result_count=50,
     )
 
     field = fields[0]
@@ -104,6 +107,7 @@ def test_export_import_local_baserow_list_rows_service(data_fixture):
         "integration_id": service.integration_id,
         "search_query": service.search_query,
         "filter_type": "OR",
+        "default_result_count": 50,
         "filters": [
             {
                 "field_id": service_filter.field_id,
@@ -132,6 +136,7 @@ def test_export_import_local_baserow_list_rows_service(data_fixture):
     assert service.filter_type == exported["filter_type"]
     assert service.search_query == exported["search_query"]
     assert service.integration_id == exported["integration_id"]
+    assert service.default_result_count == exported["default_result_count"]
     assert isinstance(service, service_type.model_class)
 
     assert service.service_filters.count() == 1
@@ -226,11 +231,7 @@ def test_local_baserow_list_rows_service_dispatch_transform(data_fixture):
     service_type = LocalBaserowListRowsUserServiceType()
 
     dispatch_context = FakeDispatchContext()
-    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    dispatch_data = service_type.dispatch_data(
-        service, dispatch_values, dispatch_context
-    )
-    result = service_type.dispatch_transform(dispatch_data)
+    result = service_type.dispatch(service, dispatch_context)
 
     assert [dict(r) for r in result.data["results"]] == [
         {
@@ -247,6 +248,53 @@ def test_local_baserow_list_rows_service_dispatch_transform(data_fixture):
         },
     ]
     assert result.data["has_next_page"] is False
+
+
+@pytest.mark.django_db
+def test_local_baserow_list_rows_service_dispatch_transform_with_default(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("My Color", "text"),
+        ],
+        rows=[
+            ["BMW", "Blue"],
+        ]
+        * 50,
+    )
+    view = data_fixture.create_grid_view(user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+
+    service = data_fixture.create_local_baserow_list_rows_service(
+        integration=integration, view=view, table=table, default_result_count=5
+    )
+
+    service_type = LocalBaserowListRowsUserServiceType()
+
+    result = service_type.dispatch(service, FakeDispatchContext(count=None))
+
+    assert len(result.data["results"]) == 5
+
+    result = service_type.dispatch(service, FakeDispatchContext(count=10))
+
+    assert len(result.data["results"]) == 10
+
+    with override_settings(INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT=30):
+        result = service_type.dispatch(service, FakeDispatchContext(count=100))
+
+        assert len(result.data["results"]) == 30
+
+    service.default_result_count = 0
+    service.save()
+
+    result = service_type.dispatch(service, FakeDispatchContext(count=None))
+
+    assert len(result.data["results"]) == 0
 
 
 @pytest.mark.django_db

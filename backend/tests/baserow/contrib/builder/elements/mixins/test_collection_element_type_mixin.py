@@ -3,9 +3,11 @@ Test the CollectionElementTypeMixin class.
 """
 import json
 from io import BytesIO
+from unittest.mock import MagicMock
 
 import pytest
 
+from baserow.api.exceptions import RequestBodyValidationException
 from baserow.contrib.builder.elements.mixins import CollectionElementTypeMixin
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
@@ -139,3 +141,89 @@ def test_extract_properties(collection_element_mixin_fixture):
             *fields_names,
         ]
     }
+
+
+@pytest.mark.django_db
+def test_mixin_prepare_value_for_db():
+    """Test the base implementation of prepare_values()."""
+
+    class Base:
+        def prepare_value_for_db(self, values, instance=None):
+            return values
+
+    class Test(CollectionElementTypeMixin, Base):
+        pass
+
+    mixin = Test()
+
+    assert mixin.prepare_value_for_db(
+        {
+            "items_per_page": 15,
+        }
+    ) == {
+        "items_per_page": 15,
+    }
+
+    with pytest.raises(RequestBodyValidationException):
+        mixin.prepare_value_for_db(
+            {
+                "items_per_page": 21,
+            }
+        )
+
+    element = MagicMock()
+    element.data_source = None
+
+    assert mixin.prepare_value_for_db(
+        {
+            "items_per_page": 15,
+        },
+        element,
+    ) == {
+        "items_per_page": 15,
+    }
+
+    with pytest.raises(RequestBodyValidationException):
+        mixin.prepare_value_for_db(
+            {
+                "items_per_page": 21,
+            },
+            element,
+        )
+
+    element.data_source = MagicMock()
+    element.data_source.service = None
+
+    with pytest.raises(RequestBodyValidationException):
+        mixin.prepare_value_for_db(
+            {
+                "items_per_page": 21,
+            },
+            element,
+        )
+
+    element.data_source.service = MagicMock()
+
+    service_type = MagicMock()
+    service_type.returns_list = False
+
+    element.data_source.service.get_type.return_value = service_type
+
+    with pytest.raises(RequestBodyValidationException):
+        mixin.prepare_value_for_db(
+            {
+                "items_per_page": 25,
+            },
+            element,
+        )
+
+    service_type.returns_list = True
+    service_type.get_max_result_limit.return_value = 10
+
+    with pytest.raises(RequestBodyValidationException):
+        mixin.prepare_value_for_db(
+            {
+                "items_per_page": 15,
+            },
+            element,
+        )

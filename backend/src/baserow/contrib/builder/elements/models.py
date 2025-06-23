@@ -821,7 +821,6 @@ class CollectionElement(Element):
         help_text="The amount item loaded with each page.",
         validators=[
             MinValueValidator(1, message="Value cannot be less than 1."),
-            MaxValueValidator(100, message="Value cannot be greater than 100."),
         ],
     )
 

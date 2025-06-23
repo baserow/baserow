@@ -85,8 +85,8 @@ export const DataSourceServiceTypeMixin = (Base) =>
     /**
      * The maximum number of records that can be returned by this service
      */
-    get maxResultLimit() {
-      return 1
+    getMaxResultLimit(service) {
+      return null
     }
 
     /**

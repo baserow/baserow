@@ -247,6 +247,7 @@ class CollectionElementTypeMixin:
             "items_per_page": serializers.IntegerField(
                 default=20,
                 help_text=CollectionElement._meta.get_field("items_per_page").help_text,
+                min_value=0,
                 required=False,
             ),
             "button_load_more_label": FormulaSerializerField(
@@ -310,6 +311,34 @@ class CollectionElementTypeMixin:
                 values["data_source"] = data_source
             else:
                 values["data_source"] = None
+
+        if "items_per_page" in values:
+            data_source = values.get(
+                "data_source", instance.data_source if instance else None
+            )
+
+            if (
+                data_source
+                and data_source.service
+                and data_source.service.get_type().returns_list
+            ):
+                max_count = data_source.service.get_type().get_max_result_limit(
+                    data_source.service.specific
+                )
+            else:
+                max_count = 20
+
+            if values["items_per_page"] > max_count:
+                raise RequestBodyValidationException(
+                    {
+                        "items_per_page": [
+                            {
+                                "detail": f"Maximum allowed value is {max_count}",
+                                "code": "invalid_value",
+                            }
+                        ]
+                    }
+                )
 
         return super().prepare_value_for_db(values, instance)
 

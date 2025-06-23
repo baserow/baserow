@@ -55,14 +55,6 @@ class ServiceType(
     parent_property_name = "integration"
     id_mapping_name = "services"
 
-    # The maximum number of records this service is able to return.
-    # By default, the maximum is `None`, which is unlimited.
-    max_result_limit = None
-
-    # The default number of records this service will return,
-    # unless instructed otherwise by a user.
-    default_result_limit = max_result_limit
-
     # Does this service return a list of record?
     returns_list = False
 
@@ -410,6 +402,20 @@ class ListServiceTypeMixin:
         :param record_ids: The list containing the record identifiers.
         :param dispatch_context: The context used for the dispatch.
         :return: A dictionary mapping each record to its name.
+        """
+
+    @abstractmethod
+    def get_max_result_limit(self, service: Service):
+        """
+        The maximum number of records this service is able to return.
+        Is the maximum is `None`, then it's unlimited.
+        """
+
+    @abstractmethod
+    def get_default_result_limit(self, service: Service):
+        """
+        The default number of records this service will return,
+        unless instructed otherwise by a user.
         """
 
 

@@ -28,8 +28,8 @@ version: "3.4"
 
 # See https://baserow.io/docs/installation%2Fconfiguration for more details on these
 # backend environment variables, their defaults if left blank etc.
-x-backend-variables: &backend-variables
-  # Most users should only need to set these first four variables.
+x-backend-variables:
+  &backend-variables # Most users should only need to set these first four variables.
   SECRET_KEY: ${SECRET_KEY:?}
   BASEROW_JWT_SIGNING_KEY: ${BASEROW_JWT_SIGNING_KEY:-}
   DATABASE_PASSWORD: ${DATABASE_PASSWORD:?}
@@ -224,6 +224,7 @@ services:
       BASEROW_USE_PG_FULLTEXT_SEARCH:
       BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT:
       BASEROW_ROW_PAGE_SIZE_LIMIT:
+      BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT:
       BASEROW_BUILDER_DOMAINS:
       BASEROW_FRONTEND_SAME_SITE_COOKIE:
     depends_on:
@@ -240,7 +241,11 @@ services:
     # The backend image's baked in healthcheck defaults to the django healthcheck
     # override it to the celery one here.
     healthcheck:
-      test: [ "CMD-SHELL", "/baserow/backend/docker/docker-entrypoint.sh celery-worker-healthcheck" ]
+      test:
+        [
+          "CMD-SHELL",
+          "/baserow/backend/docker/docker-entrypoint.sh celery-worker-healthcheck",
+        ]
     depends_on:
       - backend
     volumes:
@@ -257,7 +262,11 @@ services:
     # The backend image's baked in healthcheck defaults to the django healthcheck
     # override it to the celery one here.
     healthcheck:
-      test: [ "CMD-SHELL", "/baserow/backend/docker/docker-entrypoint.sh celery-exportworker-healthcheck" ]
+      test:
+        [
+          "CMD-SHELL",
+          "/baserow/backend/docker/docker-entrypoint.sh celery-exportworker-healthcheck",
+        ]
     depends_on:
       - backend
     volumes:
@@ -288,7 +297,11 @@ services:
       - POSTGRES_PASSWORD=${DATABASE_PASSWORD:?}
       - POSTGRES_DB=${DATABASE_NAME:-baserow}
     healthcheck:
-      test: [ "CMD-SHELL", "su postgres -c \"pg_isready -U ${DATABASE_USER:-baserow}\"" ]
+      test:
+        [
+          "CMD-SHELL",
+          'su postgres -c "pg_isready -U ${DATABASE_USER:-baserow}"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -302,7 +315,7 @@ services:
     restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD:?}
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
     networks:
       local:
 

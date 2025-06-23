@@ -52,6 +52,31 @@
               "
             />
           </Tab>
+          <Tab
+            :title="$t('localBaserowListRowsForm.advancedConfig')"
+            class="data-source-form__search-form-tab"
+          >
+            <FormGroup
+              class="margin-bottom-2"
+              small-label
+              :label="$t('localBaserowListRowsForm.defaultResultCount')"
+              :helper-text="
+                $t('localBaserowListRowsForm.defaultResultCountHelp')
+              "
+              required
+              :error-message="getFirstErrorMessage('default_result_count')"
+            >
+              <FormInput
+                v-model="v$.values.default_result_count.$model"
+                class="data-source-form__result-count-input"
+                :placeholder="
+                  $t('localBaserowListRowsForm.defaultResultCountPlaceholder')
+                "
+                :to-value="(value) => parseFloat(value)"
+                type="number"
+              />
+            </FormGroup>
+          </Tab>
         </Tabs>
       </div>
     </div>
@@ -66,6 +91,14 @@ import LocalBaserowTableServiceConditionalForm from '@baserow/modules/integratio
 import LocalBaserowTableServiceSortForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableServiceSortForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import localBaserowDataSourceService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowDataSourceService'
+import {
+  required,
+  integer,
+  minValue,
+  maxValue,
+  helpers,
+} from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
 
 export default {
   components: {
@@ -75,6 +108,9 @@ export default {
     LocalBaserowTableServiceConditionalForm,
   },
   mixins: [form, localBaserowDataSourceService],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: [
@@ -84,6 +120,7 @@ export default {
         'filters',
         'filter_type',
         'sortings',
+        'default_result_count',
       ],
       values: {
         table_id: null,
@@ -92,6 +129,36 @@ export default {
         filters: [],
         sortings: [],
         filter_type: 'AND',
+        default_result_count: null,
+      },
+    }
+  },
+  computed: {
+    maxResultLimit() {
+      if (!this.selectedDataSourceType) {
+        return null
+      }
+      return this.selectedDataSourceType.getMaxResultLimit(this.dataSource)
+    },
+  },
+  validations() {
+    return {
+      values: {
+        default_result_count: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', { min: 0 }),
+            minValue(0)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', { max: this.maxResultLimit }),
+            maxValue(this.maxResultLimit)
+          ),
+        },
       },
     }
   },

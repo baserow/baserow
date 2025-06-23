@@ -227,6 +227,7 @@ def test_builder_application_export(data_fixture):
                 "service": {
                     "id": datasource3.service.id,
                     "integration_id": integration.id,
+                    "default_result_count": 20,
                     "filters": [],
                     "sortings": [],
                     "view_id": None,
@@ -786,6 +787,7 @@ PAGE_2_IMPORT_REFERENCE = {
             "order": "2.00000000000000000000",
             "service": {
                 "id": 2,
+                "default_result_count": 20,
                 "integration_id": 42,
                 "view_id": None,
                 "table_id": None,

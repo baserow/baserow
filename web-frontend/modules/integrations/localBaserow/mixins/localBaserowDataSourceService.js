@@ -50,6 +50,12 @@ export default {
     tableSelected() {
       return this.tables.find(({ id }) => id === this.values.table_id)
     },
+    selectedDataSourceType() {
+      if (!this.dataSource.type) {
+        return null
+      }
+      return this.$registry.get('service', this.dataSource.type)
+    },
   },
   methods: {
     /**

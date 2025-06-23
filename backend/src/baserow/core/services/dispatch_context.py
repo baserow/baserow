@@ -22,11 +22,14 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         super().__init__()
 
     @abstractmethod
-    def range(self, service: Service):
+    def range(self, service: Service) -> tuple[int, int | None]:
         """
         Should return the pagination requested for the given service.
 
         :params service: The service we want the pagination for.
+        :return: a tuple were the first value is the offset to apply and the second
+          value is the count of records to return. The count can be None it which case
+          the default number of record should be returned.
         """
 
     @classmethod
