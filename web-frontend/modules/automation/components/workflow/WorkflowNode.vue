@@ -29,12 +29,14 @@
     </a>
 
     <Context ref="contextMenu" overflow-scroll max-height-if-outside-viewport>
-      <div class="context__menu-title">{{ label }} ({{ props.id }})</div>
+      <div class="context__menu-title">
+        {{ label }} ({{ props.data.nodeId }})
+      </div>
       <ul class="context__menu">
         <li class="context__menu-item">
           <a
             class="context__menu-item-link"
-            @click="emit('duplicateNode', props.id)"
+            @click="emit('duplicateNode', props.data.nodeId)"
           >
             <i class="context__menu-item-icon iconoir-copy"></i>
             {{ $t('workflowNode.actionDuplicate') }}
@@ -45,7 +47,7 @@
             role="button"
             title="Delete action"
             class="context__menu-item-link context__menu-item-link--delete"
-            @click="emit('removeNode', props.id)"
+            @click="emit('removeNode', props.data.nodeId)"
           >
             <i class="context__menu-item-icon iconoir-bin"></i>
             {{ $t('workflowNode.actionDelete') }}
@@ -81,7 +83,7 @@ const props = defineProps({
   },
   data: {
     type: Object,
-    default: () => ({ readOnly: false }),
+    default: () => ({ nodeId: null, readOnly: false }),
   },
 })
 
@@ -101,7 +103,7 @@ const workflow = inject('workflow')
 const node = computed(() => {
   return store.getters['automationWorkflowNode/findById'](
     workflow.value,
-    props.id
+    props.data.nodeId
   )
 })
 const nodeType = computed(() => {

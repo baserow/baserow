@@ -138,7 +138,6 @@ const displayNodes = computed(() => {
     sortedDataNodes.forEach((dataNode) => {
       const nodeType = app.$registry.get('node', dataNode.type)
       vueFlowNodes.push({
-        ...dataNode,
         type: 'workflow-node',
         label: nodeType.getLabel({
           automation: automation.value,
@@ -147,6 +146,7 @@ const displayNodes = computed(() => {
         id: dataNode.id.toString(),
         position: { x: DATA_NODE_X_POS, y: currentY },
         data: {
+          nodeId: dataNode.id,
           isTrigger: nodeType.isTrigger,
         },
       })

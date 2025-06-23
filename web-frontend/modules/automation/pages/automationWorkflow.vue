@@ -157,10 +157,7 @@ export default defineComponent({
 
     const selectedNodeId = computed({
       get() {
-        const selectedNode = store.getters[
-          'automationWorkflowNode/getSelected'
-        ](workflow.value)
-        return selectedNode?.id || null
+        return workflow.value.selectedNodeId
       },
       set(nodeId) {
         let nodeToSelect = null

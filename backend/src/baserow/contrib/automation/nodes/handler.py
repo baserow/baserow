@@ -39,6 +39,7 @@ class AutomationNodeHandler:
         node_type: AutomationNodeType,
         workflow: AutomationWorkflow,
         before: Optional[AutomationNode] = None,
+        order: Optional[int] = None,
         **kwargs,
     ) -> AutomationNode:
         """
@@ -48,6 +49,9 @@ class AutomationNodeHandler:
         :param workflow: The workflow the automation node is associated with.
         :param before: If provided and no order is provided, will place the new node
             before the given node.
+        :param order: If provided, the node's `order` will be set to this value. This
+            is not a user-configurable value, it's only set by the node service when
+            a node's type is being changed, and we want to preserve the existing order.
         :return: The newly created automation node instance.
         """
 
@@ -55,11 +59,14 @@ class AutomationNodeHandler:
             kwargs, self.allowed_fields + node_type.allowed_fields
         )
 
-        if before:
-            parent_node_id = allowed_prepared_values.get("parent_node_id", None)
-            order = AutomationNode.get_unique_order_before_node(before, parent_node_id)
-        else:
-            order = AutomationNode.get_last_order(workflow)
+        if not order:
+            if before:
+                parent_node_id = allowed_prepared_values.get("parent_node_id", None)
+                order = AutomationNode.get_unique_order_before_node(
+                    before, parent_node_id
+                )
+            else:
+                order = AutomationNode.get_last_order(workflow)
 
         allowed_prepared_values["workflow"] = workflow
         node = node_type.model_class(order=order, **allowed_prepared_values)

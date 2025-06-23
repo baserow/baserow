@@ -5,9 +5,10 @@
   >
     <FormGroup required :label="$t('nodeSidePanel.action')">
       <Dropdown
-        v-model="node.type"
+        :value="node.type"
         class="dropdown--floating margin-top-2"
         :fixed-items="true"
+        @input="handleNodeChange({ type: $event })"
       >
         <DropdownItem
           v-for="siblingNodeType in siblingNodeTypes"
@@ -28,7 +29,9 @@
         :application="automation"
         :default-values="node.service"
         class="node-form margin-top-2"
-        @values-changed="handleNodeServiceChange"
+        @values-changed="
+          handleNodeChange({ service: { ...node.service, ...$event } })
+        "
       />
     </FormGroup>
   </ReadOnlyForm>
@@ -81,16 +84,14 @@ const applicationContext = reactive({
 provide('applicationContext', applicationContext)
 
 const nodeType = computed(() => {
-  return app.$registry.get('node', node.value.type)
+  return app.$registry.get('node', node.value?.type)
 })
 
-const handleNodeServiceChange = (newServiceChanges) => {
-  const updatedNode = { ...node.value }
-  updatedNode.service = { ...updatedNode.service, ...newServiceChanges }
-  store.dispatch('automationWorkflowNode/update', {
+const handleNodeChange = (newValues) => {
+  store.dispatch('automationWorkflowNode/updateDebounced', {
     workflow: workflow.value,
-    nodeId: updatedNode.id,
-    values: updatedNode,
+    node: node.value,
+    values: { ...node.value, ...newValues },
   })
 }
 
