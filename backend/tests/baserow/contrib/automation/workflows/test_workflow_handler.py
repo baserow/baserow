@@ -5,6 +5,7 @@ from django.db.utils import IntegrityError
 import pytest
 
 from baserow.contrib.automation.models import AutomationWorkflow
+from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
@@ -283,3 +284,24 @@ def test_export_prepared_values(data_fixture):
     result = AutomationWorkflowHandler().export_prepared_values(workflow)
 
     assert result == {"name": "test", "allow_test_run_until": None}
+
+
+def test_sort_serialized_nodes_by_priority():
+    serialized_nodes = [
+        AutomationNodeDict(id=1, parent_node_id=None, order=0),
+        AutomationNodeDict(id=2, parent_node_id=1, order=0),
+        AutomationNodeDict(id=3, parent_node_id=1, order=1),
+        AutomationNodeDict(id=4, parent_node_id=1, order=2),
+        AutomationNodeDict(id=5, parent_node_id=None, order=1),
+        AutomationNodeDict(id=6, parent_node_id=None, order=2),
+    ]
+    assert AutomationWorkflowHandler()._sort_serialized_nodes_by_priority(
+        serialized_nodes
+    ) == [
+        AutomationNodeDict(id=1, parent_node_id=None, order=0),
+        AutomationNodeDict(id=5, parent_node_id=None, order=1),
+        AutomationNodeDict(id=6, parent_node_id=None, order=2),
+        AutomationNodeDict(id=2, parent_node_id=1, order=0),
+        AutomationNodeDict(id=3, parent_node_id=1, order=1),
+        AutomationNodeDict(id=4, parent_node_id=1, order=2),
+    ]

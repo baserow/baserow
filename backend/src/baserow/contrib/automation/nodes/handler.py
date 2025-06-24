@@ -221,7 +221,7 @@ class AutomationNodeHandler:
         exported_node["order"] = AutomationNode.get_last_order(node.workflow)
 
         id_mapping = defaultdict(lambda: MirrorDict())
-        id_mapping["automation_nodes"] = MirrorDict()
+        id_mapping["automation_workflow_nodes"] = MirrorDict()
 
         new_node_clone = self.import_node(
             node.workflow,
@@ -244,6 +244,7 @@ class AutomationNodeHandler:
         :param node: The AutomationNode instance to serialize.
         :param files_zip: A zip file to store files in necessary.
         :param storage: Storage to use.
+        :param cache: A cache dictionary to store intermediate results.
         :return: The serialized version.
         """
 
@@ -254,7 +255,7 @@ class AutomationNodeHandler:
     def import_node(
         self,
         workflow: AutomationWorkflow,
-        serialized_node: Dict[str, Any],
+        serialized_node: AutomationNodeDict,
         id_mapping: Dict[str, Dict[int, int]],
         *args,
         **kwargs,
@@ -283,7 +284,7 @@ class AutomationNodeHandler:
     def import_nodes(
         self,
         workflow: AutomationWorkflow,
-        serialized_nodes: List[Dict[str, Any]],
+        serialized_nodes: List[AutomationNodeDict],
         id_mapping: Dict[str, Dict[int, int]],
         cache: Optional[Dict] = None,
         *args,
@@ -297,6 +298,7 @@ class AutomationNodeHandler:
         :param serialized_nodes: The serialized version of the nodes.
         :param id_mapping: A map of old->new id per data type
             when we have foreign keys that need to be migrated.
+        :param cache: A cache dictionary to store intermediate results.
         :return: the newly created instances.
         """
 
@@ -320,13 +322,13 @@ class AutomationNodeHandler:
     def import_node_only(
         self,
         workflow: AutomationWorkflow,
-        serialized_node: Dict[str, Any],
+        serialized_node: AutomationNodeDict,
         id_mapping: Dict[str, Dict[int, int]],
         *args: Any,
         **kwargs: Any,
     ) -> AutomationNode:
-        if "automation_nodes" not in id_mapping:
-            id_mapping["automation_nodes"] = {}
+        if "automation_workflow_nodes" not in id_mapping:
+            id_mapping["automation_workflow_nodes"] = {}
 
         node_type = automation_node_type_registry.get(serialized_node["type"])
 
@@ -338,6 +340,8 @@ class AutomationNodeHandler:
             **kwargs,
         )
 
-        id_mapping["automation_nodes"][serialized_node["id"]] = node_instance.id
+        id_mapping["automation_workflow_nodes"][
+            serialized_node["id"]
+        ] = node_instance.id
 
         return node_instance

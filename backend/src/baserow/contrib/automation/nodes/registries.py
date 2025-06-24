@@ -7,9 +7,9 @@ from rest_framework import serializers
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.formula_importer import import_formula
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
-from baserow.contrib.builder.formula_importer import import_formula
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
@@ -26,8 +26,6 @@ from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
 from baserow.core.services.types import DispatchResult
 
-AUTOMATION_NODES = "automation_nodes"
-
 
 class AutomationNodeType(
     PublicCustomFieldsInstanceMixin,
@@ -38,7 +36,7 @@ class AutomationNodeType(
 ):
     service_type = None
     parent_property_name = "workflow"
-    id_mapping_name = AUTOMATION_NODES
+    id_mapping_name = "automation_workflow_nodes"
 
     request_serializer_field_names = ["previous_node_output"]
     request_serializer_field_overrides = {
@@ -55,6 +53,8 @@ class AutomationNodeType(
 
     class SerializedDict(AutomationNodeDict):
         service: Dict
+        parent_node_id: Optional[int]
+        previous_node_id: Optional[int]
 
     @property
     def allowed_fields(self):
@@ -94,6 +94,9 @@ class AutomationNodeType(
         storage=None,
         cache=None,
     ):
+        if prop_name == "order":
+            return str(node.order)
+
         if prop_name == "service":
             service = node.service.specific
             return service.get_type().export_serialized(
@@ -128,6 +131,9 @@ class AutomationNodeType(
         :param id_mapping: the id mapping dict.
         :return: the deserialized version for this property.
         """
+
+        if prop_name in ["previous_node_id", "parent_node_id"] and value:
+            return id_mapping["automation_workflow_nodes"][value]
 
         if prop_name == "service" and value:
             integration = None
@@ -205,7 +211,7 @@ class AutomationNodeType(
         self,
         automation_node: AutomationNode,
         dispatch_context: AutomationDispatchContext,
-    ) -> DispatchResult:
+    ):
         raise InvalidServiceTypeDispatchSource("This service cannot be dispatched.")
 
 

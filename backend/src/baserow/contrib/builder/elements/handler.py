@@ -734,7 +734,7 @@ class ElementHandler:
     ) -> Element:
         """
         Creates an instance using the serialized version previously exported with
-        `.export_element'.
+        `.export_element`.
 
         :param page: The page instance the new element should belong to.
         :param serialized_element: The serialized version of the element.

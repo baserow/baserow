@@ -12,6 +12,8 @@ from baserow.contrib.automation.constants import (
     WORKFLOW_NAME_MAX_LEN,
 )
 from baserow.contrib.automation.models import Automation
+from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
@@ -22,6 +24,7 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.tasks import run_workflow
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
     ChildProgressBuilder,
@@ -272,22 +275,34 @@ class AutomationWorkflowHandler:
     def export_workflow(
         self,
         workflow: AutomationWorkflow,
-        *args: Any,
-        **kwargs: Any,
-    ) -> List[AutomationWorkflowDict]:
+        files_zip: Optional[ExportZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict[str, any]] = None,
+    ) -> AutomationWorkflowDict:
         """
         Serializes the given workflow.
 
         :param workflow: The AutomationWorkflow instance to serialize.
         :param files_zip: A zip file to store files in necessary.
         :param storage: Storage to use.
+        :param cache: A cache to use for storing temporary data.
         :return: The serialized version.
         """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        serialized_nodes = [
+            AutomationNodeHandler().export_node(
+                n, files_zip=files_zip, storage=storage, cache=cache
+            )
+            for n in AutomationNodeHandler().get_nodes(workflow=workflow)
+        ]
 
         return AutomationWorkflowDict(
             id=workflow.id,
             name=workflow.name,
             order=workflow.order,
+            nodes=serialized_nodes,
         )
 
     def _ops_count_for_import_workflow(
@@ -301,16 +316,87 @@ class AutomationWorkflowHandler:
         # Return zero for now, since we don't have Triggers and Actions yet.
         return 0
 
+    def _sort_serialized_nodes_by_priority(
+        self, serialized_nodes: List[AutomationNodeDict]
+    ) -> List[AutomationNodeDict]:
+        """
+        Sorts the serialized nodes so that root-level nodes (those without a parent)
+        are first, and then sorts by their `order` ASC.
+        """
+
+        def _node_priority_sort(n):
+            return n.get("parent_node_id") is not None, n.get("order", 0)
+
+        return sorted(serialized_nodes, key=_node_priority_sort)
+
+    def import_nodes(
+        self,
+        workflow: AutomationWorkflow,
+        serialized_nodes: List[AutomationNodeDict],
+        id_mapping: Dict[str, Dict[int, int]],
+        files_zip: Optional[ZipFile] = None,
+        storage: Optional[Storage] = None,
+        progress: Optional[ChildProgressBuilder] = None,
+        cache: Optional[Dict[str, Any]] = None,
+    ) -> List[AutomationNode]:
+        """
+        Import nodes into the provided workflow.
+
+        :param workflow: The AutomationWorkflow instance to import the nodes into.
+        :param serialized_nodes: The serialized nodes to import.
+        :param id_mapping: A map of old->new id per data type
+        :param files_zip: Contains files to import if any.
+        :param storage: Storage to get the files from.
+        :param progress: A progress object that can be used to report progress.
+        :param cache: A cache to use for storing temporary data.
+        :return: A list of the newly created nodes.
+        """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        imported_nodes = []
+        prioritized_nodes = self._sort_serialized_nodes_by_priority(serialized_nodes)
+
+        # True if we have imported at least one node on last iteration
+        was_imported = True
+        while was_imported:
+            was_imported = False
+            workflow_node_mapping = id_mapping.get("automation_workflow_nodes", {})
+
+            for serialized_node in prioritized_nodes:
+                parent_node_id = serialized_node["parent_node_id"]
+                # check that the node has not already been imported in a
+                # previous pass or if the parent doesn't exist yet.
+                if serialized_node["id"] not in workflow_node_mapping and (
+                    parent_node_id is None or parent_node_id in workflow_node_mapping
+                ):
+                    imported_node = AutomationNodeHandler().import_node(
+                        workflow,
+                        serialized_node,
+                        id_mapping,
+                        files_zip=files_zip,
+                        storage=storage,
+                        cache=cache,
+                    )
+
+                    imported_nodes.append(imported_node)
+
+                    was_imported = True
+                    if progress:
+                        progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+
+        return imported_nodes
+
     def import_workflows(
         self,
         automation: Automation,
-        serialized_workflows: List[Dict[str, Any]],
+        serialized_workflows: List[AutomationWorkflowDict],
         id_mapping: Dict[str, Dict[int, int]],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
         cache: Optional[Dict[str, any]] = None,
-    ):
+    ) -> List[AutomationWorkflow]:
         """
         Import multiple workflows at once.
 
@@ -321,6 +407,8 @@ class AutomationWorkflowHandler:
             when we have foreign keys that need to be migrated.
         :param files_zip: Contains files to import if any.
         :param storage: Storage to get the files from.
+        :param progress: A progress object that can be used to report progress.
+        :param cache: A cache to use for storing temporary data.
         :return: the newly created instances.
         """
 
@@ -345,12 +433,23 @@ class AutomationWorkflowHandler:
             )
             imported_workflows.append([workflow_instance, serialized_workflow])
 
+        for workflow_instance, serialized_workflow in imported_workflows:
+            self.import_nodes(
+                workflow_instance,
+                serialized_workflow["nodes"],
+                id_mapping,
+                files_zip=files_zip,
+                storage=storage,
+                progress=progress,
+                cache=cache,
+            )
+
         return [i[0] for i in imported_workflows]
 
     def import_workflow(
         self,
         automation: Automation,
-        serialized_workflow: Dict[str, Any],
+        serialized_workflow: AutomationWorkflowDict,
         id_mapping: Dict[str, Dict[int, int]],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -359,7 +458,7 @@ class AutomationWorkflowHandler:
     ) -> AutomationWorkflow:
         """
         Creates an instance of AutomationWorkflow using the serialized version
-        previously exported with `.export_workflow'.
+        previously exported with `.export_workflow`.
 
         :param automation: The Automation instance the new workflow should
             belong to.
@@ -369,6 +468,8 @@ class AutomationWorkflowHandler:
             when we have foreign keys that need to be migrated.
         :param files_zip: Contains files to import if any.
         :param storage: Storage to get the files from.
+        :param progress: A progress object that can be used to report progress.
+        :param cache: A cache to use for storing temporary data.
         :return: the newly created instance.
         """
 

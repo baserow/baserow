@@ -206,7 +206,7 @@ def test_export_node(data_fixture):
 
     assert result == {
         "id": node.id,
-        "order": node.order,
+        "order": str(node.order),
         "parent_node_id": None,
         "previous_node_id": None,
         "previous_node_output": "foo",
@@ -275,6 +275,6 @@ def test_import_node_only(data_fixture):
     assert new_node == workflow.automation_workflow_nodes.all()[1].specific
     assert id_mapping == {
         "integrations": MirrorDict(),
-        "automation_nodes": {node.id: new_node.id},
+        "automation_workflow_nodes": {node.id: new_node.id},
         "services": {node.service_id: new_node.service_id},
     }
