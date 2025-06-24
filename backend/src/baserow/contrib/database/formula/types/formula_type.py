@@ -286,6 +286,10 @@ class BaserowFormulaType(abc.ABC):
         return True
 
     @property
+    def can_have_db_index(self) -> bool:
+        return False
+
+    @property
     @abc.abstractmethod
     def is_valid(self) -> bool:
         pass
@@ -554,6 +558,7 @@ class BaserowFormulaInvalidType(BaserowFormulaType):
     is_valid = False
     can_order_by = False
     can_group_by = False
+    can_have_db_index = False
     comparable_types = []
     limit_comparable_types = []
     type = "invalid"

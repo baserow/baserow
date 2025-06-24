@@ -4,6 +4,7 @@
     :class="{
       'tabs--full-height': fullHeight,
       'tabs--large-offset': largeOffset,
+      'tabs--large': large,
       'tabs--nopadding': noPadding,
       'tabs--grow-items': growItems,
     }"
@@ -78,6 +79,14 @@ export default {
       default: false,
     },
     /**
+     * Whether the tabs are the larger variant.
+     */
+    large: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    /**
      * Removes the padding from the tabs container and header.
      */
     noPadding: {
@@ -92,6 +101,11 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    tabItems: {
+      type: [Array, null],
+      required: false,
+      default: null,
     },
   },
   data() {
@@ -111,7 +125,11 @@ export default {
     },
   },
   created() {
-    this.tabs = this.$children
+    if (this.tabItems) {
+      this.tabs = this.tabItems
+    } else {
+      this.tabs = this.$children
+    }
   },
   mounted() {
     if (this.route) {
@@ -140,9 +158,11 @@ export default {
         this.$emit('update:selectedIndex', i)
         this.internalSelectedIndex = i
       }
-      this.tabs.forEach((tab, index) => {
-        tab.isActive = index === i
-      })
+      if (!this.tabItems) {
+        this.tabs.forEach((tab, index) => {
+          tab.isActive = index === i
+        })
+      }
     },
   },
 }

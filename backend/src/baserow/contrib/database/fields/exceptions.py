@@ -116,6 +116,14 @@ class IncompatiblePrimaryFieldTypeError(Exception):
         super().__init__(*args, **kwargs)
 
 
+class DbIndexNotSupportedError(Exception):
+    """Raised when trying to enable a db_index to a field that doesn't support is."""
+
+    def __init__(self, field_type=None, *args, **kwargs):
+        self.field_type = field_type
+        super().__init__(*args, **kwargs)
+
+
 class FieldWithSameNameAlreadyExists(Exception):
     """
     Raised when a field is created or updated with a name that matches an

@@ -315,7 +315,10 @@
     "fieldAlreadyExists": "A field with this name already exists.",
     "nameNotAllowed": "This field name is not allowed.",
     "nameTooLong": "This field name is too long.",
-    "addDescription": "Add description"
+    "addDescription": "Add description",
+    "dbIndex": "Index",
+    "dbIndexError": "This field type cannot have an index. Please remove it before saving or change the field type.",
+    "dbIndexDescription": "Indexing can significantly improve filtering performance, but slows down create, update, and delete operations."
   },
   "fieldSelectThroughFieldSubForm": {
     "noTable": "You need at least one link to table field to create this field.",

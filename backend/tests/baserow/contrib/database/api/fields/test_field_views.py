@@ -272,6 +272,7 @@ def test_create_field(api_client, data_fixture):
     assert response_json["order"] == text.order
     assert response_json["text_default"] == "default!"
     assert response_json["description"] == description_txt_a
+    assert response_json["db_index"] is False
 
     # Test authentication with token
     response = api_client.post(
@@ -361,6 +362,7 @@ def test_get_field(api_client, data_fixture):
     assert response_json["table_id"] == text.table_id
     assert not response_json["text_default"]
     assert response_json["description"] is None
+    assert response_json["db_index"] is False
 
     response = api_client.delete(
         reverse(
@@ -463,6 +465,7 @@ def test_update_field(api_client, data_fixture):
     assert response_json["name"] == "Test 1"
     assert response_json["type"] == "text"
     assert response_json["description"] is None
+    assert response_json["db_index"] is False
 
     url = reverse("api:database:fields:item", kwargs={"field_id": text.id})
     response = api_client.patch(
@@ -1289,6 +1292,7 @@ def test_change_primary_field_field_with_primary(api_client, data_fixture):
         "primary": True,
         "read_only": False,
         "description": None,
+        "db_index": False,
         "related_fields": [
             {
                 "id": field_1.id,
@@ -1299,6 +1303,7 @@ def test_change_primary_field_field_with_primary(api_client, data_fixture):
                 "primary": False,
                 "read_only": False,
                 "description": None,
+                "db_index": False,
                 "text_default": "",
                 "immutable_properties": False,
                 "immutable_type": False,
@@ -1345,3 +1350,104 @@ def test_change_primary_field_field_and_back(api_client, data_fixture):
     field_2.refresh_from_db()
     assert field_1.primary is True
     assert field_2.primary is False
+
+
+@pytest.mark.django_db
+def test_create_field_with_db_index(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {"name": "Field with index", "type": "text", "db_index": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["type"] == "text"
+
+    text = TextField.objects.filter()[0]
+    assert text.db_index is True
+    assert response_json["name"] == "Field with index"
+    assert response_json["db_index"] is True
+
+
+@pytest.mark.django_db
+def test_create_field_with_db_index_incompatible_field_type(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database)
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Field with index",
+            "type": "link_row",
+            "db_index": True,
+            "link_row_table_id": table_2.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_DB_INDEX_NOT_SUPPORTED"
+
+
+@pytest.mark.django_db
+def test_update_field_with_db_index(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+
+    url = reverse("api:database:fields:item", kwargs={"field_id": field.id})
+    response = api_client.patch(
+        url,
+        {"db_index": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["db_index"] is True
+
+    field.refresh_from_db()
+    assert field.db_index is True
+
+
+@pytest.mark.django_db
+def test_update_field_with_db_index_incompatible_field_type(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database)
+    field = data_fixture.create_text_field(table=table)
+
+    url = reverse("api:database:fields:item", kwargs={"field_id": field.id})
+    response = api_client.patch(
+        url,
+        {"type": "link_row", "db_index": True, "link_row_table": table_2.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_DB_INDEX_NOT_SUPPORTED"
+
+
+@pytest.mark.django_db
+def test_update_field_with_db_index_to_incompatible_type(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database)
+    field = data_fixture.create_text_field(table=table, db_index=True)
+
+    url = reverse("api:database:fields:item", kwargs={"field_id": field.id})
+    response = api_client.patch(
+        url,
+        {"type": "link_row", "link_row_table": table_2.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_DB_INDEX_NOT_SUPPORTED"

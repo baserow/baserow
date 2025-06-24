@@ -187,6 +187,13 @@ class Field(
         help_text="Indicates whether the field properties are immutable. If true, "
         "then it won't be possible to change the properties and the type via the API.",
     )
+    db_index = models.BooleanField(
+        db_default=False,
+        default=False,
+        help_text="If true, then an index will be added to the Baserow field to "
+        "increase lookup and filter speed. Note that this comes at a performance cost "
+        "when creating the row and updating the cell.",
+    )
 
     class Meta:
         ordering = (

@@ -39,6 +39,7 @@ def test_field_created_event_type(data_fixture):
             "text_default": "",
             "database_id": table.database_id,
             "workspace_id": table.database.workspace_id,
+            "db_index": False,
         },
     }
 
@@ -78,6 +79,7 @@ def test_field_created_event_type_test_payload(data_fixture):
             "text_default": "",
             "database_id": None,
             "workspace_id": None,
+            "db_index": False,
         },
     }
 
@@ -122,6 +124,7 @@ def test_field_updated_event_type(data_fixture):
             "text_default": "",
             "database_id": table.database_id,
             "workspace_id": table.database.workspace_id,
+            "db_index": False,
         },
     }
 
@@ -161,6 +164,7 @@ def test_field_updated_event_type_test_payload(data_fixture):
             "text_default": "",
             "database_id": None,
             "workspace_id": None,
+            "db_index": False,
         },
     }
 

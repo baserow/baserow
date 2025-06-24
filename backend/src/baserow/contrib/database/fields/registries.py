@@ -149,6 +149,12 @@ class FieldType(
     `FieldHandler::get_unique_row_values` method.
     """
 
+    _can_have_db_index = False
+    """
+    Indicates whether a `db_index` can be true on the model field. If so, then it's
+    optionally possible for to add an index to the field.
+    """
+
     _can_group_by = False
     """Indicates whether it is possible to group by by this field type."""
 
@@ -701,6 +707,7 @@ class FieldType(
 
         values = {
             "name": field.name,
+            "db_index": field.db_index,
         }
 
         values.update({key: getattr(field, key) for key in self.allowed_fields})
@@ -1002,6 +1009,7 @@ class FieldType(
             "order": field.order,
             "primary": field.primary,
             "read_only": field.read_only,
+            "db_index": field.db_index,
             "immutable_type": field.immutable_type,
             "immutable_properties": field.immutable_properties,
         }
@@ -1622,6 +1630,17 @@ class FieldType(
         """
 
         return self._can_be_primary_field
+
+    def can_have_db_index(self, field: Field) -> bool:
+        """
+        Override this method if this field type can have an index.
+
+        :param field: The field object related to the field that's created or updated
+            with the db_index enabled.
+        :return: True if the field can have an index
+        """
+
+        return self._can_have_db_index
 
     @cached_property
     def _can_filter_by(self) -> bool:

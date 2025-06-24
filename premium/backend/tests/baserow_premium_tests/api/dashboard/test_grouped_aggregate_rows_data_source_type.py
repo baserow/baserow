@@ -103,6 +103,7 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
                     "type": "number",
                     "database_id": table.database.id,
                     "workspace_id": table.database.workspace.id,
+                    "db_index": False,
                 },
             },
         },

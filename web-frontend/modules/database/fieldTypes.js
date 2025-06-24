@@ -992,6 +992,13 @@ export class FieldType extends Registerable {
   shouldRefetchFieldData(field, rows) {
     return false
   }
+
+  /**
+   * Indicates whether it's possible to enable the database index for a field.
+   */
+  canHaveDbIndex(fieldValues) {
+    return false
+  }
 }
 
 class SelectOptionBaseFieldType extends FieldType {
@@ -1123,6 +1130,10 @@ export class TextFieldType extends FieldType {
   getCanGroupByInView(field) {
     return true
   }
+
+  canHaveDbIndex(fieldValues) {
+    return true
+  }
 }
 
 export class LongTextFieldType extends FieldType {
@@ -1238,6 +1249,10 @@ export class LongTextFieldType extends FieldType {
 
   getCanGroupByInView(field) {
     return !field.long_text_enable_rich_text
+  }
+
+  canHaveDbIndex(fieldValues) {
+    return true
   }
 }
 
@@ -1854,6 +1869,10 @@ export class NumberFieldType extends FieldType {
     const res = parseNumberValue(field, String(value ?? ''), false)
     return res === null || res.isNaN() ? '' : res.toString()
   }
+
+  canHaveDbIndex(fieldValues) {
+    return true
+  }
 }
 
 BigNumber.config({ EXPONENTIAL_AT: NumberFieldType.getMaxNumberLength() })
@@ -2000,6 +2019,10 @@ export class RatingFieldType extends FieldType {
   }
 
   getCanGroupByInView(field) {
+    return true
+  }
+
+  canHaveDbIndex(fieldValues) {
     return true
   }
 }
@@ -2156,6 +2179,10 @@ export class BooleanFieldType extends FieldType {
 
   parseFilterValue(field, value) {
     return this.parseInputValue(field, String(value ?? ''))
+  }
+
+  canHaveDbIndex(fieldValues) {
+    return true
   }
 }
 
@@ -2386,6 +2413,10 @@ class BaseDateFieldType extends FieldType {
 
   toBaserowFormulaType(field) {
     return 'date'
+  }
+
+  canHaveDbIndex(fieldValues) {
+    return true
   }
 }
 
@@ -4295,6 +4326,15 @@ export class FormulaFieldType extends mix(
   toBaserowFormulaType(field) {
     return this.getFormulaType(field).toBaserowFormulaType(field)
   }
+
+  canHaveDbIndex(fieldValues) {
+    // Not all the formula types are compatible with the indexes, but the downside
+    // is that the frontend only knows the new formula type after saving, so it's
+    // impossible to preemptively know if indexes are supported. We're therefore
+    // always allowing indexes, and if the formula type is not compatible, the
+    // backend will fail, and will show the correct error in the form.
+    return true
+  }
 }
 
 export class CountFieldType extends FormulaFieldType {
@@ -4707,6 +4747,10 @@ export class UUIDFieldType extends FieldType {
   canBeReferencedByFormulaField() {
     return true
   }
+
+  canHaveDbIndex(fieldValues) {
+    return true
+  }
 }
 
 export class AutonumberFieldType extends FieldType {
@@ -4812,6 +4856,10 @@ export class AutonumberFieldType extends FieldType {
   }
 
   canBeReferencedByFormulaField() {
+    return true
+  }
+
+  canHaveDbIndex(fieldValues) {
     return true
   }
 }
