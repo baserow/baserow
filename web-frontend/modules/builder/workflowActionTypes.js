@@ -14,6 +14,7 @@ import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
+import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 
 export class NotificationWorkflowActionType extends WorkflowActionType {
   static getType() {
@@ -33,7 +34,7 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
   }
 
   execute({ workflowAction: { title, description }, resolveFormula }) {
-    return this.app.store.dispatch('toast/info', {
+    return this.app.store.dispatch('builderToast/info', {
       title: ensureString(resolveFormula(title)),
       message: ensureString(resolveFormula(description)),
     })
@@ -207,16 +208,29 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
       { ...applicationContext }
     )
 
-    await this.app.store.dispatch(
-      'dataSourceContent/fetchPageDataSourceContentById',
-      {
-        page: dataSourcePage,
-        dataSourceId: workflowAction.data_source_id,
-        dispatchContext,
-        mode: applicationContext.mode,
-        replace: true,
-      }
-    )
+    try {
+      await this.app.store.dispatch(
+        'dataSourceContent/fetchPageDataSourceContentById',
+        {
+          page: dataSourcePage,
+          dataSourceId: workflowAction.data_source_id,
+          dispatchContext,
+          mode: applicationContext.mode,
+          replace: true,
+        }
+      )
+    } catch (error) {
+      const dataSource = this.app.store.getters[
+        'dataSource/getPageDataSourceById'
+      ](applicationContext.page, workflowAction.data_source_id)
+      handleDispatchError(
+        error,
+        this.app,
+        this.app.i18n.t('builderToast.errorDataSourceDispatch', {
+          name: dataSource.name,
+        })
+      )
+    }
   }
 
   getDataSchema(workflowAction) {

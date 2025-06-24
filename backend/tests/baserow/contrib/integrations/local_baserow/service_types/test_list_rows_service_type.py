@@ -19,7 +19,9 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowListRowsUserServiceType,
 )
 from baserow.core.exceptions import PermissionException
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.core.utils import MirrorDict
@@ -346,7 +348,7 @@ def test_local_baserow_list_rows_service_before_dispatch_validation_error(data_f
     )
 
     dispatch_context = FakeDispatchContext()
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         LocalBaserowListRowsUserServiceType().resolve_service_formulas(
             service, dispatch_context
         )

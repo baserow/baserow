@@ -1,5 +1,5 @@
 <template>
-  <ThemeProvider class="page">
+  <div class="page">
     <PageElement
       v-for="element in headerElements"
       :key="element.id"
@@ -27,18 +27,17 @@
         recordIndexPath: [],
       }"
     />
-  </ThemeProvider>
+  </div>
 </template>
 
 <script>
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
-import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import _ from 'lodash'
 import { PAGE_PLACES } from '@baserow/modules/builder/enums'
 
 export default {
-  components: { ThemeProvider, PageElement },
+  components: { PageElement },
   mixins: [dimensionMixin],
   inject: ['builder', 'mode'],
   props: {

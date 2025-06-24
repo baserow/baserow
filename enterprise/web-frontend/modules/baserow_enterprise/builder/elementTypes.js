@@ -51,7 +51,7 @@ export class AuthFormElementType extends ElementType {
   }
 
   getEvents(element) {
-    return [new AfterLoginEvent({ ...this.app })]
+    return [new AfterLoginEvent({ app: this.app })]
   }
 
   getErrorMessage({ workspace, page, element, builder }) {

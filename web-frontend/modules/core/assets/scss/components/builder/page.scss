@@ -13,3 +13,10 @@
     min-height: 100%;
   }
 }
+
+.public-page .context {
+  // Remove context style to let the component inside decide the style
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}

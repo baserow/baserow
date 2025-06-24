@@ -15,7 +15,10 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.exceptions import PermissionException
-from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    DoesNotExist,
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.core.utils import MirrorDict
@@ -382,21 +385,21 @@ def test_local_baserow_get_row_service_dispatch_validation_error(data_fixture):
     )
     service_type = LocalBaserowGetRowUserServiceType()
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.dispatch(service, dispatch_context)
 
     service = data_fixture.create_local_baserow_get_row_service(
         integration=integration, table=table, row_id="''"
     )
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.dispatch(service, dispatch_context)
 
     service = data_fixture.create_local_baserow_get_row_service(
         integration=integration, table=table, row_id="wrong formula"
     )
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.dispatch(service, dispatch_context)
 
 
@@ -453,16 +456,16 @@ def test_local_baserow_get_row_service_dispatch_data_no_row_id(data_fixture):
     assert dispatch_data["data"].id == rows[0].id
 
     # If the `row_id` is a formula, and its resolved value is blank, ensure we're
-    # raising `ServiceImproperlyConfigured`. We don't want to use the "no row ID"
-    # behaviour of returning the first row if we're using formulas.
+    # raising `ServiceImproperlyConfiguredDispatchException`. We don't want to use the
+    # "no row ID" behaviour of returning the first row if we're using formulas.
     service.row_id = 'get("page_parameter.id")'
     service.save()
     dispatch_context = FakeDispatchContext(context={"page_parameter": {"id": ""}})
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.resolve_service_formulas(service, dispatch_context)
 
     assert (
-        exc.value.args[0] == "The result of the `row_id` formula must "
+        exc.value.args[0] == "The `row_id` value must "
         "be an integer or convertible to an integer."
     )
 

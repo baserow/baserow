@@ -268,8 +268,8 @@ class DashboardDataSourceService:
             correct permissions.
         :raises DashboardDataSourceImproperlyConfigured: If the data source is
             not properly configured.
-        :raises ServiceImproperlyConfigured: If the underlying service is
-            not properly configured.
+        :raises ServiceImproperlyConfiguredDispatchException: If the underlying service
+            is not properly configured.
         :raises DoesNotExist: If the requested data from the service
             don't exist.
         :return: return the dispatch result.

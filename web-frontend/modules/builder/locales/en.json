@@ -8,6 +8,19 @@
     "timeFormat24Hour": "24 hour",
     "timeFormat12Hour": "12 hour"
   },
+  "builderToast": {
+    "details": "Details",
+    "defaultTitle": "Unexpected Error",
+    "defaultMessage": "An unexpected error occurred. Please try again later.",
+    "invalidContextTitle": "Invalid request",
+    "invalidContextMessage": "The request is invalid.",
+    "InvalidContentTitle": "Invalid form",
+    "invalidContentMessage": "One or more fields contain invalid values.",
+    "serviceMisconfiguredTitle": "Incomplete configuration",
+    "serviceMisconfiguredMessage": "Please check the configuration.",
+    "errorWorkflowActionDispatch": "The \"{name}\" action failed: ",
+    "errorDataSourceDispatch": "Failed to load \"{name}\" data: "
+  },
   "dataProviderType": {
     "dataSource": "Data records",
     "dataSourceContext": "Available options",
@@ -890,16 +903,6 @@
     "manual": "Manual",
     "dataSource": "Data source",
     "formulas": "Formulas"
-  },
-  "dispatchWorkflowActionError": {
-    "defaultTitle": "Event error",
-    "defaultMessage": "An error occurred triggering this event.",
-    "formDataInvalidTitle": "Invalid form",
-    "formDataInvalidMessage": "One or more fields contain invalid values."
-  },
-  "dispatchDataSourceError": {
-    "defaultTitle": "Data loading error",
-    "defaultMessage": "An error occurred while loading data for the page."
   },
   "localBaserowServiceForm": {
     "integrationDropdownLabel": "Integration",

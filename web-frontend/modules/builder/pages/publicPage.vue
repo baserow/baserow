@@ -1,6 +1,6 @@
 <template>
-  <div>
-    <Toasts></Toasts>
+  <ThemeProvider>
+    <BuilderToasts></BuilderToasts>
     <RecursiveWrapper :components="builderPageDecorators">
       <PageContent
         v-if="canViewPage"
@@ -10,7 +10,7 @@
         :shared-elements="sharedElements"
       />
     </RecursiveWrapper>
-  </div>
+  </ThemeProvider>
 </template>
 
 <script>
@@ -18,11 +18,12 @@ import PageContent from '@baserow/modules/builder/components/page/PageContent'
 import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
 
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
-import Toasts from '@baserow/modules/core/components/toasts/Toasts'
+import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
 import _ from 'lodash'
 import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
 import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
+import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
 
 import {
   getTokenIfEnoughTimeLeft,
@@ -45,7 +46,7 @@ const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
 
 export default {
   name: 'PublicPage',
-  components: { RecursiveWrapper, PageContent, Toasts },
+  components: { RecursiveWrapper, PageContent, BuilderToasts, ThemeProvider },
   provide() {
     return {
       workspace: this.workspace,
@@ -513,7 +514,7 @@ export default {
 
         const currentPath = this.$route.fullPath
         if (url !== currentPath) {
-          this.$store.dispatch('toast/info', {
+          this.$store.dispatch('builderToast/info', {
             title: this.$t('publicPage.authorizedToastTitle'),
             message: this.$t('publicPage.authorizedToastMessage'),
           })
@@ -555,7 +556,7 @@ export default {
             application: this.builder,
             token: refreshTokenFromProvider,
           })
-          this.$store.dispatch('toast/info', {
+          this.$store.dispatch('builderToast/info', {
             title: this.$t('publicPage.loginToastTitle'),
             message: this.$t('publicPage.loginToastMessage'),
           })

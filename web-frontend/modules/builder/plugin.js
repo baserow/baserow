@@ -25,6 +25,7 @@ import elementContentStore from '@baserow/modules/builder/store/elementContent'
 import themeStore from '@baserow/modules/builder/store/theme'
 import builderWorkflowActionStore from '@baserow/modules/builder/store/builderWorkflowAction'
 import formDataStore from '@baserow/modules/builder/store/formData'
+import builderToast from '@baserow/modules/builder/store/builderToast'
 import { registerRealtimeEvents } from '@baserow/modules/builder/realtime'
 import {
   HeadingElementType,
@@ -177,6 +178,7 @@ export default (context) => {
   store.registerModule('theme', themeStore)
   store.registerModule('builderWorkflowAction', builderWorkflowActionStore)
   store.registerModule('formData', formDataStore)
+  store.registerModule('builderToast', builderToast)
 
   app.$registry.registerNamespace('builderSettings')
   app.$registry.registerNamespace('element')

@@ -42,7 +42,9 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowViewServiceType,
 )
 from baserow.core.services.dispatch_context import DispatchContext
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.registries import DispatchTypes
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import atomic_if_not_already
@@ -581,7 +583,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 group_by_values.append(model.get_primary_field().db_column)
                 break
             if group_by.field.trashed:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {group_by.field.id} is trashed."
                 )
             try:
@@ -589,7 +591,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     group_by.field.get_type()
                 )
             except FieldTypeDoesNotExist:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {group_by.field.id} cannot be used for group by."
                 )
             group_by_values.append(group_by.field.db_column)
@@ -600,29 +602,29 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         combined_agg_dict = {}
         defined_agg_series = service.service_aggregation_series.all()
         if len(defined_agg_series) == 0:
-            raise ServiceImproperlyConfigured(
+            raise ServiceImproperlyConfiguredDispatchException(
                 f"There are no aggregation series defined."
             )
 
         series_agg_used = set()
         for agg_series in defined_agg_series:
             if agg_series.field is None:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The aggregation series field has to be set."
                 )
             if agg_series.field.trashed:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {agg_series.field.id} is trashed."
                 )
             model_field = model._meta.get_field(agg_series.field.db_column)
             try:
                 agg_type = grouped_aggregation_registry.get(agg_series.aggregation_type)
             except AggregationTypeDoesNotExist as ex:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The the aggregation type {agg_series.aggregation_type} doesn't exist."
                 ) from ex
             if not agg_type.field_is_compatible(agg_series.field):
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {agg_series.field.id} is not compatible "
                     f"with the aggregation type {agg_series.aggregation_type}."
                 )
@@ -631,7 +633,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 f"field_{agg_series.field.id}_{agg_series.aggregation_type}"
             )
             if series_aggregation_reference in series_agg_used:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The series with field ID {agg_series.field.id} and "
                     f"aggregation type {agg_series.aggregation_type} can only be defined once."
                 )
@@ -667,7 +669,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         sort_annotations = {}
         for sort_by in service.service_aggregation_sorts.all():
             if sort_by.reference not in allowed_sort_references:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The sort reference '{sort_by.reference}' cannot be used for sorting."
                 )
 

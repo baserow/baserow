@@ -6,8 +6,29 @@ class ServiceTypeDoesNotExist(Exception):
     """Raised when trying to use non-existing service type."""
 
 
-class ServiceImproperlyConfigured(Exception):
+class DispatchException(Exception):
+    """Base class for all dispatch exception"""
+
+
+class UnexpectedDispatchException(DispatchException):
+    """Raised when trying to dispatch a service and an unexpected error happens."""
+
+
+class ServiceImproperlyConfiguredDispatchException(DispatchException):
     """Raised when trying to dispatch a service that is not fully configured."""
+
+
+class InvalidContextDispatchException(DispatchException):
+    """
+    Raised when trying to dispatch a service and the dispatch context is invalid.
+    """
+
+
+class InvalidContextContentDispatchException(DispatchException):
+    """
+    Raised when trying to dispatch a service and the dispatch context payload
+    is invalid.
+    """
 
 
 class DoesNotExist(Exception):

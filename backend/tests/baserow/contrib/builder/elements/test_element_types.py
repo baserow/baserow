@@ -15,9 +15,6 @@ import zipstream
 from rest_framework.exceptions import ValidationError
 
 from baserow.api.exceptions import RequestBodyValidationException
-from baserow.contrib.builder.data_providers.exceptions import (
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
@@ -37,6 +34,7 @@ from baserow.contrib.builder.elements.element_types import (
     TextElementType,
     collection_element_types,
 )
+from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
     ContainerElementTypeMixin,
@@ -438,9 +436,9 @@ def test_rating_input_element_type_is_valid_with_required_element():
     assert element_type.is_valid(element, 3, dispatch_context) == 3
 
     # Test with None value (should raise exception)
-    with pytest.raises(FormDataProviderChunkInvalidException) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         element_type.is_valid(element, None, dispatch_context)
-    assert "The value is required for this element." in str(excinfo.value)
+    assert "The value is required" in str(excinfo.value)
 
 
 def test_rating_input_element_type_is_valid_with_out_of_range_values():
@@ -453,9 +451,9 @@ def test_rating_input_element_type_is_valid_with_out_of_range_values():
 
     # Test with values outside the valid range
     for invalid_value in [-1, 6, 10]:
-        with pytest.raises(FormDataProviderChunkInvalidException) as excinfo:
+        with pytest.raises(ValueError) as excinfo:
             element_type.is_valid(element, invalid_value, dispatch_context)
-        assert "The value is required for this element." in str(excinfo.value)
+        assert "The value is required" in str(excinfo.value)
 
 
 def test_rating_input_element_type_is_valid_edge_cases():
@@ -509,17 +507,17 @@ def test_choice_element_import_export_formula(data_fixture):
 @pytest.mark.parametrize(
     "required,type,value,result",
     [
-        (True, "integer", "", False),
+        (True, "integer", "", ValueError),
         (True, "integer", 42, 42),
         (True, "integer", "4.2", 4.2),
-        (True, "integer", "4,2", False),
+        (True, "integer", "4,2", TypeError),
         (True, "integer", "42", 42),
-        (True, "integer", "horse", False),
+        (True, "integer", "horse", TypeError),
         (False, "integer", "", ""),
         (True, "email", "foo@bar.com", "foo@bar.com"),
-        (True, "email", "foobar.com", False),
+        (True, "email", "foobar.com", ValueError),
         (False, "email", "", ""),
-        (True, "any", "", False),
+        (True, "any", "", ValueError),
         (True, "any", 42, 42),
         (True, "any", "42", "42"),
         (True, "any", "horse", "horse"),
@@ -527,7 +525,7 @@ def test_choice_element_import_export_formula(data_fixture):
     ],
 )
 def test_input_text_element_is_valid(data_fixture, required, type, value, result):
-    if result is not False:
+    if result not in [TypeError, ValueError]:
         assert (
             InputTextElementType().is_valid(
                 InputTextElement(validation_type=type, required=required),
@@ -537,7 +535,7 @@ def test_input_text_element_is_valid(data_fixture, required, type, value, result
             == result
         ), repr(f"{value} != {result}")
     else:
-        with pytest.raises(FormDataProviderChunkInvalidException):
+        with pytest.raises(result):
             InputTextElementType().is_valid(
                 InputTextElement(validation_type=type, required=required),
                 value,
@@ -587,17 +585,17 @@ def test_choice_element_is_valid(data_fixture):
 
     choice.required = True
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, "", {})
 
     assert ChoiceElementType().is_valid(choice, "uk", {}) == "uk"
 
     choice.multiple = True
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, [], {})
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, [""], {})
 
     assert ChoiceElementType().is_valid(choice, ["uk"], {}) == ["uk"]
@@ -605,10 +603,10 @@ def test_choice_element_is_valid(data_fixture):
     assert ChoiceElementType().is_valid(choice, ["uk", "it"], {}) == ["uk", "it"]
     assert ChoiceElementType().is_valid(choice, "uk,it", {}) == ["uk", "it"]
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, ["uk", "it", "pt"], {})
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, "uk,it,pt", {})
 
     choice.multiple = False
@@ -622,14 +620,14 @@ def test_choice_element_is_valid(data_fixture):
     assert ChoiceElementType().is_valid(choice, [], {}) == []
     assert ChoiceElementType().is_valid(choice, "", {}) == []
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, [""], {})
 
     assert ChoiceElementType().is_valid(choice, ["uk"], {}) == ["uk"]
     assert ChoiceElementType().is_valid(choice, ["uk", "it"], {}) == ["uk", "it"]
     assert ChoiceElementType().is_valid(choice, "uk,it", {}) == ["uk", "it"]
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, ["uk", "it", "pt"], {})
 
     choice.choiceelementoption_set.create(value="", name="Blank")
@@ -639,9 +637,9 @@ def test_choice_element_is_valid(data_fixture):
     assert ChoiceElementType().is_valid(choice, "", {}) == ""
 
     choice.multiple = True
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, [], {})
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, "", {})
 
     assert ChoiceElementType().is_valid(choice, [""], {}) == [""]
@@ -655,7 +653,7 @@ def test_choice_element_is_valid(data_fixture):
         "",
     ]
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, ["uk", "it", "", "pt"], {})
 
     choice.multiple = False
@@ -675,7 +673,7 @@ def test_choice_element_is_valid(data_fixture):
         "",
     ]
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, ["uk", "it", "", "pt"], {})
 
 
@@ -715,7 +713,7 @@ def test_choice_element_is_valid_formula_data_source(data_fixture):
         only_expose_public_allowed_properties=False,
     )
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, "Invalid", dispatch_context)
 
     # Call is_valid with a valid option simply returns its value
@@ -767,7 +765,7 @@ def test_choice_element_is_valid_formula_context(data_fixture):
 
     # Call is_valid with an option that is not present in the list raises an exception
     dispatch_context = BuilderDispatchContext(HttpRequest(), page, offset=0, count=20)
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, "Invalid", dispatch_context)
 
     # Call is_valid with a valid option simply returns its value
@@ -851,10 +849,10 @@ def test_checkbox_element_import_export_formula(data_fixture):
 
 @pytest.mark.django_db
 def test_checkbox_text_element_is_valid(data_fixture):
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         CheckboxElementType().is_valid(CheckboxElement(required=True), False, {})
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         CheckboxElementType().is_valid(CheckboxElement(required=True), 0, {})
 
     assert (
@@ -1368,7 +1366,7 @@ def test_choice_element_validation_none_vs_empty(
         assert ChoiceElementType().is_valid(choice, value, {}) is value
 
     for value in invalid_choices:
-        with pytest.raises(FormDataProviderChunkInvalidException):
+        with pytest.raises(ValueError):
             ChoiceElementType().is_valid(choice, value, {})
 
 
@@ -1474,12 +1472,12 @@ def test_record_element_is_valid(data_fixture):
     )
 
     # Record selector with no data sources is invalid
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ElementImproperlyConfigured):
         element = RecordSelectorElement()
         RecordSelectorElementType().is_valid(element, "", dispatch_context)
 
     # Record selector that is required should not accept empty values
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         element = RecordSelectorElement(data_source=data_source, required=True)
         RecordSelectorElementType().is_valid(element, "", dispatch_context)
 
@@ -1490,7 +1488,7 @@ def test_record_element_is_valid(data_fixture):
             RecordSelectorElementType().is_valid(element, row_id, dispatch_context)
             == row_id
         )
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         RecordSelectorElementType().is_valid(element, "-1", dispatch_context)
 
     # Record selector that is not required should accept empty values
@@ -1504,18 +1502,18 @@ def test_record_element_is_valid(data_fixture):
             RecordSelectorElementType().is_valid(element, row_id, dispatch_context)
             == row_id
         )
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         RecordSelectorElementType().is_valid(element, "-1", dispatch_context)
 
     # Record selector that is multiple and required should not accept empty values
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         element = RecordSelectorElement(
             data_source=data_source, required=True, multiple=True
         )
         RecordSelectorElementType().is_valid(element, "", dispatch_context)
 
     # Record selector that is multiple should not accept invalid values
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(TypeError):
         element = RecordSelectorElement(
             data_source=data_source, required=False, multiple=True
         )
@@ -1529,7 +1527,7 @@ def test_record_element_is_valid(data_fixture):
         RecordSelectorElementType().is_valid(element, row_ids, dispatch_context)
         == row_ids
     )
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         RecordSelectorElementType().is_valid(element, [], dispatch_context)
 
     # Record selector that is multiple and not required should accept empty values
@@ -1546,7 +1544,7 @@ def test_record_element_is_valid(data_fixture):
         RecordSelectorElementType().is_valid(element, row_ids, dispatch_context)
         == row_ids
     )
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         RecordSelectorElementType().is_valid(element, "-1", dispatch_context)
 
 
@@ -1616,7 +1614,7 @@ def test_repeat_element_import_export(data_fixture):
     "required,date_format,include_time,time_format,value,expected",
     [
         (False, "ISO", False, "24", None, "None"),
-        (True, "ISO", False, "24", None, FormDataProviderChunkInvalidException),
+        (True, "ISO", False, "24", None, ValueError),
         (True, "ISO", False, "24", "2024-04-25T00:00:00.000Z", "2024-04-25"),
         (True, "ISO", True, "24", "2024-04-25T14:30:00.000Z", "2024-04-25 14:30"),
         (True, "EU", False, "24", "2024-04-25T00:00:00.000Z", "25/04/2024"),
@@ -1635,8 +1633,8 @@ def test_datetime_picker_element_is_valid(
         include_time=include_time,
         time_format=time_format,
     )
-    if expected is FormDataProviderChunkInvalidException:
-        with pytest.raises(FormDataProviderChunkInvalidException):
+    if expected is ValueError:
+        with pytest.raises(ValueError):
             element_type.is_valid(element, value, {})
     else:
         assert str(element_type.is_valid(element, value, {})) == expected

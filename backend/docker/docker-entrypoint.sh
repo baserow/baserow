@@ -146,13 +146,12 @@ The available Baserow backend related commands, services and healthchecks are sh
 below:
 
 ADMIN COMMANDS:
-setup           : Runs all setup commands (migrate and update_formulas)
-manage          : Manage Baserow and its database
 bash            : Start a bash shell with the correct env setup
+manage          : Manage Baserow and its database
+setup           : Runs all setup commands (migrate and update_formulas)
 backup          : Backs up Baserow's database to DATA_DIR/backups by default
 restore         : Restores Baserow's database restores from DATA_DIR/backups by default
 python          : Run a python command
-shell           : Start a Django Python shell
 shell           : Start a Django Python shell
 wait_for_db     : Waits BASEROW_POSTGRES_STARTUP_CHECK_ATTEMPTS attempts for the
                   configured db to become available.

@@ -23,7 +23,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     UpdateRowWorkflowActionType,
 )
 from baserow.core.formula import BaserowFormula
-from baserow.core.formula.exceptions import InvalidBaserowFormula
+from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
@@ -853,7 +853,7 @@ def test_formula_property_visitor_visit_function_call_handles_formula_error(
     """
 
     mock_data_provider_type = MagicMock()
-    mock_data_provider_type.extract_properties.side_effect = InvalidBaserowFormula()
+    mock_data_provider_type.extract_properties.side_effect = InvalidRuntimeFormula()
     mock_data_provider_registry.get.return_value = mock_data_provider_type
 
     mock_expression = MagicMock(spec=BaserowFormula.StringLiteralContext)

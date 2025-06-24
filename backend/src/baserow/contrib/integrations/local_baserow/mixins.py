@@ -13,9 +13,6 @@ from typing import (
 from django.core.exceptions import ValidationError
 from django.db.models import OrderBy, Prefetch, QuerySet
 
-from baserow.contrib.builder.data_providers.exceptions import (
-    DataProviderChunkInvalidException,
-)
 from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.field_filters import FilterBuilder
 from baserow.contrib.database.fields.models import Field
@@ -35,6 +32,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowViewService,
 )
 from baserow.core.formula import BaserowFormula, resolve_formula
+from baserow.core.formula.exceptions import RuntimeFormulaException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.validator import ensure_integer, ensure_string
@@ -42,7 +40,7 @@ from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     ServiceFilterPropertyDoesNotExist,
-    ServiceImproperlyConfigured,
+    ServiceImproperlyConfiguredDispatchException,
     ServiceSortPropertyDoesNotExist,
 )
 from baserow.core.services.types import (
@@ -282,7 +280,7 @@ class LocalBaserowTableServiceFilterableMixin:
                         )
                     )
                 except Exception as exc:
-                    raise ServiceImproperlyConfigured(
+                    raise ServiceImproperlyConfiguredDispatchException(
                         f"The {field_name} service filter formula can't be resolved: {exc}"
                     ) from exc
             else:
@@ -742,7 +740,7 @@ class LocalBaserowTableServiceSearchableMixin:
                 allow_empty=True,
             )
         except Exception as exc:
-            raise ServiceImproperlyConfigured(
+            raise ServiceImproperlyConfiguredDispatchException(
                 f"The `search_query` formula can't be resolved: {exc}"
             ) from exc
 
@@ -834,18 +832,18 @@ class LocalBaserowTableServiceSpecificRowMixin:
                     dispatch_context,
                 )
             )
+
         except ValidationError as exc:
-            raise ServiceImproperlyConfigured(
-                "The result of the `row_id` formula must be an integer or convertible "
-                "to an integer."
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The `row_id` value must be an integer or convertible " "to an integer."
             ) from exc
-        except DataProviderChunkInvalidException as e:
-            message = f"Formula for row {service.row_id} could not be resolved."
-            raise ServiceImproperlyConfigured(message) from e
-        except ServiceImproperlyConfigured:
+        except RuntimeFormulaException as e:
+            message = message = f"Row id formula could not be resolved: {str(e)}"
+            raise ServiceImproperlyConfiguredDispatchException(message) from e
+        except ServiceImproperlyConfiguredDispatchException:
             raise
         except Exception as exc:
-            raise ServiceImproperlyConfigured(
+            raise ServiceImproperlyConfiguredDispatchException(
                 f"The `row_id` formula can't be resolved: {exc}"
             ) from exc
 

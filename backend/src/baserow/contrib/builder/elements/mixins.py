@@ -14,9 +14,6 @@ from baserow.contrib.builder.api.elements.serializers import (
     CollectionElementPropertyOptionsSerializer,
     CollectionFieldSerializer,
 )
-from baserow.contrib.builder.data_providers.exceptions import (
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.exceptions import (
     CollectionElementPropertyOptionsNotUnique,
@@ -824,9 +821,7 @@ class FormElementTypeMixin:
         """
 
         if element.required and not value:
-            raise FormDataProviderChunkInvalidException(
-                "The value is required for this element."
-            )
+            raise ValueError("The value is required")
 
         return value
 

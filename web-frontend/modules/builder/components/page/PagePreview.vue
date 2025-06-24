@@ -14,6 +14,7 @@
         @keydown="handleKeyDown"
       >
         <ThemeProvider class="page">
+          <BuilderToasts></BuilderToasts>
           <template v-if="headerElements.length !== 0">
             <header
               class="page__header"
@@ -126,6 +127,7 @@ import PreviewNavigationBar from '@baserow/modules/builder/components/page/Previ
 import { DIRECTIONS, PAGE_PLACES } from '@baserow/modules/builder/enums'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal.vue'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider.vue'
+import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 
 export default {
   name: 'PagePreview',
@@ -134,6 +136,7 @@ export default {
     AddElementModal,
     ElementPreview,
     PreviewNavigationBar,
+    BuilderToasts,
   },
   inject: ['builder', 'currentPage', 'workspace'],
   provide() {

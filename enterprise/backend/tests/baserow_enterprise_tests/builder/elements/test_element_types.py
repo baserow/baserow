@@ -8,9 +8,6 @@ import pytest
 from rest_framework.status import HTTP_200_OK
 
 from baserow.api.exceptions import RequestBodyValidationException
-from baserow.contrib.builder.data_providers.exceptions import (
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
@@ -121,13 +118,13 @@ def test_file_input_element_is_valid(fake):
 @pytest.mark.parametrize(
     "allowed,should_raise",
     [
-        (["video/*"], True),
-        (["image/*"], False),
-        (["audio/*"], True),
-        (["png"], False),
-        ([".png"], False),
-        ([".jpg"], True),
-        ([".jpg", "png"], False),
+        (["video/*"], TypeError),
+        (["image/*"], None),
+        (["audio/*"], TypeError),
+        (["png"], None),
+        ([".png"], None),
+        ([".jpg"], TypeError),
+        ([".jpg", "png"], None),
     ],
 )
 def test_file_input_element_is_valid_invalid_filetype(fake, allowed, should_raise):
@@ -157,7 +154,7 @@ def test_file_input_element_is_valid_invalid_filetype(fake, allowed, should_rais
     }
 
     if should_raise:
-        with pytest.raises(FormDataProviderChunkInvalidException):
+        with pytest.raises(should_raise):
             FileInputElementType().is_valid(element, value, dispatch_context)
     else:
         assert FileInputElementType().is_valid(element, value, dispatch_context) == {
@@ -198,7 +195,7 @@ def test_file_input_element_is_valid_invalid_size(fake):
         "file": "3c913094-c69a-4fd3-b19d-c35322f7d5c5",
     }
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         FileInputElementType().is_valid(element, value, dispatch_context)
 
 

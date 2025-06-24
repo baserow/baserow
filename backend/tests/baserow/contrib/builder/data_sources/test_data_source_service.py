@@ -10,7 +10,6 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 )
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceDoesNotExist,
-    DataSourceImproperlyConfigured,
     DataSourceNotInSamePage,
 )
 from baserow.contrib.builder.data_sources.models import DataSource
@@ -18,7 +17,10 @@ from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.database.views.view_filters import EqualViewFilterType
 from baserow.core.exceptions import PermissionException
-from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
+from baserow.core.services.exceptions import (
+    InvalidServiceTypeDispatchSource,
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.models import Service
 from baserow.core.services.registries import DispatchTypes, service_type_registry
 from baserow.test_utils.helpers import AnyStr
@@ -572,7 +574,7 @@ def test_dispatch_data_source_improperly_configured(data_fixture):
         HttpRequest(), page, only_expose_public_allowed_properties=False
     )
 
-    with pytest.raises(DataSourceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         DataSourceService().dispatch_data_source(user, data_source, dispatch_context)
 
 

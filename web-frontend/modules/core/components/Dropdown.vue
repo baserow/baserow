@@ -71,7 +71,7 @@
         />
       </div>
       <ul
-        v-show="hasItems"
+        v-show="hasItems && hasDropdownItem"
         ref="items"
         v-auto-overflow-scroll
         class="select__items"
@@ -80,7 +80,7 @@
       >
         <slot></slot>
       </ul>
-      <div v-if="!hasItems" class="select__items--empty">
+      <div v-if="!hasItems || !hasDropdownItem" class="select__items--empty">
         <slot name="emptyState">
           {{ $t('dropdown.empty') }}
         </slot>

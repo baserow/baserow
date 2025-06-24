@@ -8,7 +8,7 @@ from baserow.contrib.builder.data_providers.registries import (
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.formula_importer import BaserowFormulaImporter
 from baserow.core.formula import BaserowFormula
-from baserow.core.formula.exceptions import InvalidBaserowFormula
+from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import merge_dicts_no_duplicates, to_path
 
@@ -77,7 +77,7 @@ class FormulaFieldVisitor(BaserowFormulaImporter):
                     self.results,
                     data_provider_type.extract_properties(path, **self.extra_context),
                 )
-            except InvalidBaserowFormula:
+            except InvalidRuntimeFormula:
                 # If the property extraction failed because of an Invalid formula
                 # we can ignore it. Maybe the related data source is gone.
                 pass

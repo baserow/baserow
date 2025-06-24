@@ -4,7 +4,6 @@ from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -19,7 +18,11 @@ from baserow.api.errors import ERROR_PERMISSION_DENIED
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.services.errors import (
     ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST,
+    ERROR_SERVICE_IMPROPERLY_CONFIGURED,
+    ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
+    ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
     ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
+    ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
 )
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
@@ -32,7 +35,6 @@ from baserow.contrib.builder.api.data_sources.errors import (
     ERROR_DATA_DOES_NOT_EXIST,
     ERROR_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
     ERROR_DATA_SOURCE_DOES_NOT_EXIST,
-    ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
     ERROR_DATA_SOURCE_NAME_NOT_UNIQUE,
     ERROR_DATA_SOURCE_NOT_IN_SAME_PAGE,
     ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
@@ -53,7 +55,6 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 )
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceDoesNotExist,
-    DataSourceImproperlyConfigured,
     DataSourceNameNotUniqueError,
     DataSourceNotInSamePage,
     DataSourceRefinementForbidden,
@@ -67,10 +68,13 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.core.exceptions import PermissionException
 from baserow.core.services.exceptions import (
     DoesNotExist,
+    InvalidContextContentDispatchException,
+    InvalidContextDispatchException,
     InvalidServiceTypeDispatchSource,
     ServiceFilterPropertyDoesNotExist,
-    ServiceImproperlyConfigured,
+    ServiceImproperlyConfiguredDispatchException,
     ServiceSortPropertyDoesNotExist,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.registries import service_type_registry
 
@@ -470,8 +474,14 @@ class DispatchDataSourceView(APIView):
             404: get_error_schema(
                 [
                     "ERROR_DATA_SOURCE_DOES_NOT_EXIST",
-                    "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED",
-                    "ERROR_IN_DISPATCH_CONTEXT",
+                    "ERROR_ELEMENT_DOES_NOT_EXIST",
+                    "ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN",
+                    "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+                    "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT",
+                    "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
+                    "ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR",
+                    "ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST",
+                    "ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST",
                     "ERROR_DATA_DOES_NOT_EXIST",
                 ]
             ),
@@ -482,9 +492,11 @@ class DispatchDataSourceView(APIView):
         {
             DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
             ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
-            DataSourceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
             DataSourceRefinementForbidden: ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
-            ServiceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
+            ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
+            InvalidContextDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
+            InvalidContextContentDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
+            UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
             ServiceSortPropertyDoesNotExist: ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
             ServiceFilterPropertyDoesNotExist: ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST,
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
@@ -530,8 +542,6 @@ class DispatchDataSourcesView(APIView):
         responses={
             404: get_error_schema(
                 [
-                    "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED",
-                    "ERROR_IN_DISPATCH_CONTEXT",
                     "ERROR_DATA_DOES_NOT_EXIST",
                     "ERROR_PAGE_DOES_NOT_EXIST",
                 ]
@@ -542,7 +552,6 @@ class DispatchDataSourcesView(APIView):
     @map_exceptions(
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
-            ServiceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
         }
     )
@@ -566,8 +575,10 @@ class DispatchDataSourcesView(APIView):
                 _, error, detail = apply_exception_mapping(
                     {
                         DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
-                        DataSourceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
-                        ServiceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
+                        ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
+                        InvalidContextDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
+                        InvalidContextContentDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
+                        UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
                         DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
                         PermissionException: ERROR_PERMISSION_DENIED,
                     },
@@ -619,7 +630,7 @@ class GetRecordNamesView(APIView):
             },
             400: get_error_schema(
                 [
-                    "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED",
+                    "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
                 ]
             ),
             404: get_error_schema(
@@ -632,9 +643,7 @@ class GetRecordNamesView(APIView):
     @map_exceptions(
         {
             DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
-            DataSourceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
-            ServiceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
-            ValidationError: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
+            ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
         }
     )
     def get(self, request, data_source_id: int):
@@ -645,11 +654,14 @@ class GetRecordNamesView(APIView):
 
         # Check that the data source service is a ListServiceType
         if not service_type.returns_list:
-            raise ValidationError("This data source does not provide a list service")
+            raise ServiceImproperlyConfiguredDispatchException(
+                "This data source does not provide a list service"
+            )
 
         dispatch_context = BuilderDispatchContext(request, data_source.page)
 
         query = GetRecordIdsSerializer(data=request.query_params)
+
         if query.is_valid(raise_exception=True):
             record_ids = query.validated_data["record_ids"]
             record_names = service_type.get_record_names(

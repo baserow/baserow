@@ -6,9 +6,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 )
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.builder.data_providers.exceptions import (
-    DataProviderChunkInvalidException,
-)
+from baserow.core.formula.exceptions import InvalidFormulaContext
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.utils import get_value_at_path
 
@@ -33,7 +31,7 @@ class PreviousNodeProviderType(AutomationDataProviderType):
             message = (
                 "The previous node id is not present in the dispatch context results"
             )
-            raise DataProviderChunkInvalidException(message)
+            raise InvalidFormulaContext(message)
         return get_value_at_path(previous_node_results, rest)
 
     def import_path(self, path, id_mapping, **kwargs):

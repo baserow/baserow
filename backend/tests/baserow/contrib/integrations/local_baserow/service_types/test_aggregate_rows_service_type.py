@@ -10,7 +10,9 @@ from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowAggregateRows
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
@@ -48,11 +50,11 @@ def test_local_baserow_aggregate_rows_service_generate_schema(data_fixture):
 
 def test_local_baserow_aggregate_rows_resolve_service_formulas():
     service_type = service_type_registry.get("local_baserow_aggregate_rows")
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.resolve_service_formulas(Mock(field=None), FakeDispatchContext())
     assert exc.value.args[0] == "The field property is missing."
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.resolve_service_formulas(
             Mock(field=123, aggregation_type="foobar"), FakeDispatchContext()
         )
@@ -497,7 +499,7 @@ def test_local_baserow_aggregate_rows_dispatch_data_field_deleted(data_fixture):
 
     field.delete()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert exc.value.args[0] == f"The field with ID {field.id} does not exist."
 
@@ -538,7 +540,7 @@ def test_local_baserow_aggregate_rows_dispatch_data_field_trashed(data_fixture):
     FieldHandler().delete_field(user, field)
     service.refresh_from_db()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert exc.value.args[0] == f"The field with ID {field.id} is trashed."
 
@@ -581,7 +583,7 @@ def test_local_baserow_aggregate_rows_dispatch_data_field_type_not_compatible_an
     FieldHandler().update_field(user, field, "text")
     service.refresh_from_db()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert (
         exc.value.args[0] == f"The field with ID {field.id} is not compatible "
