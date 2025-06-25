@@ -253,7 +253,7 @@ class AutomationWorkflowService:
         self, user: AbstractUser, workflow: AutomationWorkflow, progress: Progress
     ) -> None:
         """
-        Publish the given automation for the given automation workflow release if the
+        Publish the automation for the given automation workflow if the
         user has the right permission.
 
         :param user: The user publishing the workflow.
