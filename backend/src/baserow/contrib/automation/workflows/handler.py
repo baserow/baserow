@@ -554,7 +554,7 @@ class AutomationWorkflowHandler:
         :param progress: An object to track the publishing progress.
         """
 
-        # Make sure we are the only process to update the automation workflow release
+        # Make sure we are the only process to update the automation workflow
         # to prevent race conditions.
         workflow = self.get_workflow(workflow.id, for_update=True)
 
