@@ -72,12 +72,10 @@ export default {
       )
     },
     errorMessage() {
-      return this.workflowActionType.getErrorMessage({
-        workflowAction: this.workflowAction,
-        builder: this.builder,
-        page: this.page,
-        element: this.element,
-      })
+      return this.workflowActionType.getErrorMessage(
+        this.workflowAction,
+        this.applicationContext
+      )
     },
   },
   methods: {

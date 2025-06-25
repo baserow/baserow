@@ -34,10 +34,10 @@ export class WorkflowActionType extends Registerable {
   /**
    * Returns a message if the workflow action configuration is invalid.
    * @param {object} workflowAction - The workflow action to validate.
-   * @param {object} param An object containing application context data.
+   * @param {object} params An object containing application context data.
    * @returns The error message or null if everything is good
    */
-  getErrorMessage({ workflowAction, page, element, builder }) {
+  getErrorMessage(workflowAction, applicationContext) {
     return null
   }
 
@@ -47,9 +47,7 @@ export class WorkflowActionType extends Registerable {
    * @param {object} param An object containing application context data.
    * @returns true if the workflow action is in error
    */
-  isInError({ workflowAction, page, element, builder }) {
-    return Boolean(
-      this.getErrorMessage({ workflowAction, page, element, builder })
-    )
+  isInError(workflowAction, applicationContext) {
+    return Boolean(this.getErrorMessage(workflowAction, applicationContext))
   }
 }

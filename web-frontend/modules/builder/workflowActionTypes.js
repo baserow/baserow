@@ -67,7 +67,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
    * @param {object} param An object containing application context data.
    * @returns true if the open page action is in error
    */
-  getErrorMessage({ workflowAction, page, element, builder }) {
+  getErrorMessage(workflowAction, applicationContext) {
     if (workflowAction.navigation_type === 'page') {
       if (!workflowAction.navigate_to_page_id) {
         return this.app.i18n.t('workflowActionTypes.errorNavigateToPageMissing')
@@ -75,7 +75,9 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
       if (
         pathParametersInError(
           workflowAction,
-          this.app.store.getters['page/getVisiblePages'](builder)
+          this.app.store.getters['page/getVisiblePages'](
+            applicationContext.builder
+          )
         )
       ) {
         return this.app.i18n.t('workflowActionTypes.errorPageParameterInError')
@@ -87,7 +89,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
       return this.app.i18n.t('workflowActionTypes.errorNavigationUrlMissing')
     }
 
-    return super.getErrorMessage({ workflowAction, page, element, builder })
+    return super.getErrorMessage(workflowAction, applicationContext)
   }
 
   execute({
@@ -177,12 +179,12 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
     return this.app.i18n.t('workflowActionTypes.refreshDataSourceLabel')
   }
 
-  getErrorMessage({ workflowAction, page, element, builder }) {
+  getErrorMessage(workflowAction, applicationContext) {
     if (!workflowAction.data_source_id) {
       return this.app.i18n.t('workflowActionTypes.errorDataSourceMissing')
     }
 
-    return super.getErrorMessage({ workflowAction, page, element, builder })
+    return super.getErrorMessage(workflowAction, applicationContext)
   }
 
   async execute({ workflowAction, applicationContext }) {
@@ -270,7 +272,7 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return null
   }
 
-  getErrorMessage({ workflowAction, page, element, builder }) {
+  getErrorMessage(workflowAction, applicationContext) {
     const serviceError = this.serviceType.getErrorMessage({
       service: workflowAction.service,
     })
@@ -279,7 +281,7 @@ export class WorkflowActionServiceType extends WorkflowActionType {
       return serviceError
     }
 
-    return super.getErrorMessage({ workflowAction, page, element, builder })
+    return super.getErrorMessage(workflowAction, applicationContext)
   }
 
   get serviceType() {

@@ -81,9 +81,9 @@
 </template>
 
 <script>
-import { Event } from '@baserow/modules/builder/eventTypes'
-import WorkflowAction from '@baserow/modules/core/components/workflowActions/WorkflowAction'
 import { mapActions } from 'vuex'
+import { Event } from '@baserow/modules/builder/eventTypes'
+import WorkflowAction from '@baserow/modules/builder/components/event/WorkflowAction'
 import applicationContext from '@baserow/modules/builder/mixins/applicationContext'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 

@@ -33,6 +33,21 @@ export class LocalBaserowTableServiceType extends ServiceType {
   }
 
   /**
+   * Responsible for determining if this service is in error. It will be if the
+   * `table_id` is missing.
+   * @param service - The service object.
+   * @returns {boolean} - If the service is valid.
+   */
+  getErrorMessage({ service }) {
+    if (service !== undefined) {
+      if (!service.table_id) {
+        return this.app.i18n.t('serviceType.errorNoTableSelected')
+      }
+    }
+    return super.getErrorMessage({ service })
+  }
+
+  /**
    * Responsible for returning the description of the service. This is used in
    * the UI to display a human-readable description of the service.
    *
@@ -81,9 +96,6 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
    */
   getErrorMessage({ service }) {
     if (service !== undefined) {
-      if (!service.table_id) {
-        return this.app.i18n.t('serviceType.errorNoTableSelected')
-      }
       const filtersInError = service.filters.some((filter) => filter.trashed)
       if (filtersInError) {
         return this.app.i18n.t('serviceType.errorfilterInError')
@@ -293,9 +305,6 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
 
   getErrorMessage({ service }) {
     if (service !== undefined) {
-      if (!service.table_id) {
-        return this.app.i18n.t('serviceType.errorNoTableSelected')
-      }
       if (!service.field_id) {
         return this.app.i18n.t('serviceType.errorNoFieldSelected')
       }
@@ -361,15 +370,6 @@ export class LocalBaserowCreateRowWorkflowServiceType extends WorkflowActionServ
     return this.app.i18n.t('serviceType.localBaserowCreateRowDescription')
   }
 
-  getErrorMessage({ service }) {
-    if (service !== undefined) {
-      if (!service.table_id) {
-        return this.app.i18n.t('serviceType.errorNoTableSelected')
-      }
-    }
-    return super.getErrorMessage({ service })
-  }
-
   get formComponent() {
     return LocalBaserowUpsertRowServiceForm
   }
@@ -390,15 +390,6 @@ export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServ
     return this.app.i18n.t('serviceType.localBaserowUpdateRowDescription')
   }
 
-  getErrorMessage({ service }) {
-    if (service !== undefined) {
-      if (!service.table_id) {
-        return this.app.i18n.t('serviceType.errorNoTableSelected')
-      }
-    }
-    return super.getErrorMessage({ service })
-  }
-
   get formComponent() {
     return LocalBaserowUpdateRowServiceForm
   }
@@ -417,15 +408,6 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
 
   get description() {
     return this.app.i18n.t('serviceType.localBaserowDeleteRowDescription')
-  }
-
-  getErrorMessage({ service }) {
-    if (service !== undefined) {
-      if (!service.table_id) {
-        return this.app.i18n.t('serviceType.errorNoTableSelected')
-      }
-    }
-    return super.getErrorMessage({ service })
   }
 
   get formComponent() {

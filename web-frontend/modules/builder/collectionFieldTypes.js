@@ -50,6 +50,11 @@ export class CollectionFieldType extends Registerable {
     return 50
   }
 
+  /**
+   * Returns error message explaining why the collection field is misconfigured.
+   * @param {object} param An object containing the collection field and the builder
+   * @returns The error message if the field is misconfigured, null otherwise.
+   */
   getErrorMessage({ field, element, builder }) {
     return null
   }

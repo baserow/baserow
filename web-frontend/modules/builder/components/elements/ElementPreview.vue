@@ -6,7 +6,7 @@
       'element-preview--active': isSelected,
       'element-preview--parent-of-selected': isParentOfSelectedElement,
       'element-preview--in-error': !!errorMessage,
-      'element-preview--first-element': isFirstElement,
+      'element-preview--on-top': isSelected && isAboveThreshold,
       'element-preview--not-visible':
         !isVisible && !isSelected && !isParentOfSelectedElement,
     }"
@@ -85,7 +85,7 @@ export default {
     InsertElementButton,
     PageElement,
   },
-  inject: ['workspace', 'builder', 'mode', 'currentPage'],
+  inject: ['workspace', 'builder', 'mode', 'currentPage', 'pageTopData'],
   props: {
     element: {
       type: Object,
@@ -110,6 +110,8 @@ export default {
   data() {
     return {
       isDuplicating: false,
+      isAboveThreshold: false,
+      observer: null,
     }
   },
   computed: {
@@ -119,6 +121,9 @@ export default {
       getClosestSiblingElement: 'element/getClosestSiblingElement',
       loggedUser: 'userSourceUser/getUser',
     }),
+    pageTop() {
+      return this.pageTopData.value
+    },
     elementSelected() {
       return this.getElementSelected(this.builder)
     },
@@ -270,6 +275,9 @@ export default {
         }
       }
     },
+    pageTop() {
+      this.setupIntersectionObserver()
+    },
     /**
      * If the currently selected element in the Page Preview has moved, ensure
      * the element is scrolled into the viewport.
@@ -291,6 +299,12 @@ export default {
     if (this.isFirstElement) {
       this.actionSelectElement({ builder: this.builder, element: this.element })
     }
+    this.setupIntersectionObserver()
+  },
+  beforeDestroy() {
+    if (this.observer) {
+      this.observer.disconnect()
+    }
   },
   methods: {
     ...mapActions({
@@ -298,6 +312,26 @@ export default {
       actionDeleteElement: 'element/delete',
       actionSelectElement: 'element/select',
     }),
+    setupIntersectionObserver() {
+      if (this.observer) {
+        this.observer.disconnect()
+      }
+
+      const options = {
+        root: null,
+        rootMargin: `-${this.pageTop}px 0px 0px 0px`,
+        threshold: [0, 1],
+      }
+
+      this.observer = new IntersectionObserver((entries) => {
+        const rect = entries[0].boundingClientRect
+        this.isAboveThreshold = rect.top < this.pageTop
+      }, options)
+
+      this.$nextTick(() => {
+        this.observer.observe(this.$el)
+      })
+    },
     onMove(direction) {
       this.$emit('move', { element: this.element, direction })
     },

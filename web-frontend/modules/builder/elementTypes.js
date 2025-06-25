@@ -284,8 +284,7 @@ export class ElementType extends Registerable {
         'workflowAction',
         workflowAction.type
       )
-      return workflowActionType.isInError({
-        workflowAction,
+      return workflowActionType.isInError(workflowAction, {
         page,
         element,
         builder,

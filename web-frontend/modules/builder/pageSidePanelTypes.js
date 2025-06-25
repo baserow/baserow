@@ -157,8 +157,7 @@ export class EventsPageSidePanelType extends pageSidePanelType {
           'workflowAction',
           workflowAction.type
         )
-        return workflowActionType.isInError({
-          workflowAction,
+        return workflowActionType.isInError(workflowAction, {
           page,
           element,
           builder,

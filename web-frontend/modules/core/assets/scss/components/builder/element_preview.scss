@@ -111,13 +111,9 @@
   display: flex;
   gap: 8px;
 
-  @include absolute(auto, 8px, 8px, auto);
+  @include absolute(-26px, auto, auto, 8px);
 
-  .element-preview--active & {
-    @include absolute(-26px, auto, auto, 8px);
-  }
-
-  .element-preview--first-element.element-preview--active & {
+  .element-preview--on-top & {
     @include absolute(auto, auto, -26px, 8px);
   }
 }
@@ -179,7 +175,7 @@
 
   @include rounded($rounded);
 
-  .element-preview--first-element & {
+  .element-preview--on-top & {
     top: 30px;
   }
 }
