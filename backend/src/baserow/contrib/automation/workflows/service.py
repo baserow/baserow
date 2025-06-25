@@ -10,6 +10,7 @@ from baserow.contrib.automation.workflows.operations import (
     CreateAutomationWorkflowOperationType,
     DeleteAutomationWorkflowOperationType,
     DuplicateAutomationWorkflowOperationType,
+    PublishAutomationWorkflowOperationType,
     ReadAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
 )
@@ -21,7 +22,9 @@ from baserow.contrib.automation.workflows.signals import (
 )
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.handler import CoreHandler
-from baserow.core.utils import ChildProgressBuilder
+from baserow.core.jobs.handler import JobHandler
+from baserow.core.models import Job
+from baserow.core.utils import ChildProgressBuilder, Progress
 
 
 class AutomationWorkflowService:
@@ -215,3 +218,53 @@ class AutomationWorkflowService:
         automation_workflow_created.send(self, workflow=workflow_clone, user=user)
 
         return workflow_clone
+
+    def async_publish_workflow(self, user: AbstractUser, workflow_id: int) -> Job:
+        """
+        Starts an async job to publish the given automation workflow if the
+        user has the right permission.
+
+        :param user: The user publishing the workflow.
+        :param workflow_id: The automation workflow the user wants to publish.
+        """
+
+        from baserow.contrib.automation.workflows.job_types import (
+            PublishAutomationWorkflowJobType,
+        )
+
+        workflow = self.handler.get_workflow(workflow_id)
+
+        CoreHandler().check_permissions(
+            user,
+            PublishAutomationWorkflowOperationType.type,
+            workspace=workflow.automation.workspace,
+            context=workflow.automation,
+        )
+
+        job = JobHandler().create_and_start_job(
+            user,
+            PublishAutomationWorkflowJobType.type,
+            automation_workflow=workflow,
+        )
+
+        return job
+
+    def publish(
+        self, user: AbstractUser, workflow: AutomationWorkflow, progress: Progress
+    ) -> None:
+        """
+        Publish the given automation for the given automation workflow release if the
+        user has the right permission.
+
+        :param user: The user publishing the workflow.
+        :param workflow: The workflow the user wants to publish.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            PublishAutomationWorkflowOperationType.type,
+            workspace=workflow.automation.workspace,
+            context=workflow.automation,
+        )
+
+        self.handler.publish(workflow, progress)

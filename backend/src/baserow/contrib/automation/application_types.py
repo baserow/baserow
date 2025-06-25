@@ -75,6 +75,7 @@ class AutomationApplicationType(ApplicationType):
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress_builder: ChildProgressBuilder | None = None,
+        workflows: Optional[List[AutomationWorkflow]] = None,
     ) -> AutomationDict:
         """
         Exports the automation application type to a serialized format that can later
@@ -84,7 +85,9 @@ class AutomationApplicationType(ApplicationType):
         self.cache = {}
 
         handler = AutomationWorkflowHandler()
-        workflows = handler.get_workflows(automation)
+        workflows = (
+            workflows if workflows is not None else handler.get_workflows(automation)
+        )
 
         serialized_integrations = [
             IntegrationHandler().export_integration(

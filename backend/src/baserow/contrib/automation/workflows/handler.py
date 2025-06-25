@@ -24,11 +24,13 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.tasks import run_workflow
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.exceptions import IdDoesNotExist
-from baserow.core.storage import ExportZipFile
+from baserow.core.registries import ImportExportConfig
+from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
     ChildProgressBuilder,
     MirrorDict,
+    Progress,
     extract_allowed,
     find_unused_name,
 )
@@ -50,7 +52,10 @@ class AutomationWorkflowHandler:
         run_workflow.delay(workflow_id, event_payload)
 
     def get_workflow(
-        self, workflow_id: int, base_queryset: Optional[QuerySet] = None
+        self,
+        workflow_id: int,
+        base_queryset: Optional[QuerySet] = None,
+        for_update: bool = False,
     ) -> AutomationWorkflow:
         """
         Gets an AutomationWorkflow by its ID.
@@ -58,12 +63,16 @@ class AutomationWorkflowHandler:
         :param workflow_id: The ID of the AutomationWorkflow.
         :param base_queryset: Can be provided to already filter or apply performance
             improvements to the queryset when it's being executed.
+        :param for_update: Ensure only one update can happen at a time.
         :raises AutomationWorkflowDoesNotExist: If the workflow doesn't exist.
         :return: The model instance of the AutomationWorkflow
         """
 
         if base_queryset is None:
             base_queryset = AutomationWorkflow.objects.all()
+
+        if for_update:
+            base_queryset = base_queryset.select_for_update(of=("self",))
 
         try:
             return base_queryset.select_related("automation__workspace").get(
@@ -509,3 +518,84 @@ class AutomationWorkflowHandler:
             progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
         return workflow_instance
+
+    def clean_up_previously_published_automations(
+        self, workflow: AutomationWorkflow
+    ) -> None:
+        published_automations = list(Automation.objects.filter(published_from=workflow))
+        if not published_automations:
+            return
+
+        if len(published_automations) > 1:
+            # Delete all but the last published automation
+            ids_to_delete = [a.id for a in published_automations[:-1]]
+            Automation.objects.filter(id__in=ids_to_delete).delete()
+
+        # Disable the last published workflow
+        published_workflow = published_automations[-1].workflows.first()
+        published_workflow.published = False
+        published_workflow.save(update_fields=["published"])
+
+    def publish(
+        self,
+        workflow: AutomationWorkflow,
+        progress: Optional[Progress] = None,
+    ) -> None:
+        """
+        Publishes an Automation and a specific workflow. If the automation was
+        already published, the previous versions are deleted and a new one
+        is created.
+
+        When an automation is published, a clone of the current version is
+        created to avoid further modifications to the original automation
+        which could affect the published version.
+
+        :param workflow: The workflow to be published.
+        :param progress: An object to track the publishing progress.
+        """
+
+        # Make sure we are the only process to update the automation workflow release
+        # to prevent race conditions.
+        workflow = self.get_workflow(workflow.id, for_update=True)
+
+        self.clean_up_previously_published_automations(workflow)
+
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=False,
+        )
+        default_storage = get_default_storage()
+        application_type = workflow.automation.get_type()
+
+        exported_automation = application_type.export_serialized(
+            workflow.automation,
+            import_export_config,
+            None,
+            default_storage,
+            workflows=[workflow],
+        )
+
+        progress_builder = None
+        if progress:
+            progress.increment(by=50)
+            progress_builder = progress.create_child_builder(represents_progress=50)
+
+        id_mapping = {"import_workspace_id": workflow.automation.workspace.id}
+
+        duplicate_automation = application_type.import_serialized(
+            None,
+            exported_automation,
+            import_export_config,
+            id_mapping,
+            None,
+            default_storage,
+            progress_builder=progress_builder,
+        )
+
+        published_workflow = duplicate_automation.workflows.first()
+        published_workflow.published = True
+        published_workflow.save(update_fields=["published"])
+
+        duplicate_automation.published_from = workflow
+        duplicate_automation.save(update_fields=["published_from"])

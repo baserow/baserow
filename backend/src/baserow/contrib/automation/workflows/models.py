@@ -33,10 +33,10 @@ class AutomationWorkflowTrashManager(models.Manager):
         return (
             super()
             .get_queryset()
-            .filter(
-                trashed=False,
-                automation__trashed=False,
-                automation__workspace__trashed=False,
+            .exclude(
+                models.Q(trashed=True)
+                | models.Q(automation__trashed=True)
+                | models.Q(automation__workspace__trashed=True)
             )
         )
 
@@ -103,4 +103,12 @@ class DuplicateAutomationWorkflowJob(
         related_name="duplicated_from_jobs",
         on_delete=models.SET_NULL,
         help_text="The duplicated automation workflow.",
+    )
+
+
+class PublishAutomationWorkflowJob(JobWithUserIpAddress, Job):
+    automation_workflow = models.ForeignKey(
+        AutomationWorkflow,
+        null=True,
+        on_delete=models.SET_NULL,
     )
