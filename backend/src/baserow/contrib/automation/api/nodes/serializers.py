@@ -62,11 +62,6 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
 
 
 class UpdateAutomationNodeSerializer(serializers.ModelSerializer):
-    type = serializers.ChoiceField(
-        choices=lazy(automation_node_type_registry.get_types, list)(),
-        required=False,
-        help_text="The type of the automation node",
-    )
     service = PolymorphicServiceRequestSerializer(
         required=False, help_text="The service associated with this automation node."
     )
@@ -74,7 +69,6 @@ class UpdateAutomationNodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutomationNode
         fields = (
-            "type",
             "service",
             "previous_node_output",
         )
@@ -84,4 +78,12 @@ class OrderAutomationNodesSerializer(serializers.Serializer):
     node_ids = serializers.ListField(
         child=serializers.IntegerField(),
         help_text=("The ids of the nodes in the order they are supposed to be set in."),
+    )
+
+
+class ReplaceAutomationNodeSerializer(serializers.Serializer):
+    new_type = serializers.ChoiceField(
+        choices=lazy(automation_node_type_registry.get_types, list)(),
+        required=True,
+        help_text="The type of the new automation node",
     )

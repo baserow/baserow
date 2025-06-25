@@ -16,6 +16,7 @@ API_URL_LIST = f"{API_URL_BASE}:list"
 API_URL_ITEM = f"{API_URL_BASE}:item"
 API_URL_ORDER = f"{API_URL_BASE}:order"
 API_URL_DUPLICATE = f"{API_URL_BASE}:duplicate"
+API_URL_REPLACE = f"{API_URL_BASE}:replace"
 API_URL_UNDO = "api:user:undo"
 API_URL_REDO = "api:user:redo"
 
@@ -581,15 +582,15 @@ def test_update_node_undo_redo(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_update_node_type_with_irreplaceable_type(api_client, data_fixture):
+def test_replace_node_type_with_irreplaceable_type(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
     node = data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow
     )
-    response = api_client.patch(
-        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
-        {"type": "create_row"},
+    response = api_client.post(
+        reverse(API_URL_REPLACE, kwargs={"node_id": node.id}),
+        {"new_type": "create_row"},
         **get_api_kwargs(token),
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -601,7 +602,7 @@ def test_update_node_type_with_irreplaceable_type(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_update_node_type_with_replaceable_type(api_client, data_fixture):
+def test_replace_node_type_with_replaceable_type(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
     trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
@@ -610,9 +611,9 @@ def test_update_node_type_with_replaceable_type(api_client, data_fixture):
     action_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, previous_node=trigger
     )
-    response = api_client.patch(
-        reverse(API_URL_ITEM, kwargs={"node_id": action_node.id}),
-        {"type": "update_row"},
+    response = api_client.post(
+        reverse(API_URL_REPLACE, kwargs={"node_id": action_node.id}),
+        {"new_type": "update_row"},
         **get_api_kwargs(token),
     )
     assert response.status_code == HTTP_200_OK

@@ -26,6 +26,7 @@ from baserow.contrib.automation.api.nodes.serializers import (
     AutomationNodeSerializer,
     CreateAutomationNodeSerializer,
     OrderAutomationNodesSerializer,
+    ReplaceAutomationNodeSerializer,
     UpdateAutomationNodeSerializer,
 )
 from baserow.contrib.automation.api.workflows.errors import (
@@ -36,6 +37,7 @@ from baserow.contrib.automation.nodes.actions import (
     DeleteAutomationNodeActionType,
     DuplicateAutomationNodeActionType,
     OrderAutomationNodesActionType,
+    ReplaceAutomationNodeActionType,
     UpdateAutomationNodeActionType,
 )
 from baserow.contrib.automation.nodes.exceptions import (
@@ -340,3 +342,47 @@ class DuplicateAutomationNodeView(APIView):
         DuplicateAutomationNodeActionType.do(request.user, node_id)
 
         return Response(status=204)
+
+
+class ReplaceAutomationNodeView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="node_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The node that is to be replaced.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=[AUTOMATION_NODES_TAG],
+        operation_id="replace_automation_node",
+        description="Replace a node in a workflow with one of a new type.",
+        request=ReplaceAutomationNodeSerializer,
+        responses={
+            200: DiscriminatorCustomFieldsMappingSerializer(
+                automation_node_type_registry, AutomationNodeSerializer
+            ),
+            400: get_error_schema(["ERROR_AUTOMATION_NODE_NOT_REPLACEABLE"]),
+            404: get_error_schema(["ERROR_AUTOMATION_NODE_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+            AutomationNodeTypeNotReplaceable: ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
+        }
+    )
+    @validate_body(ReplaceAutomationNodeSerializer)
+    def post(self, request, data: Dict, node_id: int):
+        replaced_node = ReplaceAutomationNodeActionType.do(
+            request.user, node_id, data["new_type"]
+        )
+        return Response(
+            automation_node_type_registry.get_serializer(
+                replaced_node, AutomationNodeSerializer
+            ).data
+        )

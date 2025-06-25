@@ -15,6 +15,7 @@ from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
+    ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
 from baserow.core.db import specific_iterator
@@ -28,51 +29,11 @@ from baserow.core.utils import MirrorDict, extract_allowed
 
 class AutomationNodeHandler:
     allowed_fields = [
-        "service",
         "previous_node",
         "previous_node_id",
         "previous_node_output",
+        "service",
     ]
-
-    def create_node(
-        self,
-        node_type: AutomationNodeType,
-        workflow: AutomationWorkflow,
-        before: Optional[AutomationNode] = None,
-        order: Optional[int] = None,
-        **kwargs,
-    ) -> AutomationNode:
-        """
-        Create a new automation node.
-
-        :param node_type: The automation node's type.
-        :param workflow: The workflow the automation node is associated with.
-        :param before: If provided and no order is provided, will place the new node
-            before the given node.
-        :param order: If provided, the node's `order` will be set to this value. This
-            is not a user-configurable value, it's only set by the node service when
-            a node's type is being changed, and we want to preserve the existing order.
-        :return: The newly created automation node instance.
-        """
-
-        allowed_prepared_values = extract_allowed(
-            kwargs, self.allowed_fields + node_type.allowed_fields
-        )
-
-        if not order:
-            if before:
-                parent_node_id = allowed_prepared_values.get("parent_node_id", None)
-                order = AutomationNode.get_unique_order_before_node(
-                    before, parent_node_id
-                )
-            else:
-                order = AutomationNode.get_last_order(workflow)
-
-        allowed_prepared_values["workflow"] = workflow
-        node = node_type.model_class(order=order, **allowed_prepared_values)
-        node.save()
-
-        return node
 
     def get_nodes(
         self,
@@ -140,6 +101,40 @@ class AutomationNodeHandler:
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
+    def create_node(
+        self,
+        node_type: AutomationNodeType,
+        workflow: AutomationWorkflow,
+        before: Optional[AutomationNode] = None,
+        **kwargs,
+    ) -> AutomationNode:
+        """
+        Create a new automation node.
+
+        :param node_type: The automation node's type.
+        :param workflow: The workflow the automation node is associated with.
+        :param before: If provided and no order is provided, will place the new node
+            before the given node.
+        :return: The newly created automation node instance.
+        """
+
+        allowed_prepared_values = extract_allowed(
+            kwargs, self.allowed_fields + node_type.allowed_fields
+        )
+
+        order = kwargs.pop("order", None)
+        if before:
+            parent_node_id = allowed_prepared_values.get("parent_node_id", None)
+            order = AutomationNode.get_unique_order_before_node(before, parent_node_id)
+        elif not order:
+            order = AutomationNode.get_last_order(workflow)
+
+        allowed_prepared_values["workflow"] = workflow
+        node = node_type.model_class(order=order, **allowed_prepared_values)
+        node.save()
+
+        return node
+
     def update_node(self, node: AutomationNode, **kwargs) -> UpdatedAutomationNode:
         """
         Updates fields of the provided AutomationNode.
@@ -161,15 +156,11 @@ class AutomationNodeHandler:
         node.save()
 
         new_node_values = node_type.export_prepared_values(node)
-        updated_node = UpdatedAutomationNode(
+        return UpdatedAutomationNode(
             node=node,
-            node_id=node.id,
-            node_type=node_type.type,
             original_values=original_node_values,
             new_values=new_node_values,
         )
-
-        return updated_node
 
     def delete_node(self, user: AbstractUser, node: AutomationNode) -> None:
         """
@@ -247,6 +238,36 @@ class AutomationNodeHandler:
         )
 
         return new_node_clone
+
+    def replace_node(
+        self,
+        user: AbstractUser,
+        node: AutomationNode,
+        new_type: AutomationNodeType,
+        **kwargs,
+    ) -> ReplacedAutomationNode:
+        """
+        Replaces the `type` of an existing AutomationNode instance with a new type.
+
+        :param user: The user performing the replacement.
+        :param node: The AutomationNode that is being replaced.
+        :param new_type: The new AutomationNodeType to replace the existing node with.
+        :param kwargs: Additional keyword arguments that will be used to prepare the
+            new node's values.
+        :return: A ReplacedAutomationNode instance containing the new node and
+            information about the original node.
+        """
+
+        node_type = node.get_type()
+        self.delete_node(user, node)
+        prepared_values = new_type.prepare_values(kwargs, user)
+        new_node = self.create_node(new_type, node.workflow, **prepared_values)
+
+        return ReplacedAutomationNode(
+            node=new_node,
+            original_node_id=node.id,
+            original_node_type=node_type.type,
+        )
 
     def export_node(
         self,
