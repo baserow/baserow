@@ -508,6 +508,7 @@ class AutomationWorkflowHandler:
             automation=automation,
             name=serialized_workflow["name"],
             order=serialized_workflow["order"],
+            published=serialized_workflow.get("published") or False,
         )
 
         id_mapping["automation_workflows"][
@@ -576,6 +577,9 @@ class AutomationWorkflowHandler:
             workflows=[workflow],
         )
 
+        # Manually set the published status for the newly created workflow.
+        exported_automation["workflows"][0]["published"] = True
+
         progress_builder = None
         if progress:
             progress.increment(by=50)
@@ -592,10 +596,6 @@ class AutomationWorkflowHandler:
             default_storage,
             progress_builder=progress_builder,
         )
-
-        published_workflow = duplicate_automation.workflows.first()
-        published_workflow.published = True
-        published_workflow.save(update_fields=["published"])
 
         duplicate_automation.published_from = workflow
         duplicate_automation.save(update_fields=["published_from"])
