@@ -16,11 +16,13 @@ from baserow.contrib.automation.workflows.operations import (
     DeleteAutomationWorkflowOperationType,
     ReadAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
+    PublishAutomationWorkflowOperationType,
 )
 from baserow.contrib.automation.workflows.signals import (
     automation_workflow_created,
     automation_workflow_deleted,
     automation_workflow_updated,
+    automation_workflow_published,
     automation_workflows_reordered,
 )
 from baserow.core.utils import generate_hash
@@ -78,6 +80,26 @@ def workflow_updated(
             workflow.id,
             {
                 "type": "automation_workflow_updated",
+                "workflow": AutomationWorkflowSerializer(workflow).data,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(automation_workflow_published)
+def workflow_published(
+    sender, workflow: AutomationWorkflow, user: AbstractUser, **kwargs
+):
+    workflow = workflow.automation.published_from
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            workflow.automation.workspace_id,
+            PublishAutomationWorkflowOperationType.type,
+            AutomationWorkflowObjectScopeType.type,
+            workflow.id,
+            {
+                "type": "automation_workflow_published",
                 "workflow": AutomationWorkflowSerializer(workflow).data,
             },
             getattr(user, "web_socket_id", None),

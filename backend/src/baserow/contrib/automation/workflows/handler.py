@@ -80,6 +80,26 @@ class AutomationWorkflowHandler:
             )
         except AutomationWorkflow.DoesNotExist:
             raise AutomationWorkflowDoesNotExist()
+    
+    def get_published_workflow(self, workflow_id: int) -> AutomationWorkflow:
+        """
+        Gets a published AutomationWorkflow instance by the ID of the original
+        workflow ID.
+
+        :param workflow_id: The ID of the original AutomationWorkflow.
+        :raises AutomationWorkflowDoesNotExist: If the workflow doesn't exist.
+        :return: The model instance of the AutomationWorkflow
+        """
+
+        workflow = self.get_workflow(workflow_id)
+        if not workflow:
+            raise AutomationWorkflowDoesNotExist()
+
+        published_workflow = workflow.published_to.order_by("-id").first().workflows.first()
+        if not published_workflow:
+            raise AutomationWorkflowDoesNotExist()
+    
+        return published_workflow
 
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
@@ -541,7 +561,7 @@ class AutomationWorkflowHandler:
         self,
         workflow: AutomationWorkflow,
         progress: Optional[Progress] = None,
-    ) -> None:
+    ) -> AutomationWorkflow:
         """
         Publishes an Automation and a specific workflow. If the automation was
         already published, the previous versions are deleted and a new one
@@ -553,6 +573,7 @@ class AutomationWorkflowHandler:
 
         :param workflow: The workflow to be published.
         :param progress: An object to track the publishing progress.
+        :return: The published workflow.
         """
 
         # Make sure we are the only process to update the automation workflow
@@ -599,3 +620,5 @@ class AutomationWorkflowHandler:
 
         duplicate_automation.published_from = workflow
         duplicate_automation.save(update_fields=["published_from"])
+
+        return duplicate_automation.workflows.first()

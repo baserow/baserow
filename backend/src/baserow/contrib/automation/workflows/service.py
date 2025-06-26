@@ -18,6 +18,7 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflow_created,
     automation_workflow_deleted,
     automation_workflow_updated,
+    automation_workflow_published,
     automation_workflows_reordered,
 )
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
@@ -52,6 +53,7 @@ class AutomationWorkflowService:
 
         :param user: The user requesting the workflow.
         :param workflow_id: The ID of the workflow.
+        :param published: Whether to return the published version of the workflow.
         :return: An instance of AutomationWorkflow.
         """
 
@@ -65,7 +67,7 @@ class AutomationWorkflowService:
         )
 
         return workflow
-
+    
     def create_workflow(
         self,
         user: AbstractUser,
@@ -267,4 +269,8 @@ class AutomationWorkflowService:
             context=workflow.automation,
         )
 
-        self.handler.publish(workflow, progress)
+        published_workflow = self.handler.publish(workflow, progress)
+
+        automation_workflow_published.send(
+            self, user=user, workflow=published_workflow
+        )
