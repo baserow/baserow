@@ -35,3 +35,9 @@
   flex: 80 1 0px;
   overflow: hidden;
 }
+
+.automation-header__last-published {
+  display: flex;
+  align-self: center;
+  color: $palette-neutral-900;
+}

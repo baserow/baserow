@@ -42,7 +42,8 @@
     "publishBtn": "Publish",
     "settingsBtn": "Settings",
     "historyBtn": "History",
-    "switchLabel": "Draft",
+    "switchLabelDraft": "Draft",
+    "switchLabelLive": "Live",
     "readOnlyLabel": "Read only"
   },
   "dataProviderType": {

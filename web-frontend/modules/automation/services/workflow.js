@@ -22,5 +22,8 @@ export default (client) => {
     duplicate(workflowId) {
       return client.post(`/automation/workflows/${workflowId}/duplicate/async/`)
     },
+    publish(workflowId) {
+      return client.post(`/automation/workflows/${workflowId}/publish/async/`)
+    },
   }
 }

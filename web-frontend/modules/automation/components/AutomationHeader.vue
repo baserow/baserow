@@ -25,8 +25,11 @@
 
     <div class="header__right">
       <span class="header__switch-container">
-        <Badge color="cyan" rounded size="small">{{
-          $t('automationHeader.switchLabel')
+        <Badge color="green" rounded size="small" v-if="publishedOn">{{
+          $t('automationHeader.switchLabelLive')
+        }}</Badge>
+        <Badge color="cyan" rounded size="small" v-else>{{
+          $t('automationHeader.switchLabelDraft')
         }}</Badge>
         <SwitchInput
           small
@@ -50,6 +53,9 @@
       </span>
 
       <div class="header__buttons header__buttons--with-separator">
+        <div v-if="publishedOn" class="automation-header__last-published">
+          Last published: {{ publishedOn }}
+        </div>
         <Button
           :icon="testRunEnabled ? 'iconoir-cancel' : 'iconoir-play'"
           type="secondary"
@@ -60,7 +66,13 @@
               : $t('automationHeader.startTestRun')
           }}</Button
         >
-        <Button disabled>{{ $t('automationHeader.publishBtn') }}</Button>
+        <Button
+          :loading="isPublishing"
+          :disabled="isPublishing || !canPublishWorkflow"
+          @click="publishWorkflow()"
+        >
+          {{ $t('automationHeader.publishBtn') }}
+        </Button>
       </div>
     </div>
   </header>
@@ -88,6 +100,7 @@ export default defineComponent({
 
     const switchValue = ref(false)
     const readOnlySwitchValue = ref(false)
+    const isPublishing = ref(false)
 
     // Check if in development environment
     const isDevEnvironment = computed(
@@ -95,8 +108,19 @@ export default defineComponent({
     )
 
     const workflow = inject('workflow')
+
     const testRunEnabled = computed(() => {
       return moment(workflow.value?.allow_test_run_until).isAfter()
+    })
+
+    const canPublishWorkflow = computed(() => {
+      return !isPublishing.value // && check that at least one trigger and one action exists
+    })
+
+    const publishedOn = computed(() => {
+      if (workflow.value?.published_on && !isPublishing.value) {
+        return moment.utc(workflow.value.published_on).tz(moment.tz.guess()).format("MMM D, YYYY")
+      }
     })
 
     const toggleTestRun = async () => {
@@ -122,6 +146,18 @@ export default defineComponent({
       )
     }
 
+    const publishWorkflow = async() => {
+      isPublishing.value = true
+      try {
+        await store.dispatch('automationWorkflow/publishWorkflow', {
+          workflow: workflow.value,
+        })
+      } catch (error) {
+        notifyIf(error, 'automationWorkflow')
+      }
+      isPublishing.value = false
+    }
+
     return {
       switchValue,
       readOnlySwitchValue,
@@ -130,6 +166,12 @@ export default defineComponent({
       toggleTestRun,
       testRunEnabled,
       isDevEnvironment,
+      publishWorkflow,
+      canPublishWorkflow,
+      publishedOn,
+      isPublishing,
+      // temp
+      workflow,
     }
   },
 })

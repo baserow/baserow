@@ -45,6 +45,24 @@ export const registerRealtimeEvents = (realtime) => {
     }
   })
 
+  realtime.registerEvent('automation_workflow_published', ({ store }, data) => {
+    const automation = store.getters['application/get'](
+      data.workflow.automation_id
+    )
+    if (automation !== undefined) {
+      const workflow = store.getters['automationWorkflow/getWorkflows'](
+        automation
+      ).find((w) => w.id === data.workflow.id)
+      if (workflow !== undefined) {
+        store.dispatch('automationWorkflow/forceUpdate', {
+          automation,
+          workflow,
+          values: data.workflow,
+        })
+      }
+    }
+  })
+
   realtime.registerEvent(
     'automation_workflows_reordered',
     ({ store, app }, data) => {

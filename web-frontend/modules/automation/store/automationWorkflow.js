@@ -192,6 +192,10 @@ const actions = {
       values: { allow_test_run_until: allowTestRunUntil },
     })
   },
+  async publishWorkflow({ dispatch }, { workflow }) {
+    await AutomationWorkflowService(this.$client).publish(workflow.id)
+    await dispatch('forceUpdate', { workflow })
+  },
 }
 
 const getters = {
