@@ -59,6 +59,7 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.workflows.job_types import (
             DuplicateAutomationWorkflowJobType,
+            PublishAutomationWorkflowJobType,
         )
         from baserow.contrib.automation.workflows.object_scopes import (
             AutomationWorkflowObjectScopeType,
@@ -67,6 +68,7 @@ class AutomationConfig(AppConfig):
             CreateAutomationWorkflowOperationType,
             DeleteAutomationWorkflowOperationType,
             DuplicateAutomationWorkflowOperationType,
+            PublishAutomationWorkflowOperationType,
             ReadAutomationWorkflowOperationType,
             RestoreAutomationWorkflowOperationType,
             UpdateAutomationWorkflowOperationType,
@@ -101,6 +103,7 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(ListAutomationWorkflowsOperationType())
             operation_type_registry.register(OrderAutomationWorkflowsOperationType())
             operation_type_registry.register(RestoreAutomationWorkflowOperationType())
+            operation_type_registry.register(PublishAutomationWorkflowOperationType())
             operation_type_registry.register(ListAutomationNodeOperationType())
             operation_type_registry.register(CreateAutomationNodeOperationType())
             operation_type_registry.register(UpdateAutomationNodeOperationType())
@@ -111,6 +114,7 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(OrderAutomationNodeOperationType())
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())
+            job_type_registry.register(PublishAutomationWorkflowJobType())
 
             trash_item_type_registry.register(AutomationWorkflowTrashableItemType())
             trash_item_type_registry.register(AutomationNodeTrashableItemType())
