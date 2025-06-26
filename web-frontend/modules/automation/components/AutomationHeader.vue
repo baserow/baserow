@@ -67,6 +67,7 @@
           }}</Button
         >
         <Button
+          v-tooltip="!canPublishWorkflow ? $t('automationHeader.cantPublishTooltip') : ''"
           :loading="isPublishing"
           :disabled="isPublishing || !canPublishWorkflow"
           @click="publishWorkflow()"
@@ -81,7 +82,7 @@
 <script>
 import moment from '@baserow/modules/core/moment'
 import { defineComponent, ref, computed } from 'vue'
-import { useStore, inject } from '@nuxtjs/composition-api'
+import { useStore, inject, useContext } from '@nuxtjs/composition-api'
 import { HistoryEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
@@ -97,6 +98,7 @@ export default defineComponent({
   emits: ['read-only-toggled'],
   setup(props, { emit }) {
     const store = useStore()
+    const { app } = useContext()
 
     const switchValue = ref(false)
     const readOnlySwitchValue = ref(false)
@@ -113,8 +115,24 @@ export default defineComponent({
       return moment(workflow.value?.allow_test_run_until).isAfter()
     })
 
+    const hasTriggerNode = computed(() => {
+      const _nodes = workflow.value.nodes.filter((node) => {
+        const nodeType = app.$registry.get('node', node.type)
+        return nodeType.isTrigger === true
+      })
+      return _nodes.length === 1
+    })
+
+    const hasActionNode = computed(() => {
+      const _nodes = workflow.value.nodes.filter((node) => {
+        const nodeType = app.$registry.get('node', node.type)
+        return nodeType.isWorkflowAction === true
+      })
+      return _nodes.length > 0
+    })
+
     const canPublishWorkflow = computed(() => {
-      return !isPublishing.value // && check that at least one trigger and one action exists
+      return hasTriggerNode.value && hasActionNode.value && !isPublishing.value
     })
 
     const publishedOn = computed(() => {

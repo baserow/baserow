@@ -44,7 +44,8 @@
     "historyBtn": "History",
     "switchLabelDraft": "Draft",
     "switchLabelLive": "Live",
-    "readOnlyLabel": "Read only"
+    "readOnlyLabel": "Read only",
+    "cantPublishTooltip": "Test all events before publishing this automation"
   },
   "dataProviderType": {
     "previousNode": "Previous node"
