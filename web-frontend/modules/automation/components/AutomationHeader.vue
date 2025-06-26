@@ -25,10 +25,10 @@
 
     <div class="header__right">
       <span class="header__switch-container">
-        <Badge color="green" rounded size="small" v-if="publishedOn">{{
+        <Badge v-if="publishedOn" color="green" rounded size="small">{{
           $t('automationHeader.switchLabelLive')
         }}</Badge>
-        <Badge color="cyan" rounded size="small" v-else>{{
+        <Badge v-else color="cyan" rounded size="small">{{
           $t('automationHeader.switchLabelDraft')
         }}</Badge>
         <SwitchInput
@@ -67,7 +67,9 @@
           }}</Button
         >
         <Button
-          v-tooltip="!canPublishWorkflow ? $t('automationHeader.cantPublishTooltip') : ''"
+          v-tooltip="
+            !canPublishWorkflow ? $t('automationHeader.cantPublishTooltip') : ''
+          "
           :loading="isPublishing"
           :disabled="isPublishing || !canPublishWorkflow"
           @click="publishWorkflow()"
@@ -116,18 +118,28 @@ export default defineComponent({
     })
 
     const hasTriggerNode = computed(() => {
+      if (!workflow.value?.nodes) {
+        return false
+      }
+
       const _nodes = workflow.value.nodes.filter((node) => {
         const nodeType = app.$registry.get('node', node.type)
         return nodeType.isTrigger === true
       })
+
       return _nodes.length === 1
     })
 
     const hasActionNode = computed(() => {
+      if (!workflow.value?.nodes) {
+        return false
+      }
+
       const _nodes = workflow.value.nodes.filter((node) => {
         const nodeType = app.$registry.get('node', node.type)
         return nodeType.isWorkflowAction === true
       })
+
       return _nodes.length > 0
     })
 
@@ -136,9 +148,16 @@ export default defineComponent({
     })
 
     const publishedOn = computed(() => {
-      if (workflow.value?.published_on && !isPublishing.value) {
-        return moment.utc(workflow.value.published_on).tz(moment.tz.guess()).format("MMM D, YYYY")
+      // TODO: investigate why publishedOn isn't re-firing
+      // it's possible the actual value is static.
+      if (!workflow.value?.published_on || isPublishing.value) {
+        return null
       }
+
+      return moment
+        .utc(workflow.value.published_on)
+        .tz(moment.tz.guess())
+        .format('MMM D, YYYY')
     })
 
     const toggleTestRun = async () => {
@@ -164,8 +183,9 @@ export default defineComponent({
       )
     }
 
-    const publishWorkflow = async() => {
+    const publishWorkflow = async () => {
       isPublishing.value = true
+
       try {
         await store.dispatch('automationWorkflow/publishWorkflow', {
           workflow: workflow.value,

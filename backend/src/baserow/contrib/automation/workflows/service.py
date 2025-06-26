@@ -17,8 +17,8 @@ from baserow.contrib.automation.workflows.operations import (
 from baserow.contrib.automation.workflows.signals import (
     automation_workflow_created,
     automation_workflow_deleted,
-    automation_workflow_updated,
     automation_workflow_published,
+    automation_workflow_updated,
     automation_workflows_reordered,
 )
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
@@ -67,7 +67,7 @@ class AutomationWorkflowService:
         )
 
         return workflow
-    
+
     def create_workflow(
         self,
         user: AbstractUser,
@@ -271,6 +271,4 @@ class AutomationWorkflowService:
 
         published_workflow = self.handler.publish(workflow, progress)
 
-        automation_workflow_published.send(
-            self, user=user, workflow=published_workflow
-        )
+        automation_workflow_published.send(self, user=user, workflow=published_workflow)

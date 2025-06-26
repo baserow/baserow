@@ -80,7 +80,7 @@ class AutomationWorkflowHandler:
             )
         except AutomationWorkflow.DoesNotExist:
             raise AutomationWorkflowDoesNotExist()
-    
+
     def get_published_workflow(self, workflow_id: int) -> Optional[AutomationWorkflow]:
         """
         Gets a published AutomationWorkflow instance by the ID of the original

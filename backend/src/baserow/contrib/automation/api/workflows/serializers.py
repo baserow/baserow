@@ -1,11 +1,13 @@
-from rest_framework import serializers
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
 
 from baserow.contrib.automation.models import AutomationWorkflow
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.constants import ALLOW_TEST_RUN_MINUTES
-from baserow.contrib.automation.workflows.exceptions import AutomationWorkflowDoesNotExist
+from baserow.contrib.automation.workflows.exceptions import (
+    AutomationWorkflowDoesNotExist,
+)
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
 
 class AutomationWorkflowSerializer(serializers.ModelSerializer):
@@ -27,7 +29,7 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
             "published_on": {"read_only": True},
             "order": {"help_text": "Lowest first."},
         }
-    
+
     @extend_schema_field(OpenApiTypes.STR)
     def get_published_on(self, obj):
         published_workflow = AutomationWorkflowHandler().get_published_workflow(obj.id)

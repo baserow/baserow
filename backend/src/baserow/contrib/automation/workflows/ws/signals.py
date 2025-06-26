@@ -14,15 +14,15 @@ from baserow.contrib.automation.workflows.object_scopes import (
 )
 from baserow.contrib.automation.workflows.operations import (
     DeleteAutomationWorkflowOperationType,
+    PublishAutomationWorkflowOperationType,
     ReadAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
-    PublishAutomationWorkflowOperationType,
 )
 from baserow.contrib.automation.workflows.signals import (
     automation_workflow_created,
     automation_workflow_deleted,
-    automation_workflow_updated,
     automation_workflow_published,
+    automation_workflow_updated,
     automation_workflows_reordered,
 )
 from baserow.core.utils import generate_hash
