@@ -81,25 +81,25 @@ class AutomationWorkflowHandler:
         except AutomationWorkflow.DoesNotExist:
             raise AutomationWorkflowDoesNotExist()
     
-    def get_published_workflow(self, workflow_id: int) -> AutomationWorkflow:
+    def get_published_workflow(self, workflow_id: int) -> Optional[AutomationWorkflow]:
         """
         Gets a published AutomationWorkflow instance by the ID of the original
         workflow ID.
 
         :param workflow_id: The ID of the original AutomationWorkflow.
         :raises AutomationWorkflowDoesNotExist: If the workflow doesn't exist.
-        :return: The model instance of the AutomationWorkflow
+        :return: The model instance of the AutomationWorkflow if it exists.
         """
 
         workflow = self.get_workflow(workflow_id)
         if not workflow:
-            raise AutomationWorkflowDoesNotExist()
+            return None
 
-        published_workflow = workflow.published_to.order_by("-id").first().workflows.first()
-        if not published_workflow:
-            raise AutomationWorkflowDoesNotExist()
-    
-        return published_workflow
+        published_automations = workflow.published_to.order_by("-id")
+        if not published_automations:
+            return None
+
+        return published_automations.first().workflows.first()
 
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
