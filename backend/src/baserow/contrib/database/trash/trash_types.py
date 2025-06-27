@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
-from django.db import connection
+from django.db import connection, router
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.dependencies.update_collector import (
@@ -453,7 +453,7 @@ class RowsTrashableItemType(TrashableItemType):
     def permanently_delete_item(self, trashed_item, trash_item_lookup_cache=None):
         table_model = self._get_table_model(trashed_item.table_id)
         delete_qs = table_model.objects_and_trash.filter(id__in=trashed_item.row_ids)
-        delete_qs._raw_delete(delete_qs.db)
+        delete_qs._raw_delete(using=router.db_for_write(delete_qs.model))
         trashed_item.delete()
         RichTextFieldMention.objects.filter(
             table_id=trashed_item.table_id,

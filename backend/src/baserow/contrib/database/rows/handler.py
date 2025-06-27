@@ -19,7 +19,7 @@ from typing import (
 from django import db
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.db import connection, transaction
+from django.db import connection, router, transaction
 from django.db.models import Field as DjangoField
 from django.db.models import Model, Q, QuerySet, Window
 from django.db.models.expressions import RawSQL
@@ -2103,7 +2103,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         for field_name, q_filters in m2m_values_to_delete.items():
             through = getattr(model, field_name).through
             delete_qs = through.objects.all().filter(q_filters)
-            delete_qs._raw_delete(delete_qs.db)
+            delete_qs._raw_delete(using=router.db_for_write(delete_qs.model))
 
         for field_name, m2m_to_add in m2m_values_to_add.items():
             through = getattr(model, field_name).through
