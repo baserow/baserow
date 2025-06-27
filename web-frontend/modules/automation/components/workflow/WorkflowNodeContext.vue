@@ -7,9 +7,9 @@
       open-on-mount
       :show-input="false"
       :search-text="
-        !lastNodeId
-          ? $t('createWorkflowNodeContext.searchPlaceholderTrigger')
-          : $t('createWorkflowNodeContext.searchPlaceholderActions')
+        !workflowHasTrigger || editingTriggerNode
+          ? $t('workflowNodeContext.searchPlaceholderTrigger')
+          : $t('workflowNodeContext.searchPlaceholderActions')
       "
       @change="onChange"
     >
@@ -22,7 +22,7 @@
         :description="nodeType.description"
       ></DropdownItem>
       <template #emptyState>
-        {{ $t('createWorkflowNodeContext.noResults') }}
+        {{ $t('workflowNodeContext.noResults') }}
       </template>
     </Dropdown>
   </Context>
@@ -31,26 +31,38 @@
 <script>
 import context from '@baserow/modules/core/mixins/context'
 export default {
-  name: 'CreateWorkflowNodeContext',
+  name: 'WorkflowNodeContext',
   mixins: [context],
   props: {
-    lastNodeId: {
-      type: [Number, String],
+    node: {
+      type: Object,
       required: false,
-      default: null,
+      default: () => null,
+    },
+    workflowHasTrigger: {
+      type: Boolean,
+      required: false,
+      default: true,
     },
   },
   computed: {
+    editingTriggerNode() {
+      return this.node
+        ? this.$registry.get('node', this.node.type).isTrigger
+        : false
+    },
     nodeTypes() {
       return Object.values(this.$registry.getAll('node')).filter((nodeType) => {
-        return !this.lastNodeId ? nodeType.isTrigger : nodeType.isWorkflowAction
+        return !this.workflowHasTrigger || this.editingTriggerNode
+          ? nodeType.isTrigger
+          : nodeType.isWorkflowAction
       })
     },
   },
   methods: {
     onChange(nodeType) {
       this.hide()
-      this.$emit('change', nodeType, this.lastNodeId)
+      this.$emit('change', nodeType)
     },
   },
 }

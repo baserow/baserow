@@ -17,9 +17,6 @@ const updateCachedValues = (workflow) => {
   workflow.nodeMap = Object.fromEntries(
     workflow.nodes.map((node) => [`${node.id}`, node])
   )
-  workflow.idMap = Object.fromEntries(
-    workflow.nodes.map((node) => [`${node.id}`, uuid()])
-  )
 }
 
 export function populateNode(node) {
@@ -38,13 +35,7 @@ const mutations = {
   },
   UPDATE_ITEM(
     state,
-    {
-      workflow,
-      node: nodeToUpdate,
-      assignSelectedNode,
-      values,
-      typeChanged = false,
-    }
+    { workflow, node: nodeToUpdate, values, override = false }
   ) {
     const index = workflow.nodes.findIndex(
       (node) => node.id === nodeToUpdate.id
@@ -54,29 +45,14 @@ const mutations = {
       return
     }
 
-    const newValue = typeChanged
+    const newValue = override
       ? populateNode(values)
       : {
           ...workflow.nodes[index],
           ...values,
         }
 
-    if (assignSelectedNode) {
-      workflow.selectedNodeId = newValue.id
-    }
-
     workflow.nodes.splice(index, 1, newValue)
-
-    if (typeChanged) {
-      // When a node's `type` changes, it will have a new `id` as it's effectively
-      // a new node with some cloned values. We need to pluck out the existing flow ID
-      // we have for the 'old' node, update the `idMap` cache, and then re-add that
-      // flow ID using the 'new' node.
-      const nodeFlowId = workflow.idMap[nodeToUpdate.id]
-      updateCachedValues(workflow)
-      delete workflow.idMap[nodeToUpdate.id]
-      workflow.idMap[newValue.id] = nodeFlowId
-    }
   },
   DELETE_ITEM(state, { workflow, nodeId }) {
     const nodeIdStr = nodeId.toString()
@@ -187,16 +163,12 @@ const actions = {
       throw error
     }
   },
-  forceUpdate(
-    { commit, dispatch },
-    { workflow, node, assignSelectedNode, values, typeChanged }
-  ) {
+  forceUpdate({ commit, dispatch }, { workflow, node, values, override }) {
     commit('UPDATE_ITEM', {
       workflow,
       node,
-      assignSelectedNode,
       values,
-      typeChanged,
+      override,
     })
   },
   async updateDebounced(
@@ -218,15 +190,6 @@ const actions = {
         updateContext.valuesToUpdate[name] = structuredClone(values[name])
       }
     })
-
-    let assignSelectedNode = false
-    const nodeTypeChanging = values.type && node.type !== values.type
-    if (nodeTypeChanging && getters.getSelected(workflow)?.id === node.id) {
-      // If the node type is changing, and it's our currently selected node,
-      // we need to ensure that after the update, the `workflow.selectedNodeId`
-      // is updated, because a type changes causes the node ID to change too.
-      assignSelectedNode = true
-    }
 
     await dispatch('forceUpdate', {
       workflow,
@@ -252,9 +215,7 @@ const actions = {
           await dispatch('forceUpdate', {
             workflow,
             node,
-            assignSelectedNode,
             values: data,
-            typeChanged: nodeTypeChanging,
           })
 
           resolve()
@@ -300,6 +261,18 @@ const actions = {
       throw error
     }
   },
+  async replace({ commit, dispatch, getters }, { workflow, nodeId, newType }) {
+    const { data: newNode } = await AutomationWorkflowNodeService(
+      this.$client
+    ).replace(nodeId, {
+      new_type: newType,
+    })
+    commit('DELETE_ITEM', { workflow, nodeId })
+    commit('ADD_ITEM', { workflow, node: newNode })
+    setTimeout(() => {
+      dispatch('select', { workflow, node: newNode })
+    })
+  },
   async order({ commit }, { workflow, order, oldOrder }) {
     commit('ORDER_ITEMS', { workflow, order })
     try {
@@ -342,14 +315,6 @@ const getters = {
   },
   getLoading: (state) => (node) => {
     return node._.loading
-  },
-  getFlowId: (state) => (workflow, nodeId) => {
-    return workflow.idMap[nodeId]
-  },
-  getNodeIdFromFlowId: (state) => (workflow, flowId) => {
-    return Object.keys(workflow.idMap).find(
-      (nodeId) => workflow.idMap[nodeId] === flowId
-    )
   },
 }
 

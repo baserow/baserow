@@ -51,10 +51,6 @@
   "dataProviderType": {
     "previousNode": "Previous node"
   },
-  "nodeSidePanel": {
-    "action": "Action",
-    "details": "Details"
-  },
   "emptyHistorySidePanelState": {
     "title": "No runs yet",
     "description": "When this automation has run, the results will be shown here."
@@ -69,13 +65,16 @@
     "httpRequestLabel": "Send an HTTP request"
   },
   "workflowNode": {
-    "actionDelete": "Delete action",
-    "actionDuplicate": "Duplicate action",
+    "actionDelete": "Delete",
+    "actionReplace": "Replace",
+    "actionDuplicate": "Duplicate",
     "actionConfigure": "Configure",
     "beforeLabelTrigger": "Starts when",
-    "beforeLabelAction": "Then"
+    "beforeLabelAction": "Then",
+    "moreEdit": "Edit",
+    "moreReplace": "Replace"
   },
-  "createWorkflowNodeContext": {
+  "workflowNodeContext": {
     "searchPlaceholderTrigger": "Search for a trigger...",
     "searchPlaceholderActions": "Search for actions...",
     "noResults": "No results found"

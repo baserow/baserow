@@ -23,7 +23,8 @@
         :dragging="slotProps.dragging"
         :position="slotProps.position"
         :data="slotProps.data"
-        @removeNode="handleRemoveNode"
+        @remove-node="handleRemoveNode"
+        @replace-node="handleReplaceNode"
       />
     </template>
 
@@ -38,11 +39,11 @@
         :position="slotProps.position"
         @addNode="toggleCreateContext(slotProps.id)"
       />
-      <CreateWorkflowNodeContext
-        :ref="`createNodeContext-${slotProps.id}`"
-        :last-node-id="slotProps.data.nodeId"
-        @change="createNode"
-      ></CreateWorkflowNodeContext>
+      <WorkflowNodeContext
+        :ref="`nodeContext-${slotProps.id}`"
+        :workflow-has-trigger="workflowHasTrigger"
+        @change="createNode($event, slotProps.id)"
+      ></WorkflowNodeContext>
     </template>
 
     <template #edge-workflow-edge="slotProps">
@@ -72,7 +73,7 @@ import { uuid } from '@baserow/modules/core/utils/string'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
 import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode'
 import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge'
-import CreateWorkflowNodeContext from '@baserow/modules/automation/components/workflow/CreateWorkflowNodeContext'
+import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
 
 const props = defineProps({
   nodes: {
@@ -97,6 +98,7 @@ const emit = defineEmits(['add-node', 'remove-node', 'input'])
 const { addSelectedNodes, onMove, onNodeClick, onPaneClick } = useVueFlow()
 
 const { value: selectedNodeId } = toRefs(props)
+
 const { app } = useContext()
 
 const nodesDraggable = ref(false)
@@ -210,19 +212,19 @@ onNodeClick(({ node }) => {
 })
 
 /**
- * When the pane is moved, if we have an active 'create node context',
+ * When the pane is moved, if we have an active node context,
  * we hide it. This is to ensure that the context menu does not stay
  * open when the user interacts with the workflow.
  */
-const activeCreateNodeContext = ref(null)
+const activeNodeContext = ref(null)
 onMove(() => {
-  activeCreateNodeContext.value?.hide()
+  activeNodeContext.value?.hide()
 })
 
 const toggleCreateContext = async (nodeId) => {
   await nextTick()
-  const nodeContext = refs[`createNodeContext-${nodeId}`]
-  activeCreateNodeContext.value = nodeContext
+  const nodeContext = refs[`nodeContext-${nodeId}`]
+  activeNodeContext.value = nodeContext
   const nodeAddBtn = refs[`addWorkflowBtnNode-${nodeId}`]
   nodeContext.show(nodeAddBtn.$el, 'bottom', 'left', 10, -225)
 }
@@ -236,5 +238,9 @@ const createNode = (nodeType, previousNodeId) => {
 
 const handleRemoveNode = (nodeId) => {
   emit('remove-node', nodeId)
+}
+
+const handleReplaceNode = (nodeId, nodeType) => {
+  emit('replace-node', nodeId, nodeType)
 }
 </script>

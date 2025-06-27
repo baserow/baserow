@@ -3,37 +3,18 @@
     v-if="node"
     :read-only="!$hasPermission('automation.node.update', node, workspace.id)"
   >
-    <FormGroup required :label="$t('nodeSidePanel.action')">
-      <Dropdown
-        :value="node.type"
-        class="dropdown--floating margin-top-2"
-        :fixed-items="true"
-        @input="handleNodeChange({ type: $event })"
-      >
-        <DropdownItem
-          v-for="siblingNodeType in siblingNodeTypes"
-          :key="siblingNodeType.getType()"
-          :name="siblingNodeType.name"
-          :value="siblingNodeType.getType()"
-          :description="siblingNodeType.description"
-        />
-      </Dropdown>
-    </FormGroup>
-    <hr class="separator" />
-    <FormGroup required :label="$t('nodeSidePanel.details')">
-      <component
-        :is="nodeType.formComponent"
-        :key="node.id"
-        :loading="nodeLoading"
-        :service="node.service"
-        :application="automation"
-        :default-values="node.service"
-        class="node-form margin-top-2"
-        @values-changed="
-          handleNodeChange({ service: { ...node.service, ...$event } })
-        "
-      />
-    </FormGroup>
+    <component
+      :is="nodeType.formComponent"
+      :key="node.id"
+      :loading="nodeLoading"
+      :service="node.service"
+      :application="automation"
+      :default-values="node.service"
+      class="node-form"
+      @values-changed="
+        handleNodeChange({ service: { ...node.service, ...$event } })
+      "
+    />
   </ReadOnlyForm>
 </template>
 
@@ -98,13 +79,4 @@ const handleNodeChange = (newValues) => {
 const nodeLoading = computed(() => {
   return store.getters['automationWorkflowNode/getLoading'](node.value)
 })
-
-const nodeTypes = computed(() => app.$registry.getOrderedList('node'))
-const siblingNodeTypes = computed(() =>
-  nodeTypes.value.filter(
-    (type) =>
-      type.isWorkflowTrigger === nodeType.value.isWorkflowTrigger &&
-      type.isWorkflowAction === nodeType.value.isWorkflowAction
-  )
-)
 </script>

@@ -16,6 +16,7 @@
             :is-adding-node="isAddingNode"
             @add-node="handleAddNode"
             @remove-node="handleRemoveNode"
+            @replace-node="handleReplaceNode"
           />
         </client-only>
       </div>
@@ -151,6 +152,14 @@ export default defineComponent({
       }
     }
 
+    const handleReplaceNode = async (nodeId, newType) => {
+      await store.dispatch('automationWorkflowNode/replace', {
+        workflow: workflow.value,
+        nodeId: parseInt(nodeId),
+        newType,
+      })
+    }
+
     const activeSidePanel = computed(() => {
       return store.getters['automationWorkflow/getActiveSidePanel']
     })
@@ -213,6 +222,7 @@ export default defineComponent({
       activeSidePanel,
       handleAddNode,
       handleRemoveNode,
+      handleReplaceNode,
       selectedNodeId,
       workflowId,
       isAddingNode,

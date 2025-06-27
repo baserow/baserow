@@ -21,5 +21,8 @@ export default (client) => {
         node_ids: order,
       })
     },
+    replace(nodeId, values) {
+      return client.post(`automation/node/${nodeId}/replace/`, values)
+    },
   }
 }
