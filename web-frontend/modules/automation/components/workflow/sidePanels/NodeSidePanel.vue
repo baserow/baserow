@@ -11,9 +11,7 @@
       :application="automation"
       :default-values="node.service"
       class="node-form"
-      @values-changed="
-        handleNodeChange({ service: { ...node.service, ...$event } })
-      "
+      @values-changed="handleNodeServiceChange"
     />
   </ReadOnlyForm>
 </template>
@@ -68,11 +66,13 @@ const nodeType = computed(() => {
   return app.$registry.get('node', node.value?.type)
 })
 
-const handleNodeChange = (newValues) => {
-  store.dispatch('automationWorkflowNode/updateDebounced', {
+const handleNodeServiceChange = async (newServiceChanges) => {
+  const updatedNode = { ...node.value }
+  updatedNode.service = { ...updatedNode.service, ...newServiceChanges }
+  await store.dispatch('automationWorkflowNode/updateDebounced', {
     workflow: workflow.value,
     node: node.value,
-    values: { ...node.value, ...newValues },
+    values: updatedNode,
   })
 }
 

@@ -52,7 +52,7 @@ const mutations = {
           ...values,
         }
 
-    workflow.nodes.splice(index, 1, newValue)
+    Object.assign(workflow.nodes[index], newValue)
   },
   DELETE_ITEM(state, { workflow, nodeId }) {
     const nodeIdStr = nodeId.toString()
