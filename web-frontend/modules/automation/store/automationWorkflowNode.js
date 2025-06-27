@@ -299,7 +299,7 @@ const getters = {
   getNodes: (state) => (workflow) => {
     if (!workflow) return []
     if (!workflow.nodes) workflow.nodes = []
-    return workflow.nodes
+    return workflow.nodes.sort((a, b) => a.order - b.order)
   },
   findById: (state) => (workflow, nodeId) => {
     if (!workflow || !workflow.nodes) return null
