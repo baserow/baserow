@@ -29,7 +29,7 @@ const mutations = {
     automation.workflows.push(populateAutomationWorkflow(workflow))
   },
   UPDATE_ITEM(state, { workflow, values }) {
-    Object.assign(workflow, workflow, values)
+    Object.assign(workflow, values)
   },
   DELETE_ITEM(state, { automation, id }) {
     const index = automation.workflows.findIndex((item) => item.id === id)
@@ -194,7 +194,6 @@ const actions = {
   },
   async publishWorkflow({ dispatch }, { workflow }) {
     await AutomationWorkflowService(this.$client).publish(workflow.id)
-    await dispatch('forceUpdate', { workflow })
   },
 }
 

@@ -112,6 +112,15 @@ export default defineComponent({
     )
 
     const workflow = inject('workflow')
+    
+    const selectedWorkflow = computed(() => {
+      if (!props.automation) return null
+      try {
+        return store.getters['automationWorkflow/getSelected']
+      } catch (error) {
+        return null
+      }
+    })
 
     const testRunEnabled = computed(() => {
       return moment(workflow.value?.allow_test_run_until).isAfter()
@@ -148,16 +157,14 @@ export default defineComponent({
     })
 
     const publishedOn = computed(() => {
-      // TODO: investigate why publishedOn isn't re-firing
-      // it's possible the actual value is static.
-      if (!workflow.value?.published_on || isPublishing.value) {
+      if (!selectedWorkflow.value?.published_on || isPublishing.value) {
         return null
       }
 
       return moment
-        .utc(workflow.value.published_on)
+        .utc(selectedWorkflow.value.published_on)
         .tz(moment.tz.guess())
-        .format('MMM D, YYYY')
+        .format('MMM D, YYYY HH:MM:SS')
     })
 
     const toggleTestRun = async () => {
@@ -208,6 +215,7 @@ export default defineComponent({
       canPublishWorkflow,
       publishedOn,
       isPublishing,
+      selectedWorkflow,
       // temp
       workflow,
     }
