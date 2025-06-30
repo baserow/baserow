@@ -1,11 +1,5 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from baserow_premium.views.decorator_types import LeftBorderColorDecoratorType
-from baserow_premium.views.decorator_value_provider_types import (
-    ConditionalColorValueProviderType,
-    SelectColorValueProviderType,
-)
-
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.constants import (
     AIRTABLE_ASCENDING_MAP,
@@ -542,8 +536,8 @@ class AirtableViewType(Instance):
         return ViewDecoration(
             id=f"{raw_airtable_view['id']}_decoration",
             view_id=raw_airtable_view["id"],
-            type=LeftBorderColorDecoratorType.type,
-            value_provider_type=SelectColorValueProviderType.type,
+            type="left_border_color",
+            value_provider_type="single_select_color",
             value_provider_conf={"field_id": select_column_id},
             order=1,
         )
@@ -629,8 +623,8 @@ class AirtableViewType(Instance):
         return ViewDecoration(
             id=f"{raw_airtable_view['id']}_decoration",
             view_id=raw_airtable_view["id"],
-            type=LeftBorderColorDecoratorType.type,
-            value_provider_type=ConditionalColorValueProviderType.type,
+            type="left_border_color",
+            value_provider_type="conditional_color",
             value_provider_conf={"colors": baserow_colors},
             order=1,
         )
