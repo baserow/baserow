@@ -1310,3 +1310,22 @@ def test_filter_by_fields_object_with_row_ids_queryset(data_fixture):
     )
     assert len(results) == 1
     assert results[0].id == row_2.id
+
+
+@pytest.mark.django_db
+def test_update_returning_ids(data_fixture):
+    table = data_fixture.create_database_table(name="Rockets")
+    name_field = data_fixture.create_text_field(table=table, order=0, name="Name")
+    price_field = data_fixture.create_number_field(table=table, order=1, name="Price")
+
+    model = table.get_model()
+    row_1 = model.objects.create(
+        **{name_field.db_column: "Falcon Heavy", price_field.db_column: 10000}
+    )
+    row_2 = model.objects.create(
+        **{name_field.db_column: "Falcon 9", price_field.db_column: 20000}
+    )
+    updated_row_ids = model.objects.all().update_returning_ids(
+        **{name_field.db_column: "Falcon 1", price_field.db_column: 100}
+    )
+    assert set(updated_row_ids) == {row_1.id, row_2.id}
