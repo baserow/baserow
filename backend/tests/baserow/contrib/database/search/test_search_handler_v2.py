@@ -3,7 +3,7 @@ import pytest
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.models import WorkspaceDatabaseSettings
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.handler import SearchHandler
+from baserow.contrib.database.search.handler import SearchHandler, SearchModes
 from baserow.contrib.database.search.search_bulder import SearchBuilder
 from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.table.models import GeneratedTableModel
@@ -39,6 +39,92 @@ def test_search_workspace_table(data_fixture, run_on_commit):
     assert len(search_table.objects.all()) == 0  # no data yet
     run_on_commit()
     assert len(search_table.objects.all()) > 0  # no data yet
+
+
+@pytest.mark.django_db
+def test_migrate_tsvector_table(data_fixture, run_on_commit, celery_task_lazy):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    # build old-style search table
+    with celery_task_lazy(True):
+        table, user, inserted_row, blank_row, context = setup_interesting_test_table(
+            data_fixture,
+            user,
+            database,
+            table_kwargs={"search_data_state": SearchTableState.DISABLED},
+        )
+
+    model = table.get_model()
+    long_text_field = model.get_field_object_by_user_field_name("long_text")
+    text_field = model.get_field_object_by_user_field_name("text")
+    run_on_commit()
+    with celery_task_lazy(True):
+        RowHandler().create_rows(
+            user=user,
+            table=table,
+            rows_values=[
+                {
+                    text_field["name"]: "tsv field enabled",
+                }
+            ],
+        )
+    run_on_commit()
+    assert len(model.objects.all()) == 3
+    rows = model.objects.all().search_all_fields(
+        "tsv", search_mode=SearchModes.MODE_FT_WITH_COUNT
+    )
+    assert len(rows) == 1
+    row = rows[0]
+    assert getattr(row, text_field["field"].tsv_db_column) is not None
+
+    model.objects.update(**{text_field["field"].tsv_db_column: None})
+
+    # ensure tsv field is empty and will not return any search hits
+    rows = model.objects.all().search_all_fields(
+        "tsv", search_mode=SearchModes.MODE_FT_WITH_COUNT
+    )
+    assert len(rows) == 0
+
+    table.search_data_state = None
+    table.save()
+
+    search_table = SearchHandler.get_search_table_model(table.database.workspace_id)
+
+    assert len(search_table.objects.all()) == 0
+
+    with celery_task_lazy(True):
+        RowHandler().create_rows(
+            user=user,
+            table=table,
+            rows_values=[
+                {
+                    long_text_field["name"]: "new search enabled",
+                    text_field["name"]: "migrated",
+                }
+            ],
+        )
+
+    run_on_commit()
+    table.refresh_from_db()
+    assert table.search_data_state == SearchTableState.READY
+
+    # old values should be migrated
+    sbuilder = SearchBuilder(table)
+    sbuilder.add_term("example")
+    q = sbuilder.get_queryset()
+    assert len(q) == 1
+
+    # new values too
+    sbuilder = SearchBuilder(table)
+    sbuilder.add_term("migrated")
+    q = sbuilder.get_queryset()
+    assert len(q) == 1
+
+    sbuilder = SearchBuilder(table)
+    sbuilder.add_term("tsv")
+    q = sbuilder.get_queryset()
+    assert len(q) == 1
 
 
 @pytest.mark.django_db

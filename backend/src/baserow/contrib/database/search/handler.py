@@ -1003,9 +1003,11 @@ class SearchHandler(
 
                 if empty_vector_row_ids:
                     # migrate rows that we know have empty tsv columns.
-                    cls.update_search_data_for_table(
-                        table, row_ids=empty_vector_row_ids, skip_table_checks=True
+
+                    cls.mark_table_data_change(
+                        table.id, row_ids=empty_vector_row_ids, skip_schedule=True
                     )
+                    cls.process_table_data_changes(table)
                 table.search_data_state = SearchTableState.READY
                 table.save(update_fields=["search_data_state"])
 
@@ -1015,89 +1017,6 @@ class SearchHandler(
                 f"Error when migrating search data for {table}: {err}"
             )
             return
-
-    @classmethod
-    def update_search_data_for_table(
-        cls,
-        table: "Table",
-        row_ids: list[int],
-        skip_table_checks: bool = False,
-        progress_builder: Optional[ChildProgressBuilder] = None,
-    ):
-        """
-        full or partial update may be performed.
-
-        :param table: table definition
-        :param field_ids_to_restrict_update_to: Optional list of field ids to restrict
-            the source of data for the update. If not provided, all searchable fields
-            will be used.
-        :param progress_builder:
-        :param update_tsvectors_for_rows_changed_since: Optional datetime to restrict
-            update to rows newer than the provided value.
-        :param update_tsvectors_for_changed_rows_only: Optional flag to restrict
-            update to rows that changed since the last update. The last update timestamp
-            is calculated as a max updated_on value for any field for a table.
-        :param row_ids: Optional list of row ids to use for the update.
-        :param skip_table_checks: Optional flag to skip a check if table has been
-            migrated.
-        :return:
-        """
-
-        # If the installation is set up so that full-text search is not
-        # used, and that compat mode is used, then raise an exception.
-        # Also, the table should be migrated already.
-        if not SearchHandler.full_text_enabled():
-            raise PostgresFullTextSearchDisabledException()
-        if not (cls.table_is_migrated(table) or skip_table_checks):
-            logger.warning(
-                f"Called SearchHandler.update_search_data_for_table "
-                f"on not migrated table {table}"
-            )
-            return
-
-        if not row_ids:
-            return
-        workspace_id = table.database.workspace_id
-        search_model = cls.get_search_table_model(workspace_id)
-
-        model = table.get_model()
-        fields = model.get_field_objects(include_trash=True)
-        # progress = ChildProgressBuilder.build(
-        #     progress_builder, child_total=1000 if must_vacuum else 800
-        # )
-        if not fields:
-            return
-
-        query: QuerySet = model.objects.filter(id__in=row_ids)
-
-        qannotate = {}
-        for f in fields:
-            try:
-                expr: Expression = f["type"].get_search_expression(f["field"], query)
-
-            # This can happen if there's no suitable primary field,
-            # i.e. a table with linkrow field only
-            except StopIteration:
-                expr = None
-            if expr is None:
-                continue
-
-            qannotate[f"search_{f['name']}"] = LocalisedSearchVector(expr)
-
-        inserts = []
-        for row in query.annotate(**qannotate).select_related():
-            for field in fields:
-                svect = search_model(
-                    row_id=row.id,
-                    field_id=field["field"].id,
-                    updated_on=row.updated_on,
-                    value=getattr(row, f"search_{field['name']}"),
-                )
-                if svect.value:
-                    inserts.append(svect)
-        logger.debug(f"Adding {len(inserts)} entries to {search_model} for {table}.")
-
-        search_model.objects.bulk_create(inserts)
 
     @classmethod
     def _trigger_async_workspacesearchtable_task_if_needed(cls, workspace_id: int):
@@ -1275,11 +1194,6 @@ class SearchHandler(
         """
 
         table = field.table
-        # use old search handler for not migrated tables
-        # if not cls.table_is_active(table):
-        #     return SearchHandlerCompat().after_field_created(
-        #         field, skip_search_updates=skip_search_updates
-        #     )
 
         SearchHandlerCompat().after_field_created(
             field, skip_search_updates=skip_search_updates
@@ -1346,14 +1260,6 @@ class SearchHandler(
         from baserow.contrib.database.table.handler import TableHandler
 
         previous_table = TableHandler().get_table(original_table_id)
-        #
-        # if not (
-        #     cls.table_is_active(previous_table)
-        #     and cls.table_is_active(moved_field.table)
-        # ):
-        #     return SearchHandlerCompat().after_field_moved_between_tables(
-        #         moved_field, original_table_id=original_table_id
-        #     )
         SearchHandlerCompat().after_field_moved_between_tables(
             moved_field, original_table_id=original_table_id
         )
@@ -1659,7 +1565,7 @@ class SearchHandler(
                         updated_on=row.updated_on,
                         value=getattr(row, f"search_{field['name']}"),
                     )
-                    # if svect.value:
+                    # Note: we store empty .values here too
                     inserts.append(svect)
 
         update_params_query.delete()
