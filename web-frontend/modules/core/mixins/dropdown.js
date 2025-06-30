@@ -252,13 +252,7 @@ export default {
       // child of this one. This will make sure the `show` and `hide` will not be
       // called multiple times when the search of being focussed on immediately
       // after opening.
-      if (
-        event.relatedTarget &&
-        !isElement(this.$el, event.relatedTarget) &&
-        // no need to hide the dropdown if it loses focus if the input is not visible
-        // because you can't tab to the next item anyway.
-        this.showInput
-      ) {
+      if (event.relatedTarget && !isElement(this.$el, event.relatedTarget)) {
         this.hide()
       }
     },
