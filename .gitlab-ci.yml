@@ -223,6 +223,7 @@ backend-check-startup-python:
     FF_NETWORK_PER_BUILD: 1
   script:
     - docker run --rm --network=host $BACKEND_CI_DEV_IMAGE ci-check-startup
+    - docker run --rm --network=host $BACKEND_CI_DEV_IMAGE ci-check-startup-oss-only
 
 # If pipeline not triggered by tag:
 # - Runs the backend tests (the first 1/3) if changes to the backend, otherwise skips.
