@@ -33,7 +33,7 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.STR)
     def get_published_on(self, obj):
         published_workflow = AutomationWorkflowHandler().get_published_workflow(obj.id)
-        return published_workflow.created_on if published_workflow else None
+        return str(published_workflow.created_on) if published_workflow else None
 
 
 class CreateAutomationWorkflowSerializer(serializers.ModelSerializer):
