@@ -24,6 +24,7 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflow_published,
     automation_workflow_updated,
     automation_workflows_reordered,
+    automation_workflow_status_changed,
 )
 from baserow.core.utils import generate_hash
 from baserow.ws.tasks import broadcast_to_group, broadcast_to_permitted_users
@@ -122,6 +123,25 @@ def workflow_reordered(
                 # A user might also not have access to the automation itself
                 "automation_id": generate_hash(automation.id),
                 "order": order,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(automation_workflow_status_changed)
+def workflow_status_changed(
+    sender, workflow: AutomationWorkflow, user: AbstractUser, status: bool, **kwargs
+):
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            workflow.automation.workspace_id,
+            PublishAutomationWorkflowOperationType.type,
+            AutomationWorkflowObjectScopeType.type,
+            workflow.id,
+            {
+                "type": "automation_workflow_status_changed",
+                "workflow": AutomationWorkflowSerializer(workflow).data,
             },
             getattr(user, "web_socket_id", None),
         )

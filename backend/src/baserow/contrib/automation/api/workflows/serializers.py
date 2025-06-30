@@ -4,9 +4,6 @@ from rest_framework import serializers
 
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.constants import ALLOW_TEST_RUN_MINUTES
-from baserow.contrib.automation.workflows.exceptions import (
-    AutomationWorkflowDoesNotExist,
-)
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
 
@@ -64,5 +61,15 @@ class OrderAutomationWorkflowsSerializer(serializers.Serializer):
         child=serializers.IntegerField(),
         help_text=(
             "The ids of the workflows in the order they are supposed to be set in."
+        ),
+    )
+
+
+class AutomationWorkflowStatusSerializer(serializers.ModelSerializer):
+    status = serializers.BooleanField(
+        required=True,
+        help_text=(
+            "If True, ensures the published workflow is live. If False, "
+            "ensures the workflow is disabled."
         ),
     )

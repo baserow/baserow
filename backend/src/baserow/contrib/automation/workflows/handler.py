@@ -622,3 +622,18 @@ class AutomationWorkflowHandler:
         duplicate_automation.save(update_fields=["published_from"])
 
         return duplicate_automation.workflows.first()
+
+    def set_workflow_status(self, workflow: AutomationWorkflow, status: bool) -> None:
+        """
+        Ensures the AutomationWorkflow is either live or disabled.
+
+        :param workflow: The AutomationWorkflow that should be updated.
+        :param status: If True, enables the workflow. Otherwise, the workflow is disabled.
+        """
+
+        published_workflow = self.get_published_workflow(workflow.id)
+        if not published_workflow:
+            raise AutomationWorkflowDoesNotExist()
+
+        published_workflow.published = status
+        published_workflow.save(update_fields=["published"])
