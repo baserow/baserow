@@ -362,6 +362,9 @@ case "$1" in
     ci-check-startup)
         exec make ci-check-startup-python
     ;;
+    ci-check-startup-oss-only)
+        exec make ci-check-startup-python-oss-only
+    ;;
     celery-worker)
       if [[ -n "${BASEROW_RUN_MINIMAL}" && $BASEROW_AMOUNT_OF_WORKERS == "1" ]]; then
         export OTEL_SERVICE_NAME="celery-worker-combined"
