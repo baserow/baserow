@@ -199,5 +199,5 @@ def internal_api_request(
     if not method_func:
         raise ValueError(f"Unsupported HTTP method: {method}")
 
-    response = method_func(url_path, data=data, **headers)
+    response = method_func(url_path, data=data, format="json", **headers)
     return response

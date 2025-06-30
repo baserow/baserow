@@ -1,3 +1,4 @@
+import json
 import re
 import uuid
 from abc import ABC, abstractmethod
@@ -4118,6 +4119,19 @@ class SelectOptionBaseFieldType(FieldType):
             raise ValueError("The provided value does not contain a valid option id.")
         return option_ids
 
+    def get_select_options_help_text(self, instance):
+        try:
+            select_option_pair = ", ".join(
+                [
+                    f"{select_option.id}={json.dumps(select_option.value)}"
+                    for select_option in instance.select_options.all()
+                ]
+            )
+        except ValueError:
+            # Happens when the instance does not yet have a primary key.
+            return self.get_serializer_help_text(instance)
+        return f"(in format option_id=option_value): " f"{select_option_pair}"
+
 
 class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     type = "single_select"
@@ -4212,6 +4226,11 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                 instance, kwargs.get("single_select_default", None)
             )
             serializer_kwargs["default"] = default_value
+
+        serializer_kwargs["help_text"] = (
+            f"Accepts one of the following option ids as integer value"
+            f" {self.get_select_options_help_text(instance)}."
+        )
 
         field_serializer = IntegerOrStringField(**serializer_kwargs)
         return field_serializer
@@ -4721,6 +4740,10 @@ class MultipleSelectFieldType(
             **{
                 "required": required,
                 "allow_null": not required,
+                "help_text": (
+                    f"Accepts multiple option ids as an array of integer values"
+                    f" {self.get_select_options_help_text(instance)}."
+                ),
                 **kwargs,
             },
         )
