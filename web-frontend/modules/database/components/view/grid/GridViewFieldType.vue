@@ -53,6 +53,7 @@
             'tooltip__content--expandable-plain-text',
           ]"
           :icon="'info-empty'"
+          :tooltip-duration="0.2"
         />
 
         <a
