@@ -96,12 +96,12 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
    */
   getErrorMessage({ service }) {
     if (service !== undefined) {
-      const filtersInError = service.filters.some((filter) => filter.trashed)
+      const filtersInError = service.filters?.some((filter) => filter.trashed)
       if (filtersInError) {
         return this.app.i18n.t('serviceType.errorfilterInError')
       }
 
-      const sortingsInError = service.sortings.some(
+      const sortingsInError = service.sortings?.some(
         (sorting) => sorting.trashed
       )
       if (sortingsInError) {
