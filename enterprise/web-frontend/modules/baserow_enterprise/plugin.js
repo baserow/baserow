@@ -216,7 +216,7 @@ export default (context) => {
     new BuilderFileInputElementPaidFeature(context)
   )
   // Register builder page decorator namespace and types
-  app.$registry.registerNamespace('builderPageDecorator')
+
   app.$registry.register(
     'builderPageDecorator',
     new MadeWithBaserowBuilderPageDecoratorType(context)

@@ -269,7 +269,10 @@ export default {
         active_licenses: {
           per_workspace: {
             [builder.workspace.id]: Object.fromEntries(
-              builder.workspace.licenses.map((license) => [license, true])
+              (builder.workspace.licenses || []).map((license) => [
+                license,
+                true,
+              ])
             ),
           },
         },
