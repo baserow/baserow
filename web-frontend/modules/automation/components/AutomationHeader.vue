@@ -25,16 +25,27 @@
 
     <div class="header__right">
       <span class="header__switch-container">
-        <Badge v-if="publishedOn" color="green" rounded size="small">{{
-          $t('automationHeader.switchLabelLive')
-        }}</Badge>
-        <Badge v-else color="cyan" rounded size="small">{{
-          $t('automationHeader.switchLabelDraft')
-        }}</Badge>
+        <template v-if="!publishedOn">
+          <Badge color="cyan" rounded size="small">{{
+            $t('automationHeader.switchLabelDraft')
+          }}</Badge>
+        </template>
+        <template v-else>
+          <Badge v-if="workflow?.disabled" color="red" rounded size="small">{{
+            $t('automationHeader.switchLabelDisabled')
+          }}</Badge>
+          <Badge v-else-if="isPaused" color="red" rounded size="small">{{
+            $t('automationHeader.switchLabelPaused')
+          }}</Badge>
+          <Badge v-else color="green" rounded size="small">{{
+            $t('automationHeader.switchLabelLive')
+          }}</Badge>
+        </template>
         <SwitchInput
           small
-          :value="switchValue"
-          @input="switchValue = !switchValue"
+          :value="statusSwitch"
+          @input="toggleStatusSwitch"
+          :disabled="workflow?.disabled || !publishedOn"
         ></SwitchInput>
       </span>
 
@@ -102,7 +113,6 @@ export default defineComponent({
     const store = useStore()
     const { app } = useContext()
 
-    const switchValue = ref(false)
     const readOnlySwitchValue = ref(false)
     const isPublishing = ref(false)
 
@@ -112,7 +122,7 @@ export default defineComponent({
     )
 
     const workflow = inject('workflow')
-    
+
     const selectedWorkflow = computed(() => {
       if (!props.automation) return null
       try {
@@ -167,6 +177,14 @@ export default defineComponent({
         .format('MMM D, YYYY HH:MM:SS')
     })
 
+    const statusSwitch = computed(() => {
+      return (publishedOn.value && !workflow.value?.paused) || false
+    })
+
+    const isPaused = computed(() => {
+      return (publishedOn.value && workflow.value?.paused)
+    })
+
     const toggleTestRun = async () => {
       try {
         await store.dispatch('automationWorkflow/toggleTestRun', {
@@ -183,6 +201,24 @@ export default defineComponent({
       emit('read-only-toggled', readOnlySwitchValue.value)
     }
 
+    const toggleStatusSwitch = async () => {
+      const oldValue = workflow.value.paused
+      workflow.value.paused = !oldValue
+      
+      try {
+        await store.dispatch('automationWorkflow/update', {
+          automation: props.automation,
+          workflow: workflow.value,
+          values: {
+            paused: workflow.value.paused,
+          },
+        })
+      } catch (error) {
+        workflow.value.paused = oldValue
+        notifyIf(error, 'automationWorkflow')
+      }
+    }
+
     const historyClick = () => {
       store.dispatch(
         'automationWorkflow/setActiveSidePanel',
@@ -193,18 +229,25 @@ export default defineComponent({
     const publishWorkflow = async () => {
       isPublishing.value = true
 
+      const originalPaused = workflow.value.paused
+      const originalDisabled = workflow.value.disabled
+
       try {
+        workflow.value.paused = false
+        workflow.value.disabled = false
         await store.dispatch('automationWorkflow/publishWorkflow', {
           workflow: workflow.value,
         })
       } catch (error) {
+        workflow.value.paused = originalPaused
+        workflow.value.disabled = originalDisabled
         notifyIf(error, 'automationWorkflow')
       }
       isPublishing.value = false
     }
 
     return {
-      switchValue,
+      statusSwitch,
       readOnlySwitchValue,
       toggleReadOnly,
       historyClick,
@@ -212,9 +255,11 @@ export default defineComponent({
       testRunEnabled,
       isDevEnvironment,
       publishWorkflow,
+      toggleStatusSwitch,
       canPublishWorkflow,
       publishedOn,
       isPublishing,
+      isPaused,
       selectedWorkflow,
       // temp
       workflow,
