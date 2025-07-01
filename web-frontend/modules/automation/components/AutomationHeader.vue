@@ -261,7 +261,6 @@ export default defineComponent({
       isPublishing,
       isPaused,
       selectedWorkflow,
-      // temp
       workflow,
     }
   },

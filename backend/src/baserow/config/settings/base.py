@@ -1102,6 +1102,8 @@ PERMISSION_MANAGERS = [
     "allow_if_template",
     "allow_public_builder",
     "element_visibility",
+    "automation_workflow",
+    "automation_node",
     "member",
     "token",
     "write_field_values",
