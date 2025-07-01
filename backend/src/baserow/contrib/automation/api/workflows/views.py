@@ -24,7 +24,6 @@ from baserow.contrib.automation.api.workflows.serializers import (
     CreateAutomationWorkflowSerializer,
     OrderAutomationWorkflowsSerializer,
     UpdateAutomationWorkflowSerializer,
-    AutomationWorkflowStatusSerializer,
 )
 from baserow.contrib.automation.workflows.actions import (
     CreateAutomationWorkflowActionType,
@@ -357,51 +356,3 @@ class AsyncPublishAutomationWorkflowView(APIView):
         serializer = job_type_registry.get_serializer(job, JobSerializer)
 
         return Response(serializer.data, status=HTTP_202_ACCEPTED)
-
-
-class AutomationWorkflowStatusView(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    @extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name="automation_workflow_id",
-                location=OpenApiParameter.PATH,
-                type=OpenApiTypes.INT,
-                description="The workflow id the user wants to update.",
-            ),
-            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
-        ],
-        tags=["Automation workflow statuses"],
-        operation_id="update_automation_workflow_status",
-        description=(
-            "This endpoint allows enabling or disabling of a published workflow."
-        ),
-        request=AutomationWorkflowStatusSerializer,
-        responses={
-            204: None,
-            400: get_error_schema(
-                [
-                    "ERROR_REQUEST_BODY_VALIDATION",
-                ]
-            ),
-            404: get_error_schema(["ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST"]),
-        },
-    )
-    @transaction.atomic
-    @map_exceptions(
-        {
-            AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
-        }
-    )
-    @validate_body(AutomationWorkflowStatusSerializer, return_validated=True)
-    def post(self, request, data: Dict, workflow_id: int):
-        """
-        Enables or disables a published workflow.
-        """
-
-        AutomationWorkflowService().set_workflow_status(
-            request.user, workflow_id, data["status"]
-        )
-
-        return Response(status=HTTP_204_NO_CONTENT)

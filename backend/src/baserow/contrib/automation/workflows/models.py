@@ -57,10 +57,14 @@ class AutomationWorkflow(
     published = models.BooleanField(
         default=False, help_text="Whether the workflow is published."
     )
+    paused = models.BooleanField(
+        default=False, help_text="Whether the published workflow is paused."
+    )
 
     order = models.PositiveIntegerField()
 
     allow_test_run_until = models.DateTimeField(null=True, blank=True)
+    disabled_on = models.DateTimeField(null=True, blank=True)
 
     objects = AutomationWorkflowTrashManager()
     objects_and_trash = models.Manager()

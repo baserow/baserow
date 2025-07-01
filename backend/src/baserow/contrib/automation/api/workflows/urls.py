@@ -5,7 +5,6 @@ from baserow.contrib.automation.api.workflows.views import (
     AsyncPublishAutomationWorkflowView,
     AutomationWorkflowsView,
     AutomationWorkflowView,
-    AutomationWorkflowStatusView,
     OrderAutomationWorkflowsView,
 )
 
@@ -35,10 +34,5 @@ urlpatterns_without_automation_id = [
         r"(?P<workflow_id>[0-9]+)/publish/async/$",
         AsyncPublishAutomationWorkflowView.as_view(),
         name="async_publish",
-    ),
-    re_path(
-        r"(?P<workflow_id>[0-9]+)/status/$",
-        AutomationWorkflowStatusView.as_view(),
-        name="status",
     ),
 ]

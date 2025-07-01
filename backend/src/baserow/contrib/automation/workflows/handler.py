@@ -37,7 +37,7 @@ from baserow.core.utils import (
 
 
 class AutomationWorkflowHandler:
-    allowed_fields = ["name", "allow_test_run_until"]
+    allowed_fields = ["name", "allow_test_run_until", "paused"]
 
     def run_workflow(
         self, workflow_id: int, event_payload: Optional[List[Dict]] = None
@@ -182,6 +182,15 @@ class AutomationWorkflowHandler:
         original_workflow_values = self.export_prepared_values(workflow)
 
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
+
+        # paused is a special value that should only be set on the
+        # published workflow, if available.
+        paused = allowed_values.pop("paused", None)
+        if paused is not None:
+            if published_workflow := self.get_published_workflow(workflow.id):
+                published_workflow.paused = paused
+                published_workflow.save(update_fields=["paused"])
+        
         for key, value in allowed_values.items():
             setattr(workflow, key, value)
 
@@ -600,6 +609,8 @@ class AutomationWorkflowHandler:
 
         # Manually set the published status for the newly created workflow.
         exported_automation["workflows"][0]["published"] = True
+        exported_automation["workflows"][0]["paused"] = False
+        exported_automation["workflows"][0]["disabled_on"] = None
 
         progress_builder = None
         if progress:
@@ -622,18 +633,3 @@ class AutomationWorkflowHandler:
         duplicate_automation.save(update_fields=["published_from"])
 
         return duplicate_automation.workflows.first()
-
-    def set_workflow_status(self, workflow: AutomationWorkflow, status: bool) -> None:
-        """
-        Ensures the AutomationWorkflow is either live or disabled.
-
-        :param workflow: The AutomationWorkflow that should be updated.
-        :param status: If True, enables the workflow. Otherwise, the workflow is disabled.
-        """
-
-        published_workflow = self.get_published_workflow(workflow.id)
-        if not published_workflow:
-            raise AutomationWorkflowDoesNotExist()
-
-        published_workflow.published = status
-        published_workflow.save(update_fields=["published"])

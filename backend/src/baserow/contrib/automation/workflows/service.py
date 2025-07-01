@@ -20,7 +20,6 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflow_published,
     automation_workflow_updated,
     automation_workflows_reordered,
-    automation_workflow_status_changed,
 )
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.handler import CoreHandler
@@ -273,24 +272,3 @@ class AutomationWorkflowService:
         published_workflow = self.handler.publish(workflow, progress)
 
         automation_workflow_published.send(self, user=user, workflow=published_workflow)
-
-    def set_workflow_status(self, user: AbstractUser, workflow_id: int, status: bool) -> AutomationWorkflow:
-        """
-        Sets a published workflow's status as disabled or live.
-
-        :param user: The user updating the workflow status.
-        :param workflow_id: The automation workflow the user wants to update.
-        :param status: True if the workflow should be live, False if it should be disabled.
-        """
-
-        workflow = self.handler.get_workflow(workflow_id)
-
-        CoreHandler().check_permissions(
-            user,
-            PublishAutomationWorkflowOperationType.type,
-            workspace=workflow.automation.workspace,
-            context=workflow.automation,
-        )
-
-        self.handler.set_workflow_status(workflow, status)
-        automation_workflow_status_changed.send(self, user=user, workflow=workflow, status=status)
