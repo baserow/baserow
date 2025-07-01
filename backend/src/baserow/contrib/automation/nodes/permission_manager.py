@@ -1,8 +1,8 @@
-from baserow.core.registries import PermissionManagerType
 from baserow.contrib.automation.nodes.operations import (
     DeleteAutomationNodeOperationType,
-    UpdateAutomationNodeOperationType,    
+    UpdateAutomationNodeOperationType,
 )
+from baserow.core.registries import PermissionManagerType
 from baserow.core.subjects import UserSubjectType
 
 

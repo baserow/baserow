@@ -156,11 +156,17 @@ class AutomationConfig(AppConfig):
 
             automation_data_provider_type_registry.register(PreviousNodeProviderType())
 
+            from baserow.contrib.automation.nodes.permission_manager import (
+                AutomationNodePermissionManager,
+            )
+            from baserow.contrib.automation.workflows.permission_manager import (
+                AutomationWorkflowPermissionManager,
+            )
             from baserow.core.registries import permission_manager_type_registry
 
-            from baserow.contrib.automation.workflows.permission_manager import AutomationWorkflowPermissionManager
-            from baserow.contrib.automation.nodes.permission_manager import AutomationNodePermissionManager
-            permission_manager_type_registry.register(AutomationWorkflowPermissionManager())
+            permission_manager_type_registry.register(
+                AutomationWorkflowPermissionManager()
+            )
             permission_manager_type_registry.register(AutomationNodePermissionManager())
 
             # The signals must always be imported last because they use

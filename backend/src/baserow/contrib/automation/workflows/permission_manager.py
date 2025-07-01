@@ -1,8 +1,8 @@
-from baserow.core.registries import PermissionManagerType
 from baserow.contrib.automation.workflows.operations import (
     DeleteAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
 )
+from baserow.core.registries import PermissionManagerType
 from baserow.core.subjects import UserSubjectType
 
 
