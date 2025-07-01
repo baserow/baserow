@@ -47,6 +47,9 @@ def test_create_workflow(api_client, data_fixture):
         "id": AnyInt(),
         "name": name,
         "order": AnyInt(),
+        "disabled": False,
+        "paused": False,
+        "published_on": None,
     }
 
 
@@ -126,6 +129,9 @@ def test_read_workflow(api_client, data_fixture):
         "name": workflow.name,
         "automation_id": automation.id,
         "allow_test_run_until": None,
+        "disabled": False,
+        "paused": False,
+        "published_on": None,
     }
 
 
@@ -346,6 +352,9 @@ def test_duplicate_workflow(api_client, data_fixture):
             "id": workflow.id,
             "name": "test",
             "order": AnyInt(),
+            "disabled": False,
+            "paused": False,
+            "published_on": None,
         },
         "progress_percentage": 0,
         "state": "pending",

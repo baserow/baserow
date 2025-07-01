@@ -33,9 +33,12 @@ def test_automation_workflow_serializer_fields(workflow_fixture):
     assert sorted(serializer.data.keys()) == [
         "allow_test_run_until",
         "automation_id",
+        "disabled",
         "id",
         "name",
         "order",
+        "paused",
+        "published_on",
     ]
 
 
@@ -45,9 +48,7 @@ def test_create_automation_workflow_serializer_fields(workflow_fixture):
 
     serializer = CreateAutomationWorkflowSerializer(instance=workflow)
 
-    assert sorted(serializer.data.keys()) == [
-        "name",
-    ]
+    assert sorted(serializer.data.keys()) == ["name"]
 
 
 @pytest.mark.django_db
@@ -56,6 +57,4 @@ def test_update_automation_workflow_serializer_fields(workflow_fixture):
 
     serializer = UpdateAutomationWorkflowSerializer(instance=workflow)
 
-    assert sorted(serializer.data.keys()) == [
-        "name",
-    ]
+    assert sorted(serializer.data.keys()) == ["name", "paused"]

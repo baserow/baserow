@@ -283,7 +283,7 @@ def test_export_prepared_values(data_fixture):
 
     result = AutomationWorkflowHandler().export_prepared_values(workflow)
 
-    assert result == {"name": "test", "allow_test_run_until": None}
+    assert result == {"name": "test", "allow_test_run_until": None, "paused": False}
 
 
 def test_sort_serialized_nodes_by_priority():
