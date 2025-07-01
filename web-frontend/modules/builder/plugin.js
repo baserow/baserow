@@ -188,6 +188,7 @@ export default (context) => {
   app.$registry.registerNamespace('builderDataProvider')
   app.$registry.registerNamespace('themeConfigBlock')
   app.$registry.registerNamespace('fontFamily')
+  app.$registry.registerNamespace('builderPageDecorator')
 
   app.$registry.register('application', new BuilderApplicationType(context))
   app.$registry.register('job', new DuplicatePageJobType(context))

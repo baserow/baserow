@@ -2,7 +2,6 @@ from typing import List
 
 from django.utils.functional import lazy
 
-from baserow_premium.plugins import PremiumPlugin
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -27,7 +26,6 @@ from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
-from baserow.core.registries import plugin_registry
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.registries import user_source_type_registry
@@ -239,27 +237,6 @@ class PolymorphicPublicUserSourceSerializer(PolymorphicSerializer):
     request = False
 
 
-class PublicWorkspaceSerializer(WorkspaceSerializer):
-    licenses = serializers.SerializerMethodField()
-
-    class Meta(WorkspaceSerializer.Meta):
-        fields = WorkspaceSerializer.Meta.fields + ("licenses",)
-
-    def get_licenses(self, object):
-        all_licenses = set()
-        license_plugin = plugin_registry.get_by_type(PremiumPlugin).get_license_plugin(
-            cache_queries=True
-        )
-        license_types = list(
-            license_plugin.get_active_instance_wide_license_types(None)
-        ) + list(license_plugin.get_active_workspace_licenses(object))
-
-        for license_type in license_types:
-            all_licenses.add(license_type.type)
-
-        return list(all_licenses)
-
-
 class PublicBuilderSerializer(BuilderSerializer):
     """
     A public version of the builder serializer with less data to prevent data leaks.
@@ -301,7 +278,7 @@ class PublicBuilderSerializer(BuilderSerializer):
         return PolymorphicPublicUserSourceSerializer(user_sources, many=True).data
 
     def get_workspace(self, obj):
-        return PublicWorkspaceSerializer(obj.get_workspace()).data
+        return WorkspaceSerializer(obj.get_workspace()).data
 
 
 class PublicDataSourceSerializer(PublicServiceSerializer):

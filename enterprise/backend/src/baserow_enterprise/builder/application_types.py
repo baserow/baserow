@@ -1,4 +1,5 @@
-from baserow.contrib.builder.application_types import BuilderApplicationType
+from baserow_premium.builder.application_types import PremiumBuilderApplicationType
+
 from baserow_enterprise.builder.custom_code.application_type_mixin import (
     CustomCodeBuilderApplicationTypeMixin,
 )
@@ -6,6 +7,6 @@ from baserow_enterprise.builder.custom_code.application_type_mixin import (
 
 class EnterpriseBuilderApplicationType(
     CustomCodeBuilderApplicationTypeMixin,
-    BuilderApplicationType,
+    PremiumBuilderApplicationType,
 ):
     ...
