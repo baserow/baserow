@@ -22,9 +22,9 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflow_created,
     automation_workflow_deleted,
     automation_workflow_published,
+    automation_workflow_status_changed,
     automation_workflow_updated,
     automation_workflows_reordered,
-    automation_workflow_status_changed,
 )
 from baserow.core.utils import generate_hash
 from baserow.ws.tasks import broadcast_to_group, broadcast_to_permitted_users

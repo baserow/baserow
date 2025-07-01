@@ -190,7 +190,7 @@ class AutomationWorkflowHandler:
             if published_workflow := self.get_published_workflow(workflow.id):
                 published_workflow.paused = paused
                 published_workflow.save(update_fields=["paused"])
-        
+
         for key, value in allowed_values.items():
             setattr(workflow, key, value)
 
