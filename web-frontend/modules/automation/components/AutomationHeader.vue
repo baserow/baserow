@@ -44,8 +44,8 @@
         <SwitchInput
           small
           :value="statusSwitch"
-          @input="toggleStatusSwitch"
           :disabled="workflow?.disabled || !publishedOn"
+          @input="toggleStatusSwitch"
         ></SwitchInput>
       </span>
 
@@ -182,7 +182,7 @@ export default defineComponent({
     })
 
     const isPaused = computed(() => {
-      return (publishedOn.value && workflow.value?.paused)
+      return publishedOn.value && workflow.value?.paused
     })
 
     const toggleTestRun = async () => {
@@ -204,7 +204,7 @@ export default defineComponent({
     const toggleStatusSwitch = async () => {
       const oldValue = workflow.value.paused
       workflow.value.paused = !oldValue
-      
+
       try {
         await store.dispatch('automationWorkflow/update', {
           automation: props.automation,
