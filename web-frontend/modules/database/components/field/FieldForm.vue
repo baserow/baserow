@@ -360,6 +360,7 @@ export default {
      */
     showDescriptionField() {
       this.showDescription = true
+      this.selectedTabIndex = 0
       this.$nextTick(() => {
         this.$refs.description.focus()
       })
