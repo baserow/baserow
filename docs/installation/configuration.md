@@ -189,10 +189,11 @@ The installation methods referred to in the variable descriptions are:
 
 ### Misc Configuration
 
-| Name                      | Description                                                                                               | Defaults               |
-|---------------------------|-----------------------------------------------------------------------------------------------------------|------------------------|
-| SENTRY\_DSN               | If provided, will instantiate Sentry SDK for error monitoring for both Frontend and Backend.              | "" (empty string)      |
-| SENTRY\_BACKEND\_DSN      | If provided, will instantiate Sentry SDK for the backend with this DSN. It will override SENTRY\_DSN      | "" (empty string)      |
+| Name                 | Description                                                                                            | Defaults               |
+|----------------------|--------------------------------------------------------------------------------------------------------|------------------------|
+| SENTRY\_DSN          | If provided, will instantiate Sentry SDK for error monitoring for both Frontend and Backend.           | "" (empty string)      |
+| SENTRY\_BACKEND\_DSN | If provided, will instantiate Sentry SDK for the backend with this DSN. It will override SENTRY\_DSN   | "" (empty string)      |
+| BASEROW\_OSS\_ONLY   | If not empty, it will only start the MIT licensed open source version, without premium and enterprise. | "" (empty string)      |
 
 ### User file upload Configuration
 
