@@ -12,7 +12,6 @@ should instead refer to the [Install with Docker](./install-with-docker.md)
 guide on the specifics of how to work with this image.
 
 ```yaml
-version: "3.4"
 services:
   baserow:
     container_name: baserow
