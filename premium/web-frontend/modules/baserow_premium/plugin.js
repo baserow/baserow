@@ -60,7 +60,10 @@ import {
   VarianceViewAggregationType,
   MedianViewAggregationType,
 } from '@baserow/modules/database/viewAggregationTypes'
-import { ChartWidgetType } from '@baserow_premium/dashboard/widgetTypes'
+import {
+  ChartWidgetType,
+  PieChartWidgetType,
+} from '@baserow_premium/dashboard/widgetTypes'
 import { SingleSelectFormattingType } from '@baserow_premium/dashboard/chartFieldFormatting'
 import en from '@baserow_premium/locales/en.json'
 import fr from '@baserow_premium/locales/fr.json'
@@ -331,6 +334,7 @@ export default (context) => {
   )
 
   app.$registry.register('dashboardWidget', new ChartWidgetType(context))
+  app.$registry.register('dashboardWidget', new PieChartWidgetType(context))
   app.$registry.register(
     'chartFieldFormatting',
     new SingleSelectFormattingType(context)

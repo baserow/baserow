@@ -45,6 +45,7 @@ export class WidgetType extends Registerable {
         createWidgetImage: this.createWidgetImage,
         type: this,
         params: {},
+        dropdownIcon: '',
       },
     ]
   }

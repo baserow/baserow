@@ -1,5 +1,6 @@
 <template>
-  <Bar
+  <component
+    :is="chartComponent"
     v-if="chartData.datasets.length > 0"
     id="chart-id"
     :options="chartOptions"
@@ -18,7 +19,7 @@
 </template>
 
 <script>
-import { Bar } from 'vue-chartjs'
+import { Bar, Pie } from 'vue-chartjs'
 import {
   Chart as ChartJS,
   ArcElement,
@@ -76,7 +77,7 @@ ChartJS.register(
 
 export default {
   name: 'Chart',
-  components: { Bar },
+  components: { Bar, Pie },
   props: {
     dataSource: {
       type: Object,
@@ -92,6 +93,23 @@ export default {
     },
   },
   computed: {
+    chartComponent() {
+      if (this.chartSeries.length > 0) {
+        const firstSeriesConfig = this.getIndividualSeriesConfig(
+          this.chartSeries[0].id
+        )
+        const chartType = this.convertChartJsType(
+          firstSeriesConfig.series_chart_type
+        )
+        if (['pie', 'doughnut'].includes(chartType)) {
+          return 'Pie'
+        }
+      }
+      return 'Bar'
+    },
+    colorSeries() {
+      return this.chartComponent === 'Bar'
+    },
     chartOptions() {
       return {
         responsive: true,
@@ -106,6 +124,32 @@ export default {
               boxWidth: 14,
               pointStyle: 'circle',
               padding: 20,
+              generateLabels: function (chart) {
+                if (chart.config.type === 'bar') {
+                  return Legend.defaults.labels.generateLabels(chart)
+                } else {
+                  const original =
+                    ChartJS.overrides.pie.plugins.legend.labels.generateLabels
+                  const originalLabels = original.call(this, chart)
+                  let datasetColors = chart.data.datasets.map(function (e) {
+                    return e.backgroundColor
+                  })
+                  datasetColors = datasetColors.flat()
+                  const newLabels = []
+                  let colorOffset = 0
+                  for (const dataset of chart.data.datasets) {
+                    originalLabels.forEach((label) => {
+                      const newLabel = JSON.parse(JSON.stringify(label))
+                      newLabel.text = `${label.text} - ${dataset.label}`
+                      newLabel.fillStyle =
+                        datasetColors[label.index + colorOffset]
+                      newLabels.push(newLabel)
+                    })
+                    colorOffset += dataset.data.length
+                  }
+                  return newLabels
+                }
+              },
             },
           },
           tooltip: {
@@ -161,6 +205,7 @@ export default {
         return this.getGroupByValue(`field_${primaryField.metadata.id}`, item)
       })
       const datasets = []
+      let colorOffset = 0
       for (const [index, series] of this.chartSeries.entries()) {
         const seriesData = this.result.map((item) => {
           return item[`${series.fieldName}_${series.aggregationType}`]
@@ -168,11 +213,15 @@ export default {
         const label = this.getLabel(series.fieldName, series.aggregationType)
         const seriesConfig = this.getIndividualSeriesConfig(series.id)
         datasets.push({
-          type: seriesConfig.series_chart_type?.toLowerCase() || 'bar',
+          type:
+            this.convertChartJsType(seriesConfig.series_chart_type) || 'bar',
           data: seriesData,
           label,
-          ...this.chartColors[index],
+          ...this.chartColorsSeriesOrValues(index, colorOffset),
         })
+        if (!this.colorSeries) {
+          colorOffset += seriesData.length
+        }
       }
       return {
         labels,
@@ -189,7 +238,8 @@ export default {
         const label = this.getLabel(series.fieldName, series.aggregationType)
         const seriesConfig = this.getIndividualSeriesConfig(series.id)
         datasets.push({
-          type: seriesConfig.series_chart_type?.toLowerCase() || 'bar',
+          type:
+            this.convertChartJsType(seriesConfig.series_chart_type) || 'bar',
           data: seriesData,
           label,
           ...this.chartColors[index],
@@ -240,6 +290,24 @@ export default {
     },
   },
   methods: {
+    chartColorsSeriesOrValues(index, offset) {
+      if (this.colorSeries) {
+        return this.chartColors[index]
+      } else {
+        return {
+          backgroundColor: this.chartColors
+            .slice(offset || 0)
+            .map((item) => item.backgroundColor),
+        }
+      }
+    },
+    convertChartJsType(chartType) {
+      if (!chartType) {
+        return null
+      }
+
+      return chartType.toLowerCase()
+    },
     getFieldTitle(fieldName) {
       return this.dataSource.schema.properties[fieldName].title
     },
