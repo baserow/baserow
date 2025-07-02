@@ -297,7 +297,7 @@ export const CollectionElementTypeMixin = (Base) =>
      * @param {Object} builder - The builder
      * @returns {Boolean} - Whether the element is in error.
      */
-    getErroMessage({ workspace, page, element, builder }) {
+    getErrorMessage({ workspace, page, element, builder }) {
       // We get all parents with a valid data_source_id
       const collectionAncestorsWithDataSource = this.app.store.getters[
         'element/getAncestors'

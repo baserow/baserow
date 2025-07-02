@@ -139,7 +139,7 @@
     "fileInputDescription": "An input to upload files",
     "errorValueMissing": "Missing value property",
     "errorEmptyContainer": "This container is empty",
-    "errorParentWithDataSourceMissing": "Missing data source on a parent container",
+    "errorParentWithDataSourceMissing": "No data source selected on the element or a parent container",
     "errorDataSourceMissing": "No data source selected",
     "errorSchemaPropertyMissing": "No schema property selected",
     "errorWorkflowActionInError": "At least one action is misconfigured",
