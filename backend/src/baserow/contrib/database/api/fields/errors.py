@@ -188,19 +188,16 @@ ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD = (
     HTTP_400_BAD_REQUEST,
     "Select option {e.select_option_id} does not belong to field {e.field_id}",
 )
-
 ERROR_FIELD_CONSTRAINT = (
     "ERROR_FIELD_CONSTRAINT",
     HTTP_400_BAD_REQUEST,
     "Cannot apply field constraint due to existing data conflicts.",
 )
-
 ERROR_FIELD_DATA_CONSTRAINT = (
     "ERROR_FIELD_DATA_CONSTRAINT",
     HTTP_400_BAD_REQUEST,
-    "The operation violates a field constraints",
+    "The operation violates a field constraint",
 )
-
 ERROR_INVALID_FIELD_CONSTRAINT = (
     "ERROR_INVALID_FIELD_CONSTRAINT",
     HTTP_400_BAD_REQUEST,

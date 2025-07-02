@@ -3,28 +3,18 @@
     <div class="field-constraints-options__row">
       <div class="field-constraints-options__value">
         <Dropdown
-          :value="constraint.type"
+          :value="constraint.name"
           :disabled="disabled"
           :fixed-items="true"
-          @input="updateConstraintType"
+          @input="updateConstraintName"
         >
           <DropdownItem
             v-for="constraintType in allowedConstraintTypes"
             :key="constraintType.type"
-            :name="constraintType.getName()"
-            :value="constraintType.type"
+            :name="constraintType.getLabel()"
+            :value="constraintType.getName() || constraintType.type"
           ></DropdownItem>
         </Dropdown>
-      </div>
-
-      <div v-if="getConstraintParametersComponent(constraint.type)">
-        <component
-          :is="getConstraintParametersComponent(constraint.type)"
-          :constraint="constraint"
-          :field="field"
-          :disabled="disabled"
-          @input="updateConstraintValue"
-        />
       </div>
 
       <ButtonIcon
@@ -46,7 +36,7 @@
 import ButtonIcon from '@baserow/modules/core/components/ButtonIcon'
 
 export default {
-  name: 'FieldConstraintsDropdownItem',
+  name: 'FieldConstraintItem',
   components: { ButtonIcon },
   props: {
     constraint: {
@@ -77,24 +67,11 @@ export default {
     },
   },
   methods: {
-    updateConstraintType(type) {
-      this.$emit('update', this.index, { type })
-    },
-    updateConstraintValue(value) {
-      this.$emit('update', this.index, { value })
+    updateConstraintName(name) {
+      this.$emit('update', this.index, { name })
     },
     removeConstraint() {
       this.$emit('remove', this.index)
-    },
-    getConstraintParametersComponent(constraintType) {
-      if (!constraintType) {
-        return null
-      }
-      const constraintTypeInstance = this.$registry.get(
-        'fieldConstraint',
-        constraintType
-      )
-      return constraintTypeInstance?.getParametersComponent()
     },
     getErrorMessage() {
       if (!this.error) {
@@ -103,9 +80,12 @@ export default {
 
       const constraintTypeInstance = this.$registry.get(
         'fieldConstraint',
-        this.constraint.type
+        this.constraint.name
       )
-      return constraintTypeInstance.getErrorMessage(this.error)
+      return (
+        constraintTypeInstance?.getErrorMessage(this.error) ||
+        this.$t('fieldConstraintsSubform.errorGenericData')
+      )
     },
   },
 }

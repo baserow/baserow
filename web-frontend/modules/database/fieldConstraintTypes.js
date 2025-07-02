@@ -2,9 +2,9 @@ import { Registerable } from '@baserow/modules/core/registry'
 
 export class FieldConstraintType extends Registerable {
   /**
-   * A human readable name of the field constraint type.
+   * A human readable label of the field constraint type.
    */
-  getName() {
+  getLabel() {
     return null
   }
 
@@ -90,6 +90,42 @@ export class FieldConstraintType extends Registerable {
 
     return this.$t('fieldConstraintsSubform.errorGenericData')
   }
+
+  /**
+   * Returns the name identifier for this constraint type.
+   * Constraints with the same name are equivalent and can be converted between each other.
+   * @returns {string|null} The name identifier, or null if this constraint has no equivalents.
+   */
+  getName() {
+    return null
+  }
+
+  /**
+   * Finds the equivalent constraint type for a given field type.
+   * @param {string} fieldType The field type to find an equivalent constraint for.
+   * @param {object} constraintTypesRegistry The registry of all constraint types.
+   * @returns {string|null} The constraint type name that is equivalent and compatible with the field type, or null if none found.
+   */
+  findEquivalentConstraintForFieldType(fieldType, constraintTypesRegistry) {
+    const name = this.getName()
+    if (!name) {
+      return null
+    }
+
+    for (const [constraintTypeName, constraintType] of Object.entries(
+      constraintTypesRegistry
+    )) {
+      if (
+        constraintType.getName() === name &&
+        constraintType.getCompatibleFieldTypes().includes(fieldType)
+      ) {
+        console.log('found', constraintTypeName)
+        return constraintTypeName
+      }
+    }
+
+    return null
+  }
 }
 
 export class TextTypeUniqueWithEmptyConstraintType extends FieldConstraintType {
@@ -97,12 +133,17 @@ export class TextTypeUniqueWithEmptyConstraintType extends FieldConstraintType {
     return 'text_type_unique_with_empty'
   }
 
-  getName() {
-    return 'Unique with empty'
+  getLabel() {
+    const { i18n } = this.app
+    return i18n.t('fieldConstraint.uniqueWithEmpty')
   }
 
   getCompatibleFieldTypes() {
     return ['text', 'long_text']
+  }
+
+  getName() {
+    return 'unique_with_empty'
   }
 
   getErrorMessage(error) {
@@ -119,8 +160,17 @@ export class RatingTypeUniqueWithEmptyConstraintType extends FieldConstraintType
     return 'rating_type_unique_with_empty'
   }
 
+  getLabel() {
+    const { i18n } = this.app
+    return i18n.t('fieldConstraint.uniqueWithEmpty')
+  }
+
+  getCompatibleFieldTypes() {
+    return ['rating']
+  }
+
   getName() {
-    return 'Unique with empty'
+    return 'unique_with_empty'
   }
 
   getErrorMessage(error) {
@@ -129,10 +179,6 @@ export class RatingTypeUniqueWithEmptyConstraintType extends FieldConstraintType
     }
 
     return super.getErrorMessage(error)
-  }
-
-  getCompatibleFieldTypes() {
-    return ['rating']
   }
 }
 
@@ -141,8 +187,17 @@ export class UniqueWithEmptyConstraintType extends FieldConstraintType {
     return 'unique_with_empty'
   }
 
+  getLabel() {
+    const { i18n } = this.app
+    return i18n.t('fieldConstraint.uniqueWithEmpty')
+  }
+
+  getCompatibleFieldTypes() {
+    return ['number']
+  }
+
   getName() {
-    return 'Unique with empty'
+    return 'unique_with_empty'
   }
 
   getErrorMessage(error) {
@@ -151,9 +206,5 @@ export class UniqueWithEmptyConstraintType extends FieldConstraintType {
     }
 
     return super.getErrorMessage(error)
-  }
-
-  getCompatibleFieldTypes() {
-    return ['number']
   }
 }

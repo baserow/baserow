@@ -19,8 +19,10 @@ from django.utils.translation import gettext as _
 from baserow.contrib.database.api.serializers import DatabaseSerializer
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.field_cache import FieldCache
-from baserow.contrib.database.fields.field_constraints import build_field_constraints
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.utils.field_constraint import (
+    build_django_field_constraints,
+)
 from baserow.contrib.database.models import Database, Field, View
 from baserow.contrib.database.operations import ListTablesDatabaseTableOperationType
 from baserow.contrib.database.table.handler import TableHandler
@@ -863,8 +865,8 @@ class DatabaseApplicationType(ApplicationType):
 
             for field_instance in serialized_table["field_instances"]:
                 if field_instance.field_constraints:
-                    constraints = build_field_constraints(
-                        field_instance, table_model, field_instance.field_constraints
+                    constraints = build_django_field_constraints(
+                        field_instance, field_instance.field_constraints
                     )
                     for constraint in constraints:
                         schema_editor.add_constraint(table_model, constraint)

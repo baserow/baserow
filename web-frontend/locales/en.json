@@ -204,10 +204,15 @@
     "autonumber": "A read-only field that automatically increments a number for each new row.",
     "password": "A write-only field that holds a hashed password. The value will be `null` if not set, or `true` if it has been set. It accepts a string to set it."
   },
+  "fieldConstraint": {
+    "uniqueWithEmpty": "Unique with empty"
+  },
   "fieldConstraintsSubform": {
     "title": "Field Constraints",
     "description": "Define rules that field values must follow.",
     "addConstraint": "Add constraint",
+    "noConstraintsAvailable": "No constraints are available for this field type.",
+    "readonlyFieldMessage": "Constraints cannot be applied to readonly fields.",
     "errorGenericData": "Cannot apply field constraint due to existing data conflicts.",
     "errorUniqueOrEmpty": "Some values in this field are duplicated. Remove or edit duplicates before applying this constraint.",
     "errorInvalidConstraint": "This field constraint is not supported for this field type."

@@ -24,7 +24,9 @@ def test_create_field_with_valid_constraint(api_client, data_fixture):
         {
             "name": "Unique Text Field",
             "type": "text",
-            "field_constraints": [{"type": TextTypeUniqueWithEmptyConstraint.type}],
+            "field_constraints": [
+                {"name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+            ],
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
@@ -35,7 +37,7 @@ def test_create_field_with_valid_constraint(api_client, data_fixture):
     assert response_json["name"] == "Unique Text Field"
     assert response_json["type"] == "text"
     assert response_json["field_constraints"] == [
-        {"type": TextTypeUniqueWithEmptyConstraint.type}
+        {"name": TextTypeUniqueWithEmptyConstraint.constraint_name}
     ]
 
 
@@ -54,7 +56,7 @@ def test_create_field_with_invalid_constraint(api_client, data_fixture):
         {
             "name": "Invalid Constraint Field",
             "type": "text",
-            "field_constraints": [{"type": "invalid_constraint_type"}],
+            "field_constraints": [{"name": "invalid_constraint_name"}],
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
@@ -84,7 +86,9 @@ def test_create_field_with_constraint_data_conflict(api_client, data_fixture):
     response = api_client.patch(
         url,
         {
-            "field_constraints": [{"type": TextTypeUniqueWithEmptyConstraint.type}],
+            "field_constraints": [
+                {"name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+            ],
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
@@ -109,7 +113,9 @@ def test_update_field_with_valid_constraint(api_client, data_fixture):
     response = api_client.patch(
         url,
         {
-            "field_constraints": [{"type": TextTypeUniqueWithEmptyConstraint.type}],
+            "field_constraints": [
+                {"name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+            ],
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
@@ -118,7 +124,7 @@ def test_update_field_with_valid_constraint(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json["field_constraints"] == [
-        {"type": TextTypeUniqueWithEmptyConstraint.type}
+        {"name": TextTypeUniqueWithEmptyConstraint.constraint_name}
     ]
 
 
@@ -137,7 +143,7 @@ def test_update_field_remove_constraint(api_client, data_fixture):
         table=table,
         type_name="text",
         name="Text Field",
-        field_constraints=[{"type": TextTypeUniqueWithEmptyConstraint.type}],
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
     )
 
     url = reverse("api:database:fields:item", kwargs={"field_id": text_field.id})
@@ -170,7 +176,7 @@ def test_create_row_with_constraint_success(api_client, data_fixture):
         table=table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"type": TextTypeUniqueWithEmptyConstraint.type}],
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
     )
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
@@ -203,7 +209,7 @@ def test_create_row_with_constraint_violation(api_client, data_fixture):
         table=table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"type": TextTypeUniqueWithEmptyConstraint.type}],
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
     )
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
@@ -246,7 +252,7 @@ def test_create_row_with_constraint_empty_value(api_client, data_fixture):
         table=table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"type": TextTypeUniqueWithEmptyConstraint.type}],
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
     )
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
@@ -287,7 +293,7 @@ def test_batch_create_rows_with_constraint_success(api_client, data_fixture):
         table=table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"type": TextTypeUniqueWithEmptyConstraint.type}],
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
     )
 
     url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
@@ -325,7 +331,7 @@ def test_batch_create_rows_with_constraint_violation(api_client, data_fixture):
         table=table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"type": TextTypeUniqueWithEmptyConstraint.type}],
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
     )
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
@@ -372,7 +378,7 @@ def test_update_row_with_constraint_success(api_client, data_fixture):
         table=table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"type": TextTypeUniqueWithEmptyConstraint.type}],
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
     )
 
     model = table.get_model()
@@ -410,7 +416,7 @@ def test_update_row_with_constraint_violation(api_client, data_fixture):
         table=table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"type": TextTypeUniqueWithEmptyConstraint.type}],
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
     )
 
     model = table.get_model()
@@ -449,7 +455,7 @@ def test_batch_update_rows_with_constraint_success(api_client, data_fixture):
         table=table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"type": TextTypeUniqueWithEmptyConstraint.type}],
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
     )
 
     model = table.get_model()
@@ -497,7 +503,7 @@ def test_batch_update_rows_with_constraint_violation(api_client, data_fixture):
         table=table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"type": TextTypeUniqueWithEmptyConstraint.type}],
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
     )
 
     model = table.get_model()
@@ -544,7 +550,7 @@ def test_update_row_to_same_value_with_constraint(api_client, data_fixture):
         table=table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"type": TextTypeUniqueWithEmptyConstraint.type}],
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
     )
 
     model = table.get_model()
@@ -582,7 +588,7 @@ def test_create_row_with_constraint_after_removing_constraint(api_client, data_f
         table=table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"type": TextTypeUniqueWithEmptyConstraint.type}],
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
     )
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})

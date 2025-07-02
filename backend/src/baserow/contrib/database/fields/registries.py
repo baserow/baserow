@@ -1990,20 +1990,6 @@ class FieldType(
 
         return field_name
 
-    def get_supported_field_constraints(self) -> List[str]:
-        """
-        Returns the supported value constraints for the field.
-        """
-
-        return []
-
-    def get_field_constraints(self, field: Field) -> List[Dict[str, Any]]:
-        """
-        Returns the value constraints applied to the field.
-        """
-
-        return field.field_constraints
-
 
 class ReadOnlyFieldType(FieldType):
     read_only = True
@@ -2441,6 +2427,23 @@ class FieldConstraintRegistry(Registry):
     """
 
     name = "field_constraint"
+
+    def get_specific_constraint(self, constraint_name: str, field_type: FieldType):
+        """
+        Returns the specific constraint for the field type and constraint name.
+
+        :param constraint_name: The name of the constraint.
+        :param field_type: The field type to check compatibility with.
+        :return: The specific constraint or None if no specific constraint is found.
+        """
+
+        for constraint in self.registry.values():
+            if (
+                constraint.constraint_name == constraint_name
+                and constraint.is_field_type_compatible(field_type)
+            ):
+                return constraint
+        return None
 
 
 # A default field type registry is created here, this is the one that is used

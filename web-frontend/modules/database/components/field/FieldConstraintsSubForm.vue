@@ -1,5 +1,5 @@
 <template>
-  <div v-if="hasAvailableConstraints">
+  <div>
     <FormGroup
       :label="$t('fieldConstraintsSubform.title')"
       :small-label="true"
@@ -8,7 +8,7 @@
     >
       <div class="control__elements flex justify-content-end">
         <ButtonText
-          v-if="!disabled"
+          v-if="!disabled && hasAvailableConstraints"
           :disabled="allConstraintsAdded"
           icon="iconoir-plus"
           @click.prevent="addConstraint"
@@ -19,19 +19,27 @@
     </FormGroup>
 
     <div class="control__messages padding-top-0">
-      <p class="control__helper-text">
+      <p
+        v-if="disabled"
+        class="control__helper-text control__helper-text--warning"
+      >
+        {{ $t('fieldConstraintsSubform.readonlyFieldMessage') }}
+      </p>
+      <p v-else-if="hasAvailableConstraints" class="control__helper-text">
         {{ $t('fieldConstraintsSubform.description') }}
+      </p>
+      <p v-else class="control__helper-text control__helper-text--warning">
+        {{ $t('fieldConstraintsSubform.noConstraintsAvailable') }}
       </p>
     </div>
 
-    <FieldConstraintsDropdown
+    <FieldConstraintItems
+      v-if="hasAvailableConstraints"
       :value="value"
       :field="field"
       :disabled="disabled"
       :error="error"
       @input="$emit('input', $event)"
-      @constraint-removed="$emit('constraint-removed', $event)"
-      @constraint-updated="$emit('constraint-updated', $event)"
     />
   </div>
 </template>
@@ -39,11 +47,11 @@
 <script>
 import ButtonText from '@baserow/modules/core/components/ButtonText'
 import FormGroup from '@baserow/modules/core/components/FormGroup'
-import FieldConstraintsDropdown from './FieldConstraintsDropdown.vue'
+import FieldConstraintItems from '@baserow/modules/database/components/field/FieldConstraintItems.vue'
 
 export default {
   name: 'FieldConstraintsSubForm',
-  components: { ButtonText, FormGroup, FieldConstraintsDropdown },
+  components: { ButtonText, FormGroup, FieldConstraintItems },
   props: {
     value: {
       type: Array,
@@ -70,25 +78,29 @@ export default {
     },
     allowedConstraintTypes() {
       return Object.values(this.constraintTypes).filter((constraintType) => {
-        return constraintType.fieldIsCompatible(this.field)
+        return constraintType
+          .getCompatibleFieldTypes()
+          .includes(this.field.type)
       })
     },
     hasAvailableConstraints() {
       return this.allowedConstraintTypes.length > 0
     },
     allConstraintsAdded() {
-      const addedConstraintTypes = this.value.map(
-        (constraint) => constraint.type
+      const addedConstraintNames = this.value.map(
+        (constraint) => constraint.name
       )
       return this.allowedConstraintTypes.every((constraintType) =>
-        addedConstraintTypes.includes(constraintType.type)
+        addedConstraintNames.includes(
+          constraintType.getName() || constraintType.type
+        )
       )
     },
   },
   methods: {
     addConstraint() {
       const hasEmptyConstraint = this.value.some(
-        (constraint) => constraint.type === ''
+        (constraint) => constraint.name === ''
       )
       if (hasEmptyConstraint) {
         return
@@ -97,25 +109,26 @@ export default {
       const availableConstraintTypes =
         this.getAvailableConstraintTypesForNewConstraint()
       const firstAvailableType =
-        availableConstraintTypes.length > 0
-          ? availableConstraintTypes[0].type
-          : ''
+        availableConstraintTypes.length > 0 ? availableConstraintTypes[0] : null
+
+      if (!firstAvailableType) {
+        return
+      }
 
       const newConstraint = {
-        type: firstAvailableType,
-        params: {},
+        name: firstAvailableType.getName() || firstAvailableType.type,
       }
       const updatedConstraints = [...this.value, newConstraint]
       this.$emit('input', updatedConstraints)
-      this.$emit('constraint-added', newConstraint)
     },
     getAvailableConstraintTypesForNewConstraint() {
-      const selectedTypes = this.value
-        .map((constraint) => constraint.type)
-        .filter((type) => type)
+      const selectedNames = this.value
+        .map((constraint) => constraint.name)
+        .filter((name) => name)
 
       return this.allowedConstraintTypes.filter((constraintType) => {
-        return !selectedTypes.includes(constraintType.type)
+        const constraintName = constraintType.getName() || constraintType.type
+        return !selectedNames.includes(constraintName)
       })
     },
   },

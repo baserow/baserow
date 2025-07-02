@@ -129,9 +129,6 @@
             :field="fieldForConstraints"
             :disabled="defaultValues.immutable_properties"
             :error="fieldConstraintError"
-            @constraint-added="handleConstraintAdded"
-            @constraint-removed="handleConstraintRemoved"
-            @constraint-updated="handleConstraintUpdated"
           />
 
           <FormGroup
@@ -296,6 +293,14 @@ export default {
         this.values.name = availableFieldName
       }
       this.isPrefilledWithSuggestedFieldName = false
+
+      this.findAndSetCompatibleConstraints(newValueType)
+    },
+    // Clear constraint error when constraints are modified
+    'values.field_constraints'() {
+      if (this.fieldConstraintError) {
+        this.fieldConstraintError = null
+      }
     },
   },
   validations() {
@@ -424,15 +429,43 @@ export default {
 
       return handled
     },
-    handleConstraintAdded(constraint) {
-      this.fieldConstraintError = null
-      this.$emit('constraint-added', constraint)
-    },
-    handleConstraintRemoved(constraint) {
-      this.$emit('constraint-removed', constraint)
-    },
-    handleConstraintUpdated({ constraint, index, updates }) {
-      this.$emit('constraint-updated', { constraint, index, updates })
+
+    findAndSetCompatibleConstraints(newFieldType) {
+      if (
+        !this.values.field_constraints ||
+        this.values.field_constraints.length === 0
+      ) {
+        return
+      }
+
+      const compatibleConstraints = this.values.field_constraints
+        .map((constraint) => {
+          if (!constraint.name) {
+            return null
+          }
+
+          const compatibleConstraintType = this.$registry.getSpecificConstraint(
+            'fieldConstraint',
+            constraint.name,
+            newFieldType
+          )
+
+          if (compatibleConstraintType) {
+            return { ...constraint }
+          }
+
+          return null
+        })
+        .filter(Boolean)
+
+      if (
+        compatibleConstraints.length !== this.values.field_constraints.length
+      ) {
+        // Emit the updated constraints array to notify parent components
+        this.$emit('input', compatibleConstraints)
+        this.values.field_constraints = compatibleConstraints
+        this.fieldConstraintError = null
+      }
     },
   },
 }

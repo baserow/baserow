@@ -1,6 +1,6 @@
 <template>
   <div>
-    <FieldConstraintsDropdownItem
+    <FieldConstraintItem
       v-for="(constraint, index) in constraints"
       :key="index"
       :constraint="constraint"
@@ -16,11 +16,11 @@
 </template>
 
 <script>
-import FieldConstraintsDropdownItem from './FieldConstraintsDropdownItem.vue'
+import FieldConstraintItem from '@baserow/modules/database/components/field/FieldConstraintItem.vue'
 
 export default {
-  name: 'FieldConstraintsDropdown',
-  components: { FieldConstraintsDropdownItem },
+  name: 'FieldConstraintItems',
+  components: { FieldConstraintItem },
   props: {
     value: {
       type: Array,
@@ -55,7 +55,9 @@ export default {
     },
     allowedConstraintTypes() {
       return Object.values(this.constraintTypes).filter((constraintType) => {
-        return constraintType.fieldIsCompatible(this.field)
+        return constraintType
+          .getCompatibleFieldTypes()
+          .includes(this.field.type)
       })
     },
   },
@@ -71,19 +73,12 @@ export default {
       })
     },
     removeConstraint(index) {
-      const removedConstraint = this.constraints[index]
       this.constraints = this.constraints.filter((_, i) => i !== index)
-      this.$emit('constraint-removed', removedConstraint)
     },
     updateConstraint(index, updates) {
       const updatedConstraints = [...this.constraints]
       updatedConstraints[index] = { ...updatedConstraints[index], ...updates }
       this.constraints = updatedConstraints
-      this.$emit('constraint-updated', {
-        constraint: updatedConstraints[index],
-        index,
-        updates,
-      })
     },
   },
 }

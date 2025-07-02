@@ -698,6 +698,70 @@ def test_update_field_cannot_change_read_only_and_immutable_properties(
 
 
 @pytest.mark.django_db
+@pytest.mark.field_constraints
+def test_update_field_immutable_properties_constraints(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    number_field = data_fixture.create_number_field(
+        table=table,
+        number_decimal_places=1,
+        immutable_properties=True,
+    )
+
+    url = reverse("api:database:fields:item", kwargs={"field_id": number_field.id})
+    response = api_client.patch(
+        url,
+        {"field_constraints": [{"name": "unique_with_empty"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.json()["error"] == "ERROR_IMMUTABLE_FIELD_PROPERTIES"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_constraints
+def test_update_field_read_only_constraints(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    number_field = data_fixture.create_number_field(
+        table=table,
+        number_decimal_places=1,
+        read_only=True,
+    )
+
+    url = reverse("api:database:fields:item", kwargs={"field_id": number_field.id})
+    response = api_client.patch(
+        url,
+        {"field_constraints": [{"name": "unique_with_empty"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_IMMUTABLE_FIELD_PROPERTIES"
+
+
+@pytest.mark.django_db
+def test_create_field_read_only_with_constraints(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    url = reverse("api:database:fields:list", kwargs={"table_id": table.id})
+    response = api_client.post(
+        url,
+        {
+            "name": "Test Field",
+            "type": "number",
+            "read_only": True,
+            "field_constraints": [{"name": "unique_with_empty"}],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_IMMUTABLE_FIELD_PROPERTIES"
+
+
+@pytest.mark.django_db
 def test_update_field_number_type_deprecation_error(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)

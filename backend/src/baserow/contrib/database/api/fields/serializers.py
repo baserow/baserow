@@ -125,9 +125,20 @@ class SelectOptionSerializer(serializers.Serializer):
     color = serializers.CharField(max_length=255, required=True)
 
 
+class FieldConstraintSerializer(serializers.Serializer):
+    """
+    Serializer for field constraints that only accepts name.
+    """
+
+    name = serializers.CharField(required=True)
+
+
 class CreateFieldSerializer(serializers.ModelSerializer):
     type = serializers.ChoiceField(
         choices=lazy(field_type_registry.get_types, list)(), required=True
+    )
+    field_constraints = FieldConstraintSerializer(
+        many=True, required=False, default=list
     )
 
     class Meta:
@@ -148,6 +159,7 @@ class UpdateFieldSerializer(serializers.ModelSerializer):
     type = serializers.ChoiceField(
         choices=lazy(field_type_registry.get_types, list)(), required=False
     )
+    field_constraints = FieldConstraintSerializer(many=True, required=False)
 
     class Meta:
         model = Field
