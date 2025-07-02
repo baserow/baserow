@@ -779,7 +779,9 @@ class PasswordFieldAuthenticationView(APIView):
         row = RowHandler().get_row(request.user, table, row_id, model)
         raw_password = data.get("password")
         hashed_password = getattr(row, field.db_column)
-        is_correct = check_password(raw_password, hashed_password)
+        is_correct = bool(
+            hashed_password and check_password(raw_password, hashed_password)
+        )
 
         serializer = PasswordFieldAuthenticationResponseSerializer(
             {"is_correct": is_correct}

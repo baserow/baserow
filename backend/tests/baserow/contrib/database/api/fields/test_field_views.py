@@ -1600,6 +1600,27 @@ def test_password_field_authentication_wrong_password(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_password_field_authentication_empty_password(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    field = data_fixture.create_password_field(
+        user=user, allow_endpoint_authentication=True
+    )
+    model = field.table.get_model()
+    row = model.objects.create()
+
+    response = api_client.post(
+        reverse(
+            "api:database:fields:password_authentication", kwargs={"field_id": field.id}
+        ),
+        {"row_id": row.id, "password": "wrong_password"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["is_correct"] is False
+
+
+@pytest.mark.django_db
 def test_password_field_authentication_success(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     field = data_fixture.create_password_field(

@@ -20,7 +20,7 @@
           name: 'database-api-docs-detail',
           params: { databaseId: table.database_id },
           hash:
-            'section-password-field-' + defaultValues.id + '-authentication',
+            '#section-password-field-' + defaultValues.id + '-authentication',
         }"
         >Open API documentation</nuxt-link
       >
