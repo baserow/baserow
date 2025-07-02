@@ -736,8 +736,8 @@ class PasswordFieldAuthenticationView(APIView):
         operation_id="password_field_authentication",
         description=(
             "Checks if the provided password and row matches what is stored in the "
-            "cell. The must have `allow_endpoint_authentication` set to `true` in "
-            "order to work."
+            "cell. The field must have `allow_endpoint_authentication` set to `true` "
+            "in order to work."
         ),
         request=PasswordFieldAuthenticationSerializer,
         responses={
