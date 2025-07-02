@@ -304,7 +304,10 @@
         "fieldAlreadyExists": "이 이름의 필드가 이미 있습니다.",
         "nameNotAllowed": "이 필드 이름은 허용되지 않습니다.",
         "nameTooLong": "이 필드 이름이 너무 깁니다.",
-        "addDescription": "설명 추가"
+        "addDescription": "설명 추가",
+        "dbIndex": "색인",
+        "dbIndexError": "이 필드 유형에는 인덱스가 있을 수 없습니다. 필드 유형을 저장하거나 변경하기 전에 인덱스를 제거하세요.",
+        "dbIndexDescription": "인덱싱을 사용하면 필터링 성능이 크게 향상되지만 생성, 업데이트 및 삭제 작업 속도가 느려집니다."
     },
     "fieldSelectThroughFieldSubForm": {
         "noTable": "이 필드를 생성하려면 최소 하나의 테이블 링크 필드가 필요합니다.",
