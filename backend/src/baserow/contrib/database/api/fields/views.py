@@ -748,6 +748,7 @@ class PasswordFieldAuthenticationView(APIView):
                     "ERROR_INVALID_PASSWORD_FIELD_PASSWORD",
                 ]
             ),
+            401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
             404: get_error_schema(
                 ["ERROR_FIELD_DOES_NOT_EXIST", "ERROR_ROW_DOES_NOT_EXIST"]
             ),

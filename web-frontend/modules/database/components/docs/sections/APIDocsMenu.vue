@@ -205,11 +205,8 @@
 </template>
 
 <script>
-import APIDocsTablePasswordFieldAuthentication from '@baserow/modules/database/components/docs/sections/APIDocsPasswordFieldAuthentication.vue'
-
 export default {
   name: 'APIDocsMenu',
-  components: { APIDocsTablePasswordFieldAuthentication },
   props: {
     database: {
       type: Object,
