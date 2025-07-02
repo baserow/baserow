@@ -123,6 +123,7 @@ from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
 
+from ...rows.handler import RowHandler
 from .serializers import (
     ChangePrimaryFieldParamsSerializer,
     CreateFieldSerializer,
@@ -717,7 +718,8 @@ class ChangePrimaryFieldView(APIView):
 
 
 class PasswordFieldAuthenticationView(APIView):
-    permission_classes = (AllowAny,)
+    authentication_classes = APIView.authentication_classes + [TokenAuthentication]
+    permission_classes = (IsAuthenticated,)
 
     @extend_schema(
         parameters=[
@@ -755,21 +757,25 @@ class PasswordFieldAuthenticationView(APIView):
         {
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
+            NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
         }
     )
     @validate_body(PasswordFieldAuthenticationSerializer)
     def post(self, request: Request, field_id: int, data: Dict[str, Any]) -> Response:
-        base_queryset = PasswordField.objects.filter(allow_endpoint_authentication=True)
+        base_queryset = PasswordField.objects.filter(
+            allow_endpoint_authentication=True
+        ).select_related("table")
         field = FieldHandler().get_field(field_id, base_queryset=base_queryset)
+        table = field.table
+
+        token_handler = TokenHandler()
+        db_token = token_handler.get_token_from_request(request)
+        if db_token is not None:
+            token_handler.check_table_permissions(db_token, "read", table)
 
         model = field.table.get_model()
         row_id = data.get("row_id")
-
-        try:
-            row = model.objects.get(id=row_id)
-        except model.DoesNotExist:
-            raise RowDoesNotExist(row_id)
-
+        row = RowHandler().get_row(request.user, table, row_id, model)
         raw_password = data.get("password")
         hashed_password = getattr(row, field.db_column)
         is_correct = check_password(raw_password, hashed_password)

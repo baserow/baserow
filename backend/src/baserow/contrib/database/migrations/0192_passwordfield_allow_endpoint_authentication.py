@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0190_datasync_auto_add_new_properties"),
+        ("database", "0191_field_db_index"),
     ]
 
     operations = [
