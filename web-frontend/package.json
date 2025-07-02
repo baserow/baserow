@@ -112,7 +112,7 @@
   },
   "resolutions": {
     "elliptic": "^6.6.1",
-    "ws": "^7.5.10",
+    "ws": "^8.18.3",
     "cross-spawn": "^7.0.5",
     "braces": "^3.0.3",
     "glob-parent": "^5.1.2"
