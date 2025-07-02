@@ -1104,7 +1104,7 @@ class LocalBaserowListRowsUserServiceType(
             return record_names
         except TableDoesNotExist as e:
             raise ServiceImproperlyConfiguredDispatchException(
-                "The selected specified is trashed"
+                "The selected table is trashed"
             ) from e
 
 

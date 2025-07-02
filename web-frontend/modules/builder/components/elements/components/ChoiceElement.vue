@@ -19,7 +19,7 @@
       <ABDropdownItem
         v-for="option in optionsResolved"
         :key="option.id"
-        :name="option.name || (option.value ? option.value : '')"
+        :name="option.name || (option.value ? `${option.value}` : '')"
         :value="option.value"
       />
     </ABDropdown>

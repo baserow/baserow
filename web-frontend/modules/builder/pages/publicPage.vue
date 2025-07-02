@@ -1,5 +1,5 @@
 <template>
-  <ThemeProvider>
+  <div>
     <BuilderToasts></BuilderToasts>
     <RecursiveWrapper :components="builderPageDecorators">
       <PageContent
@@ -10,7 +10,7 @@
         :shared-elements="sharedElements"
       />
     </RecursiveWrapper>
-  </ThemeProvider>
+  </div>
 </template>
 
 <script>
@@ -23,7 +23,6 @@ import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/
 import _ from 'lodash'
 import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
 import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
-import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
 
 import {
   getTokenIfEnoughTimeLeft,
@@ -32,6 +31,7 @@ import {
 } from '@baserow/modules/core/utils/auth'
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import RecursiveWrapper from '@baserow/modules/database/components/RecursiveWrapper'
+import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
   await store.dispatch('userSourceUser/logoff', {
@@ -46,7 +46,7 @@ const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
 
 export default {
   name: 'PublicPage',
-  components: { RecursiveWrapper, PageContent, BuilderToasts, ThemeProvider },
+  components: { RecursiveWrapper, PageContent, BuilderToasts },
   provide() {
     return {
       workspace: this.workspace,
@@ -290,12 +290,9 @@ export default {
     }
   },
   head() {
-    const pluginHeaders = this.$registry.getList('plugin').map((plugin) =>
-      plugin.getBuilderApplicationHeaderAddition({
-        builder: this.builder,
-        mode: this.mode,
-      })
-    )
+    const cssVars = Object.entries(this.themeStyle)
+      .map(([key, value]) => `\n${key}: ${value};`)
+      .join(' ')
 
     const header = {
       titleTemplate: '',
@@ -303,11 +300,24 @@ export default {
       bodyAttrs: {
         class: 'public-page',
       },
+      style: [
+        {
+          cssText: `:root { ${cssVars} }`,
+          type: 'text/css',
+        },
+      ],
     }
 
     if (this.faviconLink) {
       header.link = [this.faviconLink]
     }
+
+    const pluginHeaders = this.$registry.getList('plugin').map((plugin) =>
+      plugin.getBuilderApplicationHeaderAddition({
+        builder: this.builder,
+        mode: this.mode,
+      })
+    )
 
     const result = _.mergeWith(
       {},
@@ -327,6 +337,15 @@ export default {
     return result
   },
   computed: {
+    themeConfigBlocks() {
+      return this.$registry.getOrderedList('themeConfigBlock')
+    },
+    themeStyle() {
+      return ThemeConfigBlockType.getAllStyles(
+        this.themeConfigBlocks,
+        this.builder.theme
+      )
+    },
     elements() {
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
