@@ -13,7 +13,8 @@
         "enabled": "활성화됨",
         "disabled": "비활성화됨",
         "or": "또는",
-        "and": "그리고"
+        "and": "그리고",
+        "optional": "선택적"
     },
     "action": {
         "close": "닫기",
