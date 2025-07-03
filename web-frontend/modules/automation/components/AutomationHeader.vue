@@ -65,7 +65,7 @@
 
       <div class="header__buttons header__buttons--with-separator">
         <div v-if="publishedOn" class="automation-header__last-published">
-          Last published: {{ publishedOn }}
+          {{ $t('automationHeader.lastPublished') }}: {{ publishedOn }}
         </div>
         <Button
           :icon="testRunEnabled ? 'iconoir-cancel' : 'iconoir-play'"
