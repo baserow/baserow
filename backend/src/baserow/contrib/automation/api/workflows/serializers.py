@@ -34,17 +34,17 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_published_on(self, obj):
-        published_workflow = AutomationWorkflowHandler().get_published_workflow(obj.id)
-        return str(published_workflow.created_on) if published_workflow else None
+        published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
+        return published_workflow.created_on if published_workflow else None
 
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_disabled(self, obj):
-        published_workflow = AutomationWorkflowHandler().get_published_workflow(obj.id)
+        published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
         return bool(published_workflow.disabled_on) if published_workflow else False
 
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_paused(self, obj):
-        published_workflow = AutomationWorkflowHandler().get_published_workflow(obj.id)
+        published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
         return published_workflow.paused if published_workflow else False
 
 

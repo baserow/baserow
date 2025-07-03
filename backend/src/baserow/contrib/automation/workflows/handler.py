@@ -11,6 +11,7 @@ from baserow.contrib.automation.constants import (
     IMPORT_SERIALIZED_IMPORTING,
     WORKFLOW_NAME_MAX_LEN,
 )
+from baserow.core.cache import local_cache
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
@@ -81,25 +82,33 @@ class AutomationWorkflowHandler:
         except AutomationWorkflow.DoesNotExist:
             raise AutomationWorkflowDoesNotExist()
 
-    def get_published_workflow(self, workflow_id: int) -> Optional[AutomationWorkflow]:
+    def get_published_workflow(self, workflow: AutomationWorkflow, with_cache: bool = True) -> Optional[AutomationWorkflow]:
         """
-        Gets a published AutomationWorkflow instance by the ID of the original
-        workflow ID.
+        Gets the published AutomationWorkflow instance related to the provided workflow.
 
-        :param workflow_id: The ID of the original AutomationWorkflow.
+        :param workflow: The workflow for which the published version should be returned.
+        :param with_cache: Whether to return a cached value, if available.
         :raises AutomationWorkflowDoesNotExist: If the workflow doesn't exist.
-        :return: The model instance of the AutomationWorkflow if it exists.
+        :return: The published workflow, if it exists.
         """
 
-        workflow = self.get_workflow(workflow_id)
-        if not workflow:
-            return None
-
-        published_automations = workflow.published_to.order_by("-id")
-        if not published_automations:
-            return None
-
-        return published_automations.first().workflows.first()
+        def _get_published_workflow(
+            workflow: AutomationWorkflow
+        ) -> Optional[AutomationWorkflow]:
+            latest_published = workflow.published_to.order_by("-id").first()
+            return (
+                latest_published.workflows.first()
+                if latest_published
+                else None
+            )
+    
+        if with_cache:
+            return local_cache.get(
+                f"wa_published_workflow_{workflow.id}",
+                lambda: _get_published_workflow(workflow),
+            )
+        
+        return _get_published_workflow(workflow)
 
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
@@ -187,7 +196,7 @@ class AutomationWorkflowHandler:
         # published workflow, if available.
         paused = allowed_values.pop("paused", None)
         if paused is not None:
-            if published_workflow := self.get_published_workflow(workflow.id):
+            if published_workflow := self.get_published_workflow(workflow):
                 published_workflow.paused = paused
                 published_workflow.save(update_fields=["paused"])
 
