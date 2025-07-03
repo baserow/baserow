@@ -3,20 +3,20 @@ import re
 import uuid
 from collections import defaultdict
 from types import MethodType
-from typing import Generator, Iterable, List, Optional, Type, TypedDict
+from typing import Iterable, Iterator, List, Optional, Type, TypedDict
 
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.postgres.indexes import GinIndex
-from django.contrib.postgres.search import SearchQuery, SearchVectorField
 from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.db import models
+from django.db.models import BooleanField
 from django.db.models import Field as DjangoModelFieldClass
-from django.db.models import JSONField, Q, QuerySet, Value
+from django.db.models import JSONField, Q, QuerySet
+from django.db.models.sql.compiler import SQLUpdateCompiler
 
 from django_cte.cte import CTEManager, CTEQuerySet
-from loguru import logger
+from django_cte.query import CTECompiler
 from opentelemetry import trace
 
 from baserow.cachalot_patch import cachalot_enabled
@@ -39,7 +39,11 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.fields.registries import FieldType, field_type_registry
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
-from baserow.contrib.database.search.handler import SearchHandler, SearchModes
+from baserow.contrib.database.search.handler import (
+    ALL_SEARCH_MODES,
+    SearchHandler,
+    SearchMode,
+)
 from baserow.contrib.database.table.cache import (
     get_cached_model_field_attrs,
     set_cached_model_field_attrs,
@@ -48,7 +52,6 @@ from baserow.contrib.database.table.constants import (
     CREATED_BY_COLUMN_NAME,
     LAST_MODIFIED_BY_COLUMN_NAME,
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
-    TSV_FIELD_PREFIX,
     USER_TABLE_DATABASE_NAME_PREFIX,
 )
 from baserow.contrib.database.table.queryset import BaserowCTEQuerySet
@@ -57,7 +60,6 @@ from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.core.cache import local_cache
 from baserow.core.db import MultiFieldPrefetchQuerysetMixin, specific_iterator
-from baserow.core.fields import AutoTrueBooleanField
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
@@ -88,74 +90,53 @@ class FieldObject(TypedDict):
     name: str
 
 
-def get_row_needs_background_update_index(table):
-    return models.Index(
-        fields=[ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME],
-        name=ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME + f"_{table.id}_idx",
-        # Make a partial index that exactly matches how to query for rows when doing
-        # background tasks in celery.
-        condition=Q(
-            **{
-                ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME: Value(True),
-                "trashed": Value(False),
-            }
-        ),
-    )
+class CTEUpdateReturningIdsQueryCompiler(SQLUpdateCompiler):
+    def as_sql(self, *args, **kwargs):
+        def _as_sql():
+            sql, params = super(CTEUpdateReturningIdsQueryCompiler, self).as_sql(
+                *args, **kwargs
+            )
+            return sql + " RETURNING id", params
+
+        return CTECompiler.generate_sql(self.connection, self.query, _as_sql)
+
+    def execute_sql(self, result_type):
+        cursor = super(SQLUpdateCompiler, self).execute_sql(result_type)
+        return [res[0] for res in cursor.fetchall()]
 
 
 class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
-    def _insert(self, objs, fields, *args, **kwargs):
-        """
-        We never want to include TSVector fields when inserting rows, we manage them
-        using UPDATE jobs in a background job. Overriding this method lets us
-        exclude them and prevent them from being included in bulk/normal inserts.
-        """
-
-        insertable_fields = []
-        if fields is not None:
-            for f in fields:
-                field_name = getattr(f, "attname", f)
-                if TSV_FIELD_PREFIX not in field_name:
-                    insertable_fields.append(f)
-        else:
-            insertable_fields = None
-        return super()._insert(objs, insertable_fields, *args, **kwargs)
-
     def pg_search(
         self,
         input_search: str,
         only_search_by_field_ids: Optional[Iterable[int]] = None,
     ) -> QuerySet:
         """
-        Responsible for narrowing the queryset down using Postgres
-        full-text search.
+        Responsible for narrowing the queryset down using Postgres full-text search.
+
+        :param input_search: The search query to use for narrowing down the queryset. If
+            empty, the queryset will not be narrowed down. If the sanitized search
+            query is empty, an empty queryset will be returned.
+        :param only_search_by_field_ids: If provided, only the fields with IDs in this
+            iterable will be searched. If None, all searchable fields will be searched.
+        :return: The narrowed queryset which contains the rows that match the provided
+            search query for the searchable fields.
         """
 
         if not input_search or not input_search.strip():
             return self
 
         sanitized_search = SearchHandler.escape_postgres_query(input_search)
-        logger.debug(f"Raw query: {input_search}. Sanitized query: {sanitized_search}")
 
         if len(sanitized_search) == 0:
             return self.filter(id__in=[])
 
-        # We use "raw" as we can't use XXX, so if someone had a cell for "cheese" and
-        # searches for "chee", we need to be able to match it with "$$chee$$:*"
-        search_query = SearchQuery(
-            sanitized_search,
-            search_type="raw",
-            config=SearchHandler.search_config(),
-        )
-
-        filter_builder = FilterBuilder(filter_type=FILTER_TYPE_OR)
-
-        self._add_exact_id_search(filter_builder, input_search)
-
-        for field in self.model.get_searchable_fields():
-            if only_search_by_field_ids is None or field.id in only_search_by_field_ids:
-                filter_builder.filter(Q(**{field.tsv_db_column: search_query}))
-        return filter_builder.apply_to_queryset(self)
+        fields_to_search = [
+            field
+            for field in self.model.get_searchable_fields()
+            if only_search_by_field_ids is None or field.id in only_search_by_field_ids
+        ]
+        return SearchHandler.search_in_table(self, sanitized_search, fields_to_search)
 
     def _add_exact_id_search(self, filter_builder, input_search):
         try:
@@ -204,7 +185,7 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
         self,
         search: str,
         only_search_by_field_ids: Optional[Iterable[int]] = None,
-        search_mode: Optional[SearchModes] = None,
+        search_mode: Optional[SearchMode] = None,
     ):
         """
         Performs a very broad search across all supported fields with the given search
@@ -223,23 +204,17 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
         :rtype: QuerySet
         """
 
-        if not search_mode:
-            search_mode = settings.DEFAULT_SEARCH_MODE
-
-        # If we are searching with Postgres full text search (whether with
-        # or without a COUNT)...
-        if search_mode == SearchModes.MODE_FT_WITH_COUNT:
-            # If `USE_PG_FULLTEXT_SEARCH` is enabled, then use
-            # the Postgres full-text search functionality instead.
-            if self.model.baserow_table.tsvectors_are_supported:
-                return self.pg_search(search, only_search_by_field_ids)
-            else:
-                # Otherwise we'll fall back to compat search.
-                return self.compat_search(search, only_search_by_field_ids)
-        elif search_mode == SearchModes.MODE_COMPAT:
-            return self.compat_search(search, only_search_by_field_ids)
-        else:
+        search_mode = search_mode or settings.DEFAULT_SEARCH_MODE
+        if search_mode not in ALL_SEARCH_MODES:
             raise NotImplementedError(f"Unsupported search_mode {search_mode}.")
+
+        if (
+            search_mode == SearchMode.FT_WITH_COUNT
+            and SearchHandler.full_text_enabled()
+        ):
+            return self.pg_search(search, only_search_by_field_ids)
+        else:
+            return self.compat_search(search, only_search_by_field_ids)
 
     def compat_search(self, search: str, only_search_by_field_ids=None):
         """
@@ -514,12 +489,6 @@ class TableModelTrashAndObjectsManager(models.Manager):
 
     def get_queryset(self):
         qs = TableModelQuerySet(self.model, using=self._db)
-        for field in self.model.get_fields_with_search_index(include_trash=True):
-            try:
-                qs = qs.defer(field.tsv_db_column)
-            except DjangoFieldDoesNotExist:
-                # THe model has been generated without TSVs so no need to defer.
-                pass
         return qs
 
 
@@ -561,10 +530,6 @@ class GeneratedTableModel(HierarchicalModelMixin, models.Model):
         for field_obj in field_objects:
             primary = "(primary) " if field_obj["field"].primary else ""
             name = f"{primary}{field_obj['field'].name}"
-            ts_vector_created = (
-                "✓" if field_obj["field"].tsvector_column_created else ""
-            )
-            ts_vector = f"{field_obj['field'].tsv_db_column} {ts_vector_created}"
             trashed = "🗑️" if field_obj["field"].trashed else ""
             table.add_row(
                 name,
@@ -572,26 +537,10 @@ class GeneratedTableModel(HierarchicalModelMixin, models.Model):
                 field_obj["type"].type,
                 str(field_obj["field"].order),
                 trashed,
-                ts_vector,
             )
 
         console = Console()
         console.print(table)
-
-    def _do_update(self, base_qs, using, pk_val, values, update_fields, forced_update):
-        """
-        We override this method to prevent safe and bulk save queries from setting
-        TSV field values as they never need to as we want to manage these in a
-        background job.
-        """
-
-        if update_fields is not None:
-            update_fields = [f for f in update_fields if TSV_FIELD_PREFIX not in f]
-        else:
-            update_fields = None
-        return super()._do_update(
-            base_qs, using, pk_val, values, update_fields, forced_update
-        )
 
     @classmethod
     def get_parent(cls):
@@ -675,33 +624,7 @@ class GeneratedTableModel(HierarchicalModelMixin, models.Model):
         ]
 
     @classmethod
-    def get_fields_missing_search_index(cls) -> List[Field]:
-        """
-        Returns a list of fields which don't yet have a
-        corresponding tsvector column.
-        """
-
-        return [
-            field for field in cls.get_fields() if not field.tsvector_column_created
-        ]
-
-    @classmethod
-    def get_fields_with_search_index(cls, include_trash=False) -> List[Field]:
-        """
-        Returns a list of fields which do have a tsvector column.
-        """
-
-        return [
-            field
-            for field in cls.get_fields(include_trash)
-            if field.tsvector_column_created
-        ]
-
-    @classmethod
-    def get_searchable_fields(
-        cls,
-        include_trash: bool = False,
-    ) -> Generator[Field, None, None]:
+    def get_searchable_fields(cls, include_trash: bool = False) -> Iterator[Field]:
         """
         Generates all searchable fields in a table. A searchable field is one where
         field_type.is_searchable(field) is true.
@@ -714,7 +637,7 @@ class GeneratedTableModel(HierarchicalModelMixin, models.Model):
             field_type = field_object["type"]
             field = field_object["field"]
 
-            if field.tsvector_column_created and field_type.is_searchable(field):
+            if field_type.is_searchable(field):
                 yield field
 
     @classmethod
@@ -951,7 +874,7 @@ class Table(
     needs_background_update_column_added = models.BooleanField(
         default=False,
         help_text="Indicates whether the table has had the background_update_needed "
-        "column added.",
+        "column added. (DEPRECATED: remove in a future version)",
     )
     last_modified_by_column_added = models.BooleanField(
         default=True,
@@ -971,17 +894,6 @@ class Table(
     @property
     def is_data_synced_table(self) -> bool:
         return hasattr(self, "data_sync") and self.data_sync is not None
-
-    @property
-    def tsvectors_are_supported(self) -> bool:
-        return (
-            SearchHandler.full_text_enabled()
-            and self.needs_background_update_column_added
-        )
-
-    @property
-    def tsv_id_column_idx_name(self) -> str:
-        return f"tsv_id_idx_{self.id}"
 
     def get_parent(self):
         return self.database
@@ -1024,7 +936,6 @@ class Table(
         add_dependencies=True,
         managed=False,
         use_cache=True,
-        force_add_tsvectors: bool = False,
         app_label: Optional[str] = None,
     ) -> Type[GeneratedTableModel]:
         """
@@ -1057,9 +968,6 @@ class Table(
         :type managed: bool
         :param use_cache: Indicates whether a cached model can be used.
         :type use_cache: bool
-        :param force_add_tsvectors: gtIndicates that we want to forcibly add the table's
-            `tsvector` columns.
-        :type force_add_tsvectors: bool
         :param app_label: In some cases with related fields, the related models must
             have the same app_label. If passed along in this parameter, then the
             generated model will use that one instead of generating a unique one.
@@ -1083,9 +991,7 @@ class Table(
             fields = []
 
         # By default, we create an index on the `order` and `id`
-        # columns. If `USE_PG_FULLTEXT_SEARCH` is enabled, which
-        # it is by default, we'll include a GIN index on the table's
-        # `tsvector` column.
+        # columns.
         indexes = [
             models.Index(
                 fields=["order", "id"],
@@ -1199,11 +1105,6 @@ class Table(
             editable=False,
             default=1,
         )
-
-        self._add_search_tsvector_fields_to_model(
-            field_attrs, indexes, force_add_tsvectors
-        )
-
         if self.needs_background_update_column_added:
             self._add_needs_background_update_column(field_attrs, indexes)
 
@@ -1234,28 +1135,12 @@ class Table(
 
         return model
 
-    def _add_search_tsvector_fields_to_model(self, field_attrs, indexes, force_add):
-        field_objects = field_attrs["_field_objects"]
-        trashed_field_objects = field_attrs["_trashed_field_objects"]
-        for field_object in itertools.chain(
-            field_objects.values(), trashed_field_objects.values()
-        ):
-            field = field_object["field"]
-            if field.tsvector_column_created or force_add:
-                field_attrs[field.tsv_db_column] = SearchVectorField(null=True)
-                indexes.append(
-                    GinIndex(fields=[field.tsv_db_column], name=field.tsv_index_name)
-                )
-
     def _add_needs_background_update_column(self, field_attrs, indexes):
-        field_attrs[ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME] = AutoTrueBooleanField(
-            default=True,
-            help_text="Indicates if the row needs background updates run. Set to True"
-            "after a row has been changed in some way by a user or a "
-            "cascading update run by Baserow itself.",
+        field_attrs[ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME] = BooleanField(
+            default=False,
+            help_text="DEPRECATED: remove in a future version when all "
+            "tsvectors columns will be removed",
         )
-
-        indexes.append(get_row_needs_background_update_index(self))
 
     def _add_created_by(self, field_attrs, indexes):
         field_attrs[CREATED_BY_COLUMN_NAME] = IgnoreMissingForeignKey(
@@ -1322,8 +1207,8 @@ class Table(
         # constraints in the database.
         fields_query = (
             self.field_set(manager="objects_and_trash")
-            .select_related("table", "content_type")
-            .all()
+            # table->database->workspace is used by search
+            .select_related("table__database__workspace", "content_type").all()
         )
 
         # If the field ids are provided we must only fetch the fields of which the

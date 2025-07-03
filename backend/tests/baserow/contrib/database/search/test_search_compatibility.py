@@ -222,6 +222,7 @@ def test_searching_across_fields_in_full_text_prevented(data_fixture):
                 ("Last name", "text", {}),
             ],
         )
+
         first_name_field = table.field_set.get(name="First name")
         last_name_field = table.field_set.get(name="Last name")
         RowHandler().create_row(
@@ -252,6 +253,7 @@ def test_cyrillic_search_is_case_insensitive(data_fixture):
                 ("Ingredient", "text", {}),
             ],
         )
+
         field = table.field_set.get(name="Ingredient")
         row1 = RowHandler().create_row(
             user=user, table=table, values={f"field_{field.id}": "сир"}

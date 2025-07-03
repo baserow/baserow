@@ -578,7 +578,7 @@ class DatabaseApplicationType(ApplicationType):
         for serialized_table in serialized_tables:
             table = serialized_table["_object"]
             if not import_export_config.reduce_disk_space_usage:
-                SearchHandler.entire_field_values_changed_or_created(table)
+                SearchHandler.schedule_search_data_update(table)
             for (
                 serialized_structure_processor
             ) in serialization_processor_registry.get_all():
@@ -912,7 +912,6 @@ class DatabaseApplicationType(ApplicationType):
                 database=database,
                 name=serialized_table["name"],
                 order=serialized_table["order"],
-                needs_background_update_column_added=True,
                 last_modified_by_column_added=True,
             )
             id_mapping["database_tables"][serialized_table["id"]] = table_instance.id

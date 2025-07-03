@@ -1186,7 +1186,9 @@ def test_get_template(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_export_import_workspace_application(data_fixture):
+def test_export_import_workspace_application(
+    data_fixture,
+):
     workspace = data_fixture.create_workspace()
     imported_workspace = data_fixture.create_workspace()
     database = data_fixture.create_database_application(workspace=workspace)
@@ -1496,7 +1498,7 @@ def test_get_user_email_mapping(data_fixture):
     workspace = data_fixture.create_workspace()
     user_in_workspace = data_fixture.create_user()
     user2_in_workspace = data_fixture.create_user()
-    user_outside_workspace = data_fixture.create_user()
+    data_fixture.create_user()
     data_fixture.create_user_workspace(user=user_in_workspace, workspace=workspace)
     data_fixture.create_user_workspace(user=user2_in_workspace, workspace=workspace)
 

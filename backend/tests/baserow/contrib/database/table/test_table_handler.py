@@ -28,6 +28,7 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.management.commands.fill_table_rows import fill_table_rows
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.table.constants import (
     LAST_MODIFIED_BY_COLUMN_NAME,
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
@@ -151,7 +152,9 @@ def test_create_example_table(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_fill_table_with_initial_data(data_fixture):
+def test_fill_table_with_initial_data(
+    data_fixture,
+):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
 
@@ -618,7 +621,7 @@ def test_counting_many_rows_in_many_tables(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_duplicate_interesting_table(data_fixture):
+def test_duplicate_interesting_table(data_fixture, celery_task_lazy, run_on_commit):
     session_id = "session-id"
     user = data_fixture.create_user(session_id=session_id)
     database = data_fixture.create_database_application(user=user)
@@ -629,7 +632,11 @@ def test_duplicate_interesting_table(data_fixture):
     )
 
     table_handler = TableHandler()
-    duplicated_table = table_handler.duplicate_table(user, table)
+
+    with celery_task_lazy(True):
+        duplicated_table = table_handler.duplicate_table(user, table)
+    run_on_commit()
+
     assert (
         table_handler.get_table(duplicated_table.id).name == f"{original_table_name} 2"
     )
@@ -1153,6 +1160,8 @@ def test_usage_is_calculated_correctly_when_creating_a_new_table(data_fixture):
         table, _ = TableHandler().create_table(
             user, database, name="test", fill_example=True
         )
+        table.search_data_state = SearchTableState.DISABLED
+        table.save()
 
     workspace = (
         Workspace.objects.filter(id=database.workspace.id)

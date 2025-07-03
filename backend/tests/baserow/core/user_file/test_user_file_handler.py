@@ -616,11 +616,11 @@ def test_upload_user_file_by_url_with_invalid_content_type(
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
     handler = UserFileHandler()
 
-    remote_file = "https://baserow.io//"
+    remote_file = "https://baserow.io/"
 
     httpretty.register_uri(
         httpretty.GET,
-        remote_file,
+        "https://baserow.io/",
         body=b"Hello World",
         status=200,
         content_type="foobar/barfoo",

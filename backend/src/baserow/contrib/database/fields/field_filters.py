@@ -6,6 +6,7 @@ from django.db.models import BooleanField, Q
 from django.db.models.expressions import F, Value
 from django.db.models.functions import Mod
 
+from django_cte import With
 from opentelemetry import trace
 
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
@@ -81,7 +82,9 @@ class AnnotatedQ:
     filters which also require annotations.
     """
 
-    def __init__(self, annotation: Dict[str, Any], q: Union[Q, Dict[str, Any]]):
+    def __init__(
+        self, annotation: Dict[str, Any], q: Union[Q, Dict[str, Any]], cte: With = None
+    ):
         """
         :param annotation: A dictionary which can be unpacked into a django
             Queryset.annotate call. This will only happen when using
@@ -94,6 +97,9 @@ class AnnotatedQ:
             self.q = q
         else:
             self.q = Q(**q)
+
+        if cte is not None:
+            self.cte = cte
 
     def __invert__(self):
         return AnnotatedQ(self.annotation, ~self.q)

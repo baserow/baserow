@@ -736,7 +736,6 @@ def test_sync_data_sync_table_multiple_unique_primary_properties(data_fixture):
         synced_properties=["uid", "summary"],
         ical_url="https://baserow.io/ical.ics",
     )
-
     registry = DataSyncTypeRegistry()
 
     class TmpICalCalendarDataSync(ICalCalendarDataSyncType):
@@ -891,6 +890,7 @@ def test_sync_data_sync_table_with_formula_field_dependency(data_fixture):
         synced_properties=["uid", "dtstart", "dtend", "summary"],
         ical_url="https://baserow.io/ical.ics",
     )
+
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     formula = FieldHandler().create_field(
@@ -1801,6 +1801,7 @@ def test_duplicate_data_sync_field(data_fixture):
         synced_properties=["uid"],
         ical_url="https://baserow.io/ical.ics",
     )
+
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))

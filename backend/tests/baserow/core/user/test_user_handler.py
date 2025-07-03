@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta, timezone
+from itertools import chain
 from unittest.mock import MagicMock, patch
 
 from django.conf import settings
@@ -581,6 +582,15 @@ def test_delete_expired_users_and_related_workspaces_if_last_admin(
     assert workspaceuser4_2.workspace.id not in workspace_ids
 
     end_table_names = sorted(connection.introspection.table_names())
+    # We need to add per-workspace search tables for each workspace present.
+    # database_workspace_search_WORKSPACE_ID tables are added when a workspace
+    # is created, so they aren't present in initial list.
+    initial_table_names = sorted(
+        chain(
+            initial_table_names,
+            [f"database_workspace_search_{id}" for id in workspace_ids],
+        )
+    )
 
     # Check that everything has really been deleted
     assert Database.objects.count() == 0
@@ -619,7 +629,7 @@ def test_active_users_qs_excludes_pending_deletion_users(data_fixture):
 
 @pytest.mark.django_db
 def test_blacklist_refresh_token(data_fixture):
-    user = data_fixture.create_user()
+    data_fixture.create_user()
 
     UserHandler().blacklist_refresh_token("test", datetime(2021, 1, 1, 12, 00))
 

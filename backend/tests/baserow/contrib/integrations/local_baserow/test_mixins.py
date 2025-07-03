@@ -7,6 +7,7 @@ from django.db import transaction
 import pytest
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.search.types import SearchTableState
 from baserow.contrib.database.views.models import SORT_ORDER_ASC, SORT_ORDER_DESC
 from baserow.contrib.database.views.view_filters import ContainsViewFilterType
 from baserow.contrib.integrations.local_baserow.mixins import (
@@ -421,6 +422,9 @@ def test_local_baserow_table_service_searchable_mixin_get_used_field_names(
     service_type = get_test_service_type(LocalBaserowTableServiceSearchableMixin)
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
+    table.search_data_state = SearchTableState.DISABLED
+    table.save()
+
     field = data_fixture.create_text_field(name="Names", table=table)
     service = data_fixture.create_local_baserow_list_rows_service(
         table=table, search_query="'a'"

@@ -1185,7 +1185,9 @@ def test_link_row_field_type_api_row_views(api_client, data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.field_link_row
-def test_import_export_link_row_field(data_fixture):
+def test_import_export_link_row_field(
+    data_fixture,
+):
     user = data_fixture.create_user()
     imported_workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(user=user, name="Placeholder")
@@ -1559,7 +1561,7 @@ def test_link_row_field_can_link_same_table_and_another_table(api_client, data_f
 
     url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
     response = api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token}"})
-    response_json = response.json()
+    response.json()
     assert response.status_code == HTTP_200_OK
 
 
@@ -1620,12 +1622,12 @@ def test_link_row_can_change_link_from_same_table_to_another_table_and_back(
     # both grid views must be accessible
     url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_a.id})
     response = api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token}"})
-    response_json = response.json()
+    response.json()
     assert response.status_code == HTTP_200_OK
 
     url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_b.id})
     response = api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token}"})
-    response_json = response.json()
+    response.json()
     assert response.status_code == HTTP_200_OK
 
     names = list(Field.objects.filter(table=table_b).values_list("name", flat=True))
@@ -3267,7 +3269,7 @@ def test_duplicate_link_row_no_multiple_relationships(data_fixture):
     )
 
     field_handler = FieldHandler()
-    row_handler = RowHandler()
+    RowHandler()
 
     link_row_field = field_handler.create_field(
         user=user,

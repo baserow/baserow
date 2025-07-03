@@ -48,7 +48,6 @@ from baserow.core.utils import ChildProgressBuilder, Progress, find_unused_name,
 from .constants import (
     CREATED_BY_COLUMN_NAME,
     LAST_MODIFIED_BY_COLUMN_NAME,
-    ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
     TABLE_CREATION,
 )
 from .exceptions import (
@@ -59,12 +58,7 @@ from .exceptions import (
     TableDoesNotExist,
     TableNotInDatabase,
 )
-from .models import (
-    Table,
-    TableUsage,
-    TableUsageUpdate,
-    get_row_needs_background_update_index,
-)
+from .models import Table, TableUsage, TableUsageUpdate
 from .operations import (
     DeleteDatabaseTableOperationType,
     DuplicateDatabaseTableOperationType,
@@ -108,7 +102,7 @@ class TableUsageHandler:
                 table_id=table_id, row_count=row_count, timestamp=Now()
             )
         except IntegrityError as integrity_exc:
-            if f"violates foreign key constraint" in str(integrity_exc):
+            if "violates foreign key constraint" in str(integrity_exc):
                 # we can safely ignore the exception and don't try to
                 # update usage for non existing tables
                 return None
@@ -317,7 +311,7 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
 
         try:
             table = base_queryset.select_related(
-                "database__workspace", "data_sync"
+                "data_sync",
             ).get(id=table_id)
         except Table.DoesNotExist:
             raise TableDoesNotExist(f"The table with id {table_id} does not exist.")
@@ -440,6 +434,7 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         database: Database,
         name: str,
         fields: List[Tuple[str, str, Dict[str, Any]]],
+        **table_kwargs,
     ) -> Table:
         """
         Creates a new table with the specified fields. Also creates a default grid view
@@ -456,10 +451,7 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
 
         last_order = Table.get_last_order(database)
         table = Table.objects.create(
-            database=database,
-            order=last_order,
-            name=name,
-            needs_background_update_column_added=True,
+            database=database, order=last_order, name=name, **table_kwargs
         )
 
         # Let's create the fields before creating the model so that the whole
@@ -888,28 +880,6 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         TrashHandler.trash(user, table.database.workspace, table.database, table)
 
         table_deleted.send(self, table_id=table.id, table=table, user=user)
-
-    def create_needs_background_update_field(self, table: "Table") -> None:
-        """
-        Responsible for creating the `ROW_NEEDS_BACKGROUND_UPDATES_RUN_COLUMN_NAME` and
-        fields on the `Table`.
-        """
-
-        if table.needs_background_update_column_added:
-            return
-
-        # Prepare a fresh model we can use to create the columns.
-        table.needs_background_update_column_added = True
-        model = table.get_model()
-
-        with safe_django_schema_editor(atomic=False) as schema_editor:
-            needs_background_update_field = model._meta.get_field(
-                ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME
-            )
-            schema_editor.add_field(model, needs_background_update_field)
-            schema_editor.add_index(model, get_row_needs_background_update_index(table))
-
-        table.save(update_fields=("needs_background_update_column_added",))
 
     def create_created_by_and_last_modified_by_fields(self, table: "Table") -> None:
         """

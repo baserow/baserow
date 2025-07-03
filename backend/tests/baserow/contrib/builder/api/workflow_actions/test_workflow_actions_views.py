@@ -712,6 +712,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
                 ("Category", "text", {}),
             ],
         )
+
         field = table.field_set.get()
         rows = (
             RowHandler()
@@ -748,7 +749,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
             {
                 "name": "Button",
                 "type": "button",
-                "config": {"value": f"'Click me'"},
+                "config": {"value": "'Click me'"},
             },
         ],
     )
@@ -770,7 +771,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
     service.row_id = "get('current_record.id')"
     service.save()
     service.field_mappings.create(
-        field=field, value=f"concat('Updated row ', get('current_record.id'))"
+        field=field, value="concat('Updated row ', get('current_record.id'))"
     )
 
     url = reverse(
@@ -1120,15 +1121,15 @@ def workflow_action_hidden_fields_fixture(data_fixture):
     )
     service.field_mappings.create(
         field=fields[0],
-        value=f"'Palak Paneer'",
+        value="'Palak Paneer'",
     )
     service.field_mappings.create(
         field=fields[1],
-        value=f"'3'",
+        value="'3'",
     )
     service.field_mappings.create(
         field=fields[2],
-        value=f"'Green'",
+        value="'Green'",
     )
 
     return {
@@ -1216,7 +1217,7 @@ def test_notification_action_can_access_the_field_of_previous_action(
         element=button,
         event=EventTypes.CLICK,
         description=f"get('previous_action.{action_1.id}.{fields[0].db_column}')",
-        title=f"'hello world'",
+        title="'hello world'",
     )
 
     url = reverse(

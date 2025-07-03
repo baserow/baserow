@@ -29,10 +29,12 @@ def test_textfield_get_search_expression(data_fixture):
                 ("Name", "text", {}),
             ],
         )
+
         field = table.field_set.get(name="Name")
         row = RowHandler().create_row(
             user=user, table=table, values={f"field_{field.id}": "Jeff"}
         )
+
     model = table.get_model()
     qs = model.objects.all().pg_search("Jeff")
     assert qs.exists()
@@ -53,6 +55,7 @@ def test_longtextfield_get_search_expression(data_fixture):
                 ("Notes", "long_text", {}),
             ],
         )
+
         field = table.field_set.get(name="Notes")
         row = RowHandler().create_row(
             user=user, table=table, values={f"field_{field.id}": "I like cheese a lot."}
@@ -77,6 +80,7 @@ def test_numberfield_get_search_expression(data_fixture):
                 ("Number", "number", {}),
             ],
         )
+
         field = table.field_set.get(name="Number")
         row = RowHandler().create_row(
             user=user, table=table, values={f"field_{field.id}": 123456789}
@@ -101,6 +105,7 @@ def test_filefield_get_search_expression(data_fixture, tmpdir):
                 ("Thumbnails", "file", {}),
             ],
         )
+
         field = table.field_set.get(name="Thumbnails")
 
         storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
@@ -149,6 +154,7 @@ def test_urlfield_get_search_expression(data_fixture):
                 ("URL", "url", {}),
             ],
         )
+
         field = table.field_set.get(name="URL")
         row = RowHandler().create_row(
             user=user, table=table, values={f"field_{field.id}": "https://baserow.io"}
@@ -173,6 +179,7 @@ def test_emailfield_get_search_expression(data_fixture):
                 ("Email", "email", {}),
             ],
         )
+
         field = table.field_set.get(name="Email")
         row = RowHandler().create_row(
             user=user, table=table, values={f"field_{field.id}": "dev@baserow.io"}
@@ -197,6 +204,7 @@ def test_datefield_without_time_get_search_expression(data_fixture):
                 ("Date", "date", {}),
             ],
         )
+
         field = table.field_set.get(name="Date")
         row = RowHandler().create_row(
             user=user, table=table, values={f"field_{field.id}": "1974-08-26"}
@@ -221,6 +229,7 @@ def test_datefield_with_time_get_search_expression(data_fixture):
                 ("Datetime", "date", {}),
             ],
         )
+
         field = table.field_set.get(name="Datetime")
         row = RowHandler().create_row(
             user=user,
@@ -579,6 +588,7 @@ def test_massive_textfield_get_search_expression(data_fixture):
                 ("Name", "text", {}),
             ],
         )
+
         field = table.field_set.get(name="Name")
         row = RowHandler().create_row(
             user=user,
@@ -628,7 +638,7 @@ def test_last_modified_by_field_get_search_expression(data_fixture):
         row4 = model.objects.create(last_modified_by=user_mary_black)
         row5 = model.objects.create(last_modified_by=None)
 
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.schedule_search_data_update(table)
 
     model = table.get_model()
     qs = model.objects.all().pg_search("Mary")
@@ -653,6 +663,7 @@ def test_duration_field_get_search_expression(data_fixture):
                 ("Duration", "duration", {"duration_format": "h:mm:ss.sss"}),
             ],
         )
+
         field = table.field_set.get(name="Duration")
         row = RowHandler().create_row(
             user=user, table=table, values={f"field_{field.id}": "1:53:46.789"}

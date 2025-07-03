@@ -52,6 +52,16 @@ class TableTrashableItemType(TrashableItemType):
     def get_name(self, trashed_item: Table) -> str:
         return trashed_item.name
 
+    def lookup_trashed_item(
+        self, trashed_entry, trash_item_lookup_cache: Dict[str, Any] = None
+    ):
+        try:
+            return self.model_class.trash.select_related("database__workspace").get(
+                id=trashed_entry.trash_item_id
+            )
+        except self.model_class.DoesNotExist:
+            raise TrashItemDoesNotExist()
+
     def fields_to_restore(self, trashed_item: Table, trash_entry: TrashEntry):
         for field in trashed_item.field_set(manager="objects_and_trash").all():
             field = field.specific
@@ -244,7 +254,8 @@ class FieldTrashableItemType(TrashableItemType):
             from_model = table.get_model(field_ids=[], fields=[field])
             model_field = from_model._meta.get_field(field.db_column)
             schema_editor.remove_field(from_model, model_field)
-
+            # must call it here, because we need field.id
+            SearchHandler.cleanup_table_rows_vectors(table, field_ids=[field.id])
             field.delete()
 
         # After the field is deleted we are going to call the after_delete method of
@@ -271,7 +282,9 @@ class RowTrashableItemType(TrashableItemType):
     @staticmethod
     def _get_table(parent_id):
         try:
-            return Table.objects_and_trash.get(id=parent_id)
+            return Table.objects_and_trash.select_related(
+                "database", "database__workspace"
+            ).get(id=parent_id)
         except Table.DoesNotExist:
             # The parent table must have been actually deleted, in which case the
             # row itself no longer exits.
@@ -297,7 +310,7 @@ class RowTrashableItemType(TrashableItemType):
         )
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.schedule_search_data_update(table, row_ids=[trashed_item.id])
 
         rows_to_return = list(
             model.objects.all().enhance_by_fields().filter(id=trashed_item.id)
@@ -380,7 +393,9 @@ class RowsTrashableItemType(TrashableItemType):
     @staticmethod
     def _get_table(parent_id):
         try:
-            return Table.objects_and_trash.get(id=parent_id)
+            return Table.objects_and_trash.select_related(
+                "database", "database__workspace"
+            ).get(id=parent_id)
         except Table.DoesNotExist:
             # The parent table must have been actually deleted, in which case the
             # row itself no longer exits.
@@ -413,13 +428,17 @@ class RowsTrashableItemType(TrashableItemType):
         trashed_item.delete()
 
         updated_fields = [f["field"] for f in model._field_objects.values()]
-        dependant_fields = []
         _, dependant_fields = RowHandler().update_dependencies_of_rows_created(
             model, rows_to_restore
         )
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.schedule_search_data_update(table, row_ids=trashed_item.row_ids)
+        for dependant_field in dependant_fields:
+            dependant_table = dependant_field.table
+            SearchHandler.schedule_search_data_update(
+                dependant_table, fields=[dependant_field]
+            )
 
         if len(rows_to_restore) < 50:
             rows_to_return = list(

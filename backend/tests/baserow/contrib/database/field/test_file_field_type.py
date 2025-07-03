@@ -208,7 +208,10 @@ def test_file_field_type(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.field_file
-def test_import_export_file_field(data_fixture, tmpdir):
+def test_import_export_file_field(
+    data_fixture,
+    tmpdir,
+):
     user = data_fixture.create_user()
     imported_workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(user=user)
@@ -332,7 +335,7 @@ def test_get_set_export_serialized_value_file_field(
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     file_field = data_fixture.create_file_field(table=table)
-    file_field_name = f"field_{file_field.id}"
+    f"field_{file_field.id}"
     file_field_type = field_type_registry.get_by_model(file_field)
 
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
@@ -444,7 +447,7 @@ def test_file_field_type_in_formulas(data_fixture, api_client):
         user_file_2 = data_fixture.create_user_file(
             is_image=True, image_width=200, image_height=300, original_name="b.gif"
         )
-        user_file_3 = data_fixture.create_user_file()
+        data_fixture.create_user_file()
     grid_view = data_fixture.create_grid_view(user=user, table=table)
 
     row_handler = RowHandler()
@@ -627,7 +630,7 @@ def test_filtering_file_field_type(data_fixture, api_client, django_assert_num_q
         user_file_2 = data_fixture.create_user_file(
             is_image=True, image_width=200, image_height=300
         )
-        user_file_3 = data_fixture.create_user_file()
+        data_fixture.create_user_file()
     grid_view = data_fixture.create_grid_view(user=user, table=table)
 
     row_handler = RowHandler()
@@ -678,7 +681,7 @@ def test_filtering_file_formula_field_type(
         user_file_2 = data_fixture.create_user_file(
             is_image=True, image_width=200, image_height=300
         )
-        user_file_3 = data_fixture.create_user_file()
+        data_fixture.create_user_file()
     grid_view = data_fixture.create_grid_view(user=user, table=table)
 
     row_handler = RowHandler()
