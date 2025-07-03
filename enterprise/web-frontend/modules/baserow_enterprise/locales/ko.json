@@ -586,7 +586,7 @@
         "typeCSS": "CSS",
         "typeJS": "Javascript",
         "loadTypeNone": "일반",
-        "loadTypeDefer": "연기",
+        "loadTypeDefer": "지연 실행",
         "loadTypeAsync": "비동기"
     }
 }
