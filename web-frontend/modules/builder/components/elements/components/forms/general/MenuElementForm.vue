@@ -31,6 +31,31 @@
       <HorizontalAlignmentsSelector v-model="values.alignment" />
     </FormGroup>
 
+    <FormGroup
+      :label="$t('menuElementForm.menuType')"
+      small-label
+      required
+      class="margin-bottom-2"
+    >
+      <DeviceSelector
+        :device-type-selected="deviceTypeSelected"
+        direction="row"
+        @selected="actionSetDeviceTypeSelected"
+      >
+        <template #deviceTypeControl="{ deviceType }">
+          <RadioButton
+            v-for="menuType in menuTypes"
+            :key="menuType.value"
+            v-model="values.menu_type[deviceType.getType()]"
+            :icon="menuType.icon"
+            :value="menuType.value"
+          >
+            {{ menuType.label }}
+          </RadioButton>
+        </template>
+      </DeviceSelector>
+    </FormGroup>
+
     <div
       ref="menuItemAddContainer"
       class="menu-element-form__add-item-container"
@@ -102,11 +127,12 @@ import {
   HORIZONTAL_ALIGNMENTS,
   ORIENTATIONS,
 } from '@baserow/modules/builder/enums'
+import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
 import {
   getNextAvailableNameInSequence,
   uuid,
 } from '@baserow/modules/core/utils/string'
-import { mapGetters } from 'vuex'
+import { mapGetters, mapActions } from 'vuex'
 import MenuElementItemForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementItemForm'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
@@ -117,6 +143,7 @@ export default {
     MenuElementItemForm,
     CustomStyle,
     HorizontalAlignmentsSelector,
+    DeviceSelector,
   },
   mixins: [elementForm],
   data() {
@@ -127,6 +154,7 @@ export default {
         orientation: ORIENTATIONS.VERTICAL,
         alignment: HORIZONTAL_ALIGNMENTS.LEFT,
         menu_items: [],
+        menu_type: {},
       },
       allowedValues: [
         'value',
@@ -134,6 +162,19 @@ export default {
         'menu_items',
         'orientation',
         'alignment',
+        'menu_type',
+      ],
+      menuTypes: [
+        {
+          icon: 'iconoir-enlarge-round-arrow',
+          label: this.$t('menuElementForm.expandedMenu'),
+          value: 'expanded',
+        },
+        {
+          icon: 'iconoir-menu',
+          label: this.$t('menuElementForm.mobileMenu'),
+          value: 'mobile',
+        },
       ],
       addMenuItemTypes: [
         {
@@ -162,6 +203,7 @@ export default {
   computed: {
     ...mapGetters({
       getElementSelected: 'element/getSelected',
+      deviceTypeSelected: 'page/getDeviceTypeSelected',
     }),
     ORIENTATIONS() {
       return ORIENTATIONS
@@ -185,6 +227,9 @@ export default {
     },
   },
   methods: {
+    ...mapActions({
+      actionSetDeviceTypeSelected: 'page/setDeviceTypeSelected',
+    }),
     addMenuItem(type) {
       const name = getNextAvailableNameInSequence(
         this.$t('menuElementForm.menuItemDefaultName'),

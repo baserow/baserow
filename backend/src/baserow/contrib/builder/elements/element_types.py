@@ -2145,8 +2145,8 @@ class MenuElementType(ElementType):
 
     type = "menu"
     model_class = MenuElement
-    serializer_field_names = ["orientation", "alignment", "menu_items"]
-    allowed_fields = ["orientation", "alignment"]
+    serializer_field_names = ["orientation", "alignment", "menu_items", "menu_type"]
+    allowed_fields = ["orientation", "alignment", "menu_type"]
 
     serializer_mixins = [NestedMenuItemsMixin]
     request_serializer_mixins = []
@@ -2155,6 +2155,29 @@ class MenuElementType(ElementType):
         orientation: str
         alignment: str
         menu_items: List[Dict]
+        menu_type: Dict[str, str]
+
+    def prepare_value_for_db(self, values: Dict, instance: Optional[Element] = None):
+        """
+        Validate the menu_type values to ensure they are valid,
+        according to the MENU_TYPES enum.
+        """
+
+        from baserow.contrib.builder.elements.models import MENU_TYPES
+
+        values = super().prepare_value_for_db(values, instance)
+
+        if "menu_type" in values:
+            menu_type = values["menu_type"]
+            if menu_type:
+                for device_type, menu_type_value in menu_type.items():
+                    if menu_type_value not in MENU_TYPES.values:
+                        raise ValidationError(
+                            f"Invalid menu type '{menu_type_value}' for device type '{device_type}'. "
+                            f"Valid menu types are: {', '.join(MENU_TYPES.values)}"
+                        )
+
+        return values
 
     @property
     def serializer_field_overrides(self) -> Dict[str, Any]:

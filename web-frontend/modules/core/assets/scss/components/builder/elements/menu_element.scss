@@ -1,6 +1,14 @@
+$bg-color: var(--page-background-color, #fff);
+$bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
+
 .menu-element__container {
   display: flex;
   justify-content: var(--alignment);
+}
+
+.menu-element__wrapper {
+  position: relative;
+  height: 2em;
 }
 
 /**
@@ -11,10 +19,59 @@
   user-select: none;
 }
 
+.menu-element__sub-links {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 10px;
+  padding: 5px;
+  border-radius: 6px;
+  background-color: $bg-color;
+}
+
+.menu-element__sub-link-menu--container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+}
+
+.menu-element__sub-link {
+  width: 100%;
+  display: block;
+  padding: 10px;
+  text-decoration: none;
+
+  &:hover {
+    background: $bg-color-contrast;
+  }
+}
+
+%menu-item-button-full-width {
+  .menu-element__menu-item-button .ab-button {
+    width: 100%;
+    display: block;
+  }
+}
+
+%sub-link-indentation {
+  .menu-element__sub-links {
+    margin-left: 10px;
+
+    .ab-link {
+      padding-left: 0;
+    }
+  }
+}
+
+/* Moved this block before .menu-element__sub-link--container to fix no-descending-specificity */
 .menu-element__container--vertical {
   flex-direction: column;
   gap: 20px;
   width: 100%;
+
+  @extend %menu-item-button-full-width;
+  @extend %sub-link-indentation;
 
   .menu-element__menu-item-separator {
     width: 100%;
@@ -22,14 +79,26 @@
     background-color: $palette-neutral-500;
     margin: 0 5px;
   }
+
+  /* This rule now appears earlier */
+  .menu-element__sub-links {
+    padding: 10px;
+  }
 }
 
-.menu-element__menu-item-spacer {
-  flex: 1;
-}
+.menu-element__sub-link--container {
+  margin-top: 5px;
 
-.menu-element__sub-link-menu-spacer {
-  flex: 1;
+  .menu-element__sub-links {
+    border-radius: 6px;
+    background-color: $bg-color;
+
+    /* This rule with higher specificity now appears later */
+    .menu-element__align-right & {
+      text-align: right;
+      padding-right: 20px;
+    }
+  }
 }
 
 .menu-element__container--horizontal {
@@ -42,38 +111,128 @@
     height: 20px;
     background-color: $palette-neutral-500;
   }
+}
 
-  .menu-element__sub-link-menu--expanded-icon {
-    margin-left: 5px;
+.menu-element__container--burger {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  margin-bottom: 10px;
+
+  @extend %menu-item-button-full-width;
+  @extend %sub-link-indentation;
+
+  .menu-element__menu-item-separator {
+    width: 100%;
+    height: 1px;
+    background-color: $palette-neutral-500;
+  }
+
+  %burger-icon-container {
+    display: flex;
+    padding: 10px;
+    position: relative;
+    z-index: 2;
+
+    i {
+      font-size: 24px;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  .menu-element__burger-menu-left,
+  .menu-element__burger-menu-center {
+    @extend %burger-icon-container;
+
+    justify-content: flex-start;
+  }
+
+  .menu-element__burger-menu-right {
+    @extend %burger-icon-container;
+
+    justify-content: flex-end;
+  }
+
+  &.menu-element__burger-active {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 10px 30px 20px 17px;
+    height: 100vh;
+    background-color: $bg-color;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: var(--alignment);
+    z-index: 1;
+    overflow-y: auto;
+
+    .iconoir-cancel {
+      position: absolute;
+      top: 10px;
+      font-size: 24px;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .menu-element__burger-menu-right {
+      .iconoir-cancel {
+        right: 0;
+      }
+    }
+
+    .menu-element__menu-item-link {
+      position: relative;
+      top: 10px;
+      left: 10px;
+    }
+
+    @media (min-width: 768px) {
+      position: absolute;
+      width: auto;
+      min-width: 250px;
+      max-width: 60%;
+      left: auto;
+      transform: none;
+      height: auto;
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border-radius: 6px;
+      margin-top: 10px;
+      padding: 0 20px 30px 5px;
+      top: -10px;
+
+      .iconoir-cancel {
+        left: 6px;
+        right: auto;
+      }
+
+      div.menu-element__align-right & {
+        right: 0;
+        top: -10px;
+        left: auto;
+
+        .iconoir-cancel {
+          right: -10px;
+          left: auto;
+        }
+      }
+    }
   }
 }
 
-.menu-element__sub-link-menu--container {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 5px;
-}
-
-.menu-element__sub-links {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  gap: 10px;
-  padding: 5px;
-  border-radius: 6px;
-
-  // We want the same color as page background
-  background-color: var(--page-background-color, #fff);
-}
-
-.menu-element__sub-link {
-  width: 100%;
-  display: block;
-  padding: 10px;
-  text-decoration: none;
-}
-
-.menu-element__sub-link:hover {
-  background: var(--page-background-color-contrast, $palette-neutral-100);
+.menu-element__menu-item-spacer,
+.menu-element__sub-link-menu-spacer {
+  flex: 1;
 }
