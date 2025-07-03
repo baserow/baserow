@@ -329,13 +329,13 @@ class AsyncPublishAutomationWorkflowView(APIView):
         ),
         request=None,
         responses={
-            204: None,
+            202: HTTP_202_ACCEPTED,
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
-            404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
+            404: get_error_schema(["ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST"]),
         },
     )
     @transaction.atomic
