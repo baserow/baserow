@@ -10,4 +10,4 @@ class PremiumBuilderApplicationType(
             PremiumPublicBuilderSerializer,
         )
 
-        return super().public_serializer_mixins + [PremiumPublicBuilderSerializer]
+        return [PremiumPublicBuilderSerializer] + super().public_serializer_mixins

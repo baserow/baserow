@@ -14,7 +14,7 @@ T = TypeVar("T")
 
 # This var is to invalidate global cache when we can't bump the Baserow version for
 # some reason.
-GLOBAL_CACHE_VERSION = 1
+GLOBAL_CACHE_VERSION = 2
 
 
 class LocalCache:
@@ -223,7 +223,9 @@ class GlobalCache:
 
         version = cache.get(version_key, 0)
 
-        cache_key_to_use = f"{BASEROW_VERSION}_{key}__version_{version}"
+        cache_key_to_use = (
+            f"{BASEROW_VERSION}_{GLOBAL_CACHE_VERSION}_{key}__version_{version}"
+        )
 
         cached = cache.get(cache_key_to_use, SENTINEL)
 
