@@ -1163,26 +1163,14 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
         ),
         (
             ["field_123"],
-            [],
+            ["field_123"],
         ),
         (
-            ["", "field_456"],
+            ["field_456", "0", "value"],
             ["field_456"],
         ),
         (
-            ["*", "field_456"],
-            ["field_456"],
-        ),
-        (
-            ["1", "field_456"],
-            ["field_456"],
-        ),
-        (
-            ["0", "field_456", "0", "value"],
-            ["field_456"],
-        ),
-        (
-            ["0", "field_456", "0", "value", "", "", ""],
+            ["field_456", "0", "value", "", "", ""],
             ["field_456"],
         ),
     ],
@@ -1190,20 +1178,6 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
 def test_extract_properties(path, expected):
     """
     Test the extract_properties() method.
-
-    Given the input path, ensure the expected field name is returned.
-
-    An element that specifies a specific row and field:
-    ['1', 'field_5439']
-
-    An element that specifies a field and all rows:
-    ['*', 'field_5439']
-
-    A collection element (e.g. Table):
-    ['field_5439']
-
-    An element that uses a Link Row Field formula
-    ['0', 'field_5569', '0', 'value']
     """
 
     service_type = LocalBaserowListRowsUserServiceType()

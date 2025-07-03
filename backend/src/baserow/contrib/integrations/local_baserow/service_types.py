@@ -307,6 +307,43 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             return f"field_{new_field_id}" if new_field_id else None
         return property_name
 
+    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+        """
+        Given a list of formula path parts, call the ServiceType's
+        extract_properties() method and return a set of unique field IDs.
+
+        E.g. given that path is: ['field_5191', 'something'], returns the
+        following: ['field_5191']
+
+        Returns None if the Field ID is not found.
+
+        The path can contain one or more parts, depending on the field type
+        and the formula. Some examples of `path` are:
+
+        An element that specifies a specific a field:
+        ['field_5439']
+
+        An element that uses a Link Row Field formula
+        ['field_5569', '0', 'value']
+        """
+
+        # If the path length is greater or equal to 1, then we have
+        # the current data source formula format of row and field.
+
+        if len(path) >= 1:
+            field_dbname, *rest = path
+        else:
+            # In any other scenario, we have a formula that is not a format we
+            # can currently parse properly, so we return an empty list.
+            return []
+
+        # If the field_dbname doesn't start with "field_" and isn't "id" it probably
+        # means that the formula is invalid.
+        if not str(field_dbname).startswith("field_") and field_dbname != "id":
+            return []
+
+        return [field_dbname]
+
     def deserialize_property(
         self,
         prop_name: str,
@@ -919,46 +956,6 @@ class LocalBaserowListRowsUserServiceType(
 
         return [field_id, *rest]
 
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
-        """
-        Given a list of formula path parts, call the ServiceType's
-        extract_properties() method and return a set of unique field IDs.
-
-        E.g. given that path is: ['*', 'field_5191'], returns the
-        following: ['field_5191']
-
-        Returns None if the Field ID is not found.
-
-        The path can contain one or more parts, depending on the field type
-        and the formula. Some examples of `path` are:
-
-        An element that specifies a specific row and field:
-        ['1', 'field_5439']
-
-        An element that specifies a field and all rows:
-        ['*', 'field_5439']
-
-        An element that uses a Link Row Field formula
-        ['0', 'field_5569', '0', 'value']
-        """
-
-        # If the path length is greater or equal to 1, then we have
-        # the current data source formula format of row and field.
-
-        if len(path) >= 2:
-            row_id, field_dbname, *rest = path
-        else:
-            # In any other scenario, we have a formula that is not a format we
-            # can currently parse properly, so we return an empty list.
-            return []
-
-        # If the field_dbname doesn't start with "field_" and isn't "id" it probably
-        # means that the formula is invalid.
-        if not str(field_dbname).startswith("field_") and field_dbname != "id":
-            return []
-
-        return [field_dbname]
-
     def dispatch_data(
         self,
         service: LocalBaserowListRows,
@@ -1561,33 +1558,6 @@ class LocalBaserowGetRowUserServiceType(
 
         return self.import_path(path, id_mapping)
 
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
-        """
-        Given a list of formula path parts, call the ServiceType's
-        extract_properties() method and return a set of unique field names.
-
-        E.g. given that path is: ['field_5191', 'prop1', '*', 'value'], returns the
-        following: ['field_5191']
-
-        Returns an empty list if the field name isn't found.
-        """
-
-        # If the path length is greater or equal to one, then we have
-        # the current data source formula format of field and may be something else.
-        if len(path) >= 1:
-            field_dbname, *rest = path
-        else:
-            # In any other scenario, we have a formula that is not a format we
-            # can currently parse it properly, so we return an empty list.
-            return []
-
-        # If the field_dbname doesn't start with "field_" or isn't "id" it probably
-        # means that the formula is invalid.
-        if not str(field_dbname).startswith("field_") and field_dbname != "id":
-            return []
-
-        return [field_dbname]
-
     def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         """
         Responsible for serializing the `dispatch_data` row.
@@ -1798,29 +1768,6 @@ class LocalBaserowUpsertRowServiceType(
             if new_formula is not None:
                 field_mapping.value = new_formula
                 yield field_mapping
-
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
-        """
-        Given a list of formula path parts, call the ServiceType's
-        extract_properties() method and return a set of unique field names.
-
-        E.g. given that path is: ['field_5191', 'value'], returns the
-        following: ['field_5191']
-
-        Returns an empty list if the field name isn't found.
-        """
-
-        if len(path) >= 1:
-            field_dbname, *rest = path
-        else:
-            return []
-
-        # If the field_dbname doesn't start with "field_" it means that the
-        # formula is invalid.
-        if not str(field_dbname).startswith("field_") and field_dbname != "id":
-            return []
-
-        return [field_dbname]
 
     def serialize_property(
         self,

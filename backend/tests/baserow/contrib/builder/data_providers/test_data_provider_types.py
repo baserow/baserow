@@ -1399,6 +1399,7 @@ def test_data_source_data_extract_properties_calls_correct_service_type(
     expected = "123"
 
     mocked_service_type = MagicMock()
+    mocked_service_type.returns_list = False
     mocked_service_type.extract_properties.return_value = expected
     mocked_data_source = MagicMock()
     mocked_data_source.service.specific.get_type = MagicMock(
@@ -1413,6 +1414,15 @@ def test_data_source_data_extract_properties_calls_correct_service_type(
     assert result == {mocked_data_source.service_id: expected}
     mocked_get_data_source.assert_called_once_with(int(data_source_id), with_cache=True)
     mocked_service_type.extract_properties.assert_called_once_with([expected])
+
+    mocked_service_type.returns_list = True
+    mocked_service_type.extract_properties.reset_mock()
+
+    result = DataSourceDataProviderType().extract_properties(
+        [data_source_id, "1", expected]
+    )
+    mocked_service_type.extract_properties.assert_called_once_with([expected])
+    assert result == {mocked_data_source.service_id: expected}
 
 
 @pytest.mark.django_db
@@ -1495,6 +1505,7 @@ def test_data_source_context_extract_properties_calls_correct_service_type(
     expected = "123"
 
     mocked_service_type = MagicMock()
+    mocked_service_type.returns_list = False
     mocked_service_type.extract_properties.return_value = expected
     mocked_data_source = MagicMock()
     mocked_data_source.service.specific.get_type = MagicMock(
@@ -1509,6 +1520,17 @@ def test_data_source_context_extract_properties_calls_correct_service_type(
     assert result == {mocked_data_source.service_id: expected}
     mocked_get_data_source.assert_called_once_with(int(data_source_id), with_cache=True)
     mocked_service_type.extract_properties.assert_called_once_with([expected])
+
+    mocked_service_type.returns_list = True
+    mocked_service_type.extract_properties.reset_mock()
+    mocked_service_type.reset_mock()
+
+    result = DataSourceContextDataProviderType().extract_properties(
+        [data_source_id, expected]
+    )
+
+    mocked_service_type.extract_properties.assert_called_once_with([expected])
+    assert result == {mocked_data_source.service_id: expected}
 
 
 @pytest.mark.django_db
@@ -1679,8 +1701,11 @@ def test_current_record_extract_properties_calls_correct_service_type(
 
     expected_field = "field_123"
     mocked_service_type = MagicMock()
+    mocked_service_type.returns_list = True
     mocked_service_type.extract_properties.return_value = expected_field
+
     mocked_data_source = MagicMock()
+    mocked_data_source.service_id = 42
     mocked_data_source.service.specific.get_type = MagicMock(
         return_value=mocked_service_type
     )
@@ -1693,9 +1718,7 @@ def test_current_record_extract_properties_calls_correct_service_type(
 
     assert result == {mocked_data_source.service_id: expected_field}
     mock_get_data_source.assert_called_once_with(fake_element_id, with_cache=True)
-    mocked_service_type.extract_properties.assert_called_once_with(
-        ["0", expected_field]
-    )
+    mocked_service_type.extract_properties.assert_called_once_with([expected_field])
 
 
 @pytest.mark.django_db
@@ -1756,10 +1779,10 @@ def test_current_record_extract_properties_called_with_correct_path(
     if returns_list:
         if schema_property:
             mock_service_type.extract_properties.assert_called_once_with(
-                ["0", schema_property, *path]
+                [schema_property, *path]
             )
         else:
-            mock_service_type.extract_properties.assert_called_once_with(["0", *path])
+            mock_service_type.extract_properties.assert_called_once_with(path)
         assert result == {service_id: ["field_999"]}
     else:
         if schema_property:

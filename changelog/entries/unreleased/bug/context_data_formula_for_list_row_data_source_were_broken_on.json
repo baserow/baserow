@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Context data formula for list row data source were broken on published version",
+    "domain": "builder",
+    "issue_number": null,
+    "bullet_points": [],
+    "created_at": "2025-07-02"
+}

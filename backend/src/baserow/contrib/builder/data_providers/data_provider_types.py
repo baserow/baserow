@@ -212,8 +212,8 @@ class DataSourceDataProviderType(BuilderDataProviderType):
         extract_properties() method and return a dict where the keys are the
         Service IDs and the values are the field names.
 
-        E.g. given that path is: ['96', '1', 'field_5191'], returns
-        {1: ['field_5191']}.
+        E.g. given that path is: ['96', 'field_5191'] or ['86', '1', 'field_2345'],
+        returns {42: ['field_5191']}.
         """
 
         if not path:
@@ -234,6 +234,11 @@ class DataSourceDataProviderType(BuilderDataProviderType):
             raise InvalidBaserowFormula() from exc
 
         service_type = data_source.service.specific.get_type()
+
+        if service_type.returns_list:
+            # We remove the row id from the path
+            _, *rest = rest
+
         return {data_source.service_id: service_type.extract_properties(rest, **kwargs)}
 
 
@@ -285,7 +290,7 @@ class DataSourceContextDataProviderType(BuilderDataProviderType):
         extract_properties() method and return a dict where the keys are the
         Service IDs and the values are the field names.
 
-        E.g. given that path is: ['96', '1', 'field_5191'], returns
+        E.g. given that path is: ['1', 'field_5191'], returns
         {1: ['field_5191']}.
         """
 
@@ -307,6 +312,7 @@ class DataSourceContextDataProviderType(BuilderDataProviderType):
             raise InvalidBaserowFormula() from exc
 
         service_type = data_source.service.specific.get_type()
+
         return {data_source.service_id: service_type.extract_properties(rest, **kwargs)}
 
 
@@ -415,12 +421,8 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
         service_type = data_source.service.specific.get_type()
 
         if service_type.returns_list:
-            # Here we add a fake row part to make it match the usual shape
-            # for this path
             if schema_property:
-                path = ["0", schema_property, *path]
-            else:
-                path = ["0", *path]
+                path = [schema_property, *path]
         else:
             # Current Record could also use Get Row service type (via Repeat
             # element), so we need to add the field name if it is available.
