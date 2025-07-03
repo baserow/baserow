@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.db.models import Case, Value, When
 
 import pytest
+from pytest_unordered import unordered
 
 from baserow.contrib.database.fields.dependencies.update_collector import (
     FieldUpdateCollector,
