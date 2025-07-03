@@ -31,34 +31,15 @@ test.describe("Builder page show notification action test suite", () => {
     const eventsTab = await builderPagePage.getElementEventsTab();
 
     await eventsTab.getByText("add action").click();
+    await page.locator(".context").getByText("Show Notification").click();
 
     await expect(
       eventsTab.getByText("Show Notification").locator("visible=true"),
       "Checks the action was created."
     ).toBeVisible();
 
-    await expect(eventsTab.getByText("Title")).toBeVisible();
-  });
-
-  test("Can change the action of an event", async ({
-    page,
-    builderPagePage,
-  }) => {
-    await builderPagePage.selectButtonByName("Second button");
-
-    const eventsTab = await builderPagePage.getElementEventsTab();
-
-    await expect(
-      eventsTab.getByText("Show Notification").locator("visible=true"),
-      "Checks the action was created."
-    ).toBeVisible();
+    await eventsTab.getByText("Show Notification").click();
 
     await expect(eventsTab.getByText("Title")).toBeVisible();
-
-    await builderPagePage.changeDropdown("Show Notification", "Create a Row");
-
-    await expect(
-      eventsTab.getByText("Integration", { exact: true })
-    ).toBeVisible();
   });
 });

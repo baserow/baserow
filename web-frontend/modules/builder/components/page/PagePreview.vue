@@ -136,6 +136,9 @@ export default {
     PreviewNavigationBar,
   },
   inject: ['builder', 'currentPage', 'workspace'],
+  provide() {
+    return { pageTopData: this.pageTop }
+  },
   data() {
     return {
       // The element that is currently being copied
@@ -145,6 +148,8 @@ export default {
       resizeObserver: null,
 
       showElementId: false,
+      // Used as reactive provided pageTop value for ElementPreview
+      pageTop: { value: 140 },
     }
   },
   computed: {
@@ -310,11 +315,9 @@ export default {
     })
     this.resizeObserver.observe(this.$el)
     this.onWindowResized()
-
-    document.addEventListener('keydown', this.preventScrollIfFocused)
   },
-  destroyed() {
-    this.resizeObserver.unobserve(this.$el)
+  beforeDestroy() {
+    this.resizeObserver.disconnect()
     document.removeEventListener('keydown', this.preventScrollIfFocused)
   },
   methods: {
@@ -362,6 +365,10 @@ export default {
       previewScaled.style.transformOrigin = `0 0`
       previewScaled.style.width = `${currentWidth / scale}px`
       previewScaled.style.height = `${currentHeight / scale}px`
+
+      // Also update page top
+      this.pageTop.value =
+        this.$refs.preview.getBoundingClientRect().top + 30 * scale
     },
     async moveElement({ element, direction }) {
       if (

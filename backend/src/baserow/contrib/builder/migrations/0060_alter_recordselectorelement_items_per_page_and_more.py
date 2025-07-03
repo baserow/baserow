@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("builder", "0058_delete_uid_from_dandling_applications"),
+        ("builder", "0059_alter_collectionfield_name"),
     ]
 
     operations = [

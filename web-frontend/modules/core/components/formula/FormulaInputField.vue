@@ -153,7 +153,13 @@ export default {
       ]
     },
     htmlContent() {
-      return generateHTML(this.content, this.extensions)
+      try {
+        return generateHTML(this.content, this.extensions)
+      } catch (e) {
+        console.error('Error while parsing formula content', this.value)
+        console.error(e)
+        return generateHTML(this.toContent(''), this.extensions)
+      }
     },
     wrapperContent() {
       return this.editor.getJSON()

@@ -1,6 +1,134 @@
 <template>
-  <Expandable>
-    <template #header="{ toggle, expanded }">
+  <SidebarExpandable
+    v-if="!isStyle"
+    toggle-on-click
+    :default-expanded="preventItemNesting ? true : null"
+  >
+    <template #title>
+      <Icon :icon="icon" />
+      <span>{{ values.name }}</span>
+      <Icon
+        v-if="errorMessage"
+        :key="errorMessage"
+        v-tooltip="errorMessage"
+        icon="iconoir-warning-circle"
+        size="medium"
+        type="error"
+      />
+    </template>
+    <template #default>
+      <div v-if="values.type === 'button'">
+        <FormGroup
+          small-label
+          horizontal
+          required
+          class="margin-bottom-2"
+          :label="$t('menuElementForm.menuItemLabelLabel')"
+          :error="fieldHasErrors('name')"
+        >
+          <FormInput
+            v-model="v$.values.name.$model"
+            :placeholder="$t('menuElementForm.namePlaceholder')"
+            :error="fieldHasErrors('name')"
+          />
+          <template #error>
+            {{ v$.values.name.$errors[0]?.$message }}
+          </template>
+          <template #after-input>
+            <ButtonIcon icon="iconoir-bin" @click="removeMenuItem()" />
+          </template>
+        </FormGroup>
+        <Alert type="info-neutral">
+          <p>{{ $t('menuElementForm.eventDescription') }}</p>
+        </Alert>
+      </div>
+
+      <div v-else>
+        <FormGroup
+          small-label
+          horizontal
+          required
+          class="margin-bottom-2"
+          :label="$t('menuElementForm.menuItemLabelLabel')"
+          :error="fieldHasErrors('name')"
+        >
+          <FormInput
+            v-model="v$.values.name.$model"
+            :placeholder="$t('menuElementForm.namePlaceholder')"
+            :error="fieldHasErrors('name')"
+          />
+          <template #error>
+            {{ v$.values.name.$errors[0]?.$message }}
+          </template>
+          <template #after-input>
+            <ButtonIcon icon="iconoir-bin" @click="removeMenuItem()" />
+          </template>
+        </FormGroup>
+
+        <FormGroup
+          small-label
+          horizontal
+          required
+          :label="$t('menuElementForm.menuItemVariantLabel')"
+          class="margin-bottom-2"
+        >
+          <Dropdown
+            :value="values.variant"
+            :show-search="false"
+            @input="values.variant = $event"
+          >
+            <DropdownItem
+              v-for="itemVariant in menuItemVariants"
+              :key="itemVariant.value"
+              :name="itemVariant.label"
+              :value="itemVariant.value"
+            />
+          </Dropdown>
+        </FormGroup>
+
+        <LinkNavigationSelectionForm
+          v-if="!values.children.length"
+          :default-values="defaultValues"
+          @values-changed="values = { ...values, ...$event }"
+        />
+        <div class="menu-element-item-form__children">
+          <MenuElementItemForm
+            v-for="(child, index) in values.children"
+            :key="`${child.uid}-${index}`"
+            v-sortable="{
+              id: child.uid,
+              update: orderChildItems,
+              enabled: $hasPermission(
+                'builder.page.element.update',
+                element,
+                workspace.id
+              ),
+              handle: '[data-sortable-handle]',
+            }"
+            icon="iconoir-link"
+            prevent-item-nesting
+            :default-values="child"
+            @remove-item="removeChildItem($event)"
+            @values-changed="updateChildItem"
+          />
+        </div>
+      </div>
+    </template>
+    <template v-if="values.type === 'link' && !preventItemNesting" #footer>
+      <div class="menu-element-form__add-sub-link-container">
+        <ButtonText
+          type="primary"
+          icon="iconoir-plus"
+          size="small"
+          @click="addSubLink()"
+        >
+          {{ $t('menuElementForm.addSubLink') }}
+        </ButtonText>
+      </div>
+    </template>
+  </SidebarExpandable>
+  <div v-else>
+    <div class="menu-element-form__item-wrapper">
       <div
         class="menu-element-form__item-header"
         :class="{
@@ -9,151 +137,22 @@
         @click.stop="!isStyle ? toggle() : null"
       >
         <div class="menu-element-form__item-handle" data-sortable-handle />
-        <div class="menu-element-form__item-name">
-          <template v-if="values.type === 'separator'">
+        <div class="menu-element-form__item-title">
+          <Icon :icon="icon" />
+          <span v-if="values.type === 'separator'">
             {{ $t('menuElement.separator') }}
-          </template>
-          <template v-else-if="values.type === 'spacer'">
+          </span>
+          <span v-else-if="values.type === 'spacer'">
             {{ $t('menuElement.spacer') }}
-          </template>
-          <template v-else>
-            {{ values.name }}
-          </template>
+          </span>
         </div>
-
-        <template v-if="isStyle">
-          <ButtonIcon
-            size="small"
-            icon="iconoir-bin"
-            @click="removeMenuItem(values)"
-          />
-        </template>
-        <template v-else>
-          <i
-            :class="
-              expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
-            "
-          />
-        </template>
+        <i
+          class="menu-element-form__item-delete iconoir-bin"
+          @click="removeMenuItem(values)"
+        />
       </div>
-    </template>
-    <template v-if="!isStyle" #default>
-      <div
-        class="menu-element-form__item"
-        :class="{ 'menu-element-form__item-child': preventItemNesting }"
-      >
-        <div v-if="values.type === 'button'">
-          <FormGroup
-            small-label
-            horizontal
-            required
-            class="margin-bottom-2"
-            :label="$t('menuElementForm.menuItemLabelLabel')"
-            :error="fieldHasErrors('name')"
-          >
-            <FormInput
-              v-model="v$.values.name.$model"
-              :placeholder="$t('menuElementForm.namePlaceholder')"
-              :error="fieldHasErrors('name')"
-            />
-            <template #error>
-              {{ v$.values.name.$errors[0]?.$message }}
-            </template>
-            <template #after-input>
-              <ButtonIcon icon="iconoir-bin" @click="removeMenuItem()" />
-            </template>
-          </FormGroup>
-          <Alert type="info-neutral">
-            <p>{{ $t('menuElementForm.eventDescription') }}</p>
-          </Alert>
-        </div>
-
-        <div v-else>
-          <FormGroup
-            small-label
-            horizontal
-            required
-            class="margin-bottom-2"
-            :label="$t('menuElementForm.menuItemLabelLabel')"
-            :error="fieldHasErrors('name')"
-          >
-            <FormInput
-              v-model="v$.values.name.$model"
-              :placeholder="$t('menuElementForm.namePlaceholder')"
-              :error="fieldHasErrors('name')"
-            />
-            <template #error>
-              {{ v$.values.name.$errors[0]?.$message }}
-            </template>
-            <template #after-input>
-              <ButtonIcon icon="iconoir-bin" @click="removeMenuItem()" />
-            </template>
-          </FormGroup>
-
-          <FormGroup
-            small-label
-            horizontal
-            required
-            :label="$t('menuElementForm.menuItemVariantLabel')"
-            class="margin-bottom-2"
-          >
-            <Dropdown
-              :value="values.variant"
-              :show-search="false"
-              @input="values.variant = $event"
-            >
-              <DropdownItem
-                v-for="itemVariant in menuItemVariants"
-                :key="itemVariant.value"
-                :name="itemVariant.label"
-                :value="itemVariant.value"
-              />
-            </Dropdown>
-          </FormGroup>
-
-          <LinkNavigationSelectionForm
-            v-if="!values.children.length"
-            :default-values="defaultValues"
-            @values-changed="values = { ...values, ...$event }"
-          />
-          <div class="menu-element-item-form__children">
-            <MenuElementItemForm
-              v-for="(child, index) in values.children"
-              :key="`${child.uid}-${index}`"
-              v-sortable="{
-                id: child.uid,
-                update: orderChildItems,
-                enabled: $hasPermission(
-                  'builder.page.element.update',
-                  element,
-                  workspace.id
-                ),
-                handle: '[data-sortable-handle]',
-              }"
-              prevent-item-nesting
-              :default-values="child"
-              @remove-item="removeChildItem($event)"
-              @values-changed="updateChildItem"
-            ></MenuElementItemForm>
-          </div>
-
-          <div
-            v-if="!preventItemNesting"
-            class="menu-element-form__add-sub-link-container"
-          >
-            <ButtonText
-              type="primary"
-              icon="iconoir-plus"
-              size="small"
-              @click="addSubLink()"
-            >
-              {{ $t('menuElementForm.addSubLink') }}
-            </ButtonText>
-          </div>
-        </div>
-      </div>
-    </template>
-  </Expandable>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -167,11 +166,14 @@ import {
   uuid,
 } from '@baserow/modules/core/utils/string'
 import { LINK_VARIANTS } from '@baserow/modules/builder/enums'
+import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpandable.vue'
+import { MenuElementType } from '@baserow/modules/builder/elementTypes'
 
 export default {
   name: 'MenuElementItemForm',
   components: {
     LinkNavigationSelectionForm,
+    SidebarExpandable,
   },
   mixins: [elementForm],
   props: {
@@ -183,6 +185,10 @@ export default {
     preventItemNesting: {
       type: Boolean,
       default: false,
+    },
+    icon: {
+      type: String,
+      required: true,
     },
   },
   setup() {
@@ -196,8 +202,26 @@ export default {
         type: '',
         variant: '',
         children: [],
+        navigation_type: 'page',
+        navigate_to_page_id: null,
+        navigate_to_url: '',
+        page_parameters: [],
+        query_parameters: [],
+        target: 'self',
       },
-      allowedValues: ['uid', 'name', 'type', 'variant', 'children'],
+      allowedValues: [
+        'uid',
+        'name',
+        'type',
+        'variant',
+        'children',
+        'navigation_type',
+        'navigate_to_page_id',
+        'navigate_to_url',
+        'page_parameters',
+        'query_parameters',
+        'target',
+      ],
     }
   },
   computed: {
@@ -221,6 +245,16 @@ export default {
           value: LINK_VARIANTS.BUTTON,
         },
       ]
+    },
+    errorMessage() {
+      return this.$registry
+        .get('element', MenuElementType.getType())
+        .getItemMenuError({
+          menuItem: this.values,
+          builder: this.builder,
+          page: this.elementPage,
+          element: this.element,
+        })
     },
   },
   methods: {

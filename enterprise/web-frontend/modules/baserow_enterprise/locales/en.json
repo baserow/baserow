@@ -573,6 +573,10 @@
     "crossoriginTypeAnonymous": "Anonymous",
     "crossoriginTypeCredentials": "Use credentials"
   },
+  "elementType": {
+    "errorUserSourceHasNoLoginOption": "The selected user source has no login option",
+    "errorUserSourceMissing": "No user source selected"
+  },
   "fieldPermissionsMenuItem": {
     "label": "Edit field permissions"
   }

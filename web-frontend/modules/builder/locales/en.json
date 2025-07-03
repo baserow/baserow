@@ -136,7 +136,26 @@
     "simpleContainer": "Container",
     "simpleContainerDescription": "A container for other elements",
     "fileInput": "File input",
-    "fileInputDescription": "An input to upload files"
+    "fileInputDescription": "An input to upload files",
+    "errorValueMissing": "Missing value property",
+    "errorEmptyContainer": "This container is empty",
+    "errorParentWithDataSourceMissing": "No data source selected on the element or a parent container",
+    "errorDataSourceMissing": "No data source selected",
+    "errorSchemaPropertyMissing": "No schema property selected",
+    "errorWorkflowActionInError": "At least one action is misconfigured",
+    "errorCollectionFieldInError": "At least one field is misconfigured",
+    "errorNavigateToPageMissing": "Missing Navigate to property",
+    "errorPageParameterInError": "At least one page parameter is misconfigured",
+    "errorNavigationUrlMissing": "Missing Navigation URL property",
+    "errorImageFileMissing": "Missing Image file",
+    "errorImageUrlMissing": "Missing Image URL property",
+    "errorNoWorkflowAction": "No workflow action configured",
+    "errorOptionsMissing": "No option configured",
+    "errorIframeUrlMissing": "Missing IFrame URL property",
+    "errorIframeContentMissing": "Missing IFrame content",
+    "errorNoMenuItem": "No menu item configured",
+    "errorMenuItemInError": "At least one menu is misconfigured",
+    "errorSubMenuItemInError": "At least one sub menu is misconfigured"
   },
   "addElementButton": {
     "label": "Element"
@@ -705,6 +724,7 @@
     "itemsPerPage": "Items per page",
     "fieldDefaultName": "Column",
     "name": "Name",
+    "noName": "No name",
     "fieldType": "Type",
     "itemsPerPagePlaceholder": "Enter value...",
     "selectSourceFirst": "Choose a data source and/or property to begin configuring your fields.",
@@ -779,7 +799,11 @@
     "openPageLabel": "Open Page",
     "logoutLabel": "Logout",
     "refreshDataSourceLabel": "Refresh data source",
-    "httpRequest": "Send HTTP request"
+    "httpRequest": "Send HTTP request",
+    "errorNavigateToPageMissing": "Missing Navigate to property",
+    "errorPageParameterInError": "At least one page parameter is misconfigured",
+    "errorNavigationUrlMissing": "Missing Navigation URL property",
+    "errorDataSourceMissing": "No data source selected"
   },
   "notificationWorkflowActionForm": {
     "titleLabel": "Title",

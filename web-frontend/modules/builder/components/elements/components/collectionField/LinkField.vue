@@ -17,7 +17,8 @@ export default {
     },
     linkName: {
       type: String,
-      required: true,
+      required: false,
+      default: null,
     },
     target: {
       type: String,
@@ -30,7 +31,7 @@ export default {
   },
   computed: {
     realLinkName() {
-      if (this.linkName) {
+      if (this.linkName !== null) {
         return this.linkName
       } else {
         return this.$t('linkField.details')

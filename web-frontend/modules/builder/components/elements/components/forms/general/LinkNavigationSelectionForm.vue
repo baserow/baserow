@@ -9,14 +9,17 @@
       <Dropdown v-model="navigateTo" :show-search="false">
         <template #selectedValue>
           <template v-if="destinationPage">
-            {{ destinationPage.name }}
+            <span
+              v-tooltip:[tooltipOptions]="destinationPagePathWithParams"
+              class="link-navigation-selection-form__navigate-option-page-name"
+            >
+              {{ destinationPage.name }}
+            </span>
             <span
               v-tooltip:[tooltipOptions]="destinationPagePathWithParams"
               class="link-navigation-selection-form__navigate-option-page-path"
             >
-              <span>
-                {{ destinationPagePathWithParams }}
-              </span>
+              {{ destinationPagePathWithParams }}
             </span>
           </template>
           <span v-else>{{

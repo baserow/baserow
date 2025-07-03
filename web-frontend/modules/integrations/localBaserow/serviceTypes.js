@@ -33,6 +33,21 @@ export class LocalBaserowTableServiceType extends ServiceType {
   }
 
   /**
+   * Responsible for determining if this service is in error. It will be if the
+   * `table_id` is missing.
+   * @param service - The service object.
+   * @returns {boolean} - If the service is valid.
+   */
+  getErrorMessage({ service }) {
+    if (service !== undefined) {
+      if (!service.table_id) {
+        return this.app.i18n.t('serviceType.errorNoTableSelected')
+      }
+    }
+    return super.getErrorMessage({ service })
+  }
+
+  /**
    * Responsible for returning the description of the service. This is used in
    * the UI to display a human-readable description of the service.
    *
@@ -58,7 +73,7 @@ export class LocalBaserowTableServiceType extends ServiceType {
     }
 
     if (this.isInError({ service })) {
-      description += ` - ${this.app.i18n.t('serviceType.misconfigured')}`
+      description += ` - ${this.getErrorMessage({ service })}`
     }
 
     return description
@@ -79,13 +94,21 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
    * @param service - The service object.
    * @returns {boolean} - If the service is valid.
    */
-  isInError({ service }) {
-    if (service === undefined) {
-      return false
+  getErrorMessage({ service }) {
+    if (service !== undefined) {
+      const filtersInError = service.filters?.some((filter) => filter.trashed)
+      if (filtersInError) {
+        return this.app.i18n.t('serviceType.errorfilterInError')
+      }
+
+      const sortingsInError = service.sortings?.some(
+        (sorting) => sorting.trashed
+      )
+      if (sortingsInError) {
+        return this.app.i18n.t('serviceType.errorSortingInError')
+      }
     }
-    const filtersInError = service.filters.some((filter) => filter.trashed)
-    const sortingsInError = service.sortings.some((sorting) => sorting.trashed)
-    return Boolean(!service.table_id || filtersInError || sortingsInError)
+    return super.getErrorMessage({ service })
   }
 }
 
@@ -280,17 +303,20 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
     return null
   }
 
-  isInError({ service }) {
-    if (service === undefined) {
-      return false
+  getErrorMessage({ service }) {
+    if (service !== undefined) {
+      if (!service.field_id) {
+        return this.app.i18n.t('serviceType.errorNoFieldSelected')
+      }
+      if (!service.aggregation_type) {
+        return this.app.i18n.t('serviceType.errorNoAggregationTypeSelected')
+      }
+      const filtersInError = service.filters.some((filter) => filter.trashed)
+      if (filtersInError) {
+        return this.app.i18n.t('serviceType.errorFilterInError')
+      }
     }
-    const filtersInError = service.filters.some((filter) => filter.trashed)
-    return Boolean(
-      !service.table_id ||
-        !service.field_id ||
-        !service.aggregation_type ||
-        filtersInError
-    )
+    return super.getErrorMessage({ service })
   }
 
   getDescription(service, application) {
@@ -392,11 +418,13 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
 export class LocalBaserowTriggerServiceType extends TriggerServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
-  isInError({ service }) {
-    if (service === undefined) {
-      return false
+  getErrorMessage({ service }) {
+    if (service !== undefined) {
+      if (!service.table_id) {
+        this.app.i18n.t('serviceType.errorNoTableSelected')
+      }
     }
-    return Boolean(!service.table_id)
+    return super.getErrorMessage({ service })
   }
 }
 

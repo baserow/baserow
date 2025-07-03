@@ -51,12 +51,21 @@ export class CollectionFieldType extends Registerable {
   }
 
   /**
+   * Returns error message explaining why the collection field is misconfigured.
+   * @param {object} param An object containing the collection field and the builder
+   * @returns The error message if the field is misconfigured, null otherwise.
+   */
+  getErrorMessage({ field, element, builder }) {
+    return null
+  }
+
+  /**
    * Returns whether the collection field configuration is valid or not.
    * @param {object} param An object containing the collection field and the builder
    * @returns true if the collection field is in error
    */
-  isInError({ field, builder }) {
-    return false
+  isInError(params) {
+    return Boolean(this.getErrorMessage(params))
   }
 
   getStyleOverride({ colorVariables, field, theme }) {
@@ -94,6 +103,13 @@ export class BooleanCollectionFieldType extends CollectionFieldType {
     }
   }
 
+  getErrorMessage({ field, element, builder }) {
+    if (!field.value) {
+      return this.app.i18n.t('collectionFieldType.errorValueMissing')
+    }
+    return super.getErrorMessage({ field, element, builder })
+  }
+
   getOrder() {
     return 5
   }
@@ -114,6 +130,13 @@ export class TextCollectionFieldType extends CollectionFieldType {
 
   get formComponent() {
     return TextFieldForm
+  }
+
+  getErrorMessage({ field, element, builder }) {
+    if (!field.value) {
+      return this.app.i18n.t('elementType.errorValueMissing')
+    }
+    return super.getErrorMessage({ field, element, builder })
   }
 
   getProps(field, { resolveFormula, applicationContext }) {
@@ -146,7 +169,9 @@ export class LinkCollectionFieldType extends CollectionFieldType {
     const defaultProps = {
       url: '',
       navigationType: field.navigation_type || '',
-      linkName: ensureString(resolveFormula(field.link_name)),
+      linkName: field.link_name
+        ? ensureString(resolveFormula(field.link_name))
+        : null,
       target: field.target || 'self',
       variant: field.variant || LINK_VARIANTS.LINK,
     }
@@ -175,11 +200,24 @@ export class LinkCollectionFieldType extends CollectionFieldType {
    * @param {object} param An object containing the link field and the builder
    * @returns true if the link field is in error
    */
-  isInError({ field, builder }) {
-    return pathParametersInError(
-      field,
-      this.app.store.getters['page/getVisiblePages'](builder)
-    )
+  getErrorMessage({ field, element, builder }) {
+    if (field.navigation_type === 'page') {
+      if (!field.navigate_to_page_id) {
+        return this.app.i18n.t('elementType.errorNavigateToPageMissing')
+      }
+      if (
+        pathParametersInError(
+          field,
+          this.app.store.getters['page/getVisiblePages'](builder)
+        )
+      ) {
+        return this.app.i18n.t('elementType.errorPageParameterInError')
+      }
+    } else if (field.navigation_type === 'custom' && !field.navigate_to_url) {
+      return this.app.i18n.t('elementType.errorNavigationUrlMissing')
+    }
+
+    return super.getErrorMessage({ field, element, builder })
   }
 }
 
@@ -198,6 +236,13 @@ export class TagsCollectionFieldType extends CollectionFieldType {
 
   get formComponent() {
     return TagsFieldForm
+  }
+
+  getErrorMessage({ field, element, builder }) {
+    if (!field.values) {
+      return this.app.i18n.t('elementType.errorValueMissing')
+    }
+    return super.getErrorMessage({ field, element, builder })
   }
 
   getProps(field, { resolveFormula, applicationContext }) {
@@ -260,6 +305,13 @@ export class ImageCollectionFieldType extends CollectionFieldType {
     return ImageFieldForm
   }
 
+  getErrorMessage({ field, element, builder }) {
+    if (!field.src) {
+      return this.app.i18n.t('elementType.errorImageUrlMissing')
+    }
+    return super.getErrorMessage({ field, element, builder })
+  }
+
   getProps(field, { resolveFormula, applicationContext }) {
     const srcs = ensureArray(resolveFormula(field.src))
     const alts = ensureArray(resolveFormula(field.alt))
@@ -286,6 +338,13 @@ export class RatingCollectionFieldType extends CollectionFieldType {
 
   get formComponent() {
     return RatingFieldForm
+  }
+
+  getErrorMessage({ field, element, builder }) {
+    if (!field.value) {
+      return this.app.i18n.t('collectionFieldType.errorValueMissing')
+    }
+    return super.getErrorMessage({ field, element, builder })
   }
 
   getProps(field, { resolveFormula, applicationContext }) {

@@ -1,36 +1,36 @@
 <template>
-  <div>
-    <div class="workflow-action__header">
-      <div
-        class="workflow-action__header-handle margin-right-1"
-        data-sortable-handle
-        @mousedown.prevent
-      ></div>
-      <WorkflowActionSelector
-        class="flex-grow-1"
-        :available-workflow-action-types="availableWorkflowActionTypes"
-        :workflow-action="workflowAction"
-        :disabled="loading"
-        @change="updateWorkflowAction({ type: $event })"
-        @delete="$emit('delete')"
+  <SidebarExpandable :force-expanded="expanded" @toggle="$emit('toggle')">
+    <template #title>
+      <Icon :icon="workflowActionType.icon" />
+      <span>{{ workflowActionType.label }}</span>
+      <Icon
+        v-if="errorMessage"
+        :key="errorMessage"
+        v-tooltip="errorMessage"
+        icon="iconoir-warning-circle"
+        size="medium"
+        type="error"
       />
-    </div>
-
-    <component
-      :is="workflowActionType.form"
-      v-if="workflowActionType.form"
-      ref="actionForm"
-      :workflow-action="workflowAction"
-      :default-values="workflowAction"
-      class="margin-top-2"
-      @values-changed="updateWorkflowAction($event)"
-    ></component>
-    <div v-else class="workflow-action__placeholder" />
-  </div>
+    </template>
+    <template v-if="workflowActionType.form" #default>
+      <component
+        :is="workflowActionType.form"
+        ref="actionForm"
+        :workflow-action="workflowAction"
+        :default-values="workflowAction"
+        @values-changed="updateWorkflowAction($event)"
+      />
+    </template>
+    <template #footer>
+      <ButtonText icon="iconoir-bin" @click="$emit('delete')">
+        {{ $t('action.delete') }}
+      </ButtonText>
+    </template>
+  </SidebarExpandable>
 </template>
 
 <script>
-import WorkflowActionSelector from '@baserow/modules/core/components/workflowActions/WorkflowActionSelector.vue'
+import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpandable.vue'
 import _ from 'lodash'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions } from 'vuex'
@@ -38,7 +38,7 @@ import applicationContext from '@baserow/modules/builder/mixins/applicationConte
 
 export default {
   name: 'WorkflowAction',
-  components: { WorkflowActionSelector },
+  components: { SidebarExpandable },
   mixins: [applicationContext],
   inject: ['builder', 'elementPage', 'mode'],
   props: {
@@ -55,6 +55,11 @@ export default {
       type: Object,
       required: true,
     },
+    expanded: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   data() {
     return { loading: false }
@@ -64,6 +69,12 @@ export default {
       return this.availableWorkflowActionTypes.find(
         (workflowActionType) =>
           workflowActionType.getType() === this.workflowAction.type
+      )
+    },
+    errorMessage() {
+      return this.workflowActionType.getErrorMessage(
+        this.workflowAction,
+        this.applicationContext
       )
     },
   },

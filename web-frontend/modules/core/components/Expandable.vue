@@ -11,7 +11,7 @@
         'expandable__header--card': card,
         'expandable--toggle-on-click': toggleOnClick,
       }"
-      @click="toggleOnClick && toggle()"
+      @click="onClick()"
     >
       <slot name="header" :toggle="toggle" :expanded="expanded" />
     </div>
@@ -66,6 +66,13 @@ export default {
     },
   },
   methods: {
+    onClick() {
+      if (this.toggleOnClick) {
+        this.toggle()
+      }
+
+      this.$emit('toggle')
+    },
     toggle() {
       this.expandedState = !this.expandedState
     },

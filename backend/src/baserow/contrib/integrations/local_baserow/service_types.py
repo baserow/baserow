@@ -173,6 +173,8 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
     allowed_fields = ["table", "integration"]
     serializer_field_names = ["table_id", "integration_id"]
+    # table_id is needed to check configuration
+    public_serializer_field_names = ["table_id"]
     serializer_field_overrides = {
         "table_id": serializers.IntegerField(
             required=False,

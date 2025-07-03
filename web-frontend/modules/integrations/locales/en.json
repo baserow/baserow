@@ -29,7 +29,13 @@
     "localBaserowRowsDeletedDescription": "Triggered when rows are deleted in a Baserow table.",
     "coreHTTPRequest": "Send HTTP request",
     "misconfigured": "Misconfigured",
-    "trashedField": "Trashed field"
+    "trashedField": "Trashed field",
+    "errorUrlMissing": "Missing Url property",
+    "errorNoTableSelected": "No table selected",
+    "errorFilterInError": "At least one filter is misconfigured",
+    "errorSortingInError": "At least one sort is misconfigured",
+    "errorNoFieldSelected": "No field selected",
+    "errorNoAggregationTypeSelected": "No aggregation type selected"
   },
   "userSourceType": {
     "localBaserow": "Baserow table authentication"

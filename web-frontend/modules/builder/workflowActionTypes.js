@@ -20,6 +20,10 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
     return 'notification'
   }
 
+  get icon() {
+    return 'iconoir-chat-bubble-empty'
+  }
+
   get form() {
     return NotificationWorkflowActionForm
   }
@@ -45,6 +49,10 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
     return 'open_page'
   }
 
+  get icon() {
+    return 'iconoir-open-in-window'
+  }
+
   get form() {
     return OpenPageWorkflowActionForm
   }
@@ -59,11 +67,29 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
    * @param {object} param An object containing application context data.
    * @returns true if the open page action is in error
    */
-  isInError(workflowAction, { element, builder }) {
-    return pathParametersInError(
-      workflowAction,
-      this.app.store.getters['page/getVisiblePages'](builder)
-    )
+  getErrorMessage(workflowAction, applicationContext) {
+    if (workflowAction.navigation_type === 'page') {
+      if (!workflowAction.navigate_to_page_id) {
+        return this.app.i18n.t('workflowActionTypes.errorNavigateToPageMissing')
+      }
+      if (
+        pathParametersInError(
+          workflowAction,
+          this.app.store.getters['page/getVisiblePages'](
+            applicationContext.builder
+          )
+        )
+      ) {
+        return this.app.i18n.t('workflowActionTypes.errorPageParameterInError')
+      }
+    } else if (
+      workflowAction.navigation_type === 'custom' &&
+      !workflowAction.navigate_to_url
+    ) {
+      return this.app.i18n.t('workflowActionTypes.errorNavigationUrlMissing')
+    }
+
+    return super.getErrorMessage(workflowAction, applicationContext)
   }
 
   execute({
@@ -113,6 +139,10 @@ export class LogoutWorkflowActionType extends WorkflowActionType {
     return 'logout'
   }
 
+  get icon() {
+    return 'iconoir-log-out'
+  }
+
   get form() {
     return null
   }
@@ -137,12 +167,24 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
     return 'refresh_data_source'
   }
 
+  get icon() {
+    return 'iconoir-refresh'
+  }
+
   get form() {
     return RefreshDataSourceWorkflowActionForm
   }
 
   get label() {
     return this.app.i18n.t('workflowActionTypes.refreshDataSourceLabel')
+  }
+
+  getErrorMessage(workflowAction, applicationContext) {
+    if (!workflowAction.data_source_id) {
+      return this.app.i18n.t('workflowActionTypes.errorDataSourceMissing')
+    }
+
+    return super.getErrorMessage(workflowAction, applicationContext)
   }
 
   async execute({ workflowAction, applicationContext }) {
@@ -230,8 +272,16 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return null
   }
 
-  isInError(workflowAction, { element, builder }) {
-    return this.serviceType.isInError({ service: workflowAction.service })
+  getErrorMessage(workflowAction, applicationContext) {
+    const serviceError = this.serviceType.getErrorMessage({
+      service: workflowAction.service,
+    })
+
+    if (serviceError) {
+      return serviceError
+    }
+
+    return super.getErrorMessage(workflowAction, applicationContext)
   }
 
   get serviceType() {
@@ -242,6 +292,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
 export class CoreHTTPRequestWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'http_request'
+  }
+
+  get icon() {
+    return 'iconoir-cloud-upload'
   }
 
   get serviceType() {
@@ -261,6 +315,10 @@ export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
     return 'create_row'
   }
 
+  get icon() {
+    return 'baserow-icon-plus'
+  }
+
   get serviceType() {
     return this.app.$registry.get(
       'service',
@@ -274,6 +332,10 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
     return 'update_row'
   }
 
+  get icon() {
+    return 'iconoir-edit-pencil'
+  }
+
   get serviceType() {
     return this.app.$registry.get(
       'service',
@@ -285,6 +347,10 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
 export class DeleteRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'delete_row'
+  }
+
+  get icon() {
+    return 'iconoir-bin'
   }
 
   get serviceType() {

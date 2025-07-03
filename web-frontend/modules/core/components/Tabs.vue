@@ -14,6 +14,7 @@
         v-for="(tab, index) in tabs"
         :key="`${tab.title} ${tab.tooltip}`"
         v-tooltip="tab.tooltip"
+        :tooltip-position="tab.tooltipPosition"
         class="tabs__item"
         :class="{
           'tabs__item--active': isActive(index),
