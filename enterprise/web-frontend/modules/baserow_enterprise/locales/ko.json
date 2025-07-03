@@ -586,7 +586,10 @@
         "typeCSS": "CSS",
         "typeJS": "Javascript",
         "loadTypeNone": "일반",
-        "loadTypeDefer": "지연 실행",
-        "loadTypeAsync": "비동기"
+        "loadTypeDefer": "지연",
+        "loadTypeAsync": "비동기",
+        "crossoriginTypeNone": "일반",
+        "crossoriginTypeAnonymous": "익명",
+        "crossoriginTypeCredentials": "자격 증명 사용"
     }
 }
