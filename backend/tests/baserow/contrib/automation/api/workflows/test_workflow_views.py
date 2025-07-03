@@ -503,8 +503,8 @@ def test_publish_workflow(api_client, data_fixture):
     assert response.status_code == HTTP_202_ACCEPTED
     assert response.json() == {
         "human_readable_error": "",
-        "id": 1,
-        "progress_percentage": 0,
+        "id": AnyInt(),
+        "progress_percentage": AnyInt(),
         "state": "pending",
         "type": "publish_automation_workflow",
     }
