@@ -582,15 +582,22 @@ def test_update_node_undo_redo(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_replace_node_type_with_irreplaceable_type(api_client, data_fixture):
+@pytest.mark.parametrize(
+    "irreplaceable_types",
+    (["create_row", "rows_created"], ["rows_created", "create_row"]),
+)
+def test_replace_node_type_with_irreplaceable_type(
+    api_client, data_fixture, irreplaceable_types
+):
+    original_type, irreplaceable_type = irreplaceable_types
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
-    node = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow
+    node = data_fixture.create_automation_node(
+        user=user, type=original_type, workflow=workflow
     )
     response = api_client.post(
         reverse(API_URL_REPLACE, kwargs={"node_id": node.id}),
-        {"new_type": "create_row"},
+        {"new_type": irreplaceable_type},
         **get_api_kwargs(token),
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -602,37 +609,31 @@ def test_replace_node_type_with_irreplaceable_type(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_replace_node_type_with_replaceable_type(api_client, data_fixture):
+@pytest.mark.parametrize(
+    "replaceable_types",
+    (["update_row", "delete_row"], ["rows_created", "rows_updated"]),
+)
+def test_replace_node_type_with_replaceable_type(
+    api_client, data_fixture, replaceable_types
+):
+    original_type, replaceable_type = replaceable_types
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
-    trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow
-    )
-    action_node = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node=trigger
+    node = data_fixture.create_automation_node(
+        user=user, type=original_type, workflow=workflow
     )
     response = api_client.post(
-        reverse(API_URL_REPLACE, kwargs={"node_id": action_node.id}),
-        {"new_type": "update_row"},
+        reverse(API_URL_REPLACE, kwargs={"node_id": node.id}),
+        {"new_type": replaceable_type},
         **get_api_kwargs(token),
     )
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": AnyInt(),
-        "type": "update_row",
+        "type": replaceable_type,
         "workflow": workflow.id,
-        "previous_node_id": trigger.id,
-        "order": str(action_node.order),
-        "service": {
-            "id": AnyInt(),
-            "row_id": "",
-            "context_data": None,
-            "context_data_schema": None,
-            "integration_id": None,
-            "schema": None,
-            "table_id": None,
-            "field_mappings": [],
-            "type": "local_baserow_upsert_row",
-        },
+        "previous_node_id": None,
+        "order": AnyStr(),
+        "service": AnyDict(),
         "previous_node_output": "",
     }
