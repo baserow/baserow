@@ -1054,7 +1054,7 @@ class DatabaseConfig(AppConfig):
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.database.data_sync.signals  # noqa: F403, F401
-        import baserow.contrib.database.search.signals  # noqa: F403, F401
+        import baserow.contrib.database.search.receivers  # noqa: F403, F401
         import baserow.contrib.database.ws.signals  # noqa: F403, F401
 
         post_migrate.connect(safely_update_formula_versions, sender=self)

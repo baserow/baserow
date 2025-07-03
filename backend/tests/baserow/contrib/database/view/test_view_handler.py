@@ -16,7 +16,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.handler import ALL_SEARCH_MODES, SearchHandler
+from baserow.contrib.database.search.handler import ALL_SEARCH_MODES
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.exceptions import (
     CannotShareViewTypeError,
@@ -2275,27 +2275,25 @@ def test_get_public_rows_queryset_and_field_ids_view_filters_applied(data_fixtur
     assert list(field_ids) == [field.id]
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
 def test_get_public_rows_queryset_and_field_ids_view_search(data_fixture, search_mode):
     grid_view = data_fixture.create_grid_view(public=True)
-    field = data_fixture.create_number_field(table=grid_view.table)
+    table = grid_view.table
+    field = data_fixture.create_number_field(table=table)
     data_fixture.create_grid_view_field_option(grid_view, field, hidden=False)
 
-    model = grid_view.table.get_model()
-    model.objects.create(**{f"field_{field.id}": 4})
-    model.objects.create(**{f"field_{field.id}": 5})
-    model.objects.create(**{f"field_{field.id}": 6})
-
-    SearchHandler.update_tsvector_columns(
-        field.table, update_tsvectors_for_changed_rows_only=False
+    RowHandler().force_create_rows(
+        None,
+        table,
+        [
+            {f"field_{field.id}": 4},
+            {f"field_{field.id}": 5},
+            {f"field_{field.id}": 6},
+        ],
     )
 
-    (
-        queryset,
-        field_ids,
-        publicly_visible_field_options,
-    ) = ViewHandler().get_public_rows_queryset_and_field_ids(
+    queryset, _, _ = ViewHandler().get_public_rows_queryset_and_field_ids(
         grid_view, search="5", search_mode=search_mode
     )
 
@@ -3228,13 +3226,7 @@ def test_changing_a_field_type_of_a_view_sort_to_non_orderable_one_delete_view_i
     index = ViewIndexingHandler.get_index(grid_view, table.get_model())
     assert ViewIndexingHandler.does_index_exist(index.name) is True
 
-    FieldHandler().update_field(
-        user,
-        text_field,
-        new_type_name="link_row",
-        link_row_table=table,
-        has_related_field=False,
-    )
+    FieldHandler().update_field(user, text_field, new_type_name="password")
     assert ViewIndexingHandler.does_index_exist(index.name) is False
 
 

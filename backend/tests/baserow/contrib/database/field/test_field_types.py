@@ -890,7 +890,7 @@ def test_text_field_type_get_order(data_fixture):
 def test_tsv_not_created(data_fixture):
     id_mapping = {}
 
-    table = data_fixture.create_database_table(force_add_tsvectors=False)
+    table = data_fixture.create_database_table()
     text_field = data_fixture.create_text_field(
         name="Text name", text_default="Text default", table=table
     )

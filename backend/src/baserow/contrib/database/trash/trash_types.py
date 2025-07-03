@@ -254,8 +254,6 @@ class FieldTrashableItemType(TrashableItemType):
             from_model = table.get_model(field_ids=[], fields=[field])
             model_field = from_model._meta.get_field(field.db_column)
             schema_editor.remove_field(from_model, model_field)
-            # must call it here, because we need field.id
-            SearchHandler.cleanup_table_rows_vectors(table, field_ids=[field.id])
             field.delete()
 
         # After the field is deleted we are going to call the after_delete method of
@@ -310,7 +308,7 @@ class RowTrashableItemType(TrashableItemType):
         )
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.schedule_search_data_update(table, row_ids=[trashed_item.id])
+        SearchHandler.schedule_update_search_data(table, row_ids=[trashed_item.id])
 
         rows_to_return = list(
             model.objects.all().enhance_by_fields().filter(id=trashed_item.id)
@@ -433,10 +431,10 @@ class RowsTrashableItemType(TrashableItemType):
         )
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.schedule_search_data_update(table, row_ids=trashed_item.row_ids)
+        SearchHandler.schedule_update_search_data(table, row_ids=trashed_item.row_ids)
         for dependant_field in dependant_fields:
             dependant_table = dependant_field.table
-            SearchHandler.schedule_search_data_update(
+            SearchHandler.schedule_update_search_data(
                 dependant_table, fields=[dependant_field]
             )
 

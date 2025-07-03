@@ -15,6 +15,7 @@ from baserow.contrib.database.fields.periodic_field_update_handler import (
     PeriodicFieldUpdateHandler,
 )
 from baserow.contrib.database.fields.registries import FieldType, field_type_registry
+from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.contrib.database.views.handler import ViewSubscriptionHandler
 from baserow.contrib.database.views.models import View, ViewSubscription
@@ -116,6 +117,7 @@ def _run_periodic_field_type_update_per_workspace(
                 database_updated_fields = field_type_instance.run_periodic_update(
                     fields_in_db,
                     already_updated_fields=database_updated_fields,
+                    skip_search_updates=True,
                     database_id=database_id,
                 )
         except Exception:
@@ -127,6 +129,9 @@ def _run_periodic_field_type_update_per_workspace(
                 tb=tb,
             )
         else:
+            # Update tsv columns and notify views of the changes.
+            SearchHandler.all_fields_values_changed_or_created(database_updated_fields)
+
             updated_table_ids = list(
                 {field.table_id for field in database_updated_fields}
             )
@@ -172,12 +177,12 @@ def delete_mentions_marked_for_deletion(self):
     ).delete()
 
 
-# @app.on_after_finalize.connect
-# def setup_periodic_tasks(sender, **kwargs):
-#     sender.add_periodic_task(
-#         settings.PERIODIC_FIELD_UPDATE_CRONTAB, run_periodic_fields_updates.s()
-#     )
-#     sender.add_periodic_task(
-#         timedelta(minutes=min(15, settings.STALE_MENTIONS_CLEANUP_INTERVAL_MINUTES)),
-#         delete_mentions_marked_for_deletion.s(),
-#     )
+@app.on_after_finalize.connect
+def setup_periodic_tasks(sender, **kwargs):
+    sender.add_periodic_task(
+        settings.PERIODIC_FIELD_UPDATE_CRONTAB, run_periodic_fields_updates.s()
+    )
+    sender.add_periodic_task(
+        timedelta(minutes=min(15, settings.STALE_MENTIONS_CLEANUP_INTERVAL_MINUTES)),
+        delete_mentions_marked_for_deletion.s(),
+    )

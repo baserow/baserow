@@ -714,10 +714,10 @@ class LocalBaserowTableServiceSearchableMixin:
 
         if isinstance(used_fields_from_parent, list) and service.search_query:
             fields = [fo["field"] for fo in self.get_table_field_objects(service) or []]
-            return used_fields_from_parent + [
-                f.tsv_db_column if f.tsvector_column_created else f.db_column
-                for f in fields
-            ]
+            search_fields = []
+            if not SearchHandler.can_use_full_text_search(service.table):
+                search_fields = [f.db_column for f in fields]
+            return used_fields_from_parent + search_fields
 
         return used_fields_from_parent
 

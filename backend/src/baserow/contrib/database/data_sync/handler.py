@@ -472,7 +472,7 @@ class DataSyncHandler:
             row_ids = [r["id"] for r in rows_to_update] + [
                 r.id for r in created_rows.created_rows
             ]
-            SearchHandler.schedule_search_data_update(data_sync.table, row_ids=row_ids)
+            SearchHandler.schedule_update_search_data(data_sync.table, row_ids=row_ids)
 
     def set_data_sync_synced_properties(
         self,

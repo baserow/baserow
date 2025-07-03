@@ -80,6 +80,7 @@ class DatabaseApplicationType(ApplicationType):
             database.table_set(manager="objects_and_trash")
             .all()
             .select_related("database__workspace")
+            .prefetch_related("field_set")
         )
 
         for table in database_tables:
@@ -578,7 +579,7 @@ class DatabaseApplicationType(ApplicationType):
         for serialized_table in serialized_tables:
             table = serialized_table["_object"]
             if not import_export_config.reduce_disk_space_usage:
-                SearchHandler.schedule_search_data_update(table)
+                SearchHandler.schedule_update_search_data(table)
             for (
                 serialized_structure_processor
             ) in serialization_processor_registry.get_all():

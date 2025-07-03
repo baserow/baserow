@@ -12,12 +12,15 @@ state should be temporary, and they will be migrated to search data tables event
 
 """
 
+from collections import defaultdict
 from datetime import datetime, timezone
 from enum import Enum
+from functools import lru_cache
 from typing import TYPE_CHECKING, Iterable, List
 from uuid import uuid4
 
 from django.conf import settings
+from django.contrib.postgres.search import SearchQuery
 from django.db import connection, router, transaction
 from django.db.models import (
     Expression,
@@ -31,6 +34,7 @@ from django.db.models import (
     Value,
 )
 from django.db.models.functions import Now
+from django.db.models.sql.constants import LOUTER
 from django.utils.encoding import force_str
 
 from django_cte import With
@@ -50,10 +54,13 @@ from baserow.contrib.database.search.regexes import (
     RE_REMOVE_ALL_PUNCTUATION_ALREADY_REMOVED_FROM_TSVS_FOR_QUERY,
     RE_REMOVE_NON_SEARCHABLE_PUNCTUATION_FROM_TSVECTOR_DATA,
 )
-from baserow.contrib.database.search.search_bulder import SearchQuery
-from baserow.contrib.database.search.tasks import schedule_search_data_update
+from baserow.contrib.database.search.tasks import (
+    delete_search_data,
+    schedule_update_search_data,
+)
 from baserow.core.psycopg import sql
 from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.utils import to_camel_case
 
 if TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field
@@ -77,11 +84,94 @@ class SearchMode(str, Enum):
 ALL_SEARCH_MODES = [getattr(mode, "value") for mode in SearchMode]
 
 
+@lru_cache(maxsize=1024)
+def _workspace_search_table_exists(workspace_id: int) -> bool:
+    """
+    Determines if the search table exists for the given workspace ID.
+    This is a cached version of the _workspace_search_table_exists method to avoid
+    repeated database queries for the same workspace.
+
+    :param workspace_id: The ID of the workspace to check.
+    :return: True if the search table exists, False otherwise.
+    """
+
+    search_table_name = SearchHandler.get_search_table_name(workspace_id)
+    with connection.cursor() as cursor:
+        raw_sql = """
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = current_schema()
+                AND table_name = %s
+            )
+        """  # nosec B608
+        cursor.execute(raw_sql, [search_table_name])
+        return cursor.fetchone()[0]
+
+
+@lru_cache(maxsize=1024)
+def _generate_search_table_model(workspace_id: int) -> "AbstractSearchValue":
+    from baserow.contrib.database.table.models import GeneratedModelAppsProxy
+
+    app_label = "database_search"
+    table_name = SearchHandler.get_search_table_name(workspace_id)
+    model_name = to_camel_case(table_name)
+
+    baserow_models = {}
+    apps = GeneratedModelAppsProxy(baserow_models, app_label)
+    meta = type(
+        "Meta",
+        (),
+        {
+            "apps": apps,
+            "managed": True,  # manually managed by Baserow
+            "db_table": table_name,
+            "app_label": app_label,
+            "indexes": get_search_indexes(workspace_id),
+            "ordering": ["field_id", "row_id"],
+            "unique_together": [("field_id", "row_id")],
+        },
+    )
+
+    def __str__(self):
+        return model_name
+
+    attrs = {
+        "Meta": meta,
+        "__module__": "database.models",
+        "_generated_table_model": True,
+        "baserow_workspace_id": workspace_id,
+        "baserow_models": baserow_models,
+        "parent": workspace_id,
+        "__str__": __str__,
+    }
+
+    model = type(
+        model_name,
+        (
+            AbstractSearchValue,
+            Model,
+        ),
+        attrs,
+    )
+    return model
+
+
 class SearchHandler(
     metaclass=baserow_trace_methods(
         tracer, exclude=["full_text_enabled", "search_config"]
     )
 ):
+    @classmethod
+    def get_search_table_name(cls, workspace_id: int) -> str:
+        """
+        Returns the name of the search table for the given workspace ID.
+        :param workspace_id: The ID of the workspace for which the search table name
+            is being generated.
+        :return: The name of the search table for the specified workspace.
+        """
+
+        return f"database_search_workspace_{workspace_id}_data"
+
     @classmethod
     def get_search_table_model(cls, workspace_id: int) -> "AbstractSearchValue":
         """
@@ -92,54 +182,13 @@ class SearchHandler(
             for the specified workspace.
         """
 
-        from baserow.contrib.database.table.models import GeneratedModelAppsProxy
-
-        app_label = "database_search"
-        table_name = f"search_data_workspace_{workspace_id}"
-        model_name = f"SearchDataWorkspace{workspace_id}"
-
-        baserow_models = {}
-        apps = GeneratedModelAppsProxy(baserow_models, app_label)
-        meta = type(
-            "Meta",
-            (),
-            {
-                "apps": apps,
-                "managed": True,  # manually managed by Baserow
-                "db_table": table_name,
-                "app_label": app_label,
-                "indexes": get_search_indexes(workspace_id),
-            },
-        )
-
-        def __str__(self):
-            return model_name
-
-        attrs = {
-            "Meta": meta,
-            "__module__": "database.models",
-            "_generated_table_model": True,
-            "baserow_workspace_id": workspace_id,
-            "baserow_models": baserow_models,
-            "parent": workspace_id,
-            "__str__": __str__,
-        }
-
-        model = type(
-            model_name,
-            (
-                AbstractSearchValue,
-                Model,
-            ),
-            attrs,
-        )
-        return model
+        return _generate_search_table_model(workspace_id)
 
     @classmethod
-    def search_in_table(
+    def full_text_search_in_table(
         cls,
         queryset: QuerySet,
-        sanitized_search: str,
+        input_search: str,
         fields: List["Field"],
     ) -> QuerySet:
         """
@@ -157,30 +206,42 @@ class SearchHandler(
         :return: A filtered queryset containing the rows that match the search criteria.
         """
 
+        sanitized_search = cls.escape_postgres_query(input_search)
+
+        if len(sanitized_search) == 0:
+            return queryset.filter(id__in=[])
+
         search_query = SearchQuery(
             sanitized_search,
             search_type="raw",
             config=SearchHandler.search_config(),
         )
 
-        filter_builder = FilterBuilder(filter_type=FILTER_TYPE_OR)
-
-        cls._add_exact_id_search(filter_builder, sanitized_search)
-        filtered_queryset = filter_builder.apply_to_queryset(queryset)
-
         search_table = cls.get_search_table_model(fields[0].table.database.workspace_id)
         cte = With(
             search_table.objects.filter(
                 field_id__in=[field.id for field in fields], value=search_query
-            ),
+            )
+            .order_by("row_id")
+            .distinct("row_id")
+            .values("row_id"),
             name=f"search_{uuid4().hex}",
         )
-        filtered_queryset = cte.join(filtered_queryset, id=cte.col.row_id).with_cte(cte)
+        search_queryset = (
+            cte.join(queryset, id=cte.col.row_id, _join_type=LOUTER)
+            .with_cte(cte)
+            .annotate(match_search=cte.col.row_id)
+        )
 
-        return filtered_queryset
+        filter_builder = FilterBuilder(filter_type=FILTER_TYPE_OR)
+
+        cls.add_exact_id_search(filter_builder, input_search)
+        filter_builder.filter(Q(match_search__isnull=False))
+
+        return filter_builder.apply_to_queryset(search_queryset)
 
     @classmethod
-    def _add_exact_id_search(cls, filter_builder, input_search):
+    def add_exact_id_search(cls, filter_builder, input_search):
         try:
             # Search for the row ID if the `input_search` can be cast to an integer.
             stripped_input = input_search.strip()
@@ -191,10 +252,36 @@ class SearchHandler(
             pass
 
     @classmethod
-    def create_workspace_search_table(cls, workspace_id: int):
+    def can_use_full_text_search(cls, table: "Table") -> bool:
+        if not cls.full_text_enabled():
+            return False
+
+        workspace = table.database.workspace
+        return (
+            cls.workspace_search_table_exists(workspace.id)
+            and not workspace.has_template()  # we don't index templates data
+        )
+
+    @classmethod
+    def workspace_search_table_exists(cls, workspace_id: int) -> bool:
+        """
+        Determines if the search table exists for the given workspace ID.
+        This is a cached version of the _workspace_search_table_exists method to avoid
+        repeated database queries for the same workspace.
+
+        :param workspace_id: The ID of the workspace to check.
+        :return: True if the search table exists, False otherwise.
+        """
+
+        return _workspace_search_table_exists(workspace_id)
+
+    @classmethod
+    def create_workspace_search_table(cls, workspace_id: int) -> "AbstractSearchValue":
         search_table = cls.get_search_table_model(workspace_id)
         with safe_django_schema_editor() as se:
             se.create_model(search_table)
+
+        _workspace_search_table_exists.cache_clear()
 
         return search_table
 
@@ -206,6 +293,8 @@ class SearchHandler(
         )
         with connection.cursor() as c:
             c.execute(query)
+
+        _workspace_search_table_exists.cache_clear()
 
     @classmethod
     def special_char_tokenizer(cls, expression: Expression) -> Func:
@@ -260,16 +349,11 @@ class SearchHandler(
 
     @classmethod
     def get_default_search_mode_for_table(cls, table: "Table") -> str:
-        # Template table indexes are not created to save space so we can only use compat
-        # search here.
-        if table.database.workspace.has_template():
-            return SearchMode.COMPAT
-
-        search_mode = settings.DEFAULT_SEARCH_MODE
-        if table.tsvectors_are_supported:
-            search_mode = SearchMode.FT_WITH_COUNT
-
-        return search_mode
+        return (
+            SearchMode.FT_WITH_COUNT
+            if cls.can_use_full_text_search(table)
+            else SearchMode.COMPAT
+        )
 
     @classmethod
     def escape_query(cls, text: str) -> str:
@@ -331,16 +415,36 @@ class SearchHandler(
         :return: None
         """
 
-        cls.schedule_search_data_update(field.table, fields=[field])
+        cls.schedule_update_search_data(field.table, fields=[field])
+
+    @classmethod
+    def all_fields_values_changed_or_created(cls, fields: Iterable["Field"]):
+        """
+        Called when many fields values have been changed or created.
+        Please note that fields might belong to different tables, so
+        this method will schedule updates for each table separately.
+
+        :param fields: The fields that have had their values changed or created.
+        """
+
+        if not fields:
+            return
+
+        fields_per_table = defaultdict(list)
+        for field in fields:
+            fields_per_table[field.table].append(field)
+
+        for table, table_fields in fields_per_table.items():
+            cls.schedule_update_search_data(table, fields=table_fields)
 
     @classmethod
     def after_field_moved_between_tables(
         cls, moved_field: "Field", original_table_id: int
     ):
-        cls.schedule_search_data_update(moved_field.table, fields=[moved_field])
+        cls.schedule_update_search_data(moved_field.table, fields=[moved_field])
 
     @classmethod
-    def schedule_search_data_update(
+    def schedule_update_search_data(
         cls,
         table: "Table",
         fields: list["Field"] | None = None,
@@ -361,11 +465,40 @@ class SearchHandler(
         if fields:
             field_ids = [f.id for f in fields]
 
-        schedule_search_data_update.delay(table.id, field_ids, row_ids)
+        transaction.on_commit(
+            lambda: schedule_update_search_data.delay(table.id, field_ids, row_ids)
+        )
+
+    @classmethod
+    def schedule_delete_search_data(
+        cls,
+        table: "Table",
+        field_ids: List[int] | None = None,
+        row_ids: List[int] | None = None,
+    ):
+        """
+        Schedules the deletion of search data for the given table, fields and row ids.
+        If field_ids is None, all fields will be deleted for the given rows or entire
+        table. If row_ids is None, all rows will be deleted for the given fields or
+        entire table.
+
+        :param table: The table for which the search data should be deleted.
+        :param field_ids: Optional list of field IDs to delete search data for. If None,
+            all fields will be considered.
+        :param row_ids: Optional list of row IDs to delete search data for. If None,
+            all rows will be considered.
+        """
+
+        transaction.on_commit(
+            lambda: delete_search_data.delay(table.id, field_ids, row_ids)
+        )
 
     @classmethod
     def delete_search_data(
-        cls, table: "Table", field_ids: List[int], row_ids: List[int] | None = None
+        cls,
+        table: "Table",
+        field_ids: List[int] | None = None,
+        row_ids: List[int] | None = None,
     ):
         """
         Deletes search data for the given table, fields and row ids.
@@ -373,7 +506,19 @@ class SearchHandler(
         """
 
         workspace_id = table.database.workspace_id
+        if cls.workspace_search_table_exists(workspace_id) is False:
+            return
+
         search_model = cls.get_search_table_model(workspace_id)
+
+        table_field_ids = [
+            f["field"].id
+            for f in table.get_model().get_field_objects(include_trash=True)
+        ]
+        if field_ids is None:
+            field_ids = table_field_ids
+        else:
+            field_ids = [fid for fid in set(field_ids) if fid in table_field_ids]
 
         # Delete pending updates first
         q = Q(field_id__in=field_ids)
@@ -382,16 +527,16 @@ class SearchHandler(
         cls._delete_pending_updates(q)
 
         # Now delete the actual search data
-        qs = search_model.objects
+        qs = search_model.objects.filter(field_id__in=field_ids)
         if row_ids is not None:
-            qs = qs.filter(table_id=table.id, row_id__in=row_ids)
+            qs = qs.filter(row_id__in=row_ids)
 
-        qs.filter(field_id__in=field_ids).order_by("id")._raw_delete(
+        qs.filter(field_id__in=field_ids)._raw_delete(
             using=router.db_for_write(search_model)
         )
 
     @classmethod
-    def add_pending_search_update(
+    def queue_pending_search_update(
         cls,
         table: "Table",
         field_ids: List[int] | None = None,
@@ -422,9 +567,17 @@ class SearchHandler(
         )
 
     @classmethod
-    def initialize_search_data_for_fields(cls, table: "Table"):
+    def initialize_search_data(cls, table: "Table"):
         """
-        TODO
+        Initializes the search data for all fields in the given table that have not
+        been initialized yet. This method will set the `search_data_initialized_at`
+        field to the current time for each field that is initialized.
+        This method processes each field separately to ensure progress on large
+        tables, and it will delete any pending updates for those fields after
+        initializing the search data.
+
+        :param table: The table for which the search data should be initialized.
+        :raises TableDoesNotExist: If the table does not exist.
         """
 
         model = table.get_model()
@@ -456,9 +609,15 @@ class SearchHandler(
         row_ids: Iterable[int] | None = None,
     ):
         """
-        TODO field_ids = None means all searchable fields (including trashed). row_ids =
-        None means all rows (including trashed). If both are None, all rows for all
-        fields will be updated, but be careful with big tables.
+        Updates the search data for the given table, fields and row ids.
+        If field_ids is None, all searchable fields will be updated.
+        If row_ids is None, all rows will be updated.
+
+        :param table: The table for which the search data should be updated.
+        :param field_ids: Optional list of field IDs to update search data for. If None,
+            all searchable fields will be considered.
+        :param row_ids: Optional list of row IDs to update search data for. If None,
+            all rows will be considered.
         """
 
         model = table.get_model()
@@ -493,13 +652,13 @@ class SearchHandler(
                 field, field_qs
             )
             field_querysets.append(
-                field_qs.filter(**{f"{field.db_column}__isnull": False})
-                .annotate(
+                field_qs.annotate(
                     row_id=F("id"),
                     field_id=Value(field_id, output_field=IntegerField()),
                     value=LocalisedSearchVector(search_expr),
                     timestamp=Now(),
                 )
+                .exclude(Q(value__iexact="") | Q(value__isnull=True))
                 .values("field_id", "row_id", "value", "timestamp")
             )
 
@@ -528,7 +687,7 @@ class SearchHandler(
         method.
         """
 
-        PendingSearchValueUpdate.objects.filter(q).order_by("id")._raw_delete(
+        PendingSearchValueUpdate.objects.filter(q)._raw_delete(
             using=router.db_for_write(PendingSearchValueUpdate)
         )
 
@@ -576,7 +735,7 @@ class SearchHandler(
                 )
 
                 cls.update_search_data(table, field_ids, row_ids)
-                single_rows_updates.order_by("id")._raw_delete(
+                single_rows_updates._raw_delete(
                     using=router.db_for_write(PendingSearchValueUpdate)
                 )
 

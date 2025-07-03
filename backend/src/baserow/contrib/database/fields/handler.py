@@ -594,8 +594,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         ):
             update_collector.add_to_fields_type_changed(field)
 
-        SearchHandler.schedule_search_data_update(field.table, fields=[field])
-
         # Before a field is updated we are going to call the before_schema_change
         # method of the old field because some cleanup of related instances might
         # need to happen.
@@ -718,6 +716,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         ViewHandler().field_updated(field)
+        SearchHandler.schedule_update_search_data(field.table, fields=[field])
 
         field_updated.send(
             self,
@@ -824,6 +823,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             "read_only",
             "immutable_type",
             "immutable_properties",
+            "search_data_initialized_at",
         ]:
             serialized_field.pop(key, None)
 
@@ -1186,7 +1186,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
             ViewHandler().field_updated(updated_fields)
-            SearchHandler.schedule_search_data_update(field.table, fields=[field])
+            SearchHandler.schedule_update_search_data(field.table, fields=[field])
 
             if send_field_restored_signal:
                 field_restored.send(

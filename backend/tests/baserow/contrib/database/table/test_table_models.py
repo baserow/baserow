@@ -21,7 +21,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import (
     ALL_SEARCH_MODES,
     SearchHandler,
-    SearchModes,
+    SearchMode,
 )
 from baserow.contrib.database.table.constants import (
     LAST_MODIFIED_BY_COLUMN_NAME,
@@ -49,7 +49,7 @@ def test_workspace_user_get_next_order(data_fixture):
 
 @pytest.mark.django_db
 def test_get_table_model(data_fixture):
-    default_model_fields_count = 7
+    default_model_fields_count = 8
     table = data_fixture.create_database_table(name="Cars")
     text_field = data_fixture.create_text_field(
         table=table, order=0, name="Color", text_default="white"
@@ -65,7 +65,7 @@ def test_get_table_model(data_fixture):
     assert model.__name__ == f"Table{table.id}Model"
     assert model._generated_table_model
     assert model._meta.db_table == f"database_table_{table.id}"
-    assert len(model._meta.get_fields()) == 7 + default_model_fields_count
+    assert len(model._meta.get_fields()) == 3 + default_model_fields_count
 
     color_field = model._meta.get_field("color")
     horsepower_field = model._meta.get_field("horsepower")
@@ -105,7 +105,7 @@ def test_get_table_model(data_fixture):
     model_2 = table.get_model(
         fields=[number_field], field_ids=[text_field.id], attribute_names=True
     )
-    assert len(model_2._meta.get_fields()) == 5 + default_model_fields_count
+    assert len(model_2._meta.get_fields()) == 2 + default_model_fields_count
 
     color_field = model_2._meta.get_field("color")
     assert color_field
@@ -117,7 +117,7 @@ def test_get_table_model(data_fixture):
 
     model_3 = table.get_model()
     assert model_3._meta.db_table == f"database_table_{table.id}"
-    assert len(model_3._meta.get_fields()) == 7 + default_model_fields_count
+    assert len(model_3._meta.get_fields()) == 3 + default_model_fields_count
 
     field_1 = model_3._meta.get_field(f"field_{text_field.id}")
     assert isinstance(field_1, models.TextField)
@@ -136,7 +136,7 @@ def test_get_table_model(data_fixture):
     )
     model = table.get_model(attribute_names=True)
     field_names = [f.name for f in model._meta.get_fields()]
-    assert len(field_names) == 9 + default_model_fields_count
+    assert len(field_names) == 4 + default_model_fields_count
     assert f"{text_field.model_attribute_name}_field_{text_field.id}" in field_names
     assert f"{text_field_2.model_attribute_name}_field_{text_field.id}" in field_names
 
@@ -176,7 +176,7 @@ def test_get_table_model_with_fulltext_search_enabled(data_fixture):
     )
 
     model = table.get_model()
-    full_text_search_fields = [
+    deprecated_field_names = [
         ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
     ]
     base_fields = [
@@ -190,13 +190,10 @@ def test_get_table_model_with_fulltext_search_enabled(data_fixture):
     ]
     added_fields = [
         text_field.db_column,
-        text_field.tsv_db_column,
         number_field.db_column,
-        number_field.tsv_db_column,
         boolean_field.db_column,
-        boolean_field.tsv_db_column,
     ]
-    expected_fields = base_fields + added_fields + full_text_search_fields
+    expected_fields = base_fields + added_fields + deprecated_field_names
     field_names = [field.name for field in model._meta.get_fields()]
     assert sorted(field_names) == sorted(expected_fields)
 
@@ -236,7 +233,7 @@ def test_enhance_by_fields_queryset(data_fixture):
 def test_search_all_fields_compat_mode(compat_search, pg_search, data_fixture):
     table = data_fixture.create_database_table(name="Cars")
     model = table.get_model(attribute_names=True)
-    model.objects.all().search_all_fields("bmw", search_mode=SearchModes.MODE_COMPAT)
+    model.objects.all().search_all_fields("bmw", search_mode=SearchMode.COMPAT)
     assert not pg_search.called
     assert compat_search.called
 
@@ -247,9 +244,7 @@ def test_search_all_fields_compat_mode(compat_search, pg_search, data_fixture):
 def test_search_all_fields_full_text_mode_count(compat_search, pg_search, data_fixture):
     table = data_fixture.create_database_table(name="Cars")
     model = table.get_model(attribute_names=True)
-    model.objects.all().search_all_fields(
-        "bmw", search_mode=SearchModes.MODE_FT_WITH_COUNT
-    )
+    model.objects.all().search_all_fields("bmw", search_mode=SearchMode.FT_WITH_COUNT)
     assert pg_search.called
     assert not compat_search.called
 
@@ -262,9 +257,7 @@ def test_search_all_fields_full_text_mode_count_with_full_text_disabled(
 ):
     table = data_fixture.create_database_table(name="Cars")
     model = table.get_model(attribute_names=True)
-    model.objects.all().search_all_fields(
-        "bmw", search_mode=SearchModes.MODE_FT_WITH_COUNT
-    )
+    model.objects.all().search_all_fields("bmw", search_mode=SearchMode.FT_WITH_COUNT)
     assert not pg_search.called
     assert compat_search.called
 
@@ -283,7 +276,7 @@ def test_search_all_fields_search_mode_not_implemented(
     assert not compat_search.called
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
 def test_search_all_fields_queryset(data_fixture, search_mode):
     table = data_fixture.create_database_table(name="Cars")
@@ -345,9 +338,6 @@ def test_search_all_fields_queryset(data_fixture, search_mode):
         file=[],
         phonenumber="",
     )
-    SearchHandler.update_tsvector_columns(
-        table, update_tsvectors_for_changed_rows_only=False
-    )
 
     def dump_table(table_name):
         with connection.cursor() as cursor:
@@ -359,6 +349,8 @@ def test_search_all_fields_queryset(data_fixture, search_mode):
     dumped_rows = dump_table(f"database_table_{table.id}")
     for row in dumped_rows:
         print(row)
+
+    SearchHandler.update_search_data(table)
 
     results = model.objects.all().search_all_fields("FASTEST", search_mode=search_mode)
     assert row_1 in results

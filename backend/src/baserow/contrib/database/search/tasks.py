@@ -12,7 +12,7 @@ from baserow.contrib.database.table.exceptions import TableDoesNotExist
 
 class PendingSearchUpdateFlag:
     """
-    This flag is used to indicate that a search data update task is pending for a
+    Flag is used to indicate that a search data update task is pending for a
     specific table and it has not been possible to schedule it yet due to a concurrent
     task already running for the same table.
 
@@ -60,13 +60,23 @@ class PendingSearchUpdateFlag:
 
 
 @app.task(queue="export")
-def schedule_search_data_update(
+def schedule_update_search_data(
     table_id: int,
     field_ids: Optional[List[int]] = None,
     row_ids: Optional[List[int]] = None,
 ):
     """
-    TODO
+    Schedules the `update_search_data` task for a table when changes occur. Field- or
+    row-specific updates are queued first to avoid any lost updates. Then the singleton
+    task is enqueued; if it’s already scheduled, a pending flag is set so new changes
+    will be processed once the current run finishes.
+
+    :param table_id: The ID of the table to update the search data for.
+    :param field_ids: Optional list of field IDs to update. If provided, only these
+        fields will be updated in the search data.
+    :param row_ids: Optional list of row IDs to update. If provided, only these rows
+        will be updated in the search data.
+    :raises TableDoesNotExist: If the table with the given ID does not exist.
     """
 
     from baserow.contrib.database.search.handler import SearchHandler
@@ -81,14 +91,16 @@ def schedule_search_data_update(
         logger.warning(f"Table with id {table_id} doesn't exist.")
         return
 
-    SearchHandler.add_pending_search_update(
-        table=table, field_ids=field_ids, row_ids=row_ids
-    )
+    # If any specific update is requested, queue it so it can be processed later.
+    if field_ids or row_ids:
+        SearchHandler.queue_pending_search_update(
+            table=table, field_ids=field_ids, row_ids=row_ids
+        )
 
     try:
         # debounce the task to avoid multiple calls in a short time
         update_search_data.s(table_id).apply_async(
-            countdown=settings.SEARCH_DATA_UPDATE_GRACE_PERIOD
+            countdown=settings.SEARCH_DATA_UPDATE_DEBOUNCE_DELAY
         )
     except DuplicateTaskError:
         PendingSearchUpdateFlag(table_id).set()
@@ -104,7 +116,14 @@ def schedule_search_data_update(
 )
 def update_search_data(table_id: int):
     """
-    TODO
+    Updates the search data for a specific table. This task is scheduled to run
+    every time there are changes in the table that require the search data to be
+    updated. It runs as singleton for the given table to avoid concurrent updates
+    that could lead to deadlocks. It's also usually debounced to avoid
+    process multiple updates on the same rows/fields in a short time.
+
+    :param table_id: The ID of the table to update the search data for.
+    :raises TableDoesNotExist: If the table with the given ID does not exist.
     """
 
     from baserow.contrib.database.search.handler import SearchHandler
@@ -122,29 +141,53 @@ def update_search_data(table_id: int):
         logger.warning(f"Table with id {table_id} doesn't exist.")
         return
 
-    SearchHandler.initialize_search_data_for_fields(table)
+    # Make sure the search table exists for the workspace first.
+    workspace_id = table.database.workspace_id
+    if not SearchHandler.workspace_search_table_exists(workspace_id):
+        SearchHandler.create_workspace_search_table(workspace_id)
 
-    # Let's clear the flag now to make sure newer updates won't be lost while this
-    # task is running.
+    # Ensure every table field exists in the search table.
+    # Used during migrations or when explicitly reinitializing search data.
+    SearchHandler.initialize_search_data(table)
+
+    # Make sure newer updates will re-schedule this task at the end if needed.
     flag = PendingSearchUpdateFlag(table_id)
     flag.clear()
 
     SearchHandler.process_search_data_updates(table)
 
+    # If new updates were queued during processing, schedule another update
     if flag.get():
         logger.debug(
             "There are new pending changes to process. "
             f"Scheduling another update for {table_id}"
         )
-        schedule_search_data_update.delay(table_id)
+        schedule_update_search_data.delay(table_id)
 
 
 @app.task(queue="export")
-def create_workspace_search_table(workspace_id: int):
+def delete_search_data(
+    table_id: int, field_ids: List[int] | None, row_ids: List[int] | None = None
+):
     """
-    Create a workspace search table if it does not exist yet.
+    Deletes search data for a specific table and optionally for specific rows.
+    This task is used when rows are deleted or when the search data needs to be
+    cleared for a table.
+
+    :param table_id: The ID of the table to delete the search data for.
+    :param field_ids: Optional list of field IDs to delete from the search data.
+        If provided, only these fields will be deleted from the search data.
+    :param row_ids: Optional list of row IDs to delete. If provided, only these
+        rows will be deleted from the search data.
     """
 
     from baserow.contrib.database.search.handler import SearchHandler
+    from baserow.contrib.database.table.handler import TableHandler
 
-    SearchHandler.create_workspace_search_table(workspace_id)
+    try:
+        table = TableHandler().get_table(table_id)
+    except TableDoesNotExist:
+        logger.warning(f"Table with id {table_id} doesn't exist.")
+        return
+
+    SearchHandler.delete_search_data(table, field_ids=field_ids, row_ids=row_ids)

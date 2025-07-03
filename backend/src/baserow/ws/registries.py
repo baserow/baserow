@@ -78,8 +78,6 @@ class PageType(Instance):
 
         return None
 
-    # todo: broadcast_many - handle a list of paylaods for a single task
-
     def broadcast(
         self, payload, ignore_web_socket_id=None, exclude_user_ids=None, **kwargs
     ):

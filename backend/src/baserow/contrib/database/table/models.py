@@ -126,27 +126,14 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
         if not input_search or not input_search.strip():
             return self
 
-        sanitized_search = SearchHandler.escape_postgres_query(input_search)
-
-        if len(sanitized_search) == 0:
-            return self.filter(id__in=[])
-
         fields_to_search = [
             field
             for field in self.model.get_searchable_fields()
             if only_search_by_field_ids is None or field.id in only_search_by_field_ids
         ]
-        return SearchHandler.search_in_table(self, sanitized_search, fields_to_search)
-
-    def _add_exact_id_search(self, filter_builder, input_search):
-        try:
-            # Search for the row ID if the `input_search` can be cast to an integer.
-            stripped_input = input_search.strip()
-            # int('0006') will produce 6 but we don't want 0006 to match row 6!
-            if not stripped_input.startswith("0"):
-                filter_builder.filter(Q(id=int(stripped_input)))
-        except ValueError:
-            pass
+        return SearchHandler.full_text_search_in_table(
+            self, input_search, fields_to_search
+        )
 
     def count(self):
         with cachalot_enabled():
@@ -197,8 +184,8 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
         :param only_search_by_field_ids: Only field ids in this iterable will be
             filtered by the search term. Other fields not in the iterable will be
             ignored and not be filtered.
-        :param search_mode: In `MODE_COMPAT` we will use the old search method, using
-            the LIKE operator on each column. In `MODE_FT_WITH_COUNT`  we will switch
+        :param search_mode: In `COMPAT` we will use the old search method, using
+            the LIKE operator on each column. In `FT_WITH_COUNT`  we will switch
             to using Postgres full-text search.
         :return: The queryset containing the search queries.
         :rtype: QuerySet
@@ -208,10 +195,11 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
         if search_mode not in ALL_SEARCH_MODES:
             raise NotImplementedError(f"Unsupported search_mode {search_mode}.")
 
-        if (
-            search_mode == SearchMode.FT_WITH_COUNT
-            and SearchHandler.full_text_enabled()
-        ):
+        can_use_full_text_search = SearchHandler.can_use_full_text_search(
+            self.model.baserow_table
+        )
+
+        if search_mode == SearchMode.FT_WITH_COUNT and can_use_full_text_search:
             return self.pg_search(search, only_search_by_field_ids)
         else:
             return self.compat_search(search, only_search_by_field_ids)
@@ -224,7 +212,7 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
 
         filter_builder = FilterBuilder(filter_type=FILTER_TYPE_OR)
 
-        self._add_exact_id_search(filter_builder, search)
+        SearchHandler.add_exact_id_search(filter_builder, search)
         for field_object in self.model._field_objects.values():
             if (
                 only_search_by_field_ids is not None
@@ -1207,8 +1195,8 @@ class Table(
         # constraints in the database.
         fields_query = (
             self.field_set(manager="objects_and_trash")
-            # table->database->workspace is used by search
-            .select_related("table__database__workspace", "content_type").all()
+            .select_related("table__database__workspace", "content_type")
+            .all()
         )
 
         # If the field ids are provided we must only fetch the fields of which the

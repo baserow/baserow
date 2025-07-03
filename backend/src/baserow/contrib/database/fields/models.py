@@ -175,20 +175,17 @@ class Field(
         help_text="Field description", default=None, null=True
     )
     read_only = models.BooleanField(
-        db_default=False,
         default=False,
         help_text="Indicates whether the field is read-only regardless of the field "
         "type. If true, then it won't be possible to update the cell value via the "
         "API.",
     )
     immutable_type = models.BooleanField(
-        db_default=False,
         default=False,
         help_text="Indicates whether the field type is immutable. If true, then it "
         "won't be possible to change the field type via the API.",
     )
     immutable_properties = models.BooleanField(
-        db_default=False,
         default=False,
         help_text="Indicates whether the field properties are immutable. If true, "
         "then it won't be possible to change the properties and the type via the API.",

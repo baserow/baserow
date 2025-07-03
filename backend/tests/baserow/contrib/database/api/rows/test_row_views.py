@@ -26,7 +26,7 @@ from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.actions import UpdateRowsActionType
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.handler import ALL_SEARCH_MODES, SearchHandler
+from baserow.contrib.database.search.handler import ALL_SEARCH_MODES
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.action.handler import ActionHandler
@@ -3676,7 +3676,7 @@ def test_get_row_adjacent_view_invalid_requests(api_client, data_fixture):
     assert response.data["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
 def test_get_row_adjacent_search(api_client, data_fixture, search_mode):
     user, jwt_token = data_fixture.create_user_and_token(
@@ -3698,9 +3698,6 @@ def test_get_row_adjacent_search(api_client, data_fixture, search_mode):
             ],
         )
         .created_rows
-    )
-    SearchHandler.update_tsvector_columns(
-        table, update_tsvectors_for_changed_rows_only=False
     )
 
     response = api_client.get(

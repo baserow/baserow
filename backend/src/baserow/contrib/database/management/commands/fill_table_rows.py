@@ -20,7 +20,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.exceptions import (
     PostgresFullTextSearchDisabledException,
 )
-from baserow.contrib.database.search.handler import SearchHandlerCompat
+from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.models import Table
 from baserow.core.handler import CoreHandler
 from baserow.core.management.utils import run_command_concurrently
@@ -409,12 +409,7 @@ def fill_table_rows(
                 created_rows = bulk_create_rows(model, rows[model.baserow_table_id])
                 RowHandler().update_dependencies_of_rows_created(model, created_rows)
 
-        if update_tsvectors:
-            progress.increment(0, state="Updating tsvector")
-            SearchHandlerCompat.update_tsvector_columns_locked(
-                table,
-                update_tsvectors_for_changed_rows_only=True,
-                progress_builder=progress.create_child_builder(
-                    represents_progress=tsvector_limit
-                ),
-            )
+                if update_tsvectors:
+                    SearchHandler.update_search_data(
+                        table, row_ids=[row.id for row in created_rows]
+                    )

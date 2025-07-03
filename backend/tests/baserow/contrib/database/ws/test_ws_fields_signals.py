@@ -56,9 +56,7 @@ def test_field_restored(mock_broadcast_to_channel_group, data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_field_restored_doesnt_do_n_plus_some_queries(
-    data_fixture, django_assert_num_queries
-):
+def test_field_restored_doesnt_do_n_plus_some_queries(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user)
     data_fixture.create_grid_view(user, table=table)
@@ -74,10 +72,15 @@ def test_field_restored_doesnt_do_n_plus_some_queries(
     data_fixture.create_view_sort(user, field=field)
     data_fixture.create_view_filter(user, field=field)
 
-    with django_assert_num_queries(len(captured.captured_queries)):
+    with CaptureQueriesContext(connection) as captured2:
         # We shouldn't be running more queries if there are simply more view
         # sorts/filters
         TrashHandler.restore_item(user, "field", field.id)
+
+    assert len(captured2.captured_queries) <= len(captured.captured_queries), (
+        "Restoring a field should not result in more queries if there are more view "
+        "sorts/filters"
+    )
 
 
 @pytest.mark.django_db(transaction=True)

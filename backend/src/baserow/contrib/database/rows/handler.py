@@ -850,7 +850,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(fields + dependant_fields)
-        SearchHandler.schedule_search_data_update(table, row_ids=[instance.id])
+        SearchHandler.schedule_update_search_data(table, row_ids=[instance.id])
 
         rows_created.send(
             self,
@@ -1046,7 +1046,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.schedule_search_data_update(
+        SearchHandler.schedule_update_search_data(
             table,
             fields=[f for f in updated_fields if f.id in updated_field_ids],
             row_ids=[row.id],
@@ -1253,7 +1253,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         updated_fields = [o["field"] for o in model._field_objects.values()]
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
         if not skip_search_update:
-            SearchHandler.schedule_search_data_update(
+            SearchHandler.schedule_update_search_data(
                 table, fields=updated_fields, row_ids=[r.id for r in inserted_rows]
             )
 
@@ -1571,7 +1571,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
             all_created_rows += created_rows
 
-        SearchHandler.schedule_search_data_update(
+        SearchHandler.schedule_update_search_data(
             table, row_ids=[r.id for r in all_created_rows]
         )
 
@@ -1626,7 +1626,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             report.update(updated_rows.errors)
             all_updated_rows.extend(updated_rows.updated_rows)
 
-            SearchHandler.schedule_search_data_update(
+            SearchHandler.schedule_update_search_data(
                 table, row_ids=[r.id for r in updated_rows.updated_rows]
             )
         return all_updated_rows, report
@@ -2151,7 +2151,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
         if not skip_search_update:
-            SearchHandler.schedule_search_data_update(
+            SearchHandler.schedule_update_search_data(
                 table,
                 fields=[f for f in updated_fields if f.id in updated_field_ids],
                 row_ids=row_ids,
@@ -2505,10 +2505,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
 
-        SearchHandler.schedule_search_data_update(table, row_ids=[row.id])
+        SearchHandler.schedule_update_search_data(table, row_ids=[row.id])
         for dependant_field in dependant_fields:
             dependant_table = dependant_field.table
-            SearchHandler.schedule_search_data_update(
+            SearchHandler.schedule_update_search_data(
                 dependant_table, fields=[dependant_field]
             )
 
@@ -2709,7 +2709,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         # dependant fields so they won't search removed row's data
         for dependant_field in dependant_fields:
             dependant_table = dependant_field.table
-            SearchHandler.schedule_search_data_update(
+            SearchHandler.schedule_update_search_data(
                 dependant_table, fields=[dependant_field]
             )
 

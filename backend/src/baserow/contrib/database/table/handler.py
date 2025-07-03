@@ -311,7 +311,7 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
 
         try:
             table = base_queryset.select_related(
-                "data_sync",
+                "database__workspace", "data_sync"
             ).get(id=table_id)
         except Table.DoesNotExist:
             raise TableDoesNotExist(f"The table with id {table_id} does not exist.")
@@ -463,12 +463,7 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
             FieldModel = field_type.model_class
 
             fields[index] = FieldModel.objects.create(
-                table=table,
-                order=index,
-                primary=index == 0,
-                name=name,
-                tsvector_column_created=table.tsvectors_are_supported,
-                **field_config,
+                table=table, order=index, primary=index == 0, name=name, **field_config
             )
             if field_options:
                 field_options_dict[fields[index].id] = field_options

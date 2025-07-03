@@ -16,19 +16,21 @@ class PendingSearchValueUpdate(models.Model):
         serialize=False,
         verbose_name="ID",
     )
-    table = models.ForeignKey("database.Table", on_delete=models.CASCADE)
-    field_id = models.IntegerField(
-        help_text="The ID of the field to update.",
+    table = models.ForeignKey(
+        "database.Table", on_delete=models.CASCADE, related_name="+"
     )
     row_id = models.IntegerField(
         null=True,
-        help_text="The ID of the row to update. If null, all rows will be updated.",
+        help_text="The ID of the row to update. If null, all table rows will be updated.",
+    )
+    field_id = models.IntegerField(
+        help_text="The ID of the field to update.",
     )
 
     class Meta:
-        ordering = ["-id"]
+        ordering = ["field_id", "row_id"]
         # Avoid duplicate entries for the same field and row.
-        unique_together = ("field_id", "row_id")
+        unique_together = [("field_id", "row_id")]
 
 
 class AbstractSearchValue(models.Model):
@@ -59,7 +61,6 @@ class AbstractSearchValue(models.Model):
 
     class Meta:
         abstract = True
-        unique_together = ("field_id", "row_id")
 
 
 def get_search_indexes(workspace_id: int) -> list[models.Index]:
