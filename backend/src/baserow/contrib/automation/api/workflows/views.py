@@ -313,14 +313,14 @@ class AsyncPublishAutomationWorkflowView(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(
-                name="automation_workflow_id",
+                name="workflow_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
                 description="The workflow id the user wants to publish.",
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
-        tags=["Published automation workflows"],
+        tags=[AUTOMATION_WORKFLOWS_TAG],
         operation_id="publish_automation_workflow",
         description=(
             "This endpoint starts an asynchronous job to publish the "
