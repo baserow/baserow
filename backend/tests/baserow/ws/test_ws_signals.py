@@ -128,7 +128,7 @@ def test_workspace_restored(mock_broadcast_to_users, data_fixture):
     admin_user = data_fixture.create_user()
     member_user = data_fixture.create_user()
     # This user should not be sent the restore signal
-    data_fixture.create_user()
+    not_included_user = data_fixture.create_user()
     workspace = data_fixture.create_workspace()
     workspace_user = data_fixture.create_user_workspace(
         user=admin_user,
@@ -436,6 +436,7 @@ def test_applications_reordered(mock_broadcast_to_channel_group, data_fixture):
     CoreHandler().order_applications(
         user=user, workspace=workspace, order=[database.id]
     )
+
     mock_broadcast_to_channel_group.delay.assert_called_once()
     args = mock_broadcast_to_channel_group.delay.call_args
     assert args[0][0] == database.workspace_id

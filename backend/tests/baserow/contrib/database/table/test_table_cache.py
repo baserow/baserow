@@ -203,11 +203,4 @@ def test_deleting_field_invalidates_tables_model_cache(data_fixture):
     field.delete()
 
     table.refresh_from_db()
-    # Removing a field will clear the cache, but the signal will also trigger
-    # search update, which will repopulate the cache. In this case, the table will
-    # have non-empty cache, but not fields available.
-    assert get_cached_model_field_attrs(table) == {
-        "_field_objects": {},
-        "_primary_field_id": -1,
-        "_trashed_field_objects": {},
-    }
+    assert get_cached_model_field_attrs(table) is None

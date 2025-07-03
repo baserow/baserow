@@ -824,7 +824,7 @@ def test_extract_properties(path, expected):
 
 
 @pytest.mark.django_db
-def test_can_dispatch_interesting_table(data_fixture, run_on_commit):
+def test_can_dispatch_interesting_table(data_fixture):
     """
     Test that we can dispatch an interesting table content.
     Multiple test are chained in the same function to improve test performances.
@@ -836,7 +836,6 @@ def test_can_dispatch_interesting_table(data_fixture, run_on_commit):
         data_fixture,
         user,
     )
-
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
@@ -894,7 +893,6 @@ def test_can_dispatch_interesting_table(data_fixture, run_on_commit):
     assert len(result.data.keys()) == 1 + 1
 
     service_sort.delete()
-    run_on_commit()
 
     # Now with a search
     service.search_query = "'A'"

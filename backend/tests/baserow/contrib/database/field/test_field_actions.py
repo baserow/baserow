@@ -29,7 +29,6 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.action.registries import action_type_registry
-from baserow.core.cache import local_cache
 from baserow.core.models import WORKSPACE_USER_PERMISSION_ADMIN
 from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.helpers import (
@@ -348,15 +347,6 @@ def test_undoing_link_row_type_change_can_still_insert_new_relations_after(
             user, [UpdateFieldActionType.scope(link_field.table_id)], session_id
         )
         assert_undo_redo_actions_are_valid(actions, [UpdateFieldActionType])
-
-    # refresh the cache and objects after the change of schema
-    local_cache.clear()
-    t1 = table_a.get_model()
-    t2 = table_b.get_model()
-    row_a_1 = t1.objects.get(pk=row_a_1.id)
-    row_a_2 = t1.objects.get(pk=row_a_2.id)
-    row_b_1 = t2.objects.get(pk=row_b_1.id)
-    row_b_2 = t2.objects.get(pk=row_b_2.id)
 
     with transaction.atomic():
         RowHandler().update_row(
@@ -1311,6 +1301,7 @@ def test_can_undo_updating_max_value_of_rating_field(
 ):
     session_id = "session-id"
     user = data_fixture.create_user(session_id=session_id)
+    original_text_default = "text_default"
     original_max_value = 10
     field = data_fixture.create_rating_field(
         user=user, name="field", max_value=original_max_value

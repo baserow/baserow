@@ -18,7 +18,6 @@ from baserow.contrib.database.data_sync.postgresql_data_sync_type import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import NumberField
-from baserow.contrib.database.table.models import Table
 from baserow.core.db import specific_iterator
 
 
@@ -571,7 +570,6 @@ def test_postgresql_data_sync_table_connect_to_same_database(data_fixture):
                 postgresql_table="test_table",
                 postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
             )
-
             handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     # This is expected to fail because `postgresql_host` is equal to the
@@ -689,6 +687,7 @@ def test_postgresql_data_sync_initial_table_limit(
         postgresql_table=create_postgresql_test_table,
         postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
     )
+
     with override_settings(INITIAL_TABLE_DATA_LIMIT=1):
         handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
@@ -850,7 +849,6 @@ def test_update_data_sync_table_changing_table_with_different_primary_key(
         postgresql_table=create_postgresql_test_table,
         postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
     )
-    table: "Table" = data_sync.table
 
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 

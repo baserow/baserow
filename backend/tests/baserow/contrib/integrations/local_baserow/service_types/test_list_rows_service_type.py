@@ -1009,7 +1009,7 @@ def test_can_dispatch_table_with_deleted_field(data_fixture):
 
 
 @pytest.mark.django_db
-def test_can_dispatch_interesting_table(data_fixture, run_on_commit):
+def test_can_dispatch_interesting_table(data_fixture):
     """
     Test that we can dispatch an interesting table content.
     Multiple test are chained in the same function to improve test performances.
@@ -1089,8 +1089,6 @@ def test_can_dispatch_interesting_table(data_fixture, run_on_commit):
 
     service_sort.delete()
 
-    run_on_commit()
-
     # Now with a search query
     service.search_query = "1"
     service.save()
@@ -1098,7 +1096,7 @@ def test_can_dispatch_interesting_table(data_fixture, run_on_commit):
     dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
 
     result = service.get_type().dispatch(service, dispatch_context)
-    print(result.data["results"][0])
+
     assert len(result.data["results"][0].keys()) == 1 + 1
 
 

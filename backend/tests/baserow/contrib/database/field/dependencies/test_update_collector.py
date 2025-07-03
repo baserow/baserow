@@ -145,8 +145,7 @@ def test_can_only_trigger_update_for_rows_joined_to_a_starting_row_across_a_m2m(
         field_cache.cache_model(first_table.get_model())
         field_cache.cache_model(second_table.get_model())
         # Only one field was updated so only one update statement is expected
-        # + 1 query by SearchHandler to schedule search data update
-        with django_assert_num_queries(2):
+        with django_assert_num_queries(1):
             updated_fields = update_collector.apply_updates_and_get_updated_fields(
                 field_cache
             )
@@ -229,8 +228,7 @@ def test_can_trigger_update_for_rows_joined_to_a_starting_row_across_a_m2m_and_b
         field_cache.cache_model(first_table.get_model())
         field_cache.cache_model(second_table.get_model())
         # Two fields were updated with an update statement for each table
-        # plus one from SearchHandler to schedule search data update
-        with django_assert_num_queries(3):
+        with django_assert_num_queries(2):
             updated_fields = update_collector.apply_updates_and_get_updated_fields(
                 field_cache
             )
@@ -327,8 +325,7 @@ def test_update_statements_at_the_same_path_node_are_grouped_into_one(
         field_cache.cache_model(second_table.get_model())
         # Three fields were updated but two are in the same path node (same table) and
         # so only one update per table expected
-        # plus one from SearchHandler to schedule search data update
-        with django_assert_num_queries(3):
+        with django_assert_num_queries(2):
             updated_fields = update_collector.apply_updates_and_get_updated_fields(
                 field_cache
             )
@@ -381,8 +378,7 @@ def test_update_statements_only_update_rows_where_values_change(data_fixture):
         )
         field_cache.cache_model(table_model)
         updated_rows = update_collector.apply_updates(field_cache)
-        assert isinstance(updated_rows, list)
-        return len(updated_rows)
+        return updated_rows
 
     def assert_all_rows_have_value(value):
         for row in table_model.objects.all():

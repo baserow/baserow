@@ -26,7 +26,7 @@ from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.actions import UpdateRowsActionType
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.handler import ALL_SEARCH_MODES
+from baserow.contrib.database.search.handler import ALL_SEARCH_MODES, SearchHandler
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.action.handler import ActionHandler
@@ -287,7 +287,7 @@ def test_list_rows(api_client, data_fixture):
     assert response_json["results"][3]["id"] == row_1.id
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
-    get_params = ["filter__field_9999999__contains=last"]
+    get_params = [f"filter__field_9999999__contains=last"]
     response = api_client.get(
         f'{url}?{"&".join(get_params)}',
         format="json",
@@ -1967,11 +1967,11 @@ def test_create_row(api_client, data_fixture):
     response = api_client.post(
         f"{url}?user_field_names=true",
         {
-            "Color": "Red",
-            "Horsepower": 480,
-            "For Sale": False,
-            "Description": "",
-            "Option": "A",
+            f"Color": "Red",
+            f"Horsepower": 480,
+            f"For Sale": False,
+            f"Description": "",
+            f"Option": "A",
         },
         format="json",
         HTTP_AUTHORIZATION=f"Token {token.key}",
@@ -1996,11 +1996,11 @@ def test_create_row(api_client, data_fixture):
     response = api_client.post(
         f"{url}?user_field_names=true",
         {
-            "INVALID FIELD NAME": "Red",
-            "Horsepower": 480,
-            "For Sale": False,
-            "Description": "",
-            "Option": "A",
+            f"INVALID FIELD NAME": "Red",
+            f"Horsepower": 480,
+            f"For Sale": False,
+            f"Description": "",
+            f"Option": "A",
         },
         format="json",
         HTTP_AUTHORIZATION=f"Token {token.key}",
@@ -2511,13 +2511,13 @@ def test_update_row(api_client, data_fixture):
     )
     response = api_client.patch(
         f"{url}?user_field_names=true",
-        {"Price": 10.01},
+        {f"Price": 10.01},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
-    assert response_json["Price"] == "10.01"
+    assert response_json[f"Price"] == "10.01"
     assert "Horsepower" not in response_json
     assert "For sale" not in response_json
 
@@ -2888,7 +2888,7 @@ def test_delete_row_by_id(api_client, data_fixture):
     url = reverse(
         "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row_1.id}
     )
-    response = api_client.delete(url, HTTP_AUTHORIZATION="Token abc123")
+    response = api_client.delete(url, HTTP_AUTHORIZATION=f"Token abc123")
     assert response.status_code == HTTP_401_UNAUTHORIZED
     assert response.json()["error"] == "ERROR_TOKEN_DOES_NOT_EXIST"
 
@@ -3678,7 +3678,7 @@ def test_get_row_adjacent_view_invalid_requests(api_client, data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
-def test_get_row_adjacent_search(api_client, data_fixture, search_mode, run_on_commit):
+def test_get_row_adjacent_search(api_client, data_fixture, search_mode):
     user, jwt_token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
@@ -3699,7 +3699,9 @@ def test_get_row_adjacent_search(api_client, data_fixture, search_mode, run_on_c
         )
         .created_rows
     )
-    run_on_commit()
+    SearchHandler.update_tsvector_columns(
+        table, update_tsvectors_for_changed_rows_only=False
+    )
 
     response = api_client.get(
         reverse(

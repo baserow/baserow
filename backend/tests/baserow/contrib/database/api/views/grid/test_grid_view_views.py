@@ -24,7 +24,7 @@ from baserow.contrib.database.rows.registries import (
     RowMetadataType,
     row_metadata_registry,
 )
-from baserow.contrib.database.search.handler import ALL_SEARCH_MODES
+from baserow.contrib.database.search.handler import ALL_SEARCH_MODES, SearchHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import TableModelQuerySet
 from baserow.contrib.database.views.handler import ViewHandler
@@ -312,27 +312,27 @@ def test_list_rows_with_group_by(api_client, data_fixture):
                 {
                     f"field_{text_field.id}": "Green",
                     f"field_{number_field.id}": "10.0",
-                    "count": 3,
+                    f"count": 3,
                 },
                 {
                     f"field_{text_field.id}": "Green",
                     f"field_{number_field.id}": "20.0",
-                    "count": 3,
+                    f"count": 3,
                 },
                 {
                     f"field_{text_field.id}": "Orange",
                     f"field_{number_field.id}": "10.0",
-                    "count": 1,
+                    f"count": 1,
                 },
                 {
                     f"field_{text_field.id}": "Orange",
                     f"field_{number_field.id}": "30.0",
-                    "count": 1,
+                    f"count": 1,
                 },
                 {
                     f"field_{text_field.id}": "Orange",
                     f"field_{number_field.id}": "40.0",
-                    "count": 1,
+                    f"count": 1,
                 },
             ]
         ),
@@ -342,37 +342,37 @@ def test_list_rows_with_group_by(api_client, data_fixture):
                     f"field_{text_field.id}": "Orange",
                     f"field_{number_field.id}": "10.0",
                     f"field_{boolean_field.id}": True,
-                    "count": 1,
+                    f"count": 1,
                 },
                 {
                     f"field_{text_field.id}": "Green",
                     f"field_{number_field.id}": "10.0",
                     f"field_{boolean_field.id}": True,
-                    "count": 1,
+                    f"count": 1,
                 },
                 {
                     f"field_{text_field.id}": "Green",
                     f"field_{number_field.id}": "20.0",
                     f"field_{boolean_field.id}": True,
-                    "count": 3,
+                    f"count": 3,
                 },
                 {
                     f"field_{text_field.id}": "Green",
                     f"field_{number_field.id}": "10.0",
                     f"field_{boolean_field.id}": False,
-                    "count": 2,
+                    f"count": 2,
                 },
                 {
                     f"field_{text_field.id}": "Orange",
                     f"field_{number_field.id}": "30.0",
                     f"field_{boolean_field.id}": True,
-                    "count": 1,
+                    f"count": 1,
                 },
                 {
                     f"field_{text_field.id}": "Orange",
                     f"field_{number_field.id}": "40.0",
                     f"field_{boolean_field.id}": True,
-                    "count": 1,
+                    f"count": 1,
                 },
             ]
         ),
@@ -702,7 +702,7 @@ def test_field_aggregation(api_client, data_fixture):
         kwargs={"view_id": 9999, "field_id": text_field.id},
     )
     response = api_client.get(
-        url + "?type=empty_count",
+        url + f"?type=empty_count",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     assert response.status_code == HTTP_404_NOT_FOUND
@@ -714,7 +714,7 @@ def test_field_aggregation(api_client, data_fixture):
         kwargs={"view_id": grid.id, "field_id": 9999},
     )
     response = api_client.get(
-        url + "?type=empty_count",
+        url + f"?type=empty_count",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     assert response.status_code == HTTP_404_NOT_FOUND
@@ -726,7 +726,7 @@ def test_field_aggregation(api_client, data_fixture):
         kwargs={"view_id": grid_2.id, "field_id": text_field.id},
     )
     response = api_client.get(
-        url + "?type=empty_count",
+        url + f"?type=empty_count",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
 
@@ -739,7 +739,7 @@ def test_field_aggregation(api_client, data_fixture):
         kwargs={"view_id": grid.id, "field_id": text_field2.id},
     )
     response = api_client.get(
-        url + "?type=empty_count",
+        url + f"?type=empty_count",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
 
@@ -761,7 +761,7 @@ def test_field_aggregation(api_client, data_fixture):
 
     # Test bad aggregation type
     response = api_client.get(
-        url + "?type=bad_aggregation_type",
+        url + f"?type=bad_aggregation_type",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -769,13 +769,13 @@ def test_field_aggregation(api_client, data_fixture):
 
     # Test normal response with no data
     response = api_client.get(
-        url + "?type=empty_count",
+        url + f"?type=empty_count",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
 
-    assert response_json == {"value": 0}
+    assert response_json == {f"value": 0}
 
     # Add more data
     model = grid.table.get_model()
@@ -805,13 +805,13 @@ def test_field_aggregation(api_client, data_fixture):
 
     # Count empty boolean field
     response = api_client.get(
-        url + "?type=empty_count",
+        url + f"?type=empty_count",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
 
-    assert response_json == {"value": 2}
+    assert response_json == {f"value": 2}
 
     url = reverse(
         "api:database:views:grid:field-aggregation",
@@ -820,7 +820,7 @@ def test_field_aggregation(api_client, data_fixture):
 
     # Count not empty "For sale" field
     response = api_client.get(
-        url + "?type=not_empty_count",
+        url + f"?type=not_empty_count",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     response_json = response.json()
@@ -832,7 +832,7 @@ def test_field_aggregation(api_client, data_fixture):
 
     # Count with total
     response = api_client.get(
-        url + "?type=not_empty_count&include=total",
+        url + f"?type=not_empty_count&include=total",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     response_json = response.json()
@@ -847,7 +847,7 @@ def test_field_aggregation(api_client, data_fixture):
 
     # Count with total
     response = api_client.get(
-        url + "?type=not_empty_count",
+        url + f"?type=not_empty_count",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     response_json = response.json()
@@ -892,7 +892,7 @@ def test_view_aggregations(api_client, data_fixture):
         kwargs={"view_id": grid_2.id},
     )
     response = api_client.get(
-        url + "?type=empty_count",
+        url + f"?type=empty_count",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
 
@@ -1074,7 +1074,7 @@ def test_view_aggregations(api_client, data_fixture):
 
     # with total
     response = api_client.get(
-        url + "?include=total",
+        url + f"?include=total",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     response_json = response.json()
@@ -1088,7 +1088,7 @@ def test_view_aggregations(api_client, data_fixture):
 
     # Does it work with filter
     response = api_client.get(
-        url + "?include=total&search=GREE",
+        url + f"?include=total&search=GREE",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     assert response.status_code == HTTP_200_OK
@@ -1126,7 +1126,7 @@ def test_view_aggregations(api_client, data_fixture):
     assert cache.get(f"aggregation_version__{grid.id}_{boolean_field.db_column}") == 7
 
     response = api_client.get(
-        url + "?include=total",
+        url + f"?include=total",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     assert response.status_code == HTTP_200_OK
@@ -1159,7 +1159,7 @@ def test_view_aggregations(api_client, data_fixture):
     assert cache.get(f"aggregation_version__{grid.id}_{boolean_field.db_column}") == 8
 
     response = api_client.get(
-        url + "?include=total",
+        url + f"?include=total",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     assert response.status_code == HTTP_200_OK
@@ -1181,7 +1181,7 @@ def test_view_aggregations(api_client, data_fixture):
     assert cache.get(f"aggregation_version__{grid.id}_{boolean_field.db_column}") == 9
 
     response = api_client.get(
-        url + "?include=total",
+        url + f"?include=total",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     assert response.status_code == HTTP_200_OK
@@ -1347,7 +1347,7 @@ def test_view_aggregations_adhoc_filtering_advanced_filters_are_preferred_to_oth
     get_params = [
         "filters=" + json.dumps(advanced_filters),
         f"filter__field_{text_field.id}__equal=z",
-        "filter_type=AND",
+        f"filter_type=AND",
     ]
     response = api_client.get(
         f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
@@ -2210,7 +2210,7 @@ def test_public_view_aggregations(api_client, data_fixture):
 
     # with total
     response = api_client.get(
-        url + "?include=total",
+        url + f"?include=total",
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -2223,7 +2223,7 @@ def test_public_view_aggregations(api_client, data_fixture):
 
     # Does it work with filter
     response = api_client.get(
-        url + "?include=total&search=GREE",
+        url + f"?include=total&search=GREE",
     )
     assert response.status_code == HTTP_200_OK
 
@@ -2260,7 +2260,7 @@ def test_public_view_aggregations(api_client, data_fixture):
     assert cache.get(f"aggregation_version__{grid.id}_{boolean_field.db_column}") == 7
 
     response = api_client.get(
-        url + "?include=total",
+        url + f"?include=total",
     )
     assert response.status_code == HTTP_200_OK
 
@@ -2292,7 +2292,7 @@ def test_public_view_aggregations(api_client, data_fixture):
     assert cache.get(f"aggregation_version__{grid.id}_{boolean_field.db_column}") == 8
 
     response = api_client.get(
-        url + "?include=total",
+        url + f"?include=total",
     )
     assert response.status_code == HTTP_200_OK
 
@@ -2313,7 +2313,7 @@ def test_public_view_aggregations(api_client, data_fixture):
     assert cache.get(f"aggregation_version__{grid.id}_{boolean_field.db_column}") == 9
 
     response = api_client.get(
-        url + "?include=total",
+        url + f"?include=total",
     )
     assert response.status_code == HTTP_200_OK
 
@@ -2705,7 +2705,7 @@ def test_public_view_aggregations_adhoc_filtering_advanced_filters_are_preferred
     get_params = [
         "filters=" + json.dumps(advanced_filters),
         f"filter__field_{text_field.id}__equal=z",
-        "filter_type=AND",
+        f"filter_type=AND",
     ]
     response = api_client.get(f'{url}?{"&".join(get_params)}')
     assert response.status_code == HTTP_200_OK
@@ -3407,7 +3407,7 @@ def test_list_rows_public_with_query_param_filter(api_client, data_fixture):
     get_params = [
         f"filter__field_{public_field.id}__contains=a",
         f"filter__field_{public_field.id}__contains=b",
-        "filter_type=OR",
+        f"filter_type=OR",
     ]
     response = api_client.get(f'{url}?{"&".join(get_params)}')
     response_json = response.json()
@@ -4024,7 +4024,7 @@ def test_list_rows_public_filters_by_visible_and_hidden_columns(
 @pytest.mark.django_db
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
 def test_list_rows_public_only_searches_by_visible_columns(
-    api_client, data_fixture, search_mode, run_on_commit
+    api_client, data_fixture, search_mode
 ):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -4059,7 +4059,9 @@ def test_list_rows_public_only_searches_by_visible_columns(
         values={"public": search_term, "hidden": "other"},
         user_field_names=True,
     )
-    run_on_commit()
+    SearchHandler.update_tsvector_columns(
+        table, update_tsvectors_for_changed_rows_only=False
+    )
 
     # Get access as an anonymous user
     response = api_client.get(
@@ -4469,7 +4471,7 @@ def test_invalid_search_mode_raises(api_client, data_fixture):
 
     response = api_client.get(
         reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
-        + "?search=test&search_mode=invalid"
+        + f"?search=test&search_mode=invalid"
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -4525,7 +4527,7 @@ def test_list_rows_public_advanced_filters_are_preferred_to_other_filter_query_p
     get_params = [
         "filters=" + json.dumps(advanced_filters),
         f"filter__field_{public_field.id}__equal=z",
-        "filter_type=AND",
+        f"filter_type=AND",
     ]
     response = api_client.get(f'{url}?{"&".join(get_params)}')
     response_json = response.json()
@@ -4569,7 +4571,7 @@ def test_list_grid_rows_adhoc_filtering_query_param_filter(api_client, data_fixt
     get_params = [
         f"filter__field_{text_field.id}__contains=a",
         f"filter__field_{text_field.id}__contains=b",
-        "filter_type=OR",
+        f"filter_type=OR",
     ]
     response = api_client.get(
         f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
@@ -4742,7 +4744,7 @@ def test_list_grid_rows_adhoc_filtering_advanced_filters_are_preferred_to_other_
     get_params = [
         "filters=" + json.dumps(advanced_filters),
         f"filter__field_{text_field.id}__equal=z",
-        "filter_type=AND",
+        f"filter_type=AND",
     ]
     response = api_client.get(
         f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"

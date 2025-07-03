@@ -17,6 +17,8 @@ class TableFixtures:
         if "order" not in kwargs:
             kwargs["order"] = 0
 
+        kwargs.setdefault("needs_background_update_column_added", True)
+
         row_count = kwargs.pop("row_count", None)
         usage = {}
         if row_count is not None:

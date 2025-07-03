@@ -2156,7 +2156,7 @@ def test_get_data_source_context_fields_are_excluded(api_client, data_fixture):
     option_3 = data_fixture.create_select_option(
         field=multiple_select_field, value="warcraft-blue", color="blue", order=1
     )
-    [option_1, option_2, option_3]
+    options = [option_1, option_2, option_3]
 
     data_fixture.create_builder_local_baserow_get_row_data_source(
         page=page, user=user, integration=integration, table=table, row_id="1"

@@ -142,7 +142,7 @@ def test_link_row_field_linked_to_table_with_no_access_from_inaccessible_to_acce
 
 @pytest.mark.django_db
 def test_cant_create_lookup_at_table_where_not_viewer_or_higher(
-    data_fixture, celery_task_lazy, run_on_commit
+    data_fixture,
 ):
     user_without_access = data_fixture.create_user()
     user_with_access = data_fixture.create_user()
@@ -189,16 +189,14 @@ def test_cant_create_lookup_at_table_where_not_viewer_or_higher(
         user_without_access, workspace, role=viewer_role, scope=table_with_no_access
     )
 
-    with celery_task_lazy(True):
-        FieldHandler().create_field(
-            user=user_without_access,
-            table=table_with_access,
-            type_name="lookup",
-            name="now it will work",
-            target_field_name=private_field_in_no_access_table.name,
-            through_field_name=link_row_field.name,
-        )
-    run_on_commit()
+    FieldHandler().create_field(
+        user=user_without_access,
+        table=table_with_access,
+        type_name="lookup",
+        name="now it will work",
+        target_field_name=private_field_in_no_access_table.name,
+        through_field_name=link_row_field.name,
+    )
 
 
 @pytest.mark.django_db

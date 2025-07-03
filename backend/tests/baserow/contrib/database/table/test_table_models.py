@@ -18,8 +18,11 @@ from baserow.contrib.database.fields.exceptions import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.handler import ALL_SEARCH_MODES, SearchMode
-from baserow.contrib.database.search.types import SearchTableState
+from baserow.contrib.database.search.handler import (
+    ALL_SEARCH_MODES,
+    SearchHandler,
+    SearchModes,
+)
 from baserow.contrib.database.table.constants import (
     LAST_MODIFIED_BY_COLUMN_NAME,
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
@@ -46,11 +49,7 @@ def test_workspace_user_get_next_order(data_fixture):
 
 @pytest.mark.django_db
 def test_get_table_model(data_fixture):
-    # default fields:
-    # id, created_by, created_on
-    # last_updated_by, last_updated_on
-    # order, trashed, needs_background_update
-    default_model_fields_count = 8
+    default_model_fields_count = 7
     table = data_fixture.create_database_table(name="Cars")
     text_field = data_fixture.create_text_field(
         table=table, order=0, name="Color", text_default="white"
@@ -62,18 +61,11 @@ def test_get_table_model(data_fixture):
         table=table, order=2, name="For sale"
     )
 
-    all_fields = [text_field, number_field, boolean_field]
-
     model = table.get_model(attribute_names=True)
     assert model.__name__ == f"Table{table.id}Model"
     assert model._generated_table_model
     assert model._meta.db_table == f"database_table_{table.id}"
-
-    # 3 fields + 3 tsv
-    assert (
-        len(model._meta.get_fields())
-        == (len(all_fields) * 2) + default_model_fields_count
-    )
+    assert len(model._meta.get_fields()) == 7 + default_model_fields_count
 
     color_field = model._meta.get_field("color")
     horsepower_field = model._meta.get_field("horsepower")
@@ -113,8 +105,7 @@ def test_get_table_model(data_fixture):
     model_2 = table.get_model(
         fields=[number_field], field_ids=[text_field.id], attribute_names=True
     )
-    # two fields selected + 2 tsv
-    assert len(model_2._meta.get_fields()) == 2 + 2 + default_model_fields_count
+    assert len(model_2._meta.get_fields()) == 5 + default_model_fields_count
 
     color_field = model_2._meta.get_field("color")
     assert color_field
@@ -126,14 +117,7 @@ def test_get_table_model(data_fixture):
 
     model_3 = table.get_model()
     assert model_3._meta.db_table == f"database_table_{table.id}"
-
-    # <django.db.models.fields.TextField: field_1>,
-    # <django.db.models.fields.DecimalField: field_2>,
-    # <django.db.models.fields.BooleanField: field_3>
-    assert (
-        len(model_3._meta.get_fields())
-        == (len(all_fields) * 2) + default_model_fields_count
-    )
+    assert len(model_3._meta.get_fields()) == 7 + default_model_fields_count
 
     field_1 = model_3._meta.get_field(f"field_{text_field.id}")
     assert isinstance(field_1, models.TextField)
@@ -150,12 +134,9 @@ def test_get_table_model(data_fixture):
     text_field_2 = data_fixture.create_text_field(
         table=table, order=3, name="Color", text_default="orange"
     )
-    all_fields.append(text_field_2)
-
     model = table.get_model(attribute_names=True)
     field_names = [f.name for f in model._meta.get_fields()]
-
-    assert len(field_names) == (len(all_fields) * 2) + default_model_fields_count
+    assert len(field_names) == 9 + default_model_fields_count
     assert f"{text_field.model_attribute_name}_field_{text_field.id}" in field_names
     assert f"{text_field_2.model_attribute_name}_field_{text_field.id}" in field_names
 
@@ -183,9 +164,7 @@ def test_get_table_model(data_fixture):
 
 @pytest.mark.django_db
 def test_get_table_model_with_fulltext_search_enabled(data_fixture):
-    table = data_fixture.create_database_table(
-        name="Cars", search_data_state=SearchTableState.DISABLED
-    )
+    table = data_fixture.create_database_table(name="Cars")
     text_field = data_fixture.create_text_field(
         table=table, order=0, name="Color", text_default="white"
     )
@@ -257,7 +236,7 @@ def test_enhance_by_fields_queryset(data_fixture):
 def test_search_all_fields_compat_mode(compat_search, pg_search, data_fixture):
     table = data_fixture.create_database_table(name="Cars")
     model = table.get_model(attribute_names=True)
-    model.objects.all().search_all_fields("bmw", search_mode=SearchMode.COMPAT)
+    model.objects.all().search_all_fields("bmw", search_mode=SearchModes.MODE_COMPAT)
     assert not pg_search.called
     assert compat_search.called
 
@@ -268,7 +247,9 @@ def test_search_all_fields_compat_mode(compat_search, pg_search, data_fixture):
 def test_search_all_fields_full_text_mode_count(compat_search, pg_search, data_fixture):
     table = data_fixture.create_database_table(name="Cars")
     model = table.get_model(attribute_names=True)
-    model.objects.all().search_all_fields("bmw", search_mode=SearchMode.FT_WITH_COUNT)
+    model.objects.all().search_all_fields(
+        "bmw", search_mode=SearchModes.MODE_FT_WITH_COUNT
+    )
     assert pg_search.called
     assert not compat_search.called
 
@@ -281,7 +262,9 @@ def test_search_all_fields_full_text_mode_count_with_full_text_disabled(
 ):
     table = data_fixture.create_database_table(name="Cars")
     model = table.get_model(attribute_names=True)
-    model.objects.all().search_all_fields("bmw", search_mode=SearchMode.FT_WITH_COUNT)
+    model.objects.all().search_all_fields(
+        "bmw", search_mode=SearchModes.MODE_FT_WITH_COUNT
+    )
     assert not pg_search.called
     assert compat_search.called
 
@@ -302,7 +285,7 @@ def test_search_all_fields_search_mode_not_implemented(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
-def test_search_all_fields_queryset(data_fixture, search_mode, run_on_commit):
+def test_search_all_fields_queryset(data_fixture, search_mode):
     table = data_fixture.create_database_table(name="Cars")
     data_fixture.create_text_field(table=table, order=0, name="Name")
     data_fixture.create_text_field(table=table, order=1, name="Color")
@@ -362,8 +345,9 @@ def test_search_all_fields_queryset(data_fixture, search_mode, run_on_commit):
         file=[],
         phonenumber="",
     )
-
-    run_on_commit()
+    SearchHandler.update_tsvector_columns(
+        table, update_tsvectors_for_changed_rows_only=False
+    )
 
     def dump_table(table_name):
         with connection.cursor() as cursor:
@@ -670,7 +654,7 @@ def test_order_by_fields_string_queryset_with_user_field_names(data_fixture):
         )
 
     results = model.objects.all().order_by_fields_string(
-        "--Weird FieldName", user_field_names=True
+        f"--Weird FieldName", user_field_names=True
     )
     assert results[0].id == rows[1].id
     assert results[1].id == rows[0].id
@@ -678,7 +662,7 @@ def test_order_by_fields_string_queryset_with_user_field_names(data_fixture):
     assert results[3].id == rows[3].id
 
     results = model.objects.all().order_by_fields_string(
-        "Name,--Weird FieldName", user_field_names=True
+        f"Name,--Weird FieldName", user_field_names=True
     )
     assert results[0].id == rows[1].id
     assert results[1].id == rows[0].id
@@ -686,7 +670,7 @@ def test_order_by_fields_string_queryset_with_user_field_names(data_fixture):
     assert results[3].id == rows[3].id
 
     results = model.objects.all().order_by_fields_string(
-        "++Another Weird Field,My Color", user_field_names=True
+        f"++Another Weird Field,My Color", user_field_names=True
     )
     assert results[0].id == rows[2].id
     assert results[1].id == rows[0].id
@@ -703,7 +687,7 @@ def test_order_by_fields_string_queryset_with_user_field_names(data_fixture):
     )
 
     rows[1].order = Decimal("0.1")
-    results = model.objects.all().order_by_fields_string("Name", user_field_names=True)
+    results = model.objects.all().order_by_fields_string(f"Name", user_field_names=True)
     assert results[0].id == row_5.id
     assert results[1].id == rows[1].id
     assert results[2].id == rows[0].id
@@ -810,7 +794,7 @@ def test_filter_by_fields_object_queryset(data_fixture):
     with pytest.raises(ValueError):
         model.objects.all().filter_by_fields_object(
             filter_object={
-                "filter__field_999999__equal": ["BMW"],
+                f"filter__field_999999__equal": ["BMW"],
             },
             filter_type="RANDOM",
         )
@@ -818,7 +802,7 @@ def test_filter_by_fields_object_queryset(data_fixture):
     with pytest.raises(FilterFieldNotFound):
         model.objects.all().filter_by_fields_object(
             filter_object={
-                "filter__field_999999__equal": ["BMW"],
+                f"filter__field_999999__equal": ["BMW"],
             },
             filter_type="AND",
         )
@@ -851,7 +835,7 @@ def test_filter_by_fields_object_queryset(data_fixture):
     # All the entries are not following the correct format and should be ignored.
     results = model.objects.all().filter_by_fields_object(
         filter_object={
-            "filter__not__equal": ["BMW"],
+            f"filter__not__equal": ["BMW"],
             f"filter__field_{price_field.id}_equal": "10000",
             f"filters__field_{price_field.id}__equal": "10000",
         },
@@ -931,7 +915,7 @@ def test_filter_by_fields_object_with_created_on_queryset(data_fixture):
 
     results = model.objects.all().filter_by_fields_object(
         filter_object={
-            "filter__field_created_on__date_after": "2021-01-02 13:00",
+            f"filter__field_created_on__date_after": "2021-01-02 13:00",
         },
         filter_type="AND",
     )
@@ -961,7 +945,7 @@ def test_filter_by_fields_object_with_updated_on_queryset(data_fixture):
 
     results = model.objects.all().filter_by_fields_object(
         filter_object={
-            "filter__field_updated_on__date_before": "2021-01-02 12:00",
+            f"filter__field_updated_on__date_before": "2021-01-02 12:00",
         },
         filter_type="AND",
     )
@@ -1146,10 +1130,10 @@ def test_model_coming_out_of_cache_queries_correctly(
         Field.creation_counter = 0
         table = data_fixture.create_database_table(name="Cars", user=user)
         single_select_1 = data_fixture.create_single_select_field(
-            table=table, name="Color 1"
+            table=table, name=f"Color 1"
         )
         single_select_2 = data_fixture.create_single_select_field(
-            table=table, name="Color 1"
+            table=table, name=f"Color 1"
         )
 
         local_cache.clear()
@@ -1326,22 +1310,3 @@ def test_filter_by_fields_object_with_row_ids_queryset(data_fixture):
     )
     assert len(results) == 1
     assert results[0].id == row_2.id
-
-
-@pytest.mark.django_db
-def test_update_returning_ids(data_fixture):
-    table = data_fixture.create_database_table(name="Rockets")
-    name_field = data_fixture.create_text_field(table=table, order=0, name="Name")
-    price_field = data_fixture.create_number_field(table=table, order=1, name="Price")
-
-    model = table.get_model()
-    row_1 = model.objects.create(
-        **{name_field.db_column: "Falcon Heavy", price_field.db_column: 10000}
-    )
-    row_2 = model.objects.create(
-        **{name_field.db_column: "Falcon 9", price_field.db_column: 20000}
-    )
-    updated_row_ids = model.objects.all().update_returning_ids(
-        **{name_field.db_column: "Falcon 1", price_field.db_column: 100}
-    )
-    assert set(updated_row_ids) == {row_1.id, row_2.id}
