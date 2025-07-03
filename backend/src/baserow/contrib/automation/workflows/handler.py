@@ -11,7 +11,6 @@ from baserow.contrib.automation.constants import (
     IMPORT_SERIALIZED_IMPORTING,
     WORKFLOW_NAME_MAX_LEN,
 )
-from baserow.core.cache import local_cache
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
@@ -24,6 +23,7 @@ from baserow.contrib.automation.workflows.exceptions import (
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.tasks import run_workflow
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
@@ -82,32 +82,32 @@ class AutomationWorkflowHandler:
         except AutomationWorkflow.DoesNotExist:
             raise AutomationWorkflowDoesNotExist()
 
-    def get_published_workflow(self, workflow: AutomationWorkflow, with_cache: bool = True) -> Optional[AutomationWorkflow]:
+    def get_published_workflow(
+        self, workflow: AutomationWorkflow, with_cache: bool = True
+    ) -> Optional[AutomationWorkflow]:
         """
-        Gets the published AutomationWorkflow instance related to the provided workflow.
+        Gets the published AutomationWorkflow instance related to the
+        provided workflow.
 
-        :param workflow: The workflow for which the published version should be returned.
+        :param workflow: The workflow for which the published version should
+            be returned.
         :param with_cache: Whether to return a cached value, if available.
         :raises AutomationWorkflowDoesNotExist: If the workflow doesn't exist.
         :return: The published workflow, if it exists.
         """
 
         def _get_published_workflow(
-            workflow: AutomationWorkflow
+            workflow: AutomationWorkflow,
         ) -> Optional[AutomationWorkflow]:
             latest_published = workflow.published_to.order_by("-id").first()
-            return (
-                latest_published.workflows.first()
-                if latest_published
-                else None
-            )
-    
+            return latest_published.workflows.first() if latest_published else None
+
         if with_cache:
             return local_cache.get(
                 f"wa_published_workflow_{workflow.id}",
                 lambda: _get_published_workflow(workflow),
             )
-        
+
         return _get_published_workflow(workflow)
 
     def get_workflows(
