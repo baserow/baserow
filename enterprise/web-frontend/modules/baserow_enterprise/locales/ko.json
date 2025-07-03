@@ -309,7 +309,11 @@
         "fieldLevelPermissions": "필드 수준 권한",
         "fieldLevelPermissionsContent": "테이블에서 특정 필드를 누가 편집할 수 있는지 제어하세요. 편집자, 빌더, 관리자에 대해 권한을 설정하거나, 필드 값 수정을 완전히 비활성화할 수 있습니다.",
         "builderBranding": "애플리케이션 브랜딩",
-        "builderBrandingContent": "애플리케이션 바닥글에서 'Baserow로 제작' 브랜딩을 제거하여 애플리케이션 브랜딩을 화이트 라벨로 지정하세요."
+        "builderBrandingContent": "애플리케이션 바닥글에서 'Baserow로 제작' 브랜딩을 제거하여 애플리케이션 브랜딩을 화이트 라벨로 지정하세요.",
+        "builderFileInputElement": "파일 입력 요소",
+        "builderFileInputElementContent": "파일 입력 요소를 사용하면 애플리케이션 페이지에 파일을 업로드할 수 있는 필드를 추가할 수 있습니다. 사용자에게 중요한 문서나 이미지를 저장할 수 있는 기능을 제공하세요.",
+        "builderCustomCode": "애플리케이션을 위한 사용자 정의 코드",
+        "builderCustomCodeContent": "사용자 정의 CSS/JavaScript 코드를 추가하여 애플리케이션의 디자인과 동작을 더욱 세부적으로 맞춤 설정할 수 있습니다. 예를 들어 분석이나 소셜 미디어와 같은 외부 서비스를 통합할 수 있습니다."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "직접지원"
@@ -557,5 +561,32 @@
     },
     "advanced": {
         "license": "고급"
+    },
+    "builderSettingTypes": {
+        "customCode": "사용자 정의 CSS/JS"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "사용자 정의 CSS",
+        "customJS": "사용자 정의 JavaScript",
+        "customCSSPlaceholder": "사용자 정의 CSS 코드를 입력하세요...",
+        "customJSPlaceholder": "사용자 정의 JS 코드를 입력하세요...",
+        "externalScripts": "외부 스크립트/스타일시트",
+        "noScript": "외부 스크립트나 스타일시트로 애플리케이션을 강화하세요",
+        "customCodeTitle": "사용자 정의 코드",
+        "customCodeHelp": "사용자 지정 코드는 미리 보기나 게시된 애플리케이션에서만 볼 수 있으며, 결과는 편집기에서 볼 수 없습니다.",
+        "addExternalScript": "외부 스크립트 추가"
+    },
+    "customCodeSettingScriptForm": {
+        "type": "유형",
+        "loadType": "불러오기 유형",
+        "url": "URL",
+        "urlPlaceholder": "스크립트 URL을 입력하세요...",
+        "crossorigin": "교차 출처",
+        "includeCredentials": "자격증명 포함",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "일반",
+        "loadTypeDefer": "연기",
+        "loadTypeAsync": "비동기"
     }
 }
