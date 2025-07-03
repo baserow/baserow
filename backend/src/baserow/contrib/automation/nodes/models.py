@@ -217,3 +217,7 @@ class LocalBaserowUpdateRowActionNode(AutomationActionNode):
 
 class LocalBaserowDeleteRowActionNode(AutomationActionNode):
     ...
+
+
+class CoreHTTPRequestActionNode(AutomationActionNode):
+    ...

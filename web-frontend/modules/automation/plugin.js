@@ -23,6 +23,7 @@ import {
   LocalBaserowRowsCreatedTriggerNodeType,
   LocalBaserowRowsUpdatedTriggerNodeType,
   LocalBaserowRowsDeletedTriggerNodeType,
+  CoreHttpRequestNodeType,
 } from '@baserow/modules/automation/nodeTypes'
 import { DuplicateAutomationWorkflowJobType } from '@baserow/modules/automation/jobTypes'
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
@@ -87,6 +88,7 @@ export default (context) => {
       'node',
       new LocalBaserowUpdateRowActionNodeType(context)
     )
+    app.$registry.register('node', new CoreHttpRequestNodeType(context))
     app.$registry.register(
       'node',
       new LocalBaserowDeleteRowActionNodeType(context)

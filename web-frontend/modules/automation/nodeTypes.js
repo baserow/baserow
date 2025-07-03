@@ -12,6 +12,7 @@ import {
   LocalBaserowRowsUpdatedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
+import { CoreHTTPRequestServiceType } from '@baserow/modules/integrations/core/serviceTypes'
 
 export class NodeType extends Registerable {
   /**
@@ -307,6 +308,31 @@ export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
     return this.app.$registry.get(
       'service',
       LocalBaserowDeleteRowWorkflowServiceType.getType()
+    )
+  }
+}
+
+export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'http_request'
+  }
+
+  getOrder() {
+    return 4
+  }
+
+  get iconClass() {
+    return 'iconoir-globe'
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.httpRequestLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreHTTPRequestServiceType.getType()
     )
   }
 }

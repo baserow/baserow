@@ -9,6 +9,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 )
 from baserow.contrib.automation.nodes.models import (
     AutomationActionNode,
+    CoreHTTPRequestActionNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowDeleteRowActionNode,
     LocalBaserowRowsCreatedTriggerNode,
@@ -17,6 +18,7 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowUpdateRowActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
+from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowRowsCreatedTriggerServiceType,
@@ -66,6 +68,12 @@ class LocalBaserowDeleteRowNodeType(AutomationNodeActionNodeType):
     type = "delete_row"
     model_class = LocalBaserowDeleteRowActionNode
     service_type = LocalBaserowDeleteRowServiceType.type
+
+
+class CoreHttpRequestNodeType(AutomationNodeActionNodeType):
+    type = "http_request"
+    model_class = CoreHTTPRequestActionNode
+    service_type = CoreHTTPRequestServiceType.type
 
 
 class AutomationNodeTriggerType(AutomationNodeType):

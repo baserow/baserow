@@ -19,6 +19,7 @@ class AutomationConfig(AppConfig):
             UpdateAutomationNodeActionType,
         )
         from baserow.contrib.automation.nodes.node_types import (
+            CoreHttpRequestNodeType,
             LocalBaserowCreateRowNodeType,
             LocalBaserowDeleteRowNodeType,
             LocalBaserowRowsCreatedNodeTriggerType,
@@ -131,6 +132,7 @@ class AutomationConfig(AppConfig):
             automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
             automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
             automation_node_type_registry.register(LocalBaserowDeleteRowNodeType())
+            automation_node_type_registry.register(CoreHttpRequestNodeType())
             automation_node_type_registry.register(
                 LocalBaserowRowsCreatedNodeTriggerType()
             )

@@ -62,7 +62,8 @@
     "localBaserowRowsDeletedLabel": "Rows are deleted in {tableName}",
     "localBaserowCreateRowLabel": "Create a row in {tableName}",
     "localBaserowUpdateRowLabel": "Update a row in {tableName}",
-    "localBaserowDeleteRowLabel": "Delete a row in {tableName}"
+    "localBaserowDeleteRowLabel": "Delete a row in {tableName}",
+    "httpRequestLabel": "Send an HTTP request"
   },
   "workflowNode": {
     "actionDelete": "Delete action",
