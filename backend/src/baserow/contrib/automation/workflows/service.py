@@ -221,7 +221,7 @@ class AutomationWorkflowService:
 
         return workflow_clone
 
-    def async_publish_workflow(self, user: AbstractUser, workflow_id: int) -> Job:
+    def async_publish(self, user: AbstractUser, workflow_id: int) -> Job:
         """
         Starts an async job to publish the given automation workflow if the
         user has the right permission.

@@ -349,9 +349,7 @@ class AsyncPublishAutomationWorkflowView(APIView):
         Starts an async job to publish an automation workflow.
         """
 
-        job = AutomationWorkflowService().async_publish_workflow(
-            request.user, workflow_id
-        )
+        job = AutomationWorkflowService().async_publish(request.user, workflow_id)
 
         serializer = job_type_registry.get_serializer(job, JobSerializer)
 
