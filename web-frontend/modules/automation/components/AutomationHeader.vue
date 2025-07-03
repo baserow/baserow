@@ -143,7 +143,8 @@ export default defineComponent({
 
       const _nodes = workflow.value.nodes.filter((node) => {
         const nodeType = app.$registry.get('node', node.type)
-        return nodeType.isTrigger === true
+        const isInError = nodeType.isInError({ service: node.service })
+        return nodeType.isTrigger === true && !isInError
       })
 
       return _nodes.length === 1
@@ -156,7 +157,8 @@ export default defineComponent({
 
       const _nodes = workflow.value.nodes.filter((node) => {
         const nodeType = app.$registry.get('node', node.type)
-        return nodeType.isWorkflowAction === true
+        const isInError = nodeType.isInError({ service: node.service })
+        return nodeType.isWorkflowAction === true && !isInError
       })
 
       return _nodes.length > 0
