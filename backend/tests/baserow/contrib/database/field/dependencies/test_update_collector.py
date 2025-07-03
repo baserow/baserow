@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.db.models import Case, Value, When
 
 import pytest
+from pytest_unordered import unordered
 
 from baserow.contrib.database.fields.dependencies.update_collector import (
     FieldUpdateCollector,
@@ -386,7 +387,7 @@ def test_update_statements_only_update_rows_where_values_change(data_fixture):
 
     # only the row with value "b" should be updated
     result = execute_update_statement(Value("a"))
-    assert set(result[table.id]) == {row_3.id}
+    assert result[table.id] == [row_3.id]
     assert_all_rows_have_value("a")
 
     row_4 = table_model.objects.create(**{f"field_{text_field.id}": "b"})
@@ -402,7 +403,7 @@ def test_update_statements_only_update_rows_where_values_change(data_fixture):
 
     # Only row_4 and row_5 should be updated, the others already have the value "a"
     result = execute_update_statement(func_update_statement)
-    assert set(result[table.id]) == {row_4.id, row_5.id}
+    assert unordered(result[table.id]) == [row_4.id, row_5.id]
     assert_all_rows_have_value("a")
 
 
