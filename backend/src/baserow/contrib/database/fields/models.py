@@ -194,9 +194,6 @@ class Field(
         "increase lookup and filter speed. Note that this comes at a performance cost "
         "when creating the row and updating the cell.",
     )
-    field_constraints = models.JSONField(
-        default=list, help_text="List of constraints that are applied to the field."
-    )
 
     class Meta:
         ordering = (
@@ -314,6 +311,20 @@ class AbstractSelectOption(
 
     def __repr__(self):
         return f"<SelectOption {self.value} ({self.id})>"
+
+
+class FieldConstraint(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
+    field = models.ForeignKey(
+        Field,
+        on_delete=models.CASCADE,
+        related_name="field_constraints",
+        help_text="The field this constraint belongs to.",
+    )
+    name = models.CharField(max_length=255, help_text="The name of the constraint.")
+
+    class Meta:
+        unique_together = ("field", "name")
+        ordering = ("name",)
 
 
 class SelectOption(AbstractSelectOption):

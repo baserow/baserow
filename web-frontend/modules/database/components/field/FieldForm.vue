@@ -217,7 +217,13 @@ export default {
   },
   data() {
     return {
-      allowedValues: ['name', 'type', 'description', 'db_index'],
+      allowedValues: [
+        'name',
+        'type',
+        'description',
+        'db_index',
+        'field_constraints',
+      ],
       values: {
         name: this.defaultValues.name,
         type: this.forcedType || this.defaultValues.type,

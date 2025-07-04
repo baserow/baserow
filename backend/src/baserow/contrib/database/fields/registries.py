@@ -75,7 +75,7 @@ from .exceptions import (
     ReadOnlyFieldHasNoInternalDbValueError,
 )
 from .fields import DurationFieldUsingPostgresFormatting
-from .models import Field, LinkRowField
+from .models import Field, FieldConstraint, LinkRowField
 from .utils import DeferredForeignKeyUpdater
 
 if TYPE_CHECKING:
@@ -708,7 +708,7 @@ class FieldType(
         values = {
             "name": field.name,
             "db_index": field.db_index,
-            "field_constraints": field.field_constraints,
+            "field_constraints": list(field.field_constraints.values("name")),
         }
 
         values.update({key: getattr(field, key) for key in self.allowed_fields})
@@ -1002,6 +1002,13 @@ class FieldType(
         :return: The exported field in as serialized dict.
         """
 
+        # Handle cases where field_constraints relationship might fail
+        # e.g. during Airtable import that uses unsaved field instances
+        try:
+            field_constraints = list(field.field_constraints.values("name"))
+        except (ValueError, TypeError):
+            field_constraints = []
+
         serialized = {
             "id": field.id,
             "type": self.type,
@@ -1013,7 +1020,7 @@ class FieldType(
             "db_index": field.db_index,
             "immutable_type": field.immutable_type,
             "immutable_properties": field.immutable_properties,
-            "field_constraints": field.field_constraints,
+            "field_constraints": field_constraints,
         }
 
         if include_allowed_fields:
@@ -1072,6 +1079,7 @@ class FieldType(
         serialized_copy = serialized_values.copy()
         field_id = serialized_copy.pop("id")
         serialized_copy.pop("type")
+        field_constraints = serialized_copy.pop("field_constraints", [])
         select_options = (
             serialized_copy.pop("select_options", [])
             if self.can_have_select_options
@@ -1100,6 +1108,14 @@ class FieldType(
         # id based on the table id and field name later if any other field references
         # this field.
         id_mapping["database_field_names"][table.id][field.name] = field
+
+        if field_constraints:
+            FieldConstraint.objects.bulk_create(
+                [
+                    FieldConstraint(field=field, name=constraint["name"])
+                    for constraint in field_constraints
+                ]
+            )
 
         if self.can_have_select_options:
             select_options_mapping = self.create_select_options(field, select_options)

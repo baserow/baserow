@@ -3,10 +3,15 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
+from baserow.contrib.database.action.scopes import TableActionScopeType
+from baserow.contrib.database.fields.actions import UpdateFieldActionType
 from baserow.contrib.database.fields.field_constraints import (
     TextTypeUniqueWithEmptyConstraint,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.core.action.handler import ActionHandler
+from baserow.core.action.registries import action_type_registry
+from baserow.test_utils.helpers import assert_undo_redo_actions_are_valid
 
 
 @pytest.mark.django_db
@@ -622,3 +627,53 @@ def test_create_row_with_constraint_after_removing_constraint(api_client, data_f
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
     assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@pytest.mark.field_constraints
+def test_field_constraints_undo_redo(data_fixture):
+    """Test that field constraints are properly handled in undo/redo operations."""
+
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+    table = data_fixture.create_database_table(user=user)
+
+    handler = FieldHandler()
+    field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="text",
+        name="Test Field",
+    )
+
+    assert list(field.field_constraints.values_list("name", flat=True)) == []
+
+    action_type_registry.get_by_type(UpdateFieldActionType).do(
+        user,
+        field,
+        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
+    )
+
+    field.refresh_from_db()
+    assert list(field.field_constraints.values_list("name", flat=True)) == [
+        TextTypeUniqueWithEmptyConstraint.constraint_name
+    ]
+
+    actions = ActionHandler.undo(
+        user, [TableActionScopeType.value(field.table_id)], session_id
+    )
+    assert_undo_redo_actions_are_valid(actions, [UpdateFieldActionType])
+
+    field.refresh_from_db()
+    assert list(field.field_constraints.values_list("name", flat=True)) == []
+
+    actions = ActionHandler.redo(
+        user, [TableActionScopeType.value(field.table_id)], session_id
+    )
+    assert_undo_redo_actions_are_valid(actions, [UpdateFieldActionType])
+
+    field.refresh_from_db()
+    assert list(field.field_constraints.values_list("name", flat=True)) == [
+        TextTypeUniqueWithEmptyConstraint.constraint_name
+    ]

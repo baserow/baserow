@@ -93,7 +93,7 @@ from .exceptions import (
     TableHasNoPrimaryField,
 )
 from .field_cache import FieldCache
-from .models import Field, SelectOption, SpecificFieldForUpdate
+from .models import Field, FieldConstraint, SelectOption, SpecificFieldForUpdate
 from .registries import field_converter_registry, field_type_registry
 from .signals import (
     before_field_deleted,
@@ -239,6 +239,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 to_attr="available_collaborators",
             ),
             "select_options",
+            "field_constraints",
         )
 
     def get_fields(
@@ -363,7 +364,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             "immutable_type",
             "immutable_properties",
             "db_index",
-            "field_constraints",
         ] + field_type.allowed_fields
         field_values = extract_allowed(kwargs, allowed_fields)
         last_order = model_class.get_last_order(table)
@@ -403,6 +403,14 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
 
         field_cache = FieldCache()
         instance.save(field_cache=field_cache, raise_if_invalid=True)
+
+        if field_constraints:
+            FieldConstraint.objects.bulk_create(
+                [
+                    FieldConstraint(field=instance, name=constraint["name"])
+                    for constraint in field_constraints
+                ]
+            )
         FieldDependencyHandler.rebuild_or_raise_if_user_doesnt_have_permissions_after(
             workspace, user, instance, field_cache, ReadFieldOperationType.type
         )
@@ -418,7 +426,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             if skip_django_schema_editor_add_field:
                 schema_editor.add_field(to_model, model_field)
 
-            if field_constraints is not None:
+            if field_constraints:
                 new_constraints = build_django_field_constraints(
                     instance, field_constraints
                 )
@@ -584,17 +592,20 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             "immutable_type",
             "immutable_properties",
             "db_index",
-            "field_constraints",
         ] + to_field_type.allowed_fields
         field_values = extract_allowed(kwargs, allowed_fields)
 
         if field.primary and not to_field_type.can_be_primary_field(field_values):
             raise IncompatiblePrimaryFieldTypeError(to_field_type_name)
 
-        # Check if field constraints are being modified on a readonly/immutable field
-        old_field_constraints = old_field.field_constraints or []
-        field_constraints_changed = old_field_constraints != field_constraints
-        if field_constraints_changed and (field.read_only or field.immutable_properties):
+        old_constraint_names = set(
+            old_field.field_constraints.values_list("name", flat=True)
+        )
+        new_constraint_names = {c["name"] for c in field_constraints}
+        field_constraints_changed = old_constraint_names != new_constraint_names
+        if field_constraints_changed and (
+            field.read_only or field.immutable_properties
+        ):
             raise ImmutableFieldProperties(
                 "Field constraints cannot be modified on readonly or immutable fields."
             )
@@ -623,6 +634,19 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         field = set_allowed_attrs(field_values, allowed_fields, field)
 
         field.save(field_cache=field_cache, raise_if_invalid=True)
+
+        if field_constraints_changed:
+            field.field_constraints.exclude(name__in=new_constraint_names).delete()
+
+            existing_names = set(field.field_constraints.values_list("name", flat=True))
+            constraints_to_create = new_constraint_names - existing_names
+            if constraints_to_create:
+                field.field_constraints.bulk_create(
+                    [
+                        FieldConstraint(field=field, name=name)
+                        for name in constraints_to_create
+                    ]
+                )
         FieldDependencyHandler.rebuild_or_raise_if_user_doesnt_have_permissions_after(
             workspace, user, field, field_cache, ReadFieldOperationType.type
         )
@@ -711,7 +735,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 try:
                     if baserow_field_type_changed or field_constraints_changed:
                         existing_constraints = build_django_field_constraints(
-                            old_field, old_field.field_constraints
+                            old_field, [{"name": name} for name in old_constraint_names]
                         )
                         for constraint in existing_constraints:
                             try:

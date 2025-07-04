@@ -18,13 +18,19 @@ from baserow.contrib.database.fields.constants import (
     BASEROW_BOOLEAN_FIELD_FALSE_VALUES,
     BASEROW_BOOLEAN_FIELD_TRUE_VALUES,
 )
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import Field, FieldConstraint
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils.duration import (
     postgres_interval_to_seconds,
     prepare_duration_value_for_db,
 )
 from baserow.core.utils import split_comma_separated_string
+
+
+class FieldConstraintSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FieldConstraint
+        fields = ("name",)
 
 
 class FieldSerializer(serializers.ModelSerializer):
@@ -42,6 +48,9 @@ class FieldSerializer(serializers.ModelSerializer):
         source="table.database.workspace_id",
         help_text="The ID of the workspace this field belongs to.",
         read_only=True,
+    )
+    field_constraints = serializers.SerializerMethodField(
+        help_text="The constraints applied to this field."
     )
 
     class Meta:
@@ -86,6 +95,19 @@ class FieldSerializer(serializers.ModelSerializer):
             or instance.read_only
         )
 
+    def get_field_constraints(self, instance):
+        """
+        Returns the field constraints for the field.
+        Handles cases where field_constraints is being accessed before the field is
+        saved to the database.
+        """
+
+        try:
+            constraints = instance.field_constraints.all()
+            return FieldConstraintSerializer(constraints, many=True).data
+        except (ValueError, TypeError):
+            return []
+
 
 class PolymorphicFieldSerializer(PolymorphicSerializer):
     """
@@ -123,14 +145,6 @@ class SelectOptionSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=False)
     value = serializers.CharField(max_length=255, required=True)
     color = serializers.CharField(max_length=255, required=True)
-
-
-class FieldConstraintSerializer(serializers.Serializer):
-    """
-    Serializer for field constraints that only accepts name.
-    """
-
-    name = serializers.CharField(required=True)
 
 
 class CreateFieldSerializer(serializers.ModelSerializer):
