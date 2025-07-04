@@ -11,7 +11,7 @@
           ></LocalBaserowServiceForm>
         </div>
       </div>
-      <div class="row">
+      <div v-if="values.integration_id && values.table_id" class="row">
         <div class="col col-6">
           <FormGroup
             small-label

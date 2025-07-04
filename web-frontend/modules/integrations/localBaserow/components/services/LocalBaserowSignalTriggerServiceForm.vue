@@ -11,7 +11,6 @@
 <script>
 import { defineComponent, ref } from 'vue'
 import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm'
-import _ from 'lodash'
 
 export default defineComponent({
   name: 'LocalBaserowSignalTriggerServiceForm',
@@ -32,14 +31,7 @@ export default defineComponent({
     defaultValues.value = { ...props.service }
 
     const emitServiceChange = (newValues) => {
-      const differences = Object.fromEntries(
-        Object.entries(newValues).filter(
-          ([key, value]) => !_.isEqual(value, defaultValues.value[key])
-        )
-      )
-      if (Object.keys(differences).length > 0) {
-        emit('values-changed', differences)
-      }
+      emit('values-changed', newValues)
     }
 
     return {
