@@ -165,14 +165,16 @@ class PathBasedUpdateStatementCollector:
         result[self.table.id] = updated_row_ids
 
         for sub_path in self.sub_paths.values():
-            result.update(
-                sub_path.execute_all(
-                    starting_row_ids=starting_row_ids,
-                    path_to_starting_table=path_to_starting_table,
-                    field_cache=field_cache,
-                    deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
-                )
+            sub_result = sub_path.execute_all(
+                starting_row_ids=starting_row_ids,
+                path_to_starting_table=path_to_starting_table,
+                field_cache=field_cache,
+                deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
             )
+            for table_id, row_ids in sub_result.items():
+                prev_res = result.get(table_id, [])
+                # Avoid duplicated row ids.
+                result[table_id] = list(set(prev_res) | set(row_ids))
         return result
 
     def _execute_pending_update_statements(
