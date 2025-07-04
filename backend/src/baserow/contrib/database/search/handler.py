@@ -571,7 +571,7 @@ class SearchHandler(
         )
 
     @classmethod
-    def initialize_search_data(cls, table: "Table"):
+    def initialize_missing_search_data(cls, table: "Table"):
         """
         Initializes the search data for all fields in the given table that have not
         been initialized yet. This method will set the `search_data_initialized_at`
@@ -595,7 +595,9 @@ class SearchHandler(
         for field in fields_to_initialze:
             with transaction.atomic():
                 # Process each field separately to ensure progress on large tables.
-                cls.update_search_data(table, field_ids=[field.id])
+                cls.update_search_data(
+                    table, field_ids=[field.id], save_empty_values=False
+                )
 
                 field.search_data_initialized_at = datetime.now(tz=timezone.utc)
                 field.save(update_fields=["search_data_initialized_at"])
@@ -611,6 +613,7 @@ class SearchHandler(
         table: "Table",
         field_ids: Iterable[int] | None = None,
         row_ids: Iterable[int] | None = None,
+        save_empty_values: bool = True,
     ):
         """
         Updates the search data for the given table, fields and row ids.
@@ -622,6 +625,10 @@ class SearchHandler(
             all searchable fields will be considered.
         :param row_ids: Optional list of row IDs to update search data for. If None,
             all rows will be considered.
+        :param save_empty_values: If True, empty search values will be saved.
+            This can be False when initializing search data for the first time to save
+            space, but should be True when updating existing search data to ensure
+            that all searchable fields are represented in the search table.
         """
 
         model = table.get_model()
@@ -656,15 +663,17 @@ class SearchHandler(
             search_expr: Expression = field.get_type().get_search_expression(
                 field, field_qs
             )
+            qs = field_qs.annotate(
+                row_id=F("id"),
+                field_id=Value(field_id, output_field=IntegerField()),
+                value=LocalisedSearchVector(search_expr),
+                timestamp=Value(now, output_field=DateTimeField()),
+            )
+            if not save_empty_values:
+                qs = qs.exclude(Q(value__iexact="") | Q(value__isnull=True))
+
             field_querysets.append(
-                field_qs.annotate(
-                    row_id=F("id"),
-                    field_id=Value(field_id, output_field=IntegerField()),
-                    value=LocalisedSearchVector(search_expr),
-                    timestamp=Value(now, output_field=DateTimeField()),
-                )
-                .exclude(Q(value__iexact="") | Q(value__isnull=True))
-                .values("field_id", "row_id", "value", "timestamp")
+                qs.values("field_id", "row_id", "value", "timestamp")
             )
 
         union_qs, *rest = field_querysets
@@ -702,7 +711,7 @@ class SearchHandler(
         Process PendingSearchValueUpdate entries
         """
 
-        def next_single_row_batch(count: int) -> QuerySet[PendingSearchValueUpdate]:
+        def next_batch(count: int) -> QuerySet[PendingSearchValueUpdate]:
             return (
                 PendingSearchValueUpdate.objects.filter(
                     table=table, row_id__isnull=False
@@ -711,7 +720,6 @@ class SearchHandler(
                 .order_by("field_id", "row_id")[:count]
             )
 
-        @transaction.atomic
         def process_batch(num_updates=10):
             processed = 0
 
@@ -730,7 +738,7 @@ class SearchHandler(
 
             # Now handle single-row updates, grouping them for efficiency
             while processed < num_updates:
-                rows_updates = next_single_row_batch(2500)
+                rows_updates = next_batch(2500)
 
                 if not rows_updates:
                     break
@@ -752,7 +760,8 @@ class SearchHandler(
             return processed
 
         while True:
-            count = 10
-            processed = process_batch(count)
+            count = 10  # Balance between efficiency while ensuring progress
+            with transaction.atomic():
+                processed = process_batch(count)
             if processed < count:
                 break

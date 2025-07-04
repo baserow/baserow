@@ -85,14 +85,14 @@ def schedule_update_search_data(
     if not SearchHandler.full_text_enabled():
         return
 
-    try:
-        table = TableHandler().get_table(table_id)
-    except TableDoesNotExist:
-        logger.warning(f"Table with id {table_id} doesn't exist.")
-        return
-
     # If any specific update is requested, queue it so it can be processed later.
     if field_ids or row_ids:
+        try:
+            table = TableHandler().get_table(table_id)
+        except TableDoesNotExist:
+            logger.warning(f"Table with id {table_id} doesn't exist.")
+            return
+
         SearchHandler.queue_pending_search_update(
             table=table, field_ids=field_ids, row_ids=row_ids
         )
@@ -148,7 +148,7 @@ def update_search_data(table_id: int):
 
     # Ensure every table field exists in the search table.
     # Used during migrations or when explicitly reinitializing search data.
-    SearchHandler.initialize_search_data(table)
+    SearchHandler.initialize_missing_search_data(table)
 
     # Make sure newer updates will re-schedule this task at the end if needed.
     flag = PendingSearchUpdateFlag(table_id)
@@ -159,8 +159,7 @@ def update_search_data(table_id: int):
     # If new updates were queued during processing, schedule another update
     if flag.get():
         logger.debug(
-            "There are new pending changes to process. "
-            f"Scheduling another update for {table_id}"
+            f"New updates detected, rescheduling the task for table {table_id}."
         )
         schedule_update_search_data.delay(table_id)
 

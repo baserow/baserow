@@ -490,7 +490,7 @@ class FieldUpdateCollector:
 
                 fields = self._get_updated_fields_in_table(table)
                 SearchHandler.schedule_update_search_data(
-                    table, fields=fields, row_ids=row_ids
+                    table, fields=fields, row_ids=list(row_ids)
                 )
 
         updated_fields = self._get_updated_fields_in_table(self._starting_table)

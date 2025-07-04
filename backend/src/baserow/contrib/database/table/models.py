@@ -595,6 +595,25 @@ class GeneratedTableModel(HierarchicalModelMixin, models.Model):
         ]
 
     @classmethod
+    def get_fields_with_uninitialized_search_data(
+        cls, include_trash: bool = False
+    ) -> List[Field]:
+        """
+        Returns a list of fields which have not yet had their search data
+        initialized. This is useful for identifying fields that need to be
+        processed for search indexing.
+
+        :param include_trash: Whether to include trashed fields in the result
+        :return: A list of Field objects that need to be initialized for search.
+        """
+
+        return (
+            f
+            for f in cls.get_searchable_fields(include_trash)
+            if f.search_data_initialized_at is None
+        )
+
+    @classmethod
     def get_searchable_fields(cls, include_trash: bool = False) -> Iterator[Field]:
         """
         Generates all searchable fields in a table. A searchable field is one where
