@@ -385,7 +385,8 @@ def test_update_statements_only_update_rows_where_values_change(data_fixture):
             assert getattr(row, f"field_{text_field.id}") == value
 
     # only the row with value "b" should be updated
-    assert execute_update_statement(Value("a")) == 1
+    result = execute_update_statement(Value("a"))
+    assert result[table.id] == {row_3.id}
     assert_all_rows_have_value("a")
 
     row_4 = table_model.objects.create(**{f"field_{text_field.id}": "b"})
@@ -400,7 +401,8 @@ def test_update_statements_only_update_rows_where_values_change(data_fixture):
     )
 
     # Only row_4 and row_5 should be updated, the others already have the value "a"
-    assert execute_update_statement(func_update_statement) == 2
+    result = execute_update_statement(func_update_statement)
+    assert result[table.id] == {row_4.id, row_5.id}
     assert_all_rows_have_value("a")
 
 

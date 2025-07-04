@@ -51,6 +51,7 @@ from baserow.contrib.database.table.constants import (
     TSV_FIELD_PREFIX,
     USER_TABLE_DATABASE_NAME_PREFIX,
 )
+from baserow.contrib.database.table.queryset import BaserowCTEQuerySet
 from baserow.contrib.database.views.exceptions import ViewFilterTypeNotAllowedForField
 from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.registries import view_filter_type_registry
@@ -102,7 +103,7 @@ def get_row_needs_background_update_index(table):
     )
 
 
-class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, CTEQuerySet):
+class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
     def _insert(self, objs, fields, *args, **kwargs):
         """
         We never want to include TSVector fields when inserting rows, we manage them

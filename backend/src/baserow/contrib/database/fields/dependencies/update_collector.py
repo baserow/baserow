@@ -131,26 +131,54 @@ class PathBasedUpdateStatementCollector:
         starting_row_ids: StartingRowIdsType = None,
         path_to_starting_table: StartingRowIdsType = None,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]] = None,
-    ) -> int:
-        updated_rows = 0
+        result: Optional[Dict[int, Set[int]]] = None,
+    ) -> Dict[int, Set[int]]:
+        """
+        Executes all the pending update statements in the correct order and returns
+        a dictionary containing a list of updated row ids per table id.
+
+        :param field_cache: The field cache to use to get the models and fields.
+        :param starting_row_ids: If the update starts from specific rows in the starting
+            table set this and all update statements executed by this collector will
+            only update rows which join back to these starting rows.
+        :param path_to_starting_table: A list of link row fields which lead from the
+            self.table to the table containing the starting row ids. Used to properly
+            order the update statements so the graph is updated in sequence and also
+            used if self.starting_row_ids is set so only rows which join back to the
+            starting rows via this path are updated.
+        :param deleted_m2m_rels_per_link_field: A dictionary per link field of rows in
+            the table it links to which have had their connections removed. This is used
+            to ensure that rows which have had their connections removed are still
+            updated when the starting row ids are set.
+        :param result: If the result dict containing the table and the updated rows
+            already exists, then it can be provided here. If provided, it will be
+            updated.
+        :return: A dictionary containing a set of updated row ids per table id.
+        """
+
+        if result is None:
+            result = defaultdict(set)
+
         path_to_starting_table = path_to_starting_table or []
         if self.connection_here is not None:
             path_to_starting_table = [self.connection_here] + path_to_starting_table
-        updated_rows += self._execute_pending_update_statements(
+        updated_row_ids = self._execute_pending_update_statements(
             field_cache,
             path_to_starting_table,
             starting_row_ids,
             deleted_m2m_rels_per_link_field,
         )
+        result[self.table.id].update(updated_row_ids)
 
         for sub_path in self.sub_paths.values():
-            updated_rows += sub_path.execute_all(
+            result = sub_path.execute_all(
                 starting_row_ids=starting_row_ids,
                 path_to_starting_table=path_to_starting_table,
                 field_cache=field_cache,
                 deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
+                result=result,
             )
-        return updated_rows
+        return result
 
     def _execute_pending_update_statements(
         self,
@@ -158,7 +186,7 @@ class PathBasedUpdateStatementCollector:
         path_to_starting_table: List[LinkRowField],
         starting_row_ids: StartingRowIdsType,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]],
-    ) -> int:
+    ) -> list[int]:
         model = field_cache.get_model(self.table)
         qs = model.objects_and_trash
         # If the connection is broken back to the starting table then there is no
@@ -195,7 +223,7 @@ class PathBasedUpdateStatementCollector:
             # set this per row attribute.
             self.update_statements.pop(ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME, None)
 
-        updated_rows = 0
+        updated_row_ids = []
         if self.update_statements:
             annotations, filters = {}, Q()
 
@@ -223,12 +251,12 @@ class PathBasedUpdateStatementCollector:
                         }
                     ) | ~Q(**{field: expr})
 
-            updated_rows = (
+            updated_row_ids = (
                 qs.annotate(**annotations)
                 .filter(filters)
-                .update(**self.update_statements)
+                .update_returning_ids(**self.update_statements)
             )
-        return updated_rows
+        return updated_row_ids
 
     def _include_rows_connected_to_deleted_m2m_relationships(
         self,
@@ -411,19 +439,18 @@ class FieldUpdateCollector:
             field, via_path_to_starting_table
         )
 
-    def apply_updates(self, field_cache: FieldCache) -> int:
+    def apply_updates(self, field_cache: FieldCache) -> dict[int, list[int]]:
         """
         Triggers all update statements to be executed in the correct order in as few
-        update queries as possible and return the number of updated rows.
+        update queries as possible and return a dictionary containing a list of
+        updated row ids per table id.
         """
 
-        updated_rows_count = self._update_statement_collector.execute_all(
+        return self._update_statement_collector.execute_all(
             field_cache,
             self._starting_row_ids,
             deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
         )
-
-        return updated_rows_count
 
     def apply_fields_type_changed(self, field_cache: FieldCache):
         if len(self._fields_type_changed) > 0:
@@ -454,8 +481,12 @@ class FieldUpdateCollector:
         :return: The list of all fields which have been updated in the starting table.
         """
 
-        updated_rows_count = self.apply_updates(field_cache)
-        if updated_rows_count > 0 and not skip_search_updates:
+        updated_rows_per_table = self.apply_updates(field_cache)
+        any_table_updated = any(
+            len(updated_row_ids) > 0
+            for updated_row_ids in updated_rows_per_table.values()
+        )
+        if any_table_updated and not skip_search_updates:
             for table in self._pending_field_updates.tables():
                 if not self._starting_table or table.id != self._starting_table.id:
                     if self._starting_row_ids is not None:
