@@ -13,10 +13,8 @@ from django.db import models
 from django.db.models import BooleanField
 from django.db.models import Field as DjangoModelFieldClass
 from django.db.models import JSONField, Q, QuerySet
-from django.db.models.sql.compiler import SQLUpdateCompiler
 
 from django_cte.cte import CTEManager, CTEQuerySet
-from django_cte.query import CTECompiler
 from opentelemetry import trace
 
 from baserow.cachalot_patch import cachalot_enabled
@@ -88,21 +86,6 @@ class FieldObject(TypedDict):
     type: FieldType
     field: Field
     name: str
-
-
-class CTEUpdateReturningIdsQueryCompiler(SQLUpdateCompiler):
-    def as_sql(self, *args, **kwargs):
-        def _as_sql():
-            sql, params = super(CTEUpdateReturningIdsQueryCompiler, self).as_sql(
-                *args, **kwargs
-            )
-            return sql + " RETURNING id", params
-
-        return CTECompiler.generate_sql(self.connection, self.query, _as_sql)
-
-    def execute_sql(self, result_type):
-        cursor = super(SQLUpdateCompiler, self).execute_sql(result_type)
-        return [res[0] for res in cursor.fetchall()]
 
 
 class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):

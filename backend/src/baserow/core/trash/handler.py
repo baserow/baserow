@@ -304,7 +304,6 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
                 trash_entry = TrashEntry.objects.filter(
                     should_be_permanently_deleted=True
                 ).first()
-
                 if not trash_entry:
                     break
 

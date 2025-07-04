@@ -23,6 +23,7 @@ from django.conf import settings
 from django.contrib.postgres.search import SearchQuery
 from django.db import connection, router, transaction
 from django.db.models import (
+    DateTimeField,
     Expression,
     F,
     Func,
@@ -33,7 +34,6 @@ from django.db.models import (
     TextField,
     Value,
 )
-from django.db.models.functions import Now
 from django.db.models.sql.constants import LOUTER
 from django.utils.encoding import force_str
 
@@ -95,7 +95,7 @@ def _workspace_search_table_exists(workspace_id: int) -> bool:
     :return: True if the search table exists, False otherwise.
     """
 
-    search_table_name = SearchHandler.get_search_table_name(workspace_id)
+    search_table_name = SearchHandler.get_workspace_search_table_name(workspace_id)
     with connection.cursor() as cursor:
         raw_sql = """
             SELECT EXISTS (
@@ -113,7 +113,7 @@ def _generate_search_table_model(workspace_id: int) -> "AbstractSearchValue":
     from baserow.contrib.database.table.models import GeneratedModelAppsProxy
 
     app_label = "database_search"
-    table_name = SearchHandler.get_search_table_name(workspace_id)
+    table_name = SearchHandler.get_workspace_search_table_name(workspace_id)
     model_name = to_camel_case(table_name)
 
     baserow_models = {}
@@ -162,7 +162,7 @@ class SearchHandler(
     )
 ):
     @classmethod
-    def get_search_table_name(cls, workspace_id: int) -> str:
+    def get_workspace_search_table_name(cls, workspace_id: int) -> str:
         """
         Returns the name of the search table for the given workspace ID.
         :param workspace_id: The ID of the workspace for which the search table name
@@ -173,7 +173,9 @@ class SearchHandler(
         return f"database_search_workspace_{workspace_id}_data"
 
     @classmethod
-    def get_search_table_model(cls, workspace_id: int) -> "AbstractSearchValue":
+    def get_workspace_search_table_model(
+        cls, workspace_id: int
+    ) -> "AbstractSearchValue":
         """
         Generates SearchTable model
         :param workspace_id: The ID of the workspace for which the search table
@@ -217,7 +219,9 @@ class SearchHandler(
             config=SearchHandler.search_config(),
         )
 
-        search_table = cls.get_search_table_model(fields[0].table.database.workspace_id)
+        search_table = cls.get_workspace_search_table_model(
+            fields[0].table.database.workspace_id
+        )
         cte = With(
             search_table.objects.filter(
                 field_id__in=[field.id for field in fields], value=search_query
@@ -277,7 +281,7 @@ class SearchHandler(
 
     @classmethod
     def create_workspace_search_table(cls, workspace_id: int) -> "AbstractSearchValue":
-        search_table = cls.get_search_table_model(workspace_id)
+        search_table = cls.get_workspace_search_table_model(workspace_id)
         with safe_django_schema_editor() as se:
             se.create_model(search_table)
 
@@ -287,7 +291,7 @@ class SearchHandler(
 
     @classmethod
     def delete_workspace_search_table(cls, workspace_id: int):
-        search_table = cls.get_search_table_model(workspace_id)
+        search_table = cls.get_workspace_search_table_model(workspace_id)
         query = sql.SQL("DROP TABLE IF EXISTS {} CASCADE").format(
             sql.Identifier(search_table._meta.db_table)
         )
@@ -509,7 +513,7 @@ class SearchHandler(
         if cls.workspace_search_table_exists(workspace_id) is False:
             return
 
-        search_model = cls.get_search_table_model(workspace_id)
+        search_model = cls.get_workspace_search_table_model(workspace_id)
 
         table_field_ids = [
             f["field"].id
@@ -641,9 +645,10 @@ class SearchHandler(
             return
 
         workspace_id = table.database.workspace_id
-        search_model = cls.get_search_table_model(workspace_id)
+        search_model = cls.get_workspace_search_table_model(workspace_id)
         field_querysets = []
 
+        now = datetime.now(tz=timezone.utc)
         for field_id in field_ids:
             field = searchable_fields[field_id]
             field_qs = qs.all()
@@ -656,7 +661,7 @@ class SearchHandler(
                     row_id=F("id"),
                     field_id=Value(field_id, output_field=IntegerField()),
                     value=LocalisedSearchVector(search_expr),
-                    timestamp=Now(),
+                    timestamp=Value(now, output_field=DateTimeField()),
                 )
                 .exclude(Q(value__iexact="") | Q(value__isnull=True))
                 .values("field_id", "row_id", "value", "timestamp")
@@ -725,17 +730,20 @@ class SearchHandler(
 
             # Now handle single-row updates, grouping them for efficiency
             while processed < num_updates:
-                single_rows_updates = next_single_row_batch(2500)
+                rows_updates = next_single_row_batch(2500)
 
-                if not single_rows_updates:
+                if not rows_updates:
                     break
 
-                field_ids, row_ids = zip(
-                    *[(u.field_id, u.row_id) for u in single_rows_updates]
-                )
+                field_ids, row_ids = set(), set()
+                for u in rows_updates:
+                    field_ids.add(u.field_id)
+                    row_ids.add(u.row_id)
 
-                cls.update_search_data(table, field_ids, row_ids)
-                single_rows_updates._raw_delete(
+                cls.update_search_data(
+                    table, field_ids=list(field_ids), row_ids=list(row_ids)
+                )
+                rows_updates._raw_delete(
                     using=router.db_for_write(PendingSearchValueUpdate)
                 )
 

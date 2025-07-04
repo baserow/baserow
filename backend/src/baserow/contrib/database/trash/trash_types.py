@@ -432,11 +432,6 @@ class RowsTrashableItemType(TrashableItemType):
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
         SearchHandler.schedule_update_search_data(table, row_ids=trashed_item.row_ids)
-        for dependant_field in dependant_fields:
-            dependant_table = dependant_field.table
-            SearchHandler.schedule_update_search_data(
-                dependant_table, fields=[dependant_field]
-            )
 
         if len(rows_to_restore) < 50:
             rows_to_return = list(

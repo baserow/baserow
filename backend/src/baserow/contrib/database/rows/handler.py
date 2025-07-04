@@ -2504,13 +2504,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-
         SearchHandler.schedule_update_search_data(table, row_ids=[row.id])
-        for dependant_field in dependant_fields:
-            dependant_table = dependant_field.table
-            SearchHandler.schedule_update_search_data(
-                dependant_table, fields=[dependant_field]
-            )
 
         rows_deleted.send(
             self,
@@ -2704,14 +2698,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-
-        # While we don't want to remove search data for deleted row, we should update
-        # dependant fields so they won't search removed row's data
-        for dependant_field in dependant_fields:
-            dependant_table = dependant_field.table
-            SearchHandler.schedule_update_search_data(
-                dependant_table, fields=[dependant_field]
-            )
 
         rows_deleted.send(
             self,

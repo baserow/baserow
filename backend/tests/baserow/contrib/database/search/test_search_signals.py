@@ -31,7 +31,7 @@ def test_perm_deleted_workspace(data_fixture):
     # The search table now exists
     assert set(tables) - set(initial_tables) == {
         table_1.get_model()._meta.db_table,
-        SearchHandler.get_search_table_name(workspace.id),
+        SearchHandler.get_workspace_search_table_name(workspace.id),
     }
 
     TrashHandler.trash(user, workspace, None, workspace)
