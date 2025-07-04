@@ -91,7 +91,13 @@ import LocalBaserowTableServiceConditionalForm from '@baserow/modules/integratio
 import LocalBaserowTableServiceSortForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableServiceSortForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import localBaserowService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowService'
-import { required, minValue, maxValue, helpers } from '@vuelidate/validators'
+import {
+  required,
+  minValue,
+  maxValue,
+  helpers,
+  integer,
+} from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
 import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm'
 
@@ -148,6 +154,7 @@ export default {
             this.$t('error.requiredField'),
             required
           ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
           minValue: helpers.withMessage(
             this.$t('error.minValueField', { min: 0 }),
             minValue(0)
