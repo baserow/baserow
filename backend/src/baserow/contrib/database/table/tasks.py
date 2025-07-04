@@ -141,7 +141,10 @@ def setup_new_background_update_and_search_columns(self, table_id: int):
     from baserow.contrib.database.search.exceptions import (
         PostgresFullTextSearchDisabledException,
     )
-    from baserow.contrib.database.search.handler import SearchHandler
+    from baserow.contrib.database.search.handler import (
+        SearchHandler,
+        SearchHandlerCompat,
+    )
     from baserow.contrib.database.table.handler import TableHandler
 
     with transaction.atomic():
@@ -158,7 +161,7 @@ def setup_new_background_update_and_search_columns(self, table_id: int):
         # it's okay to keep looping over the rows until all tsv columns are updated.
         # This will also prevent deadlocks if any of the rows are updated, because the
         # `update_tsvector_columns` acquires a lock while it's running.
-        SearchHandler.update_tsvector_columns_locked(
+        SearchHandlerCompat.update_tsvector_columns_locked(
             table, update_tsvectors_for_changed_rows_only=True
         )
     except PostgresFullTextSearchDisabledException:

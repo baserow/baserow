@@ -53,7 +53,9 @@ def test_record_selector_element_extract_properties(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_export_import_record_selector_element(data_fixture):
+def test_export_import_record_selector_element(
+    data_fixture,
+):
     workspace = data_fixture.create_workspace()
     user = data_fixture.create_user()
 

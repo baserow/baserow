@@ -436,7 +436,6 @@ def test_applications_reordered(mock_broadcast_to_channel_group, data_fixture):
     CoreHandler().order_applications(
         user=user, workspace=workspace, order=[database.id]
     )
-
     mock_broadcast_to_channel_group.delay.assert_called_once()
     args = mock_broadcast_to_channel_group.delay.call_args
     assert args[0][0] == database.workspace_id

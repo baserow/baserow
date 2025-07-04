@@ -921,7 +921,10 @@ def test_async_sync_data_sync_table_job_with_deleted_table(api_client, data_fixt
 
 @pytest.mark.django_db(transaction=True)
 @responses.activate
-def test_async_sync_data_sync_table(api_client, data_fixture):
+def test_async_sync_data_sync_table(
+    api_client,
+    data_fixture,
+):
     responses.add(
         responses.GET,
         "https://baserow.io/ical.ics",
@@ -948,6 +951,8 @@ def test_async_sync_data_sync_table(api_client, data_fixture):
     )
     assert response.status_code == HTTP_200_OK
     data_sync_id = response.json()["data_sync"]["id"]
+    data_sync = DataSync.objects.get(pk=data_sync_id)
+    table = data_sync.table
 
     response = api_client.post(
         reverse(

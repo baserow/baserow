@@ -1,5 +1,7 @@
+from django.db.models import CASCADE, IntegerField, Model, OneToOneField
+
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
-from baserow.core.models import Application
+from baserow.core.models import Application, Workspace
 
 from .fields.models import (
     BooleanField,
@@ -62,6 +64,7 @@ __all__ = [
     "TableWebhookHeader",
     "TableWebhookCall",
     "FieldDependency",
+    "WorkspaceDatabaseSettings",
 ]
 
 
@@ -72,3 +75,12 @@ class Database(Application):
         if "workspace" in self._state.fields_cache:
             self.application_ptr.workspace = self.workspace
         return self.application_ptr
+
+
+class WorkspaceDatabaseSettings(Model):
+    """
+    Stores database-specific settings for a whole workspace
+    """
+
+    workspace = OneToOneField(Workspace, primary_key=True, on_delete=CASCADE)
+    search_table_version = IntegerField(null=True, default=None)

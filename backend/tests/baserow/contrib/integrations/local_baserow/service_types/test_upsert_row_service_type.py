@@ -614,9 +614,7 @@ def test_local_baserow_upsert_row_service_prepare_values(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_export_import_local_baserow_upsert_row_service(
-    data_fixture,
-):
+def test_export_import_local_baserow_upsert_row_service(data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(workspace=workspace, order=2)

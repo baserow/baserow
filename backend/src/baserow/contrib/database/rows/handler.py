@@ -851,7 +851,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(fields + dependant_fields)
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.field_value_updated_or_created(table, row_ids=[instance.id])
 
         rows_created.send(
             self,
@@ -1047,7 +1047,16 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.field_value_updated_or_created(
+            table,
+            fields=[f for f in updated_fields if f.id in updated_field_ids],
+            row_ids=[row.id],
+        )
+        for dependant_field in dependant_fields:
+            dependant_table = dependant_field.table
+            SearchHandler.field_value_updated_or_created(
+                dependant_table, fields=[dependant_field]
+            )
 
         rows_updated.send(
             self,
@@ -1250,7 +1259,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         updated_fields = [o["field"] for o in model._field_objects.values()]
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
         if not skip_search_update:
-            SearchHandler.field_value_updated_or_created(table)
+            SearchHandler.field_value_updated_or_created(
+                table, fields=updated_fields, row_ids=[r.id for r in inserted_rows]
+            )
 
         rows_to_return = inserted_rows
         rows_values_refreshed_from_db = False
@@ -1566,7 +1577,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
             all_created_rows += created_rows
 
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.field_value_updated_or_created(
+            table, row_ids=[r.id for r in all_created_rows]
+        )
 
         return all_created_rows, report
 
@@ -1619,7 +1632,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             report.update(updated_rows.errors)
             all_updated_rows.extend(updated_rows.updated_rows)
 
-        SearchHandler.field_value_updated_or_created(table)
+            SearchHandler.field_value_updated_or_created(
+                table, row_ids=[r.id for r in updated_rows.updated_rows]
+            )
         return all_updated_rows, report
 
     def import_rows(
@@ -2147,7 +2162,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
         if not skip_search_update:
-            SearchHandler.field_value_updated_or_created(table)
+            SearchHandler.field_value_updated_or_created(
+                table, fields=updated_field_ids, row_ids=row_ids
+            )
 
         # Reload rows from the database to get the updated values for formulas
         updated_rows_to_return = list(
@@ -2497,6 +2514,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
 
+        SearchHandler.field_value_updated_or_created(table, row_ids=[row.id])
+        for dependant_field in dependant_fields:
+            dependant_table = dependant_field.table
+            SearchHandler.field_value_updated_or_created(
+                dependant_table, fields=[dependant_field]
+            )
+
         rows_deleted.send(
             self,
             rows=[row],
@@ -2689,6 +2713,14 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
+
+        # While we don't want to remove search data for deleted row, we should update
+        # dependant fields so they won't search removed row's data
+        for dependant_field in dependant_fields:
+            dependant_table = dependant_field.table
+            SearchHandler.field_value_updated_or_created(
+                dependant_table, fields=[dependant_field]
+            )
 
         rows_deleted.send(
             self,

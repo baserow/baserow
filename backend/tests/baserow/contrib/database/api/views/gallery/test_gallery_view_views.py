@@ -604,7 +604,7 @@ def test_list_rows_include_field_options(api_client, data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
-def test_list_rows_search(api_client, data_fixture, search_mode):
+def test_list_rows_search(api_client, data_fixture, search_mode, run_on_commit):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
@@ -628,9 +628,8 @@ def test_list_rows_search(api_client, data_fixture, search_mode):
         **{f"field_{text_field.id}": "Robin Backham"}
     )
 
-    SearchHandler.update_tsvector_columns(
-        table, update_tsvectors_for_changed_rows_only=False
-    )
+    SearchHandler.mark_table_data_change(table.id)
+    run_on_commit()
 
     url = reverse("api:database:views:gallery:list", kwargs={"view_id": gallery.id})
     response = api_client.get(
@@ -1251,7 +1250,7 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
 @pytest.mark.django_db
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
 def test_list_rows_public_only_searches_by_visible_columns(
-    api_client, data_fixture, search_mode
+    api_client, data_fixture, search_mode, run_on_commit
 ):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -1288,9 +1287,7 @@ def test_list_rows_public_only_searches_by_visible_columns(
         values={"public": search_term, "hidden": "other"},
         user_field_names=True,
     )
-    SearchHandler.update_tsvector_columns(
-        table, update_tsvectors_for_changed_rows_only=False
-    )
+    run_on_commit()
 
     # Get access as an anonymous user
     response = api_client.get(

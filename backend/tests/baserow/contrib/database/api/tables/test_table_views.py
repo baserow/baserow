@@ -20,6 +20,7 @@ from baserow.contrib.database.file_import.models import FileImportJob
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.jobs.models import Job
+from baserow.core.jobs.tasks import run_async_job
 from baserow.test_utils.helpers import (
     assert_serialized_rows_contain_same_values,
     independent_test_db_connection,
@@ -510,22 +511,23 @@ def test_create_table_with_data_sync(api_client, data_fixture, patch_filefield_s
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_INITIAL_SYNC_TABLE_DATA_LIMIT_EXCEEDED"
 
-    with patch_filefield_storage():
-        response = api_client.post(
-            url,
-            {
-                "name": "Test 1",
-                "data": [
-                    ["A", "B", "C", "D"],
-                    ["1-1", "1-2", "1-3", "1-4", "1-5"],
-                    ["2-1", "2-2", "2-3"],
-                    ["3-1", "3-2"],
-                ],
-                "first_row_header": True,
-            },
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
+    with override_settings(USE_PG_FULLTEXT_SEARCH=False):
+        with patch_filefield_storage():
+            response = api_client.post(
+                url,
+                {
+                    "name": "Test 1",
+                    "data": [
+                        ["A", "B", "C", "D"],
+                        ["1-1", "1-2", "1-3", "1-4", "1-5"],
+                        ["2-1", "2-2", "2-3"],
+                        ["3-1", "3-2"],
+                    ],
+                    "first_row_header": True,
+                },
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
 
@@ -777,7 +779,9 @@ def test_delete_table_still_if_locked_for_key_share(api_client, data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_async_duplicate_interesting_table(api_client, data_fixture):
+def test_async_duplicate_interesting_table(
+    api_client, data_fixture, run_on_commit, celery_task_lazy
+):
     user_1, token_1 = data_fixture.create_user_and_token(
         email="test_1@test.nl", password="password", first_name="Test1"
     )
@@ -796,6 +800,7 @@ def test_async_duplicate_interesting_table(api_client, data_fixture):
     table_1, _, _, _, context = setup_interesting_test_table(
         data_fixture, database=database, user=user_1
     )
+    run_on_commit()
 
     # user_2 cannot duplicate a table of other workspaces
     response = api_client.post(
@@ -816,16 +821,23 @@ def test_async_duplicate_interesting_table(api_client, data_fixture):
     assert response.json()["error"] == "ERROR_TABLE_DOES_NOT_EXIST"
 
     # user can duplicate an application created by other in the same workspace
-    response = api_client.post(
-        reverse("api:database:tables:async_duplicate", kwargs={"table_id": table_1.id}),
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token_3}",
-    )
-    assert response.status_code == HTTP_202_ACCEPTED
-    job = response.json()
-    assert job["id"] is not None
-    assert job["state"] == "pending"
-    assert job["type"] == "duplicate_table"
+    with celery_task_lazy(True):
+        response = api_client.post(
+            reverse(
+                "api:database:tables:async_duplicate", kwargs={"table_id": table_1.id}
+            ),
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token_3}",
+        )
+        assert response.status_code == HTTP_202_ACCEPTED
+        job = response.json()
+        assert job["id"] is not None
+        assert job["state"] == "pending"
+        assert job["type"] == "duplicate_table"
+
+        run_async_job(job["id"])
+
+    run_on_commit()
 
     # check that now the job ended correctly and the application was duplicated
     response = api_client.get(

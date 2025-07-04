@@ -1270,7 +1270,7 @@ def can_query_grid_view_for(api_client, grid_view, token):
     assert len(response_json["results"]) == 10
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 def test_every_formula_sub_type_can_be_a_primary_field(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()
     table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
@@ -1336,6 +1336,7 @@ def test_every_formula_sub_type_can_be_a_primary_field(data_fixture, api_client)
         f"lookup('{link_field.name}', 'email')",
     ]
     for f in every_formula_type:
+        sid = transaction.savepoint()
         primary_formula = FieldHandler().update_field(
             user,
             table_a_primary_field,
@@ -1346,6 +1347,7 @@ def test_every_formula_sub_type_can_be_a_primary_field(data_fixture, api_client)
         assert primary_formula.error is None
         can_query_grid_view_for(api_client, grid_view_table_a, token)
         can_query_grid_view_for(api_client, grid_view_table_b, token)
+        transaction.savepoint_rollback(sid)
 
 
 @pytest.mark.django_db

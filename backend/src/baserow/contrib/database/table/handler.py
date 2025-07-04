@@ -108,7 +108,7 @@ class TableUsageHandler:
                 table_id=table_id, row_count=row_count, timestamp=Now()
             )
         except IntegrityError as integrity_exc:
-            if f"violates foreign key constraint" in str(integrity_exc):
+            if "violates foreign key constraint" in str(integrity_exc):
                 # we can safely ignore the exception and don't try to
                 # update usage for non existing tables
                 return None
@@ -317,7 +317,8 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
 
         try:
             table = base_queryset.select_related(
-                "database__workspace", "data_sync"
+                "data_sync",
+                "database__workspace__workspacedatabasesettings",
             ).get(id=table_id)
         except Table.DoesNotExist:
             raise TableDoesNotExist(f"The table with id {table_id} does not exist.")
@@ -440,6 +441,7 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         database: Database,
         name: str,
         fields: List[Tuple[str, str, Dict[str, Any]]],
+        **table_kwargs,
     ) -> Table:
         """
         Creates a new table with the specified fields. Also creates a default grid view
@@ -460,6 +462,7 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
             order=last_order,
             name=name,
             needs_background_update_column_added=True,
+            **table_kwargs,
         )
 
         # Let's create the fields before creating the model so that the whole

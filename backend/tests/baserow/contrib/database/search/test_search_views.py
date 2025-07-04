@@ -6,7 +6,7 @@ import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.handler import SearchHandler, SearchModes
+from baserow.contrib.database.search.handler import SearchModes
 from baserow.test_utils.helpers import setup_interesting_test_table
 
 
@@ -79,7 +79,7 @@ def test_search_grid_with_compat_mode(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_search_grid_with_full_text_disabled_compat_mode_used(
-    api_client, data_fixture, disable_full_text_search
+    api_client, data_fixture, disable_full_text_search, run_on_commit
 ):
     user, jwt_token = data_fixture.create_user_and_token()
 
@@ -94,6 +94,7 @@ def test_search_grid_with_full_text_disabled_compat_mode_used(
             text_field.id: "economy",
         },
     )
+    run_on_commit()
 
     response = api_client.get(
         reverse(
@@ -236,7 +237,7 @@ def test_count_grid_with_full_text_with_count_mode(api_client, data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 def test_can_create_and_index_and_search_interesting_test_table(
-    api_client, data_fixture
+    api_client, data_fixture, run_on_commit
 ):
     with transaction.atomic():
         user, jwt_token = data_fixture.create_user_and_token()
@@ -246,9 +247,7 @@ def test_can_create_and_index_and_search_interesting_test_table(
         )
         view = data_fixture.create_grid_view(user=user, table=table)
 
-        SearchHandler.update_tsvector_columns(
-            table, update_tsvectors_for_changed_rows_only=False
-        )
+        run_on_commit()
 
     response = api_client.get(
         reverse(

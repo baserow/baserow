@@ -8,6 +8,7 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.service import PageService
 from baserow.contrib.database.api.rows.serializers import RowSerializer
+from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowGetRow
 from baserow.contrib.integrations.local_baserow.service_types import (
@@ -824,7 +825,7 @@ def test_extract_properties(path, expected):
 
 
 @pytest.mark.django_db
-def test_can_dispatch_interesting_table(data_fixture):
+def test_can_dispatch_interesting_table(data_fixture, run_on_commit):
     """
     Test that we can dispatch an interesting table content.
     Multiple test are chained in the same function to improve test performances.
@@ -836,6 +837,7 @@ def test_can_dispatch_interesting_table(data_fixture):
         data_fixture,
         user,
     )
+
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
@@ -893,6 +895,8 @@ def test_can_dispatch_interesting_table(data_fixture):
     assert len(result.data.keys()) == 1 + 1
 
     service_sort.delete()
+    SearchHandler.mark_table_data_change(table.id)
+    run_on_commit()
 
     # Now with a search
     service.search_query = "'A'"

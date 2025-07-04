@@ -15,7 +15,7 @@ from baserow.contrib.database.fields.field_types import MultipleCollaboratorsFie
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import MultipleCollaboratorsField
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.handler import SearchHandler, SearchModes
+from baserow.contrib.database.search.handler import SearchModes
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.handler import CoreHandler
 from baserow.core.models import WORKSPACE_USER_PERMISSION_ADMIN, WorkspaceUser
@@ -832,7 +832,9 @@ def test_multiple_collaborators_field_type_values_can_be_stringified(data_fixtur
 
 @pytest.mark.django_db
 @pytest.mark.field_multiple_collaborators
-def test_multiple_collaborators_field_type_values_can_be_searched(data_fixture):
+def test_multiple_collaborators_field_type_values_can_be_searched(
+    data_fixture, run_on_commit
+):
     mario = data_fixture.create_user(first_name="Mario")
     luigi = data_fixture.create_user(first_name="Luigi")
     workspace = data_fixture.create_workspace(members=[mario, luigi])
@@ -886,7 +888,8 @@ def test_multiple_collaborators_field_type_values_can_be_searched(data_fixture):
 
     # search in B
     model_b = table_b.get_model()
-    SearchHandler.update_tsvector_columns(table_b, False)
+    run_on_commit()
+    # SearchHandler.update_tsvector_columns(table_b, False)
     for collab_field in [collaborator_field, ref_collaborator_field]:
         found_rows_b = model_b.objects.all().search_all_fields(
             "Mario", [collab_field.id], SearchModes.MODE_FT_WITH_COUNT
@@ -895,7 +898,8 @@ def test_multiple_collaborators_field_type_values_can_be_searched(data_fixture):
 
     # search in A
     model_a = table_a.get_model()
-    SearchHandler.update_tsvector_columns(table_a, False)
+    # SearchHandler.update_tsvector_columns(table_a, False)
+    run_on_commit()
     for collab_field in [lookup_field, ref_lookup_field]:
         found_rows_a = model_a.objects.all().search_all_fields(
             "Mario", [collab_field.id], SearchModes.MODE_FT_WITH_COUNT
@@ -946,7 +950,10 @@ def test_multiple_collaborators_formula_field_cache_users_query(data_fixture):
     with CaptureQueriesContext(connection) as queries_for_first:
         export_row(first_row)
 
-    assert len(queries_for_first.captured_queries) == 4
+    # There should be two queries about users. Initially there were 4 queries, because
+    # a field had to query about app and workspace. Since fields query in Table is
+    # selecting related database and workspace, those queries don't occur anymore.
+    assert len(queries_for_first.captured_queries) == 2
 
     other_rows = row_handler.force_create_rows(
         user=user,

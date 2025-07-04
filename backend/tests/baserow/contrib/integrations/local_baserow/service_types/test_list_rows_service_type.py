@@ -11,6 +11,7 @@ from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.service import PageService
 from baserow.contrib.database.api.rows.serializers import RowSerializer
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.models import SORT_ORDER_ASC, SORT_ORDER_DESC
 from baserow.contrib.database.views.view_filters import MultipleSelectHasViewFilterType
@@ -1009,7 +1010,7 @@ def test_can_dispatch_table_with_deleted_field(data_fixture):
 
 
 @pytest.mark.django_db
-def test_can_dispatch_interesting_table(data_fixture):
+def test_can_dispatch_interesting_table(data_fixture, run_on_commit):
     """
     Test that we can dispatch an interesting table content.
     Multiple test are chained in the same function to improve test performances.
@@ -1089,6 +1090,9 @@ def test_can_dispatch_interesting_table(data_fixture):
 
     service_sort.delete()
 
+    SearchHandler.mark_table_data_change(table.id)
+    run_on_commit()
+
     # Now with a search query
     service.search_query = "1"
     service.save()
@@ -1096,7 +1100,7 @@ def test_can_dispatch_interesting_table(data_fixture):
     dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
 
     result = service.get_type().dispatch(service, dispatch_context)
-
+    print(result.data["results"][0])
     assert len(result.data["results"][0].keys()) == 1 + 1
 
 

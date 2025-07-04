@@ -283,7 +283,9 @@ def test_can_undo_redo_duplicate_simple_table(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_can_undo_duplicate_interesting_table(data_fixture):
+def test_can_undo_duplicate_interesting_table(
+    data_fixture, run_on_commit, celery_task_lazy
+):
     session_id = "session-id"
     user = data_fixture.create_user(session_id=session_id)
     database = data_fixture.create_database_application(user=user)
@@ -293,17 +295,24 @@ def test_can_undo_duplicate_interesting_table(data_fixture):
         data_fixture, user, database, original_table_name
     )
 
-    duplicated_table = action_type_registry.get_by_type(DuplicateTableActionType).do(
-        user, table
-    )
+    with celery_task_lazy(True):
+        duplicated_table = action_type_registry.get_by_type(
+            DuplicateTableActionType
+        ).do(user, table)
+    run_on_commit()
+
     table_handler = TableHandler()
     assert (
         table_handler.get_table(duplicated_table.id).name == f"{original_table_name} 2"
     )
 
-    actions_undone = ActionHandler.undo(
-        user, [ApplicationActionScopeType.value(application_id=database.id)], session_id
-    )
+    with celery_task_lazy(True):
+        actions_undone = ActionHandler.undo(
+            user,
+            [ApplicationActionScopeType.value(application_id=database.id)],
+            session_id,
+        )
+    run_on_commit()
 
     assert_undo_redo_actions_are_valid(actions_undone, [DuplicateTableActionType])
     with pytest.raises(TableDoesNotExist):
@@ -312,7 +321,9 @@ def test_can_undo_duplicate_interesting_table(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_can_undo_redo_duplicate_interesting_table(data_fixture):
+def test_can_undo_redo_duplicate_interesting_table(
+    data_fixture, run_on_commit, celery_task_lazy
+):
     session_id = "session-id"
     user = data_fixture.create_user(session_id=session_id)
     database = data_fixture.create_database_application(user=user)
@@ -322,21 +333,32 @@ def test_can_undo_redo_duplicate_interesting_table(data_fixture):
         data_fixture, user, database, original_table_name
     )
 
-    duplicated_table = action_type_registry.get_by_type(DuplicateTableActionType).do(
-        user, table
-    )
+    with celery_task_lazy(True):
+        duplicated_table = action_type_registry.get_by_type(
+            DuplicateTableActionType
+        ).do(user, table)
+    run_on_commit()
+
     table_handler = TableHandler()
     assert (
         table_handler.get_table(duplicated_table.id).name == f"{original_table_name} 2"
     )
 
-    ActionHandler.undo(
-        user, [ApplicationActionScopeType.value(application_id=database.id)], session_id
-    )
+    with celery_task_lazy(True):
+        ActionHandler.undo(
+            user,
+            [ApplicationActionScopeType.value(application_id=database.id)],
+            session_id,
+        )
+    run_on_commit()
 
-    actions_redone = ActionHandler.redo(
-        user, [ApplicationActionScopeType.value(application_id=database.id)], session_id
-    )
+    with celery_task_lazy(True):
+        actions_redone = ActionHandler.redo(
+            user,
+            [ApplicationActionScopeType.value(application_id=database.id)],
+            session_id,
+        )
+    run_on_commit()
 
     assert_undo_redo_actions_are_valid(actions_redone, [DuplicateTableActionType])
     assert (

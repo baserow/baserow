@@ -15,6 +15,7 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import CreateTableDatabaseTableOperationType
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.rows.types import CreatedRowsData
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.operations import UpdateDatabaseTableOperationType
@@ -425,8 +426,9 @@ class DataSyncHandler:
                 row_ids_to_delete.append(row["id"])
         progress.increment(by=1)  # makes the total `70`
 
+        created_rows = CreatedRowsData([], {})
         if len(rows_to_create) > 0:
-            RowHandler().create_rows(
+            created_rows = RowHandler().create_rows(
                 user=user,
                 table=data_sync.table,
                 model=model,
@@ -468,8 +470,14 @@ class DataSyncHandler:
             or len(rows_to_update) > 0
             or len(row_ids_to_delete) > 0
         ):
-            # No need to include this in the progress because it triggers a celery task.
-            SearchHandler.field_value_updated_or_created(data_sync.table)
+            # No need to include this in the progress because it triggers a celery task,
+            # but we need to pass row ids to limit search update.
+            row_ids = [r["id"] for r in rows_to_update] + [
+                r.id for r in created_rows.created_rows
+            ]
+            SearchHandler.field_value_updated_or_created(
+                data_sync.table, row_ids=row_ids
+            )
 
     def set_data_sync_synced_properties(
         self,

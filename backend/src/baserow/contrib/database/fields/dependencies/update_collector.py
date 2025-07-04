@@ -132,7 +132,7 @@ class PathBasedUpdateStatementCollector:
         path_to_starting_table: StartingRowIdsType = None,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]] = None,
     ) -> int:
-        updated_rows = 0
+        updated_rows = []
         path_to_starting_table = path_to_starting_table or []
         if self.connection_here is not None:
             path_to_starting_table = [self.connection_here] + path_to_starting_table
@@ -158,7 +158,7 @@ class PathBasedUpdateStatementCollector:
         path_to_starting_table: List[LinkRowField],
         starting_row_ids: StartingRowIdsType,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]],
-    ) -> int:
+    ) -> list[int]:
         model = field_cache.get_model(self.table)
         qs = model.objects_and_trash
         # If the connection is broken back to the starting table then there is no
@@ -195,7 +195,7 @@ class PathBasedUpdateStatementCollector:
             # set this per row attribute.
             self.update_statements.pop(ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME, None)
 
-        updated_rows = 0
+        updated_row_ids = []
         if self.update_statements:
             annotations, filters = {}, Q()
 
@@ -223,12 +223,12 @@ class PathBasedUpdateStatementCollector:
                         }
                     ) | ~Q(**{field: expr})
 
-            updated_rows = (
+            updated_row_ids = (
                 qs.annotate(**annotations)
                 .filter(filters)
-                .update(**self.update_statements)
+                .update_returning_ids(**self.update_statements)
             )
-        return updated_rows
+        return updated_row_ids
 
     def _include_rows_connected_to_deleted_m2m_relationships(
         self,
@@ -411,7 +411,7 @@ class FieldUpdateCollector:
             field, via_path_to_starting_table
         )
 
-    def apply_updates(self, field_cache: FieldCache) -> int:
+    def apply_updates(self, field_cache: FieldCache) -> list[int]:
         """
         Triggers all update statements to be executed in the correct order in as few
         update queries as possible and return the number of updated rows.
@@ -454,7 +454,8 @@ class FieldUpdateCollector:
         :return: The list of all fields which have been updated in the starting table.
         """
 
-        updated_rows_count = self.apply_updates(field_cache)
+        updated_rows = self.apply_updates(field_cache)
+        updated_rows_count = len(updated_rows)
         if updated_rows_count > 0 and not skip_search_updates:
             for table in self._pending_field_updates.tables():
                 if not self._starting_table or table.id != self._starting_table.id:
@@ -462,12 +463,14 @@ class FieldUpdateCollector:
                         # The cascade was only for some specific rows and not the
                         # entire field
                         SearchHandler.field_value_updated_or_created(
-                            table,
+                            table, row_ids=updated_rows
                         )
                     else:
                         # The cascade was for the entire field
+                        updated_fields = self._get_updated_fields_in_table(table)
                         SearchHandler.entire_field_values_changed_or_created(
-                            table, self._get_updated_fields_in_table(table)
+                            table,
+                            updated_fields=updated_fields,
                         )
 
         updated_fields = self._get_updated_fields_in_table(self._starting_table)
