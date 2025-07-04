@@ -1,6 +1,7 @@
 <template>
   <form @submit.prevent>
     <FormGroup
+      v-if="enableIntegrationPicker"
       :label="$t('localBaserowServiceForm.integrationDropdownLabel')"
       small-label
       required
@@ -66,6 +67,16 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    /**
+     * Whether to show the integration picker or not.
+     * By default, we show it, but in some cases, we've
+     * already collected the integration ID.
+     */
+    enableIntegrationPicker: {
+      type: Boolean,
+      required: false,
+      default: true,
     },
   },
   data() {

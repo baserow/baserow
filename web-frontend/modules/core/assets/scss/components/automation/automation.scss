@@ -31,6 +31,21 @@
   min-width: 250px;
 }
 
+.automation-workflow__side-panel--form {
+  margin-top: 16px;
+
+  &.automation-workflow__side-panel--small {
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+
+    .col {
+      // Force any reduced width columns to 100% in a small side panel
+      max-width: 100%;
+    }
+  }
+}
+
 .automation-workflow__editor {
   flex: 80 1 0px;
   overflow: hidden;

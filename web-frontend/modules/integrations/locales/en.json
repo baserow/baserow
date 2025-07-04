@@ -14,8 +14,11 @@
   },
   "serviceType": {
     "localBaserowGetRow": "Get single row",
+    "localBaserowGetRowDescription": "Read a single row from a Baserow table.",
     "localBaserowListRows": "List multiple rows",
+    "localBaserowListRowsDescription": "Reads multiple rows from a Baserow table.",
     "localBaserowAggregateRows": "Summarize field",
+    "localBaserowAggregateRowsDescription": "Summarizes a field in a Baserow table.",
     "localBaserowCreateRow": "Create a row",
     "localBaserowCreateRowDescription": "Creates a new row in a Baserow table.",
     "localBaserowUpdateRow": "Update a row",

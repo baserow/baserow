@@ -65,6 +65,7 @@
         :application="builder"
         :data-source="dataSource"
         :default-values="defaultValues"
+        :max-result-limit="maxResultLimit"
         :context-data="integration.context_data"
         @values-changed="emitChange($event)"
       />
@@ -185,6 +186,12 @@ export default {
             (serviceType) => serviceType.integrationType === integrationType
           ),
         ])
+    },
+    maxResultLimit() {
+      if (!this.serviceType) {
+        return null
+      }
+      return this.serviceType.getMaxResultLimit(this.dataSource)
     },
   },
   methods: {

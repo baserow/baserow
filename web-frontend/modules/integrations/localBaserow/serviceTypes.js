@@ -5,16 +5,16 @@ import {
   TriggerServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
-import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
-import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
 import LocalBaserowUpsertRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm'
 import LocalBaserowUpdateRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpdateRowServiceForm'
 import LocalBaserowDeleteRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowDeleteRowServiceForm'
-import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
 import { uuid } from '@baserow/modules/core/utils/string'
 import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowAdhocHeader'
 import { DistributionViewAggregationType } from '@baserow/modules/database/viewAggregationTypes'
 import LocalBaserowSignalTriggerServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowSignalTriggerServiceForm'
+import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
+import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
+import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
 
 export class LocalBaserowTableServiceType extends ServiceType {
   get integrationType() {
@@ -125,6 +125,10 @@ export class LocalBaserowGetRowServiceType extends DataSourceLocalBaserowTableSe
     return LocalBaserowGetRowForm
   }
 
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowGetRowDescription')
+  }
+
   /**
    * A hook called prior to an update to modify the filters and
    * sortings if the `table_id` changes from one ID to another.
@@ -158,6 +162,10 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
 
   get formComponent() {
     return LocalBaserowListRowsForm
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowListRowsDescription')
   }
 
   /**
@@ -272,6 +280,10 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
 
   get name() {
     return this.app.i18n.t('serviceType.localBaserowAggregateRows')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowAggregateRowsDescription')
   }
 
   get formComponent() {

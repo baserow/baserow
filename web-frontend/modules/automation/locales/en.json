@@ -62,6 +62,9 @@
     "localBaserowCreateRowLabel": "Create a row in {tableName}",
     "localBaserowUpdateRowLabel": "Update a row in {tableName}",
     "localBaserowDeleteRowLabel": "Delete a row in {tableName}",
+    "localBaserowGetRowLabel": "Read a row in {tableName}",
+    "localBaserowListRowsLabel": "List rows in {tableName}",
+    "localBaserowAggregateRowsLabel": "Summarize rows in {tableName}",
     "httpRequestLabel": "Send an HTTP request",
     "smtpEmailLabel": "Send an email"
   },
