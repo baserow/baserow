@@ -30,6 +30,7 @@ __all__ = [
     "LocalBaserowCreateRowActionNode",
     "LocalBaserowUpdateRowActionNode",
     "LocalBaserowDeleteRowActionNode",
+    "CoreSMTPEmailActionNode",
 ]
 
 
@@ -220,4 +221,8 @@ class LocalBaserowDeleteRowActionNode(AutomationActionNode):
 
 
 class CoreHTTPRequestActionNode(AutomationActionNode):
+    ...
+
+
+class CoreSMTPEmailActionNode(AutomationActionNode):
     ...

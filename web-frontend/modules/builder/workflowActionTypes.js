@@ -3,7 +3,10 @@ import NotificationWorkflowActionForm from '@baserow/modules/builder/components/
 import OpenPageWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/OpenPageWorkflowActionForm'
 import WorkflowActionWithService from '@baserow/modules/builder/components/workflowAction/WorkflowActionWithService.vue'
 import RefreshDataSourceWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/RefreshDataSourceWorkflowActionForm.vue'
-import { CoreHTTPRequestServiceType } from '@baserow/modules/integrations/core/serviceTypes'
+import {
+  CoreHTTPRequestServiceType,
+  CoreSMTPEmailServiceType,
+} from '@baserow/modules/integrations/core/serviceTypes'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
   LocalBaserowUpdateRowWorkflowServiceType,
@@ -321,6 +324,24 @@ export class CoreHTTPRequestWorkflowActionType extends WorkflowActionServiceType
 
   getOrder() {
     return 10
+  }
+}
+
+export class CoreSMTPEmailWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'smtp_email'
+  }
+
+  get icon() {
+    return 'iconoir-send-mail'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreSMTPEmailServiceType.getType())
+  }
+
+  getOrder() {
+    return 11
   }
 }
 

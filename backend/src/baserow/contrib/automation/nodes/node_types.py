@@ -10,6 +10,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.nodes.models import (
     AutomationActionNode,
     CoreHTTPRequestActionNode,
+    CoreSMTPEmailActionNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowDeleteRowActionNode,
     LocalBaserowRowsCreatedTriggerNode,
@@ -18,7 +19,10 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowUpdateRowActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
-from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
+from baserow.contrib.integrations.core.service_types import (
+    CoreHTTPRequestServiceType,
+    CoreSMTPEmailServiceType,
+)
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowRowsCreatedTriggerServiceType,
@@ -74,6 +78,12 @@ class CoreHttpRequestNodeType(AutomationNodeActionNodeType):
     type = "http_request"
     model_class = CoreHTTPRequestActionNode
     service_type = CoreHTTPRequestServiceType.type
+
+
+class CoreSMTPEmailNodeType(AutomationNodeActionNodeType):
+    type = "smtp_email"
+    model_class = CoreSMTPEmailActionNode
+    service_type = CoreSMTPEmailServiceType.type
 
 
 class AutomationNodeTriggerType(AutomationNodeType):

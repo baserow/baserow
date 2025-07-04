@@ -278,6 +278,7 @@ class BuilderConfig(AppConfig):
         from .workflow_actions.registries import builder_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (
             CoreHttpRequestActionType,
+            CoreSMTPEmailActionType,
             CreateRowWorkflowActionType,
             DeleteRowWorkflowActionType,
             LogoutWorkflowActionType,
@@ -297,6 +298,7 @@ class BuilderConfig(AppConfig):
             RefreshDataSourceWorkflowActionType()
         )
         builder_workflow_action_type_registry.register(CoreHttpRequestActionType())
+        builder_workflow_action_type_registry.register(CoreSMTPEmailActionType())
 
         from .elements.collection_field_types import (
             BooleanCollectionFieldType,

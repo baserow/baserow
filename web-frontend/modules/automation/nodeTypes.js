@@ -12,7 +12,10 @@ import {
   LocalBaserowRowsUpdatedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
-import { CoreHTTPRequestServiceType } from '@baserow/modules/integrations/core/serviceTypes'
+import {
+  CoreHTTPRequestServiceType,
+  CoreSMTPEmailServiceType,
+} from '@baserow/modules/integrations/core/serviceTypes'
 
 export class NodeType extends Registerable {
   /**
@@ -334,5 +337,27 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
       'service',
       CoreHTTPRequestServiceType.getType()
     )
+  }
+}
+
+export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'smtp_email'
+  }
+
+  getOrder() {
+    return 5
+  }
+
+  get iconClass() {
+    return 'iconoir-send-mail'
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.smtpEmailLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreSMTPEmailServiceType.getType())
   }
 }

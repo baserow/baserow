@@ -1,4 +1,9 @@
 import json
+import smtplib
+import socket
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import advocate
@@ -8,6 +13,7 @@ from rest_framework import serializers
 
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
+    CoreSMTPEmailService,
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
@@ -28,11 +34,13 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
+from baserow.core.services.models import Service
 from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
 
 from .constants import BODY_TYPE, HTTP_METHOD
+from .integration_types import SMTPIntegrationType
 
 
 class CoreHTTPRequestServiceType(ServiceType):
@@ -602,3 +610,269 @@ class CoreHTTPRequestServiceType(ServiceType):
         data: Any,
     ) -> DispatchResult:
         return DispatchResult(data=data["data"])
+
+
+class CoreSMTPEmailServiceType(ServiceType):
+    type = "smtp_email"
+    model_class = CoreSMTPEmailService
+    dispatch_type = DispatchTypes.DISPATCH_WORKFLOW_ACTION
+    integration_type = SMTPIntegrationType.type
+
+    allowed_fields = [
+        "integration_id",
+        "from_email",
+        "from_name",
+        "to_emails",
+        "cc_emails",
+        "bcc_emails",
+        "subject",
+        "body_type",
+        "body",
+    ]
+    serializer_field_names = [
+        "integration_id",
+        "from_email",
+        "from_name",
+        "to_emails",
+        "cc_emails",
+        "bcc_emails",
+        "subject",
+        "body_type",
+        "body",
+    ]
+
+    class SerializedDict(ServiceDict):
+        from_email: str
+        from_name: str
+        to_emails: str
+        cc_emails: str
+        bcc_emails: str
+        subject: str
+        body_type: str
+        body: str
+
+    simple_formula_fields = [
+        "from_email",
+        "from_name",
+        "to_emails",
+        "cc_emails",
+        "bcc_emails",
+        "subject",
+        "body",
+    ]
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "integration_id": serializers.IntegerField(
+                required=False,
+                allow_null=True,
+                help_text="The id of the SMTP integration.",
+            ),
+            "from_email": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("from_email").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "from_name": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("from_name").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "to_emails": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("to_emails").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "cc_emails": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("cc_emails").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "bcc_emails": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("bcc_emails").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "subject": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("subject").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "body_type": serializers.ChoiceField(
+                choices=[
+                    ("plain", "Plain Text"),
+                    ("html", "HTML"),
+                ],
+                help_text=CoreSMTPEmailService._meta.get_field("body_type").help_text,
+                required=False,
+                default="plain",
+            ),
+            "body": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("body").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+        }
+
+    def get_schema_name(self, service: CoreSMTPEmailService) -> str:
+        return f"SMTPEmail{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreSMTPEmailService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Generates the schema for the email service response.
+        """
+
+        properties = {}
+
+        if allowed_fields is None or "success" in allowed_fields:
+            properties.update(
+                **{
+                    "success": {
+                        "type": "boolean",
+                        "title": "Success",
+                        "description": "Whether the email was sent successfully",
+                    },
+                },
+            )
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
+    def _parse_email_list(self, email_string: str) -> List[str]:
+        """
+        Parse comma-separated email addresses and return a list of email addresses.
+        """
+
+        if not email_string:
+            return []
+
+        emails = [email.strip() for email in email_string.split(",")]
+        return [email for email in emails if email]
+
+    def resolve_service_formulas(
+        self,
+        service: CoreSMTPEmailService,
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any]:
+        """
+        Resolves the formulas for all email fields.
+        """
+
+        resolved_values = {}
+
+        # Resolve all formula fields
+        for field_name in self.simple_formula_fields:
+            dispatch_context.reset_call_stack()
+            field_value = getattr(service, field_name)
+            resolved_values[field_name] = ensure_string(
+                resolve_formula(
+                    field_value,
+                    formula_runtime_function_registry,
+                    dispatch_context,
+                )
+            )
+
+        return resolved_values
+
+    def dispatch_data(
+        self,
+        service: CoreSMTPEmailService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        if not service.integration:
+            raise ServiceImproperlyConfigured(
+                "SMTP Email service must be connected to an SMTP integration."
+            )
+
+        smtp_integration = service.integration.specific
+
+        # Parse email addresses
+        to_emails = self._parse_email_list(resolved_values["to_emails"])
+        cc_emails = self._parse_email_list(resolved_values["cc_emails"])
+        bcc_emails = self._parse_email_list(resolved_values["bcc_emails"])
+
+        if not to_emails:
+            raise ServiceImproperlyConfigured(
+                "At least one recipient email is required."
+            )
+
+        msg = MIMEMultipart()
+        msg["From"] = (
+            f"{resolved_values['from_name']} <{resolved_values['from_email']}>"
+            if resolved_values["from_name"]
+            else resolved_values["from_email"]
+        )
+        msg["To"] = ", ".join(to_emails)
+        msg["Subject"] = resolved_values["subject"]
+
+        if cc_emails:
+            msg["Cc"] = ", ".join(cc_emails)
+
+        body_content = resolved_values["body"]
+        if service.body_type == "html":
+            msg.attach(MIMEText(body_content, "html"))
+        else:
+            msg.attach(MIMEText(body_content, "plain"))
+
+        all_recipients = to_emails + cc_emails + bcc_emails
+
+        try:
+            server = smtplib.SMTP(smtp_integration.host, smtp_integration.port)
+            if smtp_integration.use_tls:
+                server.starttls()
+
+            if smtp_integration.username and smtp_integration.password:
+                server.login(smtp_integration.username, smtp_integration.password)
+
+            server.send_message(msg, to_addrs=all_recipients)
+            server.quit()
+
+            return {
+                "data": {
+                    "success": True,
+                }
+            }
+
+        except SMTPNotSupportedError:
+            raise ServiceImproperlyConfigured("TLS not supported by server.")
+        except socket.gaierror:
+            raise ServiceImproperlyConfigured("The host could not be reached.")
+        except ConnectionRefusedError:
+            raise ServiceImproperlyConfigured("The connection was refused.")
+        except SMTPAuthenticationError:
+            raise ServiceImproperlyConfigured("The username or password is incorrect.")
+        except SMTPConnectError:
+            raise ServiceImproperlyConfigured("Unable to connect to the SMTP server.")
+        except Exception as e:
+            raise ServiceImproperlyConfigured(f"Failed to send email: {str(e)}") from e
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(data=data["data"])
+
+    def export_prepared_values(self, instance: Service) -> dict[str, any]:
+        values = super().export_prepared_values(instance)
+        if values.get("integration"):
+            del values["integration"]
+            values["integration_id"] = instance.integration_id
+        return values

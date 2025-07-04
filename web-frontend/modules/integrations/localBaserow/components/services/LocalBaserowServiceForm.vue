@@ -86,8 +86,12 @@ export default {
   },
   computed: {
     integrations() {
-      return this.$store.getters['integration/getIntegrations'](
-        this.application
+      const allIntegrations = this.$store.getters[
+        'integration/getIntegrations'
+      ](this.application)
+      return allIntegrations.filter(
+        (integration) =>
+          integration.type === LocalBaserowIntegrationType.getType()
       )
     },
     fakeTableId: {
