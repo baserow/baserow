@@ -51,11 +51,24 @@ export default {
         ? this.$registry.get('node', this.node.type).isTrigger
         : false
     },
+    /**
+     * Returns an array of node types that can be listed in the context.
+     * If we are offering the option to replace an existing node's type,
+     * then we will omit `this.node.type` from the array, and then present
+     * other nodes of the same 'category' (i.e. trigger or action). If we
+     * aren't replacing an existing node, then we will show all node types
+     * for a single category (i.e. trigger or action), depending on whether
+     * there is a trigger or not.
+     */
     nodeTypes() {
-      return Object.values(this.$registry.getAll('node')).filter((nodeType) => {
-        return !this.workflowHasTrigger || this.editingTriggerNode
-          ? nodeType.isTrigger
-          : nodeType.isWorkflowAction
+      return this.$registry.getOrderedList('node').filter((nodeType) => {
+        const nodeTypeMatch = this.node?.type !== nodeType.type
+        return (
+          !nodeTypeMatch &&
+          (!this.workflowHasTrigger || this.editingTriggerNode
+            ? nodeType.isTrigger
+            : nodeType.isWorkflowAction)
+        )
       })
     },
   },
