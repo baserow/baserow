@@ -29,13 +29,11 @@
               :class="applicationType.iconClass"
             ></i>
             {{ applicationType.getName()
-            }}<Badge
-              v-if="applicationType.isBeta()"
-              color="cyan"
-              size="small"
-              >{{ $t('common.beta') }}</Badge
-            ></span
-          >
+            }}<LifeCycleBadge
+              v-if="applicationType.developmentStage"
+              :stage="applicationType.developmentStage"
+            ></LifeCycleBadge
+          ></span>
           <div
             class="context__menu-item-description context__menu-item-description--offset"
           >
@@ -104,10 +102,12 @@ import CreateApplicationModal from '@baserow/modules/core/components/application
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
 import ImportWorkspaceModal from '@baserow/modules/core/components/import/ImportWorkspaceModal.vue'
 import context from '@baserow/modules/core/mixins/context'
+import LifeCycleBadge from '@baserow/modules/core/components/LifeCycleBadge'
 
 export default {
   name: 'CreateApplicationContext',
   components: {
+    LifeCycleBadge,
     CreateApplicationModal,
     ImportWorkspaceModal,
     TemplateModal,

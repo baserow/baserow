@@ -22,6 +22,10 @@
             <template v-if="applicationGroup.applications.length > 0">
               <div class="tree__heading">
                 {{ applicationGroup.name }}
+                <LifeCycleBadge
+                  v-if="applicationGroup.developmentStage === 'alpha'"
+                  :stage="applicationGroup.developmentStage"
+                ></LifeCycleBadge>
               </div>
               <ul
                 class="tree"
@@ -101,10 +105,11 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
+import LifeCycleBadge from '@baserow/modules/core/components/LifeCycleBadge'
 
 export default {
   name: 'SidebarWithWorkspace',
-  components: { CreateApplicationContext },
+  components: { LifeCycleBadge, CreateApplicationContext },
   props: {
     applications: {
       type: Array,
@@ -127,6 +132,7 @@ export default {
         return {
           name: applicationType.getNamePlural(),
           type: applicationType.getType(),
+          developmentStage: applicationType.developmentStage,
           applications: this.applications
             .filter((application) => {
               return (

@@ -118,8 +118,8 @@ export class AutomationApplicationType extends ApplicationType {
     )
   }
 
-  isBeta() {
-    return true
+  get developmentStage() {
+    return 'alpha'
   }
 
   getOrder() {

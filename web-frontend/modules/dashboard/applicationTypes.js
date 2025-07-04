@@ -83,8 +83,8 @@ export class DashboardApplicationType extends ApplicationType {
     }
   }
 
-  isBeta() {
-    return true
+  get developmentStage() {
+    return 'beta'
   }
 
   getOrder() {

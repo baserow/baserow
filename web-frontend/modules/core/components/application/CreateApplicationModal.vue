@@ -2,6 +2,10 @@
   <Modal @show="loading = false">
     <h2 class="box__title">
       {{ $t('action.createNew') }} {{ applicationType.getName() | lowercase }}
+      <LifeCycleBadge
+        v-if="applicationType.developmentStage === 'alpha'"
+        :stage="applicationType.developmentStage"
+      ></LifeCycleBadge>
     </h2>
     <Error :error="error"></Error>
     <component
@@ -21,9 +25,11 @@
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
+import LifeCycleBadge from '@baserow/modules/core/components/LifeCycleBadge'
 
 export default {
   name: 'CreateApplicationModal',
+  components: { LifeCycleBadge },
   mixins: [modal, error],
   props: {
     applicationType: {

@@ -186,8 +186,8 @@ export class BuilderApplicationType extends ApplicationType {
     return data
   }
 
-  isBeta() {
-    return true
+  get developmentStage() {
+    return 'beta'
   }
 
   isVisible(application) {
