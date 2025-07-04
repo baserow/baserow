@@ -131,7 +131,8 @@ class PathBasedUpdateStatementCollector:
         starting_row_ids: StartingRowIdsType = None,
         path_to_starting_table: StartingRowIdsType = None,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]] = None,
-    ) -> dict[int, list[int]]:
+        result: Optional[Dict[int, Set[int]]] = None,
+    ) -> Dict[int, Set[int]]:
         """
         Executes all the pending update statements in the correct order and returns
         a dictionary containing a list of updated row ids per table id.
@@ -149,10 +150,15 @@ class PathBasedUpdateStatementCollector:
             the table it links to which have had their connections removed. This is used
             to ensure that rows which have had their connections removed are still
             updated when the starting row ids are set.
-        :return: A dictionary containing a list of updated row ids per table id.
+        :param result: If the result dict containing the table and the updated rows
+            already exists, then it can be provided here. If provided, it will be
+            updated.
+        :return: A dictionary containing a set of updated row ids per table id.
         """
 
-        result = {}
+        if result is None:
+            result = defaultdict(set)
+
         path_to_starting_table = path_to_starting_table or []
         if self.connection_here is not None:
             path_to_starting_table = [self.connection_here] + path_to_starting_table
@@ -162,19 +168,16 @@ class PathBasedUpdateStatementCollector:
             starting_row_ids,
             deleted_m2m_rels_per_link_field,
         )
-        result[self.table.id] = updated_row_ids
+        result[self.table.id].update(updated_row_ids)
 
         for sub_path in self.sub_paths.values():
-            sub_result = sub_path.execute_all(
+            result = sub_path.execute_all(
                 starting_row_ids=starting_row_ids,
                 path_to_starting_table=path_to_starting_table,
                 field_cache=field_cache,
                 deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
+                result=result,
             )
-            for table_id, row_ids in sub_result.items():
-                prev_res = result.get(table_id, [])
-                # Avoid duplicated row ids.
-                result[table_id] = list(set(prev_res) | set(row_ids))
         return result
 
     def _execute_pending_update_statements(
