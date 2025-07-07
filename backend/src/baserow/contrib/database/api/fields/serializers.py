@@ -569,6 +569,10 @@ class LinkRowFieldSerializerMixin(serializers.ModelSerializer):
 
 
 class PasswordFieldAuthenticationSerializer(serializers.Serializer):
+    field_id = serializers.IntegerField(
+        help_text="The field where to check the password for.",
+        required=True,
+    )
     row_id = serializers.IntegerField(
         help_text="The row where to check the password for.",
         required=True,

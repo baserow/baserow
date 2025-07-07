@@ -1,5 +1,6 @@
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
 )
@@ -202,4 +203,9 @@ ERROR_INVALID_FIELD_CONSTRAINT = (
     "ERROR_INVALID_FIELD_CONSTRAINT",
     HTTP_400_BAD_REQUEST,
     "The field constraint {e.constraint_type} is not supported for field {e.field_type}.",
+)
+ERROR_INVALID_PASSWORD_FIELD_PASSWORD = (
+    "ERROR_INVALID_PASSWORD_FIELD_PASSWORD",
+    HTTP_401_UNAUTHORIZED,
+    "The provided password in incorrect.",
 )

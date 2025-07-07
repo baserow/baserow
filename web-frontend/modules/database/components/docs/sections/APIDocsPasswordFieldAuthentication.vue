@@ -17,25 +17,16 @@
           })
         "
       />
-      <h4 class="api-docs__heading-4">{{ $t('apiDocs.pathParameters') }}</h4>
-      <ul class="api-docs__parameters">
-        <APIDocsParameter name="field_id" type="integer">
-          {{ $t('apiDocsPasswordFieldAuthentication.fieldId') }}
-        </APIDocsParameter>
-      </ul>
       <h4 class="api-docs__heading-4">{{ $t('apiDocs.requestBodySchema') }}</h4>
       <ul class="api-docs__parameters">
+        <APIDocsParameter name="field_id" :optional="false" type="integer">
+          {{ $t('apiDocsPasswordFieldAuthentication.fieldId') }}
+        </APIDocsParameter>
         <APIDocsParameter name="row_id" :optional="false" type="integer">
-          <MarkdownIt
-            class="api-docs__content"
-            :content="$t('apiDocsPasswordFieldAuthentication.rowId')"
-          />
+          {{ $t('apiDocsPasswordFieldAuthentication.rowId') }}
         </APIDocsParameter>
         <APIDocsParameter name="password" :optional="false" type="string">
-          <MarkdownIt
-            class="api-docs__content"
-            :content="$t('apiDocsPasswordFieldAuthentication.password')"
-          />
+          {{ $t('apiDocsPasswordFieldAuthentication.password') }}
         </APIDocsParameter>
       </ul>
     </div>
@@ -45,9 +36,9 @@
         type="POST"
         :url="
           $config.PUBLIC_BACKEND_URL +
-          `/api/database/fields/${field.id}/password-authentication/`
+          `/api/database/fields/password-authentication/`
         "
-        :request="{ row_id: 1, password: 'password' }"
+        :request="{ field_id: 1, row_id: 1, password: 'password' }"
         :response="{ is_correct: true }"
         @input="$emit('input', $event)"
       ></APIDocsExample>

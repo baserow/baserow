@@ -53,6 +53,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE,
     ERROR_INVALID_BASEROW_FIELD_NAME,
     ERROR_INVALID_FIELD_CONSTRAINT,
+    ERROR_INVALID_PASSWORD_FIELD_PASSWORD,
     ERROR_MAX_FIELD_COUNT_EXCEEDED,
     ERROR_RESERVED_BASEROW_FIELD_NAME,
     ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
@@ -92,6 +93,7 @@ from baserow.contrib.database.fields.exceptions import (
     IncompatiblePrimaryFieldTypeError,
     InvalidBaserowFieldName,
     InvalidFieldConstraint,
+    InvalidPasswordFieldPassword,
     MaxFieldLimitExceeded,
     ReservedBaserowFieldNameException,
     SelectOptionDoesNotBelongToField,
@@ -722,16 +724,6 @@ class PasswordFieldAuthenticationView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name="field_id",
-                location=OpenApiParameter.PATH,
-                type=OpenApiTypes.INT,
-                description="The field where to check the password for.",
-            ),
-            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
-            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
-        ],
         tags=["Database table fields"],
         operation_id="password_field_authentication",
         description=(
@@ -745,10 +737,14 @@ class PasswordFieldAuthenticationView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
+                ]
+            ),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_TABLE",
                     "ERROR_INVALID_PASSWORD_FIELD_PASSWORD",
                 ]
             ),
-            401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
             404: get_error_schema(
                 ["ERROR_FIELD_DOES_NOT_EXIST", "ERROR_ROW_DOES_NOT_EXIST"]
             ),
@@ -759,14 +755,15 @@ class PasswordFieldAuthenticationView(APIView):
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
+            InvalidPasswordFieldPassword: ERROR_INVALID_PASSWORD_FIELD_PASSWORD,
         }
     )
     @validate_body(PasswordFieldAuthenticationSerializer)
-    def post(self, request: Request, field_id: int, data: Dict[str, Any]) -> Response:
+    def post(self, request: Request, data: Dict[str, Any]) -> Response:
         base_queryset = PasswordField.objects.filter(
             allow_endpoint_authentication=True
         ).select_related("table")
-        field = FieldHandler().get_field(field_id, base_queryset=base_queryset)
+        field = FieldHandler().get_field(data["field_id"], base_queryset=base_queryset)
         table = field.table
 
         token_handler = TokenHandler()
@@ -783,8 +780,8 @@ class PasswordFieldAuthenticationView(APIView):
             hashed_password and check_password(raw_password, hashed_password)
         )
 
-        serializer = PasswordFieldAuthenticationResponseSerializer(
-            {"is_correct": is_correct}
-        )
-        status_code = status.HTTP_200_OK if is_correct else status.HTTP_400_BAD_REQUEST
-        return Response(serializer.data, status=status_code)
+        if not is_correct:
+            raise InvalidPasswordFieldPassword()
+
+        serializer = PasswordFieldAuthenticationResponseSerializer({"is_correct": True})
+        return Response(serializer.data, status=status.HTTP_200_OK)

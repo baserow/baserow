@@ -344,3 +344,7 @@ class InvalidFieldConstraint(Exception):
         self.constraint_type = constraint_type
         self.field_type = field_type
         super().__init__(*args, **kwargs)
+
+
+class InvalidPasswordFieldPassword(Exception):
+    """Raised when the provided password field is invalid."""
