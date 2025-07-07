@@ -864,10 +864,9 @@ class DatabaseApplicationType(ApplicationType):
                         setattr(date_field, attr, False)
 
             for field_instance in serialized_table["field_instances"]:
-                constraint_data = list(field_instance.field_constraints.values("name"))
-                if constraint_data:
+                if field_instance.field_constraints.exists():
                     constraints = build_django_field_constraints(
-                        field_instance, constraint_data
+                        field_instance, field_instance.field_constraints.all()
                     )
                     for constraint in constraints:
                         schema_editor.add_constraint(table_model, constraint)

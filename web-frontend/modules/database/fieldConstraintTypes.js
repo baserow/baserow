@@ -1,10 +1,17 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import {
+  TextFieldType,
+  LongTextFieldType,
+  RatingFieldType,
+  NumberFieldType,
+} from '@baserow/modules/database/fieldTypes'
+import { UNIQUE_WITH_EMPTY_CONSTRAINT_NAME } from '@baserow/modules/database/constants'
 
 export class FieldConstraintType extends Registerable {
   /**
-   * A human readable label of the field constraint type.
+   * A human readable name of the field constraint type.
    */
-  getLabel() {
+  getName() {
     return null
   }
 
@@ -27,7 +34,7 @@ export class FieldConstraintType extends Registerable {
   serialize() {
     return {
       type: this.type,
-      name: this.getName(),
+      name: this.getTypeName(),
       compatibleFieldTypes: this.compatibleFieldTypes,
     }
   }
@@ -96,7 +103,7 @@ export class FieldConstraintType extends Registerable {
    * Constraints with the same name are equivalent and can be converted between each other.
    * @returns {string|null} The name identifier, or null if this constraint has no equivalents.
    */
-  getName() {
+  getTypeName() {
     return null
   }
 
@@ -107,8 +114,8 @@ export class FieldConstraintType extends Registerable {
    * @returns {string|null} The constraint type name that is equivalent and compatible with the field type, or null if none found.
    */
   findEquivalentConstraintForFieldType(fieldType, constraintTypesRegistry) {
-    const name = this.getName()
-    if (!name) {
+    const typeName = this.getTypeName()
+    if (!typeName) {
       return null
     }
 
@@ -116,10 +123,9 @@ export class FieldConstraintType extends Registerable {
       constraintTypesRegistry
     )) {
       if (
-        constraintType.getName() === name &&
+        constraintType.getTypeName() === typeName &&
         constraintType.getCompatibleFieldTypes().includes(fieldType)
       ) {
-        console.log('found', constraintTypeName)
         return constraintTypeName
       }
     }
@@ -133,17 +139,17 @@ export class TextTypeUniqueWithEmptyConstraintType extends FieldConstraintType {
     return 'text_type_unique_with_empty'
   }
 
-  getLabel() {
+  getName() {
     const { i18n } = this.app
     return i18n.t('fieldConstraint.uniqueWithEmpty')
   }
 
   getCompatibleFieldTypes() {
-    return ['text', 'long_text']
+    return [TextFieldType.getType(), LongTextFieldType.getType()]
   }
 
-  getName() {
-    return 'unique_with_empty'
+  getTypeName() {
+    return UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
   }
 
   getErrorMessage(error) {
@@ -160,17 +166,17 @@ export class RatingTypeUniqueWithEmptyConstraintType extends FieldConstraintType
     return 'rating_type_unique_with_empty'
   }
 
-  getLabel() {
+  getName() {
     const { i18n } = this.app
     return i18n.t('fieldConstraint.uniqueWithEmpty')
   }
 
   getCompatibleFieldTypes() {
-    return ['rating']
+    return [RatingFieldType.getType()]
   }
 
-  getName() {
-    return 'unique_with_empty'
+  getTypeName() {
+    return UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
   }
 
   getErrorMessage(error) {
@@ -184,20 +190,20 @@ export class RatingTypeUniqueWithEmptyConstraintType extends FieldConstraintType
 
 export class UniqueWithEmptyConstraintType extends FieldConstraintType {
   static getType() {
-    return 'unique_with_empty'
+    return 'generic_unique_with_empty'
   }
 
-  getLabel() {
+  getName() {
     const { i18n } = this.app
     return i18n.t('fieldConstraint.uniqueWithEmpty')
   }
 
   getCompatibleFieldTypes() {
-    return ['number']
+    return [NumberFieldType.getType()]
   }
 
-  getName() {
-    return 'unique_with_empty'
+  getTypeName() {
+    return UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
   }
 
   getErrorMessage(error) {

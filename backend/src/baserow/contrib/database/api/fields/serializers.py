@@ -30,7 +30,7 @@ from baserow.core.utils import split_comma_separated_string
 class FieldConstraintSerializer(serializers.ModelSerializer):
     class Meta:
         model = FieldConstraint
-        fields = ("name",)
+        fields = ("type_name",)
 
 
 class FieldSerializer(serializers.ModelSerializer):

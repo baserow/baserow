@@ -47,7 +47,9 @@ from baserow.contrib.database.fields.operations import (
     ReadFieldOperationType,
     UpdateFieldOperationType,
 )
+from baserow.contrib.database.fields.registries import field_constraint_registry
 from baserow.contrib.database.fields.utils.field_constraint import (
+    _create_constraint_objects,
     build_django_field_constraints,
 )
 from baserow.contrib.database.table.models import Table
@@ -157,14 +159,12 @@ def _validate_field_name(
 
 
 def _validate_field_constraints(field_type, field_constraints: List[Dict[str, Any]]):
-    from baserow.contrib.database.fields.registries import field_constraint_registry
-
     for constraint in field_constraints:
-        constraint_name = constraint.get("name")
+        constraint_name = constraint.get("type_name")
         if not constraint_name:
             raise InvalidFieldConstraint(
                 field_type=field_type.type,
-                constraint_type="missing_name",
+                constraint_type="missing_type_name",
             )
 
         constraint_instance = field_constraint_registry.get_specific_constraint(
@@ -407,7 +407,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         if field_constraints:
             FieldConstraint.objects.bulk_create(
                 [
-                    FieldConstraint(field=instance, name=constraint["name"])
+                    FieldConstraint(field=instance, type_name=constraint["type_name"])
                     for constraint in field_constraints
                 ]
             )
@@ -427,8 +427,11 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 schema_editor.add_field(to_model, model_field)
 
             if field_constraints:
-                new_constraints = build_django_field_constraints(
+                constraint_objects = _create_constraint_objects(
                     instance, field_constraints
+                )
+                new_constraints = build_django_field_constraints(
+                    instance, constraint_objects
                 )
                 for constraint in new_constraints:
                     try:
@@ -578,7 +581,9 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         baserow_field_type_changed = from_field_type.type != to_field_type_name
         field_cache = FieldCache()
 
-        field_constraints = kwargs.get("field_constraints", None) or []
+        # Get field_constraints from kwargs, defaulting to None if not provided
+        # This preserves existing constraints when not included in PATCH requests
+        field_constraints = kwargs.get("field_constraints", None)
 
         if baserow_field_type_changed:
             to_field_type = field_type_registry.get(to_field_type_name)
@@ -598,11 +603,16 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         if field.primary and not to_field_type.can_be_primary_field(field_values):
             raise IncompatiblePrimaryFieldTypeError(to_field_type_name)
 
-        old_constraint_names = set(
-            old_field.field_constraints.values_list("name", flat=True)
-        )
-        new_constraint_names = {c["name"] for c in field_constraints}
-        field_constraints_changed = old_constraint_names != new_constraint_names
+        old_constraints = list(old_field.field_constraints.all())
+        old_constraint_names = set([c.type_name for c in old_constraints])
+
+        # Only process constraints if they were provided
+        if field_constraints is not None:
+            new_constraint_names = {c["type_name"] for c in field_constraints}
+            field_constraints_changed = old_constraint_names != new_constraint_names
+        else:
+            field_constraints_changed = False
+
         if field_constraints_changed and (
             field.read_only or field.immutable_properties
         ):
@@ -626,7 +636,13 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             field, field_values, postfix_to_fix_name_collisions
         )
 
-        _validate_field_constraints(to_field_type, field_constraints)
+        if field_constraints is not None:
+            _validate_field_constraints(to_field_type, field_constraints)
+        elif baserow_field_type_changed and old_constraints:
+            existing_constraint_data = [
+                {"type_name": c.type_name} for c in old_constraints
+            ]
+            _validate_field_constraints(to_field_type, existing_constraint_data)
 
         field_values = to_field_type.prepare_values(field_values, user)
         before = to_field_type.before_update(old_field, field_values, user, kwargs)
@@ -635,16 +651,16 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
 
         field.save(field_cache=field_cache, raise_if_invalid=True)
 
-        if field_constraints_changed:
-            field.field_constraints.exclude(name__in=new_constraint_names).delete()
+        if field_constraints is not None and field_constraints_changed:
+            field.field_constraints.exclude(type_name__in=new_constraint_names).delete()
 
-            existing_names = set(field.field_constraints.values_list("name", flat=True))
+            existing_names = set([c.type_name for c in field.field_constraints.all()])
             constraints_to_create = new_constraint_names - existing_names
             if constraints_to_create:
                 field.field_constraints.bulk_create(
                     [
-                        FieldConstraint(field=field, name=name)
-                        for name in constraints_to_create
+                        FieldConstraint(field=field, type_name=type_name)
+                        for type_name in constraints_to_create
                     ]
                 )
         FieldDependencyHandler.rebuild_or_raise_if_user_doesnt_have_permissions_after(
@@ -735,7 +751,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 try:
                     if baserow_field_type_changed or field_constraints_changed:
                         existing_constraints = build_django_field_constraints(
-                            old_field, [{"name": name} for name in old_constraint_names]
+                            old_field, old_constraints
                         )
                         for constraint in existing_constraints:
                             try:
@@ -752,8 +768,11 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                     if (
                         baserow_field_type_changed or field_constraints_changed
                     ) and field_constraints:
-                        new_constraints = build_django_field_constraints(
+                        new_constraint_objects = _create_constraint_objects(
                             field, field_constraints
+                        )
+                        new_constraints = build_django_field_constraints(
+                            field, new_constraint_objects
                         )
                         for constraint in new_constraints:
                             try:

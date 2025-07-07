@@ -1995,16 +1995,16 @@ def test_field_constraints_unique_with_empty(data_fixture):
                 table=table,
                 type_name=field_type,
                 name=f"Unique {field_type} Field",
-                field_constraints=[{"name": "invalid_constraint_name"}],
+                field_constraints=[{"type_name": "invalid_constraint_name"}],
             )
         field = handler.create_field(
             user=user,
             table=table,
             type_name=field_type,
             name=f"Unique {field_type} Field",
-            field_constraints=[{"name": field_data["constraint"]}],
+            field_constraints=[{"type_name": field_data["constraint"]}],
         )
-        assert list(field.field_constraints.values_list("name", flat=True)) == [
+        assert list(field.field_constraints.values_list("type_name", flat=True)) == [
             field_data["constraint"]
         ]
 
@@ -2023,7 +2023,7 @@ def test_field_constraints_unique_with_empty(data_fixture):
             model.objects.create(**{f"field_{field.id}": field_data["value"]})
 
         field = handler.update_field(user=user, field=field, field_constraints=[])
-        assert list(field.field_constraints.values_list("name", flat=True)) == []
+        assert list(field.field_constraints.values_list("type_name", flat=True)) == []
 
         row_duplicate = model.objects.create(
             **{f"field_{field.id}": field_data["value"]}
@@ -2056,7 +2056,9 @@ def test_import_export_field_constraints_preservation(data_fixture):
         table=source_table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
     )
 
     long_text_field = handler.create_field(
@@ -2064,7 +2066,9 @@ def test_import_export_field_constraints_preservation(data_fixture):
         table=source_table,
         type_name="long_text",
         name="Unique Long Text Field",
-        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
     )
 
     rating_field = handler.create_field(
@@ -2073,7 +2077,7 @@ def test_import_export_field_constraints_preservation(data_fixture):
         type_name="rating",
         name="Unique Rating Field",
         field_constraints=[
-            {"name": RatingTypeUniqueWithEmptyConstraint.constraint_name}
+            {"type_name": RatingTypeUniqueWithEmptyConstraint.constraint_name}
         ],
     )
 
@@ -2082,7 +2086,7 @@ def test_import_export_field_constraints_preservation(data_fixture):
         table=source_table,
         type_name="number",
         name="Unique Number Field",
-        field_constraints=[{"name": UniqueWithEmptyConstraint.constraint_name}],
+        field_constraints=[{"type_name": UniqueWithEmptyConstraint.constraint_name}],
     )
 
     model = source_table.get_model()
@@ -2114,16 +2118,16 @@ def test_import_export_field_constraints_preservation(data_fixture):
     )
 
     assert exported_text_field["field_constraints"] == [
-        {"name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
     ]
     assert exported_long_text_field["field_constraints"] == [
-        {"name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
     ]
     assert exported_rating_field["field_constraints"] == [
-        {"name": RatingTypeUniqueWithEmptyConstraint.constraint_name}
+        {"type_name": RatingTypeUniqueWithEmptyConstraint.constraint_name}
     ]
     assert exported_number_field["field_constraints"] == [
-        {"name": UniqueWithEmptyConstraint.constraint_name}
+        {"type_name": UniqueWithEmptyConstraint.constraint_name}
     ]
 
     imported_applications, _ = core_handler.import_applications_to_workspace(
@@ -2155,16 +2159,16 @@ def test_import_export_field_constraints_preservation(data_fixture):
     ).specific
 
     assert list(
-        imported_text_field.field_constraints.values_list("name", flat=True)
+        imported_text_field.field_constraints.values_list("type_name", flat=True)
     ) == [TextTypeUniqueWithEmptyConstraint.constraint_name]
     assert list(
-        imported_long_text_field.field_constraints.values_list("name", flat=True)
+        imported_long_text_field.field_constraints.values_list("type_name", flat=True)
     ) == [TextTypeUniqueWithEmptyConstraint.constraint_name]
     assert list(
-        imported_rating_field.field_constraints.values_list("name", flat=True)
+        imported_rating_field.field_constraints.values_list("type_name", flat=True)
     ) == [RatingTypeUniqueWithEmptyConstraint.constraint_name]
     assert list(
-        imported_number_field.field_constraints.values_list("name", flat=True)
+        imported_number_field.field_constraints.values_list("type_name", flat=True)
     ) == [UniqueWithEmptyConstraint.constraint_name]
 
     with transaction.atomic(), pytest.raises(IntegrityError):
@@ -2218,14 +2222,16 @@ def test_import_export_field_constraints_serialization(data_fixture):
         table=table,
         type_name="text",
         name="Test Field",
-        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
     )
 
     field_type = field_type_registry.get_by_model(field)
     serialized_field = field_type.export_serialized(field)
 
     assert serialized_field["field_constraints"] == [
-        {"name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
     ]
 
     id_mapping = {}
@@ -2237,7 +2243,7 @@ def test_import_export_field_constraints_serialization(data_fixture):
         DeferredForeignKeyUpdater(),
     )
 
-    assert list(imported_field.field_constraints.values_list("name", flat=True)) == [
-        TextTypeUniqueWithEmptyConstraint.constraint_name
-    ]
+    assert list(
+        imported_field.field_constraints.values_list("type_name", flat=True)
+    ) == [TextTypeUniqueWithEmptyConstraint.constraint_name]
     assert imported_field.id != field.id

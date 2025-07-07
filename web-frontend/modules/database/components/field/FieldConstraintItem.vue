@@ -3,16 +3,16 @@
     <div class="field-constraints-options__row">
       <div class="field-constraints-options__value">
         <Dropdown
-          :value="constraint.name"
+          :value="constraint.type_name"
           :disabled="disabled"
           :fixed-items="true"
-          @input="updateConstraintName"
+          @input="updateConstraintTypeName"
         >
           <DropdownItem
             v-for="constraintType in allowedConstraintTypes"
             :key="constraintType.type"
-            :name="constraintType.getLabel()"
-            :value="constraintType.getName() || constraintType.type"
+            :name="constraintType.getName()"
+            :value="constraintType.getTypeName()"
           ></DropdownItem>
         </Dropdown>
       </div>
@@ -67,8 +67,8 @@ export default {
     },
   },
   methods: {
-    updateConstraintName(name) {
-      this.$emit('update', this.index, { name })
+    updateConstraintTypeName(typeName) {
+      this.$emit('update', this.index, { type_name: typeName })
     },
     removeConstraint() {
       this.$emit('remove', this.index)
@@ -78,9 +78,10 @@ export default {
         return ''
       }
 
-      const constraintTypeInstance = this.$registry.get(
+      const constraintTypeInstance = this.$registry.getSpecificConstraint(
         'fieldConstraint',
-        this.constraint.name
+        this.constraint.type_name,
+        this.field.type
       )
       return (
         constraintTypeInstance?.getErrorMessage(this.error) ||

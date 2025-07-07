@@ -153,21 +153,21 @@ export class Registry {
   }
 
   /**
-   * Returns the specific constraint for the field type and constraint name.
+   * Returns the specific constraint for the field type and constraint type name.
    *
    * @param {string} namespace - The registry namespace (e.g., 'fieldConstraint')
-   * @param {string} constraintName - The name of the constraint
+   * @param {string} constraintTypeName - The type name of the constraint
    * @param {string} fieldType - The field type to check compatibility with
    * @returns {Registerable|null} The specific constraint or null if no compatible constraint is found
    */
-  getSpecificConstraint(namespace, constraintName, fieldType) {
+  getSpecificConstraint(namespace, constraintTypeName, fieldType) {
     if (!Object.prototype.hasOwnProperty.call(this.registry, namespace)) {
       return null
     }
 
     for (const constraint of Object.values(this.registry[namespace])) {
       if (
-        constraint.getName() === constraintName &&
+        constraint.getTypeName() === constraintTypeName &&
         constraint.getCompatibleFieldTypes().includes(fieldType)
       ) {
         return constraint

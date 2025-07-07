@@ -446,13 +446,13 @@ export default {
 
       const compatibleConstraints = this.values.field_constraints
         .map((constraint) => {
-          if (!constraint.name) {
+          if (!constraint.type_name) {
             return null
           }
 
           const compatibleConstraintType = this.$registry.getSpecificConstraint(
             'fieldConstraint',
-            constraint.name,
+            constraint.type_name,
             newFieldType
           )
 
@@ -467,7 +467,6 @@ export default {
       if (
         compatibleConstraints.length !== this.values.field_constraints.length
       ) {
-        // Emit the updated constraints array to notify parent components
         this.$emit('input', compatibleConstraints)
         this.values.field_constraints = compatibleConstraints
         this.fieldConstraintError = null

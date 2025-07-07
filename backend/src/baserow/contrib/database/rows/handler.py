@@ -1040,8 +1040,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             always_updated_fields.append(LAST_MODIFIED_BY_COLUMN_NAME)
 
         try:
-            with transaction.atomic():
-                row.save(update_fields=update_row_fields + always_updated_fields)
+            row.save(update_fields=update_row_fields + always_updated_fields)
         except Exception:
             raise FieldDataConstraintException()
         rows_updated_counter.add(1)

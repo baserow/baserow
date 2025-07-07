@@ -1318,7 +1318,9 @@ def test_run_file_import_task_with_field_constraints(
         table=table,
         type_name="text",
         name="Unique Text Field",
-        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
     )
 
     model = table.get_model()
@@ -1388,14 +1390,18 @@ def test_run_file_import_task_with_upsert_and_field_constraints(
         table=table,
         type_name="text",
         name="Field A",
-        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
     )
     field_b = handler.create_field(
         user=user,
         table=table,
         type_name="text",
         name="Field B",
-        field_constraints=[{"name": TextTypeUniqueWithEmptyConstraint.constraint_name}],
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
     )
 
     model = table.get_model()

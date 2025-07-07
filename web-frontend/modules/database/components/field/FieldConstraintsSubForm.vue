@@ -3,8 +3,8 @@
     <FormGroup
       :label="$t('fieldConstraintsSubform.title')"
       :small-label="true"
-      :horizontal="true"
-      class="control--horizontal-narrow margin-bottom-2 field-constraints__title"
+      :horizontal-narrow="true"
+      class="margin-bottom-2"
     >
       <div class="control__elements flex justify-content-end">
         <ButtonText
@@ -88,19 +88,17 @@ export default {
     },
     allConstraintsAdded() {
       const addedConstraintNames = this.value.map(
-        (constraint) => constraint.name
+        (constraint) => constraint.type_name
       )
       return this.allowedConstraintTypes.every((constraintType) =>
-        addedConstraintNames.includes(
-          constraintType.getName() || constraintType.type
-        )
+        addedConstraintNames.includes(constraintType.getTypeName())
       )
     },
   },
   methods: {
     addConstraint() {
       const hasEmptyConstraint = this.value.some(
-        (constraint) => constraint.name === ''
+        (constraint) => constraint.type_name === ''
       )
       if (hasEmptyConstraint) {
         return
@@ -116,18 +114,18 @@ export default {
       }
 
       const newConstraint = {
-        name: firstAvailableType.getName() || firstAvailableType.type,
+        type_name: firstAvailableType.getTypeName(),
       }
       const updatedConstraints = [...this.value, newConstraint]
       this.$emit('input', updatedConstraints)
     },
     getAvailableConstraintTypesForNewConstraint() {
       const selectedNames = this.value
-        .map((constraint) => constraint.name)
+        .map((constraint) => constraint.type_name)
         .filter((name) => name)
 
       return this.allowedConstraintTypes.filter((constraintType) => {
-        const constraintName = constraintType.getName() || constraintType.type
+        const constraintName = constraintType.getTypeName()
         return !selectedNames.includes(constraintName)
       })
     },

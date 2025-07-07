@@ -711,7 +711,7 @@ def test_update_field_immutable_properties_constraints(api_client, data_fixture)
     url = reverse("api:database:fields:item", kwargs={"field_id": number_field.id})
     response = api_client.patch(
         url,
-        {"field_constraints": [{"name": "unique_with_empty"}]},
+        {"field_constraints": [{"type_name": "unique_with_empty"}]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -732,7 +732,7 @@ def test_update_field_read_only_constraints(api_client, data_fixture):
     url = reverse("api:database:fields:item", kwargs={"field_id": number_field.id})
     response = api_client.patch(
         url,
-        {"field_constraints": [{"name": "unique_with_empty"}]},
+        {"field_constraints": [{"type_name": "unique_with_empty"}]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )

@@ -320,11 +320,13 @@ class FieldConstraint(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Mode
         related_name="field_constraints",
         help_text="The field this constraint belongs to.",
     )
-    name = models.CharField(max_length=255, help_text="The name of the constraint.")
+    type_name = models.CharField(
+        max_length=255, help_text="The type name of the constraint."
+    )
 
     class Meta:
-        unique_together = ("field", "name")
-        ordering = ("name",)
+        unique_together = ("field", "type_name")
+        ordering = ("type_name",)
 
 
 class SelectOption(AbstractSelectOption):

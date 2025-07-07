@@ -708,7 +708,9 @@ class FieldType(
         values = {
             "name": field.name,
             "db_index": field.db_index,
-            "field_constraints": list(field.field_constraints.values("name")),
+            "field_constraints": [
+                {"type_name": c.type_name} for c in field.field_constraints.all()
+            ],
         }
 
         values.update({key: getattr(field, key) for key in self.allowed_fields})
@@ -1005,7 +1007,9 @@ class FieldType(
         # Handle cases where field_constraints relationship might fail
         # e.g. during Airtable import that uses unsaved field instances
         try:
-            field_constraints = list(field.field_constraints.values("name"))
+            field_constraints = [
+                {"type_name": c.type_name} for c in field.field_constraints.all()
+            ]
         except (ValueError, TypeError):
             field_constraints = []
 
@@ -1112,7 +1116,7 @@ class FieldType(
         if field_constraints:
             FieldConstraint.objects.bulk_create(
                 [
-                    FieldConstraint(field=field, name=constraint["name"])
+                    FieldConstraint(field=field, type_name=constraint["type_name"])
                     for constraint in field_constraints
                 ]
             )
