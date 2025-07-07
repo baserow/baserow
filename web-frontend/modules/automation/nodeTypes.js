@@ -69,7 +69,7 @@ export class NodeType extends Registerable {
    * @returns - The node's image.
    */
   get image() {
-    return localBaserowIntegration
+    return null
   }
 
   /**
@@ -163,6 +163,10 @@ export class LocalBaserowNodeType extends NodeType {
     return tableName
       ? this.app.i18n.t(this.labelTemplateName, { tableName })
       : this.name
+  }
+
+  get image() {
+    return localBaserowIntegration
   }
 }
 
