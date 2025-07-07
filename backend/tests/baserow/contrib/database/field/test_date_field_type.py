@@ -8,11 +8,12 @@ from pytest_unordered import unordered
 
 from baserow.contrib.database.fields.field_types import DateFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import DateField
+from baserow.contrib.database.fields.models import DateField, TextField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils import DeferredForeignKeyUpdater
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.core.psycopg import is_psycopg3
 from baserow.core.registries import ImportExportConfig
 
 
@@ -519,10 +520,8 @@ def test_negative_date_field_value(data_fixture):
     assert getattr(results[3], f"field_{datetime_field.id}") is None
     assert getattr(results[4], f"field_{date_field.id}") is None
     assert getattr(results[4], f"field_{datetime_field.id}") is None
-    assert getattr(results[5], f"field_{date_field.id}") == date(1, 1, 1)
-    assert getattr(results[5], f"field_{datetime_field.id}") == (
-        datetime(1, 1, 1, tzinfo=timezone.utc)
-    )
+    assert getattr(results[5], f"field_{date_field.id}") is None
+    assert getattr(results[5], f"field_{datetime_field.id}") is None
     assert getattr(results[6], f"field_{date_field.id}") is None
     assert getattr(results[6], f"field_{datetime_field.id}") is None
     assert getattr(results[7], f"field_{date_field.id}") == date(2010, 2, 3)
@@ -738,3 +737,106 @@ def test_get_group_by_metadata_in_rows_with_date_field(data_fixture):
             ]
         )
     }
+
+
+@pytest.mark.django_db
+def test_date_field_overflow(settings, data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    field_handler = FieldHandler()
+    row_handler = RowHandler()
+
+    date_field = field_handler.create_field(
+        user=user,
+        table=table,
+        type_name="text",
+        name="Date",
+    )
+    invalid_date_value = "19999-01-01"
+    row = row_handler.create_row(
+        user=user, table=table, values={date_field.db_column: invalid_date_value}
+    )
+    assert getattr(row, date_field.db_column, None) == invalid_date_value
+
+    date_field = field_handler.update_field(
+        user=user, field=date_field, new_type_name="date", date_format="ISO"
+    )
+
+    assert isinstance(
+        table.get_model().get_field_object(date_field.db_column)["field"], DateField
+    )
+    out = row_handler.get_rows(table.get_model(), [row.id])
+    assert len(out) == 1
+    assert getattr(out[0], date_field.db_column, None) is None
+
+    date_field = field_handler.update_field(
+        user=user, field=date_field, new_type_name="text", date_format="ISO"
+    )
+
+    table.refresh_from_db()
+    assert isinstance(
+        table.get_model().get_field_object(date_field.db_column)["field"], TextField
+    )
+    out = row_handler.get_rows(table.get_model(), [row.id])
+    assert len(out) == 1
+    assert getattr(out[0], date_field.db_column, None) is None
+
+
+@pytest.mark.django_db
+def test_datetime_field_overflow(on_db_connection, data_fixture):
+    if is_psycopg3:
+        from baserow.contrib.database.fields.utils.pg_datetime import (
+            register_on_connection,
+        )
+
+        # manually register adapters, as signal-based registration will be called
+        # too late
+        on_db_connection(register_on_connection)
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    field_handler = FieldHandler()
+    row_handler = RowHandler()
+
+    date_field = field_handler.create_field(
+        user=user,
+        table=table,
+        type_name="text",
+        name="Date",
+    )
+    invalid_date_value = "19999-01-01 01:01"
+    row = row_handler.create_row(
+        user=user, table=table, values={date_field.db_column: invalid_date_value}
+    )
+    assert getattr(row, date_field.db_column, None) == invalid_date_value
+
+    date_field = field_handler.update_field(
+        user=user,
+        field=date_field,
+        new_type_name="date",
+        date_format="ISO",
+        date_include_time=True,
+        date_time_format="24",
+    )
+    assert isinstance(
+        table.get_model().get_field_object(date_field.db_column)["field"], DateField
+    )
+    out = row_handler.get_rows(table.get_model(), [row.id])
+    assert len(out) == 1
+
+    assert getattr(out[0], date_field.db_column, None) is None
+
+    date_field = field_handler.update_field(
+        user=user, field=date_field, new_type_name="text", date_format="ISO"
+    )
+
+    table.refresh_from_db()
+    assert isinstance(
+        table.get_model().get_field_object(date_field.db_column)["field"], TextField
+    )
+    out = row_handler.get_rows(table.get_model(), [row.id])
+    assert len(out) == 1
+
+    assert getattr(out[0], date_field.db_column, None) is None
