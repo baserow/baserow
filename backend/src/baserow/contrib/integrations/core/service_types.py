@@ -732,10 +732,6 @@ class CoreSMTPEmailServiceType(ServiceType):
         service: CoreSMTPEmailService,
         allowed_fields: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
-        """
-        Generates the schema for the email service response.
-        """
-
         properties = {}
 
         if allowed_fields is None or "success" in allowed_fields:
@@ -758,6 +754,9 @@ class CoreSMTPEmailServiceType(ServiceType):
     def _parse_email_list(self, email_string: str) -> List[str]:
         """
         Parse comma-separated email addresses and return a list of email addresses.
+
+        :param email_string: Comme separates string of email addresses.
+        :return: Cleaned up list containing the email addresses of the provided string.
         """
 
         if not email_string:
@@ -771,13 +770,8 @@ class CoreSMTPEmailServiceType(ServiceType):
         service: CoreSMTPEmailService,
         dispatch_context: DispatchContext,
     ) -> Dict[str, Any]:
-        """
-        Resolves the formulas for all email fields.
-        """
-
         resolved_values = {}
 
-        # Resolve all formula fields
         for field_name in self.simple_formula_fields:
             dispatch_context.reset_call_stack()
             field_value = getattr(service, field_name)
@@ -804,7 +798,6 @@ class CoreSMTPEmailServiceType(ServiceType):
 
         smtp_integration = service.integration.specific
 
-        # Parse email addresses
         to_emails = self._parse_email_list(resolved_values["to_emails"])
         cc_emails = self._parse_email_list(resolved_values["cc_emails"])
         bcc_emails = self._parse_email_list(resolved_values["bcc_emails"])

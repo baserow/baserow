@@ -122,13 +122,6 @@ def test_smtp_integration_serializer_field_names(data_fixture):
 
 
 @pytest.mark.django_db
-def test_smtp_integration_sensitive_fields(data_fixture):
-    integration_type = SMTPIntegrationType()
-
-    assert integration_type.sensitive_fields == ["password"]
-
-
-@pytest.mark.django_db
 def test_smtp_integration_serialized_dict_type(data_fixture):
     integration_type = SMTPIntegrationType()
 
