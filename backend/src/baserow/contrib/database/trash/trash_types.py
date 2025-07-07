@@ -8,6 +8,7 @@ from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.dependencies.update_collector import (
     FieldUpdateCollector,
 )
+from baserow.contrib.database.fields.exceptions import FieldDataConstraintException
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
@@ -295,7 +296,10 @@ class RowTrashableItemType(TrashableItemType):
         return [str(trashed_item) or f"unnamed row {trashed_item.id}"]
 
     def restore(self, trashed_item, trash_entry: TrashEntry):
-        super().restore(trashed_item, trash_entry)
+        try:
+            super().restore(trashed_item, trash_entry)
+        except Exception:
+            raise FieldDataConstraintException()
 
         table = self.get_parent(trashed_item)
         model = table.get_model()

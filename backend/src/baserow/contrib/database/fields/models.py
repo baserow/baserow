@@ -316,6 +316,22 @@ class AbstractSelectOption(
         return f"<SelectOption {self.value} ({self.id})>"
 
 
+class FieldConstraint(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
+    field = models.ForeignKey(
+        Field,
+        on_delete=models.CASCADE,
+        related_name="field_constraints",
+        help_text="The field this constraint belongs to.",
+    )
+    type_name = models.CharField(
+        max_length=255, help_text="The type name of the constraint."
+    )
+
+    class Meta:
+        unique_together = ("field", "type_name")
+        ordering = ("type_name",)
+
+
 class SelectOption(AbstractSelectOption):
     @classmethod
     def get_max_value_length(cls):

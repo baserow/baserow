@@ -204,6 +204,22 @@
     "autonumber": "A read-only field that automatically increments a number for each new row.",
     "password": "A write-only field that holds a hashed password. The value will be `null` if not set, or `true` if it has been set. It accepts a string to set it."
   },
+  "fieldConstraint": {
+    "uniqueWithEmpty": "Unique with empty"
+  },
+  "fieldConstraintsSubform": {
+    "title": "Constraints",
+    "description": "Define rules that field values must follow.",
+    "addConstraint": "Add constraint",
+    "noConstraintsAvailable": "No constraints are available for this field type.",
+    "readonlyFieldMessage": "Constraints cannot be applied to read only fields.",
+    "errorGenericData": "Cannot apply field constraint due to existing data conflicts.",
+    "errorUniqueOrEmpty": "Some values in this field are duplicated. Remove or edit duplicates before applying this constraint.",
+    "errorInvalidConstraint": "This field constraint is not supported for this field type."
+  },
+  "fieldConstraintParametersText": {
+    "placeholder": "Enter constraint value"
+  },
   "viewFilter": {
     "hasEmptyValue": "has empty value",
     "hasNotEmptyValue": "doesn't have empty value",
@@ -434,7 +450,11 @@
     "databaseDeadlockTitle": "Action failed",
     "databaseDeadlockDescription": "The action couldn't be completed due to multiple conflicting operations on the data at the same time. Please try again.",
     "databaseUniquePrimaryPropertyNotFoundTitle": "No unique primary property found",
-    "databaseUniquePrimaryPropertyNotFoundDescription": "This typically happens if the data sync source doesn't contain any property to get a unique row value from. In case of a table, it could be that there is no primary key."
+    "databaseUniquePrimaryPropertyNotFoundDescription": "This typically happens if the data sync source doesn't contain any property to get a unique row value from. In case of a table, it could be that there is no primary key.",
+    "fieldConstraintTitle": "Field constraint violation",
+    "fieldConstraintDescription": "Unable to apply constraint.",
+    "fieldDataConstraintTitle": "Field data constraint violation",
+    "fieldDataConstraintDescription": "Unable to to complete operation due to existing constraints violation."
   },
   "importerType": {
     "csv": "Import a CSV file",

@@ -326,6 +326,7 @@ def test_import_export_last_modified_by_field(data_fixture):
         "immutable_type": False,
         "immutable_properties": False,
         "db_index": False,
+        "field_constraints": [],
     }
 
 

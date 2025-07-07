@@ -976,6 +976,7 @@ def test_get_public_calendar_view_with_single_select_and_cover(
                 "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                 "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                 "db_index": False,
+                "field_constraints": [],
             },
             {
                 "id": public_field.id,
@@ -992,6 +993,7 @@ def test_get_public_calendar_view_with_single_select_and_cover(
                 "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                 "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                 "db_index": False,
+                "field_constraints": [],
             },
         ],
         "view": {

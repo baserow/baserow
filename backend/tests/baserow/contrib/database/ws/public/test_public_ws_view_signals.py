@@ -228,6 +228,7 @@ def test_when_field_unhidden_in_public_view_force_refresh_sent(
                             "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                             "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                             "db_index": False,
+                            "field_constraints": [],
                         }
                     ],
                     "view": view_serialized["view"],
@@ -310,6 +311,7 @@ def test_when_only_field_options_updated_in_public_grid_view_force_refresh_sent(
                             "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                             "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                             "db_index": False,
+                            "field_constraints": [],
                         }
                     ],
                     "view": view_serialized["view"],

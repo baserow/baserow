@@ -40,6 +40,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_DB_INDEX_NOT_SUPPORTED,
     ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT,
     ERROR_FIELD_CIRCULAR_REFERENCE,
+    ERROR_FIELD_CONSTRAINT,
     ERROR_FIELD_DOES_NOT_EXIST,
     ERROR_FIELD_IS_ALREADY_PRIMARY,
     ERROR_FIELD_NOT_IN_TABLE,
@@ -50,6 +51,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_INCOMPATIBLE_FIELD_TYPE_FOR_UNIQUE_VALUES,
     ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE,
     ERROR_INVALID_BASEROW_FIELD_NAME,
+    ERROR_INVALID_FIELD_CONSTRAINT,
     ERROR_MAX_FIELD_COUNT_EXCEEDED,
     ERROR_RESERVED_BASEROW_FIELD_NAME,
     ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
@@ -77,6 +79,7 @@ from baserow.contrib.database.fields.exceptions import (
     CannotDeletePrimaryField,
     DbIndexNotSupportedError,
     FailedToLockFieldDueToConflict,
+    FieldConstraintException,
     FieldDoesNotExist,
     FieldIsAlreadyPrimary,
     FieldNotInTable,
@@ -86,6 +89,7 @@ from baserow.contrib.database.fields.exceptions import (
     IncompatibleFieldTypeForUniqueValues,
     IncompatiblePrimaryFieldTypeError,
     InvalidBaserowFieldName,
+    InvalidFieldConstraint,
     MaxFieldLimitExceeded,
     ReservedBaserowFieldNameException,
     SelectOptionDoesNotBelongToField,
@@ -250,6 +254,7 @@ class FieldsView(APIView):
                     "ERROR_INVALID_BASEROW_FIELD_NAME",
                     "ERROR_FIELD_SELF_REFERENCE",
                     "ERROR_FIELD_CIRCULAR_REFERENCE",
+                    "ERROR_IMMUTABLE_FIELD_PROPERTIES",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
@@ -275,6 +280,9 @@ class FieldsView(APIView):
             FailedToLockTableDueToConflict: ERROR_FAILED_TO_LOCK_TABLE_DUE_TO_CONFLICT,
             CannotCreateFieldType: ERROR_CANNOT_CREATE_FIELD_TYPE,
             DbIndexNotSupportedError: ERROR_DB_INDEX_NOT_SUPPORTED,
+            FieldConstraintException: ERROR_FIELD_CONSTRAINT,
+            InvalidFieldConstraint: ERROR_INVALID_FIELD_CONSTRAINT,
+            ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
         }
     )
     def post(self, request, data, table_id):
@@ -422,6 +430,8 @@ class FieldView(APIView):
             ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
             SelectOptionDoesNotBelongToField: ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
             DbIndexNotSupportedError: ERROR_DB_INDEX_NOT_SUPPORTED,
+            FieldConstraintException: ERROR_FIELD_CONSTRAINT,
+            InvalidFieldConstraint: ERROR_INVALID_FIELD_CONSTRAINT,
         }
     )
     @require_request_data_type(dict)

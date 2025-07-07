@@ -32,6 +32,8 @@ BASEROW_BOOLEAN_FIELD_FALSE_VALUES = [
 ]
 SINGLE_SELECT_SORT_BY_ORDER = "order"
 
+UNIQUE_WITH_EMPTY_CONSTRAINT_NAME = "unique_with_empty"
+
 
 class DeleteFieldStrategyEnum(Enum):
     """

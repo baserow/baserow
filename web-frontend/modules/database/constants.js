@@ -17,3 +17,5 @@ export const GRID_VIEW_MULTI_SELECT_CHECKBOX = 'checkbox'
 
 export const LINKED_ITEMS_DEFAULT_LOAD_COUNT = 20
 export const LINKED_ITEMS_LOAD_ALL = -1
+
+export const UNIQUE_WITH_EMPTY_CONSTRAINT_NAME = 'unique_with_empty'

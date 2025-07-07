@@ -35,6 +35,7 @@ from baserow.contrib.database.fields.dependencies.update_collector import (
     FieldUpdateCollector,
 )
 from baserow.contrib.database.fields.exceptions import (
+    FieldDataConstraintException,
     FieldNotInTable,
     IncompatibleField,
 )
@@ -780,6 +781,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             without any further check.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
+        :raises FieldDataConstraintException: When a field data constraint is violated.
         :return: The created row instance.
         :rtype: Model
         """
@@ -822,8 +824,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 user if user and user.id else None
             )
 
-        instance = model.objects.create(**row_values)
-        rows_created_counter.add(1)
+        try:
+            instance = model.objects.create(**row_values)
+            rows_created_counter.add(1)
+        except Exception:
+            raise FieldDataConstraintException()
 
         m2m_change_tracker = RowM2MChangeTracker()
         for field_name, value in manytomany_values.items():
@@ -962,6 +967,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             and validated for every field and can be used directly by the handler
             without any further check.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
+        :raises FieldDataConstraintException: When a field data constraint is violated.
         :return: The updated row instance.
         """
 
@@ -1032,7 +1038,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             setattr(row, LAST_MODIFIED_BY_COLUMN_NAME, user if user.id else None)
             always_updated_fields.append(LAST_MODIFIED_BY_COLUMN_NAME)
 
-        row.save(update_fields=update_row_fields + always_updated_fields)
+        try:
+            row.save(update_fields=update_row_fields + always_updated_fields)
+        except Exception:
+            raise FieldDataConstraintException()
         rows_updated_counter.add(1)
 
         dependant_fields = self.update_dependencies_of_rows_updated(
@@ -1218,10 +1227,33 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             # saved.
             instance._m2m_values = relations
 
-        inserted_rows = model.objects.bulk_create(
-            [row for (row, _) in rows_relationships]
-        )
-        rows_created_counter.add(len(rows_relationships))
+        rows = [row for (row, _) in rows_relationships]
+
+        try:
+            with transaction.atomic():
+                inserted_rows = model.objects.bulk_create(rows)
+        except Exception:
+            inserted_rows = []
+
+            for index, (row, _) in enumerate(rows_relationships):
+                try:
+                    with transaction.atomic():
+                        row.save()
+                        inserted_rows.append(row)
+                except Exception:
+                    report[index] = {
+                        "non_field_errors": [
+                            "Row was not inserted due to conflicts or constraints"
+                        ]
+                    }
+
+            if not generate_error_report and len(inserted_rows) != len(
+                rows_relationships
+            ):
+                raise FieldDataConstraintException()
+
+        inserted_rows_count = len(inserted_rows)
+        rows_created_counter.add(inserted_rows_count)
 
         many_to_many = defaultdict(list)
         m2m_change_tracker = RowM2MChangeTracker()
@@ -1586,15 +1618,15 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         model: Optional[Type[GeneratedTableModel]] = None,
     ) -> Tuple[List[Dict[str, Any] | None], Dict[str, Dict[str, Any]]]:
         """
-        Creates rows by batch and generates an error report instead of failing on first
-        error.
+        Updates rows by batch and generates an error report instead of failing on first
+        error. If bulk update fails, falls back to individual row updates.
 
-        :param user: The user of whose behalf the rows are created.
-        :param table: The table for which the rows should be created.
-        :param rows_values: List of rows values for rows that need to be created.
+        :param user: The user of whose behalf the rows are updated.
+        :param table: The table for which the rows should be updated.
+        :param rows_values: List of rows values for rows that need to be updated.
         :param progress: Give a progress instance to track the progress of the import.
         :param model: Optional model to prevent recomputing table model.
-        :return: The created rows and the error report.
+        :return: The updated rows and the error report.
         """
 
         if not rows_values:
@@ -1608,23 +1640,52 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         report = {}
         all_updated_rows = []
         for count, chunk in enumerate(grouper(BATCH_SIZE, rows_values)):
-            updated_rows = self.force_update_rows(
-                user=user,
-                table=table,
-                model=model,
-                rows_values=chunk,
-                send_realtime_update=False,
-                send_webhook_events=False,
-                # Don't trigger loads of search updates for every batch of rows we
-                # create but instead a single one for this entire table at the end.
-                skip_search_update=True,
-                generate_error_report=True,
-            )
+            row_start_index = count * BATCH_SIZE
+
+            try:
+                with transaction.atomic():
+                    updated_rows = self.force_update_rows(
+                        user=user,
+                        table=table,
+                        model=model,
+                        rows_values=chunk,
+                        send_realtime_update=False,
+                        send_webhook_events=False,
+                        # Don't trigger loads of search updates for every batch
+                        # of rows we update but instead a single one for this
+                        # entire table at the end.
+                        skip_search_update=True,
+                        generate_error_report=True,
+                    )
+                    report.update(updated_rows.errors)
+                    all_updated_rows.extend(updated_rows.updated_rows)
+            except Exception:
+                for index, row_values in enumerate(chunk):
+                    try:
+                        row_id = row_values["id"]
+                        with transaction.atomic():
+                            updated_row = self.update_row_by_id(
+                                user,
+                                table,
+                                row_id,
+                                {k: v for k, v in row_values.items() if k != "id"},
+                                model=model,
+                                values_already_prepared=True,
+                            )
+                            all_updated_rows.append(updated_row)
+                    except RowDoesNotExist:
+                        report[row_start_index + index] = {
+                            "non_field_errors": ["Row does not exist"]
+                        }
+                    except Exception:
+                        report[row_start_index + index] = {
+                            "non_field_errors": [
+                                "Row was not updated due to conflicts or constraints"
+                            ]
+                        }
 
             if progress:
                 progress.increment(len(chunk))
-            report.update(updated_rows.errors)
-            all_updated_rows.extend(updated_rows.updated_rows)
 
             SearchHandler.schedule_update_search_data(
                 table, row_ids=[r.id for r in updated_rows.updated_rows]
@@ -1942,6 +2003,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :raises RowIdsNotUnique: When trying to update the same row multiple
             times.
         :raises RowDoesNotExist: When any of the rows don't exist.
+        :raises FieldDataConstraintException: When a field data constraint is violated.
         :return: An UpdatedRow named tuple containing the updated rows
             instances, the original row values and the updated fields metadata.
         """
@@ -2138,9 +2200,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 bulk_update_fields.append(field_name)
 
         if len(bulk_update_fields) > 0:
-            model.objects.bulk_update(
-                rows_to_update, bulk_update_fields, batch_size=2000
-            )
+            try:
+                model.objects.bulk_update(
+                    rows_to_update, bulk_update_fields, batch_size=2000
+                )
+            except Exception:
+                raise FieldDataConstraintException()
+
             rows_updated_counter.add(len(rows_to_update))
 
         dependant_fields = self.update_dependencies_of_rows_updated(

@@ -1114,6 +1114,7 @@ def test_get_public_timeline_view(api_client, premium_data_fixture):
                     "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                     "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                     "db_index": False,
+                    "field_constraints": [],
                 },
                 {
                     "id": start_date_field.id,
@@ -1134,6 +1135,7 @@ def test_get_public_timeline_view(api_client, premium_data_fixture):
                     "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                     "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                     "db_index": False,
+                    "field_constraints": [],
                 },
                 {
                     "id": end_date_field.id,
@@ -1154,6 +1156,7 @@ def test_get_public_timeline_view(api_client, premium_data_fixture):
                     "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                     "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                     "db_index": False,
+                    "field_constraints": [],
                 },
             ]
         ),

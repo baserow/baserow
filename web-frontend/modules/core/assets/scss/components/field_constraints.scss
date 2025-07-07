@@ -1,0 +1,14 @@
+.field-constraints-options__item {
+  margin: 12px 0;
+}
+
+.field-constraints-options__row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.field-constraints-options__value {
+  flex: 1 1 100%;
+  min-width: 0;
+}

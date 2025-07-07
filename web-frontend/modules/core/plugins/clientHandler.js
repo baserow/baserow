@@ -194,6 +194,14 @@ export class ClientErrorMap {
           'clientHandler.databaseUniquePrimaryPropertyNotFoundDescription'
         )
       ),
+      ERROR_FIELD_DATA_CONSTRAINT: new ResponseErrorMessage(
+        app.i18n.t('clientHandler.fieldDataConstraintTitle'),
+        app.i18n.t('clientHandler.fieldDataConstraintDescription')
+      ),
+      ERROR_FIELD_CONSTRAINT: new ResponseErrorMessage(
+        app.i18n.t('clientHandler.fieldConstraintTitle'),
+        app.i18n.t('clientHandler.fieldConstraintDescription')
+      ),
     }
   }
 
