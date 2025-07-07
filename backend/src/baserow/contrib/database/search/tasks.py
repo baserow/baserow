@@ -143,8 +143,7 @@ def update_search_data(table_id: int):
 
     # Make sure the search table exists for the workspace first.
     workspace_id = table.database.workspace_id
-    if not SearchHandler.workspace_search_table_exists(workspace_id):
-        SearchHandler.create_workspace_search_table(workspace_id)
+    SearchHandler.create_workspace_search_table_if_not_exists(workspace_id)
 
     # Ensure every table field exists in the search table.
     # Used during migrations or when explicitly reinitializing search data.

@@ -35,8 +35,7 @@ class TableFixtures:
                 schema_editor.create_model(model)
 
             workspace_id = table.database.workspace_id
-            if not SearchHandler.workspace_search_table_exists(workspace_id):
-                SearchHandler.create_workspace_search_table(workspace_id)
+            SearchHandler.create_workspace_search_table_if_not_exists(workspace_id)
 
         return table
 
