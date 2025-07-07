@@ -99,7 +99,7 @@ def test_delete_workspace_search_table(data_fixture):
     search_table = SearchHandler.get_workspace_search_table_model(workspace.id)
     assert search_table.objects.count() == 0
 
-    SearchHandler.delete_workspace_search_table(workspace.id)
+    SearchHandler.delete_workspace_search_table_if_exists(workspace.id)
 
     assert not SearchHandler.workspace_search_table_exists(workspace.id)
     with pytest.raises(ProgrammingError):

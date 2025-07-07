@@ -23,10 +23,7 @@ from baserow.contrib.database.search.handler import (
     SearchHandler,
     SearchMode,
 )
-from baserow.contrib.database.table.constants import (
-    LAST_MODIFIED_BY_COLUMN_NAME,
-    ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
-)
+from baserow.contrib.database.table.constants import LAST_MODIFIED_BY_COLUMN_NAME
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.exceptions import (
     ViewFilterTypeDoesNotExist,
@@ -49,7 +46,7 @@ def test_workspace_user_get_next_order(data_fixture):
 
 @pytest.mark.django_db
 def test_get_table_model(data_fixture):
-    default_model_fields_count = 8
+    default_model_fields_count = 7
     table = data_fixture.create_database_table(name="Cars")
     text_field = data_fixture.create_text_field(
         table=table, order=0, name="Color", text_default="white"
@@ -176,9 +173,6 @@ def test_get_table_model_with_fulltext_search_enabled(data_fixture):
     )
 
     model = table.get_model()
-    deprecated_field_names = [
-        ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
-    ]
     base_fields = [
         "id",
         "created_on",
@@ -193,7 +187,7 @@ def test_get_table_model_with_fulltext_search_enabled(data_fixture):
         number_field.db_column,
         boolean_field.db_column,
     ]
-    expected_fields = base_fields + added_fields + deprecated_field_names
+    expected_fields = base_fields + added_fields
     field_names = [field.name for field in model._meta.get_fields()]
     assert sorted(field_names) == sorted(expected_fields)
 

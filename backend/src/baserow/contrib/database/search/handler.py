@@ -109,7 +109,9 @@ def _workspace_search_table_exists(workspace_id: int) -> bool:
 
 
 @lru_cache(maxsize=1024)
-def _generate_search_table_model(workspace_id: int) -> "AbstractSearchValue":
+def _generate_search_table_model(
+    workspace_id: int, managed=False
+) -> "AbstractSearchValue":
     from baserow.contrib.database.table.models import GeneratedModelAppsProxy
 
     app_label = "database_search"
@@ -123,11 +125,10 @@ def _generate_search_table_model(workspace_id: int) -> "AbstractSearchValue":
         (),
         {
             "apps": apps,
-            "managed": True,  # manually managed by Baserow
+            "managed": managed,
             "db_table": table_name,
             "app_label": app_label,
             "indexes": get_search_indexes(workspace_id),
-            "ordering": ["field_id", "row_id"],
             "unique_together": [("field_id", "row_id")],
         },
     )
@@ -174,17 +175,19 @@ class SearchHandler(
 
     @classmethod
     def get_workspace_search_table_model(
-        cls, workspace_id: int
+        cls, workspace_id: int, managed: bool = False
     ) -> "AbstractSearchValue":
         """
-        Generates SearchTable model
-        :param workspace_id: The ID of the workspace for which the search table
+        Generates SearchTable model :param workspace_id: The ID of the workspace for
+        which the search table
             model is being generated.
+        :param managed: This flag should be set to True only when the needs to be
+            created for the first time, False otherwise.
         :return: A dynamically generated model class that represents the search table
             for the specified workspace.
         """
 
-        return _generate_search_table_model(workspace_id)
+        return _generate_search_table_model(workspace_id, managed=managed)
 
     @classmethod
     def full_text_search_in_table(
@@ -202,7 +205,7 @@ class SearchHandler(
         the queryset based on the search values in the search table.
 
         :param queryset: The queryset to search in.
-        :param sanitized_search: The sanitized search string to use for searching.
+        :param input_search: The search string to sanitize and look for in the fields.
         :param fields: The list of fields to search in. All the fields must be
             searchable and be in the same table as the queryset.
         :return: A filtered queryset containing the rows that match the search criteria.
@@ -226,9 +229,8 @@ class SearchHandler(
             search_table.objects.filter(
                 field_id__in=[field.id for field in fields], value=search_query
             )
-            .order_by("row_id")
-            .distinct("row_id")
-            .values("row_id"),
+            .values("row_id")
+            .distinct(),
             name=f"search_{uuid4().hex}",
         )
         search_queryset = (
@@ -238,9 +240,8 @@ class SearchHandler(
         )
 
         filter_builder = FilterBuilder(filter_type=FILTER_TYPE_OR)
-
-        cls.add_exact_id_search(filter_builder, input_search)
         filter_builder.filter(Q(match_search__isnull=False))
+        cls.add_exact_id_search(filter_builder, input_search)
 
         return filter_builder.apply_to_queryset(search_queryset)
 
@@ -281,7 +282,8 @@ class SearchHandler(
 
     @classmethod
     def create_workspace_search_table(cls, workspace_id: int) -> "AbstractSearchValue":
-        search_table = cls.get_workspace_search_table_model(workspace_id)
+        # Django only creates indexes when the model is managed.
+        search_table = cls.get_workspace_search_table_model(workspace_id, managed=True)
         with safe_django_schema_editor() as se:
             se.create_model(search_table)
 
@@ -290,10 +292,10 @@ class SearchHandler(
         return search_table
 
     @classmethod
-    def delete_workspace_search_table(cls, workspace_id: int):
-        search_table = cls.get_workspace_search_table_model(workspace_id)
-        query = sql.SQL("DROP TABLE IF EXISTS {} CASCADE").format(
-            sql.Identifier(search_table._meta.db_table)
+    def delete_workspace_search_table_if_exists(cls, workspace_id: int):
+        search_table_name = cls.get_workspace_search_table_name(workspace_id)
+        query = sql.SQL("DROP TABLE IF EXISTS {0} CASCADE").format(
+            sql.Identifier(search_table_name)
         )
         with connection.cursor() as c:
             c.execute(query)
@@ -460,9 +462,10 @@ class SearchHandler(
         search indexes.
 
         :param table: The table a field value has been created or updated in.
-        :param updated_fields: If only some fields have had values
-            changed then the search vector update can be optimized by providing those
-            here.
+        :param fields: Optional list of fields that have been changed or created. If
+            None, all fields in the table will be considered.
+        :param row_ids: Optional list of row IDs that have been changed or created. If
+            None, all rows in the table will be considered.
         """
 
         field_ids = None

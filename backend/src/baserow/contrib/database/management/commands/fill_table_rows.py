@@ -1,4 +1,3 @@
-import math
 import os
 import random
 import re
@@ -68,11 +67,6 @@ class Command(BaseCommand):
             help="How many rows should be inserted in a single query.",
             default=-1,
         )
-        parser.add_argument(
-            "--update-tsvectors",
-            action="store_true",
-            help="If true, the ts vector cell values will be updated as well.",
-        )
 
     def handle(self, *args, **options):
         table_id = options["table_id"]
@@ -81,7 +75,6 @@ class Command(BaseCommand):
         limit = options["limit"]
         concurrency = options["concurrency"]
         batch_size = options["batch_size"]
-        update_tsvectors = options.get("update_tsvectors", False)
 
         tick = time.time()
         if concurrency == 1:
@@ -154,7 +147,6 @@ class Command(BaseCommand):
                     batch_size,
                     source_table_model=source_table_model,
                     replicated_table_models=replicated_table_models,
-                    update_tsvectors=update_tsvectors,
                 )
             except PostgresFullTextSearchDisabledException:
                 self.stdout.write(
@@ -178,8 +170,6 @@ class Command(BaseCommand):
                 "--batch-size",
                 str(batch_size),
             ]
-            if update_tsvectors:
-                concurrency_args += ["--update-tsvectors"]
             run_command_concurrently(
                 concurrency_args,
                 concurrency,
@@ -352,7 +342,6 @@ def fill_table_rows(
     batch_size=-1,
     source_table_model=None,
     replicated_table_models=None,
-    update_tsvectors=False,
 ):
     fake = Faker()
     cache = {}
@@ -369,13 +358,11 @@ def fill_table_rows(
     if batch_size <= 0:
         batch_size = limit
 
-    tsvector_limit = math.ceil(limit / 100 * 20)
-
     with tqdm(
-        total=limit + tsvector_limit if update_tsvectors else limit,
+        total=limit + 1,
         desc=f"Adding {limit} rows to table {table.pk} in worker {os.getpid()}",
     ) as pbar:
-        progress = Progress(limit + tsvector_limit if update_tsvectors else limit)
+        progress = Progress(limit)
 
         def progress_updated(percentage, state=None):
             if state:
@@ -384,22 +371,19 @@ def fill_table_rows(
 
         progress.register_updated_event(progress_updated)
 
+        table_row_ids_map = defaultdict(list)
         for group in grouper(batch_size, range(limit)):
             rows = defaultdict(list)
             for _ in group:
                 order += Decimal("1")
-                fields_grouped_by_table = generate_values_for_one_or_more_tables(
+                values_grouped_by_table = generate_values_for_one_or_more_tables(
                     models, fake, cache
                 )
 
                 for model in models:
+                    values = values_grouped_by_table[model.baserow_table_id]
                     instance, relations = create_row_instance_and_relations(
-                        fields_grouped_by_table[model.baserow_table_id],
-                        table,
-                        model,
-                        fake,
-                        cache,
-                        order,
+                        values, table, model, fake, cache, order
                     )
                     rows[model.baserow_table_id].append((instance, relations))
                     progress.increment(1)
@@ -408,8 +392,13 @@ def fill_table_rows(
                 pbar.refresh()
                 created_rows = bulk_create_rows(model, rows[model.baserow_table_id])
                 RowHandler().update_dependencies_of_rows_created(model, created_rows)
+                table_row_ids_map[model.baserow_table].extend(
+                    [r.id for r in created_rows]
+                )
 
-                if update_tsvectors:
-                    SearchHandler.update_search_data(
-                        table, row_ids=[row.id for row in created_rows]
-                    )
+        for table, row_ids in table_row_ids_map.items():
+            pbar.refresh()
+            pbar.set_description(
+                f"Updating search data for table {table.pk} in worker {os.getpid()}"
+            )
+            SearchHandler.update_search_data(table, row_ids=row_ids)

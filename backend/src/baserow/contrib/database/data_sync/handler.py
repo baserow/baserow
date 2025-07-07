@@ -467,12 +467,15 @@ class DataSyncHandler:
             or len(rows_to_update) > 0
             or len(row_ids_to_delete) > 0
         ):
-            # No need to include this in the progress because it triggers a celery task,
-            # but we need to pass row ids to limit search update.
+            # No need to include this in the progress as it triggers a celery task
             row_ids = [r["id"] for r in rows_to_update] + [
                 r.id for r in created_rows.created_rows
             ]
-            SearchHandler.schedule_update_search_data(data_sync.table, row_ids=row_ids)
+            SearchHandler.schedule_update_search_data(
+                data_sync.table,
+                fields=[p.field for p in enabled_properties],
+                row_ids=row_ids,
+            )
 
     def set_data_sync_synced_properties(
         self,

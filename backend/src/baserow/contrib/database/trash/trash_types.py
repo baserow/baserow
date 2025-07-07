@@ -391,9 +391,9 @@ class RowsTrashableItemType(TrashableItemType):
     @staticmethod
     def _get_table(parent_id):
         try:
-            return Table.objects_and_trash.select_related(
-                "database", "database__workspace"
-            ).get(id=parent_id)
+            return Table.objects_and_trash.select_related("database__workspace").get(
+                id=parent_id
+            )
         except Table.DoesNotExist:
             # The parent table must have been actually deleted, in which case the
             # row itself no longer exits.

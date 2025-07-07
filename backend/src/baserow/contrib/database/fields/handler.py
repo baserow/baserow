@@ -716,6 +716,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         ViewHandler().field_updated(field)
+        # Always refresh search data since field type or formatting may have changed.
         SearchHandler.schedule_update_search_data(field.table, fields=[field])
 
         field_updated.send(
