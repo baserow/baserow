@@ -206,8 +206,8 @@ def test_create_trigger_node_disallowed(api_client, data_fixture):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
         "error": "ERROR_AUTOMATION_TRIGGER_NODE_CREATION_NOT_ALLOWED",
-        "detail": "Triggers cannot be created, the existing trigger not "
-        "can only be replaced.",
+        "detail": "Triggers cannot be created, the existing trigger can "
+        "only be replaced.",
     }
 
 
