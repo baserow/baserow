@@ -178,7 +178,8 @@ class SearchHandler(
         cls, workspace_id: int, managed: bool = False
     ) -> "AbstractSearchValue":
         """
-        Generates SearchTable model :param workspace_id: The ID of the workspace for
+        Generates SearchTable model
+        :param workspace_id: The ID of the workspace for
         which the search table
             model is being generated.
         :param managed: This flag should be set to True only when the needs to be
