@@ -61,7 +61,7 @@
 import { VueFlow, useVueFlow } from '@vue2-flow/core'
 import { Background } from '@vue2-flow/background'
 import { Controls } from '@vue2-flow/controls'
-import { ref, computed, watch, toRefs } from 'vue'
+import { ref, computed, watch, toRefs, onMounted } from 'vue'
 import {
   inject,
   useContext,
@@ -107,7 +107,6 @@ const zoomOnDoubleClick = ref(false)
 // Constants for positioning
 const NODE_VERTICAL_SPACING = 144 // Vertical distance between the tops of consecutive data nodes
 const ADD_BUTTON_OFFSET_Y = 92 // Vertical offset of add button relative to the data node above it
-const INITIAL_ADD_BUTTON_OFFSET_Y = 52
 const INITIAL_Y_POS = 0
 const DATA_NODE_X_POS = 0
 const ADD_BUTTON_X_POS = 190
@@ -120,28 +119,19 @@ watch(
   { immediate: true }
 )
 
+/**
+ * When the component is mounted, we emit the first node's ID. This is
+ * to ensure that the first node (the trigger) is selected by default.
+ */
+onMounted(() => {
+  emit('input', props.nodes[0].id)
+})
+
 const automation = inject('automation')
 const displayNodes = computed(() => {
   const vueFlowNodes = []
   // props.nodes should already be sorted by 'order' from the store getter
   const sortedDataNodes = [...props.nodes]
-
-  // If we don't have a trigger, add the first add button node.
-  if (!workflowHasTrigger.value) {
-    // No nodes, show a single add button to start the flow
-    vueFlowNodes.push({
-      id: uuid(),
-      type: 'workflow-add-button-node',
-      position: {
-        x: ADD_BUTTON_X_POS,
-        y: INITIAL_Y_POS - INITIAL_ADD_BUTTON_OFFSET_Y,
-      },
-      data: {
-        nodeId: null,
-        disabled: props.isAddingNode,
-      },
-    })
-  }
 
   if (sortedDataNodes.length > 0) {
     let currentY = INITIAL_Y_POS
@@ -236,13 +226,6 @@ const toggleCreateContext = async (nodeId) => {
   const nodeAddBtn = refs[`addWorkflowBtnNode-${nodeId}`]
   nodeContext.show(nodeAddBtn.$el, 'bottom', 'left', 10, -225)
 }
-
-const workflowHasTrigger = computed(() => {
-  return props.nodes.some((node) => {
-    const nodeType = app.$registry.get('node', node.type)
-    return nodeType.isTrigger
-  })
-})
 
 const createNode = (nodeType, previousNodeId) => {
   emit('add-node', {

@@ -47,3 +47,15 @@ class AutomationNodeMisconfiguredService(AutomationNodeError):
             *args,
             **kwargs,
         )
+
+
+class AutomationTriggerCreationNotAllowed(AutomationNodeError):
+    """
+    Raised when trying to create a trigger node. Triggers cannot be created directly.
+    """
+
+
+class AutomationTriggerDeletionNotAllowed(AutomationNodeError):
+    """
+    Raised when trying to delete a trigger node. Triggers cannot be deleted directly.
+    """

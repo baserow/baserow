@@ -129,6 +129,7 @@ class AutomationWorkflowHandler:
         Creates a new AutomationWorkflow.
 
         :param automation: The Automation the workflow belongs to.
+        :param name: The name of the workflow.
         :return: The newly created AutomationWorkflow instance.
         """
 

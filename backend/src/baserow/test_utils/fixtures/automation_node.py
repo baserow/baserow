@@ -20,7 +20,7 @@ class AutomationNodeFixtures:
 
         _node_type = kwargs.pop("type", None)
         if _node_type is None:
-            node_type = automation_node_type_registry.get("rows_created")
+            node_type = automation_node_type_registry.get("create_row")
         elif isinstance(_node_type, str):
             node_type = automation_node_type_registry.get(_node_type)
         else:

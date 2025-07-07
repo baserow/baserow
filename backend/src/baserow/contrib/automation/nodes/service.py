@@ -3,7 +3,11 @@ from typing import Iterable, List, Optional
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.models import AutomationWorkflow
-from baserow.contrib.automation.nodes.exceptions import AutomationNodeBeforeInvalid
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeBeforeInvalid,
+    AutomationTriggerCreationNotAllowed,
+    AutomationTriggerDeletionNotAllowed,
+)
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
@@ -49,8 +53,15 @@ class AutomationNodeService:
         :param workflow: The workflow the automation node is associated with.
         :param before: If set, the new node is inserted before this node.
         :param kwargs: Additional attributes of the automation node.
+        :raises AutomationTriggerCreationNotAllowed: If the node_type is a trigger.
         :return: The created automation node.
         """
+
+        # Triggers are not directly created by users. When a workflow is created,
+        # the trigger node is created automatically, so users are only able to change
+        # the trigger node type, not create a new one.
+        if node_type.is_workflow_trigger:
+            raise AutomationTriggerCreationNotAllowed()
 
         CoreHandler().check_permissions(
             user,
@@ -179,6 +190,10 @@ class AutomationNodeService:
         """
 
         node = self.handler.get_node(node_id)
+
+        # If we received a trigger node, we cannot delete it.
+        if node.get_type().is_workflow_trigger:
+            raise AutomationTriggerDeletionNotAllowed()
 
         CoreHandler().check_permissions(
             user,

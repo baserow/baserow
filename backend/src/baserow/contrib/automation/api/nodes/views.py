@@ -19,6 +19,8 @@ from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_BEFORE_INVALID,
     ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
     ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
+    ERROR_AUTOMATION_TRIGGER_NODE_CREATION_NOT_ALLOWED,
+    ERROR_AUTOMATION_TRIGGER_NODE_DELETION_NOT_ALLOWED,
 )
 from baserow.contrib.automation.api.nodes.serializers import (
     AutomationNodeSerializer,
@@ -40,6 +42,8 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
     AutomationNodeDoesNotExist,
     AutomationNodeNotInWorkflow,
+    AutomationTriggerCreationNotAllowed,
+    AutomationTriggerDeletionNotAllowed,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
@@ -96,6 +100,7 @@ class AutomationNodesView(APIView):
             AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
             AutomationNodeBeforeInvalid: ERROR_AUTOMATION_NODE_BEFORE_INVALID,
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+            AutomationTriggerCreationNotAllowed: ERROR_AUTOMATION_TRIGGER_NODE_CREATION_NOT_ALLOWED,
         }
     )
     @validate_body_custom_fields(
@@ -240,6 +245,7 @@ class AutomationNodeView(APIView):
     @map_exceptions(
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+            AutomationTriggerDeletionNotAllowed: ERROR_AUTOMATION_TRIGGER_NODE_DELETION_NOT_ALLOWED,
         }
     )
     @transaction.atomic

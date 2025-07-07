@@ -52,10 +52,10 @@ class AutomationApplicationType(ApplicationType):
             path("automation/", include(api_urls, namespace=self.type)),
         ]
 
-    def export_safe_transaction_context(self, application: Application) -> Atomic:
+    def export_safe_transaction_context(self, application: Automation) -> Atomic:
         return transaction.atomic()
 
-    def init_application(self, user: AbstractUser, application: Application) -> None:
+    def init_application(self, user: AbstractUser, application: Automation) -> None:
         """
         Responsible for creating default workflows in the newly created
         Automation application.
