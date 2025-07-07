@@ -1,9 +1,5 @@
 <template>
-  <Badge
-    v-tooltip="tooltip"
-    tooltip-position="bottom-right"
-    :color="color"
-    size="small"
+  <Badge :color="color" size="small"
     >{{ label }} <i class="iconoir-hammer"></i
   ></Badge>
 </template>
@@ -35,14 +31,6 @@ export default {
     },
     label() {
       return this.$t(`common.${this.stage}`)
-    },
-    tooltip() {
-      switch (this.stage) {
-        case 'alpha':
-          return this.$t('developmentBadge.alphaTooltip')
-        default:
-          return null
-      }
     },
   },
 }
