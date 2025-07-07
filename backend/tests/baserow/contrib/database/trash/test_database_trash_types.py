@@ -48,8 +48,9 @@ def test_delete_row_by_id(data_fixture):
 
 
 @pytest.mark.django_db
+@patch("baserow.core.trash.signals.permanently_deleted.send")
 def test_perm_deleting_many_rows_at_once_only_looks_up_the_model_once(
-    data_fixture, django_assert_num_queries
+    mock, data_fixture, django_assert_num_queries
 ):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(name="Car", user=user)
@@ -67,7 +68,7 @@ def test_perm_deleting_many_rows_at_once_only_looks_up_the_model_once(
     TrashEntry.objects.update(should_be_permanently_deleted=True)
 
     invalidate_table_in_model_cache(table.id)
-    with django_assert_num_queries(15):
+    with django_assert_num_queries(14):
         TrashHandler.permanently_delete_marked_trash()
 
     row_2 = handler.create_row(user=user, table=table)
@@ -91,10 +92,9 @@ def test_perm_deleting_many_rows_at_once_only_looks_up_the_model_once(
     # 5. A query to delete it's trash entry.
     # 6. A query to delete any related row comments.
     # 7. An extra query to close the second trash entries savepoint
-    # 8. An extra query to delete user mentions on the second row.
     # If we weren't caching the table models an extra number of queries would be first
     # performed to lookup the table information which breaks this assertion.
-    with django_assert_num_queries(23):
+    with django_assert_num_queries(21):
         TrashHandler.permanently_delete_marked_trash()
 
 

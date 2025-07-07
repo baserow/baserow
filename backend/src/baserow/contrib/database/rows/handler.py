@@ -46,7 +46,6 @@ from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.constants import (
     CREATED_BY_COLUMN_NAME,
     LAST_MODIFIED_BY_COLUMN_NAME,
-    ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
 )
 from baserow.contrib.database.table.models import (
     FieldObject,
@@ -851,7 +850,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(fields + dependant_fields)
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.schedule_update_search_data(table, row_ids=[instance.id])
 
         rows_created.send(
             self,
@@ -1047,7 +1046,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.schedule_update_search_data(
+            table,
+            fields=[f for f in updated_fields if f.id in updated_field_ids],
+            row_ids=[row.id],
+        )
 
         rows_updated.send(
             self,
@@ -1250,7 +1253,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         updated_fields = [o["field"] for o in model._field_objects.values()]
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
         if not skip_search_update:
-            SearchHandler.field_value_updated_or_created(table)
+            SearchHandler.schedule_update_search_data(
+                table, fields=updated_fields, row_ids=[r.id for r in inserted_rows]
+            )
 
         rows_to_return = inserted_rows
         rows_values_refreshed_from_db = False
@@ -1566,7 +1571,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
             all_created_rows += created_rows
 
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.schedule_update_search_data(
+            table, row_ids=[r.id for r in all_created_rows]
+        )
 
         return all_created_rows, report
 
@@ -1619,7 +1626,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             report.update(updated_rows.errors)
             all_updated_rows.extend(updated_rows.updated_rows)
 
-        SearchHandler.field_value_updated_or_created(table)
+            SearchHandler.schedule_update_search_data(
+                table, row_ids=[r.id for r in updated_rows.updated_rows]
+            )
         return all_updated_rows, report
 
     def import_rows(
@@ -2009,9 +2018,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             for field_object in field_objects_to_always_update:
                 updated_field_ids.add(field_object["field"].id)
 
-            if table.needs_background_update_column_added:
-                setattr(obj, ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME, True)
-
             prepared_values = prepared_rows_values_by_id[obj.id]
             row_values, manytomany_values = self.extract_manytomany_values(
                 prepared_values, model
@@ -2119,8 +2125,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if getattr(model, LAST_MODIFIED_BY_COLUMN_NAME, None):
             bulk_update_fields.append(LAST_MODIFIED_BY_COLUMN_NAME)
 
-        if table.needs_background_update_column_added:
-            bulk_update_fields.append(ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME)
         for field_obj in model._field_objects.values():
             field_id = field_obj["field"].id
             field_name = field_obj["name"]
@@ -2147,7 +2151,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
         if not skip_search_update:
-            SearchHandler.field_value_updated_or_created(table)
+            SearchHandler.schedule_update_search_data(
+                table,
+                fields=[f for f in updated_fields if f.id in updated_field_ids],
+                row_ids=row_ids,
+            )
 
         # Reload rows from the database to get the updated values for formulas
         updated_rows_to_return = list(
@@ -2496,6 +2504,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
+        SearchHandler.schedule_update_search_data(table, row_ids=[row.id])
 
         rows_deleted.send(
             self,

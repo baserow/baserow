@@ -84,10 +84,6 @@ class PathBasedUpdateStatementCollector:
                     self.update_statements[field.db_column] = (
                         update_statement if update_statement != Value(None) else None
                     )
-                if self.table.needs_background_update_column_added:
-                    self.update_statements[
-                        ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME
-                    ] = Value(True)
         else:
             next_via_field_link = path_from_starting_table[0]
             if next_via_field_link.link_row_table != self.table:
@@ -488,18 +484,14 @@ class FieldUpdateCollector:
         )
         if any_table_updated and not skip_search_updates:
             for table in self._pending_field_updates.tables():
-                if not self._starting_table or table.id != self._starting_table.id:
-                    if self._starting_row_ids is not None:
-                        # The cascade was only for some specific rows and not the
-                        # entire field
-                        SearchHandler.field_value_updated_or_created(
-                            table,
-                        )
-                    else:
-                        # The cascade was for the entire field
-                        SearchHandler.entire_field_values_changed_or_created(
-                            table, self._get_updated_fields_in_table(table)
-                        )
+                row_ids = updated_rows_per_table.get(table.id)
+                if not row_ids:
+                    continue
+
+                fields = self._get_updated_fields_in_table(table)
+                SearchHandler.schedule_update_search_data(
+                    table, fields=fields, row_ids=list(row_ids)
+                )
 
         updated_fields = self._get_updated_fields_in_table(self._starting_table)
 

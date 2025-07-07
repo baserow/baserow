@@ -262,7 +262,7 @@ class LocalBaserowTableServiceFilterableMixin:
             service.service_filters.all()
         ):
             raise ServiceFilterPropertyDoesNotExist(
-                f"One or more filtered properties no longer exist.",
+                "One or more filtered properties no longer exist.",
             )
 
         service_filter_builder = FilterBuilder(filter_type=service.filter_type)
@@ -714,10 +714,10 @@ class LocalBaserowTableServiceSearchableMixin:
 
         if isinstance(used_fields_from_parent, list) and service.search_query:
             fields = [fo["field"] for fo in self.get_table_field_objects(service) or []]
-            return used_fields_from_parent + [
-                f.tsv_db_column if SearchHandler.full_text_enabled() else f.db_column
-                for f in fields
-            ]
+            search_fields = []
+            if not SearchHandler.can_use_full_text_search(service.table):
+                search_fields = [f.db_column for f in fields]
+            return used_fields_from_parent + search_fields
 
         return used_fields_from_parent
 

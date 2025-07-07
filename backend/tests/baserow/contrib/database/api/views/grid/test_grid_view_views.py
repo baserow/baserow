@@ -24,7 +24,7 @@ from baserow.contrib.database.rows.registries import (
     RowMetadataType,
     row_metadata_registry,
 )
-from baserow.contrib.database.search.handler import ALL_SEARCH_MODES, SearchHandler
+from baserow.contrib.database.search.handler import ALL_SEARCH_MODES
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import TableModelQuerySet
 from baserow.contrib.database.views.handler import ViewHandler
@@ -4021,7 +4021,7 @@ def test_list_rows_public_filters_by_visible_and_hidden_columns(
     assert response_json["results"][0]["id"] == visible_row.id
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
 def test_list_rows_public_only_searches_by_visible_columns(
     api_client, data_fixture, search_mode
@@ -4058,9 +4058,6 @@ def test_list_rows_public_only_searches_by_visible_columns(
         table,
         values={"public": search_term, "hidden": "other"},
         user_field_names=True,
-    )
-    SearchHandler.update_tsvector_columns(
-        table, update_tsvectors_for_changed_rows_only=False
     )
 
     # Get access as an anonymous user

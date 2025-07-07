@@ -733,7 +733,6 @@ class NumberFieldType(FieldType):
         default = instance.number_default
         if default is not None:
             kwargs["default"] = default
-
         return models.DecimalField(
             max_digits=self.MAX_DIGITS + kwargs["decimal_places"],
             null=True,
@@ -2432,10 +2431,18 @@ class LinkRowFieldType(
         remote_model = remote_field.model
 
         primary_field_object = next(
-            object
-            for object in remote_model._field_objects.values()
-            if object["field"].primary
+            (
+                object
+                for object in remote_model._field_objects.values()
+                if object["field"].primary
+            ),
+            None,
         )
+        if primary_field_object is None:
+            # Every table should have a primary field, but it's not strictly enforeced
+            # and if it doesn't (i.e. some tests), we return an empty expression.
+            return Value("")
+
         primary_field = primary_field_object["field"]
         primary_field_type = primary_field_object["type"]
         qs = remote_model.objects.filter(
@@ -2476,15 +2483,14 @@ class LinkRowFieldType(
         field_kwargs = kwargs.get(f"field_{field.id}", {})
         link_row_join = field_kwargs.get("link_row_join", None)
 
-        primary_field_object = None
-        try:
-            primary_field_object = next(
+        primary_field_object = next(
+            (
                 object
                 for object in remote_model._field_objects.values()
                 if object["field"].primary
-            )
-        except StopIteration:
-            pass
+            ),
+            None,
+        )
 
         # The list of fields to prefetch is going to be the primary field
         # if it exists together with any joined field for lookup

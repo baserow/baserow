@@ -180,6 +180,22 @@ def get_non_unique_values(values: List) -> List:
     return list(non_unique_values)
 
 
+def to_camel_case(value: str) -> str:
+    """
+    Converts the value string to camelCase.
+
+    :param value: The value that needs to be converted.
+    :return: The value in camelCase.
+    """
+
+    return (
+        "".join(character for character in value.title() if not character.isspace())
+        .replace(" ", "")
+        .replace("_", "")
+        .replace("-", "")
+    )
+
+
 def to_pascal_case(value):
     """
     Converts the value string to PascalCase.

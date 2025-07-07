@@ -105,6 +105,15 @@ def clear_cache():
     # fakeredis cache
     cache.clear()
 
+    # Workspace search table cache
+    from baserow.contrib.database.search.handler import (
+        _generate_search_table_model,
+        _workspace_search_table_exists,
+    )
+
+    _generate_search_table_model.cache_clear()
+    _workspace_search_table_exists.cache_clear()
+
     # Thread-local cache
     with local_cache.context():
         yield
@@ -724,7 +733,7 @@ def migrator(second_separate_database_for_migrations, reset_schema):
 
 @pytest.fixture
 def disable_full_text_search(settings):
-    settings.USE_PG_FULLTEXT_SEARCH = False
+    settings.PG_FULLTEXT_SEARCH_ENABLED = False
 
 
 @pytest.fixture(autouse=True)

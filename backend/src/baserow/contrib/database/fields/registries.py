@@ -1082,15 +1082,7 @@ class FieldType(
             if select_default_field_name:
                 select_default = serialized_copy.pop(select_default_field_name, None)
 
-        should_create_tsvector_column = (
-            not import_export_config.reduce_disk_space_usage
-            and table.tsvectors_are_supported
-        )
-        field = self.model_class(
-            table=table,
-            tsvector_column_created=should_create_tsvector_column,
-            **serialized_copy,
-        )
+        field = self.model_class(table=table, **serialized_copy)
         field.save()
 
         id_mapping["database_fields"][field_id] = field.id
@@ -1156,8 +1148,6 @@ class FieldType(
         update statement with the update_collector to correctly set their value after
         the row has been created.
         """
-
-        pass
 
     def get_export_serialized_value(
         self,

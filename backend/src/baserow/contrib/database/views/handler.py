@@ -36,7 +36,7 @@ from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.operations import ReadFieldOperationType
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.handler import SearchModes
+from baserow.contrib.database.search.handler import SearchMode
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.exceptions import ViewOwnershipTypeDoesNotExist
 from baserow.contrib.database.views.filters import AdHocFilters
@@ -2775,7 +2775,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         only_search_by_field_ids: Optional[Iterable[int]] = None,
         apply_sorts: bool = True,
         apply_filters: bool = True,
-        search_mode: Optional[SearchModes] = None,
+        search_mode: Optional[SearchMode] = None,
     ) -> QuerySet:
         """
         Returns a queryset for the provided view which is appropriately sorted,
@@ -2939,7 +2939,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         adhoc_filters: Optional[AdHocFilters] = None,
         combine_filters: bool = False,
         search: Optional[str] = None,
-        search_mode: Optional[SearchModes] = None,
+        search_mode: Optional[SearchMode] = None,
         skip_perm_check: bool = False,
     ) -> Dict[str, Any]:
         """
@@ -3086,7 +3086,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         adhoc_filters: Optional[AdHocFilters] = None,
         combine_filters: bool = False,
         search: Optional[str] = None,
-        search_mode: Optional[SearchModes] = None,
+        search_mode: Optional[SearchMode] = None,
         skip_perm_check: bool = False,
         restrict_to_field_ids: Optional[Set[int]] = None,
     ) -> Dict[str, Any]:
@@ -3527,7 +3527,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         self,
         view: View,
         search: str | None = None,
-        search_mode: SearchModes | None = None,
+        search_mode: SearchMode | None = None,
         order_by: str | None = None,
         group_by: str | None = None,
         include_fields: str | None = None,

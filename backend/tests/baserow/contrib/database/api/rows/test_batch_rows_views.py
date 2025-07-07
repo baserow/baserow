@@ -311,8 +311,6 @@ def test_batch_create_rows(api_client, data_fixture):
     assert getattr(row_2, f"field_{boolean_field.id}") is False
     assert getattr(row_1, f"field_{boolean_field_2.id}") is False
     assert getattr(row_2, f"field_{boolean_field_2.id}") is True
-    assert row_1.needs_background_update
-    assert row_2.needs_background_update
 
     # Test creating rows without providing any values
     request_body_empty = {
@@ -1296,7 +1294,6 @@ def test_batch_update_rows(api_client, data_fixture):
     model = table.get_model()
     row_1 = model.objects.create()
     row_2 = model.objects.create()
-    model.objects.update(needs_background_update=False)
     url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
     request_body = {
         "items": [
@@ -1348,8 +1345,6 @@ def test_batch_update_rows(api_client, data_fixture):
     assert getattr(row_2, f"field_{text_field.id}") == "yellow"
     assert getattr(row_1, f"field_{boolean_field.id}") is True
     assert getattr(row_2, f"field_{boolean_field.id}") is False
-    assert row_1.needs_background_update
-    assert row_2.needs_background_update
 
 
 @pytest.mark.django_db
@@ -1365,7 +1360,6 @@ def test_batch_update_rows_deadlock(api_client, data_fixture):
     model = table.get_model()
     row_1 = model.objects.create()
     row_2 = model.objects.create()
-    model.objects.update(needs_background_update=False)
     url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
     request_body = {
         "items": [
@@ -1411,7 +1405,6 @@ def test_batch_update_rows_with_disabled_webhook_events(api_client, data_fixture
     model = table.get_model()
     row_1 = model.objects.create()
     row_2 = model.objects.create()
-    model.objects.update(needs_background_update=False)
 
     data_fixture.create_table_webhook(
         table=table,
@@ -2685,5 +2678,3 @@ def test_batch_create_rows_single_select_default(api_client, data_fixture):
     row_2 = model.objects.get(pk=2)
     assert getattr(row_1, f"field_{option_field.id}").id == option_2.id
     assert getattr(row_2, f"field_{option_field.id}").id == option_1.id
-    assert row_1.needs_background_update
-    assert row_2.needs_background_update

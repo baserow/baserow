@@ -365,7 +365,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             order=last_order,
             primary=primary,
             pk=primary_key,
-            tsvector_column_created=table.tsvectors_are_supported,
             description=description,
             **field_values,
         )
@@ -594,9 +593,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             )
         ):
             update_collector.add_to_fields_type_changed(field)
-        SearchHandler.entire_field_values_changed_or_created(
-            field.table, updated_fields=[field]
-        )
 
         # Before a field is updated we are going to call the before_schema_change
         # method of the old field because some cleanup of related instances might
@@ -720,6 +716,8 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         ViewHandler().field_updated(field)
+        # Always refresh search data since field type or formatting may have changed.
+        SearchHandler.schedule_update_search_data(field.table, fields=[field])
 
         field_updated.send(
             self,
@@ -826,6 +824,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             "read_only",
             "immutable_type",
             "immutable_properties",
+            "search_data_initialized_at",
         ]:
             serialized_field.pop(key, None)
 
@@ -1188,9 +1187,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
             ViewHandler().field_updated(updated_fields)
-            SearchHandler.entire_field_values_changed_or_created(
-                field.table, updated_fields=[field]
-            )
+            SearchHandler.schedule_update_search_data(field.table, fields=[field])
 
             if send_field_restored_signal:
                 field_restored.send(
