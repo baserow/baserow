@@ -64,6 +64,14 @@ class Command(BaseCommand):
             help="How many rows should be inserted in a single query.",
             default=-1,
         )
+        parser.add_argument(
+            "--skip-tsvectors",
+            action="store_true",
+            help=(
+                "Skip generating tsvector values for full-text search. Use only in testing/dev "
+                "because search data will be out of sync and will require manual sync."
+            ),
+        )
 
     def handle(self, *args, **options):
         table_id = options["table_id"]
@@ -72,6 +80,7 @@ class Command(BaseCommand):
         limit = options["limit"]
         concurrency = options["concurrency"]
         batch_size = options["batch_size"]
+        skip_tsvectors = options["skip_tsvectors"]
 
         tick = time.time()
         if concurrency == 1:
@@ -143,7 +152,9 @@ class Command(BaseCommand):
                 batch_size,
                 source_table_model=source_table_model,
                 replicated_table_models=replicated_table_models,
+                skip_tsvectors=skip_tsvectors,
             )
+
         else:
             concurrency_args = [
                 "./baserow",
@@ -329,6 +340,7 @@ def fill_table_rows(
     batch_size=-1,
     source_table_model=None,
     replicated_table_models=None,
+    skip_tsvectors=False,
 ):
     fake = Faker()
     cache = {}
@@ -383,9 +395,10 @@ def fill_table_rows(
                     [r.id for r in created_rows]
                 )
 
-        for table, row_ids in table_row_ids_map.items():
-            pbar.refresh()
-            pbar.set_description(
-                f"Updating search data for table {table.pk} in worker {os.getpid()}"
-            )
-            SearchHandler.update_search_data(table, row_ids=row_ids)
+        if not skip_tsvectors:
+            for table, row_ids in table_row_ids_map.items():
+                pbar.refresh()
+                pbar.set_description(
+                    f"Updating search data for table {table.pk} in worker {os.getpid()}"
+                )
+                SearchHandler.update_search_data(table, row_ids=row_ids)
