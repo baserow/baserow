@@ -100,7 +100,7 @@ def schedule_update_search_data(
     try:
         # debounce the task to avoid multiple calls in a short time
         update_search_data.s(table_id).apply_async(
-            countdown=settings.PG_FULLTEXT_SEARCH_UPDATE_DATA_DEBOUNCE_DELAY
+            countdown=settings.PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS
         )
     except DuplicateTaskError:
         PendingSearchUpdateFlag(table_id).set()
