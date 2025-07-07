@@ -9,7 +9,7 @@ export class IntegrationType extends Registerable {
    * The image associated to this integration.
    */
   get image() {
-    throw new Error('Must be set on the type.')
+    return null
   }
 
   /**
