@@ -10,7 +10,7 @@
 
 <script>
 export default {
-  name: 'LifeCycleBadge',
+  name: 'DevelopmentBadge',
   props: {
     /**
      * The application type's development stage, used to determine
@@ -39,7 +39,7 @@ export default {
     tooltip() {
       switch (this.stage) {
         case 'alpha':
-          return this.$t('lifeCycleBadge.alphaTooltip')
+          return this.$t('developmentBadge.alphaTooltip')
         default:
           return null
       }

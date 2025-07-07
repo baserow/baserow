@@ -4,6 +4,7 @@ import DashboardForm from '@baserow/modules/dashboard/components/form/DashboardF
 import SidebarComponentDashboard from '@baserow/modules/dashboard/components/sidebar/SidebarComponentDashboard'
 import DashboardTemplateSidebar from '@baserow/modules/dashboard/components/sidebar/DashboardTemplateSidebar'
 import DashboardTemplate from '@baserow/modules/dashboard/components/DashboardTemplate'
+import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 
 export class DashboardApplicationType extends ApplicationType {
   static getType() {
@@ -84,7 +85,7 @@ export class DashboardApplicationType extends ApplicationType {
   }
 
   get developmentStage() {
-    return 'beta'
+    return DEVELOPMENT_STAGES.BETA
   }
 
   getOrder() {

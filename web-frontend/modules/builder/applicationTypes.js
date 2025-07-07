@@ -6,6 +6,7 @@ import PageTemplate from '@baserow/modules/builder/components/page/PageTemplate'
 import PageTemplateSidebar from '@baserow/modules/builder/components/page/PageTemplateSidebar'
 import BuilderApplicationContext from '@baserow/modules/builder/components/application/BuilderApplicationContext'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
+import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 
 export class BuilderApplicationType extends ApplicationType {
   static getType() {
@@ -187,7 +188,7 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   get developmentStage() {
-    return 'beta'
+    return DEVELOPMENT_STAGES.BETA
   }
 
   isVisible(application) {
