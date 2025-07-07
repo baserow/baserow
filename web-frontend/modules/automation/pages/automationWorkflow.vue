@@ -112,6 +112,11 @@ export default defineComponent({
       }
     })
 
+    const isDev = () => {
+      return process.env.NODE_ENV === 'development'
+    }
+
+    provide('isDev', isDev)
     provide('workspace', workspace)
     provide('automation', automation)
     provide('workflow', workflow)

@@ -5,7 +5,7 @@
       :application="application"
       :workspace="workspace"
     >
-      <template #additional-context-items>
+      <template v-if="isDev" #additional-context-items>
         <li
           v-if="
             $hasPermission(
@@ -57,12 +57,17 @@ export default defineComponent({
     const context = ref(null)
     const automationSettingsModal = ref(null)
 
+    const isDev = () => {
+      return process.env.NODE_ENV === 'development'
+    }
+
     const openSettingsModal = () => {
       automationSettingsModal.value.show()
       context.value.hide()
     }
 
     return {
+      isDev,
       context,
       automationSettingsModal,
       openSettingsModal,
