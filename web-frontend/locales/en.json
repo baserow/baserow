@@ -208,7 +208,7 @@
     "uniqueWithEmpty": "Unique with empty"
   },
   "fieldConstraintsSubform": {
-    "title": "Field Constraints",
+    "title": "Constraints",
     "description": "Define rules that field values must follow.",
     "addConstraint": "Add constraint",
     "noConstraintsAvailable": "No constraints are available for this field type.",
