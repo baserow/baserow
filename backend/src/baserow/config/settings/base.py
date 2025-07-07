@@ -941,17 +941,6 @@ BASEROW_SYNC_TEMPLATES_PATTERN = os.getenv("BASEROW_SYNC_TEMPLATES_PATTERN", Non
 
 MAX_FIELD_LIMIT = int(os.getenv("BASEROW_MAX_FIELD_LIMIT", 600))
 
-INITIAL_MIGRATION_FULL_TEXT_SEARCH_MAX_FIELD_LIMIT = int(
-    os.getenv(
-        "BASEROW_INITIAL_MIGRATION_FULL_TEXT_SEARCH_MAX_FIELD_LIMIT", MAX_FIELD_LIMIT
-    )
-)
-
-# TODO: describe in configuration.md and add it to various docker-compose files.
-SEARCH_DATA_UPDATE_DEBOUNCE_DELAY = float(
-    os.getenv("BASEROW_SEARCH_DATA_UPDATE_DEBOUNCE_DELAY", 2)
-)
-
 
 # set max events to be returned by every ICal feed. Empty value means no limit.
 BASEROW_ICAL_VIEW_MAX_EVENTS = try_int(
@@ -1212,12 +1201,13 @@ CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT = int(
 # search backend. If the product is installed on a system
 # with limited disk space, and less accurate results / degraded
 # search performance is acceptable, then switch this setting off.
-USE_PG_FULLTEXT_SEARCH = str_to_bool(
+PG_FULLTEXT_SEARCH_ENABLED = str_to_bool(
     (os.getenv("BASEROW_USE_PG_FULLTEXT_SEARCH", "true"))
 )
-PG_SEARCH_CONFIG = os.getenv("BASEROW_PG_SEARCH_CONFIG", "simple")
-AUTO_VACUUM_AFTER_SEARCH_UPDATE = str_to_bool(os.getenv("BASEROW_AUTO_VACUUM", "true"))
-TSV_UPDATE_CHUNK_SIZE = int(os.getenv("BASEROW_TSV_UPDATE_CHUNK_SIZE", "2000"))
+PG_FULLTEXT_SEARCH_CONFIG = os.getenv("BASEROW_PG_SEARCH_CONFIG", "simple")
+PG_FULLTEXT_SEARCH_UPDATE_DATA_DEBOUNCE_DELAY = float(
+    os.getenv("BASEROW_PG_FULLTEXT_SEARCH_UPDATE_DATA_DEBOUNCE_DELAY", 2)  # seconds
+)
 
 POSTHOG_PROJECT_API_KEY = os.getenv("POSTHOG_PROJECT_API_KEY", "")
 POSTHOG_HOST = os.getenv("POSTHOG_HOST", "")

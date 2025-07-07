@@ -16,9 +16,6 @@ from faker import Faker
 from tqdm import tqdm
 
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.exceptions import (
-    PostgresFullTextSearchDisabledException,
-)
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.models import Table
 from baserow.core.handler import CoreHandler
@@ -140,23 +137,13 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.ERROR(e.args[0]))
                     sys.exit(1)
 
-            try:
-                fill_table_rows(
-                    limit,
-                    table,
-                    batch_size,
-                    source_table_model=source_table_model,
-                    replicated_table_models=replicated_table_models,
-                )
-            except PostgresFullTextSearchDisabledException:
-                self.stdout.write(
-                    self.style.ERROR(
-                        "Your Baserow installation has Postgres full-text "
-                        "search disabled. To use full-text, ensure that "
-                        "BASEROW_USE_PG_FULLTEXT_SEARCH=true."
-                    )
-                )
-
+            fill_table_rows(
+                limit,
+                table,
+                batch_size,
+                source_table_model=source_table_model,
+                replicated_table_models=replicated_table_models,
+            )
         else:
             concurrency_args = [
                 "./baserow",
@@ -359,7 +346,7 @@ def fill_table_rows(
         batch_size = limit
 
     with tqdm(
-        total=limit + 1,
+        total=limit,
         desc=f"Adding {limit} rows to table {table.pk} in worker {os.getpid()}",
     ) as pbar:
         progress = Progress(limit)

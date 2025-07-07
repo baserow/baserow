@@ -347,11 +347,11 @@ class SearchHandler(
 
     @classmethod
     def full_text_enabled(cls) -> bool:
-        return settings.USE_PG_FULLTEXT_SEARCH
+        return settings.PG_FULLTEXT_SEARCH_ENABLED
 
     @classmethod
     def search_config(cls) -> str:
-        return settings.PG_SEARCH_CONFIG
+        return settings.PG_FULLTEXT_SEARCH_CONFIG
 
     @classmethod
     def get_default_search_mode_for_table(cls, table: "Table") -> str:

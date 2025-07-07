@@ -886,7 +886,7 @@ def test_text_field_type_get_order(data_fixture):
 
 
 @pytest.mark.django_db
-@override_settings(USE_PG_FULLTEXT_SEARCH=False)
+@override_settings(PG_FULLTEXT_SEARCH_ENABLED=False)
 def test_tsv_not_created(data_fixture):
     id_mapping = {}
 
