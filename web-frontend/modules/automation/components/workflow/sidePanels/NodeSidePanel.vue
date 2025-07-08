@@ -6,11 +6,13 @@
     <component
       :is="nodeType.formComponent"
       :key="node.id"
+      small
       :loading="nodeLoading"
       :service="node.service"
       :application="automation"
+      enable-integration-picker
       :default-values="node.service"
-      class="node-form"
+      class="margin-top-2"
       @values-changed="handleNodeServiceChange"
     />
   </ReadOnlyForm>

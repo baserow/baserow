@@ -1,5 +1,5 @@
 <template>
-  <form @submit.prevent>
+  <form :class="{ 'service-form--small': small }" @submit.prevent>
     <div>
       <div class="row">
         <div class="col col-12">
@@ -28,7 +28,7 @@
           </FormGroup>
         </div>
       </div>
-      <div v-if="enableRefinements && !fieldsLoading" class="row">
+      <div v-if="!small && !fieldsLoading" class="row">
         <div class="col col-12">
           <Tabs>
             <Tab

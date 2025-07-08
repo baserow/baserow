@@ -1,5 +1,5 @@
 <template>
-  <form @submit.prevent>
+  <form :class="{ 'service-form--small': small }" @submit.prevent>
     <div class="row">
       <div class="col col-12">
         <LocalBaserowServiceForm
@@ -10,7 +10,7 @@
         ></LocalBaserowServiceForm>
       </div>
     </div>
-    <div v-if="enableRefinements && !fieldsLoading" class="row">
+    <div v-if="!small && !fieldsLoading" class="row">
       <div class="col col-12">
         <Tabs>
           <Tab
@@ -109,18 +109,6 @@ export default {
     LocalBaserowTableServiceConditionalForm,
   },
   mixins: [form, localBaserowService],
-  props: {
-    /**
-     * The maximum number of results that can be returned by this
-     * list-returning service. This is used to validate the default
-     * result count input.
-     */
-    maxResultLimit: {
-      type: Number,
-      required: false,
-      default: () => null,
-    },
-  },
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
@@ -145,6 +133,15 @@ export default {
         default_result_count: null,
       },
     }
+  },
+  computed: {
+    maxResultLimit() {
+      return this.service
+        ? this.$registry
+            .get('service', this.service.type)
+            .getMaxResultLimit(this.service)
+        : null
+    },
   },
   validations() {
     return {

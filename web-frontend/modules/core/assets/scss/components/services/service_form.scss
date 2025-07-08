@@ -2,6 +2,17 @@
   padding-left: 0;
 }
 
+.service-form--small {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .col {
+    // Force any reduced width columns to 100% in a small side panel
+    max-width: 100%;
+  }
+}
+
 .service-form__condition-form-tab {
   padding-left: 0;
   padding-right: 0;

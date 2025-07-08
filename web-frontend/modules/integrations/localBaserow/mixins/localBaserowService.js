@@ -7,6 +7,11 @@ export default {
       type: Object,
       required: true,
     },
+    service: {
+      type: Object,
+      required: false,
+      default: () => ({}),
+    },
     contextData: {
       type: Object,
       required: false,
@@ -15,13 +20,12 @@ export default {
       }),
     },
     /**
-     * Determines whether the refinements (filters, sortings, search)
-     * are enabled in this service form, by default they are.
+     * Whether this form has a reduced amount of space to work with.
      */
-    enableRefinements: {
+    small: {
       type: Boolean,
       required: false,
-      default: true,
+      default: false,
     },
     /**
      * Determines whether the integration picker is enabled in this service form.
