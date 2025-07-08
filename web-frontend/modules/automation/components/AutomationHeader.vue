@@ -49,20 +49,6 @@
         ></SwitchInput>
       </span>
 
-      <span
-        v-if="isDevEnvironment"
-        class="header__switch-container u-margin-left-2"
-      >
-        <Badge color="yellow" rounded size="small">{{
-          $t('automationHeader.readOnlyLabel')
-        }}</Badge>
-        <SwitchInput
-          small
-          :value="readOnlySwitchValue"
-          @input="toggleReadOnly"
-        ></SwitchInput>
-      </span>
-
       <div class="header__buttons header__buttons--with-separator">
         <div v-if="publishedOn" class="automation-header__last-published">
           {{ $t('automationHeader.lastPublished') }}: {{ publishedOn }}
@@ -108,12 +94,10 @@ export default defineComponent({
       required: true,
     },
   },
-  emits: ['read-only-toggled'],
   setup(props, { emit }) {
     const store = useStore()
     const { app } = useContext()
 
-    const readOnlySwitchValue = ref(false)
     const isPublishing = ref(false)
 
     // Check if in development environment
@@ -198,11 +182,6 @@ export default defineComponent({
       }
     }
 
-    const toggleReadOnly = () => {
-      readOnlySwitchValue.value = !readOnlySwitchValue.value
-      emit('read-only-toggled', readOnlySwitchValue.value)
-    }
-
     const toggleStatusSwitch = async () => {
       const oldValue = workflow.value.paused
       workflow.value.paused = !oldValue
@@ -250,8 +229,6 @@ export default defineComponent({
 
     return {
       statusSwitch,
-      readOnlySwitchValue,
-      toggleReadOnly,
       historyClick,
       toggleTestRun,
       testRunEnabled,

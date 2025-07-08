@@ -46,7 +46,6 @@
     "switchLabelDisabled": "Disabled",
     "switchLabelPaused": "Paused",
     "switchLabelLive": "Live",
-    "readOnlyLabel": "Read only",
     "cantPublishTooltip": "Test all events before publishing this automation",
     "lastPublished": "Last published"
   },

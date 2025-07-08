@@ -1,10 +1,7 @@
 <template>
   <ReadOnlyForm
     v-if="node"
-    :read-only="
-      workflowReadOnly ||
-      !$hasPermission('automation.node.update', node, workspace.id)
-    "
+    :read-only="!$hasPermission('automation.node.update', node, workspace.id)"
   >
     <FormGroup required :label="$t('nodeSidePanel.action')">
       <Dropdown
@@ -59,7 +56,6 @@ provide('dataProvidersAllowed', DATA_PROVIDERS_ALLOWED_NODE_ACTIONS)
 const workspace = inject('workspace')
 const automation = inject('automation')
 const workflow = inject('workflow')
-const workflowReadOnly = inject('workflowReadOnly')
 
 const node = computed(() => {
   return store.getters['automationWorkflowNode/getSelected'](workflow.value)
