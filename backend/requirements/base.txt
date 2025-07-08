@@ -142,6 +142,8 @@ django==5.0.13
     #   django-celery-email
     #   django-cors-headers
     #   django-health-check
+    #   django-pgactivity
+    #   django-pglock
     #   django-redis
     #   django-storages
     #   django-timezone-field
@@ -161,6 +163,10 @@ django-cors-headers==4.3.1
 django-cte==1.3.3
     # via -r base.in
 django-health-check==3.18.2
+    # via -r base.in
+django-pgactivity==1.7.1
+    # via django-pglock
+django-pglock==1.7.2
     # via -r base.in
 django-redis==5.4.0
     # via -r base.in

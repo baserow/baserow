@@ -36,7 +36,7 @@ build==1.2.2.post1
     # via
     #   -r dev.in
     #   pip-tools
-certifi==2024.12.14
+certifi==2025.4.26
     # via
     #   -c base.txt
     #   requests
@@ -272,7 +272,7 @@ redis==5.0.4
     # via
     #   -c base.txt
     #   fakeredis
-requests==2.31.0
+requests==2.32.3
     # via
     #   -c base.txt
     #   jsonschema-spec
