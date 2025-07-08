@@ -121,12 +121,15 @@ export class NodeType extends Registerable {
    */
   getDataSchema({ automation, node }) {
     const serviceSchema = this.serviceType.getDataSchema(node.service)
-    return {
-      type: this.dataType,
-      title: this.getLabel({ automation, node }),
-      properties: serviceSchema.properties || {},
-      items: serviceSchema.items || [],
+    if (serviceSchema) {
+      return {
+        type: this.dataType,
+        title: this.getLabel({ automation, node }),
+        properties: serviceSchema.properties || {},
+        items: serviceSchema.items || [],
+      }
     }
+    return null
   }
 }
 
