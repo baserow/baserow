@@ -8,7 +8,7 @@ import baserow.core.fields
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0191_field_db_index"),
+        ("database", "0192_field_search_data_initialized_at_and_more"),
     ]
 
     operations = [

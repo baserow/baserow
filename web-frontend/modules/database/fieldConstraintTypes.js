@@ -4,6 +4,11 @@ import {
   LongTextFieldType,
   RatingFieldType,
   NumberFieldType,
+  DateFieldType,
+  URLFieldType,
+  EmailFieldType,
+  DurationFieldType,
+  SingleSelectFieldType,
 } from '@baserow/modules/database/fieldTypes'
 import { UNIQUE_WITH_EMPTY_CONSTRAINT_NAME } from '@baserow/modules/database/constants'
 
@@ -145,7 +150,12 @@ export class TextTypeUniqueWithEmptyConstraintType extends FieldConstraintType {
   }
 
   getCompatibleFieldTypes() {
-    return [TextFieldType.getType(), LongTextFieldType.getType()]
+    return [
+      TextFieldType.getType(),
+      LongTextFieldType.getType(),
+      URLFieldType.getType(),
+      EmailFieldType.getType(),
+    ]
   }
 
   getTypeName() {
@@ -199,7 +209,12 @@ export class UniqueWithEmptyConstraintType extends FieldConstraintType {
   }
 
   getCompatibleFieldTypes() {
-    return [NumberFieldType.getType()]
+    return [
+      NumberFieldType.getType(),
+      DateFieldType.getType(),
+      DurationFieldType.getType(),
+      SingleSelectFieldType.getType(),
+    ]
   }
 
   getTypeName() {

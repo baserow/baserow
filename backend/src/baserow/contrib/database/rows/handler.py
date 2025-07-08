@@ -1688,7 +1688,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 progress.increment(len(chunk))
 
             SearchHandler.schedule_update_search_data(
-                table, row_ids=[r.id for r in updated_rows.updated_rows]
+                table, row_ids=[r.id for r in all_updated_rows]
             )
         return all_updated_rows, report
 

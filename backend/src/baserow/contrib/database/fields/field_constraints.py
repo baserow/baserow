@@ -4,11 +4,16 @@ from django.db import models as django_models
 
 from baserow.contrib.database.fields.constants import UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
 from baserow.contrib.database.fields.field_types import (
+    DateFieldType,
+    DurationFieldType,
+    EmailFieldType,
     FieldType,
     LongTextFieldType,
     NumberFieldType,
     RatingFieldType,
+    SingleSelectFieldType,
     TextFieldType,
+    URLFieldType,
 )
 from baserow.core.registry import Instance
 
@@ -51,7 +56,12 @@ class UniqueWithEmptyConstraint(FieldValueConstraint):
         )
 
     def get_compatible_field_types(self) -> List[str]:
-        return [NumberFieldType.type]
+        return [
+            NumberFieldType.type,
+            DateFieldType.type,
+            DurationFieldType.type,
+            SingleSelectFieldType.type,
+        ]
 
 
 class TextTypeUniqueWithEmptyConstraint(FieldValueConstraint):
@@ -70,7 +80,12 @@ class TextTypeUniqueWithEmptyConstraint(FieldValueConstraint):
         )
 
     def get_compatible_field_types(self) -> List[str]:
-        return [TextFieldType.type, LongTextFieldType.type]
+        return [
+            TextFieldType.type,
+            LongTextFieldType.type,
+            URLFieldType.type,
+            EmailFieldType.type,
+        ]
 
 
 class RatingTypeUniqueWithEmptyConstraint(FieldValueConstraint):

@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from io import BytesIO
 from unittest.mock import patch
@@ -46,6 +47,7 @@ from baserow.contrib.database.fields.field_types import (
     CreatedByFieldType,
     CreatedOnFieldType,
     DateFieldType,
+    DurationFieldType,
     EmailFieldType,
     FileFieldType,
     FormulaFieldType,
@@ -1956,6 +1958,14 @@ def test_field_constraints_unique_with_empty(data_fixture):
         if constraint.constraint_name == UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
     ]
 
+    select_field = data_fixture.create_single_select_field(table=table)
+    select_option = SelectOption.objects.create(
+        field=select_field,
+        value="Option 1",
+        color="blue",
+        order=1,
+    )
+
     fields = {
         TextFieldType.type: {
             "constraint": TextTypeUniqueWithEmptyConstraint.constraint_name,
@@ -1976,6 +1986,31 @@ def test_field_constraints_unique_with_empty(data_fixture):
             "constraint": UniqueWithEmptyConstraint.constraint_name,
             "empty": 0,
             "value": 3,
+        },
+        DateFieldType.type: {
+            "constraint": UniqueWithEmptyConstraint.constraint_name,
+            "empty": None,
+            "value": datetime.now(),
+        },
+        URLFieldType.type: {
+            "constraint": UniqueWithEmptyConstraint.constraint_name,
+            "empty": "",
+            "value": "https://baserow.io",
+        },
+        EmailFieldType.type: {
+            "constraint": UniqueWithEmptyConstraint.constraint_name,
+            "empty": "",
+            "value": "test@example.com",
+        },
+        DurationFieldType.type: {
+            "constraint": UniqueWithEmptyConstraint.constraint_name,
+            "empty": None,
+            "value": "00:00:00",
+        },
+        SingleSelectFieldType.type: {
+            "constraint": UniqueWithEmptyConstraint.constraint_name,
+            "empty": None,
+            "value": select_option,
         },
     }
 
