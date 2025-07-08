@@ -62,7 +62,7 @@ export default {
      */
     nodeTypes() {
       return this.$registry.getOrderedList('node').filter((nodeType) => {
-        const nodeTypeMatch = this.node?.type !== nodeType.type
+        const nodeTypeMatch = this.node?.type === nodeType.type
         return (
           !nodeTypeMatch &&
           (!this.workflowHasTrigger || this.editingTriggerNode
