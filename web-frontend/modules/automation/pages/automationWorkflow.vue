@@ -1,6 +1,10 @@
 <template>
   <div class="automation-app">
-    <AutomationHeader v-if="automation" :automation="automation" />
+    <AutomationHeader
+      v-if="automation"
+      :automation="automation"
+      @read-only-toggled="handleReadOnlyToggle"
+    />
     <div
       class="layout__col-2-2 automation-workflow__content"
       :class="{
@@ -121,11 +125,17 @@ export default defineComponent({
     provide('automation', automation)
     provide('workflow', workflow)
 
+    const workflowReadOnly = ref(false)
     const workflowNodes = computed(() => {
       return store.getters['automationWorkflowNode/getNodesOrdered'](
         workflow.value
       )
     })
+
+    const handleReadOnlyToggle = (newReadOnlyState) => {
+      workflowReadOnly.value = newReadOnlyState
+    }
+    provide('workflowReadOnly', workflowReadOnly)
 
     const handleAddNode = async ({ type, previousNodeId }) => {
       try {
@@ -225,8 +235,10 @@ export default defineComponent({
       workflow,
       workflowLoading,
       sidePanelWidth,
+      workflowReadOnly,
       workflowNodes,
       activeSidePanel,
+      handleReadOnlyToggle,
       handleAddNode,
       handleRemoveNode,
       handleReplaceNode,

@@ -106,6 +106,8 @@ const zoomOnScroll = ref(false)
 const panOnScroll = ref(true)
 const zoomOnDoubleClick = ref(false)
 
+const workflowReadOnly = inject('workflowReadOnly')
+
 // Constants for positioning
 const NODE_VERTICAL_SPACING = 144 // Vertical distance between the tops of consecutive data nodes
 const ADD_BUTTON_OFFSET_Y = 92 // Vertical offset of add button relative to the data node above it
@@ -135,6 +137,23 @@ const displayNodes = computed(() => {
   // props.nodes should already be sorted by 'order' from the store getter
   const sortedDataNodes = [...props.nodes]
 
+  // If we don't have a trigger, add the first add button node.
+  if (!workflowHasTrigger.value) {
+    // No nodes, show a single add button to start the flow
+    vueFlowNodes.push({
+      id: uuid(),
+      type: 'workflow-add-button-node',
+      position: {
+        x: ADD_BUTTON_X_POS,
+        y: INITIAL_Y_POS - INITIAL_ADD_BUTTON_OFFSET_Y,
+      },
+      data: {
+        nodeId: null,
+        disabled: props.isAddingNode || workflowReadOnly.value,
+      },
+    })
+  }
+
   if (sortedDataNodes.length > 0) {
     let currentY = INITIAL_Y_POS
     sortedDataNodes.forEach((dataNode) => {
@@ -149,6 +168,7 @@ const displayNodes = computed(() => {
         position: { x: DATA_NODE_X_POS, y: currentY },
         data: {
           nodeId: dataNode.id,
+          readOnly: workflowReadOnly.value,
           isTrigger: nodeType.isTrigger,
         },
       })
@@ -163,7 +183,7 @@ const displayNodes = computed(() => {
         },
         data: {
           nodeId: dataNode.id,
-          disabled: props.isAddingNode,
+          disabled: props.isAddingNode || workflowReadOnly.value,
         },
       })
 
@@ -178,16 +198,30 @@ const computedEdges = computed(() => {
   const edges = []
   const currentNodesToProcess = displayNodes.value
 
-  for (let i = 0; i < currentNodesToProcess.length - 1; i++) {
-    const source = currentNodesToProcess[i]
-    const target = currentNodesToProcess[i + 1]
+  if (workflowReadOnly.value) {
+    const dataNodesOnly = displayNodes.value
+    for (let i = 0; i < dataNodesOnly.length - 1; i++) {
+      const sourceNode = dataNodesOnly[i]
+      const targetNode = dataNodesOnly[i + 1]
+      edges.push({
+        id: `e-${sourceNode.id}-${targetNode.id}`,
+        source: sourceNode.id,
+        target: targetNode.id,
+        type: 'workflow-edge',
+      })
+    }
+  } else {
+    for (let i = 0; i < currentNodesToProcess.length - 1; i++) {
+      const source = currentNodesToProcess[i]
+      const target = currentNodesToProcess[i + 1]
 
-    edges.push({
-      id: `e-${source.id}-${target.id}`,
-      source: source.id,
-      target: target.id,
-      type: 'workflow-edge',
-    })
+      edges.push({
+        id: `e-${source.id}-${target.id}`,
+        source: source.id,
+        target: target.id,
+        type: 'workflow-edge',
+      })
+    }
   }
 
   return edges
