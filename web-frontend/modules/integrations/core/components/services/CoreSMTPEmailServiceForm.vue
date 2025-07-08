@@ -89,12 +89,8 @@
       class="margin-bottom-2"
     >
       <Dropdown v-model="values.body_type">
-        <DropdownItem name="plain" :value="'plain'">
-          {{ $t('smtpEmailForm.bodyTypePlain') }}
-        </DropdownItem>
-        <DropdownItem name="html" :value="'html'">
-          {{ $t('smtpEmailForm.bodyTypeHtml') }}
-        </DropdownItem>
+        <DropdownItem :name="$t('smtpEmailForm.bodyTypePlain')" value="plain" />
+        <DropdownItem :name="$t('smtpEmailForm.bodyTypeHtml')" value="html" />
       </Dropdown>
     </FormGroup>
 
@@ -126,11 +122,6 @@ export default {
   },
   mixins: [form],
   props: {
-    workflowAction: {
-      type: Object,
-      required: false,
-      default: null,
-    },
     application: {
       type: Object,
       required: false,

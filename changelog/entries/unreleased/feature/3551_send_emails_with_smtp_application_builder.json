@@ -1,6 +1,6 @@
 {
   "type": "feature",
-  "message": "Allow sending an email via SMTP via action and node.",
+  "message": "Allow sending emails with SMTP in the application builder.",
   "domain": "builder",
   "issue_number": 3551,
   "bullet_points": [],

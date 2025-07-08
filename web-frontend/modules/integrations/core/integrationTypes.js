@@ -10,6 +10,10 @@ export class SMTPIntegrationType extends IntegrationType {
     return this.app.i18n.t('integrationType.smtp')
   }
 
+  get iconClass() {
+    return 'iconoir-send-mail'
+  }
+
   getSummary(integration) {
     return this.app.i18n.t('smtpIntegrationType.smtpSummary', {
       host: integration.host,

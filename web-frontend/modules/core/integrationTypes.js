@@ -13,6 +13,13 @@ export class IntegrationType extends Registerable {
   }
 
   /**
+   * The icon associated with this integration.
+   */
+  get iconClass() {
+    return null
+  }
+
+  /**
    * Return a summary describing the integration in one sentence.
    *
    * @param {object} integration The integration we want the summary for.
