@@ -18,14 +18,9 @@ ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW = (
     "The node id {e.node_id} does not belong to the workflow.",
 )
 
-ERROR_AUTOMATION_TRIGGER_NODE_CREATION_NOT_ALLOWED = (
-    "ERROR_AUTOMATION_TRIGGER_NODE_CREATION_NOT_ALLOWED",
+ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED = (
+    "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
     HTTP_400_BAD_REQUEST,
-    "Triggers cannot be created, the existing trigger can only be replaced.",
-)
-
-ERROR_AUTOMATION_TRIGGER_NODE_DELETION_NOT_ALLOWED = (
-    "ERROR_AUTOMATION_TRIGGER_NODE_DELETION_NOT_ALLOWED",
-    HTTP_400_BAD_REQUEST,
-    "Triggers cannot be deleted, they must be replaced with a different one.",
+    "Triggers can not be created, deleted or duplicated, "
+    "they can only be replaced with a different type.",
 )

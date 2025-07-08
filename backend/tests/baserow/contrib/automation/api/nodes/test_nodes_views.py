@@ -205,9 +205,9 @@ def test_create_trigger_node_disallowed(api_client, data_fixture):
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
-        "error": "ERROR_AUTOMATION_TRIGGER_NODE_CREATION_NOT_ALLOWED",
-        "detail": "Triggers cannot be created, the existing trigger can "
-        "only be replaced.",
+        "error": "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
+        "detail": "Triggers can not be created, deleted or duplicated, "
+        "they can only be replaced with a different type.",
     }
 
 
@@ -382,9 +382,9 @@ def test_delete_trigger_node_disallowed(api_client, data_fixture):
     response = api_client.delete(delete_url, **api_kwargs)
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
-        "error": "ERROR_AUTOMATION_TRIGGER_NODE_DELETION_NOT_ALLOWED",
-        "detail": "Triggers cannot be deleted, they must be replaced "
-        "with a different one.",
+        "error": "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
+        "detail": "Triggers can not be created, deleted or duplicated, "
+        "they can only be replaced with a different type.",
     }
 
 
@@ -440,6 +440,25 @@ def test_duplicate_node(api_client, data_fixture):
     assert response.status_code == HTTP_204_NO_CONTENT
 
     assert workflow.automation_workflow_nodes.count() == 2
+
+
+@pytest.mark.django_db
+def test_duplicate_trigger_node_disallowed(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, type="rows_created"
+    )
+
+    api_kwargs = get_api_kwargs(token)
+    duplicate_url = reverse(API_URL_DUPLICATE, kwargs={"node_id": node.id})
+    response = api_client.post(duplicate_url, **api_kwargs)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
+        "detail": "Triggers can not be created, deleted or duplicated, "
+        "they can only be replaced with a different type.",
+    }
 
 
 @pytest.mark.django_db
