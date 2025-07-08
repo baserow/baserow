@@ -1,10 +1,10 @@
 import json
-import smtplib
 import socket
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
 from typing import Any, Dict, Generator, List, Optional, Tuple
+
+from django.core.exceptions import ValidationError
+from django.core.mail import EmailMultiAlternatives, get_connection
 
 import advocate
 from loguru import logger
@@ -25,7 +25,7 @@ from baserow.core.formula.exceptions import (
     InvalidFormulaContextContent,
 )
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.validator import ensure_string
+from baserow.core.formula.validator import ensure_array, ensure_email, ensure_string
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -629,6 +629,7 @@ class CoreSMTPEmailServiceType(ServiceType):
         "body_type",
         "body",
     ]
+
     serializer_field_names = [
         "integration_id",
         "from_email",
@@ -649,6 +650,7 @@ class CoreSMTPEmailServiceType(ServiceType):
         bcc_emails: str
         subject: str
         body_type: str
+        body: str
         body: str
 
     simple_formula_fields = [
@@ -751,20 +753,6 @@ class CoreSMTPEmailServiceType(ServiceType):
             "properties": properties,
         }
 
-    def _parse_email_list(self, email_string: str) -> List[str]:
-        """
-        Parse comma-separated email addresses and return a list of email addresses.
-
-        :param email_string: Comme separates string of email addresses.
-        :return: Cleaned up list containing the email addresses of the provided string.
-        """
-
-        if not email_string:
-            return []
-
-        emails = [email.strip() for email in email_string.split(",")]
-        return [email for email in emails if email]
-
     def resolve_service_formulas(
         self,
         service: CoreSMTPEmailService,
@@ -772,15 +760,47 @@ class CoreSMTPEmailServiceType(ServiceType):
     ) -> Dict[str, Any]:
         resolved_values = {}
 
-        for field_name in self.simple_formula_fields:
+        ensurers = {
+            "from_email": ensure_email,
+            "from_name": ensure_string,
+            "to_emails": lambda v: [ensure_email(e) for e in ensure_array(v)],
+            "cc_emails": lambda v: [ensure_email(e) for e in ensure_array(v)],
+            "bcc_emails": lambda v: [ensure_email(e) for e in ensure_array(v)],
+            "subject": ensure_string,
+            "body": ensure_string,
+        }
+
+        for field_name, ensurer in ensurers.items():
             dispatch_context.reset_call_stack()
             field_value = getattr(service, field_name)
-            resolved_values[field_name] = ensure_string(
-                resolve_formula(
-                    field_value,
-                    formula_runtime_function_registry,
-                    dispatch_context,
+            try:
+                resolved_values[field_name] = ensurer(
+                    resolve_formula(
+                        field_value,
+                        formula_runtime_function_registry,
+                        dispatch_context,
+                    )
                 )
+            except ValidationError as e:
+                raise ServiceImproperlyConfigured(
+                    f"Invalid value for {field_name}"
+                ) from e
+            except FormDataProviderChunkInvalidException as e:
+                raise ServiceImproperlyConfigured(str(e)) from e
+            except DataProviderChunkInvalidException as e:
+                message = f"Path error in formula for {field_name}"
+                raise ServiceImproperlyConfigured(message) from e
+            except Exception as e:
+                logger.exception(f"Unexpected error for {field_name}")
+                message = (
+                    "Unknown error in formula for "
+                    f"form_data {field_name}: {repr(e)} - {str(e)}"
+                )
+                raise ServiceImproperlyConfigured(message) from e
+
+        if not resolved_values["to_emails"]:
+            raise ServiceImproperlyConfigured(
+                "At least one recipient email is required"
             )
 
         return resolved_values
@@ -798,62 +818,67 @@ class CoreSMTPEmailServiceType(ServiceType):
 
         smtp_integration = service.integration.specific
 
-        to_emails = self._parse_email_list(resolved_values["to_emails"])
-        cc_emails = self._parse_email_list(resolved_values["cc_emails"])
-        bcc_emails = self._parse_email_list(resolved_values["bcc_emails"])
+        to_emails = resolved_values["to_emails"]
+        cc_emails = resolved_values["cc_emails"]
+        bcc_emails = resolved_values["bcc_emails"]
 
-        if not to_emails:
-            raise ServiceImproperlyConfigured(
-                "At least one recipient email is required."
-            )
-
-        msg = MIMEMultipart()
-        msg["From"] = (
+        from_email = (
             f"{resolved_values['from_name']} <{resolved_values['from_email']}>"
             if resolved_values["from_name"]
             else resolved_values["from_email"]
         )
-        msg["To"] = ", ".join(to_emails)
-        msg["Subject"] = resolved_values["subject"]
 
-        if cc_emails:
-            msg["Cc"] = ", ".join(cc_emails)
+        subject = resolved_values["subject"]
 
         body_content = resolved_values["body"]
-        if service.body_type == "html":
-            msg.attach(MIMEText(body_content, "html"))
-        else:
-            msg.attach(MIMEText(body_content, "plain"))
 
-        all_recipients = to_emails + cc_emails + bcc_emails
+        connection = get_connection(
+            backend="django.core.mail.backends.smtp.EmailBackend",
+            host=smtp_integration.host,
+            port=smtp_integration.port,
+            username=smtp_integration.username,
+            password=smtp_integration.password,
+            use_tls=smtp_integration.use_tls,
+        )
+
+        email = EmailMultiAlternatives(
+            subject,
+            body_content,
+            from_email,
+            to_emails,
+            bcc=bcc_emails,
+            cc=cc_emails,
+            connection=connection,
+        )
+
+        email.content_subtype = f"text/{service.body_type}"
 
         try:
-            server = smtplib.SMTP(smtp_integration.host, smtp_integration.port)
-            if smtp_integration.use_tls:
-                server.starttls()
-
-            if smtp_integration.username and smtp_integration.password:
-                server.login(smtp_integration.username, smtp_integration.password)
-
-            server.send_message(msg, to_addrs=all_recipients)
-            server.quit()
-
+            result = email.send()
             return {
                 "data": {
-                    "success": True,
+                    "success": result,
                 }
             }
-
-        except SMTPNotSupportedError:
-            raise ServiceImproperlyConfigured("TLS not supported by server.")
-        except socket.gaierror:
-            raise ServiceImproperlyConfigured("The host could not be reached.")
-        except ConnectionRefusedError:
-            raise ServiceImproperlyConfigured("The connection was refused.")
-        except SMTPAuthenticationError:
-            raise ServiceImproperlyConfigured("The username or password is incorrect.")
-        except SMTPConnectError:
-            raise ServiceImproperlyConfigured("Unable to connect to the SMTP server.")
+        except SMTPNotSupportedError as e:
+            raise ServiceImproperlyConfigured("TLS not supported by server") from e
+        except socket.gaierror as e:
+            raise ServiceImproperlyConfigured(
+                f"The host {smtp_integration.host}:{smtp_integration.port} could not "
+                "be reached"
+            ) from e
+        except ConnectionRefusedError as e:
+            raise ServiceImproperlyConfigured(
+                f"Connection refused by {smtp_integration.host}:{smtp_integration.port}"
+            ) from e
+        except SMTPAuthenticationError as e:
+            raise ServiceImproperlyConfigured(
+                "The username or password is incorrect"
+            ) from e
+        except SMTPConnectError as e:
+            raise ServiceImproperlyConfigured(
+                "Unable to connect to the SMTP server"
+            ) from e
         except Exception as e:
             raise ServiceImproperlyConfigured(f"Failed to send email: {str(e)}") from e
 

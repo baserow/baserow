@@ -28,11 +28,13 @@ class SMTPIntegration(Integration):
     username = models.CharField(
         max_length=255,
         blank=True,
+        null=True,
         help_text="The SMTP username for authentication.",
     )
     password = models.CharField(
         max_length=255,
         blank=True,
+        null=True,
         help_text="The SMTP password for authentication.",
     )
 

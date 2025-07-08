@@ -2,7 +2,7 @@ import json
 import smtplib
 import socket
 from contextlib import contextmanager
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -14,33 +14,37 @@ from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
 @contextmanager
-def mock_smtp_connection(
+def mock_django_email(
     should_succeed=True,
     exception_class=None,
-    server_mock=None,
 ):
     """Context manager to mock SMTP connection behavior."""
 
-    if server_mock is None:
-        server_mock = Mock()
+    server_mock = MagicMock()
+    server_mock.send.return_value = should_succeed
 
-    with patch("smtplib.SMTP", return_value=server_mock) as mock_smtp_class:
-        if exception_class:
-            if exception_class == ConnectionRefusedError:
-                mock_smtp_class.side_effect = exception_class()
-            elif exception_class == socket.gaierror:
-                mock_smtp_class.side_effect = exception_class("Host not found")
-            elif exception_class in [
-                smtplib.SMTPNotSupportedError,
-                smtplib.SMTPAuthenticationError,
-                smtplib.SMTPConnectError,
-            ]:
-                server_mock.starttls.side_effect = exception_class(500, "Error message")
-                server_mock.login.side_effect = exception_class(500, "Error message")
-            else:
-                server_mock.send_message.side_effect = exception_class("Generic error")
+    if exception_class:
+        if exception_class is ConnectionRefusedError:
+            server_mock.send.side_effect = exception_class()
+        elif exception_class == socket.gaierror:
+            server_mock.send.side_effect = exception_class("Host not found")
+        elif exception_class in [
+            smtplib.SMTPNotSupportedError,
+            smtplib.SMTPAuthenticationError,
+            smtplib.SMTPConnectError,
+        ]:
+            server_mock.send.side_effect = exception_class(500, "Error message")
+            server_mock.send.side_effect = exception_class(500, "Error message")
+        else:
+            server_mock.send.side_effect = exception_class("Generic error")
 
-        yield server_mock
+    with patch(
+        "baserow.contrib.integrations.core.service_types.EmailMultiAlternatives",
+        return_value=server_mock,
+    ) as mock_email, patch(
+        "baserow.contrib.integrations.core.service_types.get_connection",
+    ) as mock_connection:
+        yield (mock_email, mock_connection)
 
 
 @pytest.mark.django_db
@@ -66,14 +70,26 @@ def test_send_smtp_email_basic(data_fixture):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with mock_smtp_connection() as server_mock:
+    with mock_django_email() as (mock_email, mock_connection):
         result = service_type.dispatch(service, dispatch_context)
-
-        server_mock.starttls.assert_called_once()
-        server_mock.login.assert_called_once_with("user@example.com", "password123")
-        server_mock.send_message.assert_called_once()
-        server_mock.quit.assert_called_once()
-
+        mock_connection.assert_called_once_with(
+            backend="django.core.mail.backends.smtp.EmailBackend",
+            host="smtp.example.com",
+            port=587,
+            username="user@example.com",
+            password="password123",
+            use_tls=True,
+        )
+        mock_email.assert_called_once_with(
+            "Test Subject",
+            "Hello, this is a test email!",
+            "Test Sender <sender@example.com>",
+            ["recipient@example.com"],
+            bcc=[],
+            cc=[],
+            connection=mock_connection.return_value,
+        )
+        assert mock_email.return_value.content_subtype == "text/plain"
         assert result.data == {"success": True}
 
 
@@ -91,9 +107,9 @@ def test_send_smtp_email_multiple_to_cc_and_bcc(data_fixture):
         integration=smtp_integration,
         from_email="'sender@example.com'",
         from_name="'Test Sender'",
-        to_emails="'recipient1@example.com, recipient2@example.com'",
-        cc_emails="'cc1@example.com, cc2@example.com'",
-        bcc_emails="'bcc1@example.com, bcc2@example.com'",
+        to_emails="'recipient1@example.com,recipient2@example.com'",
+        cc_emails="'cc1@example.com,cc2@example.com'",
+        bcc_emails="'bcc1@example.com,bcc2@example.com'",
         subject="'Test Subject'",
         body="'<h1>Hello</h1><p>This is a test email!</p>'",
         body_type="html",
@@ -102,27 +118,19 @@ def test_send_smtp_email_multiple_to_cc_and_bcc(data_fixture):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with mock_smtp_connection() as server_mock:
+    with mock_django_email() as (mock_email, mock_connection):
         result = service_type.dispatch(service, dispatch_context)
 
-        call_args = server_mock.send_message.call_args
-        sent_message = call_args[0][0]
-        recipients = call_args[1]["to_addrs"]
-
-        expected_recipients = [
-            "recipient1@example.com",
-            "recipient2@example.com",
-            "cc1@example.com",
-            "cc2@example.com",
-            "bcc1@example.com",
-            "bcc2@example.com",
-        ]
-        assert set(recipients) == set(expected_recipients)
-
-        assert sent_message["To"] == "recipient1@example.com, recipient2@example.com"
-        assert sent_message["Cc"] == "cc1@example.com, cc2@example.com"
-        assert "Bcc" not in sent_message
-
+        mock_email.assert_called_once_with(
+            "Test Subject",
+            "<h1>Hello</h1><p>This is a test email!</p>",
+            "Test Sender <sender@example.com>",
+            ["recipient1@example.com", "recipient2@example.com"],
+            bcc=["bcc1@example.com", "bcc2@example.com"],
+            cc=["cc1@example.com", "cc2@example.com"],
+            connection=mock_connection.return_value,
+        )
+        assert mock_email.return_value.content_subtype == "text/html"
         assert result.data == {"success": True}
 
 
@@ -146,10 +154,10 @@ def test_send_smtp_email_tls_not_supported_error(data_fixture):
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(ServiceImproperlyConfigured) as exc_info:
-        with mock_smtp_connection(exception_class=smtplib.SMTPNotSupportedError):
+        with mock_django_email(exception_class=smtplib.SMTPNotSupportedError):
             service_type.dispatch(service, dispatch_context)
 
-    assert str(exc_info.value) == "TLS not supported by server."
+    assert str(exc_info.value) == "TLS not supported by server"
 
 
 @pytest.mark.django_db
@@ -171,10 +179,13 @@ def test_send_smtp_email_host_could_not_be_reached_error(data_fixture):
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(ServiceImproperlyConfigured) as exc_info:
-        with mock_smtp_connection(exception_class=socket.gaierror):
+        with mock_django_email(exception_class=socket.gaierror):
             service_type.dispatch(service, dispatch_context)
 
-    assert str(exc_info.value) == "The host could not be reached."
+    assert (
+        str(exc_info.value)
+        == "The host nonexistent.example.com:587 could not be reached"
+    )
 
 
 @pytest.mark.django_db
@@ -196,10 +207,10 @@ def test_send_smtp_email_connection_refused_error(data_fixture):
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(ServiceImproperlyConfigured) as exc_info:
-        with mock_smtp_connection(exception_class=ConnectionRefusedError):
+        with mock_django_email(exception_class=ConnectionRefusedError):
             service_type.dispatch(service, dispatch_context)
 
-    assert str(exc_info.value) == "The connection was refused."
+    assert str(exc_info.value) == "Connection refused by smtp.example.com:587"
 
 
 @pytest.mark.django_db
@@ -223,10 +234,10 @@ def test_send_smtp_email_username_password_incorrect_error(data_fixture):
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(ServiceImproperlyConfigured) as exc_info:
-        with mock_smtp_connection(exception_class=smtplib.SMTPAuthenticationError):
+        with mock_django_email(exception_class=smtplib.SMTPAuthenticationError):
             service_type.dispatch(service, dispatch_context)
 
-    assert str(exc_info.value) == "The username or password is incorrect."
+    assert str(exc_info.value) == "The username or password is incorrect"
 
 
 @pytest.mark.django_db
@@ -248,10 +259,10 @@ def test_send_smtp_email_unable_to_connect_to_the_smtp_server(data_fixture):
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(ServiceImproperlyConfigured) as exc_info:
-        with mock_smtp_connection(exception_class=smtplib.SMTPConnectError):
+        with mock_django_email(exception_class=smtplib.SMTPConnectError):
             service_type.dispatch(service, dispatch_context)
 
-    assert str(exc_info.value) == "Unable to connect to the SMTP server."
+    assert str(exc_info.value) == "Unable to connect to the SMTP server"
 
 
 @pytest.mark.django_db
@@ -283,19 +294,17 @@ def test_send_smtp_email_with_formulas(data_fixture):
     }
     dispatch_context = FakeDispatchContext(context=formula_context)
 
-    with mock_smtp_connection() as server_mock:
-        result = service_type.dispatch(service, dispatch_context)
-
-        call_args = server_mock.send_message.call_args
-        sent_message = call_args[0][0]
-        recipients = call_args[1]["to_addrs"]
-
-        assert sent_message["From"] == "Hello John Doe <sender@example.com>"
-        assert sent_message["To"] == "john@example.com, admin@example.com"
-        assert sent_message["Subject"] == "Welcome John Doe!"
-        assert set(recipients) == {"john@example.com", "admin@example.com"}
-
-        assert result.data == {"success": True}
+    with mock_django_email() as (mock_email, mock_connection):
+        service_type.dispatch(service, dispatch_context)
+        mock_email.assert_called_once_with(
+            "Welcome John Doe!",
+            "Hello John Doe, welcome to our service!",
+            "Hello John Doe <sender@example.com>",
+            ["john@example.com", "admin@example.com"],
+            bcc=[],
+            cc=[],
+            connection=mock_connection.return_value,
+        )
 
 
 @pytest.mark.django_db
@@ -341,7 +350,7 @@ def test_send_smtp_email_no_recipients_error(data_fixture):
     with pytest.raises(ServiceImproperlyConfigured) as exc_info:
         service_type.dispatch(service, dispatch_context)
 
-    assert str(exc_info.value) == "At least one recipient email is required."
+    assert str(exc_info.value) == "At least one recipient email is required"
 
 
 @pytest.mark.django_db

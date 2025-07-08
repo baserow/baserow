@@ -1,6 +1,6 @@
 {
   "type": "feature",
-  "message": "Allow sending emails with SMTP in the application builder.",
+  "message": "Allow sending emails with SMTP",
   "domain": "builder",
   "issue_number": 3551,
   "bullet_points": [],

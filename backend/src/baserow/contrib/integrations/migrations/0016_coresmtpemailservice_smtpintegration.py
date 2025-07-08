@@ -125,6 +125,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         help_text="The SMTP username for authentication.",
                         max_length=255,
+                        null=True,
                     ),
                 ),
                 (
@@ -133,6 +134,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         help_text="The SMTP password for authentication.",
                         max_length=255,
+                        null=True,
                     ),
                 ),
             ],

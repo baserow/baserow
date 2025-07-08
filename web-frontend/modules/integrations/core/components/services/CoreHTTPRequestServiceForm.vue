@@ -266,13 +266,7 @@ export default {
   name: 'CoreHTTPRequestService',
   components: { InjectedFormulaInput },
   mixins: [form],
-  props: {
-    workflowAction: {
-      type: Object,
-      required: false,
-      default: null,
-    },
-  },
+  props: {},
   setup() {
     return { v$: useVuelidate() }
   },

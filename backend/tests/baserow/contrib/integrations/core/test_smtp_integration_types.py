@@ -6,6 +6,7 @@ import pytest
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
+from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import AnyInt
 
 
@@ -52,8 +53,8 @@ def test_smtp_integration_creation_minimal(data_fixture):
     assert integration.host == "smtp.example.com"
     assert integration.port == 587
     assert integration.use_tls is True
-    assert integration.username == ""
-    assert integration.password == ""
+    assert integration.username is None
+    assert integration.password is None
 
 
 @pytest.mark.django_db
@@ -195,6 +196,48 @@ def test_smtp_integration_export_serialized(data_fixture):
         "use_tls": True,
         "username": "user@example.com",
         "password": "password123",
+        "name": "",
+        "order": "1.00000000000000000000",
+    }
+
+    assert serialized == expected_serialized
+
+
+@pytest.mark.django_db
+def test_smtp_integration_export_serialized_exclude_sensitive(data_fixture):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_smtp_integration(
+        user=user,
+        host="smtp.example.com",
+        port=587,
+        use_tls=True,
+        username="user@example.com",
+        password="password123",
+    )
+
+    integration_type = integration.get_type()
+
+    serialized = json.loads(
+        json.dumps(
+            integration_type.export_serialized(
+                integration,
+                import_export_config=ImportExportConfig(
+                    include_permission_data=False,
+                    reduce_disk_space_usage=False,
+                    exclude_sensitive_data=True,
+                ),
+            )
+        )
+    )
+
+    expected_serialized = {
+        "id": AnyInt(),
+        "type": "smtp",
+        "host": "smtp.example.com",
+        "port": 587,
+        "use_tls": True,
+        "username": None,
+        "password": None,
         "name": "",
         "order": "1.00000000000000000000",
     }
