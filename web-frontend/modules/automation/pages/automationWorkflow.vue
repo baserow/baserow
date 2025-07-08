@@ -187,19 +187,21 @@ export default defineComponent({
       const automation = store.getters['application/get'](
         parseInt(from.params.automationId)
       )
-      const workflow = store.getters['automationWorkflow/getById'](
-        automation,
-        parseInt(from.params.workflowId)
-      )
-      if (automation && workflow) {
-        store.dispatch('automationWorkflowNode/select', {
-          workflow,
-          node: null,
-        })
-        store.dispatch('application/forceUpdate', {
-          application: automation,
-          data: { _loadedOnce: false },
-        })
+      if (automation) {
+        const workflow = store.getters['automationWorkflow/getById'](
+          automation,
+          parseInt(from.params.workflowId)
+        )
+        if (workflow) {
+          store.dispatch('automationWorkflowNode/select', {
+            workflow,
+            node: null,
+          })
+          store.dispatch('application/forceUpdate', {
+            application: automation,
+            data: { _loadedOnce: false },
+          })
+        }
       }
       next()
     }

@@ -37,7 +37,7 @@ def test_create_node(api_client, data_fixture):
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
     response = api_client.post(
         url,
-        {"type": "rows_created"},
+        {"type": "create_row"},
         **get_api_kwargs(token),
     )
 
@@ -47,7 +47,7 @@ def test_create_node(api_client, data_fixture):
         "order": AnyStr(),
         "previous_node_output": "",
         "service": AnyDict(),
-        "type": "rows_created",
+        "type": "create_row",
         "workflow": AnyInt(),
     }
     assert workflow.automation_workflow_nodes.count() == 1
@@ -67,7 +67,7 @@ def test_create_node_before(api_client, data_fixture):
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
     response = api_client.post(
         url,
-        {"type": "rows_created", "before_id": node3.id},
+        {"type": "create_row", "before_id": node3.id},
         **get_api_kwargs(token),
     )
 
@@ -77,7 +77,7 @@ def test_create_node_before(api_client, data_fixture):
         "order": "1.50000000000000000000",
         "previous_node_output": "",
         "service": AnyDict(),
-        "type": "rows_created",
+        "type": "create_row",
         "workflow": workflow.id,
     }
 
@@ -108,7 +108,7 @@ def test_create_node_before_invalid(api_client, data_fixture):
 
     response = api_client.post(
         url,
-        {"type": "rows_created", "before_id": node1_a.id},
+        {"type": "create_row", "before_id": node1_a.id},
         **get_api_kwargs(token),
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -119,7 +119,7 @@ def test_create_node_before_invalid(api_client, data_fixture):
 
     response = api_client.post(
         url,
-        {"type": "rows_created", "before_id": node2_b.id},
+        {"type": "create_row", "before_id": node2_b.id},
         **get_api_kwargs(token),
     )
     assert response.json() == {
@@ -135,7 +135,7 @@ def test_create_node_before_does_not_exist(api_client, data_fixture):
     workflow = data_fixture.create_automation_workflow(user=user)
     response = api_client.post(
         reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id}),
-        {"type": "rows_created", "before_id": 9999999999},
+        {"type": "create_row", "before_id": 9999999999},
         **get_api_kwargs(token),
     )
     assert response.json() == {
@@ -180,7 +180,7 @@ def test_create_node_invalid_workflow(api_client, data_fixture):
     url = reverse(API_URL_LIST, kwargs={"workflow_id": 999})
     response = api_client.post(
         url,
-        {"type": "rows_created"},
+        {"type": "create_row"},
         **get_api_kwargs(token),
     )
 
@@ -192,6 +192,26 @@ def test_create_node_invalid_workflow(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_trigger_node_disallowed(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user, name="test")
+
+    url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
+    response = api_client.post(
+        url,
+        {"type": "rows_created"},
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
+        "detail": "Triggers can not be created, deleted or duplicated, "
+        "they can only be replaced with a different type.",
+    }
+
+
+@pytest.mark.django_db
 def test_create_node_undo_redo(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user, name="test")
@@ -199,7 +219,7 @@ def test_create_node_undo_redo(api_client, data_fixture):
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
     api_kwargs = get_api_kwargs(token)
-    response = api_client.post(url, {"type": "rows_created"}, **api_kwargs)
+    response = api_client.post(url, {"type": "create_row"}, **api_kwargs)
     assert response.status_code == HTTP_200_OK
 
     assert workflow.automation_workflow_nodes.count() == 1
@@ -236,7 +256,7 @@ def test_get_node(api_client, data_fixture):
             "order": AnyStr(),
             "previous_node_output": "",
             "service": AnyDict(),
-            "type": "rows_created",
+            "type": "create_row",
             "workflow": node.workflow.id,
         },
     ]
@@ -350,6 +370,25 @@ def test_delete_node(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_delete_trigger_node_disallowed(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, type="rows_created"
+    )
+
+    api_kwargs = get_api_kwargs(token)
+    delete_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
+    response = api_client.delete(delete_url, **api_kwargs)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
+        "detail": "Triggers can not be created, deleted or duplicated, "
+        "they can only be replaced with a different type.",
+    }
+
+
+@pytest.mark.django_db
 def test_delete_node_invalid_node(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token()
 
@@ -401,6 +440,25 @@ def test_duplicate_node(api_client, data_fixture):
     assert response.status_code == HTTP_204_NO_CONTENT
 
     assert workflow.automation_workflow_nodes.count() == 2
+
+
+@pytest.mark.django_db
+def test_duplicate_trigger_node_disallowed(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, type="rows_created"
+    )
+
+    api_kwargs = get_api_kwargs(token)
+    duplicate_url = reverse(API_URL_DUPLICATE, kwargs={"node_id": node.id})
+    response = api_client.post(duplicate_url, **api_kwargs)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
+        "detail": "Triggers can not be created, deleted or duplicated, "
+        "they can only be replaced with a different type.",
+    }
 
 
 @pytest.mark.django_db
@@ -458,7 +516,7 @@ def test_update_node(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
-    payload = {"previous_node_output": "foo", "type": "rows_created"}
+    payload = {"previous_node_output": "foo", "type": "create_row"}
     response = api_client.patch(update_url, payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
@@ -466,7 +524,7 @@ def test_update_node(api_client, data_fixture):
         "order": AnyStr(),
         "service": AnyDict(),
         "previous_node_output": "foo",
-        "type": "rows_created",
+        "type": "create_row",
         "workflow": workflow.id,
     }
 
@@ -477,7 +535,7 @@ def test_update_node_invalid_node(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": 100})
-    payload = {"previous_node_output": "foo", "type": "rows_created"}
+    payload = {"previous_node_output": "foo", "type": "update_row"}
     response = api_client.patch(update_url, payload, **api_kwargs)
 
     assert response.status_code == HTTP_404_NOT_FOUND
@@ -495,7 +553,7 @@ def test_update_node_undo_redo(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
-    payload = {"previous_node_output": "foo", "type": "rows_created"}
+    payload = {"previous_node_output": "foo", "type": "update_row"}
     response = api_client.patch(update_url, payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert response.json()["previous_node_output"] == "foo"

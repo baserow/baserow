@@ -42,7 +42,8 @@ def test_create_workflow(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json() == {
+    response_json = response.json()
+    assert response_json == {
         "allow_test_run_until": None,
         "automation_id": AnyInt(),
         "id": AnyInt(),
@@ -52,6 +53,11 @@ def test_create_workflow(api_client, data_fixture):
         "paused": False,
         "published_on": None,
     }
+
+    workflow = automation.workflows.get(id=response_json["id"])
+    assert workflow.automation_workflow_nodes.count() == 1
+    node = workflow.automation_workflow_nodes.get().specific
+    assert node.get_type().is_workflow_trigger
 
 
 @pytest.mark.django_db

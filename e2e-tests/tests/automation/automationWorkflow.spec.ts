@@ -40,8 +40,9 @@ test.describe("Automation workflow test suite", () => {
     const workflow = page.getByRole("link", { name: defaultWorkflowName });
     await workflow.hover();
     await page.locator(".tree__sub > .tree__options").first().click();
-    await page.getByText("Duplicate").click();
-    await expect(page.getByText("Duplicate")).toBeHidden();
+    const duplicateLink = await page.locator(".context__menu").getByText("Duplicate")
+    await duplicateLink.click();
+    await expect(duplicateLink).toBeHidden();
 
     // Ensure the duplicated workflow is visible
     const workflowLink = page.getByRole("link", {
@@ -66,8 +67,9 @@ test.describe("Automation workflow test suite", () => {
     const workflow = page.getByRole("link", { name: defaultWorkflowName });
     await workflow.hover();
     await page.locator(".tree__sub > .tree__options").first().click();
-    await page.getByText("Rename").click();
-    await expect(page.getByText("Rename")).toBeHidden();
+    const renameLink = await page.locator(".context__menu").getByText("Rename")
+    await renameLink.click();
+    await expect(renameLink).toBeHidden();
 
     // Focus on the side bar item, click the input area, and clear the current name
     const editable = await page.locator('span[contenteditable="true"]');
@@ -103,8 +105,9 @@ test.describe("Automation workflow test suite", () => {
     const workflow = page.getByRole("link", { name: defaultWorkflowName });
     await workflow.hover();
     await page.locator(".tree__sub > .tree__options").first().click();
-    await page.getByText("Delete").click();
-    await expect(page.getByText("Delete")).toBeHidden();
+    const deleteLink = await page.locator(".context__menu").getByText("Delete")
+    await deleteLink.click();
+    await expect(deleteLink).toBeHidden();
 
     const workflowLink = page.getByRole("link", { name: defaultWorkflowName });
     await expect(

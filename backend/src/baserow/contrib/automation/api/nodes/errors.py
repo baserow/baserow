@@ -17,3 +17,10 @@ ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW = (
     HTTP_400_BAD_REQUEST,
     "The node id {e.node_id} does not belong to the workflow.",
 )
+
+ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED = (
+    "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
+    HTTP_400_BAD_REQUEST,
+    "Triggers can not be created, deleted or duplicated, "
+    "they can only be replaced with a different type.",
+)

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from django.utils import translation
 from django.utils.translation import gettext as _
 
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -24,6 +24,6 @@ class AutomationApplicationTypeInitApplication:
             self.workflow_name = _("Workflow")
 
     def create_workflow(self, name: str) -> "AutomationWorkflow":
-        return AutomationWorkflowHandler().create_workflow(
-            self.application.specific, name
+        return AutomationWorkflowService().create_workflow(
+            self.user, self.application.id, name
         )

@@ -3,7 +3,10 @@ from typing import Iterable, List, Optional
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.models import AutomationWorkflow
-from baserow.contrib.automation.nodes.exceptions import AutomationNodeBeforeInvalid
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeBeforeInvalid,
+    AutomationTriggerModificationDisallowed,
+)
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
@@ -49,8 +52,15 @@ class AutomationNodeService:
         :param workflow: The workflow the automation node is associated with.
         :param before: If set, the new node is inserted before this node.
         :param kwargs: Additional attributes of the automation node.
+        :raises AutomationTriggerModificationDisallowed: If the node_type is a trigger.
         :return: The created automation node.
         """
+
+        # Triggers are not directly created by users. When a workflow is created,
+        # the trigger node is created automatically, so users are only able to change
+        # the trigger node type, not create a new one.
+        if node_type.is_workflow_trigger:
+            raise AutomationTriggerModificationDisallowed()
 
         CoreHandler().check_permissions(
             user,
@@ -176,9 +186,14 @@ class AutomationNodeService:
 
         :param user: The user trying to delete the node.
         :param node_id: The ID of the node to delete.
+        :raises AutomationTriggerModificationDisallowed: If the node is a trigger.
         """
 
         node = self.handler.get_node(node_id)
+
+        # If we received a trigger node, we cannot delete it.
+        if node.get_type().is_workflow_trigger:
+            raise AutomationTriggerModificationDisallowed()
 
         CoreHandler().check_permissions(
             user,
@@ -249,6 +264,7 @@ class AutomationNodeService:
         :param node: The node that is being duplicated.
         :raises ValueError: When the provided node is not an instance of
             AutomationNode.
+        :raises AutomationTriggerModificationDisallowed: If the node is a trigger.
         :return: The duplicated node.
         """
 
@@ -258,6 +274,10 @@ class AutomationNodeService:
             workspace=node.workflow.automation.workspace,
             context=node,
         )
+
+        # If we received a trigger node, we cannot duplicate it.
+        if node.get_type().is_workflow_trigger:
+            raise AutomationTriggerModificationDisallowed()
 
         node_clone = self.handler.duplicate_node(node)
 

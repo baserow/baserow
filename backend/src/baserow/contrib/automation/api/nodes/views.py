@@ -19,6 +19,7 @@ from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_BEFORE_INVALID,
     ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
     ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
+    ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
 )
 from baserow.contrib.automation.api.nodes.serializers import (
     AutomationNodeSerializer,
@@ -40,6 +41,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
     AutomationNodeDoesNotExist,
     AutomationNodeNotInWorkflow,
+    AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
@@ -96,6 +98,7 @@ class AutomationNodesView(APIView):
             AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
             AutomationNodeBeforeInvalid: ERROR_AUTOMATION_NODE_BEFORE_INVALID,
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+            AutomationTriggerModificationDisallowed: ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
         }
     )
     @validate_body_custom_fields(
@@ -240,6 +243,7 @@ class AutomationNodeView(APIView):
     @map_exceptions(
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+            AutomationTriggerModificationDisallowed: ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
         }
     )
     @transaction.atomic
@@ -325,6 +329,7 @@ class DuplicateAutomationNodeView(APIView):
     @map_exceptions(
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+            AutomationTriggerModificationDisallowed: ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
         }
     )
     def post(self, request, node_id):

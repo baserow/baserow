@@ -18,7 +18,7 @@
     >
 
     <a
-      v-if="!props.data.readOnly"
+      v-if="!props.data.readOnly && !props.data.isTrigger"
       ref="editNodeContextToggle"
       role="button"
       title="Node options"
@@ -39,6 +39,8 @@
             <i class="context__menu-item-icon iconoir-copy"></i>
             {{ $t('workflowNode.actionDuplicate') }}
           </a>
+        </li>
+        <li class="context__menu-item">
           <a
             role="button"
             title="Delete action"

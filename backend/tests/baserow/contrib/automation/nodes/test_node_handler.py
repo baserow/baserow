@@ -5,7 +5,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeNotInWorkflow,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
+from baserow.contrib.automation.nodes.models import LocalBaserowCreateRowActionNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
 from baserow.core.trash.handler import TrashHandler
@@ -18,14 +18,14 @@ def test_create_node(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
 
-    node_type = automation_node_type_registry.get("rows_created")
+    node_type = automation_node_type_registry.get("create_row")
     prepared_values = node_type.prepare_values({}, user)
 
     node = AutomationNodeHandler().create_node(
         node_type, workflow=workflow, **prepared_values
     )
 
-    assert isinstance(node, LocalBaserowRowsCreatedTriggerNode)
+    assert isinstance(node, LocalBaserowCreateRowActionNode)
 
 
 @pytest.mark.django_db
@@ -211,7 +211,7 @@ def test_export_node(data_fixture):
         "previous_node_id": None,
         "previous_node_output": "foo",
         "service": AnyDict(),
-        "type": "rows_created",
+        "type": "create_row",
         "workflow_id": node.workflow.id,
     }
 
