@@ -50,9 +50,11 @@
       </span>
 
       <div class="header__buttons header__buttons--with-separator">
-        <div v-if="publishedOn" class="automation-header__last-published">
-          {{ $t('automationHeader.lastPublished') }}: {{ publishedOn }}
-        </div>
+        <ClientOnly>
+          <div v-if="publishedOn" class="automation-header__last-published">
+            {{ $t('automationHeader.lastPublished') }}: {{ publishedOn }}
+          </div>
+        </ClientOnly>
         <Button
           :icon="testRunEnabled ? 'iconoir-cancel' : 'iconoir-play'"
           type="secondary"
@@ -80,6 +82,7 @@
 
 <script>
 import moment from '@baserow/modules/core/moment'
+import { getUserTimeZone } from '@baserow/modules/core/utils/date'
 import { defineComponent, ref, computed } from 'vue'
 import { useStore, inject, useContext } from '@nuxtjs/composition-api'
 import { HistoryEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
@@ -159,8 +162,8 @@ export default defineComponent({
 
       return moment
         .utc(selectedWorkflow.value.published_on)
-        .tz(moment.tz.guess())
-        .format('MMM D, YYYY HH:MM:SS')
+        .tz(getUserTimeZone())
+        .format('MMM D, YYYY HH:mm:ss')
     })
 
     const statusSwitch = computed(() => {
