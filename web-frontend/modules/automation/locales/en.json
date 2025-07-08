@@ -42,8 +42,11 @@
     "publishBtn": "Publish",
     "settingsBtn": "Settings",
     "historyBtn": "History",
-    "switchLabel": "Draft",
-    "readOnlyLabel": "Read only"
+    "switchLabelDraft": "Draft",
+    "switchLabelDisabled": "Disabled",
+    "switchLabelPaused": "Paused",
+    "switchLabelLive": "Live",
+    "lastPublished": "Last published"
   },
   "dataProviderType": {
     "previousNode": "Previous node"

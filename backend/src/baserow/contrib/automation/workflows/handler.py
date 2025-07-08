@@ -23,19 +23,22 @@ from baserow.contrib.automation.workflows.exceptions import (
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.tasks import run_workflow
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import IdDoesNotExist
-from baserow.core.storage import ExportZipFile
+from baserow.core.registries import ImportExportConfig
+from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
     ChildProgressBuilder,
     MirrorDict,
+    Progress,
     extract_allowed,
     find_unused_name,
 )
 
 
 class AutomationWorkflowHandler:
-    allowed_fields = ["name", "allow_test_run_until"]
+    allowed_fields = ["name", "allow_test_run_until", "paused"]
 
     def run_workflow(
         self, workflow_id: int, event_payload: Optional[List[Dict]] = None
@@ -50,7 +53,10 @@ class AutomationWorkflowHandler:
         run_workflow.delay(workflow_id, event_payload)
 
     def get_workflow(
-        self, workflow_id: int, base_queryset: Optional[QuerySet] = None
+        self,
+        workflow_id: int,
+        base_queryset: Optional[QuerySet] = None,
+        for_update: bool = False,
     ) -> AutomationWorkflow:
         """
         Gets an AutomationWorkflow by its ID.
@@ -58,6 +64,7 @@ class AutomationWorkflowHandler:
         :param workflow_id: The ID of the AutomationWorkflow.
         :param base_queryset: Can be provided to already filter or apply performance
             improvements to the queryset when it's being executed.
+        :param for_update: Ensure only one update can happen at a time.
         :raises AutomationWorkflowDoesNotExist: If the workflow doesn't exist.
         :return: The model instance of the AutomationWorkflow
         """
@@ -65,12 +72,43 @@ class AutomationWorkflowHandler:
         if base_queryset is None:
             base_queryset = AutomationWorkflow.objects.all()
 
+        if for_update:
+            base_queryset = base_queryset.select_for_update(of=("self",))
+
         try:
             return base_queryset.select_related("automation__workspace").get(
                 id=workflow_id
             )
         except AutomationWorkflow.DoesNotExist:
             raise AutomationWorkflowDoesNotExist()
+
+    def get_published_workflow(
+        self, workflow: AutomationWorkflow, with_cache: bool = True
+    ) -> Optional[AutomationWorkflow]:
+        """
+        Gets the published AutomationWorkflow instance related to the
+        provided workflow.
+
+        :param workflow: The workflow for which the published version should
+            be returned.
+        :param with_cache: Whether to return a cached value, if available.
+        :raises AutomationWorkflowDoesNotExist: If the workflow doesn't exist.
+        :return: The published workflow, if it exists.
+        """
+
+        def _get_published_workflow(
+            workflow: AutomationWorkflow,
+        ) -> Optional[AutomationWorkflow]:
+            latest_published = workflow.published_to.order_by("-id").first()
+            return latest_published.workflows.first() if latest_published else None
+
+        if with_cache:
+            return local_cache.get(
+                f"wa_published_workflow_{workflow.id}",
+                lambda: _get_published_workflow(workflow),
+            )
+
+        return _get_published_workflow(workflow)
 
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
@@ -153,6 +191,15 @@ class AutomationWorkflowHandler:
         original_workflow_values = self.export_prepared_values(workflow)
 
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
+
+        # paused is a special value that should only be set on the
+        # published workflow, if available.
+        paused = allowed_values.pop("paused", None)
+        if paused is not None:
+            if published_workflow := self.get_published_workflow(workflow):
+                published_workflow.paused = paused
+                published_workflow.save(update_fields=["paused"])
+
         for key, value in allowed_values.items():
             setattr(workflow, key, value)
 
@@ -499,6 +546,7 @@ class AutomationWorkflowHandler:
             automation=automation,
             name=serialized_workflow["name"],
             order=serialized_workflow["order"],
+            published=serialized_workflow.get("published") or False,
         )
 
         id_mapping["automation_workflows"][
@@ -509,3 +557,88 @@ class AutomationWorkflowHandler:
             progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
         return workflow_instance
+
+    def clean_up_previously_published_automations(
+        self, workflow: AutomationWorkflow
+    ) -> None:
+        published_automations = list(Automation.objects.filter(published_from=workflow))
+        if not published_automations:
+            return
+
+        if len(published_automations) > 1:
+            # Delete all but the last published automation
+            ids_to_delete = [a.id for a in published_automations[:-1]]
+            Automation.objects.filter(id__in=ids_to_delete).delete()
+
+        # Disable the last published workflow
+        published_workflow = published_automations[-1].workflows.first()
+        published_workflow.published = False
+        published_workflow.save(update_fields=["published"])
+
+    def publish(
+        self,
+        workflow: AutomationWorkflow,
+        progress: Optional[Progress] = None,
+    ) -> AutomationWorkflow:
+        """
+        Publishes an Automation and a specific workflow. If the automation was
+        already published, the previous versions are deleted and a new one
+        is created.
+
+        When an automation is published, a clone of the current version is
+        created to avoid further modifications to the original automation
+        which could affect the published version.
+
+        :param workflow: The workflow to be published.
+        :param progress: An object to track the publishing progress.
+        :return: The published workflow.
+        """
+
+        # Make sure we are the only process to update the automation workflow
+        # to prevent race conditions.
+        workflow = self.get_workflow(workflow.id, for_update=True)
+
+        self.clean_up_previously_published_automations(workflow)
+
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=False,
+        )
+        default_storage = get_default_storage()
+        application_type = workflow.automation.get_type()
+
+        exported_automation = application_type.export_serialized(
+            workflow.automation,
+            import_export_config,
+            None,
+            default_storage,
+            workflows=[workflow],
+        )
+
+        # Manually set the published status for the newly created workflow.
+        exported_automation["workflows"][0]["published"] = True
+        exported_automation["workflows"][0]["paused"] = False
+        exported_automation["workflows"][0]["disabled_on"] = None
+
+        progress_builder = None
+        if progress:
+            progress.increment(by=50)
+            progress_builder = progress.create_child_builder(represents_progress=50)
+
+        id_mapping = {"import_workspace_id": workflow.automation.workspace.id}
+
+        duplicate_automation = application_type.import_serialized(
+            None,
+            exported_automation,
+            import_export_config,
+            id_mapping,
+            None,
+            default_storage,
+            progress_builder=progress_builder,
+        )
+
+        duplicate_automation.published_from = workflow
+        duplicate_automation.save(update_fields=["published_from"])
+
+        return duplicate_automation.workflows.first()

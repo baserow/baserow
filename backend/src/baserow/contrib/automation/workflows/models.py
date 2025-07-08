@@ -33,10 +33,10 @@ class AutomationWorkflowTrashManager(models.Manager):
         return (
             super()
             .get_queryset()
-            .filter(
-                trashed=False,
-                automation__trashed=False,
-                automation__workspace__trashed=False,
+            .exclude(
+                models.Q(trashed=True)
+                | models.Q(automation__trashed=True)
+                | models.Q(automation__workspace__trashed=True)
             )
         )
 
@@ -57,10 +57,14 @@ class AutomationWorkflow(
     published = models.BooleanField(
         default=False, help_text="Whether the workflow is published."
     )
+    paused = models.BooleanField(
+        default=False, help_text="Whether the published workflow is paused."
+    )
 
     order = models.PositiveIntegerField()
 
     allow_test_run_until = models.DateTimeField(null=True, blank=True)
+    disabled_on = models.DateTimeField(null=True, blank=True)
 
     objects = AutomationWorkflowTrashManager()
     objects_and_trash = models.Manager()
@@ -103,4 +107,12 @@ class DuplicateAutomationWorkflowJob(
         related_name="duplicated_from_jobs",
         on_delete=models.SET_NULL,
         help_text="The duplicated automation workflow.",
+    )
+
+
+class PublishAutomationWorkflowJob(JobWithUserIpAddress, Job):
+    automation_workflow = models.ForeignKey(
+        AutomationWorkflow,
+        null=True,
+        on_delete=models.SET_NULL,
     )

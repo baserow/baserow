@@ -10,18 +10,22 @@ from baserow.contrib.automation.workflows.operations import (
     CreateAutomationWorkflowOperationType,
     DeleteAutomationWorkflowOperationType,
     DuplicateAutomationWorkflowOperationType,
+    PublishAutomationWorkflowOperationType,
     ReadAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
 )
 from baserow.contrib.automation.workflows.signals import (
     automation_workflow_created,
     automation_workflow_deleted,
+    automation_workflow_published,
     automation_workflow_updated,
     automation_workflows_reordered,
 )
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.handler import CoreHandler
-from baserow.core.utils import ChildProgressBuilder
+from baserow.core.jobs.handler import JobHandler
+from baserow.core.models import Job
+from baserow.core.utils import ChildProgressBuilder, Progress
 
 
 class AutomationWorkflowService:
@@ -49,6 +53,7 @@ class AutomationWorkflowService:
 
         :param user: The user requesting the workflow.
         :param workflow_id: The ID of the workflow.
+        :param published: Whether to return the published version of the workflow.
         :return: An instance of AutomationWorkflow.
         """
 
@@ -215,3 +220,55 @@ class AutomationWorkflowService:
         automation_workflow_created.send(self, workflow=workflow_clone, user=user)
 
         return workflow_clone
+
+    def async_publish(self, user: AbstractUser, workflow_id: int) -> Job:
+        """
+        Starts an async job to publish the given automation workflow if the
+        user has the right permission.
+
+        :param user: The user publishing the workflow.
+        :param workflow_id: The automation workflow the user wants to publish.
+        """
+
+        from baserow.contrib.automation.workflows.job_types import (
+            PublishAutomationWorkflowJobType,
+        )
+
+        workflow = self.handler.get_workflow(workflow_id)
+
+        CoreHandler().check_permissions(
+            user,
+            PublishAutomationWorkflowOperationType.type,
+            workspace=workflow.automation.workspace,
+            context=workflow.automation,
+        )
+
+        job = JobHandler().create_and_start_job(
+            user,
+            PublishAutomationWorkflowJobType.type,
+            automation_workflow=workflow,
+        )
+
+        return job
+
+    def publish(
+        self, user: AbstractUser, workflow: AutomationWorkflow, progress: Progress
+    ) -> None:
+        """
+        Publish the automation for the given automation workflow if the
+        user has the right permission.
+
+        :param user: The user publishing the workflow.
+        :param workflow: The workflow the user wants to publish.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            PublishAutomationWorkflowOperationType.type,
+            workspace=workflow.automation.workspace,
+            context=workflow.automation,
+        )
+
+        published_workflow = self.handler.publish(workflow, progress)
+
+        automation_workflow_published.send(self, user=user, workflow=published_workflow)

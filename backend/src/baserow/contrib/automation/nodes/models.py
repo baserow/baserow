@@ -48,11 +48,11 @@ class AutomationNodeTrashManager(models.Manager):
         return (
             super()
             .get_queryset()
-            .filter(
-                trashed=False,
-                workflow__trashed=False,
-                workflow__automation__trashed=False,
-                workflow__automation__workspace__trashed=False,
+            .exclude(
+                models.Q(trashed=True)
+                | models.Q(workflow__trashed=True)
+                | models.Q(workflow__automation__trashed=True)
+                | models.Q(workflow__automation__workspace__trashed=True)
             )
         )
 

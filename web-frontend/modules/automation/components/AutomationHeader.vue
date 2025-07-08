@@ -25,31 +25,36 @@
 
     <div class="header__right">
       <span class="header__switch-container">
-        <Badge color="cyan" rounded size="small">{{
-          $t('automationHeader.switchLabel')
-        }}</Badge>
+        <template v-if="!publishedOn">
+          <Badge color="cyan" rounded size="small">{{
+            $t('automationHeader.switchLabelDraft')
+          }}</Badge>
+        </template>
+        <template v-else>
+          <Badge v-if="workflow?.disabled" color="red" rounded size="small">{{
+            $t('automationHeader.switchLabelDisabled')
+          }}</Badge>
+          <Badge v-else-if="isPaused" color="red" rounded size="small">{{
+            $t('automationHeader.switchLabelPaused')
+          }}</Badge>
+          <Badge v-else color="green" rounded size="small">{{
+            $t('automationHeader.switchLabelLive')
+          }}</Badge>
+        </template>
         <SwitchInput
           small
-          :value="switchValue"
-          @input="switchValue = !switchValue"
-        ></SwitchInput>
-      </span>
-
-      <span
-        v-if="isDevEnvironment"
-        class="header__switch-container u-margin-left-2"
-      >
-        <Badge color="yellow" rounded size="small">{{
-          $t('automationHeader.readOnlyLabel')
-        }}</Badge>
-        <SwitchInput
-          small
-          :value="readOnlySwitchValue"
-          @input="toggleReadOnly"
+          :value="statusSwitch"
+          :disabled="workflow?.disabled || !publishedOn"
+          @input="toggleStatusSwitch"
         ></SwitchInput>
       </span>
 
       <div class="header__buttons header__buttons--with-separator">
+        <ClientOnly>
+          <div v-if="publishedOn" class="automation-header__last-published">
+            {{ $t('automationHeader.lastPublished') }}: {{ publishedOn }}
+          </div>
+        </ClientOnly>
         <Button
           :icon="testRunEnabled ? 'iconoir-cancel' : 'iconoir-play'"
           type="secondary"
@@ -60,7 +65,13 @@
               : $t('automationHeader.startTestRun')
           }}</Button
         >
-        <Button disabled>{{ $t('automationHeader.publishBtn') }}</Button>
+        <Button
+          :loading="isPublishing"
+          :disabled="isPublishing || !canPublishWorkflow"
+          @click="publishWorkflow()"
+        >
+          {{ $t('automationHeader.publishBtn') }}
+        </Button>
       </div>
     </div>
   </header>
@@ -68,8 +79,9 @@
 
 <script>
 import moment from '@baserow/modules/core/moment'
+import { getUserTimeZone } from '@baserow/modules/core/utils/date'
 import { defineComponent, ref, computed } from 'vue'
-import { useStore, inject } from '@nuxtjs/composition-api'
+import { useStore, inject, useContext } from '@nuxtjs/composition-api'
 import { HistoryEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
@@ -82,12 +94,11 @@ export default defineComponent({
       required: true,
     },
   },
-  emits: ['read-only-toggled'],
   setup(props, { emit }) {
     const store = useStore()
+    const { app } = useContext()
 
-    const switchValue = ref(false)
-    const readOnlySwitchValue = ref(false)
+    const isPublishing = ref(false)
 
     // Check if in development environment
     const isDevEnvironment = computed(
@@ -95,8 +106,69 @@ export default defineComponent({
     )
 
     const workflow = inject('workflow')
+
+    const selectedWorkflow = computed(() => {
+      if (!props.automation) return null
+      try {
+        return store.getters['automationWorkflow/getSelected']
+      } catch (error) {
+        return null
+      }
+    })
+
     const testRunEnabled = computed(() => {
       return moment(workflow.value?.allow_test_run_until).isAfter()
+    })
+
+    const hasTriggerNode = computed(() => {
+      if (!workflow.value?.nodes) {
+        return false
+      }
+
+      const _nodes = workflow.value.nodes.filter((node) => {
+        const nodeType = app.$registry.get('node', node.type)
+        const isInError = nodeType.isInError({ service: node.service })
+        return nodeType.isTrigger === true && !isInError
+      })
+
+      return _nodes.length === 1
+    })
+
+    const hasActionNode = computed(() => {
+      if (!workflow.value?.nodes) {
+        return false
+      }
+
+      const _nodes = workflow.value.nodes.filter((node) => {
+        const nodeType = app.$registry.get('node', node.type)
+        const isInError = nodeType.isInError({ service: node.service })
+        return nodeType.isWorkflowAction === true && !isInError
+      })
+
+      return _nodes.length > 0
+    })
+
+    const canPublishWorkflow = computed(() => {
+      return hasTriggerNode.value && hasActionNode.value && !isPublishing.value
+    })
+
+    const publishedOn = computed(() => {
+      if (!selectedWorkflow.value?.published_on || isPublishing.value) {
+        return null
+      }
+
+      return moment
+        .utc(selectedWorkflow.value.published_on)
+        .tz(getUserTimeZone())
+        .format('MMM D, YYYY HH:mm:ss')
+    })
+
+    const statusSwitch = computed(() => {
+      return (publishedOn.value && !workflow.value?.paused) || false
+    })
+
+    const isPaused = computed(() => {
+      return publishedOn.value && workflow.value?.paused
     })
 
     const toggleTestRun = async () => {
@@ -110,9 +182,22 @@ export default defineComponent({
       }
     }
 
-    const toggleReadOnly = () => {
-      readOnlySwitchValue.value = !readOnlySwitchValue.value
-      emit('read-only-toggled', readOnlySwitchValue.value)
+    const toggleStatusSwitch = async () => {
+      const oldValue = workflow.value.paused
+      workflow.value.paused = !oldValue
+
+      try {
+        await store.dispatch('automationWorkflow/update', {
+          automation: props.automation,
+          workflow: workflow.value,
+          values: {
+            paused: workflow.value.paused,
+          },
+        })
+      } catch (error) {
+        workflow.value.paused = oldValue
+        notifyIf(error, 'automationWorkflow')
+      }
     }
 
     const historyClick = () => {
@@ -122,14 +207,40 @@ export default defineComponent({
       )
     }
 
+    const publishWorkflow = async () => {
+      isPublishing.value = true
+
+      const originalPaused = workflow.value.paused
+      const originalDisabled = workflow.value.disabled
+
+      try {
+        workflow.value.paused = false
+        workflow.value.disabled = false
+        await store.dispatch('automationWorkflow/publishWorkflow', {
+          workflow: workflow.value,
+        })
+      } catch (error) {
+        workflow.value.paused = originalPaused
+        workflow.value.disabled = originalDisabled
+        notifyIf(error, 'automationWorkflow')
+      }
+      isPublishing.value = false
+    }
+
     return {
-      switchValue,
-      readOnlySwitchValue,
-      toggleReadOnly,
+      statusSwitch,
       historyClick,
       toggleTestRun,
       testRunEnabled,
       isDevEnvironment,
+      publishWorkflow,
+      toggleStatusSwitch,
+      canPublishWorkflow,
+      publishedOn,
+      isPublishing,
+      isPaused,
+      selectedWorkflow,
+      workflow,
     }
   },
 })

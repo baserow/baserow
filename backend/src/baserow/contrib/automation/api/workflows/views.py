@@ -305,3 +305,52 @@ class AsyncAutomationDuplicateWorkflowView(APIView):
 
         serializer = job_type_registry.get_serializer(job, JobSerializer)
         return Response(serializer.data, status=HTTP_202_ACCEPTED)
+
+
+class AsyncPublishAutomationWorkflowView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workflow_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The workflow id the user wants to publish.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=[AUTOMATION_WORKFLOWS_TAG],
+        operation_id="publish_automation_workflow",
+        description=(
+            "This endpoint starts an asynchronous job to publish the "
+            "automation workflow. The job clones the current version of "
+            "the given automation and publishes it for the given workflow."
+        ),
+        request=None,
+        responses={
+            202: HTTP_202_ACCEPTED,
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                ]
+            ),
+            404: get_error_schema(["ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
+        }
+    )
+    def post(self, request, workflow_id: int):
+        """
+        Starts an async job to publish an automation workflow.
+        """
+
+        job = AutomationWorkflowService().async_publish(request.user, workflow_id)
+
+        serializer = job_type_registry.get_serializer(job, JobSerializer)
+
+        return Response(serializer.data, status=HTTP_202_ACCEPTED)

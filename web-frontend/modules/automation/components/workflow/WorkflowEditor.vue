@@ -104,8 +104,6 @@ const zoomOnScroll = ref(false)
 const panOnScroll = ref(true)
 const zoomOnDoubleClick = ref(false)
 
-const workflowReadOnly = inject('workflowReadOnly')
-
 // Constants for positioning
 const NODE_VERTICAL_SPACING = 144 // Vertical distance between the tops of consecutive data nodes
 const ADD_BUTTON_OFFSET_Y = 92 // Vertical offset of add button relative to the data node above it
@@ -140,7 +138,7 @@ const displayNodes = computed(() => {
       },
       data: {
         nodeId: null,
-        disabled: props.isAddingNode || workflowReadOnly.value,
+        disabled: props.isAddingNode,
       },
     })
   }
@@ -159,7 +157,6 @@ const displayNodes = computed(() => {
         id: dataNode.id.toString(),
         position: { x: DATA_NODE_X_POS, y: currentY },
         data: {
-          readOnly: workflowReadOnly.value,
           isTrigger: nodeType.isTrigger,
         },
       })
@@ -174,7 +171,7 @@ const displayNodes = computed(() => {
         },
         data: {
           nodeId: dataNode.id,
-          disabled: props.isAddingNode || workflowReadOnly.value,
+          disabled: props.isAddingNode,
         },
       })
 
@@ -189,31 +186,18 @@ const computedEdges = computed(() => {
   const edges = []
   const currentNodesToProcess = displayNodes.value
 
-  if (workflowReadOnly.value) {
-    const dataNodesOnly = displayNodes.value
-    for (let i = 0; i < dataNodesOnly.length - 1; i++) {
-      const sourceNode = dataNodesOnly[i]
-      const targetNode = dataNodesOnly[i + 1]
-      edges.push({
-        id: `e-${sourceNode.id}-${targetNode.id}`,
-        source: sourceNode.id,
-        target: targetNode.id,
-        type: 'workflow-edge',
-      })
-    }
-  } else {
-    for (let i = 0; i < currentNodesToProcess.length - 1; i++) {
-      const source = currentNodesToProcess[i]
-      const target = currentNodesToProcess[i + 1]
+  for (let i = 0; i < currentNodesToProcess.length - 1; i++) {
+    const source = currentNodesToProcess[i]
+    const target = currentNodesToProcess[i + 1]
 
-      edges.push({
-        id: `e-${source.id}-${target.id}`,
-        source: source.id,
-        target: target.id,
-        type: 'workflow-edge',
-      })
-    }
+    edges.push({
+      id: `e-${source.id}-${target.id}`,
+      source: source.id,
+      target: target.id,
+      type: 'workflow-edge',
+    })
   }
+
   return edges
 })
 

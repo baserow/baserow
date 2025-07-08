@@ -23,6 +23,7 @@ API_URL_CREATE = f"{API_URL_BASE_AUTOMATION}:workflows:create"
 API_URL_ORDER = f"{API_URL_BASE_AUTOMATION}:workflows:order"
 API_URL_BASE_WORKFLOW = "api:automation:workflows"
 API_URL_WORKFLOW_ITEM = f"{API_URL_BASE_WORKFLOW}:item"
+API_URL_WORKFLOW_PUBLISH = f"{API_URL_BASE_WORKFLOW}:async_publish"
 API_URL_WORKFLOW_DUPLICATE = f"{API_URL_BASE_WORKFLOW}:async_duplicate"
 
 
@@ -47,6 +48,9 @@ def test_create_workflow(api_client, data_fixture):
         "id": AnyInt(),
         "name": name,
         "order": AnyInt(),
+        "disabled": False,
+        "paused": False,
+        "published_on": None,
     }
 
 
@@ -126,6 +130,9 @@ def test_read_workflow(api_client, data_fixture):
         "name": workflow.name,
         "automation_id": automation.id,
         "allow_test_run_until": None,
+        "disabled": False,
+        "paused": False,
+        "published_on": None,
     }
 
 
@@ -346,6 +353,9 @@ def test_duplicate_workflow(api_client, data_fixture):
             "id": workflow.id,
             "name": "test",
             "order": AnyInt(),
+            "disabled": False,
+            "paused": False,
+            "published_on": None,
         },
         "progress_percentage": 0,
         "state": "pending",
@@ -473,3 +483,46 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     assert model.objects.count() == 1
     row = model.objects.order_by("-id").first()
     assert getattr(row, f"field_{fields_2[0].id}") == "A new row"
+
+
+@pytest.mark.django_db
+def test_publish_workflow(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    automation = data_fixture.create_automation_application(user)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="test"
+    )
+
+    url = reverse(API_URL_WORKFLOW_PUBLISH, kwargs={"workflow_id": workflow.id})
+    response = api_client.post(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_202_ACCEPTED
+    assert response.json() == {
+        "human_readable_error": "",
+        "id": AnyInt(),
+        "progress_percentage": AnyInt(),
+        "state": "pending",
+        "type": "publish_automation_workflow",
+    }
+
+
+@pytest.mark.django_db
+def test_publish_workflow_error_invalid_workflow(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token()
+
+    url = reverse(API_URL_WORKFLOW_PUBLISH, kwargs={"workflow_id": 100})
+    response = api_client.post(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json() == {
+        "detail": "The requested workflow does not exist.",
+        "error": "ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST",
+    }
