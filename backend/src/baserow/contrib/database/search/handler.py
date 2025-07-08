@@ -310,18 +310,19 @@ class SearchHandler(
             return
 
         with transaction.atomic():
-            lock_id = int(hashlib.md5(str(workspace_id).encode()).hexdigest()[:15], 16)
-            with pglock.advisory(
-                lock_id, timeout=60, side_effect=pglock.Raise, xact=True
-            ):
-                # Recheck now in case another process created the table while waiting
-                if not _workspace_search_table_exists(workspace_id):
-                    search_table_model = cls.get_workspace_search_table_model(
-                        workspace_id, managed=True
-                    )  # Django creates indexes only when the model is managed.
-                    with safe_django_schema_editor() as se:
-                        se.create_model(search_table_model)
-                    _workspace_search_table_exists.cache_clear()
+            lock_hash = hashlib.md5(str(workspace_id).encode()).hexdigest()  # nosec
+            pglock.advisory(
+                int(lock_hash[:15], 16), timeout=60, side_effect=pglock.Raise, xact=True
+            ).acquire()
+
+            # Recheck now in case another process created the table while waiting
+            if not _workspace_search_table_exists(workspace_id):
+                search_table_model = cls.get_workspace_search_table_model(
+                    workspace_id, managed=True
+                )  # Django creates indexes only when the model is managed.
+                with safe_django_schema_editor() as se:
+                    se.create_model(search_table_model)
+                _workspace_search_table_exists.cache_clear()
 
     @classmethod
     def delete_workspace_search_table_if_exists(cls, workspace_id: int):
