@@ -231,6 +231,13 @@
     "json": "JSON",
     "queryParameter": "Query parameter"
   },
+  "apiDocsPasswordFieldAuthentication": {
+    "title": "{name} authentication",
+    "description": "Checks if the provided password and row matches what is stored in the cell.",
+    "fieldId": "The field ID where to check the password for.",
+    "rowId": "The row ID where to check the password for.",
+    "password": "The password that must be checked if it's correct."
+  },
   "apiDocsListTables": {
     "listTables": "List all tables",
     "listTablesDescription": "This endpoint only works in combination with the token authentication. It lists all the tables that the token has either create, read, update or delete access to."
@@ -939,7 +946,9 @@
     "deletedUndo": "undo row deletion"
   },
   "fieldPasswordSubForm": {
-    "description": "It's not yet possible to directly do anything with the password field, this is only used by the user authentication in the application builder."
+    "allowEndpointAuthentication": "Allow API endpoint authentication",
+    "allowEndpointAuthenticationHelp": "This exposes an endpoint where the row ID and password can be checked if it's correct. This allows using Baserow as authentication backend.",
+    "description": "The password field can also be used by the user authentication in the application builder."
   },
   "rowEditFieldPassword": {
     "setPassword": "Set password"

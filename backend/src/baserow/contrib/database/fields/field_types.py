@@ -7315,6 +7315,8 @@ class PasswordFieldType(FieldType):
     _can_order_by_types = []
     _can_be_primary_field = False
     can_get_unique_values = False
+    allowed_fields = ["allow_endpoint_authentication"]
+    serializer_field_names = ["allow_endpoint_authentication"]
 
     def get_serializer_field(self, instance, **kwargs):
         # If a string value is provided, the password will be set. If `None` is

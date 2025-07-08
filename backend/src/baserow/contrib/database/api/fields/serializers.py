@@ -566,3 +566,24 @@ class LinkRowFieldSerializerMixin(serializers.ModelSerializer):
         return field_type_registry.get_serializer(
             related_field.specific, FieldSerializer
         ).data
+
+
+class PasswordFieldAuthenticationSerializer(serializers.Serializer):
+    field_id = serializers.IntegerField(
+        help_text="The field where to check the password for.",
+        required=True,
+    )
+    row_id = serializers.IntegerField(
+        help_text="The row where to check the password for.",
+        required=True,
+    )
+    password = serializers.CharField(
+        help_text="The password to check.",
+        required=True,
+    )
+
+
+class PasswordFieldAuthenticationResponseSerializer(serializers.Serializer):
+    is_correct = serializers.BooleanField(
+        help_text="Indicates whether the provided password is correct.",
+    )

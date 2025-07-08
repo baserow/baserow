@@ -952,7 +952,13 @@ class AutonumberField(Field):
 
 
 class PasswordField(Field):
-    pass
+    allow_endpoint_authentication = models.BooleanField(
+        db_default=False,
+        default=False,
+        help_text="If true, then it's possible to use the "
+        "`password_field_authentication` API endpoint to check if the password is "
+        "correct. This can be used to use Baserow as authentication backend.",
+    )
 
 
 class DuplicateFieldJob(

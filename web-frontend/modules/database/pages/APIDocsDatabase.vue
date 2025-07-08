@@ -41,6 +41,7 @@
       :database="database"
       :navigate="navigate"
       :nav-active="navActive"
+      :password-fields="passwordFields"
     />
     <div class="api-docs__body">
       <APIDocsIntro :database="database" />
@@ -114,6 +115,13 @@
           :get-delete-list-url="getDeleteListURL"
           :get-batch-delete-request-example="getBatchDeleteRequestExample"
         />
+        <div v-for="field in passwordFields[table.id]" :key="field.id">
+          <APIDocsTablePasswordFieldAuthentication
+            v-model="exampleData"
+            :field="field"
+            :table="table"
+          />
+        </div>
       </div>
       <APIDocsUploadFile
         v-model="exampleData"
@@ -159,13 +167,18 @@ import APIDocsListTables from '@baserow/modules/database/components/docs/section
 import APIDocsFilters from '@baserow/modules/database/components/docs/sections/APIDocsFilters'
 import APIDocsErrors from '@baserow/modules/database/components/docs/sections/APIDocsErrors'
 import APIDocsMenu from '@baserow/modules/database/components/docs/sections/APIDocsMenu'
+import APIDocsTablePasswordFieldAuthentication from '@baserow/modules/database/components/docs/sections/APIDocsPasswordFieldAuthentication.vue'
 
 // Re-use the FileFieldType docs response example.
-import { FileFieldType } from '@baserow/modules/database/fieldTypes'
+import {
+  FileFieldType,
+  PasswordFieldType,
+} from '@baserow/modules/database/fieldTypes'
 
 export default {
   name: 'APIDocsDatabase',
   components: {
+    APIDocsTablePasswordFieldAuthentication,
     APIDocsSelectDatabase,
     APIDocsIntro,
     APIDocsAuth,
@@ -230,6 +243,20 @@ export default {
       return Object.fromEntries(
         Object.entries(this.fieldData).map(([key, fields]) => {
           return [key, fields.map((field) => this.populateField(field))]
+        })
+      )
+    },
+    passwordFields() {
+      return Object.fromEntries(
+        Object.entries(this.fieldData).map(([key, fields]) => {
+          return [
+            key,
+            fields.filter(
+              (field) =>
+                field.type === PasswordFieldType.getType() &&
+                field.allow_endpoint_authentication
+            ),
+          ]
         })
       )
     },
