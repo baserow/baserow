@@ -215,7 +215,6 @@ export default defineComponent({
       historyClick,
       toggleTestRun,
       testRunEnabled,
-      isDevEnvironment,
       publishWorkflow,
       toggleStatusSwitch,
       canPublishWorkflow,
