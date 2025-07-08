@@ -46,7 +46,6 @@
     "switchLabelDisabled": "Disabled",
     "switchLabelPaused": "Paused",
     "switchLabelLive": "Live",
-    "cantPublishTooltip": "Test all events before publishing this automation",
     "lastPublished": "Last published"
   },
   "dataProviderType": {

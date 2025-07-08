@@ -66,9 +66,6 @@
           }}</Button
         >
         <Button
-          v-tooltip="
-            !canPublishWorkflow ? $t('automationHeader.cantPublishTooltip') : ''
-          "
           :loading="isPublishing"
           :disabled="isPublishing || !canPublishWorkflow"
           @click="publishWorkflow()"
