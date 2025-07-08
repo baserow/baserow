@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0191_field_db_index"),
+        ("database", "0193_fieldconstraint"),
     ]
 
     operations = [
