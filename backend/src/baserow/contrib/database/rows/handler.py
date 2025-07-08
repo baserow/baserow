@@ -1644,21 +1644,17 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
             try:
                 with transaction.atomic():
-                    updated_rows = self.force_update_rows(
+                    result = self.force_update_rows(
                         user=user,
                         table=table,
                         model=model,
                         rows_values=chunk,
                         send_realtime_update=False,
                         send_webhook_events=False,
-                        # Don't trigger loads of search updates for every batch
-                        # of rows we update but instead a single one for this
-                        # entire table at the end.
-                        skip_search_update=True,
                         generate_error_report=True,
                     )
-                    report.update(updated_rows.errors)
-                    all_updated_rows.extend(updated_rows.updated_rows)
+                    report.update(result.errors)
+                    all_updated_rows.extend(result.updated_rows)
             except Exception:
                 for index, row_values in enumerate(chunk):
                     try:
@@ -1687,9 +1683,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             if progress:
                 progress.increment(len(chunk))
 
-            SearchHandler.schedule_update_search_data(
-                table, row_ids=[r.id for r in all_updated_rows]
-            )
         return all_updated_rows, report
 
     def import_rows(

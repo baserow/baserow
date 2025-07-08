@@ -123,7 +123,10 @@ def broadcast_to_permitted_users(
     from baserow.core.models import Workspace, WorkspaceUser
     from baserow.core.registries import object_scope_type_registry
 
-    workspace = Workspace.objects.get(id=workspace_id)
+    try:
+        workspace = Workspace.objects.get(id=workspace_id)
+    except Workspace.DoesNotExist:
+        return  # trashed in the meantime
 
     users_in_workspace = [
         workspace_user.user
@@ -141,7 +144,10 @@ def broadcast_to_permitted_users(
         else scope_model_class.objects
     )
 
-    scope = objects.get(id=scope_id)
+    try:
+        scope = objects.get(id=scope_id)
+    except scope_model_class.DoesNotExist:
+        return  # trashed or deleted in the meantime
 
     user_ids = [
         u.id
@@ -329,7 +335,7 @@ def broadcast_to_groups(
 
 @app.task(bind=True)
 def broadcast_application_created(
-    self, application_id: int, ignore_web_socket_id: Optional[int]
+    self, application_id: int, ignore_web_socket_id: Optional[int] = None
 ):
     """
     This task is called when an application is created. We made this a task instead of
@@ -337,8 +343,7 @@ def broadcast_application_created(
     a lot of computational power and should therefore not run on a gunicorn worker.
 
     :param application_id: The id of the application that was created
-    :param ignore_web_socket_id: The web socket id to ignore
-    :return:
+    :param ignore_web_socket_id: If provided, the web_socket_id to ignore
     """
 
     from baserow.api.applications.serializers import (
@@ -348,7 +353,11 @@ def broadcast_application_created(
     from baserow.core.models import Application, WorkspaceUser
     from baserow.core.operations import ReadApplicationOperationType
 
-    application = Application.objects.get(id=application_id).specific
+    try:
+        application = Application.objects.get(id=application_id).specific
+    except Application.DoesNotExist:
+        return  # trashed in the meantime
+
     workspace = application.workspace
     users_in_workspace = [
         workspace_user.user
