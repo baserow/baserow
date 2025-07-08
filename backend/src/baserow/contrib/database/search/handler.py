@@ -12,6 +12,7 @@ state should be temporary, and they will be migrated to search data tables event
 
 """
 
+import hashlib
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import Enum
@@ -22,6 +23,7 @@ from uuid import uuid4
 from django.conf import settings
 from django.contrib.postgres.search import SearchQuery
 from django.db import connection, router, transaction
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db.models import (
     DateTimeField,
     Expression,
@@ -37,6 +39,7 @@ from django.db.models import (
 from django.db.models.sql.constants import LOUTER
 from django.utils.encoding import force_str
 
+import pglock
 from django_cte import With
 from loguru import logger
 from opentelemetry import trace
@@ -58,7 +61,6 @@ from baserow.contrib.database.search.tasks import (
     delete_search_data,
     schedule_update_search_data,
 )
-from baserow.core.psycopg import sql
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.utils import to_camel_case
 
@@ -157,6 +159,10 @@ def _generate_search_table_model(
     return model
 
 
+class SearchDatabaseSchemaEditor(BaseDatabaseSchemaEditor):
+    sql_delete_table = "DROP TABLE IF EXISTS %(table)s CASCADE"
+
+
 class SearchHandler(
     metaclass=baserow_trace_methods(
         tracer, exclude=["full_text_enabled", "search_config"]
@@ -166,8 +172,9 @@ class SearchHandler(
     def get_workspace_search_table_name(cls, workspace_id: int) -> str:
         """
         Returns the name of the search table for the given workspace ID.
-        :param workspace_id: The ID of the workspace for which the search table name
-            is being generated.
+
+        :param workspace_id: The ID of the workspace for which the search table name is
+            being generated.
         :return: The name of the search table for the specified workspace.
         """
 
@@ -178,10 +185,10 @@ class SearchHandler(
         cls, workspace_id: int, managed: bool = False
     ) -> "AbstractSearchValue":
         """
-        Generates SearchTable model
-        :param workspace_id: The ID of the workspace for
-        which the search table
-            model is being generated.
+        Generates the workspace search table model.
+
+        :param workspace_id: The ID of the workspace for which the search table model is
+            being generated.
         :param managed: This flag should be set to True only when the needs to be
             created for the first time, False otherwise.
         :return: A dynamically generated model class that represents the search table
@@ -259,47 +266,77 @@ class SearchHandler(
 
     @classmethod
     def can_use_full_text_search(cls, table: "Table") -> bool:
+        """
+        Determines if full-text search can be used for the given table, by checking
+        if the search table exists for the workspace of the table and if full-text
+        search is enabled in the settings.
+
+        :param table: The table for which to check if full-text search can be used.
+        """
+
         if not cls.full_text_enabled():
             return False
 
         workspace = table.database.workspace
-        return (
-            cls.workspace_search_table_exists(workspace.id)
-            and not workspace.has_template()  # we don't index templates data
-        )
+        return cls.workspace_search_table_exists(workspace.id)
 
     @classmethod
     def workspace_search_table_exists(cls, workspace_id: int) -> bool:
         """
-        Determines if the search table exists for the given workspace ID.
-        This is a cached version of the _workspace_search_table_exists method to avoid
-        repeated database queries for the same workspace.
+        Determines if the search table exists for the given workspace ID. This is a
+        cached version of the _workspace_search_table_exists method to avoid repeated
+        database queries for the same workspace.
 
         :param workspace_id: The ID of the workspace to check.
-        :return: True if the search table exists, False otherwise.
+        :return: True if the search table exists, False otherwise. The result is cached
+            to improve performance.
         """
 
         return _workspace_search_table_exists(workspace_id)
 
     @classmethod
-    def create_workspace_search_table(cls, workspace_id: int) -> "AbstractSearchValue":
-        # Django only creates indexes when the model is managed.
-        search_table = cls.get_workspace_search_table_model(workspace_id, managed=True)
-        with safe_django_schema_editor() as se:
-            se.create_model(search_table)
+    def create_workspace_search_table_if_not_exists(cls, workspace_id: int):
+        """
+        Creates the workspace search table if it does not already exist. Since multiple
+        different tables in the same workspace can try to create the search table at the
+        same time, ensure only one of them will actually create it with the other ones
+        waiting for the lock to be released.
 
-        _workspace_search_table_exists.cache_clear()
+        :param workspace_id: The ID of the workspace for which the search table should
+            be
+        """
 
-        return search_table
+        if _workspace_search_table_exists(workspace_id):
+            return
+
+        with transaction.atomic():
+            lock_hash = hashlib.md5(str(workspace_id).encode()).hexdigest()  # nosec
+            pglock.advisory(
+                int(lock_hash[:15], 16), timeout=60, side_effect=pglock.Raise, xact=True
+            ).acquire()
+
+            # Recheck now in case another process created the table while waiting
+            if not _workspace_search_table_exists(workspace_id):
+                search_table_model = cls.get_workspace_search_table_model(
+                    workspace_id, managed=True
+                )  # Django creates indexes only when the model is managed.
+                with safe_django_schema_editor() as se:
+                    se.create_model(search_table_model)
+                _workspace_search_table_exists.cache_clear()
 
     @classmethod
     def delete_workspace_search_table_if_exists(cls, workspace_id: int):
-        search_table_name = cls.get_workspace_search_table_name(workspace_id)
-        query = sql.SQL("DROP TABLE IF EXISTS {0} CASCADE").format(
-            sql.Identifier(search_table_name)
-        )
-        with connection.cursor() as c:
-            c.execute(query)
+        """
+        Drops the workspace search table if it exists. This is useful for cleaning up
+        the search table when a workspace is deleted or when the search feature is no
+        longer needed.
+
+        :param workspace_id: The ID of the workspace for which the search table should
+        """
+
+        search_table = cls.get_workspace_search_table_model(workspace_id, managed=True)
+        with safe_django_schema_editor(classes=[SearchDatabaseSchemaEditor]) as se:
+            se.delete_model(search_table)
 
         _workspace_search_table_exists.cache_clear()
 
@@ -550,6 +587,21 @@ class SearchHandler(
         field_ids: List[int] | None = None,
         row_ids: List[int] | None = None,
     ):
+        """
+        Queues a pending search value update for the given table, fields and row ids.
+        If field_ids is None, all searchable fields will be considered.
+        If row_ids is None, all rows will be considered.
+        Because PendingSearchValueUpdate has a unique constraint on (field_id, row_id),
+        this method will only create new entries for combinations that do not already
+        exist in the PendingSearchValueUpdate table.
+
+        :param table: The table for which the search value update should be queued.
+        :param field_ids: Optional list of field IDs to queue search value updates for.
+            If None, all searchable fields will be considered.
+        :param row_ids: Optional list of row IDs to queue search value updates for.
+            If None, all rows will be considered.
+        """
+
         searchable_field_ids = {
             f.id for f in table.get_model().get_searchable_fields(include_trash=True)
         }
@@ -710,9 +762,23 @@ class SearchHandler(
         )
 
     @classmethod
-    def process_search_data_updates(cls, table: "Table"):
+    def process_search_data_updates(cls, table: "Table", batch_size: int = 10):
         """
-        Process PendingSearchValueUpdate entries
+        Process pending search updates for a given table in two phases:
+
+        1. Full‐field updates (row_id=None): rebuilds the search index for an entire
+           field.
+        2. Row‐specific updates: groups updates for remaining fields into batches and
+           refreshes only affected rows.
+
+        Each update refreshes search data via `update_search_data` and then removes its
+        PendingSearchValueUpdate entry. The loop repeats in transactions until fewer
+        than `batch_size` updates are processed.
+
+        :param table: The Table whose pending search updates will be handled.
+        :param batch_size: Max number of update operations per transaction (default 10).
+            A higher number reduces the round trip to the database, but increases the
+            time between commits and if the task is killed all the updates will be lost.
         """
 
         def next_batch(count: int) -> QuerySet[PendingSearchValueUpdate]:
@@ -764,8 +830,7 @@ class SearchHandler(
             return processed
 
         while True:
-            count = 10  # Balance between efficiency while ensuring progress
             with transaction.atomic():
-                processed = process_batch(count)
-            if processed < count:
+                processed = process_batch(batch_size)
+            if processed < batch_size:
                 break

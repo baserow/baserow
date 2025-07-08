@@ -82,7 +82,7 @@ def test_create_workspace_search_table(data_fixture):
     workspace = data_fixture.create_workspace()
     assert not SearchHandler.workspace_search_table_exists(workspace.id)
 
-    SearchHandler.create_workspace_search_table(workspace.id)
+    SearchHandler.create_workspace_search_table_if_not_exists(workspace.id)
 
     assert SearchHandler.workspace_search_table_exists(workspace.id)
 
@@ -93,7 +93,7 @@ def test_create_workspace_search_table(data_fixture):
 @pytest.mark.django_db
 def test_delete_workspace_search_table(data_fixture):
     workspace = data_fixture.create_workspace()
-    SearchHandler.create_workspace_search_table(workspace.id)
+    SearchHandler.create_workspace_search_table_if_not_exists(workspace.id)
 
     assert SearchHandler.workspace_search_table_exists(workspace.id)
     search_table = SearchHandler.get_workspace_search_table_model(workspace.id)
