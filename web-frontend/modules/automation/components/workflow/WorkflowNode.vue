@@ -41,7 +41,11 @@
       </a>
     </div>
 
-    <Context ref="contextMenu" overflow-scroll max-height-if-outside-viewport>
+    <Context
+      ref="editNodeContext"
+      overflow-scroll
+      max-height-if-outside-viewport
+    >
       <div class="context__menu-title">
         {{ label }} ({{ props.data.nodeId }})
       </div>

@@ -41,7 +41,6 @@
       />
       <WorkflowNodeContext
         :ref="`nodeContext-${slotProps.id}`"
-        :workflow-has-trigger="workflowHasTrigger"
         @change="createNode($event, slotProps.data.nodeId)"
       ></WorkflowNodeContext>
     </template>

@@ -7,7 +7,7 @@
       open-on-mount
       :show-input="false"
       :search-text="
-        !workflowHasTrigger || editingTriggerNode
+        editingTriggerNode
           ? $t('workflowNodeContext.searchPlaceholderTrigger')
           : $t('workflowNodeContext.searchPlaceholderActions')
       "
@@ -39,11 +39,6 @@ export default {
       required: false,
       default: () => null,
     },
-    workflowHasTrigger: {
-      type: Boolean,
-      required: false,
-      default: true,
-    },
   },
   computed: {
     editingTriggerNode() {
@@ -61,15 +56,15 @@ export default {
      * there is a trigger or not.
      */
     nodeTypes() {
-      return this.$registry.getOrderedList('node').filter((nodeType) => {
-        const nodeTypeMatch = this.node?.type === nodeType.type
-        return (
-          !nodeTypeMatch &&
-          (!this.workflowHasTrigger || this.editingTriggerNode
-            ? nodeType.isTrigger
-            : nodeType.isWorkflowAction)
+      return this.$registry
+        .getOrderedList('node')
+        .filter(
+          (nodeType) =>
+            this.node?.type !== nodeType.type &&
+            (this.editingTriggerNode
+              ? nodeType.isTrigger
+              : nodeType.isWorkflowAction)
         )
-      })
     },
   },
   methods: {
