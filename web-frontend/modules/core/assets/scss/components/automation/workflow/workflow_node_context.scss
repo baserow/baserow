@@ -1,13 +1,8 @@
 .workflow-node__context {
-  border: none;
-
-  .dropdown__items {
-    width: 500px;
-    max-height: 220px;
-    overflow-y: auto;
-  }
 
   .select__items {
-    max-height: fit-content;
+    width: 500px;
+    max-height: 220px;
+    overflow: auto;
   }
 }

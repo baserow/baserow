@@ -7,6 +7,7 @@
     :nodes-draggable="nodesDraggable"
     :zoom-on-drag="zoomOnScroll"
     :pan-on-scroll="panOnScroll"
+    :node-drag-threshold="2000"
     :zoom-on-double-click="zoomOnDoubleClick"
     fit-view-on-init
     :max-zoom="1"
