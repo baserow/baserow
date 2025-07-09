@@ -1,3 +1,4 @@
+import json
 import re
 import uuid
 from abc import ABC, abstractmethod
@@ -78,6 +79,7 @@ from baserow.contrib.database.api.fields.serializers import (
     FileFieldRequestSerializer,
     FileFieldResponseSerializer,
     IntegerOrStringField,
+    LimitListSerializer,
     LinkRowFieldSerializerMixin,
     LinkRowRequestSerializer,
     LinkRowValueSerializer,
@@ -294,6 +296,8 @@ class TextFieldMatchingRegexFieldType(FieldType, ABC):
           altering a column to being an email type.
     """
 
+    _can_have_db_index = True
+
     @property
     @abstractmethod
     def regex(self):
@@ -330,6 +334,7 @@ class TextFieldMatchingRegexFieldType(FieldType, ABC):
             blank=True,
             null=True,
             validators=[self.validator],
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -393,6 +398,7 @@ class CharFieldMatchingRegexFieldType(TextFieldMatchingRegexFieldType):
             null=True,
             max_length=self.max_length,
             validators=[self.validator],
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -414,6 +420,7 @@ class TextFieldType(CollationSortMixin, FieldType):
     allowed_fields = ["text_default"]
     serializer_field_names = ["text_default"]
     _can_group_by = True
+    _can_have_db_index = True
 
     can_upsert = True
 
@@ -431,7 +438,11 @@ class TextFieldType(CollationSortMixin, FieldType):
 
     def get_model_field(self, instance, **kwargs):
         return models.TextField(
-            default=instance.text_default or None, blank=True, null=True, **kwargs
+            default=instance.text_default or None,
+            blank=True,
+            null=True,
+            db_index=instance.db_index,
+            **kwargs,
         )
 
     def random_value(self, instance, fake, cache):
@@ -461,6 +472,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     model_class = LongTextField
     allowed_fields = ["long_text_enable_rich_text"]
     serializer_field_names = ["long_text_enable_rich_text"]
+    _can_have_db_index = True
     can_upsert = True
 
     def check_can_group_by(self, field: Field, sort_type: str) -> bool:
@@ -499,7 +511,9 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         }
 
     def get_model_field(self, instance, **kwargs):
-        return models.TextField(blank=True, null=True, **kwargs)
+        return models.TextField(
+            blank=True, null=True, db_index=instance.db_index, **kwargs
+        )
 
     def random_value(self, instance, fake, cache):
         return fake.text()
@@ -579,6 +593,7 @@ class NumberFieldType(FieldType):
     }
     _can_group_by = True
     _db_column_fields = ["number_decimal_places"]
+    _can_have_db_index = True
     can_upsert = True
 
     def serialize_allowed_fields(self, field: Field) -> Dict[str, Any]:
@@ -718,11 +733,11 @@ class NumberFieldType(FieldType):
         default = instance.number_default
         if default is not None:
             kwargs["default"] = default
-
         return models.DecimalField(
             max_digits=self.MAX_DIGITS + kwargs["decimal_places"],
             null=True,
             blank=True,
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -845,6 +860,7 @@ class RatingFieldType(FieldType):
     serializer_field_names = ["max_value", "color", "style"]
     _can_group_by = True
     _db_column_fields = []
+    _can_have_db_index = True
     can_upsert = True
 
     def prepare_value_for_db(self, instance, value):
@@ -940,6 +956,7 @@ class RatingFieldType(FieldType):
             blank=False,
             null=False,
             default=0,
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -973,6 +990,7 @@ class BooleanFieldType(FieldType):
     allowed_fields = ["boolean_default"]
     serializer_field_names = ["boolean_default"]
     _can_group_by = True
+    _can_have_db_index = True
     can_upsert = True
 
     def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
@@ -998,7 +1016,9 @@ class BooleanFieldType(FieldType):
         return BaserowBooleanField(**{"required": required, **kwargs})
 
     def get_model_field(self, instance, **kwargs):
-        return models.BooleanField(default=instance.boolean_default, **kwargs)
+        return models.BooleanField(
+            default=instance.boolean_default, db_index=instance.db_index, **kwargs
+        )
 
     def random_value(self, instance, fake, cache):
         return fake.pybool()
@@ -1060,12 +1080,13 @@ class DateFieldType(FieldType):
             ),
         )
     }
-    serializer_extra_kwargs = {"date_force_timezone_offset": {"write_only": True}}
+    serializer_field_extra_kwargs = {"date_force_timezone_offset": {"write_only": True}}
     api_exceptions_map = {
         DateForceTimezoneOffsetValueError: ERROR_DATE_FORCE_TIMEZONE_OFFSET_ERROR
     }
     _can_group_by = True
     _db_column_fields = ["date_include_time"]
+    _can_have_db_index = True
     can_upsert = True
 
     def can_represent_date(self, field):
@@ -1234,6 +1255,7 @@ class DateFieldType(FieldType):
     def get_model_field(self, instance, **kwargs):
         kwargs["null"] = True
         kwargs["blank"] = True
+        kwargs["db_index"] = instance.db_index
         if instance.date_include_time:
             return models.DateTimeField(**kwargs)
         else:
@@ -1456,6 +1478,7 @@ class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
     def get_model_field(self, instance, **kwargs):
         kwargs["null"] = True
         kwargs["blank"] = True
+        kwargs["db_index"] = instance.db_index
         kwargs.update(self.model_field_kwargs)
         return self.model_field_class(**kwargs)
 
@@ -2176,6 +2199,7 @@ class LinkRowFieldType(
         "link_row_table_primary_field",
         "link_row_multiple_relationships",
     ]
+    serializer_extra_args = ["limit_linked_items"]
     serializer_mixins = [LinkRowFieldSerializerMixin]
     serializer_field_overrides = {
         "link_row_table_id": serializers.IntegerField(
@@ -2407,10 +2431,18 @@ class LinkRowFieldType(
         remote_model = remote_field.model
 
         primary_field_object = next(
-            object
-            for object in remote_model._field_objects.values()
-            if object["field"].primary
+            (
+                object
+                for object in remote_model._field_objects.values()
+                if object["field"].primary
+            ),
+            None,
         )
+        if primary_field_object is None:
+            # Every table should have a primary field, but it's not strictly enforeced
+            # and if it doesn't (i.e. some tests), we return an empty expression.
+            return Value("")
+
         primary_field = primary_field_object["field"]
         primary_field_type = primary_field_object["type"]
         qs = remote_model.objects.filter(
@@ -2451,15 +2483,14 @@ class LinkRowFieldType(
         field_kwargs = kwargs.get(f"field_{field.id}", {})
         link_row_join = field_kwargs.get("link_row_join", None)
 
-        primary_field_object = None
-        try:
-            primary_field_object = next(
+        primary_field_object = next(
+            (
                 object
                 for object in remote_model._field_objects.values()
                 if object["field"].primary
-            )
-        except StopIteration:
-            pass
+            ),
+            None,
+        )
 
         # The list of fields to prefetch is going to be the primary field
         # if it exists together with any joined field for lookup
@@ -2786,6 +2817,8 @@ class LinkRowFieldType(
         """
 
         required = kwargs.pop("required", False)
+        kwargs.pop("limit_linked_items", None)  # not needed in the request.
+
         if instance.link_row_multiple_relationships is False:
             kwargs["max_length"] = 1
         return LinkRowRequestSerializer(required=required, **kwargs)
@@ -2803,21 +2836,24 @@ class LinkRowFieldType(
 
         link_row_join: LinkRowJoin = kwargs.pop("link_row_join", None)
         if link_row_join is None:
-            return serializers.ListSerializer(
-                child=LinkRowValueSerializer(), **{"required": False, **kwargs}
+            inner_serializer = LinkRowValueSerializer
+        else:
+            inner_serializer = type(
+                str("LinkRowLookupValueSerializer"),
+                (LinkRowValueSerializer,),
+                {
+                    f"{target_field.field_ref}": target_field.field_serializer
+                    for target_field in link_row_join.target_fields
+                },
             )
-        attrs = {
-            f"{target_field.field_ref}": target_field.field_serializer
-            for target_field in link_row_join.target_fields
-        }
-        base_class = LinkRowValueSerializer
-        inner_serializer = type(
-            str("LinkRowLookupValueSerializer"),
-            (base_class,),
-            attrs,
-        )
-        return serializers.ListSerializer(
-            child=inner_serializer(), **{"required": False, **kwargs}
+
+        return LimitListSerializer(
+            child=inner_serializer(),
+            **{
+                "required": False,
+                "limit": kwargs.pop("limit_linked_items", None),
+                **kwargs,
+            },
         )
 
     def get_serializer_help_text(self, instance):
@@ -4089,6 +4125,19 @@ class SelectOptionBaseFieldType(FieldType):
             raise ValueError("The provided value does not contain a valid option id.")
         return option_ids
 
+    def get_select_options_help_text(self, instance):
+        try:
+            select_option_pair = ", ".join(
+                [
+                    f"{select_option.id}={json.dumps(select_option.value)}"
+                    for select_option in instance.select_options.all()
+                ]
+            )
+        except ValueError:
+            # Happens when the instance does not yet have a primary key.
+            return self.get_serializer_help_text(instance)
+        return f"(in format option_id=option_value): " f"{select_option_pair}"
+
 
 class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     type = "single_select"
@@ -4183,6 +4232,11 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                 instance, kwargs.get("single_select_default", None)
             )
             serializer_kwargs["default"] = default_value
+
+        serializer_kwargs["help_text"] = (
+            f"Accepts one of the following option ids as integer value"
+            f" {self.get_select_options_help_text(instance)}."
+        )
 
         field_serializer = IntegerOrStringField(**serializer_kwargs)
         return field_serializer
@@ -4692,6 +4746,10 @@ class MultipleSelectFieldType(
             **{
                 "required": required,
                 "allow_null": not required,
+                "help_text": (
+                    f"Accepts multiple option ids as an array of integer values"
+                    f" {self.get_select_options_help_text(instance)}."
+                ),
                 **kwargs,
             },
         )
@@ -5200,6 +5258,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         "formula_type",
     ]
     allowed_fields = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + CORE_FORMULA_FIELDS
+    serializer_extra_args = ["limit_linked_items"]
     request_serializer_field_names = (
         BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES + CORE_FORMULA_FIELDS
     )
@@ -5285,19 +5344,38 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         formula_type = self.to_baserow_formula_type(formula_field_instance)
         return formula_type.get_baserow_field_instance_and_type()
 
+    def _filter_serializer_field_kwargs(
+        self, field_type: FieldType, **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Filters the serializer kwargs to only include those that are relevant for
+        the formula field type.
+        """
+
+        kwargs_to_remove = set(self.serializer_extra_args) - set(
+            getattr(field_type, "serializer_extra_args", [])
+        )
+
+        return {
+            key: value for key, value in kwargs.items() if key not in kwargs_to_remove
+        }
+
     def get_serializer_field(self, instance: FormulaField, **kwargs):
         (
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(instance)
-        return field_type.get_serializer_field(field_instance, **kwargs)
+
+        field_kwargs = self._filter_serializer_field_kwargs(field_type, **kwargs)
+        return field_type.get_serializer_field(field_instance, **field_kwargs)
 
     def get_response_serializer_field(self, instance, **kwargs):
         (
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(instance)
-        return field_type.get_response_serializer_field(field_instance, **kwargs)
+        field_kwargs = self._filter_serializer_field_kwargs(field_type, **kwargs)
+        return field_type.get_response_serializer_field(field_instance, **field_kwargs)
 
     def get_model_field(self, instance: FormulaField, **kwargs):
         # When typed_table is False we are constructing a table model without
@@ -5332,6 +5410,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             blank=True,
             expression=expression,
             expression_field=expression_field_type,
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -5799,6 +5878,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(field)
         return field_type.parse_filter_value(field_instance, model_field, value)
+
+    def can_have_db_index(self, field: Field) -> bool:
+        return self.to_baserow_formula_type(field.specific).can_have_db_index
 
 
 class CountFieldType(FormulaFieldType):
@@ -6916,6 +6998,7 @@ class UUIDFieldType(ReadOnlyFieldType):
     model_class = UUIDField
     can_be_in_form_view = False
     keep_data_on_duplication = True
+    _can_have_db_index = True
 
     def get_serializer_field(self, instance, **kwargs):
         return serializers.UUIDField(required=False, **kwargs)
@@ -6927,6 +7010,7 @@ class UUIDFieldType(ReadOnlyFieldType):
         return models.UUIDField(
             default=uuid.uuid4,
             null=True,
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -7020,6 +7104,7 @@ class AutonumberFieldType(ReadOnlyFieldType):
             help_text="The id of the view to use for the initial ordering.",
         )
     }
+    _can_have_db_index = True
 
     def get_serializer_field(self, instance, **kwargs):
         return serializers.IntegerField(required=False, **kwargs)
@@ -7030,7 +7115,7 @@ class AutonumberFieldType(ReadOnlyFieldType):
         )
 
     def get_model_field(self, instance, **kwargs):
-        return IntegerFieldWithSequence(null=True, **kwargs)
+        return IntegerFieldWithSequence(null=True, db_index=instance.db_index, **kwargs)
 
     def after_rows_imported(
         self,
@@ -7230,6 +7315,8 @@ class PasswordFieldType(FieldType):
     _can_order_by_types = []
     _can_be_primary_field = False
     can_get_unique_values = False
+    allowed_fields = ["allow_endpoint_authentication"]
+    serializer_field_names = ["allow_endpoint_authentication"]
 
     def get_serializer_field(self, instance, **kwargs):
         # If a string value is provided, the password will be set. If `None` is

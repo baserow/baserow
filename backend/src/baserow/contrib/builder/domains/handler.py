@@ -27,19 +27,25 @@ class DomainHandler:
     allowed_fields_create = ["domain_name"]
     allowed_fields_update = ["domain_name", "last_published"]
 
-    def get_domain(self, domain_id: int, base_queryset: QuerySet = None) -> Domain:
+    def get_domain(
+        self, domain_id: int, base_queryset: QuerySet | None = None, for_update=False
+    ) -> Domain:
         """
         Gets a domain by ID
 
         :param domain_id: The ID of the domain
         :param base_queryset: Can be provided to already filter or apply performance
             improvements to the queryset when it's being executed
+        :param for_update: Ensure only one update can happen at a time.
         :raises DomainDoesNotExist: If the domain doesn't exist
         :return: The model instance of the domain
         """
 
         if base_queryset is None:
             base_queryset = Domain.objects
+
+        if for_update:
+            base_queryset = base_queryset.select_for_update(of=("self",))
 
         try:
             return base_queryset.get(id=domain_id)
@@ -228,6 +234,10 @@ class DomainHandler:
         :param progress: A progress object to track the publishing operation progress.
         """
 
+        # Make sure we are the only process to update the domain to prevent race
+        # conditions
+        domain = DomainHandler().get_domain(domain.id, for_update=True)
+
         builder = domain.builder
         workspace = builder.workspace
 
@@ -249,14 +259,6 @@ class DomainHandler:
             builder, import_export_config, None, default_storage
         )
 
-        # Update user_source uid to have something stable per domain.
-        # This is mainly because we want a token generated for one version of a site
-        # to still be valid if we redeploy the website.
-        exported_builder["user_sources"] = [
-            {**user_source, "uid": f"domain_{domain.id}__{user_source['uid']}"}
-            for user_source in exported_builder["user_sources"]
-        ]
-
         if progress:
             progress.increment(by=50)
 
@@ -275,6 +277,17 @@ class DomainHandler:
         domain.published_to = duplicate_builder
         domain.last_published = datetime.now(tz=timezone.utc)
         domain.save()
+
+        # We need a stable/predictable uuid for published user sources. That's why we
+        # override the generated uuid with the uuid from the original user_source
+        # prefixed with the domain id.
+        # For a certain domain the domain id is always the same as long as you don't
+        # recreate it.
+        for imported_user_source, original_user_source in zip(
+            duplicate_builder.user_sources.all(), builder.user_sources.all()
+        ):
+            imported_user_source.uid = f"domain_{domain.id}__{original_user_source.uid}"
+            imported_user_source.save()
 
         # Invalidate the public builder-by-domain cache after a new publication.
         DomainHandler.invalidate_public_builder_by_domain_cache(domain.domain_name)

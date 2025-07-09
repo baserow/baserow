@@ -16,14 +16,17 @@ from baserow.api.decorators import (
 )
 from baserow.api.errors import ERROR_DATABASE_DEADLOCK
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
+from baserow.api.services.errors import (
+    ERROR_SERVICE_IMPROPERLY_CONFIGURED,
+    ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
+    ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
+    ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
+)
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
     DiscriminatorCustomFieldsMappingSerializer,
     type_from_data_or_registry,
     validate_data_custom_fields,
-)
-from baserow.contrib.builder.api.data_sources.errors import (
-    ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
 )
 from baserow.contrib.builder.api.elements.errors import ERROR_ELEMENT_DOES_NOT_EXIST
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
@@ -31,8 +34,6 @@ from baserow.contrib.builder.api.workflow_actions.errors import (
     ERROR_DATA_DOES_NOT_EXIST,
     ERROR_WORKFLOW_ACTION_CANNOT_BE_DISPATCHED,
     ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
-    ERROR_WORKFLOW_ACTION_FORM_DATA_INVALID,
-    ERROR_WORKFLOW_ACTION_IMPROPERLY_CONFIGURED,
     ERROR_WORKFLOW_ACTION_NOT_IN_ELEMENT,
 )
 from baserow.contrib.builder.api.workflow_actions.serializers import (
@@ -41,14 +42,8 @@ from baserow.contrib.builder.api.workflow_actions.serializers import (
     OrderWorkflowActionsSerializer,
     UpdateBuilderWorkflowActionsSerializer,
 )
-from baserow.contrib.builder.data_providers.exceptions import (
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
-)
-from baserow.contrib.builder.data_sources.exceptions import (
-    DataSourceImproperlyConfigured,
 )
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
@@ -56,7 +51,6 @@ from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.workflow_actions.exceptions import (
     BuilderWorkflowActionCannotBeDispatched,
-    BuilderWorkflowActionImproperlyConfigured,
     WorkflowActionNotInElement,
 )
 from baserow.contrib.builder.workflow_actions.handler import (
@@ -70,7 +64,13 @@ from baserow.contrib.builder.workflow_actions.service import (
 )
 from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.core.exceptions import DeadlockException
-from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    DoesNotExist,
+    InvalidContextContentDispatchException,
+    InvalidContextDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
+)
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 
 
@@ -385,12 +385,12 @@ class DispatchBuilderWorkflowActionView(APIView):
         {
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
             WorkflowActionDoesNotExist: ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
-            ServiceImproperlyConfigured: ERROR_WORKFLOW_ACTION_IMPROPERLY_CONFIGURED,
             BuilderWorkflowActionCannotBeDispatched: ERROR_WORKFLOW_ACTION_CANNOT_BE_DISPATCHED,
-            BuilderWorkflowActionImproperlyConfigured: ERROR_WORKFLOW_ACTION_IMPROPERLY_CONFIGURED,
-            DataSourceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
-            FormDataProviderChunkInvalidException: ERROR_WORKFLOW_ACTION_FORM_DATA_INVALID,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
+            ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
+            InvalidContextDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
+            InvalidContextContentDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
+            UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
         }
     )
     @atomic_with_retry_on_deadlock()

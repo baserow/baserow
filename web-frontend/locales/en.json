@@ -9,9 +9,11 @@
     "billable": "Billable",
     "all": "All",
     "beta": "Beta",
+    "alpha": "Alpha",
     "summarize": "Summarize",
     "enabled": "Enabled",
     "disabled": "Disabled",
+    "optional": "Optional",
     "or": "or",
     "and": "and"
   },
@@ -109,7 +111,8 @@
     "minMaxValueField": "The field value must be between {min} and {max}.",
     "invalidURL": "Please enter a valid URL.",
     "email": "The field must be an email.",
-    "alreadyInUse": "This field name is already in use."
+    "alreadyInUse": "This field name is already in use.",
+    "copyFailed": "Copy to clipboard failed. Please try again."
   },
   "permission": {
     "admin": "Admin",
@@ -201,6 +204,22 @@
     "uuid": "A read-only unique and persistent uuid.",
     "autonumber": "A read-only field that automatically increments a number for each new row.",
     "password": "A write-only field that holds a hashed password. The value will be `null` if not set, or `true` if it has been set. It accepts a string to set it."
+  },
+  "fieldConstraint": {
+    "uniqueWithEmpty": "Unique with empty"
+  },
+  "fieldConstraintsSubform": {
+    "title": "Constraints",
+    "description": "Define rules that field values must follow.",
+    "addConstraint": "Add constraint",
+    "noConstraintsAvailable": "No constraints are available for this field type.",
+    "readonlyFieldMessage": "Constraints cannot be applied to read only fields.",
+    "errorGenericData": "Cannot apply field constraint due to existing data conflicts.",
+    "errorUniqueOrEmpty": "Some values in this field are duplicated. Remove or edit duplicates before applying this constraint.",
+    "errorInvalidConstraint": "This field constraint is not supported for this field type."
+  },
+  "fieldConstraintParametersText": {
+    "placeholder": "Enter constraint value"
   },
   "viewFilter": {
     "hasEmptyValue": "has empty value",
@@ -432,7 +451,11 @@
     "databaseDeadlockTitle": "Action failed",
     "databaseDeadlockDescription": "The action couldn't be completed due to multiple conflicting operations on the data at the same time. Please try again.",
     "databaseUniquePrimaryPropertyNotFoundTitle": "No unique primary property found",
-    "databaseUniquePrimaryPropertyNotFoundDescription": "This typically happens if the data sync source doesn't contain any property to get a unique row value from. In case of a table, it could be that there is no primary key."
+    "databaseUniquePrimaryPropertyNotFoundDescription": "This typically happens if the data sync source doesn't contain any property to get a unique row value from. In case of a table, it could be that there is no primary key.",
+    "fieldConstraintTitle": "Field constraint violation",
+    "fieldConstraintDescription": "Unable to apply constraint.",
+    "fieldDataConstraintTitle": "Field data constraint violation",
+    "fieldDataConstraintDescription": "Unable to to complete operation due to existing constraints violation."
   },
   "importerType": {
     "csv": "Import a CSV file",

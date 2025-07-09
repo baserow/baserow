@@ -8,6 +8,7 @@ from baserow.core.models import Workspace
 from baserow_enterprise.features import (
     ADVANCED_WEBHOOKS,
     AUDIT_LOG,
+    BUILDER_CUSTOM_CODE,
     BUILDER_FILE_INPUT,
     BUILDER_NO_BRANDING,
     BUILDER_SSO,
@@ -38,6 +39,7 @@ COMMON_ADVANCED_FEATURES = [
     BUILDER_SSO,
     BUILDER_NO_BRANDING,
     BUILDER_FILE_INPUT,
+    BUILDER_CUSTOM_CODE,
     # only self-hosted
     SSO,
 ]

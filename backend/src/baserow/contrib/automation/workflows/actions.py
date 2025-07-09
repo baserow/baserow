@@ -1,12 +1,15 @@
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.automation.actions import AUTOMATION_ACTION_CONTEXT
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.models import AutomationWorkflow
+from baserow.contrib.automation.workflows.constants import ALLOW_TEST_RUN_MINUTES
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.contrib.automation.workflows.trash_types import (
@@ -105,9 +108,19 @@ class UpdateAutomationWorkflowActionType(UndoableActionType):
         workflow_id: int,
         new_data: dict,
     ) -> AutomationWorkflow:
+        allow_test_run = new_data.pop("allow_test_run", None)
+        if allow_test_run is not None:
+            if allow_test_run:
+                new_data["allow_test_run_until"] = timezone.now() + timedelta(
+                    minutes=ALLOW_TEST_RUN_MINUTES
+                )
+            else:
+                new_data["allow_test_run_until"] = None
+
         updated_workflow = AutomationWorkflowService().update_workflow(
             user, workflow_id, **new_data
         )
+
         cls.register_action(
             user=user,
             params=cls.Params(
@@ -121,6 +134,7 @@ class UpdateAutomationWorkflowActionType(UndoableActionType):
             scope=cls.scope(updated_workflow.workflow.automation.id),
             workspace=updated_workflow.workflow.automation.workspace,
         )
+
         return updated_workflow.workflow
 
     @classmethod

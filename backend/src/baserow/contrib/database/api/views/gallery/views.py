@@ -20,6 +20,7 @@ from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS,
     ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
     EXCLUDE_COUNT_API_PARAM,
+    LIMIT_LINKED_ITEMS_API_PARAM,
     ONLY_COUNT_API_PARAM,
     SEARCH_MODE_API_PARAM,
 )
@@ -44,7 +45,10 @@ from baserow.contrib.database.api.views.gallery.serializers import (
     GalleryViewFieldOptionsSerializer,
 )
 from baserow.contrib.database.api.views.serializers import FieldOptionsField
-from baserow.contrib.database.api.views.utils import get_public_view_authorization_token
+from baserow.contrib.database.api.views.utils import (
+    get_public_view_authorization_token,
+    parse_limit_linked_items_params,
+)
 from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     FilterFieldNotFound,
@@ -130,6 +134,7 @@ class GalleryViewView(APIView):
             ),
             *ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
             SEARCH_MODE_API_PARAM,
+            LIMIT_LINKED_ITEMS_API_PARAM,
         ],
         tags=["Database table gallery view"],
         operation_id="list_database_table_gallery_view_rows",
@@ -232,8 +237,15 @@ class GalleryViewView(APIView):
 
         paginator = GalleryLimitOffsetPagination()
         page = paginator.paginate_queryset(queryset, request, self)
+
+        limit_linked_items = parse_limit_linked_items_params(request)
+        serializer_extra_kwargs = {"limit_linked_items": limit_linked_items}
+
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True
+            model,
+            RowSerializer,
+            is_response=True,
+            extra_kwargs=serializer_extra_kwargs,
         )
         serializer = serializer_class(page, many=True)
 
@@ -364,6 +376,7 @@ class PublicGalleryViewRowsView(APIView):
                 ),
             ),
             SEARCH_MODE_API_PARAM,
+            LIMIT_LINKED_ITEMS_API_PARAM,
         ],
         tags=["Database table gallery view"],
         operation_id="public_list_database_table_gallery_view_rows",
@@ -476,8 +489,15 @@ class PublicGalleryViewRowsView(APIView):
         paginator = GalleryLimitOffsetPagination()
         page = paginator.paginate_queryset(queryset, request, self)
 
+        limit_linked_items = parse_limit_linked_items_params(request)
+        serializer_extra_kwargs = {"limit_linked_items": limit_linked_items}
+
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, field_ids=field_ids
+            model,
+            RowSerializer,
+            is_response=True,
+            field_ids=field_ids,
+            extra_kwargs=serializer_extra_kwargs,
         )
         serializer = serializer_class(page, many=True)
 

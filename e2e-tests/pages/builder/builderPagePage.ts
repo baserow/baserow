@@ -38,7 +38,7 @@ export class BuilderPagePage extends BaserowPage {
       .click();
 
     await expect(
-      this.page.locator(".element-preview__name").getByText("Heading")
+      this.page.locator(".element-preview__name-tag").getByText("Heading")
     ).toBeVisible();
   }
 
@@ -49,7 +49,7 @@ export class BuilderPagePage extends BaserowPage {
 
     await this.page.locator(".button-element").filter({ has: button }).click();
     await expect(
-      this.page.locator(".element-preview__name").getByText("Button")
+      this.page.locator(".element-preview__name-tag").getByText("Button")
     ).toBeVisible();
   }
 

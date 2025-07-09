@@ -435,4 +435,4 @@ def test_local_baserow_table_service_searchable_mixin_get_used_field_names(
 
     result = service_type.get_used_field_names(service, dispatch_context)
 
-    assert result == [field.tsv_db_column]
+    assert result == []

@@ -109,7 +109,26 @@
         "rating": "Notation",
         "ratingInputDescription": "Un champ de notation",
         "fileInputDescription": "Un champ de formulaire pour envoyer des fichiers",
-        "fileInput": "Champ fichier"
+        "fileInput": "Champ fichier",
+        "errorPageParameterInError": "Au moins un paramètre de page est mal configuré",
+        "errorNavigationUrlMissing": "Propriété URL de navigation manquante",
+        "errorImageFileMissing": "Fichier image manquant",
+        "errorImageUrlMissing": "Propriété « Image URL » manquante",
+        "errorNoWorkflowAction": "Aucune action de workflow n'est configurée",
+        "errorOptionsMissing": "Aucune option configurée",
+        "errorIframeUrlMissing": "Propriété URL IFrame manquante",
+        "errorIframeContentMissing": "Contenu de l'IFrame manquant",
+        "errorNoMenuItem": "Aucun élément de menu n'est configuré",
+        "errorMenuItemInError": "Au moins un menu est mal configuré",
+        "errorSubMenuItemInError": "Au moins un sous-menu est mal configuré",
+        "errorValueMissing": "Propriété des valeurs manquantes",
+        "errorEmptyContainer": "Ce conteneur est vide",
+        "errorParentWithDataSourceMissing": "Aucune source de données sélectionnée sur l'élément ou un conteneur parent",
+        "errorDataSourceMissing": "Aucune source de données sélectionnée",
+        "errorSchemaPropertyMissing": "Aucune propriété de schéma sélectionnée",
+        "errorWorkflowActionInError": "Au moins une action est mal configurée",
+        "errorCollectionFieldInError": "Au moins un champ est mal configuré",
+        "errorNavigateToPageMissing": "Propriété Naviguer vers manquante"
     },
     "elementMenu": {
         "moveDown": "Descendre",
@@ -394,7 +413,8 @@
         "orientationHorizontal": "Horizontale",
         "orientationVertical": "Verticale",
         "buttonLoadMoreLabel": "Libellé « afficher plus »",
-        "propertySelectorMissingArrays": "Aucun champ à valeurs multiples n'a été trouvé pour être utilisé comme données."
+        "propertySelectorMissingArrays": "Aucun champ à valeurs multiples n'a été trouvé pour être utilisé comme données.",
+        "noName": "Aucun nom"
     },
     "mainThemeConfigBlock": {
         "colorsLabel": "Couleurs",
@@ -492,7 +512,11 @@
         "logoutLabel": "Déconnexion",
         "refreshDataSourceLabel": "Actualiser une source de données",
         "deleteRowLabel": "Supprimer une ligne",
-        "httpRequest": "Envoyer une requête HTTP"
+        "httpRequest": "Envoyer une requête HTTP",
+        "errorNavigateToPageMissing": "Propriété Naviguer vers manquante",
+        "errorPageParameterInError": "Au moins un paramètre de page est mal configuré",
+        "errorNavigationUrlMissing": "Propriété URL de destination manquante",
+        "errorDataSourceMissing": "Aucune source de données sélectionnée"
     },
     "getFormulaComponent": {
         "errorTooltip": "Référence invalide"
@@ -1135,5 +1159,29 @@
     },
     "automationSettingsModal": {
         "title": "Scénario"
+    },
+    "elementsGuidedTourStep": {
+        "title": "Ajouter des éléments à votre page",
+        "content": "Toutes les applications ont besoin de composants ! Ajoutez des éléments tels que des tableaux, des formulaires, des boutons, etc. pour donner vie à votre application."
+    },
+    "dataGuidedTourStep": {
+        "title": "Connectez vos données",
+        "content": "Liez vos tables Baserow ici pour afficher, filtrer et mettre à jour vos données de manière dynamique sur différents éléments."
+    },
+    "previewGuidedTourStep": {
+        "title": "Votre centre de contrôle",
+        "content": "C'est ici que vous configurez les pages de votre application. Ajoutez des éléments, prévisualisez le résultat et structurez votre application exactement comme vous le souhaitez."
+    },
+    "devicesGuidedTourStep": {
+        "title": "Prévisualisation sur différents appareils",
+        "content": "Passez d'un aperçu pour ordinateur de bureau à un aperçu pour tablette et à un aperçu pour mobile afin de voir comment votre application se présente sur différentes tailles d'écran. Assurez-vous que votre design fonctionne parfaitement sur tous les appareils !"
+    },
+    "sidePanelGuidedTourStep": {
+        "title": "Panneau latéral : Personnaliser les éléments",
+        "content": "*Onglet Général** - Configurez l'élément sélectionné.\n\n**Onglet Style** - Personnalisez le remplissage, la marge, les bordures, etc.\n\n**Onglet Visibilité** - Contrôlez qui peut voir cet élément : les utilisateurs connectés, les utilisateurs déconnectés ou des rôles spécifiques.\n\n**Onglet Événements** - Si l'élément prend en charge des actions, configurez-les ici pour une interactivité dynamique."
+    },
+    "previewPublishGuidedTourStep": {
+        "title": "Prévisualiser et publier votre application",
+        "content": "Cliquez sur **Preview** pour tester votre application en privé. Lorsque vous êtes prêt, cliquez sur **Publier** pour la partager avec le public via un domaine."
     }
 }

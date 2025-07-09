@@ -6,7 +6,7 @@ set -euo pipefail
 # ENVIRONMENT VARIABLES USED DIRECTLY BY THIS ENTRYPOINT
 # ======================================================
 
-export BASEROW_VERSION="1.33.4"
+export BASEROW_VERSION="1.34.0"
 
 # Used by docker-entrypoint.sh to start the dev server
 # If not configured you'll receive this: CommandError: "0.0.0.0:" is not a valid port number or address:port pair.
@@ -146,13 +146,12 @@ The available Baserow backend related commands, services and healthchecks are sh
 below:
 
 ADMIN COMMANDS:
-setup           : Runs all setup commands (migrate and update_formulas)
-manage          : Manage Baserow and its database
 bash            : Start a bash shell with the correct env setup
+manage          : Manage Baserow and its database
+setup           : Runs all setup commands (migrate and update_formulas)
 backup          : Backs up Baserow's database to DATA_DIR/backups by default
 restore         : Restores Baserow's database restores from DATA_DIR/backups by default
 python          : Run a python command
-shell           : Start a Django Python shell
 shell           : Start a Django Python shell
 wait_for_db     : Waits BASEROW_POSTGRES_STARTUP_CHECK_ATTEMPTS attempts for the
                   configured db to become available.
@@ -362,14 +361,17 @@ case "$1" in
     ci-check-startup)
         exec make ci-check-startup-python
     ;;
+    ci-check-startup-oss-only)
+        exec make ci-check-startup-python-oss-only
+    ;;
     celery-worker)
       if [[ -n "${BASEROW_RUN_MINIMAL}" && $BASEROW_AMOUNT_OF_WORKERS == "1" ]]; then
         export OTEL_SERVICE_NAME="celery-worker-combined"
         echo "Starting combined celery and export worker..."
-        start_celery_worker -Q celery,export -n default-worker@%h "${@:2}"
+        start_celery_worker -Q celery,export,automation_workflow -n default-worker@%h "${@:2}"
       else
         export OTEL_SERVICE_NAME="celery-worker"
-        start_celery_worker -Q celery -n default-worker@%h "${@:2}"
+        start_celery_worker -Q celery,automation_workflow -n default-worker@%h "${@:2}"
       fi
     ;;
     celery-worker-healthcheck)

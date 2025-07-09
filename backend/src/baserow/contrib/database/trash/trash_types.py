@@ -2,12 +2,13 @@ from typing import Any, Dict, List, Optional
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
-from django.db import connection
+from django.db import connection, router
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.dependencies.update_collector import (
     FieldUpdateCollector,
 )
+from baserow.contrib.database.fields.exceptions import FieldDataConstraintException
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
@@ -51,6 +52,16 @@ class TableTrashableItemType(TrashableItemType):
 
     def get_name(self, trashed_item: Table) -> str:
         return trashed_item.name
+
+    def lookup_trashed_item(
+        self, trashed_entry, trash_item_lookup_cache: Dict[str, Any] = None
+    ):
+        try:
+            return self.model_class.trash.select_related("database__workspace").get(
+                id=trashed_entry.trash_item_id
+            )
+        except self.model_class.DoesNotExist:
+            raise TrashItemDoesNotExist()
 
     def fields_to_restore(self, trashed_item: Table, trash_entry: TrashEntry):
         for field in trashed_item.field_set(manager="objects_and_trash").all():
@@ -244,7 +255,6 @@ class FieldTrashableItemType(TrashableItemType):
             from_model = table.get_model(field_ids=[], fields=[field])
             model_field = from_model._meta.get_field(field.db_column)
             schema_editor.remove_field(from_model, model_field)
-
             field.delete()
 
         # After the field is deleted we are going to call the after_delete method of
@@ -271,7 +281,9 @@ class RowTrashableItemType(TrashableItemType):
     @staticmethod
     def _get_table(parent_id):
         try:
-            return Table.objects_and_trash.get(id=parent_id)
+            return Table.objects_and_trash.select_related(
+                "database", "database__workspace"
+            ).get(id=parent_id)
         except Table.DoesNotExist:
             # The parent table must have been actually deleted, in which case the
             # row itself no longer exits.
@@ -284,7 +296,10 @@ class RowTrashableItemType(TrashableItemType):
         return [str(trashed_item) or f"unnamed row {trashed_item.id}"]
 
     def restore(self, trashed_item, trash_entry: TrashEntry):
-        super().restore(trashed_item, trash_entry)
+        try:
+            super().restore(trashed_item, trash_entry)
+        except Exception:
+            raise FieldDataConstraintException()
 
         table = self.get_parent(trashed_item)
         model = table.get_model()
@@ -297,7 +312,7 @@ class RowTrashableItemType(TrashableItemType):
         )
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.schedule_update_search_data(table, row_ids=[trashed_item.id])
 
         rows_to_return = list(
             model.objects.all().enhance_by_fields().filter(id=trashed_item.id)
@@ -380,7 +395,9 @@ class RowsTrashableItemType(TrashableItemType):
     @staticmethod
     def _get_table(parent_id):
         try:
-            return Table.objects_and_trash.get(id=parent_id)
+            return Table.objects_and_trash.select_related("database__workspace").get(
+                id=parent_id
+            )
         except Table.DoesNotExist:
             # The parent table must have been actually deleted, in which case the
             # row itself no longer exits.
@@ -413,13 +430,12 @@ class RowsTrashableItemType(TrashableItemType):
         trashed_item.delete()
 
         updated_fields = [f["field"] for f in model._field_objects.values()]
-        dependant_fields = []
         _, dependant_fields = RowHandler().update_dependencies_of_rows_created(
             model, rows_to_restore
         )
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.field_value_updated_or_created(table)
+        SearchHandler.schedule_update_search_data(table, row_ids=trashed_item.row_ids)
 
         if len(rows_to_restore) < 50:
             rows_to_return = list(
@@ -453,7 +469,7 @@ class RowsTrashableItemType(TrashableItemType):
     def permanently_delete_item(self, trashed_item, trash_item_lookup_cache=None):
         table_model = self._get_table_model(trashed_item.table_id)
         delete_qs = table_model.objects_and_trash.filter(id__in=trashed_item.row_ids)
-        delete_qs._raw_delete(delete_qs.db)
+        delete_qs._raw_delete(using=router.db_for_write(delete_qs.model))
         trashed_item.delete()
         RichTextFieldMention.objects.filter(
             table_id=trashed_item.table_id,

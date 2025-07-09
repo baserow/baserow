@@ -1,13 +1,12 @@
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.models import Table, TableUsage
 
 
 class TableFixtures:
-    def create_database_table(
-        self, user=None, create_table=True, force_add_tsvectors=True, **kwargs
-    ):
+    def create_database_table(self, user=None, create_table=True, **kwargs):
         if "database" not in kwargs:
             kwargs["database"] = self.create_database_application(user=user)
 
@@ -16,8 +15,6 @@ class TableFixtures:
 
         if "order" not in kwargs:
             kwargs["order"] = 0
-
-        kwargs.setdefault("needs_background_update_column_added", True)
 
         row_count = kwargs.pop("row_count", None)
         usage = {}
@@ -33,9 +30,12 @@ class TableFixtures:
             TableUsage.objects.create(table=table, **usage)
 
         if create_table:
-            model = table.get_model(force_add_tsvectors=force_add_tsvectors)
+            model = table.get_model()
             with safe_django_schema_editor() as schema_editor:
                 schema_editor.create_model(model)
+
+            workspace_id = table.database.workspace_id
+            SearchHandler.create_workspace_search_table_if_not_exists(workspace_id)
 
         return table
 

@@ -37,7 +37,8 @@
               navActive === 'section-table-' + table.id + '-create' ||
               navActive === 'section-table-' + table.id + '-update' ||
               navActive === 'section-table-' + table.id + '-move' ||
-              navActive === 'section-table-' + table.id + '-delete',
+              navActive === 'section-table-' + table.id + '-delete' ||
+              isPasswordFieldInTable(table.id),
           }"
         >
           <li>
@@ -123,6 +124,20 @@
               >{{ $t('apiDocs.deleteRow') }}</a
             >
           </li>
+          <li v-for="field in passwordFields[table.id]" :key="field.id">
+            <a
+              class="api-docs__nav-link"
+              :class="{
+                active: navActive === getPasswordFieldNav(field.id),
+              }"
+              @click.prevent="navigate(getPasswordFieldNav(field.id))"
+              >{{
+                $t('apiDocsPasswordFieldAuthentication.title', {
+                  name: field.name,
+                })
+              }}</a
+            >
+          </li>
         </ul>
       </li>
       <li>
@@ -192,7 +207,6 @@
 <script>
 export default {
   name: 'APIDocsMenu',
-  components: {},
   props: {
     database: {
       type: Object,
@@ -205,6 +219,22 @@ export default {
     navActive: {
       type: String,
       required: true,
+    },
+    passwordFields: {
+      type: Object,
+      required: true,
+    },
+  },
+  methods: {
+    getPasswordFieldNav(fieldId) {
+      return 'section-password-field-' + fieldId + '-authentication'
+    },
+    isPasswordFieldInTable(tableId) {
+      const passwordFields = this.passwordFields[tableId]
+      const navNames = passwordFields.map((field) => {
+        return this.getPasswordFieldNav(field.id)
+      })
+      return navNames.includes(this.navActive)
     },
   },
 }

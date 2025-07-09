@@ -6,7 +6,7 @@ import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.handler import SearchHandler, SearchModes
+from baserow.contrib.database.search.handler import SearchMode
 from baserow.test_utils.helpers import setup_interesting_test_table
 
 
@@ -57,7 +57,7 @@ def test_search_grid_with_compat_mode(api_client, data_fixture):
             "api:database:views:grid:list",
             kwargs={"view_id": view.id},
         ),
-        data={"search": "economy", "search_mode": SearchModes.MODE_COMPAT},
+        data={"search": "economy", "search_mode": SearchMode.COMPAT},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -100,7 +100,10 @@ def test_search_grid_with_full_text_disabled_compat_mode_used(
             "api:database:views:grid:list",
             kwargs={"view_id": view.id},
         ),
-        data={"search": "economy", "search_mode": SearchModes.MODE_FT_WITH_COUNT},
+        data={
+            "search": "economy",
+            "search_mode": SearchMode.FT_WITH_COUNT,
+        },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -144,7 +147,7 @@ def test_count_grid_with_compat_mode(api_client, data_fixture):
         data={
             "count": True,
             "search": "economy",
-            "search_mode": SearchModes.MODE_COMPAT,
+            "search_mode": SearchMode.COMPAT,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
@@ -155,9 +158,7 @@ def test_count_grid_with_compat_mode(api_client, data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_search_grid_with_full_text_with_count_mode(
-    api_client, data_fixture, enable_singleton_testing
-):
+def test_search_grid_with_full_text_with_count_mode(api_client, data_fixture):
     with transaction.atomic():
         user, jwt_token = data_fixture.create_user_and_token()
         table = data_fixture.create_database_table(user=user)
@@ -179,7 +180,10 @@ def test_search_grid_with_full_text_with_count_mode(
             "api:database:views:grid:list",
             kwargs={"view_id": view.id},
         ),
-        data={"search": "economy", "search_mode": SearchModes.MODE_FT_WITH_COUNT},
+        data={
+            "search": "economy",
+            "search_mode": SearchMode.FT_WITH_COUNT,
+        },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -201,9 +205,7 @@ def test_search_grid_with_full_text_with_count_mode(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_count_grid_with_full_text_with_count_mode(
-    api_client, data_fixture, enable_singleton_testing
-):
+def test_count_grid_with_full_text_with_count_mode(api_client, data_fixture):
     with transaction.atomic():
         user, jwt_token = data_fixture.create_user_and_token()
         table = data_fixture.create_database_table(user=user)
@@ -228,7 +230,7 @@ def test_count_grid_with_full_text_with_count_mode(
         data={
             "count": True,
             "search": "economy",
-            "search_mode": SearchModes.MODE_FT_WITH_COUNT,
+            "search_mode": SearchMode.FT_WITH_COUNT,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
@@ -242,17 +244,12 @@ def test_count_grid_with_full_text_with_count_mode(
 def test_can_create_and_index_and_search_interesting_test_table(
     api_client, data_fixture
 ):
-    with transaction.atomic():
-        user, jwt_token = data_fixture.create_user_and_token()
-        table, _, _, _, _ = setup_interesting_test_table(
-            data_fixture,
-            user,
-        )
-        view = data_fixture.create_grid_view(user=user, table=table)
-
-        SearchHandler.update_tsvector_columns(
-            table, update_tsvectors_for_changed_rows_only=False
-        )
+    user, jwt_token = data_fixture.create_user_and_token()
+    table, _, _, _, _ = setup_interesting_test_table(
+        data_fixture,
+        user,
+    )
+    view = data_fixture.create_grid_view(user=user, table=table)
 
     response = api_client.get(
         reverse(
@@ -261,7 +258,7 @@ def test_can_create_and_index_and_search_interesting_test_table(
         ),
         data={
             "search": "a.txt",
-            "search_mode": SearchModes.MODE_FT_WITH_COUNT,
+            "search_mode": SearchMode.FT_WITH_COUNT,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
@@ -315,7 +312,7 @@ def test_search_grid_defaults_to_compat_mode_when_env_var_not_set(
 
 
 @pytest.mark.django_db
-@override_settings(DEFAULT_SEARCH_MODE=SearchModes.MODE_FT_WITH_COUNT)
+@override_settings(DEFAULT_SEARCH_MODE=SearchMode.FT_WITH_COUNT)
 def test_search_grid_defaults_to_mode_set_via_env_var(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
 

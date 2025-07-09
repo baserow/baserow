@@ -14,9 +14,22 @@
         "localBaserowUpdateRow": "Modification d'une ligne",
         "localBaserowDeleteRow": "Supprimer une ligne",
         "localBaserowRowsCreated": "Des lignes sont créées",
-        "localBaserowRowsCreatedDescription": "Déclenché lorsqu'une ou plusieurs lignes sont créées dans une table Baserow.",
+        "localBaserowRowsCreatedDescription": "Déclenché lorsque des lignes sont créées dans une table Baserow.",
         "coreHTTPRequest": "Envoyer une requête HTTP",
-        "localBaserowCreateRowDescription": "Crée une nouvelle ligne dans une table Baserow."
+        "localBaserowCreateRowDescription": "Crée une nouvelle ligne dans une table Baserow.",
+        "localBaserowUpdateRowDescription": "Modifie une ligne dans une table Baserow.",
+        "localBaserowDeleteRowDescription": "Suppression d'une ligne dans une table Baserow.",
+        "localBaserowRowsUpdated": "Les lignes sont actualisées",
+        "localBaserowRowsUpdatedDescription": "Déclenché lorsque des lignes sont modifiées dans une table Baserow.",
+        "localBaserowRowsDeleted": "Les lignes sont supprimées",
+        "localBaserowRowsDeletedDescription": "Déclenché lorsque des lignes sont supprimés dans une table Baserow.",
+        "coreHTTPRequestDescription": "Envoie une requête HTTP à un point d'accès spécifié.",
+        "errorUrlMissing": "Propriété Url manquante",
+        "errorNoTableSelected": "Aucune table sélectionnée",
+        "errorFilterInError": "Au moins un filtre est mal configuré",
+        "errorSortingInError": "Au moins un tri est mal configuré",
+        "errorNoFieldSelected": "Aucun champ sélectionné",
+        "errorNoAggregationTypeSelected": "Aucun type d'agrégation n'a été sélectionné"
     },
     "localBaserowForm": {
         "user": "Utilisateur",
@@ -39,7 +52,11 @@
         "searchTabTitle": "Recherche",
         "searchFieldPlaceHolder": "Saisissez un terme de recherche...",
         "noTableChosenForFiltering": "Sélectionnez une table pour commencer à filtrer les lignes de la source de données.",
-        "noTableChosenForSorting": "Sélectionnez une table pour pouvoir ordonner les lignes de la sources de données."
+        "noTableChosenForSorting": "Sélectionnez une table pour pouvoir ordonner les lignes de la sources de données.",
+        "advancedConfig": "Avancé",
+        "defaultResultCount": "Nombre de résultats par défaut",
+        "defaultResultCountHelp": "Nombre d'enregistrements par défaut que cette source de données récupérera sur votre page. En fixant cette valeur à 0 et en l'utilisant sur un élément de collection, vous améliorerez les performances lors du chargement de la page en ne récupérant les enregistrements que lorsque l'élément est paginé.",
+        "defaultResultCountPlaceholder": "Valeur par défaut..."
     },
     "localBaserowTableServiceConditionalForm": {
         "noFilterTitle": "Vous n'avez pas encore créé de filtre pour cette source de données",

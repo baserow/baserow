@@ -10,10 +10,20 @@ class BaserowPremiumConfig(AppConfig):
         # noinspection PyUnresolvedReferences
         import baserow_premium.row_comments.receivers  # noqa: F401
         from baserow_premium.api.user.user_data_types import ActiveLicensesDataType
+        from baserow_premium.builder.application_types import (
+            PremiumBuilderApplicationType,
+        )
         from baserow_premium.row_comments.row_metadata_types import (
             RowCommentCountMetadataType,
             RowCommentsNotificationModeMetadataType,
         )
+
+        from baserow.core.registries import application_type_registry
+
+        # We replace the original application type with the premium one to
+        # add the licences to workspace serializer
+        application_type_registry.unregister(PremiumBuilderApplicationType.type)
+        application_type_registry.register(PremiumBuilderApplicationType())
 
         from baserow.api.user.registries import user_data_registry
         from baserow.contrib.database.export.registries import table_exporter_registry

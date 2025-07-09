@@ -29,13 +29,13 @@ def test_dispatch_context_page_range():
 
     dispatch_context = BuilderDispatchContext(request, None)
 
-    assert dispatch_context.range(None) == [0, 20]
+    assert dispatch_context.range(None) == [0, None]
 
     request.GET = {"offset": "-20", "count": "-10"}
 
     dispatch_context = BuilderDispatchContext(request, None)
 
-    assert dispatch_context.range(None) == [0, 1]
+    assert dispatch_context.range(None) == [0, 0]
 
 
 @pytest.mark.django_db
@@ -462,7 +462,7 @@ def test_builder_dispatch_context_public_allowed_properties_is_cached(
     }
 
     # Initially calling the property should cause a bunch of DB queries.
-    with django_assert_num_queries(9):
+    with django_assert_num_queries(10):
         result = dispatch_context.public_allowed_properties
         assert result == expected_results
 

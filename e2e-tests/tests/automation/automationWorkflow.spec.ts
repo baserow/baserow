@@ -13,11 +13,11 @@ test.describe("Automation workflow test suite", () => {
     await page.getByText("Create workflow").waitFor();
 
     await page
-      .locator(".modal__wrapper")
+      .locator(".modal__box")
       .getByPlaceholder("Enter a name...")
       .fill(workflowName);
 
-    await page.locator(".button").getByText("Add workflow").click();
+    await page.getByRole("button").getByText("Add workflow").click();
 
     await expect(page.getByText("Create workflow")).toBeHidden();
 
@@ -25,36 +25,51 @@ test.describe("Automation workflow test suite", () => {
       page.locator(".tree__link").getByText("Test Automation"),
       "Ensure the default automation name is displayed in the sidebar."
     ).toBeVisible();
+
+    const createNodeButton = page.getByRole("button", {
+      name: "Create automation node",
+    });
+    await expect(
+      createNodeButton,
+      "Ensure the button to create a node is visible."
+    ).toBeVisible();
   });
 
   test("Can duplicate a workflow", async ({ page }) => {
     const defaultWorkflowName = "Default workflow";
-    const workflow = await page
-      .locator(".side-bar-automation__link-text")
-      .getByText(defaultWorkflowName);
+    const workflow = page.getByRole("link", { name: defaultWorkflowName });
     await workflow.hover();
     await page.locator(".tree__sub > .tree__options").first().click();
-    await page.getByText("Duplicate").click();
-    await expect(page.getByText("Duplicate")).toBeHidden();
+    const duplicateLink = await page.locator(".context__menu").getByText("Duplicate")
+    await duplicateLink.click();
+    await expect(duplicateLink).toBeHidden();
 
     // Ensure the duplicated workflow is visible
+    const workflowLink = page.getByRole("link", {
+      name: `${defaultWorkflowName} 2`,
+    });
     await expect(
-      page
-        .locator(".side-bar-automation__link-text")
-        .getByText(`${defaultWorkflowName} 2`),
+      workflowLink,
       "Ensure the duplicated workflow is displayed in the sidebar."
+    ).toBeVisible();
+
+    const createNodeButton = page.getByRole("button", {
+      name: "Create automation node",
+    });
+    await expect(
+      createNodeButton,
+      "Ensure the button to create a node is visible."
     ).toBeVisible();
   });
 
   test("Can rename a workflow", async ({ page }) => {
     const defaultWorkflowName = "Default workflow";
-    const workflow = await page
-      .locator(".side-bar-automation__link-text")
-      .getByText(defaultWorkflowName);
+    const workflow = page.getByRole("link", { name: defaultWorkflowName });
     await workflow.hover();
     await page.locator(".tree__sub > .tree__options").first().click();
-    await page.getByText("Rename").click();
-    await expect(page.getByText("Rename")).toBeHidden();
+    const renameLink = await page.locator(".context__menu").getByText("Rename")
+    await renameLink.click();
+    await expect(renameLink).toBeHidden();
 
     // Focus on the side bar item, click the input area, and clear the current name
     const editable = await page.locator('span[contenteditable="true"]');
@@ -65,34 +80,47 @@ test.describe("Automation workflow test suite", () => {
 
     // Type new workflow name
     const newWorkflowName = "My new workflow name";
-    await editable.type(newWorkflowName);
+    await editable.fill(newWorkflowName);
 
     // Click outside to cause a blur event so that the name is saved
     await page.locator("body").click();
 
+    const workflowLink = page.getByRole("link", { name: "Workflow" });
     await expect(
-      page
-        .locator(".side-bar-automation__link-text")
-        .getByText(newWorkflowName),
+      workflowLink,
       "Ensure the renamed workflow is displayed in the sidebar."
+    ).toBeVisible();
+
+    const createNodeButton = page.getByRole("button", {
+      name: "Create automation node",
+    });
+    await expect(
+      createNodeButton,
+      "Ensure the button to create a node is visible."
     ).toBeVisible();
   });
 
   test("Can delete a workflow", async ({ page }) => {
     const defaultWorkflowName = "Default workflow";
-    const workflow = await page
-      .locator(".side-bar-automation__link-text")
-      .getByText(defaultWorkflowName);
+    const workflow = page.getByRole("link", { name: defaultWorkflowName });
     await workflow.hover();
     await page.locator(".tree__sub > .tree__options").first().click();
-    await page.getByText("Delete").click();
-    await expect(page.getByText("Delete")).toBeHidden();
+    const deleteLink = await page.locator(".context__menu").getByText("Delete")
+    await deleteLink.click();
+    await expect(deleteLink).toBeHidden();
 
+    const workflowLink = page.getByRole("link", { name: defaultWorkflowName });
     await expect(
-      page
-        .locator(".side-bar-automation__link-text")
-        .getByText(defaultWorkflowName),
+      workflowLink,
       "Ensure the workflow is no longer visible in the sidebar."
     ).not.toBeVisible();
+
+    const workspaceName = page
+      .locator(".dashboard__header")
+      .getByText("Default workspace");
+    await expect(
+      workspaceName,
+      "Ensure that the dashboard page is shown after workflow is deleted."
+    ).toBeVisible();
   });
 });

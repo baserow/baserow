@@ -2,13 +2,15 @@ from unittest.mock import patch
 
 import pytest
 
-from baserow.contrib.automation.models import AutomationWorkflow
+from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNotInAutomation,
 )
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.jobs.models import Job
+from baserow.core.utils import Progress
 
 SERVICES_PATH = "baserow.contrib.automation.workflows.service"
 
@@ -63,6 +65,16 @@ def test_create_workflow_user_not_in_workspace(data_fixture):
 
     with pytest.raises(UserNotInWorkspace):
         AutomationWorkflowService().create_workflow(user, automation.id, "test")
+
+
+@pytest.mark.django_db
+def test_create_workflow(data_fixture):
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = AutomationWorkflowService().create_workflow(user, automation.id, "foo")
+    assert workflow.automation_workflow_nodes.count() == 1
+    node = workflow.automation_workflow_nodes.get().specific
+    assert node.get_type().is_workflow_trigger
 
 
 @patch(f"{SERVICES_PATH}.automation_workflow_deleted")
@@ -201,3 +213,63 @@ def test_duplicate_workflow_user_not_in_workspace(data_fixture):
 
     with pytest.raises(UserNotInWorkspace):
         AutomationWorkflowService().duplicate_workflow(user, workflow)
+
+
+@pytest.mark.django_db
+def test_async_publish_raises_user_not_in_workspace(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow()
+
+    with pytest.raises(UserNotInWorkspace):
+        AutomationWorkflowService().async_publish(user, workflow.id)
+
+
+@pytest.mark.django_db
+def test_async_publish_starts_job(data_fixture):
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(automation=automation)
+
+    assert Job.objects.count() == 0
+
+    job = AutomationWorkflowService().async_publish(user, workflow.id)
+
+    assert Job.objects.count() == 1
+    assert job == Job.objects.first().specific
+
+
+@pytest.mark.django_db
+def test_publish_raises_user_not_in_workspace(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow()
+
+    with pytest.raises(UserNotInWorkspace):
+        AutomationWorkflowService().publish(user, workflow, Progress(0))
+
+
+@pytest.mark.django_db
+@patch(f"{SERVICES_PATH}.automation_workflow_published")
+def test_publish_workflow(mock_signal, data_fixture):
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(automation=automation)
+
+    service = AutomationWorkflowService()
+    service.publish(user, workflow, Progress(0))
+
+    workflow.refresh_from_db()
+    assert workflow.published is False
+    assert workflow.paused is False
+
+    published_automation = Automation.objects.get(published_from=workflow)
+    assert published_automation.automation.workspace is None
+    assert published_automation.workflows.count() == 1
+
+    published_workflow = published_automation.workflows.first()
+    assert published_workflow.published is True
+    assert published_workflow.paused is False
+    assert published_workflow.disabled_on is None
+
+    mock_signal.send.assert_called_once_with(
+        service, user=user, workflow=published_workflow
+    )

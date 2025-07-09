@@ -777,7 +777,6 @@ def test_export_user_source(data_fixture):
         table=table_from_same_workspace1,
         email_field=email_field,
         name_field=name_field,
-        uid="uid",
     )
 
     auth_provider = data_fixture.create_app_auth_provider_with_first_type(
@@ -796,7 +795,7 @@ def test_export_user_source(data_fixture):
         "role_field_id": None,
         "table_id": table_from_same_workspace1.id,
         "type": "local_baserow",
-        "uid": "uid",
+        "uid": user_source.get_type().gen_uid(user_source),
         "auth_providers": [
             {
                 "id": auth_provider.id,
@@ -1231,8 +1230,8 @@ def test_local_baserow_user_source_create_user_bad_configuration(
     # if the table has been trashed.
     user_source.name_field = name_field
     user_source.save()
-    user_table.trashed = True
-    user_table.save()
+    user_source.table.trashed = True
+    user_source.table.save()
 
     with pytest.raises(UserSourceImproperlyConfigured):
         user_source_type.create_user(
@@ -1296,8 +1295,8 @@ def test_local_baserow_user_source_get_user_misconfigured(
     # if the table has been trashed.
     user_source.name_field = name_field
     user_source.save()
-    user_table.trashed = True
-    user_table.save()
+    user_source.table.trashed = True
+    user_source.table.save()
 
     with pytest.raises(UserNotFound):
         user_source_type.get_user(user_source, user_id=first_user.id)
@@ -1520,49 +1519,25 @@ def test_local_baserow_user_source_get_user_model_with_trashed_table(data_fixtur
 def test_local_baserow_user_source_authentication_is_configured(
     data_fixture,
 ):
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+
     user_source_type = LocalBaserowUserSourceType()
     # All configured fields.
-    # fmt: off
-    assert user_source_type.is_configured(LocalBaserowUserSource(
-        email_field_id=1,
-        name_field_id=2,
-        table_id=3,
-        role_field_id=4,
-        integration_id=5
-    )) is True
-    # Missing email field.
-    # fmt: off
-    assert user_source_type.is_configured(LocalBaserowUserSource(
-        email_field_id=None,
-        name_field_id=2,
-        table_id=3,
-        role_field_id=4,
-    )) is False
-    # Missing name field.
-    # fmt: off
-    assert user_source_type.is_configured(LocalBaserowUserSource(
-        email_field_id=1,
-        name_field_id=None,
-        table_id=3,
-        role_field_id=4,
-    )) is False
-    # Missing table field.
-    # fmt: off
-    assert user_source_type.is_configured(LocalBaserowUserSource(
-        email_field_id=1,
-        name_field_id=2,
-        table_id=None,
-        role_field_id=4,
-    )) is False
-    # Missing integration field.
-    # fmt: off
-    assert user_source_type.is_configured(LocalBaserowUserSource(
-        email_field_id=1,
-        name_field_id=2,
-        table_id=3,
-        role_field_id=4,
-        integration_id=None,
-    )) is False
+    assert user_source_type.is_configured(user_source) is True
+
+    for field in [
+        "table",
+        "email_field",
+        "name_field",
+        "integration",
+    ]:
+        prev_field = getattr(user_source, field)
+        setattr(user_source, field, None)
+        assert (
+            user_source_type.is_configured(user_source) is False
+        ), f"Failed for {field}"
+        setattr(user_source, field, prev_field)
 
 
 @pytest.fixture(autouse=True)

@@ -22,10 +22,19 @@ export class ServiceType extends Registerable {
   /**
    * Whether the service is valid.
    * @param service - The service object.
+   * @returns {String} - The error message
+   */
+  getErrorMessage({ service }) {
+    return null
+  }
+
+  /**
+   * Whether the service is valid.
+   * @param service - The service object.
    * @returns {boolean} - If the service is valid.
    */
-  isInError({ service }) {
-    return false
+  isInError(params) {
+    return Boolean(this.getErrorMessage(params))
   }
 
   /**
@@ -85,8 +94,8 @@ export const DataSourceServiceTypeMixin = (Base) =>
     /**
      * The maximum number of records that can be returned by this service
      */
-    get maxResultLimit() {
-      return 1
+    getMaxResultLimit(service) {
+      return null
     }
 
     /**

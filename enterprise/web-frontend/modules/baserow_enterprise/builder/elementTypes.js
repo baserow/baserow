@@ -12,7 +12,7 @@ import {
   ensureString,
 } from '@baserow/modules/core/utils/validator'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
-import { AuditLogPaidFeature } from '@baserow_enterprise/paidFeatures'
+import { BuilderFileInputElementPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 import { AfterLoginEvent } from '@baserow/modules/builder/eventTypes'
 
@@ -51,24 +51,30 @@ export class AuthFormElementType extends ElementType {
   }
 
   getEvents(element) {
-    return [new AfterLoginEvent({ ...this.app })]
+    return [new AfterLoginEvent({ app: this.app })]
   }
 
-  isInError({ builder, element }) {
+  getErrorMessage({ workspace, page, element, builder }) {
     if (!element.user_source_id) {
-      return true
+      return this.$t('elementType.errorUserSourceMissing')
     }
     const userSource = this.app.store.getters['userSource/getUserSourceById'](
       builder,
       element.user_source_id
     )
     if (!userSource) {
-      return true
+      return this.$t('elementType.errorUserSourceMissing')
     }
     const userSourceType = this.app.$registry.get('userSource', userSource.type)
     const loginOptions = userSourceType.getLoginOptions(userSource)
 
-    return Object.keys(loginOptions).length === 0
+    const hasLoginOptions = Object.keys(loginOptions).length !== 0
+
+    if (!hasLoginOptions) {
+      return this.app.i18n.t('elementType.errorUserSourceHasNoLoginOption')
+    }
+
+    return super.getErrorMessage({ workspace, page, element, builder })
   }
 }
 
@@ -237,7 +243,9 @@ export class FileInputElementType extends FormElementType {
     ) {
       return [
         PaidFeaturesModal,
-        { 'initial-selected-type': AuditLogPaidFeature.getType() },
+        {
+          'initial-selected-type': BuilderFileInputElementPaidFeature.getType(),
+        },
       ]
     }
     return null

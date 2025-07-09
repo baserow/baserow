@@ -57,6 +57,17 @@
     }
   }
 
+  &--in-error:not(.element-preview--active)::before {
+    @include absolute(3px, auto, 3px, 4px);
+
+    content: '';
+    width: 3px;
+    border-radius: 5px;
+    background-color: $palette-red-500;
+
+    @include elevation($elevation-low);
+  }
+
   &:not(.element-preview--active) {
     cursor: pointer;
   }
@@ -96,25 +107,58 @@
   }
 }
 
-.element-preview__name {
+.element-preview__tags {
+  display: flex;
+  gap: 8px;
+
+  @include absolute(-26px, auto, auto, 8px);
+
+  .element-preview--on-top & {
+    @include absolute(auto, auto, -26px, 8px);
+  }
+}
+
+.element-preview__name-tag,
+.element-preview__error-tag {
   @include elevation($elevation-low);
-  @include absolute(-26px, auto, auto, 5px);
   @include rounded($rounded-3xl);
 
+  position: relative;
   font-size: 10px;
-  background-color: $palette-blue-500;
-  color: $white;
-  cursor: default;
-  padding: 4px 8px;
+  font-weight: 500;
   z-index: 1;
+  padding: 4px 8px;
+  cursor: default;
+}
 
-  .page__header &,
-  .page__footer & {
-    background-color: $palette-purple-500;
+.element-preview__name-tag {
+  background-color: $palette-neutral-100;
+  color: $palette-neutral-700;
+
+  .element-preview--active & {
+    background-color: $palette-blue-500;
+    color: $white;
+
+    .page__header &,
+    .page__footer & {
+      background-color: $palette-purple-500;
+    }
   }
+}
 
-  .element-preview--first-element & {
-    @include absolute(auto, auto, -26px, 5px);
+.element-preview__error-tag {
+  background-color: $palette-red-50;
+  color: $palette-red-800;
+  padding-left: 18px;
+
+  &::before {
+    content: '';
+    height: 6px;
+    width: 6px;
+    border-radius: 6px;
+    background-color: $palette-red-500;
+
+    @include absolute(8px, auto, auto, 8px);
   }
 }
 
@@ -131,7 +175,7 @@
 
   @include rounded($rounded);
 
-  .element-preview--first-element & {
+  .element-preview--on-top & {
     top: 30px;
   }
 }

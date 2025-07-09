@@ -266,13 +266,7 @@ export default {
   name: 'CoreHTTPRequestService',
   components: { InjectedFormulaInput },
   mixins: [form],
-  props: {
-    workflowAction: {
-      type: Object,
-      required: false,
-      default: null,
-    },
-  },
+  props: {},
   setup() {
     return { v$: useVuelidate() }
   },
@@ -360,7 +354,7 @@ export default {
   },
   validations() {
     const isValidParamOrHeaderName = (name) => {
-      const validNameRegex = /^[a-zA-Z0-9-_]+$/
+      const validNameRegex = /^[a-zA-Z0-9-_.]+$/
 
       if (name[0] === '-' || name[0] === '_') {
         return false

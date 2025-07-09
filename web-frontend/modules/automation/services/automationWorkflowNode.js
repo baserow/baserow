@@ -1,9 +1,11 @@
 export default (client) => {
   return {
-    create(workflowId, type) {
-      return client.post(`automation/workflow/${workflowId}/nodes/`, {
-        type,
-      })
+    create(workflowId, type, beforeId = null) {
+      const payload = { type }
+      if (beforeId !== null) {
+        payload.before_id = beforeId
+      }
+      return client.post(`automation/workflow/${workflowId}/nodes/`, payload)
     },
     get(workflowId) {
       return client.get(`automation/workflow/${workflowId}/nodes/`)
@@ -18,6 +20,9 @@ export default (client) => {
       return client.post(`/automation/workflow/${workflowId}/order/`, {
         node_ids: order,
       })
+    },
+    replace(nodeId, values) {
+      return client.post(`automation/node/${nodeId}/replace/`, values)
     },
   }
 }

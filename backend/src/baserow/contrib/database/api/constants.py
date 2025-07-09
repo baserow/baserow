@@ -5,7 +5,7 @@ from django.utils.functional import lazy
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter
 
-from baserow.contrib.database.search.handler import SearchModes
+from baserow.contrib.database.search.handler import SearchMode
 from baserow.contrib.database.views.registries import view_filter_type_registry
 
 PUBLIC_PLACEHOLDER_ENTITY_ID = 0
@@ -16,8 +16,8 @@ SEARCH_MODE_API_PARAM = OpenApiParameter(
     description=(
         "If provided, allows API consumers to determine what kind of search "
         "experience they wish to have. "
-        f"If the default `{SearchModes.MODE_FT_WITH_COUNT}` is used, then Postgres "
-        f"full-text search is used. If `{SearchModes.MODE_COMPAT}` is "
+        f"If the default `{SearchMode.FT_WITH_COUNT}` is used, then Postgres "
+        f"full-text search is used. If `{SearchMode.COMPAT}` is "
         "provided then the search term will be exactly searched for including "
         "whitespace on each cell. This is the Baserow legacy search behaviour."
     ),
@@ -262,5 +262,15 @@ EXCLUDE_FIELDS_API_PARAM = OpenApiParameter(
         "parameter `exclude_fields=field_1,field_2` then the fields with "
         "id `1` and id `2` are going to be excluded from the selection and "
         "response. "
+    ),
+)
+
+LIMIT_LINKED_ITEMS_API_PARAM = OpenApiParameter(
+    name="limit_linked_items",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.INT,
+    description=(
+        "if provided, the maximum number of relationships per link row field "
+        "in the response. If not provided, all the relationships will be returned."
     ),
 )

@@ -1,68 +1,165 @@
-import math
-import traceback
+"""
+Handler and utils for search data management.
+
+Search data table aggregates per-row per-field search data within a workspace. While
+new workspace/tables will use this by default, deployments that are running for some
+time already, may still use old way of keeping search data by maintaining per-field tsv
+columns in each user data table. Search data management must be aware of this, and
+migrate each table when it's feasible, ideally before/during first modification.
+
+This means some tables may be considered as 'legacy' in context of search, but this
+state should be temporary, and they will be migrated to search data tables eventually.
+
+"""
+
+from collections import defaultdict
+from datetime import datetime, timezone
 from enum import Enum
-from typing import TYPE_CHECKING, List, NamedTuple, Optional, Type
+from functools import lru_cache
+from typing import TYPE_CHECKING, Iterable, List
+from uuid import uuid4
 
 from django.conf import settings
-from django.contrib.postgres.indexes import GinIndex
-from django.contrib.postgres.search import SearchVector
-from django.core.cache import cache
-from django.db import connection, transaction
-from django.db.models import Expression, Func, Q, QuerySet, TextField, Value
+from django.contrib.postgres.search import SearchQuery
+from django.db import ProgrammingError, connection, router, transaction
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
+from django.db.models import (
+    DateTimeField,
+    Expression,
+    F,
+    Func,
+    IntegerField,
+    Model,
+    Q,
+    QuerySet,
+    TextField,
+    Value,
+)
+from django.db.models.sql.constants import LOUTER
 from django.utils.encoding import force_str
 
+from django_cte import With
 from loguru import logger
 from opentelemetry import trace
-from redis.exceptions import LockNotOwnedError
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
-from baserow.contrib.database.search.exceptions import (
-    PostgresFullTextSearchDisabledException,
-)
+from baserow.contrib.database.fields.field_filters import FILTER_TYPE_OR, FilterBuilder
 from baserow.contrib.database.search.expressions import LocalisedSearchVector
+from baserow.contrib.database.search.models import (
+    AbstractSearchValue,
+    PendingSearchValueUpdate,
+    get_search_indexes,
+)
 from baserow.contrib.database.search.regexes import (
     RE_ONE_OR_MORE_WHITESPACE,
     RE_REMOVE_ALL_PUNCTUATION_ALREADY_REMOVED_FROM_TSVS_FOR_QUERY,
     RE_REMOVE_NON_SEARCHABLE_PUNCTUATION_FROM_TSVECTOR_DATA,
 )
-from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
-from baserow.contrib.database.table.constants import (
-    ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
+from baserow.contrib.database.search.tasks import (
+    delete_search_data,
+    schedule_update_search_data,
 )
-from baserow.core.psycopg import sql
+from baserow.core.psycopg import errors
 from baserow.core.telemetry.utils import baserow_trace_methods
-from baserow.core.utils import ChildProgressBuilder, exception_capturer
+from baserow.core.utils import to_camel_case
 
 if TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field
-    from baserow.contrib.database.table.handler import TableForUpdate
-    from baserow.contrib.database.table.models import GeneratedTableModel, Table
+    from baserow.contrib.database.table.models import Table
 
 tracer = trace.get_tracer(__name__)
 
 
-class SearchModes(str, Enum):
+class SearchMode(str, Enum):
     # Use this mode to search rows using LIKE operators against each
     # `FieldType`, and return an accurate `count` in the response.
     # This method is slow after a few thousand rows and dozens of fields.
-    MODE_COMPAT = "compat"
+    COMPAT = "compat"
 
     # Use this mode to search rows using Postgres full-text search against
     # each `FieldType`, and provide a `count` in the response. This
     # method is much faster as tables grow in size.
-    MODE_FT_WITH_COUNT = "full-text-with-count"
+    FT_WITH_COUNT = "full-text-with-count"
 
 
-ALL_SEARCH_MODES = [getattr(mode, "value") for mode in SearchModes]
+ALL_SEARCH_MODES = [getattr(mode, "value") for mode in SearchMode]
 
 
-class FieldWithSearchVector(NamedTuple):
-    field: "Field"
-    search_vector: SearchVector
+@lru_cache(maxsize=1024)
+def _workspace_search_table_exists(workspace_id: int) -> bool:
+    """
+    Determines if the search table exists for the given workspace ID.
+    This is a cached version of the _workspace_search_table_exists method to avoid
+    repeated database queries for the same workspace.
 
-    @property
-    def field_tsv_db_column(self):
-        return self.field.tsv_db_column
+    :param workspace_id: The ID of the workspace to check.
+    :return: True if the search table exists, False otherwise.
+    """
+
+    search_table_name = SearchHandler.get_workspace_search_table_name(workspace_id)
+    with connection.cursor() as cursor:
+        raw_sql = """
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = current_schema()
+                AND table_name = %s
+            )
+        """  # nosec B608
+        cursor.execute(raw_sql, [search_table_name])
+        return cursor.fetchone()[0]
+
+
+@lru_cache(maxsize=1024)
+def _generate_search_table_model(
+    workspace_id: int, managed=False
+) -> "AbstractSearchValue":
+    from baserow.contrib.database.table.models import GeneratedModelAppsProxy
+
+    app_label = "database_search"
+    table_name = SearchHandler.get_workspace_search_table_name(workspace_id)
+    model_name = to_camel_case(table_name)
+
+    baserow_models = {}
+    apps = GeneratedModelAppsProxy(baserow_models, app_label)
+    meta = type(
+        "Meta",
+        (),
+        {
+            "apps": apps,
+            "managed": managed,
+            "db_table": table_name,
+            "app_label": app_label,
+            "indexes": get_search_indexes(workspace_id),
+            "unique_together": [("field_id", "row_id")],
+        },
+    )
+
+    def __str__(self):
+        return model_name
+
+    attrs = {
+        "Meta": meta,
+        "__module__": "database.models",
+        "_generated_table_model": True,
+        "baserow_workspace_id": workspace_id,
+        "baserow_models": baserow_models,
+        "parent": workspace_id,
+        "__str__": __str__,
+    }
+
+    model = type(
+        model_name,
+        (
+            AbstractSearchValue,
+            Model,
+        ),
+        attrs,
+    )
+    return model
+
+
+class SearchDatabaseSchemaEditor(BaseDatabaseSchemaEditor):
+    sql_delete_table = "DROP TABLE IF EXISTS %(table)s CASCADE"
 
 
 class SearchHandler(
@@ -71,25 +168,180 @@ class SearchHandler(
     )
 ):
     @classmethod
-    def full_text_enabled(cls):
-        return settings.USE_PG_FULLTEXT_SEARCH
+    def get_workspace_search_table_name(cls, workspace_id: int) -> str:
+        """
+        Returns the name of the search table for the given workspace ID.
+
+        :param workspace_id: The ID of the workspace for which the search table name is
+            being generated.
+        :return: The name of the search table for the specified workspace.
+        """
+
+        return f"database_search_workspace_{workspace_id}_data"
 
     @classmethod
-    def search_config(cls):
-        return settings.PG_SEARCH_CONFIG
+    def get_workspace_search_table_model(
+        cls, workspace_id: int, managed: bool = False
+    ) -> "AbstractSearchValue":
+        """
+        Generates the workspace search table model.
+
+        :param workspace_id: The ID of the workspace for which the search table model is
+            being generated.
+        :param managed: This flag should be set to True only when the needs to be
+            created for the first time, False otherwise.
+        :return: A dynamically generated model class that represents the search table
+            for the specified workspace.
+        """
+
+        return _generate_search_table_model(workspace_id, managed=managed)
 
     @classmethod
-    def get_default_search_mode_for_table(cls, table: "Table") -> str:
-        # Template table indexes are not created to save space so we can only use compat
-        # search here.
-        if table.database.workspace.has_template():
-            return SearchModes.MODE_COMPAT
+    def full_text_search_in_table(
+        cls,
+        queryset: QuerySet,
+        input_search: str,
+        fields: List["Field"],
+    ) -> QuerySet:
+        """
+        Searches in the provided queryset looking for the provided sanitized search
+        string in the provided fields:
 
-        search_mode = settings.DEFAULT_SEARCH_MODE
-        if table.tsvectors_are_supported:
-            search_mode = SearchModes.MODE_FT_WITH_COUNT
+        If the field search version is V1, it uses the existing tsvector columns to
+        filter the queryset. If the field search version is V2, it uses a CTE to filter
+        the queryset based on the search values in the search table.
 
-        return search_mode
+        :param queryset: The queryset to search in.
+        :param input_search: The search string to sanitize and look for in the fields.
+        :param fields: The list of fields to search in. All the fields must be
+            searchable and be in the same table as the queryset.
+        :return: A filtered queryset containing the rows that match the search criteria.
+        """
+
+        sanitized_search = cls.escape_postgres_query(input_search)
+
+        if len(sanitized_search) == 0:
+            return queryset.filter(id__in=[])
+
+        search_query = SearchQuery(
+            sanitized_search,
+            search_type="raw",
+            config=SearchHandler.search_config(),
+        )
+
+        search_table = cls.get_workspace_search_table_model(
+            fields[0].table.database.workspace_id
+        )
+        cte = With(
+            search_table.objects.filter(
+                field_id__in=[field.id for field in fields], value=search_query
+            )
+            .values("row_id")
+            .distinct(),
+            name=f"search_{uuid4().hex}",
+        )
+        search_queryset = (
+            cte.join(queryset, id=cte.col.row_id, _join_type=LOUTER)
+            .with_cte(cte)
+            .annotate(match_search=cte.col.row_id)
+        )
+
+        filter_builder = FilterBuilder(filter_type=FILTER_TYPE_OR)
+        filter_builder.filter(Q(match_search__isnull=False))
+        cls.add_exact_id_search(filter_builder, input_search)
+
+        return filter_builder.apply_to_queryset(search_queryset)
+
+    @classmethod
+    def add_exact_id_search(cls, filter_builder, input_search):
+        try:
+            # Search for the row ID if the `input_search` can be cast to an integer.
+            stripped_input = input_search.strip()
+            # int('0006') will produce 6 but we don't want 0006 to match row 6!
+            if not stripped_input.startswith("0"):
+                filter_builder.filter(Q(id=int(stripped_input)))
+        except ValueError:
+            pass
+
+    @classmethod
+    def can_use_full_text_search(cls, table: "Table") -> bool:
+        """
+        Determines if full-text search can be used for the given table, by checking
+        if the search table exists for the workspace of the table and if full-text
+        search is enabled in the settings.
+
+        :param table: The table for which to check if full-text search can be used.
+        """
+
+        if not cls.full_text_enabled():
+            return False
+
+        workspace = table.database.workspace
+        return cls.workspace_search_table_exists(workspace.id)
+
+    @classmethod
+    def workspace_search_table_exists(cls, workspace_id: int) -> bool:
+        """
+        Determines if the search table exists for the given workspace ID. This is a
+        cached version of the _workspace_search_table_exists method to avoid repeated
+        database queries for the same workspace.
+
+        :param workspace_id: The ID of the workspace to check.
+        :return: True if the search table exists, False otherwise. The result is cached
+            to improve performance.
+        """
+
+        return _workspace_search_table_exists(workspace_id)
+
+    @classmethod
+    def create_workspace_search_table_if_not_exists(cls, workspace_id: int):
+        """
+        Creates the workspace search table if it does not already exist. Since multiple
+        different tables in the same workspace can try to create the search table at the
+        same time, ensure only one of them will actually create it with the other ones
+        waiting for the lock to be released.
+
+        :param workspace_id: The ID of the workspace for which the search table should
+            be
+        """
+
+        if _workspace_search_table_exists(workspace_id):
+            return
+
+        # Django creates indexes only when the model is managed.
+        search_table_model = cls.get_workspace_search_table_model(
+            workspace_id, managed=True
+        )
+
+        try:
+            with transaction.atomic(using=router.db_for_write(search_table_model)):
+                with connection.schema_editor() as se:
+                    se.create_model(search_table_model)
+        except ProgrammingError as exc:
+            if isinstance(exc.__cause__, errors.DuplicateTable):
+                # If the table already exists, we can safely ignore the error.
+                logger.debug(
+                    f"Search table for workspace {workspace_id} already exists."
+                )
+            else:
+                raise exc
+        _workspace_search_table_exists.cache_clear()
+
+    @classmethod
+    def delete_workspace_search_table_if_exists(cls, workspace_id: int):
+        """
+        Drops the workspace search table if it exists. This is useful for cleaning up
+        the search table when a workspace is deleted or when the search feature is no
+        longer needed.
+
+        :param workspace_id: The ID of the workspace for which the search table should
+        """
+
+        search_table = cls.get_workspace_search_table_model(workspace_id, managed=True)
+        with safe_django_schema_editor(classes=[SearchDatabaseSchemaEditor]) as se:
+            se.delete_model(search_table)
+
+        _workspace_search_table_exists.cache_clear()
 
     @classmethod
     def special_char_tokenizer(cls, expression: Expression) -> Func:
@@ -132,6 +384,22 @@ class SearchHandler(
             Value("g"),
             function="regexp_replace",
             output_field=TextField(),
+        )
+
+    @classmethod
+    def full_text_enabled(cls) -> bool:
+        return settings.PG_FULLTEXT_SEARCH_ENABLED
+
+    @classmethod
+    def search_config(cls) -> str:
+        return settings.PG_FULLTEXT_SEARCH_CONFIG
+
+    @classmethod
+    def get_default_search_mode_for_table(cls, table: "Table") -> str:
+        return (
+            SearchMode.FT_WITH_COUNT
+            if cls.can_use_full_text_search(table)
+            else SearchMode.COMPAT
         )
 
     @classmethod
@@ -190,532 +458,44 @@ class SearchHandler(
     def after_field_created(cls, field: "Field", skip_search_updates: bool = False):
         """
         :param field: The Baserow field which was created in this table.
-        :param skip_search_updates: Whether to update the fields after.
+        :param skip_search_updates: Whether to update search data after.
         :return: None
         """
 
-        if field.tsvector_column_created:
-            cls._create_tsv_column(field)
-            if not skip_search_updates:
-                cls.entire_field_values_changed_or_created(
-                    field.table, updated_fields=[field]
-                )
+        cls.schedule_update_search_data(field.table, fields=[field])
 
     @classmethod
-    def _create_tsv_column(cls, field):
-        with safe_django_schema_editor(atomic=False) as schema_editor:
-            to_model = field.table.get_model(
-                fields=[field], field_ids=[], add_dependencies=False
-            )
-            tsv_model_field = to_model._meta.get_field(field.tsv_db_column)
-            schema_editor.add_field(to_model, tsv_model_field)
-            schema_editor.add_index(
-                to_model,
-                GinIndex(
-                    fields=[field.tsv_db_column],
-                    name=field.tsv_index_name,
-                ),
-            )
+    def all_fields_values_changed_or_created(cls, fields: Iterable["Field"]):
+        """
+        Called when many fields values have been changed or created.
+        Please note that fields might belong to different tables, so
+        this method will schedule updates for each table separately.
+
+        :param fields: The fields that have had their values changed or created.
+        """
+
+        if not fields:
+            return
+
+        fields_per_table = defaultdict(list)
+        for field in fields:
+            fields_per_table[field.table].append(field)
+
+        for table, table_fields in fields_per_table.items():
+            cls.schedule_update_search_data(table, fields=table_fields)
 
     @classmethod
-    def after_field_perm_delete(
-        cls,
-        field: "Field",
+    def after_field_moved_between_tables(
+        cls, moved_field: "Field", original_table_id: int
     ):
-        """
-        :param field: The current Baserow field which was deleted from this table.
-        :return: None
-        """
-
-        if field.tsvector_column_created:
-            # The table could have been perm deleted already so don't crash if we
-            # fail to delete because the table is already gone as that also means
-            # the tsv has been cleaned up already.
-            cls._drop_column_if_table_exists(
-                f"database_table_{field.table_id}", field.tsv_db_column
-            )
-
-    @staticmethod
-    def _drop_column_if_table_exists(table_name: str, column_to_drop: str):
-        with connection.cursor() as cursor:
-            cursor.execute(
-                sql.SQL(
-                    "ALTER TABLE IF EXISTS {table_name} DROP COLUMN {column_to_drop}"
-                ).format(
-                    table_name=sql.Identifier(table_name),
-                    column_to_drop=sql.Identifier(column_to_drop),
-                )
-            )
+        cls.schedule_update_search_data(moved_field.table, fields=[moved_field])
 
     @classmethod
-    def _collect_search_vectors(
-        cls,
-        model: Type["GeneratedTableModel"],
-        queryset: QuerySet,
-        field_ids_to_restrict_update_to: Optional[List[int]] = None,
-    ) -> List[FieldWithSearchVector]:
-        """
-        Responsible for finding all specific fields in a table, then per `FieldType`,
-        calling `get_search_expression` to get its `SearchVector` object, if
-        the field type is searchable.
-        """
-
-        vector_updates: List[FieldWithSearchVector] = []
-
-        for field in model.get_fields_with_search_index():
-            if (
-                field_ids_to_restrict_update_to is None
-                or field.id in field_ids_to_restrict_update_to
-            ):
-                vector_updates.append(
-                    cls._get_field_with_vector_from_field(field, queryset)
-                )  # noinspection PyTypeChecker
-        return vector_updates
-
-    @classmethod
-    def _get_field_with_vector_from_field(cls, field, queryset):
-        from baserow.contrib.database.fields.registries import field_type_registry
-
-        field_type = field_type_registry.get_by_model(field)
-        if field_type.is_searchable(field):
-            search_vector = LocalisedSearchVector(
-                field_type.get_search_expression(field, queryset)
-            )
-        else:
-            search_vector = Value(None)
-        return FieldWithSearchVector(field, search_vector)
-
-    @classmethod
-    def sync_tsvector_columns(cls, table: "TableForUpdate") -> "TableForUpdate":
-        """
-        Responsible for creating all the `tsvector` columns for each field in `table`.
-
-        :param table: The Table we want to create a tsvector per field.
-        :return: Table
-        """
-
-        from baserow.contrib.database.fields.models import Field
-
-        if not cls.full_text_enabled():
-            raise PostgresFullTextSearchDisabledException()
-
-        # Prepare a fresh model we can use to create the column.
-        model = table.get_model(force_add_tsvectors=True)
-
-        # A list of fields which were given a tsvector field. Once
-        # the schema changes have been applied, they'll be mass
-        # updated with `tsvector_column_created=True`.
-        fields_to_update: List[Field] = []
-
-        fields_to_add = set()
-        indices_to_add = set()
-
-        for field in model.get_fields_missing_search_index():
-            fields_to_add.add(field.tsv_db_column)
-            indices_to_add.add((field.tsv_db_column, field.tsv_index_name))
-            field.tsvector_column_created = True
-            fields_to_update.append(field)
-
-        with safe_django_schema_editor(atomic=False) as schema_editor:
-            for field_name in fields_to_add:
-                model_field = model._meta.get_field(field_name)
-                logger.debug(f"Adding {field_name} to table {table.id}")
-                schema_editor.add_field(model, model_field)
-            for field_name, index_name in indices_to_add:
-                schema_editor.add_index(
-                    model,
-                    GinIndex(fields=[field_name], name=index_name),
-                )
-
-        if fields_to_update:
-            invalidate_table_in_model_cache(table.id)
-            Field.objects.bulk_update(fields_to_update, ["tsvector_column_created"])
-
-        return table
-
-    @classmethod
-    def get_update_changed_rows_only_lock_key(cls, table):
-        return (
-            f"_update_tsvector_columns_update_tsvectors_for_changed_rows_only"
-            f"_{table.id}_lock"
-        )
-
-    @classmethod
-    def update_tsvector_columns_locked(
+    def schedule_update_search_data(
         cls,
         table: "Table",
-        update_tsvectors_for_changed_rows_only: bool,
-        field_ids_to_restrict_update_to: Optional[List[int]] = None,
-        progress_builder: Optional[ChildProgressBuilder] = None,
-    ):
-        """
-        Takes out a lock on the table what being updated if the
-        `update_tsvectors_for_changed_rows_only` argument is `True`. If there is a
-        lock, it won't do anything
-
-        :param table: The table which we're going to update.
-        :param update_tsvectors_for_changed_rows_only: If set to `True`, will only
-            update the tsvector in rows which have changed since their last update.
-            If set to `False`, will update all rows.
-        :param field_ids_to_restrict_update_to: If provided only the fields matching the
-            provided ids will have their tsv columns updated.
-        :param progress_builder: If provided will be used to build a child progress bar
-            and report on this methods progress to the parent of the progress_builder.
-        """
-
-        use_lock = hasattr(cache, "lock")
-        used_lock = False
-        if update_tsvectors_for_changed_rows_only and use_lock:
-            # If the `update_tsvectors_for_changed_rows_only` is True, the update
-            # statement will loop for as long as there are rows with
-            # `needs_background_update` equals to `True`. This method can be called
-            # while that process is running.
-            cache_lock = cache.lock(
-                cls.get_update_changed_rows_only_lock_key(table), timeout=60 * 60
-            )
-
-            # If the lock already exists, it means that another worker is already
-            # updating the rows where `needs_background_update` equals `True`,
-            # so we don't have to do anything.
-            if cache_lock.locked():
-                # This will make the progressbar skip this step.
-                ChildProgressBuilder.build(progress_builder, child_total=1).increment()
-                return
-
-            cache_lock.acquire(blocking=True)
-            used_lock = True
-
-        try:
-            cls.update_tsvector_columns(
-                table,
-                update_tsvectors_for_changed_rows_only,
-                field_ids_to_restrict_update_to,
-                progress_builder,
-            )
-        finally:
-            # The lock must be released if anything goes wrong during the update or
-            # when it's finished, otherwise it won't be possible to update the tsv
-            # cells for another 60 minutes until the lock times out.
-            if used_lock:
-                try:
-                    cache_lock.release()
-                except LockNotOwnedError:
-                    # If the lock release fails, it might be because of the timeout,
-                    # and it's been stolen, so we don't really care.
-                    pass
-
-    @classmethod
-    def update_tsvector_columns(
-        cls,
-        table: "Table",
-        update_tsvectors_for_changed_rows_only: bool,
-        field_ids_to_restrict_update_to: Optional[List[int]] = None,
-        progress_builder: Optional[ChildProgressBuilder] = None,
-    ):
-        """
-        Responsible for updating a table's `tsvector` columns. If the caller is
-        requesting that all changed rows are updated
-        (`update_tsvectors_for_changed_rows_only=True`), then it's recommended to call
-        `update_tsvector_columns_locked` instead, as it will prevent multiple
-        concurrent tsvector UPDATE queries from being executed.
-
-        :param table: The table which we're going to update.
-        :param update_tsvectors_for_changed_rows_only: If set to `True`, will only
-            update the tsvector in rows which have changed since their last update.
-            If set to `False`, will update all rows.
-        :param field_ids_to_restrict_update_to: If provided only the fields matching the
-            provided ids will have their tsv columns updated.
-        :param progress_builder: If provided will be used to build a child progress bar
-            and report on this methods progress to the parent of the progress_builder.
-        :return: None
-        """
-
-        # If the installation is set up so that full-text search is not
-        # used, and that compat mode is used, then raise an exception.
-        if not SearchHandler.full_text_enabled():
-            raise PostgresFullTextSearchDisabledException()
-
-        if (
-            update_tsvectors_for_changed_rows_only
-            and field_ids_to_restrict_update_to is not None
-        ):
-            raise ValueError(
-                "Must always update all fields when updating rows "
-                "with needs_background_update=True."
-            )
-
-        model = table.get_model()
-        qs = model.objects.all()
-
-        # Narrow down our queryset based on the provided kwargs. If
-        # `update_tsvectors_for_changed_rows_only` is `True` when they'll only update
-        # rows where `last_updated__lte=now()
-        if update_tsvectors_for_changed_rows_only:
-            qs = qs.filter(Q(**{f"{ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME}": True}))
-
-        collected_vectors = cls._collect_search_vectors(
-            model, qs, field_ids_to_restrict_update_to
-        )
-
-        # If we've updated the entire `tsvector` column, issue a vacuum to clear dead
-        # tuples immediately.
-        was_full_column_update = not update_tsvectors_for_changed_rows_only
-        must_vacuum = (
-            was_full_column_update
-            and collected_vectors
-            and settings.AUTO_VACUUM_AFTER_SEARCH_UPDATE
-            and not settings.TESTS
-        )
-
-        progress = ChildProgressBuilder.build(
-            progress_builder, child_total=1000 if must_vacuum else 800
-        )
-
-        rows_updated_count = cls.run_tsvector_update_statement(
-            collected_vectors,
-            qs,
-            # If we are updating all field ids, then we can safely unset the needs
-            # background update.
-            set_background_updated_false=field_ids_to_restrict_update_to is None,
-            update_tsvectors_for_changed_rows_only=update_tsvectors_for_changed_rows_only,
-            progress_builder=progress.create_child_builder(represents_progress=800),
-        )
-
-        if must_vacuum:
-            progress.increment(state="Vacuuming")
-            cls.vacuum_table(table)
-            progress.increment(200)
-            logger.info(
-                "Updated table {table_id}'s tsvs for all rows with optional field "
-                "filter of {field_ids}.",
-                table_id=table.id,
-                field_ids=field_ids_to_restrict_update_to or "no fields",
-            )
-        else:
-            logger.info(
-                "Updated {rows_updated_count} rows in table {table_id}'s tsvs with "
-                "optional field filter of {field_ids}.",
-                rows_updated_count=rows_updated_count or "a unknown number of",
-                field_ids=field_ids_to_restrict_update_to or "no fields",
-                table_id=table.id,
-            )
-
-    @classmethod
-    def vacuum_table(cls, table):
-        with connection.cursor() as cursor:
-            query = sql.SQL("VACUUM {table_name}").format(
-                table_name=sql.Identifier(table.get_database_table_name())
-            )
-            cursor.execute(query)  # type: ignore
-
-    @classmethod
-    def split_update_into_chunks_by_ranges(
-        cls,
-        qs,
-        update_query,
-        progress_builder: Optional[ChildProgressBuilder] = None,
-    ) -> Optional[int]:
-        """
-        Split the queryset up into chunks based on the count, and update the tsv
-        cells for the rows in the chunk. It will stop when max number of
-        precalculated iterations is reached.
-        """
-
-        total_count = qs.count()
-
-        # There can be an edge case where the row has already bee updated. To prevent
-        # division by zero exceptions, we don't have to do anything here.
-        if total_count == 0:
-            return 0
-
-        total_iterations = math.ceil(total_count / settings.TSV_UPDATE_CHUNK_SIZE)
-        progress = ChildProgressBuilder.build(
-            progress_builder, child_total=total_iterations
-        )
-        total_updated = 0
-        for i in range(0, total_count, settings.TSV_UPDATE_CHUNK_SIZE):
-            with transaction.atomic():
-                next_ids = qs.order_by("id").values_list("id", flat=True)[
-                    i : i + settings.TSV_UPDATE_CHUNK_SIZE
-                ]
-                next_chunk = qs.filter(id__in=next_ids).select_for_update(of=("self",))
-                total_updated += next_chunk.update(**update_query)
-            progress.increment()
-        return total_updated
-
-    @classmethod
-    def split_update_into_chunks_until_all_background_done(
-        cls,
-        qs,
-        update_query,
-        progress_builder: Optional[ChildProgressBuilder] = None,
-    ) -> Optional[int]:
-        """
-        This method keeps iterating over the provided row queryset, fetch the not
-        updated rows in chunks, and update the tsv cells of those chunks. It will
-        keep going until none are left.
-        """
-
-        estimated_count = qs.count()
-
-        # There can be an edge case where the row has already been updated. To prevent
-        # division by zero exceptions, we don't have to do anything here.
-        if estimated_count == 0:
-            return 0
-
-        estimated_iterations = math.ceil(
-            estimated_count / settings.TSV_UPDATE_CHUNK_SIZE
-        )
-        progress = ChildProgressBuilder.build(
-            progress_builder, child_total=estimated_iterations
-        )
-        total_updated = 0
-        while True:
-            with transaction.atomic():
-                next_ids = qs.order_by("id").values_list("id", flat=True)[
-                    0 : settings.TSV_UPDATE_CHUNK_SIZE
-                ]
-                next_ids = list(next_ids)
-                next_chunk = qs.filter(id__in=next_ids)
-                this_chunk_updated = next_chunk.update(**update_query)
-                progress.increment()
-                total_updated += 0
-                if this_chunk_updated == 0:
-                    return total_updated
-
-    @classmethod
-    def run_tsvector_update_statement(
-        cls,
-        collected_vectors: List,
-        qs: QuerySet,
-        set_background_updated_false: bool,
-        update_tsvectors_for_changed_rows_only: bool,
-        progress_builder: Optional[ChildProgressBuilder] = None,
-    ) -> Optional[int]:
-        progress = ChildProgressBuilder.build(progress_builder, child_total=1000)
-
-        try:
-            update_query = {
-                cv.field_tsv_db_column: cv.search_vector for cv in collected_vectors
-            }
-            if set_background_updated_false:
-                update_query[ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME] = Value(False)
-            if update_tsvectors_for_changed_rows_only:
-                return cls.split_update_into_chunks_until_all_background_done(
-                    qs,
-                    update_query,
-                    progress_builder=progress.create_child_builder(
-                        represents_progress=1000
-                    ),
-                )
-            else:
-                return cls.split_update_into_chunks_by_ranges(
-                    qs,
-                    update_query,
-                    progress_builder=progress.create_child_builder(
-                        represents_progress=1000
-                    ),
-                )
-        except Exception as e:
-            progress.set_progress(0)
-
-            logger.error(
-                "Failed to do full update search vector because of {e}. "
-                "Attempting to do per field updates one by one instead...",
-                e=str(e),
-            )
-            exception_capturer(e)
-            # Reset the original progress because we're going to start from scratch
-            # again.
-            progress.increment(-progress.progress)
-            cls.try_slower_but_best_effort_tsv_update(
-                collected_vectors,
-                qs,
-                set_background_updated_false,
-                update_tsvectors_for_changed_rows_only,
-                progress_builder=progress.create_child_builder(
-                    represents_progress=1000
-                ),
-            )
-
-    @classmethod
-    def try_slower_but_best_effort_tsv_update(
-        cls,
-        collected_vectors: List[FieldWithSearchVector],
-        qs: QuerySet,
-        set_background_updated_false,
-        update_tsvectors_for_changed_rows_only,
-        progress_builder: Optional[ChildProgressBuilder] = None,
-    ):
-        """
-        Given the complexity of all possible field configurations in Baserow there is
-        a good chance some fields might fail to index. This method ensures that
-        even if some columns fail to index in this exception situation, the rest of
-        the normal columns will still be indexed and the user will be able to continue
-        searching happily after.
-        """
-
-        from baserow.contrib.database.fields.handler import FieldHandler
-
-        progress = ChildProgressBuilder.build(
-            progress_builder, child_total=len(collected_vectors) * 1000 + 1000
-        )
-        progress.increment(state="Slower update")
-
-        num_worked = 0
-        for cv in collected_vectors:
-            try:
-                # re-fetch the fields incase they changed since we got the model
-                refetched_field = FieldHandler().get_field(cv.field.id).specific
-                cv = cls._get_field_with_vector_from_field(refetched_field, qs)
-                if update_tsvectors_for_changed_rows_only:
-                    cls.split_update_into_chunks_until_all_background_done(
-                        qs,
-                        {cv.field_tsv_db_column: cv.search_vector},
-                        progress_builder=progress.create_child_builder(
-                            represents_progress=1000
-                        ),
-                    )
-                else:
-                    cls.split_update_into_chunks_by_ranges(
-                        qs,
-                        {cv.field_tsv_db_column: cv.search_vector},
-                        progress_builder=progress.create_child_builder(
-                            represents_progress=1000
-                        ),
-                    )
-                num_worked += 1
-            except Exception as another_e:
-                field = cv.field
-                logger.error(
-                    "Failed to update search vector for field with id {field_id} / "
-                    "type {field_type} because of {e}, field.__str__ is: "
-                    + str(field)
-                    + " and expression is "
-                    + str(cv.search_vector),
-                    field_id=field.id,
-                    field_type=str(type(field)),
-                    e=str(another_e),
-                )
-                cls._search_error_handler(another_e)
-        if num_worked > len(collected_vectors) // 2 and set_background_updated_false:
-            # If more than half managed to work then it's better to mark them as
-            # having worked compared to the table filling up with more and more rows
-            # that never get marked as having had a background update.
-            cls.split_update_into_chunks_by_ranges(
-                qs,
-                {ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME: Value(False)},
-                progress_builder=progress.create_child_builder(
-                    represents_progress=1000
-                ),
-            )
-        else:
-            progress.increment(1000)
-
-    @classmethod
-    def field_value_updated_or_created(
-        cls,
-        table: "Table",
+        fields: list["Field"] | None = None,
+        row_ids: list[int] | None = None,
     ):
         """
         Called when field values for a table have been changed or created. Not called
@@ -723,113 +503,337 @@ class SearchHandler(
         search indexes.
 
         :param table: The table a field value has been created or updated in.
-        :param updated_fields: If only some fields have had values
-            changed then the search vector update can be optimized by providing those
-            here.
+        :param fields: Optional list of fields that have been changed or created. If
+            None, all fields in the table will be considered.
+        :param row_ids: Optional list of row IDs that have been changed or created. If
+            None, all rows in the table will be considered.
         """
 
-        cls._trigger_async_tsvector_task_if_needed(
-            table,
-            update_tsvs_for_changed_rows_only=True,
+        field_ids = None
+        if fields:
+            field_ids = [f.id for f in fields]
+
+        transaction.on_commit(
+            lambda: schedule_update_search_data.delay(table.id, field_ids, row_ids)
         )
 
     @classmethod
-    def entire_field_values_changed_or_created(
+    def schedule_delete_search_data(
         cls,
         table: "Table",
-        updated_fields: Optional[List["Field"]] = None,
+        field_ids: List[int] | None = None,
+        row_ids: List[int] | None = None,
     ):
         """
-        Called when field values for a table have been changed or created for an entire
-        field column at once.
+        Schedules the deletion of search data for the given table, fields and row ids.
+        If field_ids is None, all fields will be deleted for the given rows or entire
+        table. If row_ids is None, all rows will be deleted for the given fields or
+        entire table.
 
-        :param table: The table a field value has been created or updated in.
-        :param updated_fields: If only some fields have had values
-            changed then the search vector update can be optimized by providing those
-            here.
+        :param table: The table for which the search data should be deleted.
+        :param field_ids: Optional list of field IDs to delete search data for. If None,
+            all fields will be considered.
+        :param row_ids: Optional list of row IDs to delete search data for. If None,
+            all rows will be considered.
         """
 
-        cls._trigger_async_tsvector_task_if_needed(
-            table,
-            update_tsvs_for_changed_rows_only=False,
-            updated_fields=updated_fields,
+        transaction.on_commit(
+            lambda: delete_search_data.delay(table.id, field_ids, row_ids)
         )
 
     @classmethod
-    def all_fields_values_changed_or_created(cls, updated_fields: List["Field"]):
+    def delete_search_data(
+        cls,
+        table: "Table",
+        field_ids: List[int] | None = None,
+        row_ids: List[int] | None = None,
+    ):
         """
-        Called when field values for a table have been changed or created for an entire
-        field column at once. This is more efficient than calling
-        `entire_field_values_changed_or_created` for each table individually when
-        multiple tables have had field values changed. Please, make sure to
-        select_related the table for the "updated_fields" to avoid N+1 queries.
-
-        :param updated_fields: If only some fields have had values changed then the
-            search vector update can be optimized by providing those here.
+        Deletes search data for the given table, fields and row ids.
+        If row_ids is None, all rows will be deleted for the given fields.
         """
 
-        from baserow.contrib.database.search.tasks import (
-            async_update_multiple_fields_tsvector_columns,
-        )
-        from baserow.contrib.database.tasks import (
-            enqueue_task_on_commit_swallowing_any_exceptions,
+        workspace_id = table.database.workspace_id
+        if cls.workspace_search_table_exists(workspace_id) is False:
+            return
+
+        search_model = cls.get_workspace_search_table_model(workspace_id)
+
+        table_field_ids = [
+            f["field"].id
+            for f in table.get_model().get_field_objects(include_trash=True)
+        ]
+        if field_ids is None:
+            field_ids = table_field_ids
+        else:
+            field_ids = [fid for fid in set(field_ids) if fid in table_field_ids]
+
+        # Delete pending updates first
+        q = Q(field_id__in=field_ids)
+        if row_ids is not None:
+            q &= Q(row_id__in=row_ids)
+        cls._delete_pending_updates(q)
+
+        # Now delete the actual search data
+        qs = search_model.objects.filter(field_id__in=field_ids)
+        if row_ids is not None:
+            qs = qs.filter(row_id__in=row_ids)
+
+        qs.filter(field_id__in=field_ids)._raw_delete(
+            using=router.db_for_write(search_model)
         )
 
-        searchable_updated_fields_ids = [
-            field.id for field in updated_fields if field.table.tsvectors_are_supported
+    @classmethod
+    def queue_pending_search_update(
+        cls,
+        table: "Table",
+        field_ids: List[int] | None = None,
+        row_ids: List[int] | None = None,
+    ):
+        """
+        Queues a pending search value update for the given table, fields and row ids.
+        If field_ids is None, all searchable fields will be considered.
+        If row_ids is None, all rows will be considered.
+        Because PendingSearchValueUpdate has a unique constraint on (field_id, row_id),
+        this method will only create new entries for combinations that do not already
+        exist in the PendingSearchValueUpdate table.
+
+        :param table: The table for which the search value update should be queued.
+        :param field_ids: Optional list of field IDs to queue search value updates for.
+            If None, all searchable fields will be considered.
+        :param row_ids: Optional list of row IDs to queue search value updates for.
+            If None, all rows will be considered.
+        """
+
+        searchable_field_ids = {
+            f.id for f in table.get_model().get_searchable_fields(include_trash=True)
+        }
+        if field_ids is None:
+            field_ids = searchable_field_ids
+        else:
+            field_ids = [fid for fid in set(field_ids) if fid in searchable_field_ids]
+
+        ordered_field_ids = sorted(field_ids)
+        ordered_row_ids = sorted(set(row_ids or [None]))
+        PendingSearchValueUpdate.objects.bulk_create(
+            [
+                PendingSearchValueUpdate(
+                    table=table,
+                    field_id=field_id,
+                    row_id=row_id,
+                )
+                for field_id in ordered_field_ids
+                for row_id in ordered_row_ids
+            ],
+            ignore_conflicts=True,
+            batch_size=2500,
+        )
+
+    @classmethod
+    def initialize_missing_search_data(cls, table: "Table"):
+        """
+        Initializes the search data for all fields in the given table that have not
+        been initialized yet. This method will set the `search_data_initialized_at`
+        field to the current time for each field that is initialized.
+        This method processes each field separately to ensure progress on large
+        tables, and it will delete any pending updates for those fields after
+        initializing the search data.
+
+        :param table: The table for which the search data should be initialized.
+        :raises TableDoesNotExist: If the table does not exist.
+        """
+
+        model = table.get_model()
+        fields_to_initialze = [
+            fo["field"]
+            for fo in model.get_field_objects(include_trash=True)
+            if fo["field"].search_data_initialized_at is None
         ]
 
-        if searchable_updated_fields_ids:
-            enqueue_task_on_commit_swallowing_any_exceptions(
-                lambda: async_update_multiple_fields_tsvector_columns.delay(
-                    field_ids=searchable_updated_fields_ids,
-                    update_tsvs_for_changed_rows_only=False,
+        initialized_field_ids = []
+        for field in fields_to_initialze:
+            with transaction.atomic():
+                # Process each field separately to ensure progress on large tables.
+                cls.update_search_data(
+                    table, field_ids=[field.id], save_empty_values=False
                 )
-            )
+
+                field.search_data_initialized_at = datetime.now(tz=timezone.utc)
+                field.save(update_fields=["search_data_initialized_at"])
+                initialized_field_ids.append(field.id)
+
+        # Clean up any other pending updates for these fields, since we just
+        # initialized the search data for it.
+        cls._delete_pending_updates(Q(field_id__in=initialized_field_ids))
 
     @classmethod
-    def _trigger_async_tsvector_task_if_needed(
+    def update_search_data(
         cls,
-        table,
-        update_tsvs_for_changed_rows_only,
-        updated_fields: Optional[List["Field"]] = None,
+        table: "Table",
+        field_ids: Iterable[int] | None = None,
+        row_ids: Iterable[int] | None = None,
+        save_empty_values: bool = True,
     ):
-        if table.tsvectors_are_supported:
-            from baserow.contrib.database.search.tasks import (
-                async_update_tsvector_columns,
+        """
+        Updates the search data for the given table, fields and row ids.
+        If field_ids is None, all searchable fields will be updated.
+        If row_ids is None, all rows will be updated.
+
+        :param table: The table for which the search data should be updated.
+        :param field_ids: Optional list of field IDs to update search data for. If None,
+            all searchable fields will be considered.
+        :param row_ids: Optional list of row IDs to update search data for. If None,
+            all rows will be considered.
+        :param save_empty_values: If True, empty search values will be saved.
+            This can be False when initializing search data for the first time to save
+            space, but should be True when updating existing search data to ensure
+            that all searchable fields are represented in the search table.
+        """
+
+        model = table.get_model()
+        searchable_fields = {
+            f.id: f for f in model.get_searchable_fields(include_trash=True)
+        }
+        qs: QuerySet = model.objects_and_trash.all()
+        if row_ids is not None:
+            qs = qs.filter(id__in=list(row_ids))
+
+        if field_ids is None:
+            field_ids = list(searchable_fields.keys())
+        else:
+            field_ids = [f_id for f_id in set(field_ids) if f_id in searchable_fields]
+
+        if not field_ids:
+            logger.debug(
+                f"No searchable fields found for table {table.id} with fields "
+                f"{field_ids}. No updates will be made."
             )
-            from baserow.contrib.database.tasks import (
-                enqueue_task_on_commit_swallowing_any_exceptions,
+            return
+
+        workspace_id = table.database.workspace_id
+        search_model = cls.get_workspace_search_table_model(workspace_id)
+        field_querysets = []
+
+        now = datetime.now(tz=timezone.utc)
+        for field_id in field_ids:
+            field = searchable_fields[field_id]
+            field_qs = qs.all()
+
+            search_expr: Expression = field.get_type().get_search_expression(
+                field, field_qs
+            )
+            qs = field_qs.annotate(
+                row_id=F("id"),
+                field_id=Value(field_id, output_field=IntegerField()),
+                value=LocalisedSearchVector(search_expr),
+                timestamp=Value(now, output_field=DateTimeField()),
+            )
+            if not save_empty_values:
+                qs = qs.exclude(Q(value__iexact="") | Q(value__isnull=True))
+
+            field_querysets.append(
+                qs.values("field_id", "row_id", "value", "timestamp")
             )
 
-            searchable_updated_fields_ids = (
-                [field.id for field in updated_fields]
-                if updated_fields is not None
-                else None
-            )
+        union_qs, *rest = field_querysets
+        if rest:
+            union_qs = union_qs.union(*rest)
 
-            enqueue_task_on_commit_swallowing_any_exceptions(
-                lambda: async_update_tsvector_columns.delay(
-                    table.id,
-                    update_tsvs_for_changed_rows_only=update_tsvs_for_changed_rows_only,
-                    field_ids_to_restrict_update_to=searchable_updated_fields_ids,
+        sql, params = union_qs.order_by("field_id", "row_id").query.sql_with_params()
+
+        with connection.cursor() as cursor:
+            raw_sql = f"""
+                INSERT INTO {search_model._meta.db_table} (field_id, row_id, value, updated_on)
+                {sql}
+                ON CONFLICT (field_id, row_id)
+                DO UPDATE SET
+                    value = EXCLUDED.value,
+                    updated_on = EXCLUDED.updated_on;
+            """  # nosec B608
+            cursor.execute(raw_sql, params)
+
+    @classmethod
+    def _delete_pending_updates(cls, q: Q):
+        """
+        Deletes pending search value updates based on the provided Q object. This is a
+        helper method to avoid code duplication in the process_search_data_updates
+        method.
+        """
+
+        PendingSearchValueUpdate.objects.filter(q)._raw_delete(
+            using=router.db_for_write(PendingSearchValueUpdate)
+        )
+
+    @classmethod
+    def process_search_data_updates(cls, table: "Table", batch_size: int = 10):
+        """
+        Process pending search updates for a given table in two phases:
+
+        1. Full‐field updates (row_id=None): rebuilds the search index for an entire
+           field.
+        2. Row‐specific updates: groups updates for remaining fields into batches and
+           refreshes only affected rows.
+
+        Each update refreshes search data via `update_search_data` and then removes its
+        PendingSearchValueUpdate entry. The loop repeats in transactions until fewer
+        than `batch_size` updates are processed.
+
+        :param table: The Table whose pending search updates will be handled.
+        :param batch_size: Max number of update operations per transaction (default 10).
+            A higher number reduces the round trip to the database, but increases the
+            time between commits and if the task is killed all the updates will be lost.
+        """
+
+        def next_batch(count: int) -> QuerySet[PendingSearchValueUpdate]:
+            return (
+                PendingSearchValueUpdate.objects.filter(
+                    table=table, row_id__isnull=False
                 )
+                .select_for_update(of=("self",), skip_locked=True)
+                .order_by("field_id", "row_id")[:count]
             )
 
-    @classmethod
-    def _search_error_handler(cls, e):
-        if settings.TESTS:
-            # We want to see any issues immediately in debug mode.
-            raise e
-        traceback.print_exc()
-        exception_capturer(e)
+        def process_batch(num_updates=10):
+            processed = 0
 
-    @classmethod
-    def after_field_moved_between_tables(
-        cls, moved_field: "Field", original_table_id: int
-    ):
-        if moved_field.tsvector_column_created:
-            cls._drop_column_if_table_exists(
-                f"database_table_{original_table_id}", moved_field.tsv_db_column
-            )
-            cls._create_tsv_column(moved_field)
+            # Handle full-field updates (row_id=None) before row-specific updates
+            full_table_updates = PendingSearchValueUpdate.objects.filter(
+                table=table, row_id=None
+            ).select_for_update(of=("self",), skip_locked=True)[:num_updates]
+
+            for update in full_table_updates:
+                cls.update_search_data(table, field_ids=[update.field_id])
+                cls._delete_pending_updates(Q(field_id=update.field_id))
+
+                processed += 1
+                if processed >= num_updates:
+                    break
+
+            # Now handle single-row updates, grouping them for efficiency
+            while processed < num_updates:
+                rows_updates = next_batch(2500)
+
+                if not rows_updates:
+                    break
+
+                field_ids, row_ids = set(), set()
+                for u in rows_updates:
+                    field_ids.add(u.field_id)
+                    row_ids.add(u.row_id)
+
+                cls.update_search_data(
+                    table, field_ids=list(field_ids), row_ids=list(row_ids)
+                )
+                rows_updates._raw_delete(
+                    using=router.db_for_write(PendingSearchValueUpdate)
+                )
+
+                processed += 1
+
+            return processed
+
+        while True:
+            with transaction.atomic():
+                processed = process_batch(batch_size)
+            if processed < batch_size:
+                break

@@ -12,6 +12,34 @@ export function clone(o) {
 }
 
 /**
+ * Checks if target object is a subset of source object
+ * All keys in target must exist in source with matching values
+ * Uses _.isEqual for deep comparison.
+ */
+export function isSubObject(source, target) {
+  // Handle null/undefined cases
+  if (target == null) return true
+  if (source == null) return false
+
+  // Check each key-value pair in target
+  for (const key in target) {
+    if (!Object.prototype.hasOwnProperty.call(target, key)) continue
+
+    // If key doesn't exist in source, it's not a match
+    if (!Object.prototype.hasOwnProperty.call(source, key)) {
+      return false
+    }
+
+    // Use lodash isEqual for deep comparison
+    if (!_.isEqual(source[key], target[key])) {
+      return false
+    }
+  }
+
+  return true
+}
+
+/**
  * Creates an object where the key indicates the line number and the value is
  * the string that must be shown on that line number. The line number matches
  * the line number if the value would be stringified with an indent of 4

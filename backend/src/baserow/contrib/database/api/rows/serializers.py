@@ -51,6 +51,7 @@ def get_row_serializer_class(
     field_kwargs=None,
     include_id=False,
     required_fields=None,
+    extra_kwargs=None,
 ):
     """
     Generates a Django rest framework model serializer based on the available fields
@@ -85,6 +86,10 @@ def get_row_serializer_class(
     :param required_fields: List of field names that should be present even when
         performing partial validation.
     :type required_fields: list[str]
+    :param extra_kwargs: A dict containing additional kwargs for the serializer. To be
+        passed to the field serializer, the key in this dictionary must be listed in the
+        fieldType.serializer_extra_args list.
+    :type extra_kwargs: dict
     :return: The generated serializer.
     :rtype: ModelSerializer
     """
@@ -104,16 +109,16 @@ def get_row_serializer_class(
 
         if field_id_matches and field_name_matches:
             name = field["field"].name if user_field_names else field["name"]
-            extra_kwargs = field_kwargs.get(field["name"], {})
+            field_extra_kwargs = field_kwargs.get(field["name"], {})
             # If the field is configured to be read-only, then we want the API to
             # respond with an error if the key is provided. It should be possible to
             # update the cell value via handlers because the value is then managed by
             # something internally.
             if field["field"].read_only:
-                if "validators" not in extra_kwargs:
-                    extra_kwargs["validators"] = []
-                extra_kwargs["validators"].append(is_read_only)
-                extra_kwargs.pop("required", None)
+                if "validators" not in field_extra_kwargs:
+                    field_extra_kwargs["validators"] = []
+                field_extra_kwargs["validators"].append(is_read_only)
+                field_extra_kwargs.pop("required", None)
 
             if field["name"] != name:
                 # If we are building a serializer with names which do not match the
@@ -121,15 +126,24 @@ def get_row_serializer_class(
                 # We don't always do this if user_field_names is True as a user could
                 # have named fields "field_1" etc, in which case if we also set source
                 # DRF would crash as it only wants source set if the db column differs.
-                extra_kwargs["source"] = field["name"]
+                field_extra_kwargs["source"] = field["name"]
+
+            if extra_kwargs is not None:
+                field_extra_kwargs.update(
+                    {
+                        key: value
+                        for key, value in extra_kwargs.items()
+                        if key in field["type"].serializer_extra_args
+                    }
+                )
 
             if is_response:
                 serializer = field["type"].get_response_serializer_field(
-                    field["field"], **extra_kwargs
+                    field["field"], **field_extra_kwargs
                 )
             else:
                 serializer = field["type"].get_serializer_field(
-                    field["field"], **extra_kwargs
+                    field["field"], **field_extra_kwargs
                 )
             field_overrides[name] = serializer
             field_names.append(name)
@@ -218,6 +232,13 @@ def get_example_row_serializer_class(
             "add_order": False,
             "add_metadata": False,
             "read_only_fields": False,
+        },
+        "public_get": {
+            "class_name": "ExamplePublicRowResponseSerializer",
+            "add_id": True,
+            "add_order": True,
+            "add_metadata": False,
+            "read_only_fields": True,
         },
     }
 

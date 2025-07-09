@@ -35,6 +35,7 @@ from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.trash.errors import ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM
 from baserow.api.utils import validate_data
 from baserow.contrib.database.api.fields.errors import (
+    ERROR_FIELD_DATA_CONSTRAINT,
     ERROR_FIELD_DOES_NOT_EXIST,
     ERROR_FILTER_FIELD_NOT_FOUND,
     ERROR_INCOMPATIBLE_FIELD_TYPE,
@@ -69,6 +70,7 @@ from baserow.contrib.database.api.views.errors import (
 )
 from baserow.contrib.database.api.views.utils import serialize_single_row_metadata
 from baserow.contrib.database.fields.exceptions import (
+    FieldDataConstraintException,
     FieldDoesNotExist,
     FilterFieldNotFound,
     IncompatibleField,
@@ -511,6 +513,7 @@ class RowsView(APIView):
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             CannotCreateRowsInTable: ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
+            FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
         }
     )
     @atomic_with_retry_on_deadlock()
@@ -755,6 +758,7 @@ class RowView(APIView):
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             TokenCannotIncludeRowMetadata: ERROR_CANNOT_INCLUDE_ROW_METADATA,
+            FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
         }
     )
     @allowed_includes("metadata")
@@ -870,6 +874,7 @@ class RowView(APIView):
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
+            FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
         }
     )
     @atomic_with_retry_on_deadlock()
@@ -977,6 +982,7 @@ class RowView(APIView):
             CannotDeleteAlreadyDeletedItem: ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM,
             CannotDeleteRowsInTable: ERROR_CANNOT_DELETE_ROWS_IN_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
+            FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
         }
     )
     @atomic_with_retry_on_deadlock()
@@ -1075,6 +1081,7 @@ class RowMoveView(APIView):
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
+            FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
         }
     )
     @atomic_with_retry_on_deadlock()
@@ -1208,6 +1215,7 @@ class BatchRowsView(APIView):
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             CannotCreateRowsInTable: ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
+            FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
         }
     )
     @atomic_with_retry_on_deadlock()
@@ -1344,6 +1352,7 @@ class BatchRowsView(APIView):
             RowIdsNotUnique: ERROR_ROW_IDS_NOT_UNIQUE,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
+            FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
         }
     )
     @atomic_with_retry_on_deadlock()
@@ -1453,6 +1462,7 @@ class BatchDeleteRowsView(APIView):
             CannotDeleteAlreadyDeletedItem: ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM,
             CannotDeleteRowsInTable: ERROR_CANNOT_DELETE_ROWS_IN_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
+            FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
         }
     )
     @atomic_with_retry_on_deadlock()

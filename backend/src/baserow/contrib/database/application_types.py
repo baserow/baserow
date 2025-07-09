@@ -20,6 +20,9 @@ from baserow.contrib.database.api.serializers import DatabaseSerializer
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.utils.field_constraint import (
+    build_django_field_constraints,
+)
 from baserow.contrib.database.models import Database, Field, View
 from baserow.contrib.database.operations import ListTablesDatabaseTableOperationType
 from baserow.contrib.database.table.handler import TableHandler
@@ -80,6 +83,7 @@ class DatabaseApplicationType(ApplicationType):
             database.table_set(manager="objects_and_trash")
             .all()
             .select_related("database__workspace")
+            .prefetch_related("field_set")
         )
 
         for table in database_tables:
@@ -578,7 +582,7 @@ class DatabaseApplicationType(ApplicationType):
         for serialized_table in serialized_tables:
             table = serialized_table["_object"]
             if not import_export_config.reduce_disk_space_usage:
-                SearchHandler.entire_field_values_changed_or_created(table)
+                SearchHandler.schedule_update_search_data(table)
             for (
                 serialized_structure_processor
             ) in serialization_processor_registry.get_all():
@@ -860,6 +864,14 @@ class DatabaseApplicationType(ApplicationType):
                     if getattr(date_field, attr, False):
                         setattr(date_field, attr, False)
 
+            for field_instance in serialized_table["field_instances"]:
+                if field_instance.field_constraints.exists():
+                    constraints = build_django_field_constraints(
+                        field_instance, field_instance.field_constraints.all()
+                    )
+                    for constraint in constraints:
+                        schema_editor.add_constraint(table_model, constraint)
+
     def _import_table_views(
         self,
         serialized_table: Dict[str, Any],
@@ -912,7 +924,6 @@ class DatabaseApplicationType(ApplicationType):
                 database=database,
                 name=serialized_table["name"],
                 order=serialized_table["order"],
-                needs_background_update_column_added=True,
                 last_modified_by_column_added=True,
             )
             id_mapping["database_tables"][serialized_table["id"]] = table_instance.id

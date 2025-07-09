@@ -29,3 +29,7 @@ class DuplicateAutomationWorkflowOperationType(AutomationWorkflowOperationType):
 
 class RestoreAutomationWorkflowOperationType(AutomationWorkflowOperationType):
     type = "automation.workflow.restore"
+
+
+class PublishAutomationWorkflowOperationType(AutomationOperationType):
+    type = "automation.publish_workflow"

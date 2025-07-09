@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Toasts></Toasts>
+    <BuilderToasts></BuilderToasts>
     <RecursiveWrapper :components="builderPageDecorators">
       <PageContent
         v-if="canViewPage"
@@ -18,7 +18,7 @@ import PageContent from '@baserow/modules/builder/components/page/PageContent'
 import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
 
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
-import Toasts from '@baserow/modules/core/components/toasts/Toasts'
+import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
 import _ from 'lodash'
 import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
@@ -31,6 +31,7 @@ import {
 } from '@baserow/modules/core/utils/auth'
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import RecursiveWrapper from '@baserow/modules/database/components/RecursiveWrapper'
+import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
   await store.dispatch('userSourceUser/logoff', {
@@ -45,7 +46,7 @@ const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
 
 export default {
   name: 'PublicPage',
-  components: { RecursiveWrapper, PageContent, Toasts },
+  components: { RecursiveWrapper, PageContent, BuilderToasts },
   provide() {
     return {
       workspace: this.workspace,
@@ -155,7 +156,7 @@ export default {
           builder,
           page: sharedPage,
         }),
-        store.dispatch('workflowAction/fetchPublished', {
+        store.dispatch('builderWorkflowAction/fetchPublished', {
           page: sharedPage,
         }),
       ])
@@ -226,7 +227,7 @@ export default {
           page,
         }),
         store.dispatch('element/fetchPublished', { builder, page }),
-        store.dispatch('workflowAction/fetchPublished', { page }),
+        store.dispatch('builderWorkflowAction/fetchPublished', { page }),
       ])
     } catch (error) {
       if (error.response?.status === 401) {
@@ -269,7 +270,10 @@ export default {
         active_licenses: {
           per_workspace: {
             [builder.workspace.id]: Object.fromEntries(
-              builder.workspace.licenses.map((license) => [license, true])
+              (builder.workspace.licenses || []).map((license) => [
+                license,
+                true,
+              ])
             ),
           },
         },
@@ -286,16 +290,62 @@ export default {
     }
   },
   head() {
-    return {
+    const cssVars = Object.entries(this.themeStyle)
+      .map(([key, value]) => `\n${key}: ${value};`)
+      .join(' ')
+
+    const header = {
       titleTemplate: '',
       title: this.currentPage.name,
       bodyAttrs: {
         class: 'public-page',
       },
-      link: this.faviconLink,
+      style: [
+        {
+          cssText: `:root { ${cssVars} }`,
+          type: 'text/css',
+        },
+      ],
     }
+
+    if (this.faviconLink) {
+      header.link = [this.faviconLink]
+    }
+
+    const pluginHeaders = this.$registry.getList('plugin').map((plugin) =>
+      plugin.getBuilderApplicationHeaderAddition({
+        builder: this.builder,
+        mode: this.mode,
+      })
+    )
+
+    const result = _.mergeWith(
+      {},
+      ...pluginHeaders,
+      header,
+      (objValue, srcValue, key, object, source, stack) => {
+        switch (key) {
+          case 'link':
+          case 'script':
+            if (_.isArray(objValue)) {
+              return objValue.concat(srcValue)
+            }
+        }
+        return undefined // Default merge action
+      }
+    )
+    return result
   },
   computed: {
+    themeConfigBlocks() {
+      return this.$registry.getOrderedList('themeConfigBlock')
+    },
+    themeStyle() {
+      return ThemeConfigBlockType.getAllStyles(
+        this.themeConfigBlocks,
+        this.builder.theme
+      )
+    },
     elements() {
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
@@ -356,18 +406,16 @@ export default {
     },
     faviconLink() {
       if (this.builder.favicon_file?.url) {
-        return [
-          {
-            rel: 'icon',
-            type: this.builder.favicon_file.mime_type,
-            href: this.builder.favicon_file.url,
-            sizes: '128x128',
-            hid: true,
-          },
-        ]
-      } else {
-        return []
+        return {
+          rel: 'icon',
+          type: this.builder.favicon_file.mime_type,
+          href: this.builder.favicon_file.url,
+          sizes: '128x128',
+          hid: true,
+        }
       }
+
+      return null
     },
   },
   watch: {
@@ -445,10 +493,10 @@ export default {
         builder: this.builder,
         page: this.currentPage,
       })
-      await this.$store.dispatch('workflowAction/fetchPublished', {
+      await this.$store.dispatch('builderWorkflowAction/fetchPublished', {
         page: this.currentPage,
       })
-      await this.$store.dispatch('workflowAction/fetchPublished', {
+      await this.$store.dispatch('builderWorkflowAction/fetchPublished', {
         page: this.sharedPage,
       })
 
@@ -485,7 +533,7 @@ export default {
 
         const currentPath = this.$route.fullPath
         if (url !== currentPath) {
-          this.$store.dispatch('toast/info', {
+          this.$store.dispatch('builderToast/info', {
             title: this.$t('publicPage.authorizedToastTitle'),
             message: this.$t('publicPage.authorizedToastMessage'),
           })
@@ -527,7 +575,7 @@ export default {
             application: this.builder,
             token: refreshTokenFromProvider,
           })
-          this.$store.dispatch('toast/info', {
+          this.$store.dispatch('builderToast/info', {
             title: this.$t('publicPage.loginToastTitle'),
             message: this.$t('publicPage.loginToastMessage'),
           })

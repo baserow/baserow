@@ -5,7 +5,11 @@
         "sortTabTitle": "Sorteringen",
         "searchTabTitle": "Zoeken",
         "searchFieldPlaceHolder": "Voer een zoekterm in...",
-        "noTableChosenForFiltering": "Kies een tabel om te beginnen met het gebruik van gegevensbronfilters."
+        "noTableChosenForFiltering": "Kies een tabel om te beginnen met het gebruik van gegevensbronfilters.",
+        "advancedConfig": "Advanced",
+        "defaultResultCount": "Standaard aantal resultaten",
+        "defaultResultCountHelp": "Het standaard aantal rijen dat deze databron zal ophalen op je pagina. Door de waarde op 0 in te stellen en deze op een verzamelelement te gebruiken, worden de prestaties bij het laden van de pagina verbeterd doordat de records alleen worden opgehaald als het element wordt gepagineerd.",
+        "defaultResultCountPlaceholder": "Standaardwaarde..."
     },
     "localBaserowGetRowForm": {
         "rowFieldHelpText": "Laat deze waarde leeg om de eerste rij te retourneren.",
@@ -54,7 +58,20 @@
         "localBaserowRowsCreatedDescription": "Wordt geactiveerd wanneer er een of meer rijen worden gemaakt in een Baserow-tabel.",
         "coreHTTPRequest": "Stuur HTTP verzoek",
         "localBaserowRowsCreated": "Rijen aangemaakt",
-        "localBaserowCreateRowDescription": "Maak een nieuwe rij in een Baserow tabel."
+        "localBaserowCreateRowDescription": "Maak een nieuwe rij in een Baserow tabel.",
+        "localBaserowUpdateRowDescription": "Werkt een bestaande rij in een Baserow-tabel bij.",
+        "localBaserowDeleteRowDescription": "Verwijdert een rij in een Baserow-tabel.",
+        "localBaserowRowsUpdated": "Rijen zijn bijgewerkt",
+        "localBaserowRowsUpdatedDescription": "Wordt geactiveerd wanneer rijen in een Baserow-tabel worden bijgewerkt.",
+        "localBaserowRowsDeleted": "Rijen zijn verwijderd",
+        "localBaserowRowsDeletedDescription": "Wordt geactiveerd wanneer rijen worden verwijderd in een Baserow-tabel.",
+        "coreHTTPRequestDescription": "Stuurt een HTTP-verzoek naar een opgegeven eindpunt.",
+        "errorUrlMissing": "Ontbrekende Url-eigenschap",
+        "errorNoTableSelected": "Geen tabel geselecteerd",
+        "errorFilterInError": "Ten minste één filter is verkeerd geconfigureerd",
+        "errorSortingInError": "Ten minste één sortering is verkeerd geconfigureerd",
+        "errorNoFieldSelected": "Geen veld geselecteerd",
+        "errorNoAggregationTypeSelected": "Geen aggregatietype geselecteerd"
     },
     "userSourceType": {
         "localBaserow": "Baserow tabel authenticatie"

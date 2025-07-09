@@ -1,25 +1,25 @@
 dependencies:
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.25
+  version: 1.0.26
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.25
+  version: 1.0.26
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.25
+  version: 1.0.26
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.25
+  version: 1.0.26
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.25
+  version: 1.0.26
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.25
+  version: 1.0.26
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.25
+  version: 1.0.26
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 19.5.5
@@ -32,5 +32,5 @@ dependencies:
 - name: caddy-ingress-controller
   repository: https://caddyserver.github.io/ingress
   version: 1.1.0
-digest: sha256:e4b8c6530b002bd7c741008a4e247ff64068b55b3d4646525dd227a6217ca494
-generated: "2025-06-03T22:12:01.810992+02:00"
+digest: sha256:b64a5a814e3ee22f1b4fecaea688361fbf79b8536ba9d86714b42fc9f448232e
+generated: "2025-07-09T16:08:07.079011+02:00"

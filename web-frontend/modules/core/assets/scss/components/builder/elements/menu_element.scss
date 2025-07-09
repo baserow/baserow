@@ -19,7 +19,11 @@
   .menu-element__menu-item-separator {
     width: 100%;
     height: 1px;
-    background-color: $palette-neutral-500;
+    background-color: color-mix(
+      in srgb,
+      var(--body-text-color, $black),
+      var(--page-background-color, $white) 50%
+    );
     margin: 0 5px;
   }
 }
@@ -40,7 +44,11 @@
   .menu-element__menu-item-separator {
     width: 1px;
     height: 20px;
-    background-color: $palette-neutral-500;
+    background-color: color-mix(
+      in srgb,
+      var(--body-text-color, $black),
+      var(--page-background-color, $white) 50%
+    );
   }
 
   .menu-element__sub-link-menu--expanded-icon {
@@ -62,9 +70,6 @@
   gap: 10px;
   padding: 5px;
   border-radius: 6px;
-
-  // We want the same color as page background
-  background-color: var(--page-background-color, #fff);
 }
 
 .menu-element__sub-link {

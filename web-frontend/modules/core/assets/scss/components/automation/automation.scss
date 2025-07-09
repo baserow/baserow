@@ -1,13 +1,43 @@
-.automation-workflow__content {
+.automation-app {
   display: flex;
-  background-color: #fafafa;
+  flex-direction: column;
+  height: 100%; // Or another appropriate height
+}
 
-  .side-panels {
-    padding: 20px;
-  }
+.automation-workflow__content {
+  background-color: $palette-neutral-25;
+  display: flex;
+  flex-direction: row;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.automation-workflow__content--loading {
+  background-image: radial-gradient(circle, #ededed 1.4px, transparent 1.4px);
+  background-size: 15px 15px;
+  background-position: 5px 2px;
+  align-items: center;
+  justify-content: center;
 }
 
 .automation-workflow__side-panel {
-  flex: 1;
-  border-left: 1px solid $color-neutral-200;
+  flex: 20 1 0px;
+  padding: 16px;
+  overflow: hidden;
+  background-color: $white;
+  border-left: 1px solid $palette-neutral-200;
+  overflow-y: auto;
+  max-width: 350px;
+  min-width: 250px;
+}
+
+.automation-workflow__editor {
+  flex: 80 1 0px;
+  overflow: hidden;
+}
+
+.automation-header__last-published {
+  display: flex;
+  align-self: center;
+  color: $palette-neutral-900;
 }

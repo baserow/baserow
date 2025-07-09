@@ -13,16 +13,19 @@ from rest_framework.status import (
 )
 
 from baserow.api.user_files.serializers import UserFileSerializer
-from baserow.contrib.builder.data_sources.exceptions import (
-    DataSourceDoesNotExist,
-    DataSourceImproperlyConfigured,
-)
+from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.core.exceptions import PermissionException
 from baserow.core.models import Workspace
-from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    DoesNotExist,
+    InvalidContextContentDispatchException,
+    InvalidContextDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
+)
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
@@ -133,55 +136,53 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
 
     shared_page = builder_to.shared_page
     workspace = Workspace.objects.get()
-    assert response_json == {
-        "favicon_file": UserFileSerializer(builder_to.favicon_file).data,
-        "id": builder_to.id,
-        "name": builder_to.name,
-        "login_page_id": None,
-        "pages": [
-            {
-                "id": shared_page.id,
-                "name": "__shared__",
-                "path": "__shared__",
-                "path_params": [],
-                "query_params": [],
-                "shared": True,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-            {
-                "id": page.id,
-                "name": page.name,
-                "path": page.path,
-                "path_params": [],
-                "query_params": [],
-                "shared": False,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-            {
-                "id": page2.id,
-                "name": page2.name,
-                "path": page2.path,
-                "path_params": [],
-                "query_params": [],
-                "shared": False,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-        ],
-        "type": "builder",
-        "user_sources": [],
-        "workspace": {
-            "generative_ai_models_enabled": {},
-            "id": workspace.id,
-            "name": workspace.name,
-            "licenses": [],
-        },
+
+    assert (
+        response_json["favicon_file"]
+        == UserFileSerializer(builder_to.favicon_file).data
+    )
+    assert response_json["login_page_id"] is None
+    assert response_json["workspace"] == {
+        "generative_ai_models_enabled": {},
+        "id": workspace.id,
+        "name": workspace.name,
+        "licenses": [],
     }
+    assert response_json["pages"] == [
+        {
+            "id": shared_page.id,
+            "name": "__shared__",
+            "path": "__shared__",
+            "path_params": [],
+            "query_params": [],
+            "shared": True,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+        {
+            "id": page.id,
+            "name": page.name,
+            "path": page.path,
+            "path_params": [],
+            "query_params": [],
+            "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+        {
+            "id": page2.id,
+            "name": page2.name,
+            "path": page2.path,
+            "path_params": [],
+            "query_params": [],
+            "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+    ]
 
     # Even if I'm authenticated I should be able to see it.
     response = api_client.get(
@@ -268,55 +269,52 @@ def test_get_public_builder_by_id(api_client, data_fixture):
 
     shared_page = page.builder.shared_page
 
-    assert response_json == {
-        "favicon_file": UserFileSerializer(page.builder.favicon_file).data,
-        "id": page.builder.id,
-        "name": page.builder.name,
-        "login_page_id": None,
-        "pages": [
-            {
-                "id": shared_page.id,
-                "name": "__shared__",
-                "path": "__shared__",
-                "path_params": [],
-                "query_params": [],
-                "shared": True,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-            {
-                "id": page.id,
-                "name": page.name,
-                "path": page.path,
-                "path_params": [],
-                "query_params": [],
-                "shared": False,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-            {
-                "id": page2.id,
-                "name": page2.name,
-                "path": page2.path,
-                "path_params": [],
-                "query_params": [],
-                "shared": False,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-        ],
-        "type": "builder",
-        "user_sources": [],
-        "workspace": {
-            "generative_ai_models_enabled": {},
-            "id": page.builder.workspace.id,
-            "name": page.builder.workspace.name,
-            "licenses": [],
-        },
+    assert (
+        response_json["favicon_file"]
+        == UserFileSerializer(page.builder.favicon_file).data
+    )
+    assert response_json["login_page_id"] is None
+    assert response_json["workspace"] == {
+        "generative_ai_models_enabled": {},
+        "id": page.builder.workspace.id,
+        "name": page.builder.workspace.name,
+        "licenses": [],
     }
+    assert response_json["pages"] == [
+        {
+            "id": shared_page.id,
+            "name": "__shared__",
+            "path": "__shared__",
+            "path_params": [],
+            "query_params": [],
+            "shared": True,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+        {
+            "id": page.id,
+            "name": page.name,
+            "path": page.path,
+            "path_params": [],
+            "query_params": [],
+            "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+        {
+            "id": page2.id,
+            "name": page2.name,
+            "path": page2.path,
+            "path_params": [],
+            "query_params": [],
+            "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+    ]
 
 
 @pytest.mark.django_db
@@ -724,14 +722,24 @@ def test_public_dispatch_data_sources_view(
             "The requested data_source does not exist.",
         ),
         (
-            DataSourceImproperlyConfigured,
-            "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED",
-            "The data_source configuration is incorrect: ",
+            ServiceImproperlyConfiguredDispatchException,
+            "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+            "Exception content",
         ),
         (
-            ServiceImproperlyConfigured,
-            "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED",
-            "The data_source configuration is incorrect: ",
+            InvalidContextDispatchException,
+            "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT",
+            "Exception content",
+        ),
+        (
+            InvalidContextContentDispatchException,
+            "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
+            "Exception content",
+        ),
+        (
+            UnexpectedDispatchException,
+            "ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR",
+            "Exception content",
         ),
         (
             DoesNotExist,
@@ -771,7 +779,7 @@ def test_public_dispatch_data_sources_view_returns_error(
     mock_dispatch_context = MagicMock()
     mock_builder_dispatch_context.return_value = mock_dispatch_context
 
-    mock_service_contents = {"101": expected_exception()}
+    mock_service_contents = {"101": expected_exception("Exception content")}
     mock_dispatch_page_data_sources.return_value = mock_service_contents
 
     mock_page_id = 100

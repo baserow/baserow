@@ -1,0 +1,47 @@
+.custom-code__add-script {
+  position: relative;
+}
+
+.custom-code__add-script-button {
+  position: absolute;
+  right: 4px;
+  top: -6px;
+}
+
+.custom-code-setting-script-form__wrapper {
+  padding: 8px 0;
+}
+
+.custom-code-setting-script-form {
+  background-color: $color-neutral-100;
+  padding: 20px;
+  position: relative;
+
+  @include rounded($rounded-md);
+}
+
+.custom-code-setting-script-form__header {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  padding-bottom: 20px;
+}
+
+.custom-code-setting-script-form__handle {
+  width: 8px;
+  height: 13px;
+  background-image: radial-gradient($color-neutral-300 40%, transparent 40%);
+  background-size: 4px 4px;
+  background-repeat: repeat;
+  margin: 2px;
+  margin-right: 12px;
+  cursor: grab;
+  visibility: hidden;
+  position: absolute;
+  right: 0;
+  top: 8px;
+
+  .custom-code-setting-script-form:hover & {
+    visibility: visible;
+  }
+}

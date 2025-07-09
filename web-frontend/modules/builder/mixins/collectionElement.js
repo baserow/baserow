@@ -1,6 +1,6 @@
 import { mapActions, mapGetters } from 'vuex'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
-import { notifyIf } from '@baserow/modules/core/utils/error'
+import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 import _ from 'lodash'
 
 export default {
@@ -153,7 +153,13 @@ export default {
         // toasts per element sharing a datasource.
         if (!this.errorNotified) {
           this.errorNotified = true
-          notifyIf(error)
+          handleDispatchError(
+            error,
+            this,
+            this.$t('builderToast.errorDataSourceDispatch', {
+              name: this.dataSource.name,
+            })
+          )
         }
       }
     },

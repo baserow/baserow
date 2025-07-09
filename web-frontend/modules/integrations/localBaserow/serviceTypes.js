@@ -5,16 +5,16 @@ import {
   TriggerServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
-import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
-import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
-import LocalBaserowUpsertRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm.vue'
-import LocalBaserowUpdateRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpdateRowServiceForm.vue'
-import LocalBaserowDeleteRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowDeleteRowServiceForm.vue'
-import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
+import LocalBaserowUpsertRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm'
+import LocalBaserowUpdateRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpdateRowServiceForm'
+import LocalBaserowDeleteRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowDeleteRowServiceForm'
 import { uuid } from '@baserow/modules/core/utils/string'
 import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowAdhocHeader'
 import { DistributionViewAggregationType } from '@baserow/modules/database/viewAggregationTypes'
-import LocalBaserowRowsCreatedServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowRowsCreatedServiceForm'
+import LocalBaserowSignalTriggerServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowSignalTriggerServiceForm'
+import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
+import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
+import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
 
 export class LocalBaserowTableServiceType extends ServiceType {
   get integrationType() {
@@ -30,6 +30,21 @@ export class LocalBaserowTableServiceType extends ServiceType {
 
   getContextDataSchema(service) {
     return service.context_data_schema
+  }
+
+  /**
+   * Responsible for determining if this service is in error. It will be if the
+   * `table_id` is missing.
+   * @param service - The service object.
+   * @returns {boolean} - If the service is valid.
+   */
+  getErrorMessage({ service }) {
+    if (service !== undefined) {
+      if (!service.table_id) {
+        return this.app.i18n.t('serviceType.errorNoTableSelected')
+      }
+    }
+    return super.getErrorMessage({ service })
   }
 
   /**
@@ -58,7 +73,7 @@ export class LocalBaserowTableServiceType extends ServiceType {
     }
 
     if (this.isInError({ service })) {
-      description += ` - ${this.app.i18n.t('serviceType.misconfigured')}`
+      description += ` - ${this.getErrorMessage({ service })}`
     }
 
     return description
@@ -79,13 +94,21 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
    * @param service - The service object.
    * @returns {boolean} - If the service is valid.
    */
-  isInError({ service }) {
-    if (service === undefined) {
-      return false
+  getErrorMessage({ service }) {
+    if (service !== undefined) {
+      const filtersInError = service.filters?.some((filter) => filter.trashed)
+      if (filtersInError) {
+        return this.app.i18n.t('serviceType.errorfilterInError')
+      }
+
+      const sortingsInError = service.sortings?.some(
+        (sorting) => sorting.trashed
+      )
+      if (sortingsInError) {
+        return this.app.i18n.t('serviceType.errorSortingInError')
+      }
     }
-    const filtersInError = service.filters.some((filter) => filter.trashed)
-    const sortingsInError = service.sortings.some((sorting) => sorting.trashed)
-    return Boolean(!service.table_id || filtersInError || sortingsInError)
+    return super.getErrorMessage({ service })
   }
 }
 
@@ -100,6 +123,10 @@ export class LocalBaserowGetRowServiceType extends DataSourceLocalBaserowTableSe
 
   get formComponent() {
     return LocalBaserowGetRowForm
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowGetRowDescription')
   }
 
   /**
@@ -137,6 +164,10 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
     return LocalBaserowListRowsForm
   }
 
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowListRowsDescription')
+  }
+
   /**
    * The Local Baserow adhoc filtering, sorting and searching component.
    */
@@ -148,8 +179,8 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
     return true
   }
 
-  get maxResultLimit() {
-    return 100
+  getMaxResultLimit(service) {
+    return this.app.$config.INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT
   }
 
   /**
@@ -251,6 +282,10 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
     return this.app.i18n.t('serviceType.localBaserowAggregateRows')
   }
 
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowAggregateRowsDescription')
+  }
+
   get formComponent() {
     return LocalBaserowAggregateRowsForm
   }
@@ -280,17 +315,20 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
     return null
   }
 
-  isInError({ service }) {
-    if (service === undefined) {
-      return false
+  getErrorMessage({ service }) {
+    if (service !== undefined) {
+      if (!service.field_id) {
+        return this.app.i18n.t('serviceType.errorNoFieldSelected')
+      }
+      if (!service.aggregation_type) {
+        return this.app.i18n.t('serviceType.errorNoAggregationTypeSelected')
+      }
+      const filtersInError = service.filters.some((filter) => filter.trashed)
+      if (filtersInError) {
+        return this.app.i18n.t('serviceType.errorFilterInError')
+      }
     }
-    const filtersInError = service.filters.some((filter) => filter.trashed)
-    return Boolean(
-      !service.table_id ||
-        !service.field_id ||
-        !service.aggregation_type ||
-        filtersInError
-    )
+    return super.getErrorMessage({ service })
   }
 
   getDescription(service, application) {
@@ -340,6 +378,10 @@ export class LocalBaserowCreateRowWorkflowServiceType extends WorkflowActionServ
     return this.app.i18n.t('serviceType.localBaserowCreateRow')
   }
 
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowCreateRowDescription')
+  }
+
   get formComponent() {
     return LocalBaserowUpsertRowServiceForm
   }
@@ -354,6 +396,10 @@ export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServ
 
   get name() {
     return this.app.i18n.t('serviceType.localBaserowUpdateRow')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowUpdateRowDescription')
   }
 
   get formComponent() {
@@ -372,14 +418,29 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
     return this.app.i18n.t('serviceType.localBaserowDeleteRow')
   }
 
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowDeleteRowDescription')
+  }
+
   get formComponent() {
     return LocalBaserowDeleteRowServiceForm
   }
 }
 
-export class LocalBaserowRowsCreatedTriggerServiceType extends TriggerServiceTypeMixin(
+export class LocalBaserowTriggerServiceType extends TriggerServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
+  getErrorMessage({ service }) {
+    if (service !== undefined) {
+      if (!service.table_id) {
+        this.app.i18n.t('serviceType.errorNoTableSelected')
+      }
+    }
+    return super.getErrorMessage({ service })
+  }
+}
+
+export class LocalBaserowRowsCreatedTriggerServiceType extends LocalBaserowTriggerServiceType {
   static getType() {
     return 'rows_created'
   }
@@ -393,6 +454,42 @@ export class LocalBaserowRowsCreatedTriggerServiceType extends TriggerServiceTyp
   }
 
   get formComponent() {
-    return LocalBaserowRowsCreatedServiceForm
+    return LocalBaserowSignalTriggerServiceForm
+  }
+}
+
+export class LocalBaserowRowsUpdatedTriggerServiceType extends LocalBaserowTriggerServiceType {
+  static getType() {
+    return 'rows_updated'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.localBaserowRowsUpdated')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowRowsUpdatedDescription')
+  }
+
+  get formComponent() {
+    return LocalBaserowSignalTriggerServiceForm
+  }
+}
+
+export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowTriggerServiceType {
+  static getType() {
+    return 'rows_deleted'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.localBaserowRowsDeleted')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.localBaserowRowsDeletedDescription')
+  }
+
+  get formComponent() {
+    return LocalBaserowSignalTriggerServiceForm
   }
 }

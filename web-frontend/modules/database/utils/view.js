@@ -2,7 +2,7 @@ import { firstBy } from 'thenby'
 import BigNumber from 'bignumber.js'
 import { maxPossibleOrderValue } from '@baserow/modules/database/viewTypes'
 import { escapeRegExp, isSecureURL } from '@baserow/modules/core/utils/string'
-import { SearchModes } from '@baserow/modules/database/utils/search'
+import { SearchMode } from '@baserow/modules/database/utils/search'
 import { convertStringToMatchBackendTsvectorData } from '@baserow/modules/database/search/regexes'
 import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
@@ -355,7 +355,7 @@ export function valueMatchesActiveSearchTerm(
   value,
   activeSearchTerm
 ) {
-  if (searchMode === SearchModes.MODE_FT_WITH_COUNT) {
+  if (searchMode === SearchMode.FT_WITH_COUNT) {
     return _fullTextSearch(registry, field, value, activeSearchTerm)
   } else {
     return _compatSearchMode(registry, field, value, activeSearchTerm)

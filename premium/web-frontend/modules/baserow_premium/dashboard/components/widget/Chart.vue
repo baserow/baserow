@@ -257,6 +257,10 @@ export default {
       const serializedField = this.dataSource.context_data.fields[fieldName]
       const fieldType = serializedField.type
 
+      if (item[fieldName] === 'OTHER_VALUES') {
+        return this.$t('chart.other')
+      }
+
       if (this.$registry.exists('chartFieldFormatting', fieldType)) {
         const fieldFormatter = this.$registry.get(
           'chartFieldFormatting',

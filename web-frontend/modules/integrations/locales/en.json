@@ -4,7 +4,8 @@
     "multipleRows": "multiple rows"
   },
   "integrationType": {
-    "localBaserow": "Local Baserow"
+    "localBaserow": "Local Baserow",
+    "smtp": "SMTP Email"
   },
   "localBaserowIntegrationType": {
     "localBaserowSummary": "Local Baserow - {name}, {username}",
@@ -13,17 +14,37 @@
   },
   "serviceType": {
     "localBaserowGetRow": "Get single row",
+    "localBaserowGetRowDescription": "Read a single row from a Baserow table.",
     "localBaserowListRows": "List multiple rows",
+    "localBaserowListRowsDescription": "Reads multiple rows from a Baserow table.",
     "localBaserowAggregateRows": "Summarize field",
-    "localBaserowCreateRow": "Create a Row",
+    "localBaserowAggregateRowsDescription": "Summarizes a field in a Baserow table.",
+    "localBaserowCreateRow": "Create a row",
     "localBaserowCreateRowDescription": "Creates a new row in a Baserow table.",
-    "localBaserowUpdateRow": "Update a Row",
+    "localBaserowUpdateRow": "Update a row",
+    "localBaserowUpdateRowDescription": "Updates an existing row in a Baserow table.",
     "localBaserowDeleteRow": "Delete a row",
-    "localBaserowRowsCreated": "Rows created",
-    "localBaserowRowsCreatedDescription": "Triggered when one or more rows are created in a Baserow table.",
-    "coreHTTPRequest": "Send HTTP request",
+    "localBaserowDeleteRowDescription": "Deletes a row in a Baserow table.",
+    "localBaserowRowsCreated": "Rows are created",
+    "localBaserowRowsCreatedDescription": "Triggered when rows are created in a Baserow table.",
+    "localBaserowRowsUpdated": "Rows are updated",
+    "localBaserowRowsUpdatedDescription": "Triggered when rows are updated in a Baserow table.",
+    "localBaserowRowsDeleted": "Rows are deleted",
+    "localBaserowRowsDeletedDescription": "Triggered when rows are deleted in a Baserow table.",
+    "coreHTTPRequest": "Send an HTTP request",
+    "coreHTTPRequestDescription": "Sends an HTTP request to a specified endpoint.",
+    "coreSMTPEmail": "Send Email",
+    "coreSMTPEmailDescription": "Sends an email using SMTP configuration.",
+    "errorFromEmailMissing": "Missing From Email property",
+    "errorToEmailsMissing": "Missing To Emails property",
     "misconfigured": "Misconfigured",
-    "trashedField": "Trashed field"
+    "trashedField": "Trashed field",
+    "errorUrlMissing": "Missing Url property",
+    "errorNoTableSelected": "No table selected",
+    "errorFilterInError": "At least one filter is misconfigured",
+    "errorSortingInError": "At least one sort is misconfigured",
+    "errorNoFieldSelected": "No field selected",
+    "errorNoAggregationTypeSelected": "No aggregation type selected"
   },
   "userSourceType": {
     "localBaserow": "Baserow table authentication"
@@ -49,7 +70,11 @@
     "searchTabTitle": "Search",
     "searchFieldPlaceHolder": "Enter a search term...",
     "noTableChosenForFiltering": "Choose a table to begin using data source filters.",
-    "noTableChosenForSorting": "Choose a table to begin using data source sorts."
+    "noTableChosenForSorting": "Choose a table to begin using data source sorts.",
+    "advancedConfig": "Advanced",
+    "defaultResultCount": "Default result count",
+    "defaultResultCountHelp": "The default number of records this data source will fetch on your page. Setting the value to 0, and using it on a collection element, will improve performance on page load by only fetching the records when the element is paginated.",
+    "defaultResultCountPlaceholder": "Default value..."
   },
   "localBaserowAggregateRowsForm": {
     "filterTabTitle": "Filters",
@@ -113,5 +138,39 @@
     "chooseNoView": "Not selected",
     "databaseFieldLabel": "Database",
     "dataSyncedTableDescription": "Data synced table"
+  },
+  "smtpIntegrationType": {
+    "smtpSummary": "SMTP - {host}:{port}"
+  },
+  "smtpForm": {
+    "host": "SMTP Host",
+    "hostPlaceholder": "smtp.gmail.com",
+    "port": "SMTP Port",
+    "portPlaceholder": "587",
+    "useTls": "Use TLS",
+    "username": "Username",
+    "usernamePlaceholder": "your-email@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "your-password"
+  },
+  "smtpEmailForm": {
+    "integrationDropdownLabel": "Integration",
+    "fromEmail": "From Email",
+    "fromEmailPlaceholder": "sender@example.com",
+    "fromName": "From Name",
+    "fromNamePlaceholder": "Your Name",
+    "toEmails": "To Emails",
+    "toEmailsPlaceholder": "recipient1@example.com,recipient2@example.com",
+    "ccEmails": "CC Emails",
+    "ccEmailsPlaceholder": "cc1@example.com,cc2@example.com",
+    "bccEmails": "BCC Emails",
+    "bccEmailsPlaceholder": "bcc1@example.com,bcc2@example.com",
+    "subject": "Subject",
+    "subjectPlaceholder": "Your email subject",
+    "bodyType": "Body Type",
+    "bodyTypePlain": "Plain Text",
+    "bodyTypeHtml": "HTML",
+    "body": "Body",
+    "bodyPlaceholder": "Your email content..."
   }
 }

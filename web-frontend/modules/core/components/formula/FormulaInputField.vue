@@ -153,16 +153,21 @@ export default {
       ]
     },
     htmlContent() {
-      return generateHTML(this.content, this.extensions)
+      try {
+        return generateHTML(this.content, this.extensions)
+      } catch (e) {
+        console.error('Error while parsing formula content', this.value)
+        console.error(e)
+        return generateHTML(this.toContent(''), this.extensions)
+      }
     },
     wrapperContent() {
       return this.editor.getJSON()
     },
     nodes() {
-      const nodes = this.dataProviders
+      return this.dataProviders
         .map((dataProvider) => dataProvider.getNodes(this.applicationContext))
         .filter((dataProviderNodes) => dataProviderNodes.nodes?.length > 0)
-      return nodes
     },
     nodeSelected() {
       return this.dataNodeSelected?.attrs?.path || null
@@ -174,7 +179,7 @@ export default {
     },
     async isFocused(value) {
       if (!value) {
-        this.$refs.dataExplorer.hide()
+        this.$refs.dataExplorer?.hide()
         this.unSelectNode()
       } else {
         // Wait for the data explorer to appear in the DOM.

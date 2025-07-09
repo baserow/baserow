@@ -49,6 +49,8 @@ test.describe("Builder page button element test suite", () => {
     // Let's add an action
     await eventsTab.getByText("add action").click();
 
+    await page.locator(".context").getByText("Show Notification").click();
+
     await expect(
       eventsTab.getByText("Show Notification").locator("visible=true"),
       "Checks the action was created."

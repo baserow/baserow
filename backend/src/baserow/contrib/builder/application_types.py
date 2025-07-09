@@ -44,22 +44,40 @@ def lazy_get_instance_serializer_class():
     return BuilderSerializer
 
 
+def lazy_get_instance_public_serializer_class():
+    from baserow.contrib.builder.api.domains.serializers import PublicBuilderSerializer
+
+    return PublicBuilderSerializer
+
+
 class BuilderApplicationType(ApplicationType):
     type = "builder"
     model_class = Builder
     supports_actions = False
     supports_integrations = True
     supports_user_sources = True
+    allowed_fields = ["favicon_file", "login_page_id"]
     serializer_field_names = [
-        "name",
+        "favicon_file",
+        "login_page_id",
         "pages",
         "theme",
+    ]
+    public_serializer_field_names = [
+        "favicon_file",
+        "login_page_id",
+        "pages",
+        "theme",
+        "user_sources",
+    ]
+    request_serializer_field_names = [
         "favicon_file",
         "login_page_id",
     ]
-    allowed_fields = ["favicon_file", "login_page_id"]
-    request_serializer_field_names = ["favicon_file", "login_page_id"]
+
     serializer_mixins = [lazy_get_instance_serializer_class]
+    public_serializer_mixins = [lazy_get_instance_public_serializer_class]
+    request_serializer_mixins = []
 
     # Builder applications are imported second.
     import_application_priority = 1
@@ -67,7 +85,10 @@ class BuilderApplicationType(ApplicationType):
     @property
     def serializer_field_overrides(self):
         from baserow.api.user_files.serializers import UserFileField
-        from baserow.contrib.builder.api.validators import image_file_validation
+        from baserow.contrib.builder.api.validators import (
+            image_file_validation,
+            login_page_id_validator,
+        )
 
         return {
             "favicon_file": UserFileField(
@@ -78,7 +99,11 @@ class BuilderApplicationType(ApplicationType):
                 validators=[image_file_validation],
             ),
             "login_page_id": serializers.IntegerField(
-                allow_null=True, required=False, default=None
+                allow_null=True,
+                required=False,
+                default=None,
+                help_text=Builder._meta.get_field("login_page").help_text,
+                validators=[login_page_id_validator],
             ),
         }
 
@@ -240,7 +265,7 @@ class BuilderApplicationType(ApplicationType):
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
-    ) -> List[Page]:
+    ) -> List[Integration]:
         """
         Import integrations to builder. This method has to be compatible with the output
         of `export_integrations_serialized`.

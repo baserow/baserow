@@ -1,15 +1,21 @@
+from datetime import datetime
 from decimal import Decimal
+from io import BytesIO
 from unittest.mock import patch
 
 from django.conf import settings
-from django.db import connection, models
+from django.db import connection, models, transaction
+from django.db.utils import IntegrityError
 from django.test.utils import CaptureQueriesContext
 
 import pytest
 from baserow_premium.fields.field_types import AIFieldType
 from faker import Faker
 
-from baserow.contrib.database.fields.constants import UPSERT_OPTION_DICT_KEY
+from baserow.contrib.database.fields.constants import (
+    UNIQUE_WITH_EMPTY_CONSTRAINT_NAME,
+    UPSERT_OPTION_DICT_KEY,
+)
 from baserow.contrib.database.fields.exceptions import (
     CannotChangeFieldType,
     CannotDeletePrimaryField,
@@ -26,6 +32,11 @@ from baserow.contrib.database.fields.exceptions import (
     ReservedBaserowFieldNameException,
     TableHasNoPrimaryField,
 )
+from baserow.contrib.database.fields.field_constraints import (
+    RatingTypeUniqueWithEmptyConstraint,
+    TextTypeUniqueWithEmptyConstraint,
+    UniqueWithEmptyConstraint,
+)
 from baserow.contrib.database.fields.field_helpers import (
     construct_all_possible_field_kwargs,
 )
@@ -36,6 +47,7 @@ from baserow.contrib.database.fields.field_types import (
     CreatedByFieldType,
     CreatedOnFieldType,
     DateFieldType,
+    DurationFieldType,
     EmailFieldType,
     FileFieldType,
     FormulaFieldType,
@@ -65,15 +77,17 @@ from baserow.contrib.database.fields.models import (
     SelectOption,
     TextField,
 )
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.registries import (
+    field_constraint_registry,
+    field_type_registry,
+)
+from baserow.contrib.database.fields.utils import DeferredForeignKeyUpdater
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import ViewFilter
 from baserow.core.exceptions import UserNotInWorkspace
-
-# You must add --run-disabled-in-ci to pytest to run this test, you can do this in
-# intellij by editing the run config for this test and adding --run-disabled-in-ci to
-# additional args.
+from baserow.core.handler import CoreHandler
+from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.helpers import setup_interesting_test_table
 
@@ -1900,3 +1914,371 @@ def test_can_change_primary_field_and_update_dependencies(data_fixture):
         {"id": row_b1.id, "value": "orig1"}
     ]
     assert getattr(row_a1, lookup_new.db_column) == [{"id": row_b1.id, "value": "new1"}]
+
+
+@pytest.mark.django_db
+def test_select_options_deleted_when_field_type_changed(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    select_field = data_fixture.create_single_select_field(table=table)
+
+    handler = FieldHandler()
+
+    handler.update_field_select_options(
+        field=select_field,
+        user=user,
+        select_options=[
+            {"value": "A", "color": "blue"},
+            {"value": "B", "color": "red"},
+        ],
+    )
+
+    assert SelectOption.objects.filter(field=select_field).count() == 2
+
+    handler.update_field(
+        user=user,
+        field=select_field,
+        new_type_name="text",
+    )
+
+    assert SelectOption.objects.filter(field=select_field).count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.field_constraints
+def test_field_constraints_unique_with_empty(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    handler = FieldHandler()
+
+    # Get all specific constraints for unique_with_empty
+    unique_with_empty_constraints = [
+        constraint
+        for constraint in field_constraint_registry.registry.values()
+        if constraint.constraint_name == UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
+    ]
+
+    select_field = data_fixture.create_single_select_field(table=table)
+    select_option = SelectOption.objects.create(
+        field=select_field,
+        value="Option 1",
+        color="blue",
+        order=1,
+    )
+
+    fields = {
+        TextFieldType.type: {
+            "constraint": TextTypeUniqueWithEmptyConstraint.constraint_name,
+            "empty": "",
+            "value": "simple text",
+        },
+        LongTextFieldType.type: {
+            "constraint": TextTypeUniqueWithEmptyConstraint.constraint_name,
+            "empty": "",
+            "value": "long text",
+        },
+        RatingFieldType.type: {
+            "constraint": RatingTypeUniqueWithEmptyConstraint.constraint_name,
+            "empty": 0,
+            "value": 3,
+        },
+        NumberFieldType.type: {
+            "constraint": UniqueWithEmptyConstraint.constraint_name,
+            "empty": 0,
+            "value": 3,
+        },
+        DateFieldType.type: {
+            "constraint": UniqueWithEmptyConstraint.constraint_name,
+            "empty": None,
+            "value": datetime.now(),
+        },
+        URLFieldType.type: {
+            "constraint": UniqueWithEmptyConstraint.constraint_name,
+            "empty": "",
+            "value": "https://baserow.io",
+        },
+        EmailFieldType.type: {
+            "constraint": UniqueWithEmptyConstraint.constraint_name,
+            "empty": "",
+            "value": "test@example.com",
+        },
+        DurationFieldType.type: {
+            "constraint": UniqueWithEmptyConstraint.constraint_name,
+            "empty": None,
+            "value": "00:00:00",
+        },
+        SingleSelectFieldType.type: {
+            "constraint": UniqueWithEmptyConstraint.constraint_name,
+            "empty": None,
+            "value": select_option,
+        },
+    }
+
+    fields_to_test = []
+    for constraint in unique_with_empty_constraints:
+        fields_to_test.extend(constraint.get_compatible_field_types())
+
+    missing_fields = set(fields_to_test) - set(fields.keys())
+    assert set(fields_to_test) == set(
+        fields.keys()
+    ), f"Fields that should be tested are missing: {missing_fields}"
+
+    for field_type, field_data in fields.items():
+        with pytest.raises(Exception):
+            handler.create_field(
+                user=user,
+                table=table,
+                type_name=field_type,
+                name=f"Unique {field_type} Field",
+                field_constraints=[{"type_name": "invalid_constraint_name"}],
+            )
+        field = handler.create_field(
+            user=user,
+            table=table,
+            type_name=field_type,
+            name=f"Unique {field_type} Field",
+            field_constraints=[{"type_name": field_data["constraint"]}],
+        )
+        assert list(field.field_constraints.values_list("type_name", flat=True)) == [
+            field_data["constraint"]
+        ]
+
+        model = table.get_model()
+        model.objects.all().delete()
+
+        row_empty = model.objects.create(**{f"field_{field.id}": field_data["empty"]})
+        assert getattr(row_empty, f"field_{field.id}") == field_data["empty"]
+
+        row_non_empty = model.objects.create(
+            **{f"field_{field.id}": field_data["value"]}
+        )
+        assert getattr(row_non_empty, f"field_{field.id}") == field_data["value"]
+
+        with transaction.atomic(), pytest.raises(IntegrityError):
+            model.objects.create(**{f"field_{field.id}": field_data["value"]})
+
+        field = handler.update_field(user=user, field=field, field_constraints=[])
+        assert list(field.field_constraints.values_list("type_name", flat=True)) == []
+
+        row_duplicate = model.objects.create(
+            **{f"field_{field.id}": field_data["value"]}
+        )
+        assert getattr(row_duplicate, f"field_{field.id}") == field_data["value"]
+
+        assert model.objects.count() == 3
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.field_constraints
+def test_import_export_field_constraints_preservation(data_fixture):
+    """Test that field constraints are preserved during import/export operations."""
+
+    user = data_fixture.create_user()
+    source_workspace = data_fixture.create_workspace(user=user)
+    target_workspace = data_fixture.create_workspace(user=user)
+
+    source_database = data_fixture.create_database_application(
+        user=user, workspace=source_workspace, name="Source Database"
+    )
+    source_table = data_fixture.create_database_table(
+        name="Test Table", database=source_database
+    )
+
+    handler = FieldHandler()
+
+    text_field = handler.create_field(
+        user=user,
+        table=source_table,
+        type_name="text",
+        name="Unique Text Field",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    long_text_field = handler.create_field(
+        user=user,
+        table=source_table,
+        type_name="long_text",
+        name="Unique Long Text Field",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    rating_field = handler.create_field(
+        user=user,
+        table=source_table,
+        type_name="rating",
+        name="Unique Rating Field",
+        field_constraints=[
+            {"type_name": RatingTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    number_field = handler.create_field(
+        user=user,
+        table=source_table,
+        type_name="number",
+        name="Unique Number Field",
+        field_constraints=[{"type_name": UniqueWithEmptyConstraint.constraint_name}],
+    )
+
+    model = source_table.get_model()
+    model.objects.create(**{f"field_{text_field.id}": "unique_value_1"})
+    model.objects.create(**{f"field_{long_text_field.id}": "unique_long_value_1"})
+    model.objects.create(**{f"field_{rating_field.id}": 3})
+    model.objects.create(**{f"field_{number_field.id}": 42})
+
+    core_handler = CoreHandler()
+    config = ImportExportConfig(include_permission_data=False)
+    exported_applications = core_handler.export_workspace_applications(
+        source_workspace, BytesIO(), config
+    )
+
+    exported_database = exported_applications[0]
+    exported_table = exported_database["tables"][0]
+
+    exported_text_field = next(
+        f for f in exported_table["fields"] if f["name"] == "Unique Text Field"
+    )
+    exported_long_text_field = next(
+        f for f in exported_table["fields"] if f["name"] == "Unique Long Text Field"
+    )
+    exported_rating_field = next(
+        f for f in exported_table["fields"] if f["name"] == "Unique Rating Field"
+    )
+    exported_number_field = next(
+        f for f in exported_table["fields"] if f["name"] == "Unique Number Field"
+    )
+
+    assert exported_text_field["field_constraints"] == [
+        {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+    ]
+    assert exported_long_text_field["field_constraints"] == [
+        {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+    ]
+    assert exported_rating_field["field_constraints"] == [
+        {"type_name": RatingTypeUniqueWithEmptyConstraint.constraint_name}
+    ]
+    assert exported_number_field["field_constraints"] == [
+        {"type_name": UniqueWithEmptyConstraint.constraint_name}
+    ]
+
+    imported_applications, _ = core_handler.import_applications_to_workspace(
+        target_workspace, exported_applications, BytesIO(), config, None
+    )
+
+    imported_database = imported_applications[0]
+    imported_tables = imported_database.table_set.all()
+    imported_table = imported_tables[0]
+    imported_model = imported_table.get_model()
+
+    assert imported_database.name == "Source Database"
+
+    assert len(imported_tables) == 1
+
+    assert imported_table.name == "Test Table"
+
+    imported_text_field = imported_table.field_set.get(
+        name="Unique Text Field"
+    ).specific
+    imported_long_text_field = imported_table.field_set.get(
+        name="Unique Long Text Field"
+    ).specific
+    imported_rating_field = imported_table.field_set.get(
+        name="Unique Rating Field"
+    ).specific
+    imported_number_field = imported_table.field_set.get(
+        name="Unique Number Field"
+    ).specific
+
+    assert list(
+        imported_text_field.field_constraints.values_list("type_name", flat=True)
+    ) == [TextTypeUniqueWithEmptyConstraint.constraint_name]
+    assert list(
+        imported_long_text_field.field_constraints.values_list("type_name", flat=True)
+    ) == [TextTypeUniqueWithEmptyConstraint.constraint_name]
+    assert list(
+        imported_rating_field.field_constraints.values_list("type_name", flat=True)
+    ) == [RatingTypeUniqueWithEmptyConstraint.constraint_name]
+    assert list(
+        imported_number_field.field_constraints.values_list("type_name", flat=True)
+    ) == [UniqueWithEmptyConstraint.constraint_name]
+
+    with transaction.atomic(), pytest.raises(IntegrityError):
+        imported_model.objects.create(
+            **{f"field_{imported_text_field.id}": "unique_value_1"}
+        )
+
+    with transaction.atomic(), pytest.raises(IntegrityError):
+        imported_model.objects.create(
+            **{f"field_{imported_long_text_field.id}": "unique_long_value_1"}
+        )
+
+    with transaction.atomic(), pytest.raises(IntegrityError):
+        imported_model.objects.create(**{f"field_{imported_rating_field.id}": 3})
+
+    with transaction.atomic(), pytest.raises(IntegrityError):
+        imported_model.objects.create(**{f"field_{imported_number_field.id}": 42})
+
+    imported_model.objects.create(**{f"field_{imported_text_field.id}": ""})
+    imported_model.objects.create(**{f"field_{imported_long_text_field.id}": ""})
+    imported_model.objects.create(**{f"field_{imported_rating_field.id}": 0})
+    imported_model.objects.create(**{f"field_{imported_number_field.id}": 0})
+
+    initial_row_count = imported_model.objects.count()
+
+    imported_model.objects.create(
+        **{f"field_{imported_text_field.id}": "different_value"}
+    )
+    imported_model.objects.create(
+        **{f"field_{imported_long_text_field.id}": "different_long_value"}
+    )
+    imported_model.objects.create(**{f"field_{imported_rating_field.id}": 5})
+    imported_model.objects.create(**{f"field_{imported_number_field.id}": 100})
+
+    expected_total = initial_row_count + 4
+    assert imported_model.objects.count() == expected_total
+
+
+@pytest.mark.django_db
+@pytest.mark.field_constraints
+def test_import_export_field_constraints_serialization(data_fixture):
+    """Test that field constraints are properly serialized and deserialized."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    handler = FieldHandler()
+
+    field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="text",
+        name="Test Field",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    field_type = field_type_registry.get_by_model(field)
+    serialized_field = field_type.export_serialized(field)
+
+    assert serialized_field["field_constraints"] == [
+        {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+    ]
+
+    id_mapping = {}
+    imported_field = field_type.import_serialized(
+        table,
+        serialized_field,
+        ImportExportConfig(include_permission_data=True),
+        id_mapping,
+        DeferredForeignKeyUpdater(),
+    )
+
+    assert list(
+        imported_field.field_constraints.values_list("type_name", flat=True)
+    ) == [TextTypeUniqueWithEmptyConstraint.constraint_name]
+    assert imported_field.id != field.id

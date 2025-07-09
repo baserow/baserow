@@ -37,6 +37,7 @@ from .registry import (
     Instance,
     ModelInstanceMixin,
     ModelRegistryMixin,
+    PublicCustomFieldsInstanceMixin,
     Registry,
 )
 from .types import (
@@ -258,6 +259,7 @@ class PluginRegistry(APIUrlsRegistryMixin, Registry[Plugin]):
 class ApplicationType(
     APIUrlsInstanceMixin,
     ModelInstanceMixin["Application"],
+    PublicCustomFieldsInstanceMixin,
     CustomFieldsInstanceMixin,
     Instance,
 ):
@@ -307,6 +309,39 @@ class ApplicationType(
     # `import_applications_to_workspace`. By default, the priority is `0`, the lowest
     # value. If this property is not overridden, then the instance is imported last.
     import_application_priority = 0
+
+    def prepare_value_for_db(self, values: dict, instance: "Application | None" = None):
+        """
+        This function allows you to hook into the moment an application is created or
+        updated. If the application is updated, `instance` of the current application
+        will be defined.
+
+        :param values: The values that are being updated
+        :param instance: (optional) The existing instance that is being updated
+        """
+
+        return values
+
+    def after_create(self, instance: "Application", values: Dict):
+        """
+        This hook is called right after the application has been created.
+
+        :param instance: The created application instance.
+        :param values: The values that were passed when creating the field
+            instance.
+        """
+
+    def after_update(
+        self,
+        instance: "Application",
+        values: Dict,
+    ):
+        """
+        This hook is called right after the application has been updated.
+
+        :param instance: The updated application instance.
+        :param values: The values that were passed when updating the instance.
+        """
 
     def pre_delete(self, application):
         """

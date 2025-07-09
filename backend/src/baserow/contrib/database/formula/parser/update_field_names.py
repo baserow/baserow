@@ -52,7 +52,8 @@ class UpdateFieldNameFormulaVisitor(BaserowFormulaVisitor):
         return ctx.getText()
 
     def visitBrackets(self, ctx: BaserowFormula.BracketsContext):
-        return ctx.expr().accept(self)
+        inner_expr = ctx.expr().accept(self)
+        return f"({inner_expr})"
 
     def visitFunctionCall(self, ctx: BaserowFormula.FunctionCallContext):
         function_name = ctx.func_name().getText()

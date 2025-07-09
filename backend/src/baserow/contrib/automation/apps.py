@@ -16,13 +16,21 @@ class AutomationConfig(AppConfig):
             DeleteAutomationNodeActionType,
             DuplicateAutomationNodeActionType,
             OrderAutomationNodesActionType,
+            ReplaceAutomationNodeActionType,
             UpdateAutomationNodeActionType,
         )
         from baserow.contrib.automation.nodes.node_types import (
+            CoreHttpRequestNodeType,
+            CoreSMTPEmailNodeType,
+            LocalBaserowAggregateRowsNodeType,
             LocalBaserowCreateRowNodeType,
+            LocalBaserowDeleteRowNodeType,
+            LocalBaserowGetRowNodeType,
+            LocalBaserowListRowsNodeType,
             LocalBaserowRowsCreatedNodeTriggerType,
             LocalBaserowRowsDeletedNodeTriggerType,
             LocalBaserowRowsUpdatedNodeTriggerType,
+            LocalBaserowUpdateRowNodeType,
         )
         from baserow.contrib.automation.nodes.object_scopes import (
             AutomationNodeObjectScopeType,
@@ -57,6 +65,7 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.workflows.job_types import (
             DuplicateAutomationWorkflowJobType,
+            PublishAutomationWorkflowJobType,
         )
         from baserow.contrib.automation.workflows.object_scopes import (
             AutomationWorkflowObjectScopeType,
@@ -65,6 +74,7 @@ class AutomationConfig(AppConfig):
             CreateAutomationWorkflowOperationType,
             DeleteAutomationWorkflowOperationType,
             DuplicateAutomationWorkflowOperationType,
+            PublishAutomationWorkflowOperationType,
             ReadAutomationWorkflowOperationType,
             RestoreAutomationWorkflowOperationType,
             UpdateAutomationWorkflowOperationType,
@@ -99,6 +109,7 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(ListAutomationWorkflowsOperationType())
             operation_type_registry.register(OrderAutomationWorkflowsOperationType())
             operation_type_registry.register(RestoreAutomationWorkflowOperationType())
+            operation_type_registry.register(PublishAutomationWorkflowOperationType())
             operation_type_registry.register(ListAutomationNodeOperationType())
             operation_type_registry.register(CreateAutomationNodeOperationType())
             operation_type_registry.register(UpdateAutomationNodeOperationType())
@@ -109,6 +120,7 @@ class AutomationConfig(AppConfig):
             operation_type_registry.register(OrderAutomationNodeOperationType())
 
             job_type_registry.register(DuplicateAutomationWorkflowJobType())
+            job_type_registry.register(PublishAutomationWorkflowJobType())
 
             trash_item_type_registry.register(AutomationWorkflowTrashableItemType())
             trash_item_type_registry.register(AutomationNodeTrashableItemType())
@@ -123,10 +135,18 @@ class AutomationConfig(AppConfig):
             action_type_registry.register(DeleteAutomationNodeActionType())
             action_type_registry.register(OrderAutomationNodesActionType())
             action_type_registry.register(DuplicateAutomationNodeActionType())
+            action_type_registry.register(ReplaceAutomationNodeActionType())
 
             action_scope_registry.register(WorkflowActionScopeType())
 
             automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
+            automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
+            automation_node_type_registry.register(LocalBaserowDeleteRowNodeType())
+            automation_node_type_registry.register(LocalBaserowGetRowNodeType())
+            automation_node_type_registry.register(LocalBaserowListRowsNodeType())
+            automation_node_type_registry.register(LocalBaserowAggregateRowsNodeType())
+            automation_node_type_registry.register(CoreHttpRequestNodeType())
+            automation_node_type_registry.register(CoreSMTPEmailNodeType())
             automation_node_type_registry.register(
                 LocalBaserowRowsCreatedNodeTriggerType()
             )
@@ -136,6 +156,28 @@ class AutomationConfig(AppConfig):
             automation_node_type_registry.register(
                 LocalBaserowRowsDeletedNodeTriggerType()
             )
+
+            from baserow.contrib.automation.data_providers.data_provider_types import (
+                PreviousNodeProviderType,
+            )
+            from baserow.contrib.automation.data_providers.registries import (
+                automation_data_provider_type_registry,
+            )
+
+            automation_data_provider_type_registry.register(PreviousNodeProviderType())
+
+            from baserow.contrib.automation.nodes.permission_manager import (
+                AutomationNodePermissionManager,
+            )
+            from baserow.contrib.automation.workflows.permission_manager import (
+                AutomationWorkflowPermissionManager,
+            )
+            from baserow.core.registries import permission_manager_type_registry
+
+            permission_manager_type_registry.register(
+                AutomationWorkflowPermissionManager()
+            )
+            permission_manager_type_registry.register(AutomationNodePermissionManager())
 
             # The signals must always be imported last because they use
             # the registries which need to be filled first.

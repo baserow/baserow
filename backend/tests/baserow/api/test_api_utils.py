@@ -6,7 +6,6 @@ from django.contrib.auth.models import AnonymousUser
 from django.test import override_settings
 
 import pytest
-from fakeredis import FakeRedis, FakeServer
 from freezegun import freeze_time
 from rest_framework import serializers, status
 from rest_framework.exceptions import APIException
@@ -22,6 +21,7 @@ from baserow.api.utils import (
     validate_data,
     validate_data_custom_fields,
 )
+from baserow.contrib.database.api.views.utils import parse_limit_linked_items_params
 from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -432,9 +432,6 @@ def test_api_give_informative_404_page_in_debug_for_invalid_urls(api_client):
             assert response.headers.get("content-type") == "text/html; charset=utf-8"
 
 
-fake_redis_server = FakeServer()
-
-
 def create_dummy_request(user, path="/api/user/dashboard"):
     class DummyRequest:
         def __init__(self, path, user):
@@ -447,14 +444,7 @@ def create_dummy_request(user, path="/api/user/dashboard"):
     return request
 
 
-@override_settings(
-    CACHES={
-        **settings.CACHES,
-        "default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
-    },
-    BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT=30,
-)
-@patch("baserow.throttling._get_redis_cli", lambda: FakeRedis(server=fake_redis_server))
+@override_settings(BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT=30)
 @pytest.mark.django_db
 def test_concurrent_user_requests_throttle_non_staff_authenticated_users(data_fixture):
     user = data_fixture.create_user()
@@ -486,13 +476,6 @@ def test_concurrent_user_requests_throttle_non_staff_authenticated_users(data_fi
         assert throttle.allow_request(request, None)
 
 
-@override_settings(
-    CACHES={
-        **settings.CACHES,
-        "default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
-    },
-)
-@patch("baserow.throttling._get_redis_cli", lambda: FakeRedis(server=fake_redis_server))
 @pytest.mark.django_db
 def test_concurrent_user_requests_does_not_throttle_staff_users(data_fixture):
     user = data_fixture.create_user(is_staff=True)
@@ -513,17 +496,12 @@ def test_concurrent_user_requests_does_not_throttle_staff_users(data_fixture):
 
 
 @override_settings(
-    CACHES={
-        **settings.CACHES,
-        "default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
-    },
     MIDDLEWARE=[
         *settings.MIDDLEWARE,
         "baserow.middleware.ConcurrentUserRequestsMiddleware",
     ],
 )
 @patch("baserow.throttling.ConcurrentUserRequestsThrottle.on_request_processed")
-@patch("baserow.throttling._get_redis_cli", lambda: FakeRedis(server=fake_redis_server))
 @pytest.mark.django_db
 def test_throttle_set_baserow_concurrency_throttle_request_id_and_middleware_can_get_it(
     mock_on_request_processed, data_fixture, api_client
@@ -547,13 +525,6 @@ def test_throttle_set_baserow_concurrency_throttle_request_id_and_middleware_can
     assert getattr(request, BASEROW_CONCURRENCY_THROTTLE_REQUEST_ID, None) is not None
 
 
-@override_settings(
-    CACHES={
-        **settings.CACHES,
-        "default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
-    },
-)
-@patch("baserow.throttling._get_redis_cli", lambda: FakeRedis(server=fake_redis_server))
 @pytest.mark.django_db
 def test_can_set_per_user_profile_custom_limt(data_fixture):
     user = data_fixture.create_user(concurrency_limit=-1)
@@ -574,13 +545,6 @@ def test_can_set_per_user_profile_custom_limt(data_fixture):
         assert throttle.allow_request(create_dummy_request(user), None)
 
 
-@override_settings(
-    CACHES={
-        **settings.CACHES,
-        "default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
-    },
-)
-@patch("baserow.throttling._get_redis_cli", lambda: FakeRedis(server=fake_redis_server))
 @pytest.mark.django_db
 def test_can_set_throttle_per_user_profile_custom_limit(data_fixture):
     user = data_fixture.create_user(concurrency_limit=1)
@@ -600,13 +564,6 @@ def test_can_set_throttle_per_user_profile_custom_limit(data_fixture):
         assert not throttle.allow_request(create_dummy_request(user), None)
 
 
-@override_settings(
-    CACHES={
-        **settings.CACHES,
-        "default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
-    },
-)
-@patch("baserow.throttling._get_redis_cli", lambda: FakeRedis(server=fake_redis_server))
 @pytest.mark.django_db
 def test_anon_user_works(data_fixture):
     user = AnonymousUser()
@@ -624,3 +581,30 @@ def test_anon_user_works(data_fixture):
     with freeze_time("2023-03-30 00:00:02"):
         throttle = ConcurrentUserRequestsThrottle()
         assert throttle.allow_request(create_dummy_request(user), None)
+
+
+@pytest.mark.django_db
+def test_parse_limit_linked_items_params(data_fixture):
+    # Test with no params
+    request = APIRequestFactory().get("/api/database/rows/")
+    assert parse_limit_linked_items_params(request) is None
+
+    # Test with empty params
+    request = APIRequestFactory().get("/api/database/rows/?limit_linked_items=")
+    assert parse_limit_linked_items_params(request) is None
+
+    # Test with invalid params
+    request = APIRequestFactory().get(f"/api/database/rows/?limit_linked_items=hello!")
+    assert parse_limit_linked_items_params(request) is None
+
+    # Test with negative params
+    request = APIRequestFactory().get(f"/api/database/rows/?limit_linked_items=-1")
+    assert parse_limit_linked_items_params(request) is None
+
+    # Test with zero as params
+    request = APIRequestFactory().get(f"/api/database/rows/?limit_linked_items=0")
+    assert parse_limit_linked_items_params(request) is None
+
+    # Test with valid params
+    request = APIRequestFactory().get(f"/api/database/rows/?limit_linked_items=3")
+    assert parse_limit_linked_items_params(request) == 3

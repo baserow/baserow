@@ -167,6 +167,7 @@ class DatabaseConfig(AppConfig):
         from .export.registries import table_exporter_registry
         from .fields.registries import (
             field_aggregation_registry,
+            field_constraint_registry,
             field_converter_registry,
             field_type_registry,
         )
@@ -1051,10 +1052,19 @@ class DatabaseConfig(AppConfig):
         row_history_provider_registry.register(UpdateRowsHistoryProvider())
         row_history_provider_registry.register(RestoreFromTrashHistoryProvider())
 
+        from baserow.contrib.database.fields.field_constraints import (
+            RatingTypeUniqueWithEmptyConstraint,
+            TextTypeUniqueWithEmptyConstraint,
+            UniqueWithEmptyConstraint,
+        )
+
+        field_constraint_registry.register(TextTypeUniqueWithEmptyConstraint())
+        field_constraint_registry.register(RatingTypeUniqueWithEmptyConstraint())
+        field_constraint_registry.register(UniqueWithEmptyConstraint())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.database.data_sync.signals  # noqa: F403, F401
-        import baserow.contrib.database.search.signals  # noqa: F403, F401
         import baserow.contrib.database.ws.signals  # noqa: F403, F401
 
         post_migrate.connect(safely_update_formula_versions, sender=self)
@@ -1064,6 +1074,7 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.fields.tasks  # noqa: F401
         import baserow.contrib.database.rows.history  # noqa: F401
         import baserow.contrib.database.rows.tasks  # noqa: F401
+        import baserow.contrib.database.search.receivers  # noqa: F403, F401
         import baserow.contrib.database.search.tasks  # noqa: F401
         import baserow.contrib.database.table.receivers  # noqa: F401
         import baserow.contrib.database.views.receivers  # noqa: F401

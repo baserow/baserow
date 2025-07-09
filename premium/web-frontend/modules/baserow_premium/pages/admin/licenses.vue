@@ -34,7 +34,7 @@
           {{ $t('licenses.registerLicense') }}
         </Button>
         <RedirectToBaserowModal
-          :href="'https://baserow.io/get-license/' + instanceId + '/'"
+          :href="getLicenseURL"
           target="_blank"
           >{{ $t('licenses.getLicense') }}</RedirectToBaserowModal
         >
@@ -68,7 +68,7 @@
             {{ $t('licenses.registerLicense') }}
           </Button>
           <RedirectToBaserowModal
-            :href="'https://baserow.io/get-license/' + instanceId + '/'"
+            :href="getLicenseURL"
             target="_blank"
             size="regular"
             >{{ $t('licenses.getLicense') }}</RedirectToBaserowModal
@@ -157,7 +157,7 @@
         </nuxt-link>
       </div>
     </div>
-    <RegisterLicenseModal ref="registerModal"></RegisterLicenseModal>
+    <RegisterLicenseModal :instance-id="instanceId" ref="registerModal"></RegisterLicenseModal>
   </div>
 </template>
 
@@ -168,6 +168,7 @@ import RedirectToBaserowModal from '@baserow_premium/components/RedirectToBasero
 import moment from '@baserow/modules/core/moment'
 import SettingsService from '@baserow/modules/core/services/settings'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
+import { getPricingURL } from '@baserow_premium/utils/pricing'
 
 export default {
   components: {
@@ -194,6 +195,9 @@ export default {
     }
   },
   computed: {
+    getLicenseURL() {
+      return getPricingURL(this.instanceId)
+    },
     paidFeaturePlans() {
       const plans = {}
       Object.values(this.$registry.getAll('paidFeature')).forEach((feature) => {

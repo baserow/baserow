@@ -15,6 +15,7 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import CreateTableDatabaseTableOperationType
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.rows.types import CreatedRowsData
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.operations import UpdateDatabaseTableOperationType
@@ -110,7 +111,7 @@ class DataSyncHandler:
         data_sync_type = data_sync_type_registry.get(type_name)
         model_class = data_sync_type.model_class
 
-        allowed_fields = [] + data_sync_type.allowed_fields
+        allowed_fields = ["auto_add_new_properties"] + data_sync_type.allowed_fields
         values = extract_allowed(kwargs, allowed_fields)
         values = data_sync_type.prepare_values(user, values)
 
@@ -118,10 +119,7 @@ class DataSyncHandler:
         # the values, so that it already can be used in the `get_properties` method.
         last_order = Table.get_last_order(database)
         table = Table.objects.create(
-            database=database,
-            order=last_order,
-            name=table_name,
-            needs_background_update_column_added=True,
+            database=database, order=last_order, name=table_name
         )
         values["table"] = table
 
@@ -226,7 +224,7 @@ class DataSyncHandler:
         data_sync = data_sync.specific
         data_sync_type = data_sync_type_registry.get_by_model(data_sync)
 
-        allowed_fields = [] + data_sync_type.allowed_fields
+        allowed_fields = ["auto_add_new_properties"] + data_sync_type.allowed_fields
         data_sync = set_allowed_attrs(kwargs, allowed_fields, data_sync)
         data_sync.save()
 
@@ -332,11 +330,16 @@ class DataSyncHandler:
         # because data sync type properties might have changed, and we want to make sure
         # they're in sync before syncing the rows.
         enabled_properties = DataSyncSyncedProperty.objects.filter(data_sync=data_sync)
-        flat_enabled_properties = [
-            key
-            for key in enabled_properties.values_list("key", flat=True)
-            if key in key_to_property.keys()
-        ]
+        if data_sync.auto_add_new_properties:
+            # If `auto_add_new_properties` is true, then we always want to enable all
+            # the properties of the data sync. This automatically adds new ones.
+            flat_enabled_properties = key_to_property
+        else:
+            flat_enabled_properties = [
+                key
+                for key in enabled_properties.values_list("key", flat=True)
+                if key in key_to_property.keys()
+            ]
         self.set_data_sync_synced_properties(
             user,
             data_sync,
@@ -420,8 +423,9 @@ class DataSyncHandler:
                 row_ids_to_delete.append(row["id"])
         progress.increment(by=1)  # makes the total `70`
 
+        created_rows = CreatedRowsData([], {})
         if len(rows_to_create) > 0:
-            RowHandler().create_rows(
+            created_rows = RowHandler().create_rows(
                 user=user,
                 table=data_sync.table,
                 model=model,
@@ -463,8 +467,15 @@ class DataSyncHandler:
             or len(rows_to_update) > 0
             or len(row_ids_to_delete) > 0
         ):
-            # No need to include this in the progress because it triggers a celery task.
-            SearchHandler.field_value_updated_or_created(data_sync.table)
+            # No need to include this in the progress as it triggers a celery task
+            row_ids = [r["id"] for r in rows_to_update] + [
+                r.id for r in created_rows.created_rows
+            ]
+            SearchHandler.schedule_update_search_data(
+                data_sync.table,
+                fields=[p.field for p in enabled_properties],
+                row_ids=row_ids,
+            )
 
     def set_data_sync_synced_properties(
         self,

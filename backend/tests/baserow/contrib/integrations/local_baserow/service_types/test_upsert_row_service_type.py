@@ -21,7 +21,10 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    InvalidContextContentDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
@@ -337,7 +340,7 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_unknown_row_id(
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert exc.value.args[0] == "The row with id 9999999999999 does not exist."
 
@@ -470,25 +473,30 @@ def test_local_baserow_upsert_row_service_dispatch_data_incompatible_value(
     dispatch_context = FakeDispatchContext()
 
     field_mapping = service.field_mappings.create(field=boolean_field, value="'Horse'")
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(InvalidContextContentDispatchException) as exc:
         service_type.dispatch_data(
             service, {"table": table, field_mapping.id: "Horse"}, dispatch_context
         )
+
+    assert (
+        exc.value.args[0]
+        == f'Value error for field "{boolean_field.name}": Value is not a valid boolean '
+        "or convertible to a boolean."
+    )
 
     service.field_mappings.all().delete()
 
     field_mapping = service.field_mappings.create(
         field=single_field, value="'99999999999'"
     )
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(InvalidContextContentDispatchException) as exc:
         service_type.dispatch_data(
             service, {"table": table, field_mapping.id: "99999999999"}, dispatch_context
         )
 
     assert exc.value.args[0] == (
-        "The result value of the formula is not valid for the "
-        f"field `{single_field.name} ({single_field.db_column})`: "
-        "The provided select option value '99999999999' is not a valid select option."
+        f'Value error for field "{single_field.name}": The provided select option '
+        "value '99999999999' is not a valid select option."
     )
 
 
@@ -587,20 +595,19 @@ def test_local_baserow_upsert_row_service_resolve_service_formulas(
 
     # We're updating a row, but the ID isn't an integer
     service.row_id = "'horse'"
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.resolve_service_formulas(service, dispatch_context)
 
     assert exc.value.args[0] == (
-        "The result of the `row_id` formula must "
-        "be an integer or convertible to an integer."
+        "The `row_id` value must be an integer or convertible to an integer."
     )
 
     # We're updating a row, but the ID formula can't be resolved
     service.row_id = "'horse"
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.resolve_service_formulas(service, dispatch_context)
 
-    assert exc.value.args[0].startswith("The `row_id` formula can't be resolved")
+    assert exc.value.args[0].startswith("Row id formula could not be resolved:")
 
 
 @pytest.mark.django_db

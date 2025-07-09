@@ -59,6 +59,7 @@ def test_get_dashboard_data_sources(api_client, data_fixture):
         "context_data": None,
         "context_data_schema": None,
         "dashboard_id": dashboard.id,
+        "default_result_count": 20,
         "filter_type": "AND",
         "filters": [],
         "sortings": [],
@@ -534,5 +535,5 @@ def test_dispatch_data_source_improperly_configured(api_client, data_fixture):
     )
     assert (
         response.json()["detail"] == "The data_source configuration is incorrect: "
-        "The integration property is missing."
+        "No integration selected"
     )

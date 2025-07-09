@@ -88,7 +88,7 @@ export default {
             page,
           }),
           this.$store.dispatch('element/fetch', { builder, page }),
-          this.$store.dispatch('workflowAction/fetch', { page }),
+          this.$store.dispatch('builderWorkflowAction/fetch', { page }),
         ])
 
         await DataProviderType.initAll(

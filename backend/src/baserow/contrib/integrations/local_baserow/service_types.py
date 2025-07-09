@@ -13,20 +13,18 @@ from typing import (
     Union,
 )
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
+from django.dispatch import Signal
 
 from loguru import logger
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.contrib.builder.data_providers.exceptions import (
-    DataProviderChunkInvalidException,
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
 from baserow.contrib.database.api.rows.serializers import (
     RowSerializer,
@@ -100,8 +98,6 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowRowsUpdated,
     LocalBaserowTableService,
     LocalBaserowTableServiceFieldMapping,
-    LocalBaserowTableServiceFilter,
-    LocalBaserowTableServiceSort,
     LocalBaserowUpsertRow,
     Service,
 )
@@ -111,26 +107,31 @@ from baserow.contrib.integrations.local_baserow.utils import (
 )
 from baserow.core.cache import global_cache
 from baserow.core.formula import resolve_formula
+from baserow.core.formula.exceptions import (
+    InvalidFormulaContext,
+    InvalidFormulaContextContent,
+)
+from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
-from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    DoesNotExist,
+    InvalidContextContentDispatchException,
+    InvalidContextDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
+)
 from baserow.core.services.registries import (
     DispatchTypes,
     ListServiceTypeMixin,
     ServiceType,
     TriggerServiceTypeMixin,
 )
-from baserow.core.services.types import (
-    DispatchResult,
-    ServiceDict,
-    ServiceFilterDictSubClass,
-    ServiceSortDictSubClass,
-    ServiceSubClass,
-)
+from baserow.core.services.types import DispatchResult, ServiceDict, ServiceSubClass
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
-from baserow.core.utils import atomic_if_not_already
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
@@ -179,6 +180,8 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
     allowed_fields = ["table", "integration"]
     serializer_field_names = ["table_id", "integration_id"]
+    # table_id is needed to check configuration
+    public_serializer_field_names = ["table_id"]
     serializer_field_overrides = {
         "table_id": serializers.IntegerField(
             required=False,
@@ -251,8 +254,13 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         )
 
     def enhance_queryset(self, queryset):
-        return queryset.select_related(
-            "table__database__workspace",
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .select_related(
+                "table__database__workspace",
+                "table__data_sync",
+            )
         )
 
     def resolve_service_formulas(
@@ -267,20 +275,21 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         :param service: A `LocalBaserowTableService` instance.
         :param dispatch_context: The dispatch_context instance used to
             resolve formulas (if any).
-        :raises ServiceImproperlyConfigured: When we try and dispatch a service that
-            has no `Table` associated with it, or if the table/database is trashed.
+        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
+            a service that has no `Table` associated with it, or if the table/database
+            is trashed.
         """
 
         if service.table_id is None:
-            raise ServiceImproperlyConfigured("The table property is missing.")
+            raise ServiceImproperlyConfiguredDispatchException("No table selected")
 
-        try:
-            table = TableHandler().get_table(service.table_id)
-        except TableDoesNotExist as e:
-            raise ServiceImproperlyConfigured("The specified table is trashed") from e
+        if TrashHandler.item_has_a_trashed_parent(service.table, check_item_also=True):
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected table is trashed"
+            )
 
         resolved_values = super().resolve_service_formulas(service, dispatch_context)
-        resolved_values["table"] = table
+        resolved_values["table"] = service.table
 
         return resolved_values
 
@@ -308,6 +317,43 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             return f"field_{new_field_id}" if new_field_id else None
         return property_name
 
+    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+        """
+        Given a list of formula path parts, call the ServiceType's
+        extract_properties() method and return a set of unique field IDs.
+
+        E.g. given that path is: ['field_5191', 'something'], returns the
+        following: ['field_5191']
+
+        Returns None if the Field ID is not found.
+
+        The path can contain one or more parts, depending on the field type
+        and the formula. Some examples of `path` are:
+
+        An element that specifies a specific a field:
+        ['field_5439']
+
+        An element that uses a Link Row Field formula
+        ['field_5569', '0', 'value']
+        """
+
+        # If the path length is greater or equal to 1, then we have
+        # the current data source formula format of row and field.
+
+        if len(path) >= 1:
+            field_dbname, *rest = path
+        else:
+            # In any other scenario, we have a formula that is not a format we
+            # can currently parse properly, so we return an empty list.
+            return []
+
+        # If the field_dbname doesn't start with "field_" and isn't "id" it probably
+        # means that the formula is invalid.
+        if not str(field_dbname).startswith("field_") and field_dbname != "id":
+            return []
+
+        return [field_dbname]
+
     def deserialize_property(
         self,
         prop_name: str,
@@ -325,15 +371,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if prop_name == "table_id" and "database_tables" in id_mapping:
             return id_mapping["database_tables"].get(value, None)
 
-        if "database_fields" in id_mapping and prop_name in ["filters", "sortings"]:
-            return [
-                {
-                    **item,
-                    "field_id": id_mapping["database_fields"][item["field_id"]],
-                }
-                for item in value
-            ]
-
         return super().deserialize_property(
             prop_name,
             value,
@@ -343,123 +380,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             cache=cache,
             **kwargs,
         )
-
-    def create_instance_from_serialized(
-        self,
-        serialized_values,
-        id_mapping,
-        files_zip=None,
-        storage=None,
-        cache=None,
-        **kwargs,
-    ) -> ServiceSubClass:
-        """
-        Responsible for creating the `filters` and `sortings`.
-
-        :param serialized_values: The serialized values we'll use to import.
-        :param id_mapping: The id_mapping dictionary.
-        :return: A Service.
-        """
-
-        filters = serialized_values.pop("filters", [])
-        sortings = serialized_values.pop("sortings", [])
-
-        service = super().create_instance_from_serialized(
-            serialized_values,
-            id_mapping,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-            **kwargs,
-        )
-
-        # Create filters
-        LocalBaserowTableServiceFilter.objects.bulk_create(
-            [
-                LocalBaserowTableServiceFilter(
-                    **service_filter,
-                    order=index,
-                    service=service,
-                )
-                for index, service_filter in enumerate(filters)
-            ]
-        )
-
-        # Create sortings
-        LocalBaserowTableServiceSort.objects.bulk_create(
-            [
-                LocalBaserowTableServiceSort(
-                    **service_sorting,
-                    order=index,
-                    service=service,
-                )
-                for index, service_sorting in enumerate(sortings)
-            ]
-        )
-
-        return service
-
-    def update_service_sortings(
-        self,
-        service: Union[LocalBaserowGetRow, LocalBaserowListRows],
-        service_sorts: Optional[List[ServiceSortDictSubClass]] = None,
-    ):
-        with atomic_if_not_already():
-            service.service_sorts(manager="objects_and_trash").all().delete()
-            LocalBaserowTableServiceSort.objects.bulk_create(
-                [
-                    LocalBaserowTableServiceSort(
-                        **service_sort, service=service, order=index
-                    )
-                    for index, service_sort in enumerate(service_sorts)
-                ]
-            )
-
-    def update_service_filters(
-        self,
-        service: Union[LocalBaserowGetRow, LocalBaserowListRows],
-        service_filters: Optional[List[ServiceFilterDictSubClass]] = None,
-    ):
-        with atomic_if_not_already():
-            service.service_filters(manager="objects_and_trash").all().delete()
-            LocalBaserowTableServiceFilter.objects.bulk_create(
-                [
-                    LocalBaserowTableServiceFilter(
-                        **service_filter, service=service, order=index
-                    )
-                    for index, service_filter in enumerate(service_filters)
-                ]
-            )
-
-    def after_update(
-        self,
-        instance: ServiceSubClass,
-        values: Dict,
-        changes: Dict[str, Tuple],
-    ) -> None:
-        """
-        Responsible for updating service filters and sorts which have been
-        PATCHED to the data source / service endpoint. At the moment we
-        destroy all current filters and sorts, and create the ones present
-        in `service_filters` / `service_sorts` respectively.
-
-        :param instance: The service we want to manage filters/sorts for.
-        :param values: A dictionary which may contain filters/sorts.
-        :param changes: A dictionary containing all changes which were made to the
-            service prior to `after_update` being called.
-        """
-
-        # Following a Table change, from one Table to another, we drop all filters
-        # and sorts. This is due to the fact that both point at specific table fields.
-        from_table, to_table = changes.get("table", (None, None))
-        if from_table and to_table:
-            instance.service_filters(manager="objects_and_trash").all().delete()
-            instance.service_sorts(manager="objects_and_trash").all().delete()
-        else:
-            if "service_filters" in values:
-                self.update_service_filters(instance, values["service_filters"])
-            if "service_sorts" in values:
-                self.update_service_sortings(instance, values["service_sorts"])
 
     def prepare_values(
         self,
@@ -795,7 +715,6 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
         return (
             super()
             .enhance_queryset(queryset)
-            .select_related("view__content_type")
             .prefetch_related(
                 "view__viewfilter_set",
                 "view__filter_groups",
@@ -857,14 +776,14 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
             if view_id is not None:
                 try:
                     view = ViewService().get_view(user, view_id)
-                except ViewDoesNotExist:
+                except ViewDoesNotExist as exc:
                     raise DRFValidationError(
                         detail={
                             "detail": f"The view with ID {view_id} does not exist.",
                             "error": "view_does_not_exist",
                         },
                         code="view_does_not_exist",
-                    )
+                    ) from exc
 
                 # If we're PATCHing with a `table_id` alongside the `view_id`,
                 # validate with that table, otherwise we're PATCHing with just a
@@ -923,7 +842,6 @@ class LocalBaserowListRowsUserServiceType(
 
     type = "local_baserow_list_rows"
     model_class = LocalBaserowListRows
-    max_result_limit = 200
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
     serializer_mixins = (
         LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
@@ -943,6 +861,7 @@ class LocalBaserowListRowsUserServiceType(
             super().allowed_fields
             + LocalBaserowTableServiceFilterableMixin.mixin_allowed_fields
             + LocalBaserowTableServiceSearchableMixin.mixin_allowed_fields
+            + ["default_result_count"]
         )
 
     @property
@@ -952,6 +871,7 @@ class LocalBaserowListRowsUserServiceType(
             + LocalBaserowTableServiceSortableMixin.mixin_serializer_field_names
             + LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_names
             + LocalBaserowTableServiceSearchableMixin.mixin_serializer_field_names
+            + ["default_result_count"]
         )
 
     @property
@@ -969,7 +889,13 @@ class LocalBaserowListRowsUserServiceType(
         LocalBaserowTableServiceSearchableMixin.SerializedDict,
         LocalBaserowTableServiceFilterableMixin.SerializedDict,
     ):
-        pass
+        default_result_count: int
+
+    def get_max_result_limit(self, service: Service):
+        return settings.INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT
+
+    def get_default_result_limit(self, service: Service):
+        return service.default_result_count
 
     def get_name_property(self, service: ServiceSubClass) -> Optional[str]:
         """
@@ -1040,104 +966,6 @@ class LocalBaserowListRowsUserServiceType(
 
         return [field_id, *rest]
 
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
-        """
-        Given a list of formula path parts, call the ServiceType's
-        extract_properties() method and return a set of unique field IDs.
-
-        E.g. given that path is: ['*', 'field_5191'], returns the
-        following: ['field_5191']
-
-        Returns None if the Field ID is not found.
-
-        The path can contain one or more parts, depending on the field type
-        and the formula. Some examples of `path` are:
-
-        An element that specifies a specific row and field:
-        ['1', 'field_5439']
-
-        An element that specifies a field and all rows:
-        ['*', 'field_5439']
-
-        An element that uses a Link Row Field formula
-        ['0', 'field_5569', '0', 'value']
-        """
-
-        # If the path length is greater or equal to 1, then we have
-        # the current data source formula format of row and field.
-
-        if len(path) >= 2:
-            row_id, field_dbname, *rest = path
-        else:
-            # In any other scenario, we have a formula that is not a format we
-            # can currently parse properly, so we return an empty list.
-            return []
-
-        # If the field_dbname doesn't start with "field_" and isn't "id" it probably
-        # means that the formula is invalid.
-        if not str(field_dbname).startswith("field_") and field_dbname != "id":
-            return []
-
-        return [field_dbname]
-
-    def serialize_property(
-        self,
-        service: ServiceSubClass,
-        prop_name: str,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ):
-        """
-        Responsible for serializing the `filters` and `sortings` properties.
-
-        :param service: The LocalBaserowListRows service.
-        :param prop_name: The property name we're serializing.
-        :return: Any
-        """
-
-        if prop_name == "filters":
-            return self.serialize_filters(service)
-
-        if prop_name == "sortings":
-            return self.serialize_sortings(service)
-
-        return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
-        )
-
-    def deserialize_property(
-        self,
-        prop_name: str,
-        value: Any,
-        id_mapping: Dict[str, Any],
-        files_zip=None,
-        storage=None,
-        cache=None,
-        **kwargs,
-    ):
-        """
-        Responsible for deserializing the `filters` property.
-
-        :param prop_name: the name of the property being transformed.
-        :param value: the value of this property.
-        :param id_mapping: the id mapping dict.
-        :return: the deserialized version for this property.
-        """
-
-        if prop_name == "filters":
-            return self.deserialize_filters(value, id_mapping)
-
-        return super().deserialize_property(
-            prop_name,
-            value,
-            id_mapping,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-            **kwargs,
-        )
-
     def dispatch_data(
         self,
         service: LocalBaserowListRows,
@@ -1153,6 +981,16 @@ class LocalBaserowListRowsUserServiceType(
         :param dispatch_context: The context used for the dispatch.
         :return: The list of rows.
         """
+
+        offset, count = dispatch_context.range(service)
+
+        if count is None:
+            count = self.get_default_result_limit(service)
+
+        if count == 0:
+            # Shortcut to prevent further computations for this DS as we don't want to
+            # return results
+            return None
 
         only_field_names = self.get_used_field_names(service, dispatch_context)
 
@@ -1172,16 +1010,18 @@ class LocalBaserowListRowsUserServiceType(
             )
 
             # Ensure that only used fields are fetched from the database.
-            queryset = queryset.only(*available_fields.intersection(only_field_names))
+            queryset = queryset.only(
+                # We keep the order field here as the serializer needs it
+                *available_fields.intersection(only_field_names),
+                "order",
+            )
 
         if dispatch_context.only_record_id is not None:
             queryset = queryset.filter(id=dispatch_context.only_record_id)
 
-        offset, count = dispatch_context.range(service)
-
         # We query one more row to be able to know if there is another page that can be
         # loaded.
-        fake_count = min(self.max_result_limit, count) + 1
+        fake_count = min(self.get_max_result_limit(service), count) + 1
 
         rows = list(queryset[offset : offset + fake_count])
 
@@ -1201,6 +1041,14 @@ class LocalBaserowListRowsUserServiceType(
         :param dispatch_data: The data generated by `dispatch_data`.
         :return: The list of rows.
         """
+
+        if dispatch_data is None:
+            return DispatchResult(
+                data={
+                    "results": [],
+                    "has_next_page": False,
+                }
+            )
 
         field_ids = (
             extract_field_ids_from_list(dispatch_data["public_allowed_properties"])
@@ -1235,12 +1083,13 @@ class LocalBaserowListRowsUserServiceType(
         :param record_ids: A list containing the record identifiers.
         :param dispatch_context: The context used for the dispatch.
         :return: A dictionary mapping each record id to its name.
-        :raises ServiceImproperlyConfigured: When service has no associated table.
-        :raises ServiceImproperlyConfigured: When the table is trashed.
+        :raises ServiceImproperlyConfiguredDispatchException: When service has no
+            associated table.
+        :raises ServiceImproperlyConfiguredDispatchException: When the table is trashed.
         """
 
         if not service.table_id:
-            raise ServiceImproperlyConfigured("The table property is missing.")
+            raise ServiceImproperlyConfiguredDispatchException("No table selected")
         try:
             table = TableHandler().get_table(service.table_id)
             # NOTE: This is an expensive operation, so in the future we need to
@@ -1254,7 +1103,9 @@ class LocalBaserowListRowsUserServiceType(
             record_names = {row.id: str(row) for row in queryset}
             return record_names
         except TableDoesNotExist as e:
-            raise ServiceImproperlyConfigured("The specified table is trashed") from e
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected table is trashed"
+            ) from e
 
 
 class LocalBaserowAggregateRowsUserServiceType(
@@ -1347,7 +1198,11 @@ class LocalBaserowAggregateRowsUserServiceType(
         return None
 
     def enhance_queryset(self, queryset):
-        return super().enhance_queryset(queryset).select_related("field")
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .prefetch_related("field__table__database")
+        )
 
     @property
     def simple_formula_fields(self):
@@ -1476,29 +1331,6 @@ class LocalBaserowAggregateRowsUserServiceType(
             values["field_id"] = instance.field.id
         return values
 
-    def serialize_property(
-        self,
-        service: ServiceSubClass,
-        prop_name: str,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ):
-        """
-        Responsible for serializing the `filters` properties.
-
-        :param service: The LocalBaserowAggregateRows service.
-        :param prop_name: The property name we're serializing.
-        :return: Any
-        """
-
-        if prop_name == "filters":
-            return self.serialize_filters(service)
-
-        return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
-        )
-
     def deserialize_property(
         self,
         prop_name: str,
@@ -1517,9 +1349,6 @@ class LocalBaserowAggregateRowsUserServiceType(
         :param id_mapping: the id mapping dict.
         :return: the deserialized version for this property.
         """
-
-        if prop_name == "filters":
-            return self.deserialize_filters(value, id_mapping)
 
         if prop_name == "field_id":
             return id_mapping.get("database_fields", {}).get(value, value)
@@ -1547,19 +1376,22 @@ class LocalBaserowAggregateRowsUserServiceType(
         :param service: A `LocalBaserowAggregateRows` instance.
         :param dispatch_context: The dispatch_context instance used to
             resolve formulas (if any).
-        :raises ServiceImproperlyConfigured: When we try and dispatch a service that
-            has no `Field` associated with it, or if aggregation type is invalid.
+        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
+            a service that has no `Field` associated with it, or if aggregation type
+            is invalid.
         """
 
         # We need a valid field to dispatch with.
         if not service.field:
-            raise ServiceImproperlyConfigured("The field property is missing.")
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The field property is missing."
+            )
 
         # We need a valid aggregation type to dispatch with.
         try:
             field_aggregation_registry.get(service.aggregation_type)
         except AggregationTypeDoesNotExist as exc:
-            raise ServiceImproperlyConfigured(exc.args[0]) from exc
+            raise ServiceImproperlyConfiguredDispatchException(exc.args[0]) from exc
 
         return super().resolve_service_formulas(service, dispatch_context)
 
@@ -1586,7 +1418,7 @@ class LocalBaserowAggregateRowsUserServiceType(
         try:
             table = resolved_values["table"]
             if service.field.trashed:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {service.field.id} is trashed."
                 )
             field = service.field
@@ -1603,11 +1435,11 @@ class LocalBaserowAggregateRowsUserServiceType(
                 "baserow_table_model": model,
             }
         except DjangoFieldDoesNotExist as ex:
-            raise ServiceImproperlyConfigured(
+            raise ServiceImproperlyConfiguredDispatchException(
                 f"The field with ID {service.field_id} does not exist."
             ) from ex
         except IncompatibleField as ex:
-            raise ServiceImproperlyConfigured(
+            raise ServiceImproperlyConfiguredDispatchException(
                 f"The field with ID {service.field_id} is not compatible "
                 f"with the aggregation type {service.aggregation_type}"
             ) from ex
@@ -1742,84 +1574,6 @@ class LocalBaserowGetRowUserServiceType(
 
         return self.import_path(path, id_mapping)
 
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
-        """
-        Given a list of formula path parts, call the ServiceType's
-        extract_properties() method and return a set of unique field names.
-
-        E.g. given that path is: ['field_5191', 'prop1', '*', 'value'], returns the
-        following: ['field_5191']
-
-        Returns an empty list if the field name isn't found.
-        """
-
-        # If the path length is greater or equal to one, then we have
-        # the current data source formula format of field and may be something else.
-        if len(path) >= 1:
-            field_dbname, *rest = path
-        else:
-            # In any other scenario, we have a formula that is not a format we
-            # can currently parse it properly, so we return an empty list.
-            return []
-
-        # If the field_dbname doesn't start with "field_" or isn't "id" it probably
-        # means that the formula is invalid.
-        if not str(field_dbname).startswith("field_") and field_dbname != "id":
-            return []
-
-        return [field_dbname]
-
-    def serialize_property(
-        self,
-        service: ServiceSubClass,
-        prop_name: str,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ):
-        """
-        Responsible for serializing the `filters`.
-
-        :param service: The LocalBaserowListRows service.
-        :param prop_name: The property name we're serializing.
-        :return: Any
-        """
-
-        if prop_name == "filters":
-            return self.serialize_filters(service)
-
-        return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
-        )
-
-    def deserialize_property(
-        self,
-        prop_name: str,
-        value: Any,
-        id_mapping: Dict[str, Any],
-        files_zip=None,
-        storage=None,
-        cache=None,
-        **kwargs,
-    ):
-        """
-        Get the view & table ID from the mapping if it exists and also updates the
-        row_id, search_query & filters formulas.
-        """
-
-        if prop_name == "filters":
-            return self.deserialize_filters(value, id_mapping)
-
-        return super().deserialize_property(
-            prop_name,
-            value,
-            id_mapping,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-            **kwargs,
-        )
-
     def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         """
         Responsible for serializing the `dispatch_data` row.
@@ -1854,8 +1608,8 @@ class LocalBaserowGetRowUserServiceType(
         :param service: A `LocalBaserowTableService` instance.
         :param dispatch_context: The dispatch_context instance used to
             resolve formulas (if any).
-        :raises ServiceImproperlyConfigured: When we try and dispatch a service that
-            has no `Table` associated with it.
+        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
+            a service that has no `Table` associated with it.
         """
 
         resolved_values = super().resolve_service_formulas(service, dispatch_context)
@@ -2031,29 +1785,6 @@ class LocalBaserowUpsertRowServiceType(
                 field_mapping.value = new_formula
                 yield field_mapping
 
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
-        """
-        Given a list of formula path parts, call the ServiceType's
-        extract_properties() method and return a set of unique field names.
-
-        E.g. given that path is: ['field_5191', 'value'], returns the
-        following: ['field_5191']
-
-        Returns an empty list if the field name isn't found.
-        """
-
-        if len(path) >= 1:
-            field_dbname, *rest = path
-        else:
-            return []
-
-        # If the field_dbname doesn't start with "field_" it means that the
-        # formula is invalid.
-        if not str(field_dbname).startswith("field_") and field_dbname != "id":
-            return []
-
-        return [field_dbname]
-
     def serialize_property(
         self,
         service: LocalBaserowUpsertRow,
@@ -2207,8 +1938,8 @@ class LocalBaserowUpsertRowServiceType(
         :param service: A `LocalBaserowTableService` instance.
         :param dispatch_context: The dispatch_context instance used to
             resolve formulas (if any).
-        :raises ServiceImproperlyConfigured: When we try and dispatch a service that
-            has no `Table` associated with it.
+        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
+            a service that has no `Table` associated with it.
         """
 
         resolved_values = super().resolve_service_formulas(service, dispatch_context)
@@ -2230,25 +1961,45 @@ class LocalBaserowUpsertRowServiceType(
                     formula_runtime_function_registry,
                     dispatch_context,
                 )
-            except FormDataProviderChunkInvalidException as e:
-                raise ServiceImproperlyConfigured(str(e)) from e
-            except DataProviderChunkInvalidException as e:
+            except InvalidFormulaContext as e:
+                raise InvalidContextDispatchException(str(e)) from e
+            except InvalidFormulaContextContent as e:
                 message = (
-                    "Path error in formula for "
-                    f"field {field_mapping.field.name}({field_mapping.field.id})"
+                    f'Value error for field "{field_mapping.field.name}": {str(e)}'
                 )
-                raise ServiceImproperlyConfigured(message) from e
+                raise InvalidContextContentDispatchException(message) from e
+            except BaserowFormulaException as e:
+                message = (
+                    "Error in formula for "
+                    f'field "{field_mapping.field.name}": {str(e)}'
+                )
+                raise ServiceImproperlyConfiguredDispatchException(message) from e
             except Exception as e:
                 logger.exception(
                     f"Unexpected error for field {field_mapping.field.name}"
                 )
                 message = (
                     "Unknown error in formula for "
-                    f"field {field_mapping.field.name}({field_mapping.field.id}): {repr(e)} - {str(e)}"
+                    f'field "{field_mapping.field.name}": {repr(e)} - {str(e)}'
                 )
-                raise ServiceImproperlyConfigured(message) from e
+                raise UnexpectedDispatchException(message) from e
 
         return resolved_values
+
+    def _get_validation_details(self, error):
+        detail = error.detail
+
+        if isinstance(detail, str):
+            return detail
+        elif isinstance(detail, list):
+            return str(detail[0]) if detail else ""
+        elif isinstance(detail, dict):
+            for field, errors in detail.items():
+                if isinstance(errors, list) and errors:
+                    return str(errors[0])
+                else:
+                    return str(errors)
+        return str(detail)
 
     def dispatch_data(
         self,
@@ -2332,10 +2083,14 @@ class LocalBaserowUpsertRowServiceType(
                 if cast_function:
                     resolved_value = cast_function(resolved_value)
                 resolved_value = serializer_field.run_validation(resolved_value)
-            except (ValidationError, DRFValidationError) as exc:
-                raise ServiceImproperlyConfigured(
-                    f"The result value '{str(resolved_value)}' of the formula is not valid for the "
-                    f"field `{field.name} ({field.db_column})`: {str(exc)}"
+            except ValidationError as exc:
+                raise InvalidContextContentDispatchException(
+                    f'Value error for field "{field.name}": {exc.message}'
+                ) from exc
+            except DRFValidationError as exc:
+                raise InvalidContextContentDispatchException(
+                    f'Value error for field "{field.name}"'
+                    f": {self._get_validation_details(exc)}"
                 ) from exc
 
             # Then transform and validate the resolved value for prepare value for db.
@@ -2343,9 +2098,8 @@ class LocalBaserowUpsertRowServiceType(
                 field_type.prepare_value_for_db(field.specific, resolved_value)
                 row_values[field.db_column] = resolved_value
             except ValidationError as exc:
-                raise ServiceImproperlyConfigured(
-                    "The result value of the formula is not valid for the "
-                    f"field `{field.name} ({field.db_column})`: {exc.message}"
+                raise InvalidContextContentDispatchException(
+                    f'Value error for field "{field.name}": {exc.message}'
                 ) from exc
 
         model = table.get_model()
@@ -2359,7 +2113,7 @@ class LocalBaserowUpsertRowServiceType(
                     model=model,
                 )
             except RowDoesNotExist as exc:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The row with id {row_id} does not exist."
                 ) from exc
         else:
@@ -2371,8 +2125,9 @@ class LocalBaserowUpsertRowServiceType(
                     model=model,
                 )
             except CannotCreateRowsInTable as exc:
-                raise ServiceImproperlyConfigured(
-                    f"Cannot create rows in table {table.id} because it has a data sync."
+                raise ServiceImproperlyConfiguredDispatchException(
+                    f"Cannot create rows in table {table.id} because "
+                    "it has a data sync."
                 ) from exc
 
         return {
@@ -2465,8 +2220,8 @@ class LocalBaserowDeleteRowServiceType(
         :param service: A `LocalBaserowTableService` instance.
         :param dispatch_context: The dispatch_context instance used to
             resolve formulas (if any).
-        :raises ServiceImproperlyConfigured: When we try and dispatch a service that
-            has no `Table` associated with it.
+        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
+            a service that has no `Table` associated with it.
         """
 
         resolved_values = super().resolve_service_formulas(service, dispatch_context)
@@ -2512,12 +2267,13 @@ class LocalBaserowDeleteRowServiceType(
                     integration.authorized_user, table, [row_id], model=model
                 )
             except RowDoesNotExist as exc:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The row with id {row_id} does not exist."
                 ) from exc
             except CannotDeleteRowsInTable as exc:
-                raise ServiceImproperlyConfigured(
-                    f"Cannot delete rows in table {table.id} because it has a data sync."
+                raise ServiceImproperlyConfiguredDispatchException(
+                    f"Cannot delete rows in table {table.id} because "
+                    "it has a data sync."
                 ) from exc
 
         return {"data": {}, "baserow_table_model": model}
@@ -2528,7 +2284,7 @@ T = TypeVar("T", bound="Instance")
 
 class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
     """
-    A mixin which `AutomationNodeType` can implement if they related to a
+    A mixin which `AutomationNodeType` can implement if they are related to a
     Local Baserow signal, such as `rows_created`, `rows_updated`, etc.
 
     New trigger types should inherit from this class, set the `signal` and `handler`
@@ -2536,9 +2292,15 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
     `start_listening` and `stop_listening` methods.
     """
 
-    signal = None
+    signal: Optional[Signal] = None
     on_event = None
     model_class = None
+
+    # Local Baserow signal triggers (e.g. rows created, updated, deleted)
+    # all return an array of rows, even if only a single row is affected.
+    # We set `returns_list` to `True` so that when we generate the schema,
+    # the `type` is set to `array` instead of `object`.
+    returns_list = True
 
     def start_listening(self, on_event: Callable):
         self.on_event = on_event
@@ -2547,23 +2309,18 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
     def stop_listening(self):
         self.signal.disconnect(self.handler)
 
-    def after_register(self):
-        self.start_listening(self.on_event)
-        return super().after_register()
-
-    def before_unregister(self):
-        self.stop_listening()
-        return super().before_unregister()
-
-    def handle_signal(self, sender, rows, table, model, **kwargs):
+    def handle_signal(self, sender, user, rows, table, model, **kwargs):
         serializer = get_row_serializer_class(
             model,
             RowSerializer,
             is_response=True,
         )
         serialized_rows = serializer(rows, many=True).data
+
         self.process_event(
-            self.model_class.objects.filter(table=table), serialized_rows
+            self.model_class.objects.filter(table=table),
+            serialized_rows,
+            user=user,
         )
 
     def process_event(self, *args, **kwargs):
@@ -2572,10 +2329,45 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
     def handler(self, *args, **kwargs):
         transaction.on_commit(lambda: self.handle_signal(*args, **kwargs))
 
+    def import_context_path(
+        self, path: List[str], id_mapping: Dict[int, int], **kwargs
+    ):
+        """
+        Updates the field ids in the path, similar to `import_path` method.
+        """
+
+        return self.import_path(path, id_mapping)
+
+    def import_path(self, path, id_mapping):
+        """
+        Import Local Baserow signal trigger service types paths.
+        """
+
+        # All Local Baserow signal trigger service types have a length of 3:
+        # {previousNodeId}.{rowIndex}.{fieldName}. By this point, we should
+        # only have two parts: {rowIndex}.{fieldName}.
+        if len(path) == 2:
+            index, field_dbname = path
+        else:
+            # In any other scenario, we have a formula that is not a format we
+            # can currently import properly, so we return the path as is.
+            return path
+
+        # When this is the case, do not attempt to import the formula.
+        if not str(field_dbname).startswith("field_"):
+            return path
+
+        # Apply the mapping in case it is present for this field
+        imported_field_dbname = (
+            self.import_property_name(field_dbname, id_mapping) or field_dbname
+        )
+
+        return [index, imported_field_dbname]
+
 
 class LocalBaserowRowsCreatedTriggerServiceType(
-    LocalBaserowTableServiceType,
     LocalBaserowSignalTriggerTypeMixin,
+    LocalBaserowTableServiceType,
     TriggerServiceTypeMixin,
 ):
     signal = rows_created
@@ -2584,8 +2376,8 @@ class LocalBaserowRowsCreatedTriggerServiceType(
 
 
 class LocalBaserowRowsUpdatedTriggerServiceType(
-    LocalBaserowTableServiceType,
     LocalBaserowSignalTriggerTypeMixin,
+    LocalBaserowTableServiceType,
     TriggerServiceTypeMixin,
 ):
     signal = rows_updated
@@ -2594,8 +2386,8 @@ class LocalBaserowRowsUpdatedTriggerServiceType(
 
 
 class LocalBaserowRowsDeletedTriggerServiceType(
-    LocalBaserowTableServiceType,
     LocalBaserowSignalTriggerTypeMixin,
+    LocalBaserowTableServiceType,
     TriggerServiceTypeMixin,
 ):
     signal = rows_deleted

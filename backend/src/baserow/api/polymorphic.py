@@ -4,7 +4,7 @@ from rest_framework import serializers
 from rest_framework.fields import empty
 
 
-class PolymorphicSerializer(serializers.Serializer):
+class BasePolymorphicSerializer(serializers.Serializer):
     """
     This class is meant to be used when serializing polymorphic models.
     It creates the related polymorphic DRF serializer.
@@ -72,7 +72,10 @@ class PolymorphicSerializer(serializers.Serializer):
     request: bool = False
 
     # If you need a name prefix to avoid collision in Redoc
-    name_prefix: str = None
+    name_prefix: str | None = None
+
+    # A type name you want to preselect for Redoc
+    force_type: str | None = None
 
     # Used for instance for creating public serializers
     extra_params: Dict[str, Any] = None
@@ -206,3 +209,17 @@ class PolymorphicSerializer(serializers.Serializer):
         validated_data[self.type_field_name] = instance_type.type
 
         return validated_data
+
+
+class PolymorphicSerializer(BasePolymorphicSerializer):
+    """
+    Class used to generate the right redoc documentation.
+    """
+
+
+class PolymorphicRequestSerializer(BasePolymorphicSerializer):
+    """
+    Class used to generate the right redoc documentation.
+    """
+
+    request = True

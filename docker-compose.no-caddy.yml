@@ -28,8 +28,8 @@ version: "3.4"
 
 # See https://baserow.io/docs/installation%2Fconfiguration for more details on these
 # backend environment variables, their defaults if left blank etc.
-x-backend-variables: &backend-variables
-  # Most users should only need to set these first four variables.
+x-backend-variables:
+  &backend-variables # Most users should only need to set these first four variables.
   SECRET_KEY: ${SECRET_KEY:?}
   BASEROW_JWT_SIGNING_KEY: ${BASEROW_JWT_SIGNING_KEY:-}
   DATABASE_PASSWORD: ${DATABASE_PASSWORD:?}
@@ -171,7 +171,7 @@ x-backend-variables: &backend-variables
   BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED:
   BASEROW_DISABLE_LOCKED_MIGRATIONS:
   BASEROW_USE_PG_FULLTEXT_SEARCH:
-  BASEROW_AUTO_VACUUM:
+  BASEROW_PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS:
   BASEROW_BUILDER_DOMAINS:
   BASEROW_ICAL_VIEW_MAX_EVENTS: ${BASEROW_ICAL_VIEW_MAX_EVENTS:-}
   BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE:
@@ -182,7 +182,7 @@ x-backend-variables: &backend-variables
 
 services:
   backend:
-    image: baserow/backend:1.33.4
+    image: baserow/backend:1.34.0
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
@@ -197,7 +197,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:1.33.4
+    image: baserow/web-frontend:1.34.0
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
@@ -222,8 +222,10 @@ services:
       BASEROW_DEPLOYMENT_ENV:
       BASEROW_OSS_ONLY:
       BASEROW_USE_PG_FULLTEXT_SEARCH:
+      BASEROW_PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS:
       BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT:
       BASEROW_ROW_PAGE_SIZE_LIMIT:
+      BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT:
       BASEROW_BUILDER_DOMAINS:
       BASEROW_FRONTEND_SAME_SITE_COOKIE:
     depends_on:
@@ -232,7 +234,7 @@ services:
       local:
 
   celery:
-    image: baserow/backend:1.33.4
+    image: baserow/backend:1.34.0
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -240,7 +242,11 @@ services:
     # The backend image's baked in healthcheck defaults to the django healthcheck
     # override it to the celery one here.
     healthcheck:
-      test: [ "CMD-SHELL", "/baserow/backend/docker/docker-entrypoint.sh celery-worker-healthcheck" ]
+      test:
+        [
+          "CMD-SHELL",
+          "/baserow/backend/docker/docker-entrypoint.sh celery-worker-healthcheck",
+        ]
     depends_on:
       - backend
     volumes:
@@ -249,7 +255,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:1.33.4
+    image: baserow/backend:1.34.0
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -257,7 +263,11 @@ services:
     # The backend image's baked in healthcheck defaults to the django healthcheck
     # override it to the celery one here.
     healthcheck:
-      test: [ "CMD-SHELL", "/baserow/backend/docker/docker-entrypoint.sh celery-exportworker-healthcheck" ]
+      test:
+        [
+          "CMD-SHELL",
+          "/baserow/backend/docker/docker-entrypoint.sh celery-exportworker-healthcheck",
+        ]
     depends_on:
       - backend
     volumes:
@@ -266,7 +276,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:1.33.4
+    image: baserow/backend:1.34.0
     restart: unless-stopped
     command: celery-beat
     environment:
@@ -288,7 +298,11 @@ services:
       - POSTGRES_PASSWORD=${DATABASE_PASSWORD:?}
       - POSTGRES_DB=${DATABASE_NAME:-baserow}
     healthcheck:
-      test: [ "CMD-SHELL", "su postgres -c \"pg_isready -U ${DATABASE_USER:-baserow}\"" ]
+      test:
+        [
+          "CMD-SHELL",
+          'su postgres -c "pg_isready -U ${DATABASE_USER:-baserow}"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -302,7 +316,7 @@ services:
     restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD:?}
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
     networks:
       local:
 

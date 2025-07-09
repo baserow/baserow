@@ -602,7 +602,7 @@ def test_list_rows_include_field_options(api_client, data_fixture):
     assert "filters_disabled" not in response_json
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
 def test_list_rows_search(api_client, data_fixture, search_mode):
     user, token = data_fixture.create_user_and_token(
@@ -628,9 +628,7 @@ def test_list_rows_search(api_client, data_fixture, search_mode):
         **{f"field_{text_field.id}": "Robin Backham"}
     )
 
-    SearchHandler.update_tsvector_columns(
-        table, update_tsvectors_for_changed_rows_only=False
-    )
+    SearchHandler.update_search_data(table)
 
     url = reverse("api:database:views:gallery:list", kwargs={"view_id": gallery.id})
     response = api_client.get(
@@ -817,6 +815,8 @@ def test_get_public_gallery_view(api_client, data_fixture):
                 "immutable_type": False,
                 "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                 "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                "db_index": False,
+                "field_constraints": [],
             }
         ],
         "view": {
@@ -1247,7 +1247,7 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
         assert response_json["error"] == "ERROR_FILTERS_PARAM_VALIDATION_ERROR"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
 def test_list_rows_public_only_searches_by_visible_columns(
     api_client, data_fixture, search_mode
@@ -1269,26 +1269,23 @@ def test_list_rows_public_only_searches_by_visible_columns(
     )
 
     search_term = "search_term"
-    RowHandler().create_row(
+    RowHandler().force_create_row(
         user,
         table,
         values={"public": "other", "hidden": search_term},
         user_field_names=True,
     )
-    RowHandler().create_row(
+    RowHandler().force_create_row(
         user,
         table,
         values={"public": "other", "hidden": "other"},
         user_field_names=True,
     )
-    visible_row = RowHandler().create_row(
+    visible_row = RowHandler().force_create_row(
         user,
         table,
         values={"public": search_term, "hidden": "other"},
         user_field_names=True,
-    )
-    SearchHandler.update_tsvector_columns(
-        table, update_tsvectors_for_changed_rows_only=False
     )
 
     # Get access as an anonymous user

@@ -310,6 +310,31 @@ def test_can_rename_field_preserving_whitespace(
 
 
 @pytest.mark.django_db
+def test_can_rename_field_preserving_brackets(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    handler = FieldHandler()
+    test_field = handler.create_field(
+        user=user, table=table, type_name="number", name="a"
+    )
+    formula_field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="formula",
+        name="2",
+        formula="field('a') / (field('a') + field('a'))",
+    )
+
+    assert formula_field.formula == f"field('a') / (field('a') + field('a'))"
+
+    handler.update_field(user=user, field=test_field, name="b")
+
+    formula_field.refresh_from_db()
+
+    assert formula_field.formula == f"field('b') / (field('b') + field('b'))"
+
+
+@pytest.mark.django_db
 def test_can_update_lookup_field_value(
     data_fixture, api_client, django_assert_num_queries
 ):

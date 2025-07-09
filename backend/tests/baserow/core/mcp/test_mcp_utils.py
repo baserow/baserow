@@ -23,6 +23,10 @@ def test_serializer_to_openapi_inline():
                 # Confirm that the child serializers are not rendered as `$ref`, but
                 # rather fully inline.
                 "properties": {
+                    "auto_add_new_properties": {
+                        "description": "If enabled and new properties are detected on sync, then they're automatically added. Note that this means all properties will always be added.",
+                        "type": "boolean",
+                    },
                     "id": {"type": "integer", "readOnly": True},
                     "type": {"type": "string", "readOnly": True},
                     "synced_properties": {

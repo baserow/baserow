@@ -29,9 +29,7 @@ def test_list_rows_list_tools(data_fixture):
             async with client_session(mcp._mcp_server) as client:
                 result = await client.list_tools()
                 tool_names = [tool.name for tool in result.tools]
-                assert f"list_rows_table_{table_1.id}" in tool_names
-                assert f"list_rows_table_{table_2.id}" in tool_names
-                assert f"list_rows_table_{table_3.id}" not in tool_names
+                assert f"list_table_rows" in tool_names
 
         with transaction.atomic():
             async_to_sync(inner)()
@@ -56,7 +54,9 @@ def test_call_tool_list_rows(data_fixture):
 
         async def inner():
             async with client_session(mcp._mcp_server) as client:
-                result = await client.call_tool(f"list_rows_table_{table.id}", {})
+                result = await client.call_tool(
+                    f"list_table_rows", {"table_id": table.id}
+                )
                 json_result = json.loads(result.content[0].text)
                 assert json_result == {
                     "count": 1,
@@ -85,7 +85,9 @@ def test_call_tool_list_rows_table_different_workspace(data_fixture):
 
         async def inner():
             async with client_session(mcp._mcp_server) as client:
-                result = await client.call_tool(f"list_rows_table_{table.id}", {})
+                result = await client.call_tool(
+                    f"list_table_rows", {"table_id": table.id}
+                )
                 assert result.content[0].text == "Table not in endpoint workspace."
 
         with transaction.atomic():
@@ -113,7 +115,7 @@ def test_call_tool_list_rows_with_search_query(data_fixture):
         async def inner():
             async with client_session(mcp._mcp_server) as client:
                 result = await client.call_tool(
-                    f"list_rows_table_{table.id}", {"search": "boat"}
+                    f"list_table_rows", {"table_id": table.id, "search": "boat"}
                 )
                 json_result = json.loads(result.content[0].text)
                 assert json_result == {
@@ -149,7 +151,7 @@ def test_call_tool_list_rows_with_page_and_size(data_fixture):
         async def inner():
             async with client_session(mcp._mcp_server) as client:
                 result = await client.call_tool(
-                    f"list_rows_table_{table.id}", {"page": 2, "size": 1}
+                    f"list_table_rows", {"table_id": table.id, "page": 2, "size": 1}
                 )
                 json_result = json.loads(result.content[0].text)
                 assert json_result["count"] == 2
@@ -339,8 +341,7 @@ def test_delete_row_list_tools(data_fixture):
             async with client_session(mcp._mcp_server) as client:
                 result = await client.list_tools()
                 tool_names = [tool.name for tool in result.tools]
-                assert f"delete_row_table_{table_1.id}" in tool_names
-                assert f"delete_row_table_{table_2.id}" not in tool_names
+                assert f"delete_table_row" in tool_names
 
         with transaction.atomic():
             async_to_sync(inner)()
@@ -365,8 +366,9 @@ def test_call_tool_delete_row(data_fixture):
         async def inner():
             async with client_session(mcp._mcp_server) as client:
                 result = await client.call_tool(
-                    f"delete_row_table_{table.id}",
+                    "delete_table_row",
                     {
+                        "table_id": table.id,
                         "id": 1,
                     },
                 )
@@ -394,8 +396,9 @@ def test_call_tool_delete_row_not_existing_row(data_fixture):
         async def inner():
             async with client_session(mcp._mcp_server) as client:
                 result = await client.call_tool(
-                    f"delete_row_table_{table.id}",
+                    "delete_table_row",
                     {
+                        "table_id": table.id,
                         "id": 1,
                     },
                 )
@@ -421,8 +424,9 @@ def test_call_tool_delete_row_table_different_workspace(data_fixture):
         async def inner():
             async with client_session(mcp._mcp_server) as client:
                 result = await client.call_tool(
-                    f"delete_row_table_{table.id}",
+                    "delete_table_row",
                     {
+                        "table_id": table.id,
                         "id": 1,
                     },
                 )

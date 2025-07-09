@@ -68,7 +68,7 @@
 .dropdown__items {
   border: 1px solid $palette-neutral-400;
   background-color: $white;
-  z-index: 1;
+  z-index: $z-index-dropdown-items;
 
   @include absolute(0, 0, auto, 0);
   @include rounded($rounded);

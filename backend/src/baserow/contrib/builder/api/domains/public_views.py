@@ -11,12 +11,19 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
+from baserow.api.applications.serializers import (
+    PublicPolymorphicApplicationResponseSerializer,
+)
 from baserow.api.decorators import map_exceptions
 from baserow.api.errors import ERROR_PERMISSION_DENIED
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.services.errors import (
     ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST,
+    ERROR_SERVICE_IMPROPERLY_CONFIGURED,
+    ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
+    ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
     ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
+    ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
 )
 from baserow.api.utils import (
     DiscriminatorCustomFieldsMappingSerializer,
@@ -25,17 +32,16 @@ from baserow.api.utils import (
 from baserow.contrib.builder.api.data_sources.errors import (
     ERROR_DATA_DOES_NOT_EXIST,
     ERROR_DATA_SOURCE_DOES_NOT_EXIST,
-    ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
     ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
 )
 from baserow.contrib.builder.api.data_sources.serializers import (
     DispatchDataSourceRequestSerializer,
 )
 from baserow.contrib.builder.api.domains.serializers import (
-    PublicBuilderSerializer,
     PublicDataSourceSerializer,
     PublicElementSerializer,
 )
+from baserow.contrib.builder.api.elements.errors import ERROR_ELEMENT_DOES_NOT_EXIST
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
 from baserow.contrib.builder.api.workflow_actions.serializers import (
     BuilderWorkflowActionSerializer,
@@ -45,22 +51,18 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 )
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceDoesNotExist,
-    DataSourceImproperlyConfigured,
     DataSourceRefinementForbidden,
 )
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.domains.service import DomainService
+from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.errors import ERROR_BUILDER_DOES_NOT_EXIST
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
-from baserow.contrib.builder.handler import (
-    BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS,
-    BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
-    BuilderHandler,
-)
+from baserow.contrib.builder.handler import BuilderHandler
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.service import BuilderService
@@ -74,12 +76,27 @@ from baserow.core.cache import global_cache
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.services.exceptions import (
     DoesNotExist,
+    InvalidContextContentDispatchException,
+    InvalidContextDispatchException,
     ServiceFilterPropertyDoesNotExist,
-    ServiceImproperlyConfigured,
+    ServiceImproperlyConfiguredDispatchException,
     ServiceSortPropertyDoesNotExist,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.user_source_user import UserSourceUser
+
+# The duration of the cached public element, data source and workflow action API views.
+BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60 * 60
+
+# The duration of the cached public `get_public_builder_by_domain_name` view.
+BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS = 60 * 60
+
+
+class ForcedPublicPolymorphicApplicationResponseSerializer(
+    PublicPolymorphicApplicationResponseSerializer
+):
+    forced_type = "builder"
 
 
 class PublicBuilderByDomainNameView(APIView):
@@ -101,7 +118,7 @@ class PublicBuilderByDomainNameView(APIView):
             "the given domain name and its pages ."
         ),
         responses={
-            200: PublicBuilderSerializer,
+            200: ForcedPublicPolymorphicApplicationResponseSerializer,
             404: get_error_schema(["ERROR_BUILDER_DOES_NOT_EXIST"]),
         },
     )
@@ -135,7 +152,7 @@ class PublicBuilderByDomainNameView(APIView):
         builder = DomainService().get_public_builder_by_domain_name(
             AnonymousUser(), domain_name
         )
-        return PublicBuilderSerializer(builder).data
+        return PublicPolymorphicApplicationResponseSerializer(builder).data
 
 
 class PublicBuilderByIdView(APIView):
@@ -158,7 +175,7 @@ class PublicBuilderByIdView(APIView):
             "the given builder id."
         ),
         responses={
-            200: PublicBuilderSerializer,
+            200: ForcedPublicPolymorphicApplicationResponseSerializer,
             404: get_error_schema(["ERROR_BUILDER_DOES_NOT_EXIST"]),
         },
     )
@@ -175,8 +192,7 @@ class PublicBuilderByIdView(APIView):
         """
 
         builder = BuilderService().get_builder(request.user, builder_id)
-
-        return Response(PublicBuilderSerializer(builder).data)
+        return Response(PublicPolymorphicApplicationResponseSerializer(builder).data)
 
 
 class PublicElementsView(APIView):
@@ -455,8 +471,14 @@ class PublicDispatchDataSourceView(APIView):
             404: get_error_schema(
                 [
                     "ERROR_DATA_SOURCE_DOES_NOT_EXIST",
-                    "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED",
-                    "ERROR_IN_DISPATCH_CONTEXT",
+                    "ERROR_ELEMENT_DOES_NOT_EXIST",
+                    "ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN",
+                    "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+                    "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT",
+                    "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
+                    "ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR",
+                    "ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST",
+                    "ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST",
                     "ERROR_DATA_DOES_NOT_EXIST",
                 ]
             ),
@@ -466,12 +488,15 @@ class PublicDispatchDataSourceView(APIView):
     @map_exceptions(
         {
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
+            ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
             DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
             DataSourceRefinementForbidden: ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
-            DataSourceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
             ServiceSortPropertyDoesNotExist: ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
             ServiceFilterPropertyDoesNotExist: ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST,
-            ServiceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
+            ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
+            InvalidContextDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
+            InvalidContextContentDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
+            UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
         }
     )
     def post(self, request, data_source_id: int):
@@ -512,8 +537,6 @@ class PublicDispatchDataSourcesView(APIView):
         responses={
             404: get_error_schema(
                 [
-                    "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED",
-                    "ERROR_IN_DISPATCH_CONTEXT",
                     "ERROR_DATA_DOES_NOT_EXIST",
                     "ERROR_PAGE_DOES_NOT_EXIST",
                 ]
@@ -524,7 +547,6 @@ class PublicDispatchDataSourcesView(APIView):
     @map_exceptions(
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
-            ServiceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
         }
     )
@@ -548,8 +570,10 @@ class PublicDispatchDataSourcesView(APIView):
                 _, error, detail = apply_exception_mapping(
                     {
                         DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
-                        DataSourceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
-                        ServiceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
+                        ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
+                        InvalidContextDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
+                        InvalidContextContentDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
+                        UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
                         DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
                         PermissionException: ERROR_PERMISSION_DENIED,
                     },

@@ -136,6 +136,16 @@ class ViewType(
     """
 
     can_group_by = False
+    """
+    Indicates if the view supports grouping by fields. If not, it will not be possible
+    to add a group by to the view.
+    """
+
+    can_list_rows = True
+    """
+    Indicates if the view supports listing rows. If not, it will not be possible to
+    fetch rows from the view.
+    """
 
     has_public_info = False
     """

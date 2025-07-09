@@ -1,12 +1,13 @@
 <template>
-  <form @submit.prevent>
+  <form :class="{ 'service-form--small': small }" @submit.prevent>
     <div class="row">
       <div class="col col-12">
-        <LocalBaserowTableSelector
-          v-model="fakeTableId"
-          :databases="databases"
-          :view-id.sync="values.view_id"
-        ></LocalBaserowTableSelector>
+        <LocalBaserowServiceForm
+          :application="application"
+          :default-values="defaultValues"
+          :enable-integration-picker="enableIntegrationPicker"
+          @values-changed="values = { ...values, ...$event }"
+        ></LocalBaserowServiceForm>
       </div>
     </div>
     <div class="row margin-bottom-2">
@@ -54,12 +55,12 @@
         </FormGroup>
       </div>
     </div>
-    <div v-if="!fieldsLoading" class="row">
+    <div v-if="!small && !fieldsLoading" class="row">
       <div class="col col-12">
         <Tabs>
           <Tab
             :title="$t('localBaserowAggregateRowsForm.filterTabTitle')"
-            class="data-source-form__condition-form-tab"
+            class="service-form__condition-form-tab"
           >
             <LocalBaserowTableServiceConditionalForm
               v-if="values.table_id"
@@ -76,7 +77,7 @@
           </Tab>
           <Tab
             :title="$t('localBaserowAggregateRowsForm.searchTabTitle')"
-            class="data-source-form__search-form-tab"
+            class="service-form__search-form-tab"
           >
             <InjectedFormulaInput
               v-model="values.search_query"
@@ -89,24 +90,24 @@
         </Tabs>
       </div>
     </div>
-    <div v-else class="loading-spinner"></div>
+    <div v-if="fieldsLoading" class="loading-spinner"></div>
   </form>
 </template>
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import LocalBaserowTableSelector from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableSelector'
 import LocalBaserowTableServiceConditionalForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableServiceConditionalForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import localBaserowDataSourceService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowDataSourceService'
+import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm.vue'
+import localBaserowService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowService'
 
 export default {
   components: {
+    LocalBaserowServiceForm,
     InjectedFormulaInput,
-    LocalBaserowTableSelector,
     LocalBaserowTableServiceConditionalForm,
   },
-  mixins: [form, localBaserowDataSourceService],
+  mixins: [form, localBaserowService],
   data() {
     return {
       allowedValues: [

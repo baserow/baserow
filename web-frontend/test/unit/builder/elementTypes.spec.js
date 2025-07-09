@@ -756,7 +756,11 @@ describe('elementTypes tests', () => {
       expect(elementType.isInError({ page, builder, element })).toBe(false)
 
       // When navigation_type is 'custom' the navigate_to_url must be set
-      element = { navigation_type: 'custom', navigate_to_url: '' }
+      element = {
+        navigation_type: 'custom',
+        navigate_to_url: '',
+        value: 'Test',
+      }
       expect(elementType.isInError({ page, element })).toBe(true)
 
       // Otherwise it is valid

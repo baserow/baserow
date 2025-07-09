@@ -442,7 +442,7 @@ const actions = {
     )
     const workflowActionPromises = workflowActions.map((workflowAction) =>
       dispatch(
-        'workflowAction/forceCreate',
+        'builderWorkflowAction/forceCreate',
         { page, workflowAction },
         { root: true }
       )

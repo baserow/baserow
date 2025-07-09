@@ -16,7 +16,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.handler import ALL_SEARCH_MODES, SearchHandler
+from baserow.contrib.database.search.handler import ALL_SEARCH_MODES
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.exceptions import (
     CannotShareViewTypeError,
@@ -25,6 +25,7 @@ from baserow.contrib.database.views.exceptions import (
     UnrelatedFieldError,
     ViewDoesNotExist,
     ViewDoesNotSupportFieldOptions,
+    ViewDoesNotSupportListingRows,
     ViewFilterDoesNotExist,
     ViewFilterGroupDoesNotExist,
     ViewFilterNotSupported,
@@ -2274,27 +2275,25 @@ def test_get_public_rows_queryset_and_field_ids_view_filters_applied(data_fixtur
     assert list(field_ids) == [field.id]
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
 def test_get_public_rows_queryset_and_field_ids_view_search(data_fixture, search_mode):
     grid_view = data_fixture.create_grid_view(public=True)
-    field = data_fixture.create_number_field(table=grid_view.table)
+    table = grid_view.table
+    field = data_fixture.create_number_field(table=table)
     data_fixture.create_grid_view_field_option(grid_view, field, hidden=False)
 
-    model = grid_view.table.get_model()
-    model.objects.create(**{f"field_{field.id}": 4})
-    model.objects.create(**{f"field_{field.id}": 5})
-    model.objects.create(**{f"field_{field.id}": 6})
-
-    SearchHandler.update_tsvector_columns(
-        field.table, update_tsvectors_for_changed_rows_only=False
+    RowHandler().force_create_rows(
+        None,
+        table,
+        [
+            {f"field_{field.id}": 4},
+            {f"field_{field.id}": 5},
+            {f"field_{field.id}": 6},
+        ],
     )
 
-    (
-        queryset,
-        field_ids,
-        publicly_visible_field_options,
-    ) = ViewHandler().get_public_rows_queryset_and_field_ids(
+    queryset, _, _ = ViewHandler().get_public_rows_queryset_and_field_ids(
         grid_view, search="5", search_mode=search_mode
     )
 
@@ -2408,6 +2407,30 @@ def test_get_public_rows_queryset_and_field_ids_include_exclude_fields(data_fixt
 
     assert queryset.count() == 3
     assert field_ids == [field.id]
+
+
+@pytest.mark.django_db
+def test_get_public_rows_raises_with_form_view(data_fixture):
+    form_view = data_fixture.create_form_view(public=True)
+    field = data_fixture.create_number_field(table=form_view.table)
+
+    model = form_view.table.get_model()
+    model.objects.create(**{f"field_{field.id}": 1})
+
+    with pytest.raises(ViewDoesNotSupportListingRows):
+        ViewHandler().get_public_rows_queryset_and_field_ids(form_view)
+
+
+@pytest.mark.django_db
+def test_get_rows_raises_with_form_view(data_fixture):
+    form_view = data_fixture.create_form_view(public=True)
+    field = data_fixture.create_number_field(table=form_view.table)
+
+    model = form_view.table.get_model()
+    model.objects.create(**{f"field_{field.id}": 1})
+
+    with pytest.raises(ViewDoesNotSupportListingRows):
+        ViewHandler().get_queryset(form_view)
 
 
 @pytest.mark.django_db
@@ -3000,7 +3023,7 @@ def test_order_views_ownership_type(data_fixture):
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
-def test_creating_view_sort_creates_a_new_index(data_fixture, enable_singleton_testing):
+def test_creating_view_sort_creates_a_new_index(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(user=user, table=table)
@@ -3031,7 +3054,7 @@ def test_creating_view_sort_creates_a_new_index(data_fixture, enable_singleton_t
 )
 @pytest.mark.django_db(transaction=True)
 def test_updating_view_sorts_creates_a_new_index_and_delete_the_unused_one(
-    data_fixture, enable_singleton_testing
+    data_fixture,
 ):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -3088,9 +3111,7 @@ def test_updating_view_sorts_creates_a_new_index_and_delete_the_unused_one(
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
-def test_perm_deleting_view_remove_index_if_unused(
-    data_fixture, enable_singleton_testing
-):
+def test_perm_deleting_view_remove_index_if_unused(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     database = table.database
@@ -3130,9 +3151,7 @@ def test_perm_deleting_view_remove_index_if_unused(
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
-def test_duplicating_table_do_not_duplicate_indexes(
-    data_fixture, enable_singleton_testing
-):
+def test_duplicating_table_do_not_duplicate_indexes(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(user=user, table=table)
@@ -3161,9 +3180,7 @@ def test_duplicating_table_do_not_duplicate_indexes(
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
-def test_deleting_a_field_of_a_view_sort_update_view_indexes(
-    data_fixture, enable_singleton_testing
-):
+def test_deleting_a_field_of_a_view_sort_update_view_indexes(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(user=user, table=table)
@@ -3192,7 +3209,7 @@ def test_deleting_a_field_of_a_view_sort_update_view_indexes(
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
 def test_changing_a_field_type_of_a_view_sort_to_non_orderable_one_delete_view_index(
-    data_fixture, enable_singleton_testing
+    data_fixture,
 ):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -3209,13 +3226,7 @@ def test_changing_a_field_type_of_a_view_sort_to_non_orderable_one_delete_view_i
     index = ViewIndexingHandler.get_index(grid_view, table.get_model())
     assert ViewIndexingHandler.does_index_exist(index.name) is True
 
-    FieldHandler().update_field(
-        user,
-        text_field,
-        new_type_name="link_row",
-        link_row_table=table,
-        has_related_field=False,
-    )
+    FieldHandler().update_field(user, text_field, new_type_name="password")
     assert ViewIndexingHandler.does_index_exist(index.name) is False
 
 
@@ -3224,7 +3235,6 @@ def test_changing_a_field_type_of_a_view_sort_to_non_orderable_one_delete_view_i
 def test_loading_a_view_checks_for_db_index_without_additional_queries(
     mocked_view_index_update_task,
     data_fixture,
-    enable_singleton_testing,
     django_assert_num_queries,
 ):
     user = data_fixture.create_user()
@@ -3282,9 +3292,7 @@ def test_loading_a_view_checks_for_db_index_without_additional_queries(
     AUTO_INDEX_VIEW_ENABLED=True,
 )
 @pytest.mark.django_db(transaction=True)
-def test_update_index_replaces_index_with_diff_collation(
-    settings, data_fixture, enable_singleton_testing
-):
+def test_update_index_replaces_index_with_diff_collation(settings, data_fixture):
     with patch("baserow.core.db.get_collation_name", new=lambda: None):
         user = data_fixture.create_user()
         table = data_fixture.create_database_table(user=user)
@@ -3321,9 +3329,7 @@ def test_update_index_replaces_index_with_diff_collation(
     AUTO_INDEX_VIEW_ENABLED=True,
 )
 @pytest.mark.django_db(transaction=True)
-def test_view_loaded_replaces_index_with_diff_collation(
-    settings, data_fixture, enable_singleton_testing
-):
+def test_view_loaded_replaces_index_with_diff_collation(settings, data_fixture):
     with patch("baserow.core.db.get_collation_name", new=lambda: None):
         user = data_fixture.create_user()
         table = data_fixture.create_database_table(user=user)

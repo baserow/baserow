@@ -240,7 +240,8 @@
         "enterpriseFeatureName": "엔터프라이즈",
         "supportFeatureName": "지원",
         "applicationUsersDescription": "게시된 애플리케이션 빌더 사용자 소스에 있는 총 애플리케이션 사용자 수입니다.",
-        "applicationUsers": "어플리케이션 사용자"
+        "applicationUsers": "어플리케이션 사용자",
+        "advancedFeatureName": "고급"
     },
     "viewDecoratorType": {
         "leftBorderColor": "왼쪽 테두리",
@@ -370,5 +371,8 @@
     "paidFeaturesModal": {
         "viewPricing": "요금제 보기",
         "description": "이 기능은 {plan} 플랜에서 이용할 수 있습니다. 이용하려면 계정을 업그레이드하여 구독해 주세요. 아래 버튼을 클릭하시면 요금제를 확인하실 수 있습니다."
+    },
+    "chart": {
+        "other": "기타"
     }
 }

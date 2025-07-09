@@ -14,12 +14,14 @@ from baserow.contrib.automation.workflows.object_scopes import (
 )
 from baserow.contrib.automation.workflows.operations import (
     DeleteAutomationWorkflowOperationType,
+    PublishAutomationWorkflowOperationType,
     ReadAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
 )
 from baserow.contrib.automation.workflows.signals import (
     automation_workflow_created,
     automation_workflow_deleted,
+    automation_workflow_published,
     automation_workflow_updated,
     automation_workflows_reordered,
 )
@@ -78,6 +80,26 @@ def workflow_updated(
             workflow.id,
             {
                 "type": "automation_workflow_updated",
+                "workflow": AutomationWorkflowSerializer(workflow).data,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(automation_workflow_published)
+def workflow_published(
+    sender, workflow: AutomationWorkflow, user: AbstractUser, **kwargs
+):
+    workflow = workflow.automation.published_from
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            workflow.automation.workspace_id,
+            PublishAutomationWorkflowOperationType.type,
+            AutomationWorkflowObjectScopeType.type,
+            workflow.id,
+            {
+                "type": "automation_workflow_published",
                 "workflow": AutomationWorkflowSerializer(workflow).data,
             },
             getattr(user, "web_socket_id", None),

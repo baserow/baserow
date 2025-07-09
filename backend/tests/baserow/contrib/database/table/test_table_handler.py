@@ -28,10 +28,7 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.management.commands.fill_table_rows import fill_table_rows
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.table.constants import (
-    LAST_MODIFIED_BY_COLUMN_NAME,
-    ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
-)
+from baserow.contrib.database.table.constants import LAST_MODIFIED_BY_COLUMN_NAME
 from baserow.contrib.database.table.exceptions import (
     InitialTableDataLimitExceeded,
     InvalidInitialTableData,
@@ -750,33 +747,6 @@ def test_duplicate_table_after_link_row_field_moved_to_another_table(data_fixtur
         TableHandler().duplicate_table(user, table_b)
     except Exception as exc:
         pytest.fail("Duplicating table failed: %s" % exc)
-
-
-@pytest.mark.django_db()
-def test_create_needs_background_update_column(data_fixture):
-    system_updated_on_columns = [
-        ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
-    ]
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(
-        user,
-        needs_background_update_column_added=False,
-    )
-
-    model = table.get_model()
-    for system_updated_on_column in system_updated_on_columns:
-        with pytest.raises(FieldDoesNotExist):
-            model._meta.get_field(system_updated_on_column)
-
-    with local_cache.context():
-        TableHandler().create_needs_background_update_field(table)
-
-    table.refresh_from_db()
-    assert table.needs_background_update_column_added
-
-    model = table.get_model()
-    for system_updated_on_column in system_updated_on_columns:
-        model._meta.get_field(system_updated_on_column)
 
 
 @pytest.mark.django_db()

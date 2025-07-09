@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.shortcuts import reverse
 
 import pytest
@@ -272,6 +273,7 @@ def test_create_field(api_client, data_fixture):
     assert response_json["order"] == text.order
     assert response_json["text_default"] == "default!"
     assert response_json["description"] == description_txt_a
+    assert response_json["db_index"] is False
 
     # Test authentication with token
     response = api_client.post(
@@ -361,6 +363,7 @@ def test_get_field(api_client, data_fixture):
     assert response_json["table_id"] == text.table_id
     assert not response_json["text_default"]
     assert response_json["description"] is None
+    assert response_json["db_index"] is False
 
     response = api_client.delete(
         reverse(
@@ -463,6 +466,7 @@ def test_update_field(api_client, data_fixture):
     assert response_json["name"] == "Test 1"
     assert response_json["type"] == "text"
     assert response_json["description"] is None
+    assert response_json["db_index"] is False
 
     url = reverse("api:database:fields:item", kwargs={"field_id": text.id})
     response = api_client.patch(
@@ -692,6 +696,49 @@ def test_update_field_cannot_change_read_only_and_immutable_properties(
     assert response_json["read_only"] is False
     assert response_json["immutable_type"] is False
     assert response_json["immutable_properties"] is False
+
+
+@pytest.mark.django_db
+@pytest.mark.field_constraints
+def test_update_field_immutable_properties_constraints(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    number_field = data_fixture.create_number_field(
+        table=table,
+        number_decimal_places=1,
+        immutable_properties=True,
+    )
+
+    url = reverse("api:database:fields:item", kwargs={"field_id": number_field.id})
+    response = api_client.patch(
+        url,
+        {"field_constraints": [{"type_name": "unique_with_empty"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.json()["error"] == "ERROR_IMMUTABLE_FIELD_PROPERTIES"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_constraints
+def test_update_field_read_only_constraints(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    number_field = data_fixture.create_number_field(
+        table=table,
+        number_decimal_places=1,
+        read_only=True,
+    )
+
+    url = reverse("api:database:fields:item", kwargs={"field_id": number_field.id})
+    response = api_client.patch(
+        url,
+        {"field_constraints": [{"type_name": "unique_with_empty"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_IMMUTABLE_FIELD_PROPERTIES"
 
 
 @pytest.mark.django_db
@@ -1289,6 +1336,8 @@ def test_change_primary_field_field_with_primary(api_client, data_fixture):
         "primary": True,
         "read_only": False,
         "description": None,
+        "db_index": False,
+        "field_constraints": [],
         "related_fields": [
             {
                 "id": field_1.id,
@@ -1299,6 +1348,8 @@ def test_change_primary_field_field_with_primary(api_client, data_fixture):
                 "primary": False,
                 "read_only": False,
                 "description": None,
+                "db_index": False,
+                "field_constraints": [],
                 "text_default": "",
                 "immutable_properties": False,
                 "immutable_type": False,
@@ -1345,3 +1396,282 @@ def test_change_primary_field_field_and_back(api_client, data_fixture):
     field_2.refresh_from_db()
     assert field_1.primary is True
     assert field_2.primary is False
+
+
+@pytest.mark.django_db
+def test_create_field_with_db_index(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {"name": "Field with index", "type": "text", "db_index": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["type"] == "text"
+
+    text = TextField.objects.filter()[0]
+    assert text.db_index is True
+    assert response_json["name"] == "Field with index"
+    assert response_json["db_index"] is True
+
+
+@pytest.mark.django_db
+def test_create_field_with_db_index_incompatible_field_type(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database)
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Field with index",
+            "type": "link_row",
+            "db_index": True,
+            "link_row_table_id": table_2.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_DB_INDEX_NOT_SUPPORTED"
+
+
+@pytest.mark.django_db
+def test_update_field_with_db_index(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+
+    url = reverse("api:database:fields:item", kwargs={"field_id": field.id})
+    response = api_client.patch(
+        url,
+        {"db_index": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["db_index"] is True
+
+    field.refresh_from_db()
+    assert field.db_index is True
+
+
+@pytest.mark.django_db
+def test_update_field_with_db_index_incompatible_field_type(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database)
+    field = data_fixture.create_text_field(table=table)
+
+    url = reverse("api:database:fields:item", kwargs={"field_id": field.id})
+    response = api_client.patch(
+        url,
+        {"type": "link_row", "db_index": True, "link_row_table": table_2.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_DB_INDEX_NOT_SUPPORTED"
+
+
+@pytest.mark.django_db
+def test_update_field_with_db_index_to_incompatible_type(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database)
+    field = data_fixture.create_text_field(table=table, db_index=True)
+
+    url = reverse("api:database:fields:item", kwargs={"field_id": field.id})
+    response = api_client.patch(
+        url,
+        {"type": "link_row", "link_row_table": table_2.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_DB_INDEX_NOT_SUPPORTED"
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_unauthenticated(api_client, data_fixture):
+    response = api_client.post(
+        reverse("api:database:fields:password_authentication"),
+        {"field_id": 0, "row_id": 1, "password": "test"},
+        format="json",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_field_not_exist(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    response = api_client.post(
+        reverse("api:database:fields:password_authentication"),
+        {"field_id": 0, "row_id": 1, "password": "test"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_field_disabled(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    field = data_fixture.create_password_field(
+        user=user, allow_endpoint_authentication=False
+    )
+
+    response = api_client.post(
+        reverse("api:database:fields:password_authentication"),
+        {"field_id": field.id, "row_id": 1, "password": "test"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_row_does_not_exist(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    field = data_fixture.create_password_field(
+        user=user, allow_endpoint_authentication=True
+    )
+
+    response = api_client.post(
+        reverse("api:database:fields:password_authentication"),
+        {"field_id": field.id, "row_id": 1, "password": "test"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_ROW_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_wrong_password(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    field = data_fixture.create_password_field(
+        user=user, allow_endpoint_authentication=True
+    )
+    model = field.table.get_model()
+    row = model.objects.create(**{field.db_column: make_password("password")})
+
+    response = api_client.post(
+        reverse("api:database:fields:password_authentication"),
+        {"field_id": field.id, "row_id": row.id, "password": "wrong_password"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_INVALID_PASSWORD_FIELD_PASSWORD"
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_empty_password(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    field = data_fixture.create_password_field(
+        user=user, allow_endpoint_authentication=True
+    )
+    model = field.table.get_model()
+    row = model.objects.create()
+
+    response = api_client.post(
+        reverse("api:database:fields:password_authentication"),
+        {"field_id": field.id, "row_id": row.id, "password": "wrong_password"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_INVALID_PASSWORD_FIELD_PASSWORD"
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_success(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    field = data_fixture.create_password_field(
+        user=user, allow_endpoint_authentication=True
+    )
+    model = field.table.get_model()
+    row = model.objects.create(**{field.db_column: make_password("password")})
+
+    response = api_client.post(
+        reverse("api:database:fields:password_authentication"),
+        {"field_id": field.id, "row_id": row.id, "password": "password"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["is_correct"] is True
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_no_access_to_field(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    field = data_fixture.create_password_field(allow_endpoint_authentication=True)
+    model = field.table.get_model()
+    row = model.objects.create(**{field.db_column: make_password("password")})
+
+    response = api_client.post(
+        reverse("api:database:fields:password_authentication"),
+        {"field_id": field.id, "row_id": row.id, "password": "password"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_database_token(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    token = TokenHandler().create_token(user, table.database.workspace, "token")
+    TokenHandler().update_token_permissions(user, token, True, True, True, True)
+
+    field = data_fixture.create_password_field(
+        table=table, allow_endpoint_authentication=True
+    )
+    model = field.table.get_model()
+    row = model.objects.create(**{field.db_column: make_password("password")})
+
+    response = api_client.post(
+        reverse("api:database:fields:password_authentication"),
+        {"field_id": field.id, "row_id": row.id, "password": "password"},
+        format="json",
+        HTTP_AUTHORIZATION=f"Token {token.key}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["is_correct"] is True
+
+
+@pytest.mark.django_db
+def test_password_field_authentication_database_token_no_read_permissions(
+    api_client, data_fixture
+):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    token = TokenHandler().create_token(user, table.database.workspace, "token")
+    TokenHandler().update_token_permissions(user, token, True, False, True, True)
+
+    field = data_fixture.create_password_field(
+        table=table, allow_endpoint_authentication=True
+    )
+    model = field.table.get_model()
+    row = model.objects.create(**{field.db_column: make_password("password")})
+
+    response = api_client.post(
+        reverse("api:database:fields:password_authentication"),
+        {"field_id": field.id, "row_id": row.id, "password": "password"},
+        format="json",
+        HTTP_AUTHORIZATION=f"Token {token.key}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_NO_PERMISSION_TO_TABLE"

@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -7,9 +7,9 @@ from rest_framework import serializers
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.formula_importer import import_formula
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
-from baserow.contrib.builder.formula_importer import import_formula
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
@@ -23,10 +23,8 @@ from baserow.core.registry import (
 )
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.handler import ServiceHandler
-from baserow.core.services.registries import service_type_registry
+from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
 from baserow.core.services.types import DispatchResult
-
-AUTOMATION_NODES = "automation_nodes"
 
 
 class AutomationNodeType(
@@ -38,7 +36,7 @@ class AutomationNodeType(
 ):
     service_type = None
     parent_property_name = "workflow"
-    id_mapping_name = AUTOMATION_NODES
+    id_mapping_name = "automation_workflow_nodes"
 
     request_serializer_field_names = ["previous_node_output"]
     request_serializer_field_overrides = {
@@ -50,8 +48,13 @@ class AutomationNodeType(
         ),
     }
 
+    is_workflow_trigger = False
+    is_workflow_action = False
+
     class SerializedDict(AutomationNodeDict):
         service: Dict
+        parent_node_id: Optional[int]
+        previous_node_id: Optional[int]
 
     @property
     def allowed_fields(self):
@@ -59,6 +62,24 @@ class AutomationNodeType(
             "previous_node_output",
             "service",
         ]
+
+    def get_service_type(self) -> Optional[ServiceTypeSubClass]:
+        return (
+            service_type_registry.get(self.service_type) if self.service_type else None
+        )
+
+    def is_replaceable_with(self, other_node_type: "AutomationNodeType") -> bool:
+        """
+        Determines if this node type can be replaced with another node type.
+
+        :param other_node_type: The other node type to check against.
+        :return: True if this node type can be replaced with the other, False otherwise.
+        """
+
+        return (
+            self.is_workflow_trigger == other_node_type.is_workflow_trigger
+            and self.is_workflow_action == other_node_type.is_workflow_action
+        )
 
     def export_prepared_values(self, node: AutomationNode) -> Dict[Any, Any]:
         """
@@ -86,6 +107,9 @@ class AutomationNodeType(
         storage=None,
         cache=None,
     ):
+        if prop_name == "order":
+            return str(node.order)
+
         if prop_name == "service":
             service = node.service.specific
             return service.get_type().export_serialized(
@@ -120,6 +144,9 @@ class AutomationNodeType(
         :param id_mapping: the id mapping dict.
         :return: the deserialized version for this property.
         """
+
+        if prop_name in ["previous_node_id", "parent_node_id"] and value:
+            return id_mapping["automation_workflow_nodes"][value]
 
         if prop_name == "service" and value:
             integration = None
@@ -197,7 +224,7 @@ class AutomationNodeType(
         self,
         automation_node: AutomationNode,
         dispatch_context: AutomationDispatchContext,
-    ) -> DispatchResult:
+    ):
         raise InvalidServiceTypeDispatchSource("This service cannot be dispatched.")
 
 

@@ -33,7 +33,7 @@ urlpatterns = [
         name="dispatch-all",
     ),
     re_path(
-        r"data_source/(?P<data_source_id>[0-9]+)/move/$",
+        r"data-source/(?P<data_source_id>[0-9]+)/move/$",
         MoveDataSourceView.as_view(),
         name="move",
     ),

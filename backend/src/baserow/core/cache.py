@@ -12,6 +12,10 @@ from baserow.version import VERSION as BASEROW_VERSION
 
 T = TypeVar("T")
 
+# This var is to invalidate global cache when we can't bump the Baserow version for
+# some reason.
+GLOBAL_CACHE_VERSION = 2
+
 
 class LocalCache:
     """
@@ -174,7 +178,7 @@ class GlobalCache:
 
         key = key if invalidate_key is None else invalidate_key
 
-        return f"{BASEROW_VERSION}_{key}__current_version"
+        return f"{BASEROW_VERSION}_{GLOBAL_CACHE_VERSION}_{key}__current_version"
 
     def _get_cache_key_with_version(self, key: str) -> str:
         """
@@ -185,7 +189,7 @@ class GlobalCache:
         """
 
         version = cache.get(self._get_version_cache_key(key), 0)
-        return f"{BASEROW_VERSION}_{key}__version_{version}"
+        return f"{BASEROW_VERSION}_{GLOBAL_CACHE_VERSION}_{key}__version_{version}"
 
     def get(
         self,
@@ -219,7 +223,9 @@ class GlobalCache:
 
         version = cache.get(version_key, 0)
 
-        cache_key_to_use = f"{BASEROW_VERSION}_{key}__version_{version}"
+        cache_key_to_use = (
+            f"{BASEROW_VERSION}_{GLOBAL_CACHE_VERSION}_{key}__version_{version}"
+        )
 
         cached = cache.get(cache_key_to_use, SENTINEL)
 
@@ -233,12 +239,12 @@ class GlobalCache:
                 # We check again to make sure it hasn't been populated in the meantime
                 # while acquiring the lock
                 if cached is SENTINEL:
+                    logger.debug(f"Global cache miss for: {key}")
                     if callable(default):
                         cached = default()
                     else:
                         cached = default
 
-                    logger.debug(f"Global cache miss for: {key}")
                     cache.set(
                         cache_key_to_use,
                         cached,

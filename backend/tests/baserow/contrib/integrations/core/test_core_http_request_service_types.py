@@ -6,7 +6,7 @@ import pytest
 
 from baserow.contrib.integrations.core.models import BODY_TYPE, HTTP_METHOD
 from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import UnexpectedDispatchException
 from baserow.core.services.handler import ServiceHandler
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
@@ -93,7 +93,7 @@ def test_core_http_request_request_error(
     # Use the patch context manager to mock `advocate.request`
     from requests.exceptions import InvalidHeader
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(UnexpectedDispatchException):
         with mock_advocate_request(raise_exception=InvalidHeader()):
             service_type.dispatch(service, dispatch_context)
 

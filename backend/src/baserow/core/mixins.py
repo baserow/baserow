@@ -1,6 +1,6 @@
 import abc
 from decimal import Decimal
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
@@ -222,6 +222,16 @@ class PolymorphicContentTypeMixin:
     def specific(self):
         """Returns this instance in its most specific subclassed form."""
 
+        return self.get_specific()
+
+    def get_specific(self, enhance_queryset: Callable = None):
+        """
+        Returns this instance in its most specific subclassed form.
+
+        :param enhance_queryset: Allow to enhance the queryset before querying the
+          specific instance.
+        """
+
         self._ensure_content_type_is_set()
         model_class = self.specific_class
         if model_class is None:
@@ -230,7 +240,12 @@ class PolymorphicContentTypeMixin:
             return self
         else:
             content_type = ContentType.objects.get_for_id(self.content_type_id)
-            return content_type.get_object_for_this_type(id=self.id)
+            # We deliberately want to use the `_base_manager` here so it's works exactly
+            # so that trashed objects will still be fetched.
+            queryset = content_type.model_class()._base_manager
+            if callable(enhance_queryset):
+                queryset = enhance_queryset(queryset)
+            return queryset.get(id=self.id)
 
     @cached_property
     def specific_class(self):

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import Any, List
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -107,8 +107,8 @@ class UpdateAutomationNodeActionType(UndoableActionType):
         automation_name: str
         node_id: int
         node_type: str
-        node_original_params: dict[str, any]
-        node_new_params: dict[str, any]
+        node_original_params: dict[str, Any]
+        node_new_params: dict[str, Any]
 
     @classmethod
     def do(
@@ -350,6 +350,85 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
         params: Params,
         action_to_redo: Action,
     ):
+        TrashHandler.restore_item(
+            user,
+            AutomationNodeTrashableItemType.type,
+            params.node_id,
+        )
+
+
+class ReplaceAutomationNodeActionType(UndoableActionType):
+    type = "replace_automation_node"
+    description = ActionTypeDescription(
+        _("Replace automation node"),
+        _(
+            "Node (%(node_id)s) changed from a type "
+            "of %(original_node_type)s to %(node_type)s"
+        ),
+        NODE_ACTION_CONTEXT,
+    )
+
+    @dataclass
+    class Params:
+        automation_id: int
+        automation_name: str
+        workflow_id: int
+        node_id: int
+        node_type: str
+        original_node_id: int
+        original_node_type: str
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        node_id: int,
+        new_node_type: str,
+    ) -> AutomationNode:
+        replacement = AutomationNodeService().replace_node(user, node_id, new_node_type)
+        replaced_node = replacement.node
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                replaced_node.workflow.automation.id,
+                replaced_node.workflow.automation.name,
+                replaced_node.workflow_id,
+                replaced_node.id,
+                replaced_node.get_type().type,
+                replacement.original_node_id,
+                replacement.original_node_type,
+            ),
+            scope=cls.scope(replaced_node.workflow.id),
+            workspace=replaced_node.workflow.automation.workspace,
+        )
+        return replaced_node
+
+    @classmethod
+    def scope(cls, workflow_id):
+        return WorkflowActionScopeType.value(workflow_id)
+
+    @classmethod
+    def undo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_undo: Action,
+    ):
+        AutomationNodeService().delete_node(user, params.node_id)
+        TrashHandler.restore_item(
+            user,
+            AutomationNodeTrashableItemType.type,
+            params.original_node_id,
+        )
+
+    @classmethod
+    def redo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_redo: Action,
+    ):
+        AutomationNodeService().delete_node(user, params.original_node_id)
         TrashHandler.restore_item(
             user,
             AutomationNodeTrashableItemType.type,

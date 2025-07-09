@@ -101,6 +101,9 @@ export default function CoreModule(options) {
     BASEROW_ROW_PAGE_SIZE_LIMIT: parseInt(
       process.env.BASEROW_ROW_PAGE_SIZE_LIMIT ?? 200
     ),
+    INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT: parseInt(
+      process.env.BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT ?? 200
+    ),
     BASEROW_BUILDER_DOMAINS: process.env.BASEROW_BUILDER_DOMAINS
       ? process.env.BASEROW_BUILDER_DOMAINS.split(',')
       : [],

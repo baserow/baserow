@@ -2,7 +2,6 @@ from typing import List
 
 from django.utils.functional import lazy
 
-from baserow_premium.plugins import PremiumPlugin
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -10,16 +9,13 @@ from rest_framework import serializers
 from baserow.api.app_auth_providers.serializers import AppAuthProviderSerializer
 from baserow.api.polymorphic import PolymorphicSerializer
 from baserow.api.services.serializers import PublicServiceSerializer
-from baserow.api.user_files.serializers import UserFileField, UserFileSerializer
+from baserow.api.user_files.serializers import UserFileField
 from baserow.api.workspaces.serializers import WorkspaceSerializer
 from baserow.contrib.builder.api.pages.serializers import (
     PathParamSerializer,
     QueryParamSerializer,
 )
-from baserow.contrib.builder.api.theme.serializers import (
-    CombinedThemeConfigBlocksSerializer,
-    serialize_builder_theme,
-)
+from baserow.contrib.builder.api.serializers import BuilderSerializer
 from baserow.contrib.builder.api.validators import image_file_validation
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.domains.models import Domain
@@ -30,7 +26,6 @@ from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
-from baserow.core.registries import plugin_registry
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.registries import user_source_type_registry
@@ -242,72 +237,19 @@ class PolymorphicPublicUserSourceSerializer(PolymorphicSerializer):
     request = False
 
 
-class PublicWorkspaceSerializer(WorkspaceSerializer):
-    licenses = serializers.SerializerMethodField()
-
-    class Meta(WorkspaceSerializer.Meta):
-        fields = WorkspaceSerializer.Meta.fields + ("licenses",)
-
-    def get_licenses(self, object):
-        all_licenses = set()
-        license_plugin = plugin_registry.get_by_type(PremiumPlugin).get_license_plugin(
-            cache_queries=True
-        )
-        license_types = list(
-            license_plugin.get_active_instance_wide_license_types(None)
-        ) + list(license_plugin.get_active_workspace_licenses(object))
-
-        for license_type in license_types:
-            all_licenses.add(license_type.type)
-
-        return list(all_licenses)
-
-
-class PublicBuilderSerializer(serializers.ModelSerializer):
+class PublicBuilderSerializer(BuilderSerializer):
     """
     A public version of the builder serializer with less data to prevent data leaks.
     """
-
-    pages = serializers.SerializerMethodField(
-        help_text="This field is specific to the `builder` application and contains "
-        "an array of pages that are in the builder."
-    )
 
     user_sources = serializers.SerializerMethodField(
         help_text="The user sources related with this builder."
     )
 
-    theme = serializers.SerializerMethodField(
-        help_text="This field is specific to the `builder` application and contains "
-        "the theme settings."
-    )
-
-    type = serializers.SerializerMethodField(help_text="The type of the object.")
-
-    favicon_file = serializers.SerializerMethodField(
-        help_text="This field is specific to the `builder` application and contains "
-        "the favicon settings."
-    )
-
-    login_page_id = serializers.IntegerField(
-        help_text=Builder._meta.get_field("login_page").help_text
-    )
-
     workspace = serializers.SerializerMethodField()
 
     class Meta:
-        model = Builder
-        fields = (
-            "id",
-            "name",
-            "pages",
-            "type",
-            "theme",
-            "user_sources",
-            "favicon_file",
-            "login_page_id",
-            "workspace",
-        )
+        ref_name = "PublicBuilderApplication"
 
     @extend_schema_field(PublicPageSerializer(many=True))
     def get_pages(self, instance: Builder) -> List:
@@ -335,21 +277,8 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
 
         return PolymorphicPublicUserSourceSerializer(user_sources, many=True).data
 
-    @extend_schema_field(OpenApiTypes.STR)
-    def get_type(self, instance: Builder) -> str:
-        return "builder"
-
-    @extend_schema_field(CombinedThemeConfigBlocksSerializer())
-    def get_theme(self, instance):
-        return serialize_builder_theme(instance)
-
-    def get_favicon_file(self, obj):
-        if favicon_file := obj.favicon_file:
-            return UserFileSerializer(favicon_file).data
-        return None
-
     def get_workspace(self, obj):
-        return PublicWorkspaceSerializer(obj.get_workspace()).data
+        return WorkspaceSerializer(obj.get_workspace()).data
 
 
 class PublicDataSourceSerializer(PublicServiceSerializer):

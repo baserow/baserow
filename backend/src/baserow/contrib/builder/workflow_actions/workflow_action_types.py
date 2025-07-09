@@ -1,6 +1,7 @@
 from typing import Any, Dict, Generator, Union
 
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Prefetch
 
 from rest_framework import serializers
 
@@ -16,6 +17,7 @@ from baserow.contrib.builder.elements.element_types import NavigationElementMana
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
+    CoreSMTPEmailWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
@@ -28,16 +30,21 @@ from baserow.contrib.builder.workflow_actions.registries import (
     BuilderWorkflowActionType,
 )
 from baserow.contrib.builder.workflow_actions.types import BuilderWorkflowActionDict
-from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
+from baserow.contrib.integrations.core.service_types import (
+    CoreHTTPRequestServiceType,
+    CoreSMTPEmailServiceType,
+)
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.db import specific_queryset
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BaserowFormula
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import Instance
 from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
 from baserow.core.workflow_actions.models import WorkflowAction
@@ -383,8 +390,25 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
         yield from service.get_type().formula_generator(service)
 
     def enhance_queryset(self, queryset):
-        queryset = queryset.select_related("service")
-        return super().enhance_queryset(queryset)
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .prefetch_related(
+                Prefetch(
+                    "service",
+                    queryset=specific_queryset(
+                        Service.objects.all(),
+                        per_content_type_queryset_hook=(
+                            lambda service, queryset: service_type_registry.get_by_model(
+                                service
+                            ).enhance_queryset(
+                                queryset
+                            )
+                        ),
+                    ),
+                )
+            )
+        )
 
     def dispatch(
         self, workflow_action: WorkflowAction, dispatch_context: BuilderDispatchContext
@@ -434,4 +458,14 @@ class CoreHttpRequestActionType(BuilderWorkflowServiceActionType):
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
         service = pytest_data_fixture.create_core_http_request_service()
+        return {"service": service}
+
+
+class CoreSMTPEmailActionType(BuilderWorkflowServiceActionType):
+    type = "smtp_email"
+    model_class = CoreSMTPEmailWorkflowAction
+    service_type = CoreSMTPEmailServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_core_smtp_email_service()
         return {"service": service}

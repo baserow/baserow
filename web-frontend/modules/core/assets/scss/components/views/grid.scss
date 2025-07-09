@@ -455,7 +455,7 @@
 }
 
 .grid-view__row-drag {
-  @include absolute(9px, auto, 0, 9px);
+  @include absolute(9px, auto, 0, 2px);
 
   width: 16px;
   height: 16px;
@@ -468,7 +468,7 @@
     content: '';
     width: 11px;
     background-image: radial-gradient(
-      $palette-neutral-700 1.5px,
+      $palette-neutral-500 1.5px,
       transparent 1.5px
     );
     background-size: 5px 5px;
@@ -480,14 +480,31 @@
   }
 }
 
+.grid-view__row-checkbox {
+  flex: 1;
+  margin-left: 16px;
+  margin-top: 9px;
+  height: 24px;
+}
+
 .grid-view__row-count {
   @extend %ellipsis;
 
   flex: 1;
   margin-left: 8px;
+  display: flex;
+  align-items: center;
 
   &.grid-view__row-count--small {
     font-size: 11px;
+  }
+
+  &::before {
+    content: '';
+    width: 10px;
+    height: 12px;
+    flex-shrink: 1;
+    min-width: 0;
   }
 
   .grid-view__row--loading & {
@@ -505,6 +522,13 @@
   .grid-view__row--hover &.grid-view__row-count--hide-on-hover {
     visibility: hidden;
   }
+}
+
+.grid-view__row-count-content {
+  flex-grow: 1;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .grid-view__row-more {
@@ -628,9 +652,7 @@
   .grid-view__description-extra-icon {
     content: '';
     font-size: 8px;
-    padding: 1px;
     color: $palette-neutral-1200;
-    background-color: $color-neutral-100;
 
     @include absolute(auto, -4px, -2px, auto);
   }

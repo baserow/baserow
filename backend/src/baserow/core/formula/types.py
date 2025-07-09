@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, List
 
-from baserow.core.formula.exceptions import FormulaRecursion
+from baserow.core.formula.exceptions import RuntimeFormulaRecursion
 
 BaserowFormula = str
 FormulaArg = Any
@@ -26,11 +26,11 @@ class FormulaContext(ABC):
         Used to track calls using this context.
 
         :param call_id: the unique identifier of the call.
-        :raise FormulaRecursion: when a recursion is detected.
+        :raise RuntimeFormulaRecursion: when a recursion is detected.
         """
 
         if call_id in self.call_stack:
-            raise FormulaRecursion()
+            raise RuntimeFormulaRecursion()
         self.call_stack.add(call_id)
 
     def reset_call_stack(self):

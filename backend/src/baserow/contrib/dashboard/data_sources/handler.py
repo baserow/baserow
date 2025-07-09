@@ -291,8 +291,8 @@ class DashboardDataSourceHandler:
         :param dispatch_context: The context used for the dispatch.
         :raises DashboardDataSourceImproperlyConfigured: If the data source is
             not properly configured.
-        :raises ServiceImproperlyConfigured: If the underlying service is
-            not properly configured.
+        :raises ServiceImproperlyConfiguredDispatchException: If the underlying service
+            is not properly configured.
         :raises DoesNotExist: If the requested data from the service
             don't exist.
         :return: The result of dispatching the data source.
@@ -303,8 +303,9 @@ class DashboardDataSourceHandler:
                 "The service type is missing."
             )
 
+        specific_service = ServiceHandler().get_service(data_source.service.id)
         service_dispatch = self.service_handler.dispatch_service(
-            data_source.service.specific, dispatch_context
+            specific_service, dispatch_context
         )
 
         return service_dispatch.data

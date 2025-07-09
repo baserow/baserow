@@ -155,6 +155,7 @@ class BaserowFormulaTextType(
     type = "text"
     baserow_field_type = "text"
     can_order_by_in_array = True
+    can_have_db_index = True
 
     def __init__(self, *args, **kwargs):
         unwrap_cast_to_text = kwargs.pop("unwrap_cast_to_text", True)
@@ -367,6 +368,7 @@ class BaserowFormulaNumberType(
     MAX_DIGITS = 50
     can_order_by_in_array = True
     can_group_by = True
+    can_have_db_index = True
 
     def __init__(
         self,
@@ -514,6 +516,7 @@ class BaserowFormulaBooleanType(
     baserow_field_type = "boolean"
     can_order_by_in_array = True
     can_group_by = True
+    can_have_db_index = True
 
     def get_in_array_empty_value(self, field: "Field") -> Any:
         return None
@@ -825,6 +828,7 @@ class BaserowFormulaDateType(
     can_represent_date = True
     can_order_by_in_array = True
     can_group_by = True
+    can_have_db_index = True
 
     def __init__(
         self,
@@ -1130,6 +1134,7 @@ class BaserowFormulaArrayType(
         "array_formula_type",
     ]
     can_group_by = False
+    serializer_extra_args = ["limit_linked_items"]
 
     def __init__(self, sub_type: BaserowFormulaValidType, **kwargs):
         super().__init__(**kwargs)
@@ -1241,7 +1246,10 @@ class BaserowFormulaArrayType(
     def get_serializer_field(self, instance, **kwargs) -> Optional[Field]:
         required = kwargs.get("required", False)
 
-        from baserow.contrib.database.api.fields.serializers import ArrayValueSerializer
+        from baserow.contrib.database.api.fields.serializers import (
+            ArrayValueSerializer,
+            LimitListSerializer,
+        )
 
         (
             instance,
@@ -1253,11 +1261,12 @@ class BaserowFormulaArrayType(
             )
         else:
             serializer = field_type.get_response_serializer_field(instance)
-        return serializers.ListSerializer(
+        return LimitListSerializer(
             **{
                 "required": required,
                 "allow_null": not required,
                 "child": serializer,
+                "limit": kwargs.pop("limit_linked_items", None),
                 **kwargs,
             }
         )

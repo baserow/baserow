@@ -126,10 +126,17 @@ class BaserowMCPServer:
                         self._mcp_server.create_initialization_options(),
                     )
                 return Response()
+            except Exception as exc:
+                # This is a known issue in FastMCP
+                # (https://github.com/jlowin/fastmcp/issues/671) that is not causing any
+                # critical issues in practice, but it does cause some noise in the logs.
+                if isinstance(
+                    exc, RuntimeError
+                ) and "after response already completed" in str(exc):
+                    return Response(status_code=204)
 
-            except Exception as e:
-                logger.exception(e)
-                return Response(f"Endpoint error", status_code=500)
+                logger.exception("Error while handling SSE connection")
+                return Response("MCP server error", status_code=500)
             finally:
                 # Reset the context variable when done
                 current_key.reset(key_ctx)

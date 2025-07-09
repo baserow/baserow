@@ -8,6 +8,19 @@
     "timeFormat24Hour": "24 hour",
     "timeFormat12Hour": "12 hour"
   },
+  "builderToast": {
+    "details": "Details",
+    "defaultTitle": "Unexpected Error",
+    "defaultMessage": "An unexpected error occurred. Please try again later.",
+    "invalidContextTitle": "Invalid request",
+    "invalidContextMessage": "The request is invalid.",
+    "InvalidContentTitle": "Invalid form",
+    "invalidContentMessage": "One or more fields contain invalid values.",
+    "serviceMisconfiguredTitle": "Incomplete configuration",
+    "serviceMisconfiguredMessage": "Please check the configuration.",
+    "errorWorkflowActionDispatch": "The \"{name}\" action failed: ",
+    "errorDataSourceDispatch": "Failed to load \"{name}\" data: "
+  },
   "dataProviderType": {
     "dataSource": "Data records",
     "dataSourceContext": "Available options",
@@ -136,7 +149,26 @@
     "simpleContainer": "Container",
     "simpleContainerDescription": "A container for other elements",
     "fileInput": "File input",
-    "fileInputDescription": "An input to upload files"
+    "fileInputDescription": "An input to upload files",
+    "errorValueMissing": "Missing value property",
+    "errorEmptyContainer": "This container is empty",
+    "errorParentWithDataSourceMissing": "No data source selected on the element or a parent container",
+    "errorDataSourceMissing": "No data source selected",
+    "errorSchemaPropertyMissing": "No schema property selected",
+    "errorWorkflowActionInError": "At least one action is misconfigured",
+    "errorCollectionFieldInError": "At least one field is misconfigured",
+    "errorNavigateToPageMissing": "Missing Navigate to property",
+    "errorPageParameterInError": "At least one page parameter is misconfigured",
+    "errorNavigationUrlMissing": "Missing Navigation URL property",
+    "errorImageFileMissing": "Missing Image file",
+    "errorImageUrlMissing": "Missing Image URL property",
+    "errorNoWorkflowAction": "No workflow action configured",
+    "errorOptionsMissing": "No option configured",
+    "errorIframeUrlMissing": "Missing IFrame URL property",
+    "errorIframeContentMissing": "Missing IFrame content",
+    "errorNoMenuItem": "No menu item configured",
+    "errorMenuItemInError": "At least one menu is misconfigured",
+    "errorSubMenuItemInError": "At least one sub menu is misconfigured"
   },
   "addElementButton": {
     "label": "Element"
@@ -705,6 +737,7 @@
     "itemsPerPage": "Items per page",
     "fieldDefaultName": "Column",
     "name": "Name",
+    "noName": "No name",
     "fieldType": "Type",
     "itemsPerPagePlaceholder": "Enter value...",
     "selectSourceFirst": "Choose a data source and/or property to begin configuring your fields.",
@@ -779,7 +812,11 @@
     "openPageLabel": "Open Page",
     "logoutLabel": "Logout",
     "refreshDataSourceLabel": "Refresh data source",
-    "httpRequest": "Send HTTP request"
+    "httpRequest": "Send HTTP request",
+    "errorNavigateToPageMissing": "Missing Navigate to property",
+    "errorPageParameterInError": "At least one page parameter is misconfigured",
+    "errorNavigationUrlMissing": "Missing Navigation URL property",
+    "errorDataSourceMissing": "No data source selected"
   },
   "notificationWorkflowActionForm": {
     "titleLabel": "Title",
@@ -866,16 +903,6 @@
     "manual": "Manual",
     "dataSource": "Data source",
     "formulas": "Formulas"
-  },
-  "dispatchWorkflowActionError": {
-    "defaultTitle": "Event error",
-    "defaultMessage": "An error occurred triggering this event.",
-    "formDataInvalidTitle": "Invalid form",
-    "formDataInvalidMessage": "One or more fields contain invalid values."
-  },
-  "dispatchDataSourceError": {
-    "defaultTitle": "Data loading error",
-    "defaultMessage": "An error occurred while loading data for the page."
   },
   "localBaserowServiceForm": {
     "integrationDropdownLabel": "Integration",
@@ -1019,5 +1046,29 @@
   },
   "abFileInput": {
     "delete": "Delete"
+  },
+  "elementsGuidedTourStep": {
+    "title": "Add elements to your page",
+    "content": "Every app needs components! Add elements like tables, forms, buttons, and more to bring your app to life."
+  },
+  "dataGuidedTourStep": {
+    "title": "Connect your data",
+    "content": "Link your Baserow tables here to display, filter, and update your data dynamically across different elements."
+  },
+  "previewGuidedTourStep": {
+    "title": "Your control center",
+    "content": "This is where you configure your app’s pages. Add elements, preview the result, and structure your app exactly how you want."
+  },
+  "devicesGuidedTourStep": {
+    "title": "Preview on different devices",
+    "content": "Switch between desktop, tablet, and mobile previews to see how your app looks on different screen sizes. Make sure your design works perfectly across all devices!"
+  },
+  "sidePanelGuidedTourStep": {
+    "title": "Side Panel: Customize Elements",
+    "content": "**General Tab** – Configure the selected element.\n\n**Style Tab** – Customize padding, margin, borders, and more.\n\n**Visibility Tab** – Control who can see this element: logged-in users, logged-out users, or specific roles.\n\n**Events Tab** – If the element supports actions, configure them here for dynamic interactivity."
+  },
+  "previewPublishGuidedTourStep": {
+    "title": "Preview & Publish Your App",
+    "content": "Click **Preview** to test your app privately. When ready, click **Publish** to share it with the public via a domain."
   }
 }

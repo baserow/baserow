@@ -9,7 +9,7 @@ from baserow.contrib.automation.nodes.exceptions import (
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import (
     AutomationNode,
-    LocalBaserowRowsCreatedTriggerNode,
+    LocalBaserowCreateRowActionNode,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
@@ -23,12 +23,12 @@ SERVICE_PATH = "baserow.contrib.automation.nodes.service"
 def test_create_node(mocked_signal, data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
-    node_type = automation_node_type_registry.get("rows_created")
+    node_type = automation_node_type_registry.get("create_row")
 
     service = AutomationNodeService()
     node = service.create_node(user, node_type, workflow)
 
-    assert isinstance(node, LocalBaserowRowsCreatedTriggerNode)
+    assert isinstance(node, LocalBaserowCreateRowActionNode)
     mocked_signal.send.assert_called_once_with(service, node=node, user=user)
 
 
@@ -91,7 +91,7 @@ def test_create_node_before_invalid(data_fixture):
 def test_create_node_permission_error(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
-    node_type = automation_node_type_registry.get("rows_created")
+    node_type = automation_node_type_registry.get("create_row")
 
     another_user, _ = data_fixture.create_user_and_token()
 

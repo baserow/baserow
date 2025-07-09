@@ -4,8 +4,9 @@ import SidebarComponentBuilder from '@baserow/modules/builder/components/sidebar
 import { populatePage } from '@baserow/modules/builder/store/page'
 import PageTemplate from '@baserow/modules/builder/components/page/PageTemplate'
 import PageTemplateSidebar from '@baserow/modules/builder/components/page/PageTemplateSidebar'
-import ApplicationContext from '@baserow/modules/builder/components/application/ApplicationContext'
+import BuilderApplicationContext from '@baserow/modules/builder/components/application/BuilderApplicationContext'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
+import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 
 export class BuilderApplicationType extends ApplicationType {
   static getType() {
@@ -49,7 +50,7 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   getApplicationContextComponent() {
-    return ApplicationContext
+    return BuilderApplicationContext
   }
 
   getTemplateSidebarComponent() {
@@ -132,7 +133,7 @@ export class BuilderApplicationType extends ApplicationType {
           builder,
           page: sharedPage,
         }),
-        store.dispatch('workflowAction/fetch', { page: sharedPage }),
+        store.dispatch('builderWorkflowAction/fetch', { page: sharedPage }),
       ])
 
       // Initialize application shared stuff like data sources
@@ -186,8 +187,8 @@ export class BuilderApplicationType extends ApplicationType {
     return data
   }
 
-  isBeta() {
-    return true
+  get developmentStage() {
+    return DEVELOPMENT_STAGES.BETA
   }
 
   isVisible(application) {

@@ -35,7 +35,8 @@ class Builder(Application):
     login_page = models.OneToOneField(
         Page,
         on_delete=models.SET_NULL,
-        help_text="The login page for this application. This is related to the visibility settings of builder pages.",
+        help_text="The login page for this application. This is related to the "
+        "visibility settings of builder pages.",
         related_name="login_page",
         null=True,
     )

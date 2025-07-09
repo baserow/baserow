@@ -2,6 +2,7 @@ import os
 from unittest.mock import Mock
 
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.test.utils import override_settings
 
 import pytest
@@ -885,11 +886,11 @@ def test_text_field_type_get_order(data_fixture):
 
 
 @pytest.mark.django_db
-@override_settings(USE_PG_FULLTEXT_SEARCH=False)
+@override_settings(PG_FULLTEXT_SEARCH_ENABLED=False)
 def test_tsv_not_created(data_fixture):
     id_mapping = {}
 
-    table = data_fixture.create_database_table(force_add_tsvectors=False)
+    table = data_fixture.create_database_table()
     text_field = data_fixture.create_text_field(
         name="Text name", text_default="Text default", table=table
     )
@@ -966,3 +967,42 @@ def test_number_field_type_export_with_nan_value(data_fixture):
     export_value = field_type.get_export_value(value, field_object)
 
     assert export_value == "NaN"
+
+
+@pytest.mark.django_db
+def test_all_fields_with_db_index_have_index(data_fixture):
+    table, user, row, blank_row, context = setup_interesting_test_table(data_fixture)
+    field_handler = FieldHandler()
+    model = table.get_model()
+    for field_object in model._field_objects.values():
+        field = field_object["field"]
+        field_type = field_object["type"]
+        if field_type.can_have_db_index(field):
+            field_handler.update_field(
+                user=user, table=table, field=field, db_index=True
+            )
+
+    table.refresh_from_db()
+    model = table.get_model()
+    table_name = model._meta.db_table
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT indexname, indexdef
+            FROM pg_indexes
+            WHERE tablename = %s
+        """,
+            [table_name],
+        )
+        indexes = cursor.fetchall()
+
+    for field_object in model._field_objects.values():
+        field = field_object["field"]
+        field_type = field_object["type"]
+        if field_type.can_have_db_index(field):
+            model_field = model._meta.get_field(field_object["name"])
+            index_name = f"database_table_{table.id}_{model_field.db_column}_"
+            assert any(
+                indexdef[0].startswith(index_name) for indexdef in indexes
+            ), f"{index_name} not found in indexes"

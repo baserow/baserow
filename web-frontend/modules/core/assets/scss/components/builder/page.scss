@@ -13,3 +13,16 @@
     min-height: 100%;
   }
 }
+
+.public-page .context {
+  // We want the same color as page background
+  background-color: var(--page-background-color, #fff);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--page-background-color, $white),
+      var(--body-text-color, $black) 50%
+    );
+  box-shadow: 0 6px 12px 0
+    color-mix(in srgb, var(--body-text-color, $white) 10%, transparent);
+}

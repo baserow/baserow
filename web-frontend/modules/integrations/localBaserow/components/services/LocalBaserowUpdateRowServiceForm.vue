@@ -7,10 +7,10 @@
 </template>
 
 <script>
-import UpsertRowWorkflowActionForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm.vue'
+import UpsertRowWorkflowActionForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm'
 
 export default {
-  name: 'UpdateRowWorkflowAction',
+  name: 'LocalBaserowUpdateRowServiceForm',
   components: { UpsertRowWorkflowActionForm },
 }
 </script>

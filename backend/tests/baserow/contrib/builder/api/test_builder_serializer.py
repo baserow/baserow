@@ -4,8 +4,6 @@ from django.shortcuts import reverse
 
 import pytest
 
-from baserow.contrib.builder.api.serializers import BuilderSerializer
-
 
 @pytest.fixture()
 def builder_fixture(data_fixture):
@@ -22,21 +20,6 @@ def builder_fixture(data_fixture):
         "user": user,
         "token": token,
     }
-
-
-@pytest.mark.django_db
-def test_serializer_has_expected_fields(builder_fixture):
-    """Ensure the serializer returns the expected fields."""
-
-    serializer = BuilderSerializer(instance=builder_fixture["builder"])
-    assert sorted(serializer.data.keys()) == [
-        "id",
-        "integrations",
-        "name",
-        "pages",
-        "theme",
-        "user_sources",
-    ]
 
 
 @pytest.mark.django_db

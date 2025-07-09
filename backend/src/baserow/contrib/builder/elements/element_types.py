@@ -29,10 +29,8 @@ from baserow.contrib.builder.api.elements.serializers import (
     MenuItemSerializer,
     NestedMenuItemsMixin,
 )
-from baserow.contrib.builder.data_providers.exceptions import (
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
+from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
     CollectionElementTypeMixin,
@@ -339,6 +337,9 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
             ),
         }
 
+    def enhance_queryset(self, queryset):
+        return super().enhance_queryset(queryset).prefetch_related("fields")
+
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "data_source_id": None,
@@ -606,8 +607,8 @@ class RecordSelectorElementType(
         """
 
         if not element.data_source_id:
-            msg = "Record selector requires a valid data source."
-            raise FormDataProviderChunkInvalidException(msg)
+            msg = "A valid data source is required"
+            raise ElementImproperlyConfigured(msg)
 
         data_source = DataSourceHandler().get_data_source(element.data_source_id)
 
@@ -627,26 +628,26 @@ class RecordSelectorElementType(
                 "The value must be an array of integers, or convertible to an"
                 "array of integers"
             )
-            raise FormDataProviderChunkInvalidException(msg) from err
+            raise TypeError(msg) from err
 
         if element.multiple:
             if element.required and not record_ids:
-                msg = "This value is required"
-                raise FormDataProviderChunkInvalidException(msg)
+                msg = "The value is required"
+                raise ValueError(msg)
 
             if not record_ids.issubset(available_record_ids):
                 msg = f"{value} is not a valid option"
-                raise FormDataProviderChunkInvalidException(msg)
+                raise ValueError(msg)
         else:
             record_id = value
 
             if not record_id:
                 if element.required:
-                    msg = "This value is required"
-                    raise FormDataProviderChunkInvalidException(msg)
+                    msg = "The value is required"
+                    raise ValueError(msg)
             elif record_id not in available_record_ids:
                 msg = f"{record_id} is not a valid option"
-                raise FormDataProviderChunkInvalidException(msg)
+                raise ValueError(msg)
 
         return value
 
@@ -928,7 +929,7 @@ class NavigationElementManager:
 
             if page_parameter_type is None:
                 raise DRFValidationError(
-                    f"Page path parameter {page_parameter['name']} does not exist."
+                    f"Page path parameter {page_parameter['name']} does not exist"
                 )
 
 
@@ -1350,9 +1351,7 @@ class RatingInputElementType(InputElementType):
         if (element.required and value is None) or not (
             value is None or 0 <= value <= element.max_value
         ):
-            raise FormDataProviderChunkInvalidException(
-                "The value is required for this element."
-            )
+            raise ValueError("The value is required")
         return value
 
 
@@ -1475,23 +1474,19 @@ class InputTextElementType(InputElementType):
 
         if not value:
             if element.required:
-                raise FormDataProviderChunkInvalidException(f"The value is required.")
+                raise ValueError("The value is required")
 
         elif element.validation_type == "integer":
             try:
                 return ensure_numeric(value)
-            except (ValueError, TypeError, InvalidOperation, ValidationError) as exc:
-                raise FormDataProviderChunkInvalidException(
-                    f"{value} must be a valid number."
-                ) from exc
+            except (InvalidOperation, ValidationError) as exc:
+                raise TypeError(f"{value} is not a valid number") from exc
 
         elif element.validation_type == "email":
             try:
                 validate_email(value)
             except ValidationError as exc:
-                raise FormDataProviderChunkInvalidException(
-                    f"{value} must be a valid email."
-                ) from exc
+                raise ValueError(f"{value} is not a valid email") from exc
         return value
 
 
@@ -1590,15 +1585,13 @@ class CheckboxElementType(InputElementType):
         self, element: CheckboxElement, value: Any, dispatch_context: DispatchContext
     ) -> bool:
         if element.required and not value:
-            raise FormDataProviderChunkInvalidException(
-                "The value is required for this element."
-            )
+            raise ValueError("The value is required")
 
         try:
             return ensure_boolean(value)
         except ValidationError as exc:
-            raise FormDataProviderChunkInvalidException(
-                "The value must be a boolean or convertible to a boolean."
+            raise ValueError(
+                "The value must be a boolean or convertible to a boolean"
             ) from exc
 
     def get_pytest_params(self, pytest_data_fixture):
@@ -1894,31 +1887,23 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             try:
                 value = ensure_array(value)
             except ValidationError as exc:
-                raise FormDataProviderChunkInvalidException(
-                    "The value must be an array or convertible to an array."
+                raise ValueError(
+                    "The value must be an array or convertible to an array"
                 ) from exc
 
             if not value:
                 if element.required:
-                    raise FormDataProviderChunkInvalidException(
-                        "The value is required."
-                    )
+                    raise ValueError("The value is required")
             else:
                 for v in value:
                     if v not in options:
-                        raise FormDataProviderChunkInvalidException(
-                            f"{value} is not a valid option."
-                        )
+                        raise ValueError(f"{value} is not a valid option")
         else:
             if not value:
                 if element.required and value not in options:
-                    raise FormDataProviderChunkInvalidException(
-                        "The value is required."
-                    )
+                    raise ValueError("The value is required")
             elif value not in options:
-                raise FormDataProviderChunkInvalidException(
-                    f"{value} is not a valid option."
-                )
+                raise ValueError(f"{value} is not a valid option")
 
         return value
 
@@ -2087,8 +2072,8 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
                     else FormattedDate(value, date_format)
                 )
             except ValueError as exc:
-                msg = f"The value '{value}' is not a valid date."
-                raise FormDataProviderChunkInvalidException(msg, exc)
+                msg = f"'{value}' is not a valid date"
+                raise ValueError(msg) from exc
 
         return value
 

@@ -75,7 +75,7 @@ from .exceptions import (
     ReadOnlyFieldHasNoInternalDbValueError,
 )
 from .fields import DurationFieldUsingPostgresFormatting
-from .models import Field, LinkRowField
+from .models import Field, FieldConstraint, LinkRowField
 from .utils import DeferredForeignKeyUpdater
 
 if TYPE_CHECKING:
@@ -147,6 +147,12 @@ class FieldType(
     """
     Indicates whether this field can generate a list of unique values using the
     `FieldHandler::get_unique_row_values` method.
+    """
+
+    _can_have_db_index = False
+    """
+    Indicates whether a `db_index` can be true on the model field. If so, then it's
+    optionally possible for to add an index to the field.
     """
 
     _can_group_by = False
@@ -701,6 +707,10 @@ class FieldType(
 
         values = {
             "name": field.name,
+            "db_index": field.db_index,
+            "field_constraints": [
+                {"type_name": c.type_name} for c in field.field_constraints.all()
+            ],
         }
 
         values.update({key: getattr(field, key) for key in self.allowed_fields})
@@ -994,6 +1004,15 @@ class FieldType(
         :return: The exported field in as serialized dict.
         """
 
+        # Handle cases where field_constraints relationship might fail
+        # e.g. during Airtable import that uses unsaved field instances
+        try:
+            field_constraints = [
+                {"type_name": c.type_name} for c in field.field_constraints.all()
+            ]
+        except (ValueError, TypeError):
+            field_constraints = []
+
         serialized = {
             "id": field.id,
             "type": self.type,
@@ -1002,8 +1021,10 @@ class FieldType(
             "order": field.order,
             "primary": field.primary,
             "read_only": field.read_only,
+            "db_index": field.db_index,
             "immutable_type": field.immutable_type,
             "immutable_properties": field.immutable_properties,
+            "field_constraints": field_constraints,
         }
 
         if include_allowed_fields:
@@ -1062,6 +1083,7 @@ class FieldType(
         serialized_copy = serialized_values.copy()
         field_id = serialized_copy.pop("id")
         serialized_copy.pop("type")
+        field_constraints = serialized_copy.pop("field_constraints", [])
         select_options = (
             serialized_copy.pop("select_options", [])
             if self.can_have_select_options
@@ -1074,15 +1096,7 @@ class FieldType(
             if select_default_field_name:
                 select_default = serialized_copy.pop(select_default_field_name, None)
 
-        should_create_tsvector_column = (
-            not import_export_config.reduce_disk_space_usage
-            and table.tsvectors_are_supported
-        )
-        field = self.model_class(
-            table=table,
-            tsvector_column_created=should_create_tsvector_column,
-            **serialized_copy,
-        )
+        field = self.model_class(table=table, **serialized_copy)
         field.save()
 
         id_mapping["database_fields"][field_id] = field.id
@@ -1090,6 +1104,14 @@ class FieldType(
         # id based on the table id and field name later if any other field references
         # this field.
         id_mapping["database_field_names"][table.id][field.name] = field
+
+        if field_constraints:
+            FieldConstraint.objects.bulk_create(
+                [
+                    FieldConstraint(field=field, type_name=constraint["type_name"])
+                    for constraint in field_constraints
+                ]
+            )
 
         if self.can_have_select_options:
             select_options_mapping = self.create_select_options(field, select_options)
@@ -1148,8 +1170,6 @@ class FieldType(
         update statement with the update_collector to correctly set their value after
         the row has been created.
         """
-
-        pass
 
     def get_export_serialized_value(
         self,
@@ -1622,6 +1642,17 @@ class FieldType(
         """
 
         return self._can_be_primary_field
+
+    def can_have_db_index(self, field: Field) -> bool:
+        """
+        Override this method if this field type can have an index.
+
+        :param field: The field object related to the field that's created or updated
+            with the db_index enabled.
+        :return: True if the field can have an index
+        """
+
+        return self._can_have_db_index
 
     @cached_property
     def _can_filter_by(self) -> bool:
@@ -2401,6 +2432,32 @@ class FieldAggregationTypeRegistry(Registry):
     already_registered_exception_class = AggregationTypeAlreadyRegistered
 
 
+class FieldConstraintRegistry(Registry):
+    """
+    The registry that holds all the available field value constraints.
+    A field value constraint can be used to validate the values of a field.
+    """
+
+    name = "field_constraint"
+
+    def get_specific_constraint(self, constraint_name: str, field_type: FieldType):
+        """
+        Returns the specific constraint for the field type and constraint name.
+
+        :param constraint_name: The name of the constraint.
+        :param field_type: The field type to check compatibility with.
+        :return: The specific constraint or None if no specific constraint is found.
+        """
+
+        for constraint in self.registry.values():
+            if (
+                constraint.constraint_name == constraint_name
+                and constraint.is_field_type_compatible(field_type)
+            ):
+                return constraint
+        return None
+
+
 # A default field type registry is created here, this is the one that is used
 # throughout the whole Baserow application to add a new field type.
 field_type_registry: FieldTypeRegistry = FieldTypeRegistry()
@@ -2408,3 +2465,4 @@ field_converter_registry: FieldConverterRegistry = FieldConverterRegistry()
 field_aggregation_registry: FieldAggregationTypeRegistry = (
     FieldAggregationTypeRegistry()
 )
+field_constraint_registry: FieldConstraintRegistry = FieldConstraintRegistry()

@@ -18,7 +18,16 @@ import automationWorkflowStore from '@baserow/modules/automation/store/automatio
 import automationWorkflowNodeStore from '@baserow/modules/automation/store/automationWorkflowNode'
 import {
   LocalBaserowCreateRowActionNodeType,
+  LocalBaserowUpdateRowActionNodeType,
+  LocalBaserowDeleteRowActionNodeType,
+  LocalBaserowGetRowActionNodeType,
+  LocalBaserowListRowsActionNodeType,
   LocalBaserowRowsCreatedTriggerNodeType,
+  LocalBaserowRowsUpdatedTriggerNodeType,
+  LocalBaserowRowsDeletedTriggerNodeType,
+  LocalBaserowAggregateRowsActionNodeType,
+  CoreHttpRequestNodeType,
+  CoreSMTPEmailNodeType,
 } from '@baserow/modules/automation/nodeTypes'
 import { DuplicateAutomationWorkflowJobType } from '@baserow/modules/automation/jobTypes'
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
@@ -26,6 +35,7 @@ import {
   HistoryEditorSidePanelType,
   NodeEditorSidePanelType,
 } from '@baserow/modules/automation/editorSidePanelTypes'
+import { PreviousNodeDataProviderType } from '@baserow/modules/automation/dataProviderTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -59,12 +69,46 @@ export default (context) => {
       new AutomationApplicationType(context)
     )
     app.$registry.register(
+      'automationDataProvider',
+      new PreviousNodeDataProviderType(context)
+    )
+    app.$registry.register(
       'node',
       new LocalBaserowRowsCreatedTriggerNodeType(context)
     )
     app.$registry.register(
       'node',
+      new LocalBaserowRowsUpdatedTriggerNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowRowsDeletedTriggerNodeType(context)
+    )
+    app.$registry.register(
+      'node',
       new LocalBaserowCreateRowActionNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowUpdateRowActionNodeType(context)
+    )
+    app.$registry.register('node', new CoreHttpRequestNodeType(context))
+    app.$registry.register('node', new CoreSMTPEmailNodeType(context))
+    app.$registry.register(
+      'node',
+      new LocalBaserowDeleteRowActionNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowGetRowActionNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowListRowsActionNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowAggregateRowsActionNodeType(context)
     )
     app.$registry.register(
       'job',

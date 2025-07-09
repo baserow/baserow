@@ -3,6 +3,7 @@ from typing import Optional
 
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError
+from django.db.models.manager import BaseManager
 from django.utils.functional import lazy
 
 from drf_spectacular.types import OpenApiTypes
@@ -17,13 +18,19 @@ from baserow.contrib.database.fields.constants import (
     BASEROW_BOOLEAN_FIELD_FALSE_VALUES,
     BASEROW_BOOLEAN_FIELD_TRUE_VALUES,
 )
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import Field, FieldConstraint
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils.duration import (
     postgres_interval_to_seconds,
     prepare_duration_value_for_db,
 )
 from baserow.core.utils import split_comma_separated_string
+
+
+class FieldConstraintSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FieldConstraint
+        fields = ("type_name",)
 
 
 class FieldSerializer(serializers.ModelSerializer):
@@ -42,6 +49,9 @@ class FieldSerializer(serializers.ModelSerializer):
         help_text="The ID of the workspace this field belongs to.",
         read_only=True,
     )
+    field_constraints = serializers.SerializerMethodField(
+        help_text="The constraints applied to this field."
+    )
 
     class Meta:
         model = Field
@@ -58,6 +68,8 @@ class FieldSerializer(serializers.ModelSerializer):
             "description",
             "database_id",
             "workspace_id",
+            "db_index",
+            "field_constraints",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -82,6 +94,19 @@ class FieldSerializer(serializers.ModelSerializer):
             field_type_registry.get_by_model(instance.specific_class).read_only
             or instance.read_only
         )
+
+    def get_field_constraints(self, instance):
+        """
+        Returns the field constraints for the field.
+        Handles cases where field_constraints is being accessed before the field is
+        saved to the database.
+        """
+
+        try:
+            constraints = instance.field_constraints.all()
+            return FieldConstraintSerializer(constraints, many=True).data
+        except (ValueError, TypeError):
+            return []
 
 
 class PolymorphicFieldSerializer(PolymorphicSerializer):
@@ -126,17 +151,21 @@ class CreateFieldSerializer(serializers.ModelSerializer):
     type = serializers.ChoiceField(
         choices=lazy(field_type_registry.get_types, list)(), required=True
     )
+    field_constraints = FieldConstraintSerializer(
+        many=True, required=False, default=list
+    )
 
     class Meta:
         model = Field
-        fields = ("name", "type", "description")
+        fields = ("name", "type", "description", "db_index", "field_constraints")
         extra_kwargs = {
             "description": {
                 "required": False,
                 "default": None,
                 "allow_null": True,
                 "allow_blank": True,
-            }
+            },
+            "db_index": {"required": False},
         }
 
 
@@ -144,10 +173,11 @@ class UpdateFieldSerializer(serializers.ModelSerializer):
     type = serializers.ChoiceField(
         choices=lazy(field_type_registry.get_types, list)(), required=False
     )
+    field_constraints = FieldConstraintSerializer(many=True, required=False)
 
     class Meta:
         model = Field
-        fields = ("name", "type", "description")
+        fields = ("name", "type", "description", "db_index", "field_constraints")
         extra_kwargs = {
             "name": {"required": False},
             "description": {
@@ -156,6 +186,7 @@ class UpdateFieldSerializer(serializers.ModelSerializer):
                 "allow_null": True,
                 "allow_blank": True,
             },
+            "db_index": {"required": False},
         }
 
     def to_representation(self, instance):
@@ -263,6 +294,18 @@ class IntegerOrStringField(serializers.Field):
 
     def to_representation(self, value):
         return value
+
+
+class LimitListSerializer(serializers.ListSerializer):
+    def __init__(self, *args, **kwargs):
+        self.limit = kwargs.pop("limit", None)
+        super().__init__(*args, **kwargs)
+
+    def to_representation(self, data):
+        data = data.all() if isinstance(data, BaseManager) else data
+        if self.limit is not None:
+            data = data[: self.limit]
+        return super().to_representation(data)
 
 
 class FileFieldRequestSerializer(serializers.ListField):
@@ -523,3 +566,24 @@ class LinkRowFieldSerializerMixin(serializers.ModelSerializer):
         return field_type_registry.get_serializer(
             related_field.specific, FieldSerializer
         ).data
+
+
+class PasswordFieldAuthenticationSerializer(serializers.Serializer):
+    field_id = serializers.IntegerField(
+        help_text="The field where to check the password for.",
+        required=True,
+    )
+    row_id = serializers.IntegerField(
+        help_text="The row where to check the password for.",
+        required=True,
+    )
+    password = serializers.CharField(
+        help_text="The password to check.",
+        required=True,
+    )
+
+
+class PasswordFieldAuthenticationResponseSerializer(serializers.Serializer):
+    is_correct = serializers.BooleanField(
+        help_text="Indicates whether the provided password is correct.",
+    )

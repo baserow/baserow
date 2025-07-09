@@ -130,9 +130,7 @@ def _run_periodic_field_type_update_per_workspace(
             )
         else:
             # Update tsv columns and notify views of the changes.
-            SearchHandler().all_fields_values_changed_or_created(
-                database_updated_fields
-            )
+            SearchHandler.all_fields_values_changed_or_created(database_updated_fields)
 
             updated_table_ids = list(
                 {field.table_id for field in database_updated_fields}

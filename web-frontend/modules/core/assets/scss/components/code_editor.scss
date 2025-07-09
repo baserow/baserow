@@ -1,0 +1,19 @@
+.code-editor {
+  border-radius: 4px;
+  overflow: hidden;
+  padding: 6px;
+  background: $white;
+  border: 1px solid $palette-neutral-400;
+  box-sizing: border-box;
+
+  @include elevation($elevation-low);
+  @include rounded($rounded-md);
+
+  /* stylelint-disable-next-line selector-class-pattern */
+  .tiptap.ProseMirror {
+    min-height: 100px;
+    max-height: 200px;
+    padding: 0;
+    overflow-y: auto;
+  }
+}

@@ -24,8 +24,8 @@ version: "3.4"
 
 # See https://baserow.io/docs/installation%2Fconfiguration for more details on these
 # backend environment variables, their defaults if left blank etc.
-x-backend-variables: &backend-variables
-  # Most users should only need to set these first four variables.
+x-backend-variables:
+  &backend-variables # Most users should only need to set these first four variables.
   SECRET_KEY: ${SECRET_KEY:?}
   BASEROW_JWT_SIGNING_KEY: ${BASEROW_JWT_SIGNING_KEY:-}
   DATABASE_PASSWORD: ${DATABASE_PASSWORD:?}
@@ -41,6 +41,22 @@ x-backend-variables: &backend-variables
   DATABASE_PORT:
   DATABASE_OPTIONS:
   DATABASE_URL:
+
+  DATABASE_READ_1_USER:
+  DATABASE_READ_1_NAME:
+  DATABASE_READ_1_HOST:
+  DATABASE_READ_1_PORT:
+  DATABASE_READ_1_PASSWORD:
+  DATABASE_READ_1_OPTIONS:
+  DATABASE_READ_1_URL:
+
+  DATABASE_READ_2_USER:
+  DATABASE_READ_2_NAME:
+  DATABASE_READ_2_HOST:
+  DATABASE_READ_2_PORT:
+  DATABASE_READ_2_PASSWORD:
+  DATABASE_READ_2_OPTIONS:
+  DATABASE_READ_2_URL:
 
   # Set these if you want to use an external redis instead of the redis service below.
   REDIS_HOST:
@@ -72,6 +88,7 @@ x-backend-variables: &backend-variables
   # Misc settings see https://baserow.io/docs/installation%2Fconfiguration for info
   BASEROW_AMOUNT_OF_WORKERS:
   BASEROW_ROW_PAGE_SIZE_LIMIT:
+  BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT:
   BATCH_ROWS_SIZE_LIMIT:
   INITIAL_TABLE_DATA_LIMIT:
   BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB:
@@ -170,7 +187,7 @@ x-backend-variables: &backend-variables
   BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED:
   BASEROW_DISABLE_LOCKED_MIGRATIONS:
   BASEROW_USE_PG_FULLTEXT_SEARCH:
-  BASEROW_AUTO_VACUUM:
+  BASEROW_PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS:
   BASEROW_BUILDER_DOMAINS:
   SENTRY_DSN:
   SENTRY_BACKEND_DSN:
@@ -232,7 +249,7 @@ services:
       local:
 
   backend:
-    image: baserow/backend:1.33.4
+    image: baserow/backend:1.34.0
     restart: unless-stopped
 
     environment:
@@ -246,7 +263,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:1.33.4
+    image: baserow/web-frontend:1.34.0
     restart: unless-stopped
     environment:
       BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
@@ -269,10 +286,12 @@ services:
       BASEROW_DEPLOYMENT_ENV:
       BASEROW_OSS_ONLY:
       BASEROW_USE_PG_FULLTEXT_SEARCH:
+      BASEROW_PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS:
       POSTHOG_PROJECT_API_KEY:
       POSTHOG_HOST:
       BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT:
       BASEROW_ROW_PAGE_SIZE_LIMIT:
+      BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT:
       BASEROW_BUILDER_DOMAINS:
       BASEROW_FRONTEND_SAME_SITE_COOKIE:
       SENTRY_DSN:
@@ -284,7 +303,7 @@ services:
       local:
 
   celery:
-    image: baserow/backend:1.33.4
+    image: baserow/backend:1.34.0
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -292,7 +311,11 @@ services:
     # The backend image's baked in healthcheck defaults to the django healthcheck
     # override it to the celery one here.
     healthcheck:
-      test: [ "CMD-SHELL", "/baserow/backend/docker/docker-entrypoint.sh celery-worker-healthcheck" ]
+      test:
+        [
+          "CMD-SHELL",
+          "/baserow/backend/docker/docker-entrypoint.sh celery-worker-healthcheck",
+        ]
     depends_on:
       - backend
     volumes:
@@ -301,7 +324,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:1.33.4
+    image: baserow/backend:1.34.0
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -309,7 +332,11 @@ services:
     # The backend image's baked in healthcheck defaults to the django healthcheck
     # override it to the celery one here.
     healthcheck:
-      test: [ "CMD-SHELL", "/baserow/backend/docker/docker-entrypoint.sh celery-exportworker-healthcheck" ]
+      test:
+        [
+          "CMD-SHELL",
+          "/baserow/backend/docker/docker-entrypoint.sh celery-exportworker-healthcheck",
+        ]
     depends_on:
       - backend
     volumes:
@@ -318,7 +345,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:1.33.4
+    image: baserow/backend:1.34.0
     restart: unless-stopped
     command: celery-beat
     environment:
@@ -344,7 +371,11 @@ services:
       - POSTGRES_PASSWORD=${DATABASE_PASSWORD:?}
       - POSTGRES_DB=${DATABASE_NAME:-baserow}
     healthcheck:
-      test: [ "CMD-SHELL", "su postgres -c \"pg_isready -U ${DATABASE_USER:-baserow}\"" ]
+      test:
+        [
+          "CMD-SHELL",
+          'su postgres -c "pg_isready -U ${DATABASE_USER:-baserow}"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -358,7 +389,7 @@ services:
     restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD:?}
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
     networks:
       local:
 

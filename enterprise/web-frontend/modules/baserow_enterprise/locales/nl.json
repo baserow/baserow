@@ -278,7 +278,11 @@
         "auditLogsContent": "Volg alles wat er gebeurt. Bekijk een volledige geschiedenis van acties in je instantie of werkruimte, filterbaar op gebruiker, actie en meer.",
         "fieldLevelPermissionsContent": "Bepaal wie specifieke velden in een tabel kan bewerken. Stel rechten in voor editors, builders, admins of schakel wijzigingen aan veldwaarden volledig uit.",
         "builderBranding": "Applicatie branding",
-        "builderBrandingContent": "White label de branding van je applicatie door de 'Gemaakt met Baserow'-branding in de voettekst van je applicatie te verwijderen."
+        "builderBrandingContent": "White label de branding van je applicatie door de 'Gemaakt met Baserow'-branding in de voettekst van je applicatie te verwijderen.",
+        "builderFileInputElement": "Bestandsinvoerelement",
+        "builderFileInputElementContent": "Met het bestandsinvoerelement kun je een veld toevoegen aan je applicatiepagina's om bestanden te uploaden. Geef je gebruikers de mogelijkheid om belangrijke documenten of afbeeldingen op te slaan.",
+        "builderCustomCode": "Aangepaste code voor applicaties",
+        "builderCustomCodeContent": "Je kunt aangepaste CSS/JavaScript-code toevoegen om het uiterlijk en het gedrag van je applicatie verder aan te passen. Je kunt bijvoorbeeld externe services zoals analytics of sociale media integreren."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Directe ondersteuning"
@@ -400,7 +404,11 @@
         "projectKeyHelper": "De projectsleutel van het Jira project (bijv. PROJ). Kan gevonden worden door te klikken op `Projectinstellingen` in Jira. Als deze niet wordt opgegeven, worden alle issues geretourneerd.",
         "jiraUrl": "Jira instantie URL",
         "jiraUsername": "Jira gebruikersnaam",
-        "apiTokenHelper": "Het API-token van het Jira-account dat wordt gebruikt voor verificatie. Kan worden aangemaakt op https://id.atlassian.com/manage-profile/security/api-tokens."
+        "apiTokenHelper": "Het API-token van het Jira-account dat wordt gebruikt voor verificatie. Kan worden aangemaakt op https://id.atlassian.com/manage-profile/security/api-tokens.",
+        "authenticationLabel": "Authenticatie",
+        "authenticationHelper": "Kies hoe je je wilt authenticeren met Jira.",
+        "personalAccessToken": "Jira Persoonlijk Toegangstoken",
+        "personalAccessTokenHelper": "Het API-token van het Jira-account dat wordt gebruikt voor verificatie. Kan worden aangemaakt op https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
     },
     "githubIssuesDataSync": {
         "apiToken": "API-token",
@@ -556,5 +564,39 @@
     },
     "advanced": {
         "license": "Advanced"
+    },
+    "builderSettingTypes": {
+        "customCode": "Aangepaste CSS/JS"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "Aangepaste CSS",
+        "customJS": "Aangepaste JavaScript",
+        "customCSSPlaceholder": "Voer wat aangepaste CSS-code in...",
+        "customJSPlaceholder": "Voer wat aangepaste JS-code in...",
+        "externalScripts": "Externe scripts / stylesheets",
+        "noScript": "Je applicatie verbeteren met externe scripts of stylesheets",
+        "customCodeTitle": "Aangepaste code",
+        "customCodeHelp": "Aangepaste code is alleen zichtbaar in preview- of gepubliceerde applicaties, de resultaten zijn niet zichtbaar in de editor.",
+        "addExternalScript": "Een extern script toevoegen"
+    },
+    "customCodeSettingScriptForm": {
+        "type": "Type",
+        "loadType": "Laad type",
+        "url": "URL",
+        "urlPlaceholder": "Voer de URL van het script in...",
+        "crossorigin": "Kruis herkomst",
+        "includeCredentials": "Inclusief referenties",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "Normaal",
+        "loadTypeDefer": "Uitstellen",
+        "loadTypeAsync": "Async",
+        "crossoriginTypeNone": "Normaal",
+        "crossoriginTypeAnonymous": "Anoniem",
+        "crossoriginTypeCredentials": "Gebruik referenties"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "De geselecteerde gebruikersbron heeft geen aanmeldingsoptie",
+        "errorUserSourceMissing": "Geen gebruikersbron geselecteerd"
     }
 }

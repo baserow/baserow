@@ -34,7 +34,7 @@ from baserow.core.trash.operations import (
     ReadWorkspaceTrashOperationType,
 )
 from baserow.core.trash.registries import TrashableItemType, trash_item_type_registry
-from baserow.core.trash.signals import permanently_deleted
+from baserow.core.trash.signals import before_permanently_deleted, permanently_deleted
 
 User = get_user_model()
 
@@ -338,6 +338,12 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
 
         _check_parent_id_valid(parent_id, trash_item_type)
         trash_item_id = to_delete.id
+        before_permanently_deleted.send(
+            sender=trash_item_type.type,
+            trash_item_id=trash_item_id,
+            trash_item=to_delete,
+            parent_id=parent_id,
+        )
         trash_item_type.permanently_delete_item(
             to_delete,
             trash_item_lookup_cache,

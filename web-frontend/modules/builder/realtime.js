@@ -122,16 +122,20 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('elements_moved', ({ store, app }, { elements }) => {
     elements.forEach((element) => {
       const selectedPage = store.getters['page/getSelected']
-      const builder = store.getters['application/get'](selectedPage.builder_id)
-      store.dispatch('element/forceUpdate', {
-        builder,
-        page: selectedPage,
-        element,
-        values: {
-          order: element.order,
-          place_in_container: element.place_in_container,
-        },
-      })
+      if (selectedPage.id === element.page_id) {
+        const builder = store.getters['application/get'](
+          selectedPage.builder_id
+        )
+        store.dispatch('element/forceUpdate', {
+          builder,
+          page: selectedPage,
+          element,
+          values: {
+            order: element.order,
+            place_in_container: element.place_in_container,
+          },
+        })
+      }
     })
   })
 }

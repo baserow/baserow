@@ -1,4 +1,8 @@
 import addPublicAuthTokenHeader from '@baserow/modules/database/utils/publicView'
+import {
+  LINKED_ITEMS_LOAD_ALL,
+  LINKED_ITEMS_DEFAULT_LOAD_COUNT,
+} from '@baserow/modules/database/constants'
 
 export default (client, storePrefix) => {
   return {
@@ -17,6 +21,7 @@ export default (client, storePrefix) => {
       filters = {},
       includeFields = [],
       excludeFields = [],
+      limitLinkedItems = null,
     }) {
       const params = new URLSearchParams()
 
@@ -57,6 +62,13 @@ export default (client, storePrefix) => {
 
       if (excludeFields.length > 0) {
         params.append('exclude_fields', excludeFields.join(','))
+      }
+
+      if (limitLinkedItems !== LINKED_ITEMS_LOAD_ALL) {
+        params.append(
+          'limit_linked_items',
+          limitLinkedItems ?? LINKED_ITEMS_DEFAULT_LOAD_COUNT
+        )
       }
 
       Object.keys(filters).forEach((key) => {

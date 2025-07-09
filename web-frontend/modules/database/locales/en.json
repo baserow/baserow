@@ -231,6 +231,13 @@
     "json": "JSON",
     "queryParameter": "Query parameter"
   },
+  "apiDocsPasswordFieldAuthentication": {
+    "title": "{name} authentication",
+    "description": "Checks if the provided password and row matches what is stored in the cell.",
+    "fieldId": "The field ID where to check the password for.",
+    "rowId": "The row ID where to check the password for.",
+    "password": "The password that must be checked if it's correct."
+  },
   "apiDocsListTables": {
     "listTables": "List all tables",
     "listTablesDescription": "This endpoint only works in combination with the token authentication. It lists all the tables that the token has either create, read, update or delete access to."
@@ -315,7 +322,10 @@
     "fieldAlreadyExists": "A field with this name already exists.",
     "nameNotAllowed": "This field name is not allowed.",
     "nameTooLong": "This field name is too long.",
-    "addDescription": "Add description"
+    "addDescription": "Add description",
+    "dbIndex": "Index",
+    "dbIndexError": "This field type cannot have an index. Please remove it before saving or change the field type.",
+    "dbIndexDescription": "Indexing can significantly improve filtering performance, but slows down create, update, and delete operations."
   },
   "fieldSelectThroughFieldSubForm": {
     "noTable": "You need at least one link to table field to create this field.",
@@ -936,7 +946,9 @@
     "deletedUndo": "undo row deletion"
   },
   "fieldPasswordSubForm": {
-    "description": "It's not yet possible to directly do anything with the password field, this is only used by the user authentication in the application builder."
+    "allowEndpointAuthentication": "Allow API endpoint authentication",
+    "allowEndpointAuthenticationHelp": "This exposes an endpoint where the row ID and password can be checked if it's correct. This allows using Baserow as authentication backend.",
+    "description": "The password field can also be used by the user authentication in the application builder."
   },
   "rowEditFieldPassword": {
     "setPassword": "Set password"
@@ -1029,7 +1041,7 @@
   },
   "databaseStep": {
     "title": "Create your first database",
-    "description": "Select what where you'd like to start from:",
+    "description": "Select where you'd like to start from:",
     "databaseNameLabel": "Database name",
     "scratch": "Scratch",
     "import": "File",
@@ -1064,7 +1076,10 @@
     "next": "Next",
     "fields": "Select the fields you would like to sync",
     "create": "Create and sync table",
-    "error": "Something went wrong during the sync"
+    "error": "Something went wrong during the sync",
+    "autoAddLabel": "Auto add new properties",
+    "autoAddHelper": "Automatically adds and synchronizes newly available properties to the table. Note that in order for this to work, all properties must be synced."
+
   },
   "syncTableModal": {
     "title": "Sync {name}",

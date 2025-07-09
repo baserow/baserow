@@ -329,6 +329,8 @@ def test_import_export_created_by_field(data_fixture):
         "immutable_type": False,
         "immutable_properties": False,
         "type": "created_by",
+        "db_index": False,
+        "field_constraints": [],
     }
 
 

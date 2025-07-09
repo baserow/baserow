@@ -26,6 +26,7 @@ from baserow.config.settings.utils import (
     try_float,
     try_int,
 )
+from baserow.core.feature_flags import FF_AUTOMATION
 from baserow.core.telemetry.utils import otel_is_enabled
 from baserow.throttling_types import RateLimit
 from baserow.version import VERSION
@@ -120,6 +121,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "baserow.middleware.BaserowCustomHttp404Middleware",
     "baserow.middleware.ClearContextMiddleware",
+    "baserow.middleware.ClearDBStateMiddleware",
 ]
 
 if otel_is_enabled():
@@ -239,6 +241,40 @@ else:
             os.getenv("DATABASE_OPTIONS", "{}")
         )
 
+DATABASE_READ_REPLICAS = []
+
+# Loop over all environment variables to extract read only replicas. Multiple nodes can
+# be added providing `DATABASE_READ_{n}_URL`, or DATABASE_READ_{n}_NAME, where {n} is
+# the key of the read-only instance.
+for key, value in os.environ.items():
+    if key.startswith("DATABASE_READ_REPLICA_") and key.endswith("_URL"):
+        suffix = key[len("DATABASE_READ_REPLICA_") : -len("_URL")]
+        db_key = f"read_{suffix}"
+        DATABASES[db_key] = dj_database_url.parse(value, conn_max_age=600)
+        DATABASE_READ_REPLICAS.append(db_key)
+    elif key.startswith("DATABASE_READ_") and key.endswith("_NAME"):
+        suffix = key[len("DATABASE_READ_") : -len("_NAME")]
+        db_key = f"read_{suffix}"
+
+        DATABASES[db_key] = {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv(f"DATABASE_READ_{suffix}_NAME"),
+            "USER": os.getenv(f"DATABASE_READ_{suffix}_USER"),
+            "PASSWORD": os.getenv(f"DATABASE_READ_{suffix}_PASSWORD"),
+            "HOST": os.getenv(f"DATABASE_READ_{suffix}_HOST"),
+            "PORT": os.getenv(f"DATABASE_READ_{suffix}_PORT"),
+        }
+
+        options = os.getenv(f"DATABASE_READ_{suffix}_OPTIONS")
+        if options:
+            DATABASES[db_key]["OPTIONS"] = json.loads(options)
+
+        DATABASE_READ_REPLICAS.append(db_key)
+
+
+DATABASE_ROUTERS = ["baserow.config.db_routers.ReadReplicaRouter"]
+
+
 GENERATED_MODEL_CACHE_NAME = "generated-models"
 CACHES = {
     "default": {
@@ -258,9 +294,9 @@ CACHES = {
 }
 
 BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = int(
-    # Default TTL is 10 minutes: 60 seconds * 10
+    # Default TTL is 2 hours
     os.getenv("BASEROW_BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS")
-    or 600
+    or 60 * 10 * 2
 )
 BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
     # Default TTL is 5 minutes
@@ -421,7 +457,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.33.4",
+    "VERSION": "1.34.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -750,6 +786,11 @@ BATCH_ROWS_SIZE_LIMIT = int(
     os.getenv("BATCH_ROWS_SIZE_LIMIT", 200)
 )  # How many rows can be modified at once.
 
+# Maximum count of records returned by local baserow data source
+INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT = int(
+    os.getenv("BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT", 200)
+)
+
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.
 
 # How many unique row values can be requested at once.
@@ -900,12 +941,6 @@ DEFAULT_APPLICATION_TEMPLATES = ["project-tracker", "ab_ivory_theme"]
 BASEROW_SYNC_TEMPLATES_PATTERN = os.getenv("BASEROW_SYNC_TEMPLATES_PATTERN", None)
 
 MAX_FIELD_LIMIT = int(os.getenv("BASEROW_MAX_FIELD_LIMIT", 600))
-
-INITIAL_MIGRATION_FULL_TEXT_SEARCH_MAX_FIELD_LIMIT = int(
-    os.getenv(
-        "BASEROW_INITIAL_MIGRATION_FULL_TEXT_SEARCH_MAX_FIELD_LIMIT", MAX_FIELD_LIMIT
-    )
-)
 
 
 # set max events to be returned by every ICal feed. Empty value means no limit.
@@ -1074,6 +1109,10 @@ PERMISSION_MANAGERS = [
     "role",
     "basic",
 ]
+
+if "*" in FEATURE_FLAGS or FF_AUTOMATION.lower() in FEATURE_FLAGS:
+    PERMISSION_MANAGERS.extend(["automation_workflow", "automation_node"])
+
 if "baserow_enterprise" not in INSTALLED_APPS:
     PERMISSION_MANAGERS.remove("write_field_values")
     PERMISSION_MANAGERS.remove("role")
@@ -1161,18 +1200,19 @@ DEFAULT_SEARCH_MODE = os.getenv("BASEROW_DEFAULT_SEARCH_MODE", "compat")
 
 # Search specific configuration settings.
 CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT = int(
-    os.getenv("BASEROW_CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT", 60 * 30)
+    os.getenv("BASEROW_CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT", 60 * 60)  # 1 hour
 )
 # By default, Baserow will use Postgres full-text as its
 # search backend. If the product is installed on a system
 # with limited disk space, and less accurate results / degraded
 # search performance is acceptable, then switch this setting off.
-USE_PG_FULLTEXT_SEARCH = str_to_bool(
+PG_FULLTEXT_SEARCH_ENABLED = str_to_bool(
     (os.getenv("BASEROW_USE_PG_FULLTEXT_SEARCH", "true"))
 )
-PG_SEARCH_CONFIG = os.getenv("BASEROW_PG_SEARCH_CONFIG", "simple")
-AUTO_VACUUM_AFTER_SEARCH_UPDATE = str_to_bool(os.getenv("BASEROW_AUTO_VACUUM", "true"))
-TSV_UPDATE_CHUNK_SIZE = int(os.getenv("BASEROW_TSV_UPDATE_CHUNK_SIZE", "2000"))
+PG_FULLTEXT_SEARCH_CONFIG = os.getenv("BASEROW_PG_SEARCH_CONFIG", "simple")
+PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS = float(
+    os.getenv("BASEROW_PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS", 2)  # seconds
+)
 
 POSTHOG_PROJECT_API_KEY = os.getenv("POSTHOG_PROJECT_API_KEY", "")
 POSTHOG_HOST = os.getenv("POSTHOG_HOST", "")

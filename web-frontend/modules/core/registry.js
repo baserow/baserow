@@ -123,6 +123,11 @@ export class Registry {
     return this.registry[namespace]
   }
 
+  /** Returns an array of the types */
+  getList(namespace) {
+    return Object.values(this.getAll(namespace))
+  }
+
   /**
    * Returns a list of the objects that are in the given namespace ordered by their
    * `.getOrder()` value. Lower value first then for equality, the insertion order is
@@ -145,5 +150,29 @@ export class Registry {
       return false
     }
     return true
+  }
+
+  /**
+   * Returns the specific constraint for the field type and constraint type name.
+   *
+   * @param {string} namespace - The registry namespace (e.g., 'fieldConstraint')
+   * @param {string} constraintTypeName - The type name of the constraint
+   * @param {string} fieldType - The field type to check compatibility with
+   * @returns {Registerable|null} The specific constraint or null if no compatible constraint is found
+   */
+  getSpecificConstraint(namespace, constraintTypeName, fieldType) {
+    if (!Object.prototype.hasOwnProperty.call(this.registry, namespace)) {
+      return null
+    }
+
+    for (const constraint of Object.values(this.registry[namespace])) {
+      if (
+        constraint.getTypeName() === constraintTypeName &&
+        constraint.getCompatibleFieldTypes().includes(fieldType)
+      ) {
+        return constraint
+      }
+    }
+    return null
   }
 }

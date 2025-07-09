@@ -36,7 +36,9 @@ from baserow.core.formula.validator import (
     ensure_integer,
     ensure_string,
 )
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.test_utils.helpers import AnyInt, AnyStr
 
@@ -305,7 +307,7 @@ def test_prepare_file_for_db_with_unreachable_url(data_fixture):
         "url": "https://somenthing.doesnt.exist.com",
     }
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         prepare_files_for_db(value, user)
 
 
@@ -323,7 +325,7 @@ def test_prepare_file_for_db_with_toolarge_url(data_fixture, fake):
         ),
     }
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         prepare_files_for_db(value, user)
 
 

@@ -60,6 +60,12 @@ export class LocalBaserowUserSourceType extends UserSourceType {
     ]
   }
 
+  genUid(userSource) {
+    return `${userSource.id}_${userSource.table_id || 0}_${
+      userSource.email_field_id || 0
+    }_${userSource.role_field_id || 0}`
+  }
+
   /**
    * Returns the allowed field type list for the role field.
    * It's defined here so that it can be changed by a plugin.

@@ -157,6 +157,13 @@ import {
   PDFBrowserFilePreview,
   GoogleDocFilePreview,
 } from '@baserow/modules/database/filePreviewTypes'
+
+import {
+  TextTypeUniqueWithEmptyConstraintType,
+  RatingTypeUniqueWithEmptyConstraintType,
+  UniqueWithEmptyConstraintType,
+} from '@baserow/modules/database/fieldConstraintTypes'
+
 import { APITokenSettingsType } from '@baserow/modules/database/settingsTypes'
 
 import tableStore from '@baserow/modules/database/store/table'
@@ -711,6 +718,19 @@ export default (context) => {
   app.$registry.register('field', new UUIDFieldType(context))
   app.$registry.register('field', new AutonumberFieldType(context))
   app.$registry.register('field', new PasswordFieldType(context))
+
+  app.$registry.register(
+    'fieldConstraint',
+    new TextTypeUniqueWithEmptyConstraintType(context)
+  )
+  app.$registry.register(
+    'fieldConstraint',
+    new RatingTypeUniqueWithEmptyConstraintType(context)
+  )
+  app.$registry.register(
+    'fieldConstraint',
+    new UniqueWithEmptyConstraintType(context)
+  )
 
   app.$registry.register('importer', new CSVImporterType(context))
   app.$registry.register('importer', new PasteImporterType(context))

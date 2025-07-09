@@ -8,7 +8,7 @@ from baserow.contrib.builder.data_providers.registries import (
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.formula_importer import BaserowFormulaImporter
 from baserow.core.formula import BaserowFormula
-from baserow.core.formula.exceptions import InvalidBaserowFormula
+from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import merge_dicts_no_duplicates, to_path
 
@@ -30,6 +30,9 @@ class FormulaFieldVisitor(BaserowFormulaImporter):
 
         self.results = {}
         self.extra_context = kwargs
+
+    def get_data_provider_type_registry(self):
+        return builder_data_provider_type_registry
 
     def visit(self, tree: Tree) -> Set[str]:
         """
@@ -65,7 +68,7 @@ class FormulaFieldVisitor(BaserowFormulaImporter):
             # e.g. "current_record" from the rest of the path, e.g. ["property_33"]
             data_provider_name, *path = to_path(unquoted_arg[1:-1])
 
-            data_provider_type = builder_data_provider_type_registry.get(
+            data_provider_type = self.get_data_provider_type_registry().get(
                 data_provider_name
             )
 
@@ -74,9 +77,9 @@ class FormulaFieldVisitor(BaserowFormulaImporter):
                     self.results,
                     data_provider_type.extract_properties(path, **self.extra_context),
                 )
-            except InvalidBaserowFormula:
+            except InvalidRuntimeFormula:
                 # If the property extraction failed because of an Invalid formula
-                # we can ignore it. May be the related data source is gone.
+                # we can ignore it. Maybe the related data source is gone.
                 pass
 
 
@@ -160,7 +163,7 @@ def get_data_source_property_names(
 
     This function will update the results dict. It will only update the
     "internal" keys, since data source property names are only required by
-    the backend..
+    the backend.
     """
 
     results = {}

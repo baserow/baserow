@@ -34,6 +34,7 @@ from baserow.core.utils import (
     sha256_hash,
     split_comma_separated_string,
     stream_size,
+    to_camel_case,
     to_pascal_case,
     to_path,
     to_snake_case,
@@ -66,6 +67,12 @@ def test_set_allowed_attrs():
 
 def test_to_pascal_case():
     assert to_pascal_case("This is a TEST") == "ThisIsATest"
+
+
+def test_to_camel_case():
+    assert to_camel_case("This is a TEST") == "ThisIsATest"
+    assert to_camel_case("This  is a test") == "ThisIsATest"
+    assert to_camel_case("snake_case_string") == "SnakeCaseString"
 
 
 def test_to_snake_case():

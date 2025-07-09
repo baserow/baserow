@@ -6,6 +6,10 @@
   max-width: 100%;
 }
 
+.checkbox--small {
+  gap: 6px;
+}
+
 .checkbox__button {
   width: 16px;
   height: 16px;
@@ -26,6 +30,11 @@
 
   :focus & {
     @include elevation($elevation-low);
+  }
+
+  .checkbox--small & {
+    width: 14px;
+    height: 14px;
   }
 
   .checkbox--error:not(.checkbox--disabled) & {

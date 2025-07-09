@@ -5,9 +5,6 @@ from baserow_premium.license.handler import LicenseHandler
 from rest_framework import serializers
 
 from baserow.api.exceptions import RequestBodyValidationException
-from baserow.contrib.builder.data_providers.exceptions import (
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.elements.element_types import InputElementType
 from baserow.contrib.builder.elements.registries import ElementType
 from baserow.contrib.builder.pages.handler import PageHandler
@@ -289,13 +286,13 @@ class FileInputElementType(InputElementType):
             file_content = dispatch_context.request.FILES.get(file_obj["file"])
 
             if not self.is_allowed_content_type(element, file_content.content_type):
-                raise FormDataProviderChunkInvalidException(
+                raise TypeError(
                     f"The file {file_obj.get('name') or 'unnamed'} "
                     f"type is not allowed."
                 )
 
             if file_content.size / 1024 / 1024 > element.max_filesize:
-                raise FormDataProviderChunkInvalidException(
+                raise ValueError(
                     f"The file {file_obj.get('name') or 'unnamed'} "
                     f"is too large. Max {element.max_filesize}MB"
                 )

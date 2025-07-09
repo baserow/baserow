@@ -2,6 +2,7 @@ import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import AutomationWorkflowService from '@baserow/modules/automation/services/workflow'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
+import { AUTOMATION_ACTION_SCOPES } from '@baserow/modules/automation/utils/undoRedoConstants'
 
 export function populateAutomationWorkflow(workflow) {
   return {
@@ -28,11 +29,13 @@ const mutations = {
     automation.workflows.push(populateAutomationWorkflow(workflow))
   },
   UPDATE_ITEM(state, { workflow, values }) {
-    Object.assign(workflow, workflow, values)
+    Object.assign(workflow, values)
   },
   DELETE_ITEM(state, { automation, id }) {
     const index = automation.workflows.findIndex((item) => item.id === id)
-    automation.workflows.splice(index, 1)
+    if (index > -1) {
+      automation.workflows.splice(index, 1)
+    }
   },
   SET_SELECTED(state, { automation, workflow }) {
     Object.values(automation.workflows).forEach((item) => {
@@ -69,7 +72,7 @@ const actions = {
   forceCreate({ commit }, { automation, workflow }) {
     commit('ADD_ITEM', { automation, workflow })
   },
-  selectById({ commit, getters }, { automation, workflowId }) {
+  selectById({ commit, dispatch, getters }, { automation, workflowId }) {
     const type = AutomationApplicationType.getType()
 
     // Check if the selected application is an automation
@@ -82,15 +85,27 @@ const actions = {
     // Check if the provided workflowId is found in the selected automation.
     const workflow = getters.getById(automation, workflowId)
 
+    dispatch(
+      'undoRedo/updateCurrentScopeSet',
+      AUTOMATION_ACTION_SCOPES.workflow(workflow.id),
+      { root: true }
+    )
+
     commit('SET_SELECTED', { automation, workflow })
 
     return workflow
   },
-  unselect({ commit }) {
+  unselect({ commit, dispatch }) {
     commit('UNSELECT')
+    dispatch(
+      'undoRedo/updateCurrentScopeSet',
+      AUTOMATION_ACTION_SCOPES.workflow(null),
+      { root: true }
+    )
   },
   async forceDelete({ commit }, { automation, workflow }) {
     if (workflow._.selected) {
+      commit('UNSELECT')
       // Redirect back to the dashboard because the workflow doesn't exist anymore.
       await this.$router.push({ name: 'dashboard' })
     }
@@ -108,6 +123,21 @@ const actions = {
 
     return workflow
   },
+  async fetchById({ getters, commit, dispatch }, { automation, workflowId }) {
+    const { data } = await AutomationWorkflowService(this.$client).read(
+      workflowId
+    )
+    const workflow = getters.getById(automation, workflowId)
+    dispatch('forceUpdate', {
+      workflow,
+      values: {
+        ...data,
+        nodes: workflow.nodes,
+        nodeMap: workflow.nodeMap,
+      },
+    })
+    return data
+  },
   async update({ dispatch }, { automation, workflow, values }) {
     const { data } = await AutomationWorkflowService(this.$client).update(
       workflow.id,
@@ -119,7 +149,7 @@ const actions = {
       return result
     }, {})
 
-    await dispatch('forceUpdate', { automation, workflow, values: update })
+    await dispatch('forceUpdate', { workflow, values: update })
   },
   async delete({ dispatch }, { automation, workflow }) {
     await AutomationWorkflowService(this.$client).delete(workflow.id)
@@ -150,6 +180,20 @@ const actions = {
   },
   setActiveSidePanel({ commit }, sidePanelType) {
     commit('SET_ACTIVE_SIDE_PANEL', sidePanelType)
+  },
+  async toggleTestRun({ dispatch }, { workflow, allowTestRun }) {
+    const {
+      data: { allow_test_run_until: allowTestRunUntil },
+    } = await AutomationWorkflowService(this.$client).update(workflow.id, {
+      allow_test_run: allowTestRun,
+    })
+    await dispatch('forceUpdate', {
+      workflow,
+      values: { allow_test_run_until: allowTestRunUntil },
+    })
+  },
+  async publishWorkflow({ dispatch }, { workflow }) {
+    await AutomationWorkflowService(this.$client).publish(workflow.id)
   },
 }
 

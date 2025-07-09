@@ -180,8 +180,6 @@ class BuilderWorkflowActionHandler(WorkflowActionHandler):
 
         :param workflow_action: The workflow action to be dispatched.
         :param dispatch_context: The context used for the dispatch.
-        :raises BuilderWorkflowActionImproperlyConfigured: If the workflow action is
-          not properly configured.
         :return: The result of dispatching the workflow action.
         """
 

@@ -227,10 +227,19 @@ ci-coverage-report: .check-dev
 	$(VCOVERAGE) xml -o coverage.xml
 
 
+define check_startup_python
+	@set -euo pipefail; set -x; \
+	BASEROW_OSS_ONLY=$(1) DJANGO_SETTINGS_MODULE=$(DJANGO_SETTINGS_MODULE) $(VDJANGO) check; \
+	BASEROW_OSS_ONLY=$(1) DJANGO_SETTINGS_MODULE=$(DJANGO_SETTINGS_MODULE) timeout --preserve-status 10s \
+		$(VGUNICORN) --workers=1 -b 0.0.0.0:8002 \
+		-k uvicorn.workers.UvicornWorker baserow.config.asgi:application
+endef
+
 ci-check-startup-python: .check-dev
-	DJANGO_SETTINGS_MODULE=$(DJANGO_SETTINGS_MODULE) timeout --preserve-status 10s \
-	    $(VGUNICORN) --workers=1 -b 0.0.0.0:8002 \
-	        -k uvicorn.workers.UvicornWorker baserow.config.asgi:application;
+	$(call check_startup_python,)
+
+ci-check-startup-python-oss-only: .check-dev
+	$(call check_startup_python,true)
 
 
 # clean targets

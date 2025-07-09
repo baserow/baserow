@@ -159,6 +159,13 @@ export default {
         : [this.resolvedDefaultValue]
       ).forEach(async (fileObj) => {
         if (fileObj && !this.fileData[fileObj.url]) {
+          this.fileData = {
+            ...this.fileData,
+            [fileObj.url]: {
+              content_type: 'application/octet-stream',
+              size: null,
+            },
+          }
           try {
             const metadata = await UserFileService(
               this.$client

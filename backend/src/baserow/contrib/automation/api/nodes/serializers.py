@@ -26,12 +26,21 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AutomationNode
-        fields = ("id", "order", "service", "workflow", "type", "previous_node_output")
+        fields = (
+            "id",
+            "order",
+            "service",
+            "workflow",
+            "type",
+            "previous_node_id",
+            "previous_node_output",
+        )
 
         extra_kwargs = {
             "id": {"read_only": True},
             "workflow_id": {"read_only": True},
             "type": {"read_only": True},
+            "previous_node_id": {"read_only": True},
             "order": {"read_only": True, "help_text": "Lowest first."},
         }
 
@@ -69,4 +78,12 @@ class OrderAutomationNodesSerializer(serializers.Serializer):
     node_ids = serializers.ListField(
         child=serializers.IntegerField(),
         help_text=("The ids of the nodes in the order they are supposed to be set in."),
+    )
+
+
+class ReplaceAutomationNodeSerializer(serializers.Serializer):
+    new_type = serializers.ChoiceField(
+        choices=lazy(automation_node_type_registry.get_types, list)(),
+        required=True,
+        help_text="The type of the new automation node",
     )

@@ -1,29 +1,58 @@
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
-from django.db.models import QuerySet
+from django.contrib.auth.models import AbstractUser
+from django.db.models import Q, QuerySet
+from django.utils import timezone
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.nodes.models import (
+    AutomationActionNode,
+    CoreHTTPRequestActionNode,
+    CoreSMTPEmailActionNode,
+    LocalBaserowAggregateRowsActionNode,
     LocalBaserowCreateRowActionNode,
+    LocalBaserowDeleteRowActionNode,
+    LocalBaserowGetRowActionNode,
+    LocalBaserowListRowsActionNode,
     LocalBaserowRowsCreatedTriggerNode,
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
+    LocalBaserowUpdateRowActionNode,
 )
-from baserow.contrib.automation.nodes.registries import (
-    AutomationNodeActionNodeType,
-    AutomationNodeType,
+from baserow.contrib.automation.nodes.registries import AutomationNodeType
+from baserow.contrib.integrations.core.service_types import (
+    CoreHTTPRequestServiceType,
+    CoreSMTPEmailServiceType,
 )
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
+    LocalBaserowAggregateRowsUserServiceType,
+    LocalBaserowDeleteRowServiceType,
+    LocalBaserowGetRowUserServiceType,
+    LocalBaserowListRowsUserServiceType,
     LocalBaserowRowsCreatedTriggerServiceType,
     LocalBaserowRowsDeletedTriggerServiceType,
     LocalBaserowRowsUpdatedTriggerServiceType,
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
+from baserow.core.services.types import DispatchResult
+
+
+class AutomationNodeActionNodeType(AutomationNodeType):
+    is_workflow_action = True
+
+    def dispatch(
+        self,
+        automation_node: AutomationActionNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        return ServiceHandler().dispatch_service(
+            automation_node.service.specific, dispatch_context
+        )
 
 
 class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
@@ -40,23 +69,86 @@ class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
     model_class = LocalBaserowCreateRowActionNode
 
 
+class LocalBaserowUpdateRowNodeType(LocalBaserowUpsertRowNodeType):
+    type = "update_row"
+    model_class = LocalBaserowUpdateRowActionNode
+
+
+class LocalBaserowDeleteRowNodeType(AutomationNodeActionNodeType):
+    type = "delete_row"
+    model_class = LocalBaserowDeleteRowActionNode
+    service_type = LocalBaserowDeleteRowServiceType.type
+
+
+class LocalBaserowGetRowNodeType(AutomationNodeActionNodeType):
+    type = "get_row"
+    model_class = LocalBaserowGetRowActionNode
+    service_type = LocalBaserowGetRowUserServiceType.type
+
+
+class LocalBaserowListRowsNodeType(AutomationNodeActionNodeType):
+    type = "list_rows"
+    model_class = LocalBaserowListRowsActionNode
+    service_type = LocalBaserowListRowsUserServiceType.type
+
+
+class LocalBaserowAggregateRowsNodeType(AutomationNodeActionNodeType):
+    type = "aggregate_rows"
+    model_class = LocalBaserowAggregateRowsActionNode
+    service_type = LocalBaserowAggregateRowsUserServiceType.type
+
+
+class CoreHttpRequestNodeType(AutomationNodeActionNodeType):
+    type = "http_request"
+    model_class = CoreHTTPRequestActionNode
+    service_type = CoreHTTPRequestServiceType.type
+
+
+class CoreSMTPEmailNodeType(AutomationNodeActionNodeType):
+    type = "smtp_email"
+    model_class = CoreSMTPEmailActionNode
+    service_type = CoreSMTPEmailServiceType.type
+
+
 class AutomationNodeTriggerType(AutomationNodeType):
+    is_workflow_trigger = True
+
     def on_event(
-        self, service_queryset: QuerySet[Service], event_payload: Optional[Dict] = None
+        self,
+        service_queryset: QuerySet[Service],
+        event_payload: Optional[List[Dict]] = None,
+        user: Optional[AbstractUser] = None,
     ):
+        from baserow.contrib.automation.workflows.service import (
+            AutomationWorkflowService,
+        )
+
+        workflow_service = AutomationWorkflowService()
+        now = timezone.now()
+
         triggers = (
             self.model_class.objects.filter(
-                service__in=service_queryset, workflow__published=True
+                service__in=service_queryset,
+            )
+            .filter(
+                Q(
+                    Q(workflow__published=True, workflow__paused=False)
+                    | Q(workflow__allow_test_run_until__gte=now)
+                ),
             )
             .select_related("workflow__automation__workspace")
-            .all()
         )
 
         for trigger in triggers:
-            AutomationWorkflowHandler().run_workflow(
-                trigger.workflow,
-                AutomationDispatchContext(trigger.workflow, event_payload),
+            workflow = trigger.workflow
+            workflow_service.run_workflow(
+                workflow.id,
+                event_payload,
+                user=user,
             )
+            if workflow.allow_test_run_until:
+                workflow.allow_test_run_until = None
+                workflow.save(update_fields=["allow_test_run_until"])
 
     def after_register(self):
         service_type_registry.get(self.service_type).start_listening(self.on_event)

@@ -770,8 +770,7 @@ class CollectionField(models.Model):
     uid = models.UUIDField(default=uuid.uuid4)
     order = models.PositiveIntegerField()
     name = models.CharField(
-        max_length=225,
-        help_text="The name of the field.",
+        max_length=225, help_text="The name of the field.", blank=True
     )
 
     type = models.CharField(
@@ -821,7 +820,6 @@ class CollectionElement(Element):
         help_text="The amount item loaded with each page.",
         validators=[
             MinValueValidator(1, message="Value cannot be less than 1."),
-            MaxValueValidator(100, message="Value cannot be greater than 100."),
         ],
     )
 

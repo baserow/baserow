@@ -14,9 +14,6 @@ from baserow.contrib.builder.api.elements.serializers import (
     CollectionElementPropertyOptionsSerializer,
     CollectionFieldSerializer,
 )
-from baserow.contrib.builder.data_providers.exceptions import (
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.exceptions import (
     CollectionElementPropertyOptionsNotUnique,
@@ -173,7 +170,7 @@ class CollectionElementTypeMixin:
         property_options: List[Dict]
 
     def enhance_queryset(self, queryset):
-        return queryset.prefetch_related("property_options")
+        return super().enhance_queryset(queryset).prefetch_related("property_options")
 
     def after_update(
         self, instance: CollectionElementSubClass, values, changes: Dict[str, Tuple]
@@ -247,6 +244,7 @@ class CollectionElementTypeMixin:
             "items_per_page": serializers.IntegerField(
                 default=20,
                 help_text=CollectionElement._meta.get_field("items_per_page").help_text,
+                min_value=0,
                 required=False,
             ),
             "button_load_more_label": FormulaSerializerField(
@@ -310,6 +308,34 @@ class CollectionElementTypeMixin:
                 values["data_source"] = data_source
             else:
                 values["data_source"] = None
+
+        if "items_per_page" in values:
+            data_source = values.get(
+                "data_source", instance.data_source if instance else None
+            )
+
+            if (
+                data_source
+                and data_source.service
+                and data_source.service.get_type().returns_list
+            ):
+                max_count = data_source.service.get_type().get_max_result_limit(
+                    data_source.service.specific
+                )
+            else:
+                max_count = 20
+
+            if values["items_per_page"] > max_count:
+                raise RequestBodyValidationException(
+                    {
+                        "items_per_page": [
+                            {
+                                "detail": f"Maximum allowed value is {max_count}",
+                                "code": "invalid_value",
+                            }
+                        ]
+                    }
+                )
 
         return super().prepare_value_for_db(values, instance)
 
@@ -795,9 +821,7 @@ class FormElementTypeMixin:
         """
 
         if element.required and not value:
-            raise FormDataProviderChunkInvalidException(
-                "The value is required for this element."
-            )
+            raise ValueError("The value is required")
 
         return value
 

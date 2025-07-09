@@ -36,7 +36,8 @@
 
   .grid-field-many-to-many__cell.active & {
     height: auto;
-    max-height: initial;
+    max-height: 300px;
+    overflow: auto;
     flex-wrap: wrap;
   }
 }
@@ -61,6 +62,12 @@
 
     .grid-view__column--matches-search & {
       background-color: $color-primary-200;
+    }
+
+    &.grid-field-many-to-many__item--loading {
+      width: 30px;
+      align-items: center;
+      background-color: revert;
     }
   }
 

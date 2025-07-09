@@ -1,0 +1,75 @@
+.service-form__sort-form-tab {
+  padding-left: 0;
+}
+
+.service-form--small {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .col {
+    // Force any reduced width columns to 100% in a small side panel
+    max-width: 100%;
+  }
+}
+
+.service-form__condition-form-tab {
+  padding-left: 0;
+  padding-right: 0;
+
+  .filters__items {
+    min-width: 534px;
+  }
+
+  .filters__add {
+    padding: 12px 0 6px 4px;
+  }
+
+  .filters__value--with-input-field {
+    display: flex;
+    align-items: center;
+
+    .filters__value--formula-input,
+    .form-input,
+    .filters__multi-value {
+      flex: 1;
+      height: 38px;
+
+      .dropdown {
+        flex: 1;
+        max-width: none;
+      }
+
+      .formula-input-field {
+        height: 38px;
+      }
+    }
+
+    .control__elements--small {
+      margin-bottom: 0;
+    }
+
+    .filters__value-dropdown {
+      width: 100%;
+    }
+
+    .filters__value--formula-toggle {
+      margin-left: auto;
+      padding-left: 6px;
+      margin-bottom: 2px;
+      margin-right: 2px;
+    }
+
+    .filters__value-formula-toggle--disabled {
+      color: $color-neutral-400;
+    }
+  }
+}
+
+.service-form__search-form-tab {
+  padding-left: 0;
+}
+
+.service-form__result-count-input {
+  width: 150px;
+}

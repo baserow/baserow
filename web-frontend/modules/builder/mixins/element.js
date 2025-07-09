@@ -16,7 +16,7 @@ export default {
   computed: {
     workflowActionsInProgress() {
       const workflowActions = this.$store.getters[
-        'workflowAction/getElementWorkflowActions'
+        'builderWorkflowAction/getElementWorkflowActions'
       ](this.elementPage, this.element.id)
       const { recordIndexPath } = this.applicationContext
       const dispatchedById = this.elementType.uniqueElementId(
@@ -24,7 +24,7 @@ export default {
         recordIndexPath
       )
       return workflowActions.some((workflowAction) =>
-        this.$store.getters['workflowAction/getDispatching'](
+        this.$store.getters['builderWorkflowAction/getDispatching'](
           workflowAction,
           dispatchedById
         )
@@ -96,39 +96,16 @@ export default {
         }
 
         const workflowActions = this.$store.getters[
-          'workflowAction/getElementWorkflowActions'
+          'builderWorkflowAction/getElementWorkflowActions'
         ](this.elementPage, this.element.id).filter(
           ({ event: eventName }) => eventName === event.name
         )
 
-        try {
-          await event.fire({
-            workflowActions,
-            resolveFormula: this.resolveFormula,
-            applicationContext: this.applicationContext,
-          })
-        } catch (e) {
-          // Let's log the error for now as we don's have specific messages.
-          console.log('Error during action', e)
-          let toastTitle = this.$i18n.t(
-            'dispatchWorkflowActionError.defaultTitle'
-          )
-          let toastMessage = this.$i18n.t(
-            'dispatchWorkflowActionError.defaultMessage'
-          )
-          if (e.error !== 'ERROR_WORKFLOW_ACTION_FORM_DATA_INVALID') {
-            toastTitle = this.$i18n.t(
-              'dispatchWorkflowActionError.formDataInvalidTitle'
-            )
-            toastMessage = this.$i18n.t(
-              'dispatchWorkflowActionError.formDataInvalidMessage'
-            )
-          }
-          return this.$store.dispatch('toast/error', {
-            title: toastTitle,
-            message: toastMessage,
-          })
-        }
+        await event.fire({
+          workflowActions,
+          resolveFormula: this.resolveFormula,
+          applicationContext: this.applicationContext,
+        })
       }
     },
     getStyleOverride(key, colorVariables = null) {

@@ -10,10 +10,7 @@ from baserow.contrib.database.mcp.table.utils import (
     remove_table_no_permission,
     table_in_workspace_of_endpoint,
 )
-from baserow.contrib.database.rows.operations import (
-    DeleteDatabaseRowOperationType,
-    UpdateDatabaseRowOperationType,
-)
+from baserow.contrib.database.rows.operations import UpdateDatabaseRowOperationType
 from baserow.contrib.database.table.operations import (
     CreateRowDatabaseTableOperationType,
 )
@@ -23,42 +20,42 @@ from baserow.core.mcp.utils import internal_api_request, serializer_to_openapi_i
 
 class ListRowsMcpTool(MCPTool):
     type = "list_table_rows"
-    name = "list_rows_table_{id}"
+    name = "list_table_rows"
 
     async def list(self, endpoint):
-        tables = await sync_to_async(get_all_tables)(endpoint)
-
-        tools = []
-        for table in tables:
-            tools.append(
-                Tool(
-                    name=self.resolve_name(id=table.id),
-                    description=f"Lists all the rows/records in table with id {table.id}, "
-                    f'named "{table.name}".',
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "search": {
-                                "type": "string",
-                                "description": "Optionally search in the whole table.",
-                            },
-                            "page": {
-                                "type": "integer",
-                                "default": 1,
-                                "description": "Rows/records are paginated. Provide "
-                                "if a different page should be fetched.",
-                            },
-                            "size": {
-                                "type": "integer",
-                                "default": 100,
-                                "description": "Maximum rows/records that must be "
-                                "returned.",
-                            },
+        return [
+            Tool(
+                name=self.name,
+                description=f"Lists the rows/records of the provided `table_id`.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "table_id": {
+                            "type": "integer",
+                            "description": "The ID of the table where to list the "
+                            "rows from.",
+                        },
+                        "search": {
+                            "type": "string",
+                            "description": "Optionally search in the whole table.",
+                        },
+                        "page": {
+                            "type": "integer",
+                            "default": 1,
+                            "description": "Rows/records are paginated. Provide "
+                            "if a different page should be fetched.",
+                        },
+                        "size": {
+                            "type": "integer",
+                            "default": 100,
+                            "description": "Maximum rows/records that must be "
+                            "returned.",
                         },
                     },
-                )
+                    "required": ["table_id"],
+                },
             )
-        return tools
+        ]
 
     async def call(
         self,
@@ -67,7 +64,7 @@ class ListRowsMcpTool(MCPTool):
         name_parameters,
         call_arguments,
     ):
-        table_id = name_parameters["id"]
+        table_id = call_arguments["table_id"]
         if not await sync_to_async(table_in_workspace_of_endpoint)(endpoint, table_id):
             return [TextContent(type="text", text="Table not in endpoint workspace.")]
 
@@ -166,13 +163,14 @@ class UpdateRowMcpTool(MCPTool):
             tools.append(
                 Tool(
                     name=self.resolve_name(id=table.id),
-                    description=f"Create a new row/record in table with id {table.id}, "
-                    f'named "{table.name}".',
+                    description=f"Updates an existing row/record in table with id"
+                    f' {table.id}, named "{table.name}".',
                     inputSchema={
                         "type": "object",
                         "properties": {
                             "id": {
                                 "type": "integer",
+                                "description": "The row/record ID that must be updated.",
                             },
                             "row": spec,
                         },
@@ -210,33 +208,31 @@ class UpdateRowMcpTool(MCPTool):
 
 class DeleteRowMcpTool(MCPTool):
     type = "delete_table_row"
-    name = "delete_row_table_{id}"
+    name = "delete_table_row"
 
     async def list(self, endpoint):
-        tables = await sync_to_async(get_all_tables)(endpoint)
-        tables = await sync_to_async(remove_table_no_permission)(
-            endpoint, tables, DeleteDatabaseRowOperationType
-        )
-
-        tools = []
-        for table in tables:
-            tools.append(
-                Tool(
-                    name=self.resolve_name(id=table.id),
-                    description=f"Create a new row/record in table with id {table.id}, "
-                    f'named "{table.name}".',
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "id": {
-                                "type": "integer",
-                            },
+        return [
+            Tool(
+                name=self.name,
+                description=f"Delete an existing row/record from the table of the provided "
+                f"`table_id`.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "table_id": {
+                            "type": "integer",
+                            "description": "The ID of the table where to delete the "
+                            "row/record from.",
                         },
-                        "required": ["id"],
+                        "id": {
+                            "type": "integer",
+                            "description": "The ID of the row that must be deleted.",
+                        },
                     },
-                )
+                    "required": ["table_id", "id"],
+                },
             )
-        return tools
+        ]
 
     async def call(
         self,
@@ -245,7 +241,7 @@ class DeleteRowMcpTool(MCPTool):
         name_parameters,
         call_arguments,
     ):
-        table_id = name_parameters["id"]
+        table_id = call_arguments["table_id"]
         if not await sync_to_async(table_in_workspace_of_endpoint)(endpoint, table_id):
             return [TextContent(type="text", text="Table not in endpoint workspace.")]
 
@@ -253,7 +249,7 @@ class DeleteRowMcpTool(MCPTool):
             "api:database:rows:item",
             method="DELETE",
             path_params={
-                "table_id": name_parameters["id"],
+                "table_id": table_id,
                 "row_id": call_arguments["id"],
             },
             user=endpoint.user,

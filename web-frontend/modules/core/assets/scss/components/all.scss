@@ -152,6 +152,7 @@
 @import 'thumbnail';
 @import 'image_input';
 @import 'integrations/all';
+@import 'services/service_form';
 @import 'editable';
 @import 'notification_panel';
 @import 'color_picker';
@@ -166,7 +167,6 @@
 @import 'anchor';
 @import 'call_to_action';
 @import 'toast_button';
-@import 'workflow_action';
 @import 'chips';
 @import 'segment_control';
 @import 'url_input';
@@ -189,3 +189,6 @@
 @import 'highlight';
 @import 'guided_tour_step';
 @import 'mcp_endpoint';
+@import 'code_editor';
+@import 'field_constraints';
+@import 'icon';

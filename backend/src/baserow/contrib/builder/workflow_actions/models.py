@@ -117,3 +117,7 @@ class LocalBaserowDeleteRowWorkflowAction(BuilderWorkflowServiceAction):
 
 class CoreHTTPRequestWorkflowAction(BuilderWorkflowServiceAction):
     ...
+
+
+class CoreSMTPEmailWorkflowAction(BuilderWorkflowServiceAction):
+    ...

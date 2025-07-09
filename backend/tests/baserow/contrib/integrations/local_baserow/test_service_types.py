@@ -17,12 +17,12 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsDeletedTriggerServiceType,
     LocalBaserowRowsUpdatedTriggerServiceType,
     LocalBaserowServiceType,
-    LocalBaserowSignalTriggerTypeMixin,
     LocalBaserowTableServiceType,
     LocalBaserowViewServiceType,
 )
-from baserow.core.exceptions import InstanceTypeDoesNotExist
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.registries import service_type_registry
 from baserow.test_utils.helpers import setup_interesting_test_table
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
@@ -50,21 +50,23 @@ def test_local_baserow_table_service_before_dispatch_validation_error(
 
     service_without_table = Mock(table_id=None)
     dispatch_context = FakeDispatchContext()
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         cls().resolve_service_formulas(service_without_table, dispatch_context)
-    assert exc.value.args[0] == "The table property is missing."
+    assert exc.value.args[0] == "No table selected"
 
-    service_with_trashed_table = Mock(table_id=trashed_table.id)
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    service_with_trashed_table = Mock(table_id=trashed_table.id, table=trashed_table)
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         cls().resolve_service_formulas(service_with_trashed_table, dispatch_context)
-    assert exc.value.args[0] == "The specified table is trashed"
+    assert exc.value.args[0] == "The selected table is trashed"
 
-    service_with_table_in_trashed_database = Mock(table_id=table_in_trashed_database.id)
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    service_with_table_in_trashed_database = Mock(
+        table_id=table_in_trashed_database.id, table=table_in_trashed_database
+    )
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         cls().resolve_service_formulas(
             service_with_table_in_trashed_database, dispatch_context
         )
-    assert exc.value.args[0] == "The specified table is trashed"
+    assert exc.value.args[0] == "The selected table is trashed"
 
 
 @pytest.mark.django_db
@@ -1111,7 +1113,7 @@ def test_local_baserow_table_service_type_after_update_table_change_deletes_filt
     change_table_from_None_to_Table = {"table": (None, mock_to_table)}
     change_table_from_Table_to_Table = {"table": (mock_from_table, mock_to_table)}
 
-    service_type_cls = LocalBaserowTableServiceType
+    service_type_cls = LocalBaserowListRowsUserServiceType
     service_type_cls.model_class = Mock()
     service_type = service_type_cls()
 
@@ -1120,12 +1122,12 @@ def test_local_baserow_table_service_type_after_update_table_change_deletes_filt
     assert not mock_instance.service_sorts.all.return_value.delete.called
 
     service_type.after_update(mock_instance, {}, change_table_from_None_to_Table)
-    assert not mock_instance.service_filters.return_value.all.return_value.delete.called
-    assert not mock_instance.service_sorts.return_value.all.return_value.delete.called
+    assert not mock_instance.service_filters.all.return_value.delete.called
+    assert not mock_instance.service_sorts.all.return_value.delete.called
 
     service_type.after_update(mock_instance, {}, change_table_from_Table_to_Table)
-    assert mock_instance.service_filters.return_value.all.return_value.delete.called
-    assert mock_instance.service_sorts.return_value.all.return_value.delete.called
+    assert mock_instance.service_filters.all.return_value.delete.called
+    assert mock_instance.service_sorts.all.return_value.delete.called
 
 
 @pytest.mark.django_db
@@ -2012,33 +2014,6 @@ def test_local_baserow_agg_service_type_generate_schema_excludes_fields(data_fix
         service_type.generate_schema(service, allowed_fields=["result"])
         == expected_schema
     )
-
-
-def signal_trigger_service_types():
-    return [
-        service_type
-        for service_type in service_type_registry.get_all()
-        if issubclass(service_type.__class__, LocalBaserowSignalTriggerTypeMixin)
-    ]
-
-
-@pytest.mark.parametrize("service_type", signal_trigger_service_types())
-def test_registering_signal_service_type_connects_to_signal(service_type):
-    try:
-        service_type_registry.get(service_type.type)
-    except InstanceTypeDoesNotExist:
-        service_type_registry.register(service_type)
-    registered_handlers = [receiver[1]() for receiver in service_type.signal.receivers]
-    assert service_type.handler in registered_handlers
-
-
-@pytest.mark.parametrize("service_type", signal_trigger_service_types())
-def test_unregistering_signal_service_type_disconnects_from_signal(
-    service_type,
-):
-    service_type_registry.unregister(service_type.type)
-    registered_handlers = [receiver[1]() for receiver in service_type.signal.receivers]
-    assert service_type.handler not in registered_handlers
 
 
 @pytest.mark.django_db(transaction=True)

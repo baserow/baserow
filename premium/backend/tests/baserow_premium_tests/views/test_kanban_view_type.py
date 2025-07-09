@@ -1,4 +1,5 @@
 from io import BytesIO
+from unittest.mock import patch
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.core.files.storage import FileSystemStorage
@@ -496,8 +497,11 @@ def test_get_hidden_kanban_view_fields_all_fields(
 
 
 @pytest.mark.django_db(transaction=True)
+@patch(
+    "baserow.contrib.database.search.handler.SearchHandler.schedule_update_search_data"
+)
 def test_when_public_field_updated_number_of_queries_does_not_increase_with_amount_of_kanban_views(
-    premium_data_fixture, django_assert_num_queries
+    mock, premium_data_fixture, django_assert_num_queries
 ):
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table(user=user)

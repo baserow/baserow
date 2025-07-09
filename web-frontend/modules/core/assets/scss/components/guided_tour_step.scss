@@ -41,6 +41,19 @@
     transform: translateY(-50%) translateX(-50%);
   }
 
+  // Positioned left from the parent, aligned to the top of it.
+  &--left-top {
+    left: 0;
+    transform: translateX(calc(-100% - 12px));
+
+    &::after {
+      right: -8px;
+      top: 12px;
+      border-width: 6px 0 6px 8px;
+      border-color: transparent transparent transparent $palette-neutral-1200;
+    }
+  }
+
   // Positioned right from the parent, aligned to the top of it.
   &--right-top {
     left: calc(100% + 12px);
@@ -122,6 +135,10 @@
     margin-bottom: 10px;
     font-size: 12px;
     line-height: 20px;
+  }
+
+  .markdown strong {
+    color: $palette-neutral-300;
   }
 
   .markdown ul {

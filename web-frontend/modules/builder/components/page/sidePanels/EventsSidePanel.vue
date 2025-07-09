@@ -32,10 +32,9 @@ export default {
       return Object.values(this.$registry.getAll('workflowAction'))
     },
     workflowActions() {
-      return this.$store.getters['workflowAction/getElementWorkflowActions'](
-        this.elementPage,
-        this.element.id
-      )
+      return this.$store.getters[
+        'builderWorkflowAction/getElementWorkflowActions'
+      ](this.elementPage, this.element.id)
     },
   },
   methods: {

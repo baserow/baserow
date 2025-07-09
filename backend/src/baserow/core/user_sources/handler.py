@@ -29,6 +29,35 @@ class UserSourceHandler:
     allowed_fields_create = ["type", "name", "integration"]
     allowed_fields_update = ["name", "integration"]
 
+    def _get_user_source(
+        self,
+        queryset: QuerySet,
+        specific=True,
+    ) -> UserSource:
+        queryset = queryset.select_related("application__workspace")
+
+        try:
+            if specific:
+                gen_user_source = queryset.get()
+                user_source = gen_user_source.get_specific(
+                    gen_user_source.get_type().enhance_queryset
+                )
+                user_source.application = gen_user_source.application
+
+                if user_source.integration_id:
+                    specific_integration = IntegrationHandler().get_integration(
+                        user_source.integration_id, specific=True
+                    )
+                    user_source.__class__.integration.field.set_cached_value(
+                        user_source, specific_integration
+                    )
+            else:
+                user_source = queryset.select_related("integration").get()
+        except UserSource.DoesNotExist as exc:
+            raise UserSourceDoesNotExist() from exc
+
+        return user_source
+
     def get_user_source(
         self,
         user_source_id: int,
@@ -49,27 +78,9 @@ class UserSourceHandler:
             base_queryset if base_queryset is not None else UserSource.objects.all()
         )
 
-        queryset = queryset.select_related("application__workspace")
-
-        try:
-            if specific:
-                user_source = queryset.get(id=user_source_id).specific
-                if user_source.integration_id:
-                    specific_integration = IntegrationHandler().get_integration(
-                        user_source.integration_id, specific=True
-                    )
-                    user_source.__class__.integration.field.set_cached_value(
-                        user_source, specific_integration
-                    )
-            else:
-                user_source = queryset.select_related("integration").get(
-                    id=user_source_id
-                )
-
-        except UserSource.DoesNotExist as exc:
-            raise UserSourceDoesNotExist() from exc
-
-        return user_source
+        return self._get_user_source(
+            queryset.filter(id=user_source_id), specific=specific
+        )
 
     def get_user_source_by_uid(
         self,
@@ -91,27 +102,9 @@ class UserSourceHandler:
             base_queryset if base_queryset is not None else UserSource.objects.all()
         )
 
-        queryset = queryset.select_related("application__workspace")
-
-        try:
-            if specific:
-                user_source = queryset.get(uid=user_source_uid).specific
-                if user_source.integration_id:
-                    specific_integration = IntegrationHandler().get_integration(
-                        user_source.integration_id, specific=True
-                    )
-                    user_source.__class__.integration.field.set_cached_value(
-                        user_source, specific_integration
-                    )
-            else:
-                user_source = queryset.select_related("integration").get(
-                    id=user_source_uid
-                )
-
-        except UserSource.DoesNotExist as exc:
-            raise UserSourceDoesNotExist() from exc
-
-        return user_source
+        return self._get_user_source(
+            queryset.filter(uid=user_source_uid), specific=specific
+        )
 
     def get_user_source_for_update(
         self, user_source_id: int, base_queryset: Optional[QuerySet] = None
@@ -343,6 +336,11 @@ class UserSourceHandler:
             storage=storage,
             cache=cache,
         )
+
+        # Generates the user source uid from user source type once the instance is
+        # created. This will prevent duplicate and keep the gen_uid logic.
+        user_source.uid = user_source_type.gen_uid(user_source)
+        user_source.save()
 
         id_mapping["user_sources"][serialized_user_source["id"]] = user_source.id
 

@@ -23,8 +23,9 @@ import pageParameterStore from '@baserow/modules/builder/store/pageParameter'
 import dataSourceContentStore from '@baserow/modules/builder/store/dataSourceContent'
 import elementContentStore from '@baserow/modules/builder/store/elementContent'
 import themeStore from '@baserow/modules/builder/store/theme'
-import workflowActionStore from '@baserow/modules/builder/store/workflowAction'
+import builderWorkflowActionStore from '@baserow/modules/builder/store/builderWorkflowAction'
 import formDataStore from '@baserow/modules/builder/store/formData'
+import builderToast from '@baserow/modules/builder/store/builderToast'
 import { registerRealtimeEvents } from '@baserow/modules/builder/realtime'
 import {
   HeadingElementType,
@@ -118,6 +119,7 @@ import {
   RefreshDataSourceWorkflowActionType,
   DeleteRowWorkflowActionType,
   CoreHTTPRequestWorkflowActionType,
+  CoreSMTPEmailWorkflowActionType,
 } from '@baserow/modules/builder/workflowActionTypes'
 
 import {
@@ -146,6 +148,7 @@ import {
   TextQueryParamType,
   NumericQueryParamType,
 } from '@baserow/modules/builder/queryParamTypes'
+import { BuilderGuidedTourType } from '@baserow/modules/builder/guidedTourTypes'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -174,8 +177,9 @@ export default (context) => {
   store.registerModule('dataSourceContent', dataSourceContentStore)
   store.registerModule('elementContent', elementContentStore)
   store.registerModule('theme', themeStore)
-  store.registerModule('workflowAction', workflowActionStore)
+  store.registerModule('builderWorkflowAction', builderWorkflowActionStore)
   store.registerModule('formData', formDataStore)
+  store.registerModule('builderToast', builderToast)
 
   app.$registry.registerNamespace('builderSettings')
   app.$registry.registerNamespace('element')
@@ -187,6 +191,7 @@ export default (context) => {
   app.$registry.registerNamespace('builderDataProvider')
   app.$registry.registerNamespace('themeConfigBlock')
   app.$registry.registerNamespace('fontFamily')
+  app.$registry.registerNamespace('builderPageDecorator')
 
   app.$registry.register('application', new BuilderApplicationType(context))
   app.$registry.register('job', new DuplicatePageJobType(context))
@@ -363,6 +368,10 @@ export default (context) => {
   )
   app.$registry.register(
     'workflowAction',
+    new CoreSMTPEmailWorkflowActionType(context)
+  )
+  app.$registry.register(
+    'workflowAction',
     new CreateRowWorkflowActionType(context)
   )
   app.$registry.register(
@@ -413,4 +422,6 @@ export default (context) => {
   app.$registry.register('fontFamily', new GaramondFontFamilyType(context))
   app.$registry.register('fontFamily', new CourierNewFontFamilyType(context))
   app.$registry.register('fontFamily', new BrushScriptMTFontFamilyType(context))
+
+  app.$registry.register('guidedTour', new BuilderGuidedTourType(context))
 }

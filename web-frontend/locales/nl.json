@@ -15,7 +15,8 @@
         "summarize": "Samenvatten",
         "enabled": "Ingeschakeld",
         "or": "of",
-        "and": "en"
+        "and": "en",
+        "optional": "Optioneel"
     },
     "action": {
         "upload": "Uploaden",
@@ -111,7 +112,8 @@
         "invalidURL": "Voer een geldige URL in.",
         "alreadyInUse": "Deze veldnaam is al in gebruik.",
         "invalidCharacters": "Dit veld bevat ongeldige tekens.",
-        "decimalField": "Het veld moet een decimaal zijn."
+        "decimalField": "Het veld moet een decimaal zijn.",
+        "copyFailed": "Kopiëren naar klembord mislukt. Probeer het opnieuw."
     },
     "permission": {
         "admin": "Beheerder",
@@ -437,7 +439,11 @@
         "databaseDeadlockTitle": "Actie mislukt",
         "databaseDeadlockDescription": "De actie kon niet worden voltooid vanwege meerdere conflicterende bewerkingen op de gegevens op hetzelfde moment. Probeer het opnieuw.",
         "databaseUniquePrimaryPropertyNotFoundDescription": "Dit gebeurt meestal als de gegevenssynchronisatiebron geen eigenschap bevat om een unieke rijwaarde uit te halen. In het geval van een tabel kan het zijn dat er geen primaire sleutel is.",
-        "databaseUniquePrimaryPropertyNotFoundTitle": "Geen unieke primaire eigenschap gevonden"
+        "databaseUniquePrimaryPropertyNotFoundTitle": "Geen unieke primaire eigenschap gevonden",
+        "fieldConstraintTitle": "Schending veldbeperking",
+        "fieldConstraintDescription": "Kan beperking niet toepassen.",
+        "fieldDataConstraintTitle": "Schending beperking veldgegevens",
+        "fieldDataConstraintDescription": "Kan de bewerking niet voltooien vanwege schending van bestaande beperkingen."
     },
     "importerType": {
         "csv": "Een CSV-bestand importeren",
@@ -610,5 +616,21 @@
     "health": {
         "title": "Baserow gezondheidscontroles",
         "description": "Deze controles tonen de huidige status van uw Baserow-installatie."
+    },
+    "fieldConstraint": {
+        "uniqueWithEmpty": "Uniek met leeg"
+    },
+    "fieldConstraintsSubform": {
+        "title": "Beperkingen",
+        "description": "Definieer regels waaraan veldwaarden moeten voldoen.",
+        "addConstraint": "Beperking toevoegen",
+        "noConstraintsAvailable": "Er zijn geen beperkingen beschikbaar voor dit veldtype.",
+        "readonlyFieldMessage": "Beperkingen kunnen niet worden toegepast op alleen-lezen velden.",
+        "errorGenericData": "Kan veldbeperking niet toepassen vanwege bestaande gegevensconflicten.",
+        "errorUniqueOrEmpty": "Sommige waarden in dit veld zijn gedupliceerd. Verwijder of bewerk duplicaten voordat je deze beperking toepast.",
+        "errorInvalidConstraint": "Deze veldbeperking wordt niet ondersteund voor dit veldtype."
+    },
+    "fieldConstraintParametersText": {
+        "placeholder": "Beperkingswaarde invoeren"
     }
 }

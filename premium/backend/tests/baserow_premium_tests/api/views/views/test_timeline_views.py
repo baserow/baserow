@@ -737,9 +737,7 @@ def test_list_rows_search(api_client, premium_data_fixture, search_mode):
         **{f"field_{text_field.id}": "Robin Backham"}
     )
 
-    SearchHandler.update_tsvector_columns(
-        table, update_tsvectors_for_changed_rows_only=False
-    )
+    SearchHandler.update_search_data(table)
 
     url = reverse("api:database:views:timeline:list", kwargs={"view_id": timeline.id})
     response = api_client.get(
@@ -1115,6 +1113,8 @@ def test_get_public_timeline_view(api_client, premium_data_fixture):
                     "immutable_type": False,
                     "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                     "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                    "db_index": False,
+                    "field_constraints": [],
                 },
                 {
                     "id": start_date_field.id,
@@ -1134,6 +1134,8 @@ def test_get_public_timeline_view(api_client, premium_data_fixture):
                     "immutable_type": False,
                     "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                     "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                    "db_index": False,
+                    "field_constraints": [],
                 },
                 {
                     "id": end_date_field.id,
@@ -1153,6 +1155,8 @@ def test_get_public_timeline_view(api_client, premium_data_fixture):
                     "immutable_type": False,
                     "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                     "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                    "db_index": False,
+                    "field_constraints": [],
                 },
             ]
         ),
@@ -1670,9 +1674,7 @@ def test_list_rows_public_only_searches_by_visible_columns(
         values={"public": search_term, "hidden": "other"},
         user_field_names=True,
     )
-    SearchHandler.update_tsvector_columns(
-        table, update_tsvectors_for_changed_rows_only=False
-    )
+    SearchHandler.update_search_data(table)
 
     # Get access as an anonymous user
     response = api_client.get(

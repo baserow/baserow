@@ -1,6 +1,7 @@
 <template>
   <form @submit.prevent>
     <FormGroup
+      v-if="enableIntegrationPicker"
       :label="$t('localBaserowServiceForm.integrationDropdownLabel')"
       small-label
       required
@@ -67,21 +68,41 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * Whether to show the integration picker or not.
+     * By default, we show it, but in some cases, we've
+     * already collected the integration ID.
+     */
+    enableIntegrationPicker: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
   },
   data() {
+    const values = {
+      table_id: null,
+      integration_id: null,
+    }
+    if (this.enableRowId) {
+      values.row_id = null
+    }
+    const allowedValues = ['table_id', 'integration_id']
     return {
-      allowedValues: ['row_id', 'table_id', 'integration_id'],
-      values: {
-        row_id: '',
-        table_id: null,
-        integration_id: null,
-      },
+      allowedValues: this.enableRowId
+        ? allowedValues + ['row_id']
+        : allowedValues,
+      values,
     }
   },
   computed: {
     integrations() {
-      return this.$store.getters['integration/getIntegrations'](
-        this.application
+      const allIntegrations = this.$store.getters[
+        'integration/getIntegrations'
+      ](this.application)
+      return allIntegrations.filter(
+        (integration) =>
+          integration.type === LocalBaserowIntegrationType.getType()
       )
     },
     fakeTableId: {
@@ -115,7 +136,7 @@ export default {
   watch: {
     'values.table_id': {
       handler(newValue, oldValue) {
-        if (oldValue && newValue !== oldValue) {
+        if (this.enableRowId && oldValue && newValue !== oldValue) {
           this.values.row_id = ''
         }
       },

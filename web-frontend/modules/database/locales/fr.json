@@ -272,7 +272,10 @@
         "nameNotAllowed": "Ce nom de champ n'est pas autorisé.",
         "nameTooLong": "Ce nom de champ est trop long.",
         "description": "Description",
-        "addDescription": "Ajouter une description"
+        "addDescription": "Ajouter une description",
+        "dbIndex": "Index",
+        "dbIndexError": "Ce type de champ ne peut pas avoir d'index. Veuillez le supprimer avant d'enregistrer ou de modifier le type de champ.",
+        "dbIndexDescription": "L'indexation peut améliorer considérablement les performances de filtrage, mais ralentit les opérations de création, de mise à jour et de suppression."
     },
     "fieldLookupSubForm": {
         "noTable": "Vous devez créer au moins une autre table dans la même base de données pour pouvoir créer un lien.",
@@ -930,7 +933,9 @@
         "passwordUpdated": "Le mot de passe a été mis à jour"
     },
     "fieldPasswordSubForm": {
-        "description": "Il n'est pas encore possible d'utiliser directement le champ du mot de passe, celui-ci est uniquement utilisé pour l'authentification dans d'une application."
+        "description": "Le champ du mot de passe peut également être utilisé pour l'authentification de l'utilisateur dans une application.",
+        "allowEndpointAuthentication": "Autoriser l'authentification des endpoints de l'API",
+        "allowEndpointAuthenticationHelp": "Cela expose un endpoint où l'ID de la ligne et le mot de passe peuvent être vérifiés s'ils sont corrects. Cela permet d'utiliser Baserow comme backend d'authentification."
     },
     "dataProviderTypes": {
         "fieldsName": "Champs"
@@ -1073,7 +1078,9 @@
         "next": "Suivant",
         "fields": "Sélectionnez les champs que vous souhaitez synchroniser",
         "create": "Créer et synchroniser une table",
-        "error": "Un problème s'est produit lors de la synchronisation"
+        "error": "Un problème s'est produit lors de la synchronisation",
+        "autoAddLabel": "Ajout automatique de nouvelles propriétés",
+        "autoAddHelper": "Ajoute et synchronise automatiquement les propriétés nouvellement disponibles dans la table. Notez que pour que cela fonctionne, toutes les propriétés doivent être synchronisées."
     },
     "syncTableModal": {
         "sync": "Synchroniser la table",
@@ -1162,5 +1169,12 @@
     "fieldMultipleSelectSubForm": {
         "defaultOptionsLabel": "Options par défaut",
         "optionsLabel": "Options"
+    },
+    "apiDocsPasswordFieldAuthentication": {
+        "title": "{name} authentification",
+        "description": "Vérifie si le mot de passe et la ligne fournis correspondent à ce qui est stocké dans la cellule.",
+        "fieldId": "L'identifiant du champ dans lequel le mot de passe doit être vérifié.",
+        "rowId": "L'ID de ligne où vérifier le mot de passe.",
+        "password": "Le mot de passe qui doit être vérifié s'il est correct."
     }
 }

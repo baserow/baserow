@@ -2,7 +2,9 @@
   <ButtonFloating
     icon="iconoir-plus"
     size="small"
-    @click="emit('addNode', props.data.nodeId)"
+    :disabled="props.data.disabled"
+    title="Create automation node"
+    @click="handleClick"
   ></ButtonFloating>
 </template>
 
@@ -23,4 +25,10 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['addNode'])
+
+const handleClick = () => {
+  if (!props.data.disabled) {
+    emit('addNode', props.data.nodeId)
+  }
+}
 </script>

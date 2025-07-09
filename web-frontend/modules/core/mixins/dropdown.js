@@ -60,7 +60,7 @@ export default {
       default: null,
     },
     /**
-     * Wether or not to show the search input field.
+     * Whether to show the search input field.
      */
     showSearch: {
       type: Boolean,
@@ -68,7 +68,7 @@ export default {
       default: true,
     },
     /**
-     * Wether or not to show the input field. This is different from the search input.
+     * Whether to show the input field. This is different from the search input.
      */
     showInput: {
       type: Boolean,
@@ -76,7 +76,7 @@ export default {
       default: true,
     },
     /**
-     * Wether or not to show the footer in the dropdown.
+     * Whether to show the footer in the dropdown.
      */
     showFooter: {
       type: Boolean,
@@ -84,7 +84,7 @@ export default {
       default: false,
     },
     /**
-     * Wether or not the dropdown is disabled.
+     * Whether the dropdown is disabled.
      */
     disabled: {
       type: Boolean,
@@ -103,7 +103,7 @@ export default {
      * If this property is true, it will position the items element fixed. This can be
      * useful if the parent element has an `overflow: hidden|scroll`, and you still
      * want the dropdown to break out of it. This property is immutable, so changing
-     * it afterwards has no point.
+     * it afterward has no point.
      */
     fixedItems: {
       type: Boolean,
@@ -144,6 +144,14 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * Should the dropdown automatically open by default?
+     */
+    openOnMount: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   data() {
     return {
@@ -154,7 +162,7 @@ export default {
       query: '',
       hasItems: true,
       hasDropdownItem: true,
-      hover: null,
+      focusedDropdownItem: null,
       opening: false,
       fixedItemsImmutable: this.fixedItems,
       reactiveMultiple: { value: this.multiple }, // Used for provide
@@ -210,6 +218,13 @@ export default {
       characterData: false,
       subtree: false,
     })
+
+    // If the dropdown is set to open by default, we want to open it.
+    if (this.openOnMount) {
+      this.$nextTick(() => {
+        this.show()
+      })
+    }
   },
   beforeDestroy() {
     this.observer.disconnect()
@@ -278,7 +293,7 @@ export default {
       const isElementOrigin = isDomElement(target)
 
       this.open = true
-      this.hover = this.value
+      this.focusedDropdownItem = this.value
       this.opener = isElementOrigin ? target : null
       this.$emit('show')
 
@@ -350,13 +365,16 @@ export default {
           event.preventDefault()
           this.handleUpAndDownArrowPress(event)
         }
-        // Allow the Enter key to select the value that is currently being hovered
-        // over.
-        if (this.open && event.key === 'Enter') {
+        // Allow the Enter key to select the value that is currently being focused
+        if (
+          this.open &&
+          event.key === 'Enter' &&
+          this.focusedDropdownItem !== null
+        ) {
           // Prevent submitting the whole form when pressing the enter key while the
           // dropdown is open.
           event.preventDefault()
-          this.select(this.hover)
+          this.select(this.focusedDropdownItem)
         }
         // Close on escape
         if (this.open && event.key === 'Escape') {
@@ -517,7 +535,7 @@ export default {
     },
     /**
      * Method that is called when the arrow up or arrow down key is pressed. Based on
-     * the index of the current child, the next child enabled child is set as hover.
+     * the index of the current child, the next child enabled child is set as focused.
      */
     handleUpAndDownArrowPress(event) {
       const children = this.getDropdownItemComponents().filter(
@@ -526,7 +544,7 @@ export default {
 
       const isArrowUp = event.key === 'ArrowUp'
       let index = children.findIndex((item) =>
-        _.isEqual(item.value, this.hover)
+        _.isEqual(item.value, this.focusedDropdownItem)
       )
       index = isArrowUp ? index - 1 : index + 1
 
@@ -536,7 +554,7 @@ export default {
       }
 
       const next = children[index]
-      this.hover = next.value
+      this.focusedDropdownItem = next.value
       this.$refs.items.scrollTop = this.getScrollTopAmountForNextChild(
         next,
         isArrowUp

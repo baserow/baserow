@@ -58,6 +58,10 @@
       :parent-height="height"
       :decorations-by-place="decorationsByPlace"
       v-on="$listeners"
+      @edit-row="
+        $refs.calendarMonthDayExpanded.hide()
+        $emit('edit-row', $event)
+      "
     >
     </CalendarMonthDayExpanded>
   </li>

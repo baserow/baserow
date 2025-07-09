@@ -176,7 +176,6 @@ def test_create_row(send_mock, data_fixture):
     assert getattr(row_1, f"field_{price_field.id}") == Decimal("59999.99")
     assert not getattr(row_1, f"field_9999", None)
     assert row_1.order == Decimal("1.00000000000000000000")
-    assert row_1.needs_background_update
     assert row_1.last_modified_by == user
 
     send_mock.assert_called_once()
@@ -668,8 +667,6 @@ def test_update_row_by_id(send_mock, data_fixture):
             user=user, table=table, row_id=row.id, values={price_field.id: -10.99}
         )
 
-    row.needs_background_update = False
-    row.save(update_fields=("needs_background_update",))
     with patch(
         "baserow.contrib.database.rows.signals.before_rows_update.send"
     ) as before_send_mock:
@@ -688,7 +685,6 @@ def test_update_row_by_id(send_mock, data_fixture):
     assert getattr(row, f"field_{name_field.id}") == "Tesla"
     assert getattr(row, f"field_{speed_field.id}") == 240
     assert getattr(row, f"field_{price_field.id}") == Decimal("59999.99")
-    assert row.needs_background_update
 
     before_send_mock.assert_called_once()
     assert before_send_mock.call_args[1]["rows"][0].id == row.id
@@ -1527,7 +1523,7 @@ def test_recalculate_row_orders(send_mock, data_fixture):
 @patch("baserow.contrib.database.rows.signals.rows_created.send")
 @patch("baserow.contrib.database.views.handler.ViewHandler.field_value_updated")
 @patch(
-    "baserow.contrib.database.search.handler.SearchHandler.field_value_updated_or_created"
+    "baserow.contrib.database.search.handler.SearchHandler.schedule_update_search_data"
 )
 def test_formula_referencing_fields_add_additional_queries_on_rows_created(
     mock1, mock2, mock3, data_fixture, django_assert_num_queries
@@ -1643,7 +1639,7 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_created(
 @patch("baserow.contrib.database.rows.signals.rows_updated.send")
 @patch("baserow.contrib.database.views.handler.ViewHandler.field_value_updated")
 @patch(
-    "baserow.contrib.database.search.handler.SearchHandler.field_value_updated_or_created"
+    "baserow.contrib.database.search.handler.SearchHandler.schedule_update_search_data"
 )
 def test_formula_referencing_fields_add_additional_queries_on_rows_updated(
     mock1, mock2, mock3, data_fixture, django_assert_num_queries

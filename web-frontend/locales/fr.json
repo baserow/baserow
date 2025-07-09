@@ -15,7 +15,8 @@
         "enabled": "Activé·e",
         "summarize": "Résumer",
         "or": "ou",
-        "and": "et"
+        "and": "et",
+        "optional": "Optionel"
     },
     "action": {
         "upload": "Envoyer",
@@ -111,7 +112,8 @@
         "invalidURL": "Veuillez saisir une URL valide.",
         "alreadyInUse": "Ce nom de champ est déjà utilisé.",
         "decimalField": "Le champ doit être une valeur décimal.",
-        "invalidCharacters": "Ce champ contient des caractères invalides."
+        "invalidCharacters": "Ce champ contient des caractères invalides.",
+        "copyFailed": "La copie dans le presse-papiers a échoué. Veuillez réessayer."
     },
     "permission": {
         "admin": "Admin",
@@ -437,7 +439,11 @@
         "databaseDeadlockTitle": "L'action a échoué",
         "databaseDeadlockDescription": "L'action n'a pas pu être achevée en raison de plusieurs opérations conflictuelles sur les données en même temps. Veuillez réessayer.",
         "databaseUniquePrimaryPropertyNotFoundDescription": "Cela se produit généralement lorsque la source de synchronisation des données ne contient aucune propriété permettant d'obtenir un identifiant de ligne unique. Dans le cas d'une table, il se peut qu'il n'y ait pas de clé primaire.",
-        "databaseUniquePrimaryPropertyNotFoundTitle": "Aucune propriété primaire unique n'a été trouvée"
+        "databaseUniquePrimaryPropertyNotFoundTitle": "Aucune propriété primaire unique n'a été trouvée",
+        "fieldConstraintTitle": "Violation de la contrainte de champ",
+        "fieldConstraintDescription": "Impossible d'appliquer la contrainte.",
+        "fieldDataConstraintTitle": "Violation des contraintes liées aux données de terrain",
+        "fieldDataConstraintDescription": "Impossible de terminer l'opération en raison d'une violation des contraintes existantes."
     },
     "importerType": {
         "csv": "Importer un fichier CSV",
@@ -610,5 +616,21 @@
     "health": {
         "description": "Ces indicateurs indiquent l’état actuel de votre installation de Baserow.",
         "title": "Bilans de santé de Baserow"
+    },
+    "fieldConstraint": {
+        "uniqueWithEmpty": "Unique avec vide"
+    },
+    "fieldConstraintsSubform": {
+        "title": "Contraintes",
+        "description": "Définir les règles que les valeurs des champs doivent respecter.",
+        "addConstraint": "Ajouter une contrainte",
+        "noConstraintsAvailable": "Aucune contrainte n'est disponible pour ce type de champ.",
+        "readonlyFieldMessage": "Les contraintes ne peuvent pas être appliquées aux champs en lecture seule.",
+        "errorGenericData": "Impossible d'appliquer la contrainte de champ en raison de conflits de données existants.",
+        "errorUniqueOrEmpty": "Certaines valeurs de ce champ sont dupliquées. Supprimez ou modifiez les doublons avant d'appliquer cette contrainte.",
+        "errorInvalidConstraint": "Cette contrainte de champ n'est pas prise en charge pour ce type de champ."
+    },
+    "fieldConstraintParametersText": {
+        "placeholder": "Saisir la valeur de la contrainte"
     }
 }

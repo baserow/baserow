@@ -311,7 +311,11 @@
     "fieldLevelPermissions": "Field-level permissions",
     "fieldLevelPermissionsContent": "Control who can edit specific fields in a table. Set permissions for editors, builders, admins, or completely disable modifications to field values.",
     "builderBranding": "Application branding",
-    "builderBrandingContent": "White label the branding of your application by removing the 'Made with Baserow' branding in the footer of your application."
+    "builderBrandingContent": "White label the branding of your application by removing the 'Made with Baserow' branding in the footer of your application.",
+    "builderFileInputElement": "File input element",
+    "builderFileInputElementContent": "The file input element allows you to add a field to your application pages for uploading files. Give your users the ability to store important documents or images.",
+    "builderCustomCode": "Custom code for applications",
+    "builderCustomCodeContent": "You can add custom CSS/JavaScript code to further customize the look and behaviour of your application. For example, you can integrate external services like analytics or social media."
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
@@ -538,6 +542,40 @@
     "nobodyDescription": "No users",
     "allowInForms": "Allow this field to be set in rows created through forms",
     "linkRowWarning": "This is a 'Link to table' field. To ensure values cannot be changed from the linked table, please make ensure to set the right permissions on the linked table as well."
+  },
+  "builderSettingTypes": {
+    "customCode": "Custom CSS/JS"
+  },
+  "customCodeSettingForm": {
+    "customCSS": "Custom CSS",
+    "customJS": "Custom JavaScript",
+    "customCSSPlaceholder": "Enter some custom CSS code...",
+    "customJSPlaceholder": "Enter some custom JS code...",
+    "externalScripts": "External scripts / stylesheets",
+    "noScript": "Enhance your application with external scripts or stylesheets",
+    "customCodeTitle": "Custom code",
+    "customCodeHelp": "Custom code is only visible in preview or published applications, The results aren't visible in the editor.",
+    "addExternalScript": "Add an external script"
+  },
+  "customCodeSettingScriptForm": {
+    "type": "Type",
+    "loadType": "Load type",
+    "url": "URL",
+    "urlPlaceholder": "Enter the script URL...",
+    "crossorigin": "Cross origin",
+    "includeCredentials": "Include credentials",
+    "typeCSS": "CSS",
+    "typeJS": "Javascript",
+    "loadTypeNone": "Normal",
+    "loadTypeDefer": "Defer",
+    "loadTypeAsync": "Async",
+    "crossoriginTypeNone": "Normal",
+    "crossoriginTypeAnonymous": "Anonymous",
+    "crossoriginTypeCredentials": "Use credentials"
+  },
+  "elementType": {
+    "errorUserSourceHasNoLoginOption": "The selected user source has no login option",
+    "errorUserSourceMissing": "No user source selected"
   },
   "fieldPermissionsMenuItem": {
     "label": "Edit field permissions"

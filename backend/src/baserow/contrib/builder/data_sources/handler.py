@@ -10,7 +10,6 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 )
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceDoesNotExist,
-    DataSourceImproperlyConfigured,
     DataSourceNameNotUniqueError,
 )
 from baserow.contrib.builder.data_sources.models import DataSource
@@ -20,6 +19,9 @@ from baserow.contrib.builder.types import DataSourceDict
 from baserow.core.cache import local_cache
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType
@@ -216,7 +218,7 @@ class DataSourceHandler:
             # Get the data source for the same builder on the shared page
             data_source_queryset = data_source_queryset.filter(
                 Q(page=page) | Q(page__builder_id=page.builder_id, page__shared=True)
-            )
+            ).order_by("-page__shared", "order", "id")
         else:
             data_source_queryset = data_source_queryset.filter(page=page)
 
@@ -500,28 +502,49 @@ class DataSourceHandler:
 
         :param data_source: The data source to be dispatched.
         :param dispatch_context: The context used for the dispatch.
-        :raises DataSourceImproperlyConfigured: If the data source is
+        :raises ServiceImproperlyConfiguredDispatchException: If the data source is
           not properly configured.
         :return: The result of dispatching the data source.
         """
 
         if not data_source.service_id:
-            raise DataSourceImproperlyConfigured("The service type is missing.")
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The service type is missing."
+            )
 
-        if data_source.id not in dispatch_context.cache.setdefault(
-            "data_source_contents", {}
-        ):
+        cache = dispatch_context.cache
+        call_stack = dispatch_context.call_stack
+
+        current_data_source_dispatched = dispatch_context.data_source or data_source
+
+        dispatch_context = BuilderDispatchContext.from_context(
+            dispatch_context,
+            data_source=current_data_source_dispatched,
+        )
+
+        # keep the call stack
+        dispatch_context.call_stack = call_stack
+
+        if current_data_source_dispatched != data_source:
+            data_sources = self.get_data_sources_with_cache(dispatch_context.page)
+            ordered_ids = [d.id for d in data_sources]
+            if ordered_ids.index(current_data_source_dispatched.id) < ordered_ids.index(
+                data_source.id
+            ):
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "You can't reference a data source after the current data source"
+                )
+
+        if data_source.id not in cache.setdefault("data_source_contents", {}):
             service_dispatch = self.service_handler.dispatch_service(
                 data_source.service.specific, dispatch_context
             )
 
             # Cache the dispatch in the formula cache if we have formulas that need
             # it later
-            dispatch_context.cache["data_source_contents"][
-                data_source.id
-            ] = service_dispatch.data
+            cache["data_source_contents"][data_source.id] = service_dispatch.data
 
-        return dispatch_context.cache["data_source_contents"][data_source.id]
+        return cache["data_source_contents"][data_source.id]
 
     def move_data_source(
         self, data_source: DataSourceForUpdate, before: Optional[DataSource] = None

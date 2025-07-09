@@ -568,7 +568,7 @@ def test_user_must_have_access_to_workspace_to_download_file(
     with (
         patch("baserow.core.storage.get_default_storage", new=storage),
         patch(
-            "baserow_enterprise.api.secure_file_serve.views.SecureFileServeAuthentication.authenticate"
+            "baserow_enterprise.api.authentication.AuthenticateFromUserSessionAuthentication.authenticate"
         ) as mock_authenticate,
     ):
         mock_authenticate.return_value = (user_2, None)
@@ -615,7 +615,7 @@ def test_user_with_wrong_workspace_cannot_download_file(
     with (
         patch("baserow.core.storage.get_default_storage", new=storage),
         patch(
-            "baserow_enterprise.api.secure_file_serve.views.SecureFileServeAuthentication.authenticate"
+            "baserow_enterprise.api.authentication.AuthenticateFromUserSessionAuthentication.authenticate"
         ) as mock_authenticate,
     ):
         mock_authenticate.return_value = (user, None)
@@ -658,7 +658,7 @@ def test_staff_user_can_download_file_without_workspace(
     with (
         patch("baserow.core.storage.get_default_storage", new=storage),
         patch(
-            "baserow_enterprise.api.secure_file_serve.views.SecureFileServeAuthentication.authenticate"
+            "baserow_enterprise.api.authentication.AuthenticateFromUserSessionAuthentication.authenticate"
         ) as mock_authenticate,
     ):
         mock_authenticate.return_value = (user, None)
@@ -706,7 +706,7 @@ def test_staff_user_cannot_download_file_outside_own_workspace(
     with (
         patch("baserow.core.storage.get_default_storage", new=storage),
         patch(
-            "baserow_enterprise.api.secure_file_serve.views.SecureFileServeAuthentication.authenticate"
+            "baserow_enterprise.api.authentication.AuthenticateFromUserSessionAuthentication.authenticate"
         ) as mock_authenticate,
     ):
         mock_authenticate.return_value = (user, None)
@@ -957,7 +957,7 @@ def test_audit_log_can_export_to_csv_and_be_served_by_the_backend_with_workspace
     # download it
     with (
         patch(
-            "baserow_enterprise.api.secure_file_serve.views.SecureFileServeAuthentication.authenticate",
+            "baserow_enterprise.api.authentication.AuthenticateFromUserSessionAuthentication.authenticate",
             side_effect=[(wp_admin_user, None), (other_wp_admin_user, None)],
         ) as mock_authenticate,
     ):
@@ -1023,7 +1023,7 @@ def test_exporting_csv_writes_file_to_storage_and_its_served_by_the_backend_with
     # download it
     with (
         patch(
-            "baserow_enterprise.api.secure_file_serve.views.SecureFileServeAuthentication.authenticate",
+            "baserow_enterprise.api.authentication.AuthenticateFromUserSessionAuthentication.authenticate",
             side_effect=[(user, None), (other_user, None)],
         ) as mock_authenticate,
     ):

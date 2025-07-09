@@ -3,7 +3,10 @@ import NotificationWorkflowActionForm from '@baserow/modules/builder/components/
 import OpenPageWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/OpenPageWorkflowActionForm'
 import WorkflowActionWithService from '@baserow/modules/builder/components/workflowAction/WorkflowActionWithService.vue'
 import RefreshDataSourceWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/RefreshDataSourceWorkflowActionForm.vue'
-import { CoreHTTPRequestServiceType } from '@baserow/modules/integrations/core/serviceTypes'
+import {
+  CoreHTTPRequestServiceType,
+  CoreSMTPEmailServiceType,
+} from '@baserow/modules/integrations/core/serviceTypes'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
   LocalBaserowUpdateRowWorkflowServiceType,
@@ -14,10 +17,15 @@ import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
+import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 
 export class NotificationWorkflowActionType extends WorkflowActionType {
   static getType() {
     return 'notification'
+  }
+
+  get icon() {
+    return 'iconoir-chat-bubble-empty'
   }
 
   get form() {
@@ -29,7 +37,7 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
   }
 
   execute({ workflowAction: { title, description }, resolveFormula }) {
-    return this.app.store.dispatch('toast/info', {
+    return this.app.store.dispatch('builderToast/info', {
       title: ensureString(resolveFormula(title)),
       message: ensureString(resolveFormula(description)),
     })
@@ -43,6 +51,10 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
 export class OpenPageWorkflowActionType extends WorkflowActionType {
   static getType() {
     return 'open_page'
+  }
+
+  get icon() {
+    return 'iconoir-open-in-window'
   }
 
   get form() {
@@ -59,11 +71,29 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
    * @param {object} param An object containing application context data.
    * @returns true if the open page action is in error
    */
-  isInError(workflowAction, { element, builder }) {
-    return pathParametersInError(
-      workflowAction,
-      this.app.store.getters['page/getVisiblePages'](builder)
-    )
+  getErrorMessage(workflowAction, applicationContext) {
+    if (workflowAction.navigation_type === 'page') {
+      if (!workflowAction.navigate_to_page_id) {
+        return this.app.i18n.t('workflowActionTypes.errorNavigateToPageMissing')
+      }
+      if (
+        pathParametersInError(
+          workflowAction,
+          this.app.store.getters['page/getVisiblePages'](
+            applicationContext.builder
+          )
+        )
+      ) {
+        return this.app.i18n.t('workflowActionTypes.errorPageParameterInError')
+      }
+    } else if (
+      workflowAction.navigation_type === 'custom' &&
+      !workflowAction.navigate_to_url
+    ) {
+      return this.app.i18n.t('workflowActionTypes.errorNavigationUrlMissing')
+    }
+
+    return super.getErrorMessage(workflowAction, applicationContext)
   }
 
   execute({
@@ -113,6 +143,10 @@ export class LogoutWorkflowActionType extends WorkflowActionType {
     return 'logout'
   }
 
+  get icon() {
+    return 'iconoir-log-out'
+  }
+
   get form() {
     return null
   }
@@ -137,12 +171,24 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
     return 'refresh_data_source'
   }
 
+  get icon() {
+    return 'iconoir-refresh'
+  }
+
   get form() {
     return RefreshDataSourceWorkflowActionForm
   }
 
   get label() {
     return this.app.i18n.t('workflowActionTypes.refreshDataSourceLabel')
+  }
+
+  getErrorMessage(workflowAction, applicationContext) {
+    if (!workflowAction.data_source_id) {
+      return this.app.i18n.t('workflowActionTypes.errorDataSourceMissing')
+    }
+
+    return super.getErrorMessage(workflowAction, applicationContext)
   }
 
   async execute({ workflowAction, applicationContext }) {
@@ -165,16 +211,29 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
       { ...applicationContext }
     )
 
-    await this.app.store.dispatch(
-      'dataSourceContent/fetchPageDataSourceContentById',
-      {
-        page: dataSourcePage,
-        dataSourceId: workflowAction.data_source_id,
-        dispatchContext,
-        mode: applicationContext.mode,
-        replace: true,
-      }
-    )
+    try {
+      await this.app.store.dispatch(
+        'dataSourceContent/fetchPageDataSourceContentById',
+        {
+          page: dataSourcePage,
+          dataSourceId: workflowAction.data_source_id,
+          dispatchContext,
+          mode: applicationContext.mode,
+          replace: true,
+        }
+      )
+    } catch (error) {
+      const dataSource = this.app.store.getters[
+        'dataSource/getPageDataSourceById'
+      ](applicationContext.page, workflowAction.data_source_id)
+      handleDispatchError(
+        error,
+        this.app,
+        this.app.i18n.t('builderToast.errorDataSourceDispatch', {
+          name: dataSource.name,
+        })
+      )
+    }
   }
 
   getDataSchema(workflowAction) {
@@ -206,7 +265,7 @@ export class WorkflowActionServiceType extends WorkflowActionType {
         return [key, value]
       })
     )
-    return this.app.store.dispatch('workflowAction/dispatchAction', {
+    return this.app.store.dispatch('builderWorkflowAction/dispatchAction', {
       workflowActionId: id,
       data: result,
       files,
@@ -220,15 +279,26 @@ export class WorkflowActionServiceType extends WorkflowActionType {
 
     const serviceSchema = this.serviceType.getDataSchema(workflowAction.service)
 
-    return {
-      title: this.label,
-      type: 'object',
-      properties: serviceSchema?.properties,
+    if (serviceSchema?.properties) {
+      return {
+        title: this.label,
+        type: 'object',
+        properties: serviceSchema.properties,
+      }
     }
+    return null
   }
 
-  isInError(workflowAction, { element, builder }) {
-    return this.serviceType.isInError({ service: workflowAction.service })
+  getErrorMessage(workflowAction, applicationContext) {
+    const serviceError = this.serviceType.getErrorMessage({
+      service: workflowAction.service,
+    })
+
+    if (serviceError) {
+      return serviceError
+    }
+
+    return super.getErrorMessage(workflowAction, applicationContext)
   }
 
   get serviceType() {
@@ -239,6 +309,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
 export class CoreHTTPRequestWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'http_request'
+  }
+
+  get icon() {
+    return 'iconoir-cloud-upload'
   }
 
   get serviceType() {
@@ -253,9 +327,31 @@ export class CoreHTTPRequestWorkflowActionType extends WorkflowActionServiceType
   }
 }
 
+export class CoreSMTPEmailWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'smtp_email'
+  }
+
+  get icon() {
+    return 'iconoir-send-mail'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreSMTPEmailServiceType.getType())
+  }
+
+  getOrder() {
+    return 11
+  }
+}
+
 export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'create_row'
+  }
+
+  get icon() {
+    return 'baserow-icon-plus'
   }
 
   get serviceType() {
@@ -271,6 +367,10 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
     return 'update_row'
   }
 
+  get icon() {
+    return 'iconoir-edit-pencil'
+  }
+
   get serviceType() {
     return this.app.$registry.get(
       'service',
@@ -282,6 +382,10 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
 export class DeleteRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'delete_row'
+  }
+
+  get icon() {
+    return 'iconoir-bin'
   }
 
   get serviceType() {

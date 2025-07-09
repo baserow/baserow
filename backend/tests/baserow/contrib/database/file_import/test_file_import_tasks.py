@@ -19,6 +19,10 @@ from baserow.contrib.database.fields.exceptions import (
     ReservedBaserowFieldNameException,
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
+from baserow.contrib.database.fields.field_constraints import (
+    TextTypeUniqueWithEmptyConstraint,
+)
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption, TextField
 from baserow.contrib.database.rows.exceptions import (
     InvalidRowLength,
@@ -1297,3 +1301,163 @@ def test_run_file_import_task_with_upsert_for_multiple_field_types(
 
     assert len(model.objects.filter(**{description.db_column: "updated aaa"})) == 1
     assert len(model.objects.filter(**{description.db_column: "updated bbb"})) == 1
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.field_constraints
+def test_run_file_import_task_with_field_constraints(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    handler = FieldHandler()
+    text_field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="text",
+        name="Unique Text Field",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    model = table.get_model()
+
+    data = {
+        "data": [
+            ["unique_value_1"],
+            ["unique_value_2"],
+            ["unique_value_3"],
+        ]
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+
+    rows = model.objects.all()
+    assert len(rows) == 3
+
+    data_with_duplicates = {
+        "data": [
+            ["unique_value_1"],
+            ["unique_value_4"],
+        ]
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=data_with_duplicates,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+
+    rows = model.objects.all()
+    assert len(rows) == 4
+
+    assert "0" in job.report["failing_rows"]
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.field_constraints
+def test_run_file_import_task_with_upsert_and_field_constraints(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    handler = FieldHandler()
+    field_a = handler.create_field(
+        user=user,
+        table=table,
+        type_name="text",
+        name="Field A",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+    field_b = handler.create_field(
+        user=user,
+        table=table,
+        type_name="text",
+        name="Field B",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    model = table.get_model()
+
+    # Initial data: two rows with unique values
+    initial_data = {
+        "data": [
+            ["1", "1"],
+            ["2", "2"],
+            ["3", "3"],
+        ]
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=initial_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+    assert model.objects.count() == 3
+
+    # Data that violates field_b constraint for row "1"
+    upsert_data = {
+        "data": [
+            ["1", "2"],
+            ["3", "4"],
+        ],
+        "configuration": {
+            "upsert_fields": [field_a.id],
+            "upsert_values": [["1"], ["3"]],
+        },
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=upsert_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+
+    assert "0" in job.report["failing_rows"]
+
+    values = set(
+        (getattr(row, f"field_{field_a.id}"), getattr(row, f"field_{field_b.id}"))
+        for row in model.objects.all()
+    )
+    assert values == {("1", "1"), ("2", "2"), ("3", "4")}
