@@ -12,7 +12,6 @@ state should be temporary, and they will be migrated to search data tables event
 
 """
 
-import hashlib
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import Enum
@@ -22,7 +21,7 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.postgres.search import SearchQuery
-from django.db import connection, router, transaction
+from django.db import ProgrammingError, connection, router, transaction
 from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db.models import (
     DateTimeField,
@@ -39,7 +38,6 @@ from django.db.models import (
 from django.db.models.sql.constants import LOUTER
 from django.utils.encoding import force_str
 
-import pglock
 from django_cte import With
 from loguru import logger
 from opentelemetry import trace
@@ -61,6 +59,7 @@ from baserow.contrib.database.search.tasks import (
     delete_search_data,
     schedule_update_search_data,
 )
+from baserow.core.psycopg import errors
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.utils import to_camel_case
 
@@ -309,20 +308,24 @@ class SearchHandler(
         if _workspace_search_table_exists(workspace_id):
             return
 
-        with transaction.atomic():
-            lock_hash = hashlib.md5(str(workspace_id).encode()).hexdigest()  # nosec
-            pglock.advisory(
-                int(lock_hash[:15], 16), timeout=60, side_effect=pglock.Raise, xact=True
-            ).acquire()
+        # Django creates indexes only when the model is managed.
+        search_table_model = cls.get_workspace_search_table_model(
+            workspace_id, managed=True
+        )
 
-            # Recheck now in case another process created the table while waiting
-            if not _workspace_search_table_exists(workspace_id):
-                search_table_model = cls.get_workspace_search_table_model(
-                    workspace_id, managed=True
-                )  # Django creates indexes only when the model is managed.
-                with safe_django_schema_editor() as se:
+        try:
+            with transaction.atomic(using=router.db_for_write(search_table_model)):
+                with connection.schema_editor() as se:
                     se.create_model(search_table_model)
-                _workspace_search_table_exists.cache_clear()
+        except ProgrammingError as exc:
+            if isinstance(exc.__cause__, errors.DuplicateTable):
+                # If the table already exists, we can safely ignore the error.
+                logger.debug(
+                    f"Search table for workspace {workspace_id} already exists."
+                )
+            else:
+                raise exc
+        _workspace_search_table_exists.cache_clear()
 
     @classmethod
     def delete_workspace_search_table_if_exists(cls, workspace_id: int):
