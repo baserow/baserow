@@ -21,7 +21,7 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.postgres.search import SearchQuery
-from django.db import ProgrammingError, connection, router, transaction
+from django.db import IntegrityError, ProgrammingError, connection, router, transaction
 from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db.models import (
     DateTimeField,
@@ -325,6 +325,14 @@ class SearchHandler(
                 )
             else:
                 raise exc
+        except IntegrityError as exc:
+            if isinstance(exc.__cause__, errors.UniqueViolation):
+                logger.debug(
+                    f"Race condition: sequence or object for workspace "
+                    f"{workspace_id} already exists (UniqueViolation)."
+                )
+            else:
+                raise
         _workspace_search_table_exists.cache_clear()
 
     @classmethod
