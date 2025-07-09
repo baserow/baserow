@@ -1,4 +1,7 @@
-from baserow.contrib.integrations.core.models import CoreHTTPRequestService
+from baserow.contrib.integrations.core.models import (
+    CoreHTTPRequestService,
+    CoreSMTPEmailService,
+)
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
     LocalBaserowDeleteRow,
@@ -75,6 +78,21 @@ class ServiceFixtures:
 
     def create_core_http_request_service(self, **kwargs) -> CoreHTTPRequestService:
         service = self.create_service(CoreHTTPRequestService, **kwargs)
+        return service
+
+    def create_core_smtp_email_service(self, **kwargs) -> CoreSMTPEmailService:
+        if "from_email" not in kwargs:
+            kwargs["from_email"] = "'sender@example.com'"
+        if "to_emails" not in kwargs:
+            kwargs["to_emails"] = "'recipient@example.com'"
+        if "subject" not in kwargs:
+            kwargs["subject"] = "'Test Subject'"
+        if "body" not in kwargs:
+            kwargs["body"] = "'Test email body'"
+        if "body_type" not in kwargs:
+            kwargs["body_type"] = "plain"
+
+        service = self.create_service(CoreSMTPEmailService, **kwargs)
         return service
 
     def create_service(self, model_class, **kwargs):

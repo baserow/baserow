@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Any, List, Optional, Union
 
 from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 
 from baserow.contrib.database.fields.constants import (
     BASEROW_BOOLEAN_FIELD_FALSE_VALUES,
@@ -165,6 +166,22 @@ def ensure_array(value: Any, allow_empty: bool = True) -> List[Any]:
         return [item.strip() for item in value.split(",")]
 
     return [value]
+
+
+def ensure_email(value: Any) -> str:
+    """
+    Ensures that the value is an email or can be converted to an email.
+    :param value: The value to ensure as an email.
+    :return: The value as an email.
+    :raises ValidationError: If the value is not a valid email or convertible to an
+      email.
+    """
+
+    str_value = ensure_string(value)
+
+    validate_email(str_value)
+
+    return str_value
 
 
 def ensure_date(value: Any) -> Optional[date]:

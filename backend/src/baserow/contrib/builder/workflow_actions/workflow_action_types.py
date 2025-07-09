@@ -17,6 +17,7 @@ from baserow.contrib.builder.elements.element_types import NavigationElementMana
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
+    CoreSMTPEmailWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
@@ -29,7 +30,10 @@ from baserow.contrib.builder.workflow_actions.registries import (
     BuilderWorkflowActionType,
 )
 from baserow.contrib.builder.workflow_actions.types import BuilderWorkflowActionDict
-from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
+from baserow.contrib.integrations.core.service_types import (
+    CoreHTTPRequestServiceType,
+    CoreSMTPEmailServiceType,
+)
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowUpsertRowServiceType,
@@ -454,4 +458,14 @@ class CoreHttpRequestActionType(BuilderWorkflowServiceActionType):
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
         service = pytest_data_fixture.create_core_http_request_service()
+        return {"service": service}
+
+
+class CoreSMTPEmailActionType(BuilderWorkflowServiceActionType):
+    type = "smtp_email"
+    model_class = CoreSMTPEmailWorkflowAction
+    service_type = CoreSMTPEmailServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_core_smtp_email_service()
         return {"service": service}

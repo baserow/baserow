@@ -1,5 +1,10 @@
 import json
+import socket
+from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
 from typing import Any, Dict, Generator, List, Optional, Tuple
+
+from django.core.exceptions import ValidationError
+from django.core.mail import EmailMultiAlternatives, get_connection
 
 import advocate
 from loguru import logger
@@ -8,6 +13,7 @@ from rest_framework import serializers
 
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
+    CoreSMTPEmailService,
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
@@ -19,7 +25,7 @@ from baserow.core.formula.exceptions import (
     InvalidFormulaContextContent,
 )
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.validator import ensure_string
+from baserow.core.formula.validator import ensure_array, ensure_email, ensure_string
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -28,11 +34,13 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
+from baserow.core.services.models import Service
 from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
 
 from .constants import BODY_TYPE, HTTP_METHOD
+from .integration_types import SMTPIntegrationType
 
 
 class CoreHTTPRequestServiceType(ServiceType):
@@ -602,3 +610,287 @@ class CoreHTTPRequestServiceType(ServiceType):
         data: Any,
     ) -> DispatchResult:
         return DispatchResult(data=data["data"])
+
+
+class CoreSMTPEmailServiceType(ServiceType):
+    type = "smtp_email"
+    model_class = CoreSMTPEmailService
+    dispatch_type = DispatchTypes.DISPATCH_WORKFLOW_ACTION
+    integration_type = SMTPIntegrationType.type
+
+    allowed_fields = [
+        "integration_id",
+        "from_email",
+        "from_name",
+        "to_emails",
+        "cc_emails",
+        "bcc_emails",
+        "subject",
+        "body_type",
+        "body",
+    ]
+
+    serializer_field_names = [
+        "integration_id",
+        "from_email",
+        "from_name",
+        "to_emails",
+        "cc_emails",
+        "bcc_emails",
+        "subject",
+        "body_type",
+        "body",
+    ]
+
+    class SerializedDict(ServiceDict):
+        from_email: str
+        from_name: str
+        to_emails: str
+        cc_emails: str
+        bcc_emails: str
+        subject: str
+        body_type: str
+        body: str
+        body: str
+
+    simple_formula_fields = [
+        "from_email",
+        "from_name",
+        "to_emails",
+        "cc_emails",
+        "bcc_emails",
+        "subject",
+        "body",
+    ]
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "integration_id": serializers.IntegerField(
+                required=False,
+                allow_null=True,
+                help_text="The id of the SMTP integration.",
+            ),
+            "from_email": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("from_email").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "from_name": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("from_name").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "to_emails": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("to_emails").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "cc_emails": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("cc_emails").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "bcc_emails": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("bcc_emails").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "subject": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("subject").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "body_type": serializers.ChoiceField(
+                choices=[
+                    ("plain", "Plain Text"),
+                    ("html", "HTML"),
+                ],
+                help_text=CoreSMTPEmailService._meta.get_field("body_type").help_text,
+                required=False,
+                default="plain",
+            ),
+            "body": FormulaSerializerField(
+                help_text=CoreSMTPEmailService._meta.get_field("body").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+        }
+
+    def get_schema_name(self, service: CoreSMTPEmailService) -> str:
+        return f"SMTPEmail{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreSMTPEmailService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        properties = {}
+
+        if allowed_fields is None or "success" in allowed_fields:
+            properties.update(
+                **{
+                    "success": {
+                        "type": "boolean",
+                        "title": "Success",
+                        "description": "Whether the email was sent successfully",
+                    },
+                },
+            )
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
+    def resolve_service_formulas(
+        self,
+        service: CoreSMTPEmailService,
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any]:
+        resolved_values = {}
+
+        ensurers = {
+            "from_email": ensure_email,
+            "from_name": ensure_string,
+            "to_emails": lambda v: [ensure_email(e) for e in ensure_array(v)],
+            "cc_emails": lambda v: [ensure_email(e) for e in ensure_array(v)],
+            "bcc_emails": lambda v: [ensure_email(e) for e in ensure_array(v)],
+            "subject": ensure_string,
+            "body": ensure_string,
+        }
+
+        for field_name, ensurer in ensurers.items():
+            dispatch_context.reset_call_stack()
+            field_value = getattr(service, field_name)
+            try:
+                resolved_values[field_name] = ensurer(
+                    resolve_formula(
+                        field_value,
+                        formula_runtime_function_registry,
+                        dispatch_context,
+                    )
+                )
+            except InvalidFormulaContext as e:
+                raise InvalidContextDispatchException(str(e)) from e
+            except (InvalidFormulaContextContent, ValidationError) as e:
+                message = f'Value error for property "{field_name}": {str(e)}'
+                raise InvalidContextContentDispatchException(message) from e
+            except BaserowFormulaException as e:
+                message = f'Error in formula for property "{field_name}": {str(e)}'
+                raise ServiceImproperlyConfiguredDispatchException(message) from e
+            except Exception as e:
+                logger.exception(f'Unexpected error for property "{field_name}"')
+                message = (
+                    f'Unknown error in formula for property "{field_name}": {str(e)}'
+                )
+                raise UnexpectedDispatchException(message) from e
+
+        if not resolved_values["to_emails"]:
+            raise InvalidContextContentDispatchException(
+                "At least one recipient email is required"
+            )
+
+        return resolved_values
+
+    def dispatch_data(
+        self,
+        service: CoreSMTPEmailService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        if not service.integration:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "SMTP Email service must be connected to an SMTP integration"
+            )
+
+        smtp_integration = service.integration.specific
+
+        to_emails = resolved_values["to_emails"]
+        cc_emails = resolved_values["cc_emails"]
+        bcc_emails = resolved_values["bcc_emails"]
+
+        from_email = (
+            f"{resolved_values['from_name']} <{resolved_values['from_email']}>"
+            if resolved_values["from_name"]
+            else resolved_values["from_email"]
+        )
+
+        subject = resolved_values["subject"]
+
+        body_content = resolved_values["body"]
+
+        connection = get_connection(
+            backend="django.core.mail.backends.smtp.EmailBackend",
+            host=smtp_integration.host,
+            port=smtp_integration.port,
+            username=smtp_integration.username,
+            password=smtp_integration.password,
+            use_tls=smtp_integration.use_tls,
+        )
+
+        email = EmailMultiAlternatives(
+            subject,
+            body_content,
+            from_email,
+            to_emails,
+            bcc=bcc_emails,
+            cc=cc_emails,
+            connection=connection,
+        )
+
+        email.content_subtype = service.body_type
+
+        try:
+            result = email.send()
+            return {
+                "data": {
+                    "success": result,
+                }
+            }
+        except SMTPNotSupportedError as e:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "TLS not supported by server"
+            ) from e
+        except socket.gaierror as e:
+            raise ServiceImproperlyConfiguredDispatchException(
+                f"The host {smtp_integration.host}:{smtp_integration.port} could not "
+                "be reached"
+            ) from e
+        except ConnectionRefusedError as e:
+            raise ServiceImproperlyConfiguredDispatchException(
+                f"Connection refused by {smtp_integration.host}:{smtp_integration.port}"
+            ) from e
+        except SMTPAuthenticationError as e:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The username or password is incorrect"
+            ) from e
+        except SMTPConnectError as e:
+            raise UnexpectedDispatchException(
+                "Unable to connect to the SMTP server"
+            ) from e
+        except Exception as e:
+            raise UnexpectedDispatchException(f"Failed to send email: {str(e)}") from e
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(data=data["data"])
+
+    def export_prepared_values(self, instance: Service) -> dict[str, any]:
+        values = super().export_prepared_values(instance)
+        if values.get("integration"):
+            del values["integration"]
+            values["integration_id"] = instance.integration_id
+        return values

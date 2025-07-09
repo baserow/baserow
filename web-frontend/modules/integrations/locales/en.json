@@ -4,7 +4,8 @@
     "multipleRows": "multiple rows"
   },
   "integrationType": {
-    "localBaserow": "Local Baserow"
+    "localBaserow": "Local Baserow",
+    "smtp": "SMTP Email"
   },
   "localBaserowIntegrationType": {
     "localBaserowSummary": "Local Baserow - {name}, {username}",
@@ -29,6 +30,10 @@
     "localBaserowRowsDeletedDescription": "Triggered when rows are deleted in a Baserow table.",
     "coreHTTPRequest": "Send an HTTP request",
     "coreHTTPRequestDescription": "Sends an HTTP request to a specified endpoint.",
+    "coreSMTPEmail": "Send Email",
+    "coreSMTPEmailDescription": "Sends an email using SMTP configuration.",
+    "errorFromEmailMissing": "Missing From Email property",
+    "errorToEmailsMissing": "Missing To Emails property",
     "misconfigured": "Misconfigured",
     "trashedField": "Trashed field",
     "errorUrlMissing": "Missing Url property",
@@ -130,5 +135,39 @@
     "chooseNoView": "Not selected",
     "databaseFieldLabel": "Database",
     "dataSyncedTableDescription": "Data synced table"
+  },
+  "smtpIntegrationType": {
+    "smtpSummary": "SMTP - {host}:{port}"
+  },
+  "smtpForm": {
+    "host": "SMTP Host",
+    "hostPlaceholder": "smtp.gmail.com",
+    "port": "SMTP Port",
+    "portPlaceholder": "587",
+    "useTls": "Use TLS",
+    "username": "Username",
+    "usernamePlaceholder": "your-email@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "your-password"
+  },
+  "smtpEmailForm": {
+    "integrationDropdownLabel": "Integration",
+    "fromEmail": "From Email",
+    "fromEmailPlaceholder": "sender@example.com",
+    "fromName": "From Name",
+    "fromNamePlaceholder": "Your Name",
+    "toEmails": "To Emails",
+    "toEmailsPlaceholder": "recipient1@example.com,recipient2@example.com",
+    "ccEmails": "CC Emails",
+    "ccEmailsPlaceholder": "cc1@example.com,cc2@example.com",
+    "bccEmails": "BCC Emails",
+    "bccEmailsPlaceholder": "bcc1@example.com,bcc2@example.com",
+    "subject": "Subject",
+    "subjectPlaceholder": "Your email subject",
+    "bodyType": "Body Type",
+    "bodyTypePlain": "Plain Text",
+    "bodyTypeHtml": "HTML",
+    "body": "Body",
+    "bodyPlaceholder": "Your email content..."
   }
 }

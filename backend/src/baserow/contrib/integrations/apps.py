@@ -5,6 +5,9 @@ class IntegrationsConfig(AppConfig):
     name = "baserow.contrib.integrations"
 
     def ready(self):
+        from baserow.contrib.integrations.core.integration_types import (
+            SMTPIntegrationType,
+        )
         from baserow.contrib.integrations.local_baserow.integration_types import (
             LocalBaserowIntegrationType,
         )
@@ -12,6 +15,7 @@ class IntegrationsConfig(AppConfig):
         from baserow.core.services.registries import service_type_registry
 
         integration_type_registry.register(LocalBaserowIntegrationType())
+        integration_type_registry.register(SMTPIntegrationType())
 
         from baserow.contrib.integrations.local_baserow.service_types import (
             LocalBaserowAggregateRowsUserServiceType,
@@ -35,8 +39,10 @@ class IntegrationsConfig(AppConfig):
 
         from baserow.contrib.integrations.core.service_types import (
             CoreHTTPRequestServiceType,
+            CoreSMTPEmailServiceType,
         )
 
         service_type_registry.register(CoreHTTPRequestServiceType())
+        service_type_registry.register(CoreSMTPEmailServiceType())
 
         import baserow.contrib.integrations.signals  # noqa: F403, F401

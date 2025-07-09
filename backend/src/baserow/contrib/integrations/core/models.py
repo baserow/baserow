@@ -2,9 +2,41 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from baserow.core.formula.field import FormulaField
+from baserow.core.integrations.models import Integration
 from baserow.core.services.models import Service
 
 from .constants import BODY_TYPE, HTTP_METHOD
+
+
+class SMTPIntegration(Integration):
+    """
+    Integration that stores SMTP server configuration. Can be used for sending emails.
+    """
+
+    host = models.CharField(
+        max_length=255,
+        help_text="The SMTP server hostname or IP address.",
+    )
+    port = models.PositiveIntegerField(
+        default=587,
+        help_text="The SMTP server port.",
+    )
+    use_tls = models.BooleanField(
+        default=True,
+        help_text="Whether to use TLS encryption.",
+    )
+    username = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="The SMTP username for authentication.",
+    )
+    password = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="The SMTP password for authentication.",
+    )
 
 
 class CoreHTTPRequestService(Service):
@@ -44,6 +76,46 @@ class CoreHTTPRequestService(Service):
         blank=True,
         null=True,
         help_text="Response got from test.",
+    )
+
+
+class CoreSMTPEmailService(Service):
+    """
+    A service for sending emails via SMTP.
+    """
+
+    from_email = FormulaField(
+        help_text="The sender's email address.",
+    )
+    from_name = FormulaField(
+        blank=True,
+        help_text="The sender's name.",
+    )
+    to_emails = FormulaField(
+        help_text="Comma-separated list of recipient email addresses.",
+    )
+    cc_emails = FormulaField(
+        blank=True,
+        help_text="Comma-separated list of CC email addresses.",
+    )
+    bcc_emails = FormulaField(
+        blank=True,
+        help_text="Comma-separated list of BCC email addresses.",
+    )
+    subject = FormulaField(
+        help_text="The email subject.",
+    )
+    body_type = models.CharField(
+        max_length=10,
+        choices=[
+            ("plain", "Plain Text"),
+            ("html", "HTML"),
+        ],
+        default="plain",
+        help_text="The type of the email body (plain text or HTML).",
+    )
+    body = FormulaField(
+        help_text="The email body content.",
     )
 
 

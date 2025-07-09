@@ -18,6 +18,7 @@
         :key="nodeType.getType()"
         :name="nodeType.name"
         :image="nodeType.image"
+        :icon="nodeType.image ? null : nodeType.iconClass"
         :value="nodeType.getType()"
         :description="nodeType.description"
       ></DropdownItem>

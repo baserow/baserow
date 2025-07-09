@@ -9,6 +9,7 @@ import ko from '@baserow/modules/integrations/locales/ko.json'
 
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
+import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
 import {
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
@@ -20,7 +21,10 @@ import {
   LocalBaserowRowsUpdatedTriggerServiceType,
   LocalBaserowRowsDeletedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
-import { CoreHTTPRequestServiceType } from '@baserow/modules/integrations/core/serviceTypes'
+import {
+  CoreHTTPRequestServiceType,
+  CoreSMTPEmailServiceType,
+} from '@baserow/modules/integrations/core/serviceTypes'
 
 export default (context) => {
   const { app, isDev } = context
@@ -42,6 +46,7 @@ export default (context) => {
     'integration',
     new LocalBaserowIntegrationType(context)
   )
+  app.$registry.register('integration', new SMTPIntegrationType(context))
 
   app.$registry.register('service', new LocalBaserowGetRowServiceType(context))
   app.$registry.register(
@@ -65,6 +70,7 @@ export default (context) => {
     new LocalBaserowDeleteRowWorkflowServiceType(context)
   )
   app.$registry.register('service', new CoreHTTPRequestServiceType(context))
+  app.$registry.register('service', new CoreSMTPEmailServiceType(context))
 
   if (app.$featureFlagIsEnabled(FF_AUTOMATION)) {
     app.$registry.register(
