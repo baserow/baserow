@@ -383,5 +383,8 @@
     "paidFeaturesModal": {
         "viewPricing": "Voir les prix",
         "description": "Cette fonctionnalité est disponible avec un plan {plan}. Pour y accéder, veuillez mettre à niveau votre compte en vous abonnant. Cliquez sur le bouton ci-dessous pour consulter nos options tarifaires."
+    },
+    "chart": {
+        "other": "Autre"
     }
 }
