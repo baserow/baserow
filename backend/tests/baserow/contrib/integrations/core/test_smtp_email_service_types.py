@@ -89,7 +89,7 @@ def test_send_smtp_email_basic(data_fixture):
             cc=[],
             connection=mock_connection.return_value,
         )
-        assert mock_email.return_value.content_subtype == "text/plain"
+        assert mock_email.return_value.content_subtype == "plain"
         assert result.data == {"success": True}
 
 
@@ -130,7 +130,7 @@ def test_send_smtp_email_multiple_to_cc_and_bcc(data_fixture):
             cc=["cc1@example.com", "cc2@example.com"],
             connection=mock_connection.return_value,
         )
-        assert mock_email.return_value.content_subtype == "text/html"
+        assert mock_email.return_value.content_subtype == "html"
         assert result.data == {"success": True}
 
 

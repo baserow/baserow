@@ -851,7 +851,7 @@ class CoreSMTPEmailServiceType(ServiceType):
             connection=connection,
         )
 
-        email.content_subtype = f"text/{service.body_type}"
+        email.content_subtype = service.body_type
 
         try:
             result = email.send()
