@@ -25,7 +25,7 @@ export class PreviousNodeDataProviderType extends DataProviderType {
     //  exclusively using the `order` property. This will require more nuance
     //  in the future, as we might want to consider other factors.
     const previousNodes = this.app.store.getters[
-      'automationWorkflowNode/getNodes'
+      'automationWorkflowNode/getNodesOrdered'
     ](workflow).filter((node) => node.order < currentNode.order)
 
     const previousNodeSchema = _.chain(previousNodes)

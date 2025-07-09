@@ -122,7 +122,9 @@ export default defineComponent({
     provide('workflow', workflow)
 
     const workflowNodes = computed(() => {
-      return store.getters['automationWorkflowNode/getNodes'](workflow.value)
+      return store.getters['automationWorkflowNode/getNodesOrdered'](
+        workflow.value
+      )
     })
 
     const handleAddNode = async ({ type, previousNodeId }) => {

@@ -14,6 +14,7 @@ const updateContext = {
 const updateCachedValues = (workflow) => {
   if (!workflow || !workflow.nodes) return
 
+  workflow.orderedNodes = workflow.nodes.sort((a, b) => a.order - b.order)
   workflow.nodeMap = Object.fromEntries(
     workflow.nodes.map((node) => [`${node.id}`, node])
   )
@@ -297,9 +298,10 @@ const actions = {
 
 const getters = {
   getNodes: (state) => (workflow) => {
-    if (!workflow) return []
-    if (!workflow.nodes) workflow.nodes = []
-    return workflow.nodes.sort((a, b) => a.order - b.order)
+    return workflow.nodes
+  },
+  getNodesOrdered: (state) => (workflow) => {
+    return workflow.orderedNodes
   },
   findById: (state) => (workflow, nodeId) => {
     if (!workflow || !workflow.nodes) return null
