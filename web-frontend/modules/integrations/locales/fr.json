@@ -14,11 +14,12 @@
         "localBaserowUpdateRow": "Modification d'une ligne",
         "localBaserowDeleteRow": "Supprimer une ligne",
         "localBaserowRowsCreated": "Des lignes sont créées",
-        "localBaserowRowsCreatedDescription": "Déclenché lorsqu'une ou plusieurs lignes sont créées dans une table Baserow.",
+        "localBaserowRowsCreatedDescription": "Déclenché lorsque des lignes sont créées dans une table Baserow.",
         "coreHTTPRequest": "Envoyer une requête HTTP",
         "localBaserowCreateRowDescription": "Crée une nouvelle ligne dans une table Baserow.",
         "localBaserowUpdateRowDescription": "Modifie une ligne dans une table Baserow.",
-        "localBaserowDeleteRowDescription": "Suppression d'une ligne dans une table Baserow."
+        "localBaserowDeleteRowDescription": "Suppression d'une ligne dans une table Baserow.",
+        "localBaserowRowsUpdated": "Les lignes sont actualisées."
     },
     "localBaserowForm": {
         "user": "Utilisateur",
