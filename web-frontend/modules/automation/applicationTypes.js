@@ -3,6 +3,7 @@ import ApplicationContext from '@baserow/modules/automation/components/applicati
 import AutomationForm from '@baserow/modules/automation/components/form/AutomationForm'
 import SidebarComponentAutomation from '@baserow/modules/automation/components/sidebar/SidebarComponentAutomation'
 import { populateAutomationWorkflow } from '@baserow/modules/automation/store/automationWorkflow'
+import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 
 export class AutomationApplicationType extends ApplicationType {
   static getType() {
@@ -118,8 +119,8 @@ export class AutomationApplicationType extends ApplicationType {
     )
   }
 
-  isBeta() {
-    return true
+  get developmentStage() {
+    return DEVELOPMENT_STAGES.ALPHA
   }
 
   getOrder() {

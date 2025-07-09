@@ -1,7 +1,7 @@
 <template>
   <header class="layout__col-2-1 header header--space-between">
     <ul class="header__filter">
-      <li class="header__filter-item">
+      <li v-if="isDev" class="header__filter-item">
         <a data-item-type="settings" class="header__filter-link"
           ><i class="header__filter-icon iconoir-settings"></i>
           <span class="header__filter-name">{{
@@ -10,7 +10,7 @@
         </a>
       </li>
 
-      <li class="header__filter-item">
+      <li v-if="isDev" class="header__filter-item">
         <a
           data-item-type="history"
           class="header__filter-link"
@@ -97,13 +97,9 @@ export default defineComponent({
   setup(props, { emit }) {
     const store = useStore()
     const { app } = useContext()
+    const isDev = inject('isDev')
 
     const isPublishing = ref(false)
-
-    // Check if in development environment
-    const isDevEnvironment = computed(
-      () => process.env.NODE_ENV === 'development'
-    )
 
     const workflow = inject('workflow')
 
@@ -118,20 +114,6 @@ export default defineComponent({
 
     const testRunEnabled = computed(() => {
       return moment(workflow.value?.allow_test_run_until).isAfter()
-    })
-
-    const hasTriggerNode = computed(() => {
-      if (!workflow.value?.nodes) {
-        return false
-      }
-
-      const _nodes = workflow.value.nodes.filter((node) => {
-        const nodeType = app.$registry.get('node', node.type)
-        const isInError = nodeType.isInError({ service: node.service })
-        return nodeType.isTrigger === true && !isInError
-      })
-
-      return _nodes.length === 1
     })
 
     const hasActionNode = computed(() => {
@@ -149,7 +131,7 @@ export default defineComponent({
     })
 
     const canPublishWorkflow = computed(() => {
-      return hasTriggerNode.value && hasActionNode.value && !isPublishing.value
+      return hasActionNode.value && !isPublishing.value
     })
 
     const publishedOn = computed(() => {
@@ -228,11 +210,11 @@ export default defineComponent({
     }
 
     return {
+      isDev,
       statusSwitch,
       historyClick,
       toggleTestRun,
       testRunEnabled,
-      isDevEnvironment,
       publishWorkflow,
       toggleStatusSwitch,
       canPublishWorkflow,
