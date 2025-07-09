@@ -363,6 +363,10 @@ export class LocalBaserowListRowsActionNodeType extends ActionNodeTypeMixin(
     return 'nodeType.localBaserowListRowsLabel'
   }
 
+  get dataType() {
+    return 'array'
+  }
+
   get serviceType() {
     return this.app.$registry.get(
       'service',
