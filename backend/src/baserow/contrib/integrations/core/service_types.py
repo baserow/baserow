@@ -6,10 +6,6 @@ from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
-from baserow.contrib.builder.data_providers.exceptions import (
-    DataProviderChunkInvalidException,
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     HTTPFormData,
@@ -17,11 +13,21 @@ from baserow.contrib.integrations.core.models import (
     HTTPQueryParam,
 )
 from baserow.core.formula import resolve_formula
+from baserow.core.formula.exceptions import (
+    BaserowFormulaException,
+    InvalidFormulaContext,
+    InvalidFormulaContextContent,
+)
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.validator import ensure_string
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    InvalidContextContentDispatchException,
+    InvalidContextDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
+)
 from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
@@ -448,18 +454,23 @@ class CoreHTTPRequestServiceType(ServiceType):
                         dispatch_context,
                     )
                 )
-            except FormDataProviderChunkInvalidException as e:
-                raise ServiceImproperlyConfigured(str(e)) from e
-            except DataProviderChunkInvalidException as e:
-                message = f"Path error in formula for form data {fdata.key}"
-                raise ServiceImproperlyConfigured(message) from e
+            except InvalidFormulaContext as e:
+                raise InvalidContextDispatchException(str(e)) from e
+            except InvalidFormulaContextContent as e:
+                message = f'Value error for form data "{fdata.key}": {str(e)}'
+                raise InvalidContextContentDispatchException(message) from e
+            except BaserowFormulaException as e:
+                message = f'Error in formula for form data "{fdata.key}": {str(e)}'
+                raise ServiceImproperlyConfiguredDispatchException(message) from e
+            except ServiceImproperlyConfiguredDispatchException:
+                raise
             except Exception as e:
                 logger.exception(f"Unexpected error for form data {fdata.key}")
                 message = (
                     "Unknown error in formula for "
                     f"form_data {fdata.key}: {repr(e)} - {str(e)}"
                 )
-                raise ServiceImproperlyConfigured(message) from e
+                raise UnexpectedDispatchException(message) from e
 
         for header in service.headers.all():
             dispatch_context.reset_call_stack()
@@ -471,18 +482,23 @@ class CoreHTTPRequestServiceType(ServiceType):
                         dispatch_context,
                     )
                 )
-            except FormDataProviderChunkInvalidException as e:
-                raise ServiceImproperlyConfigured(str(e)) from e
-            except DataProviderChunkInvalidException as e:
-                message = f"Path error in formula for header {header.key}"
-                raise ServiceImproperlyConfigured(message) from e
+            except InvalidFormulaContext as e:
+                raise InvalidContextDispatchException(str(e)) from e
+            except InvalidFormulaContextContent as e:
+                message = f'Value error for header "{header.key}": {str(e)}'
+                raise InvalidContextContentDispatchException(message) from e
+            except BaserowFormulaException as e:
+                message = f'Error in formula for header "{header.key}": {str(e)}'
+                raise ServiceImproperlyConfiguredDispatchException(message) from e
+            except ServiceImproperlyConfiguredDispatchException:
+                raise
             except Exception as e:
-                logger.exception(f"Unexpected error for header {header.key}")
+                logger.exception(f'Unexpected error for header "{header.key}"')
                 message = (
                     "Unknown error in formula for "
-                    f"header {header.key}: {repr(e)} - {str(e)}"
+                    f'header "{header.key}": {repr(e)} - {str(e)}'
                 )
-                raise ServiceImproperlyConfigured(message) from e
+                raise UnexpectedDispatchException(message) from e
 
         for param in service.query_params.all():
             dispatch_context.reset_call_stack()
@@ -494,18 +510,23 @@ class CoreHTTPRequestServiceType(ServiceType):
                         dispatch_context,
                     )
                 )
-            except FormDataProviderChunkInvalidException as e:
-                raise ServiceImproperlyConfigured(str(e)) from e
-            except DataProviderChunkInvalidException as e:
-                message = f"Path error in formula for query param {param.key}"
-                raise ServiceImproperlyConfigured(message) from e
+            except InvalidFormulaContext as e:
+                raise InvalidContextDispatchException(str(e)) from e
+            except InvalidFormulaContextContent as e:
+                message = f'Value error for query param "{param.key}": {str(e)}'
+                raise InvalidContextContentDispatchException(message) from e
+            except BaserowFormulaException as e:
+                message = f'Error in formula for query param "{param.key}": {str(e)}'
+                raise ServiceImproperlyConfiguredDispatchException(message) from e
+            except ServiceImproperlyConfiguredDispatchException:
+                raise
             except Exception as e:
-                logger.exception(f"Unexpected error for query param {param.key}")
+                logger.exception(f'Unexpected error for query param "{param.key}"')
                 message = (
                     "Unknown error in formula for "
-                    f"query param {param.key}: {repr(e)} - {str(e)}"
+                    f'query param "{param.key}": {repr(e)} - {str(e)}'
                 )
-                raise ServiceImproperlyConfigured(message) from e
+                raise UnexpectedDispatchException(message) from e
 
         return resolved_values
 
@@ -526,7 +547,9 @@ class CoreHTTPRequestServiceType(ServiceType):
             try:
                 body_dict["json"] = json.loads(body_content) if body_content else None
             except json.JSONDecodeError as e:
-                raise ServiceImproperlyConfigured("The body is not a valid JSON") from e
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "The body is not a valid JSON"
+                ) from e
         elif service.body_type == BODY_TYPE.FORM:  # Form multipart payload
             body_dict["data"] = {
                 f.key: resolved_values[f"form_data_{f.id}"]
@@ -552,9 +575,9 @@ class CoreHTTPRequestServiceType(ServiceType):
                 **body_dict,
             )
         except request_exceptions.RequestException as e:
-            raise ServiceImproperlyConfigured(str(e)) from e
+            raise UnexpectedDispatchException(str(e)) from e
         except Exception as e:
-            raise ServiceImproperlyConfigured(f"Unknown error: {str(e)}") from e
+            raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
 
         response_body = (
             response.json()

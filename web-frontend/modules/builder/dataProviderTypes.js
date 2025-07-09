@@ -9,6 +9,7 @@ import {
   QUERY_PARAM_TYPE_HANDLER_FUNCTIONS,
 } from '@baserow/modules/builder/enums'
 import { extractSubSchema } from '@baserow/modules/core/utils/schema'
+import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 
 export class DataSourceDataProviderType extends DataProviderType {
   constructor(...args) {
@@ -28,6 +29,22 @@ export class DataSourceDataProviderType extends DataProviderType {
     return this.app.i18n.t('dataProviderType.dataSource')
   }
 
+  showDataSourceErrors(applicationContext, failedDataSources) {
+    failedDataSources.forEach(({ id, error }) => {
+      const fakeError = { response: { data: error } }
+      const dataSource = this.app.store.getters[
+        'dataSource/getPageDataSourceById'
+      ](applicationContext.page, id)
+      handleDispatchError(
+        fakeError,
+        this.app,
+        this.app.i18n.t('builderToast.errorDataSourceDispatch', {
+          name: dataSource.name,
+        })
+      )
+    })
+  }
+
   /**
    * Dispatch all the shared data sources.
    * @param {Object} applicationContext
@@ -40,7 +57,7 @@ export class DataSourceDataProviderType extends DataProviderType {
     const dataSources =
       this.app.store.getters['dataSource/getPageDataSources'](page)
 
-    await this.app.store.dispatch(
+    const failedDataSources = await this.app.store.dispatch(
       'dataSourceContent/fetchPageDataSourceContent',
       {
         page,
@@ -52,6 +69,8 @@ export class DataSourceDataProviderType extends DataProviderType {
         mode: applicationContext.mode,
       }
     )
+
+    this.showDataSourceErrors(applicationContext, failedDataSources)
   }
 
   /**
@@ -64,7 +83,7 @@ export class DataSourceDataProviderType extends DataProviderType {
     )
 
     // Dispatch the data sources
-    await this.app.store.dispatch(
+    const failedDataSources = await this.app.store.dispatch(
       'dataSourceContent/fetchPageDataSourceContent',
       {
         page: applicationContext.page,
@@ -76,6 +95,8 @@ export class DataSourceDataProviderType extends DataProviderType {
         mode: applicationContext.mode,
       }
     )
+
+    this.showDataSourceErrors(applicationContext, failedDataSources)
   }
 
   getDataSourceDispatchContext(applicationContext) {

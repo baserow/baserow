@@ -1449,7 +1449,9 @@ def test_dispatch_data_source_using_formula(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_dispatch_data_source_improperly_configured(api_client, data_fixture):
+def test_dispatch_data_source_raises_service_improperly_configured(
+    api_client, data_fixture
+):
     user, token = data_fixture.create_user_and_token()
     table, fields, rows = data_fixture.build_table(
         user=user,
@@ -1530,11 +1532,8 @@ def test_dispatch_data_source_improperly_configured(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED"
-    assert (
-        response.json()["detail"] == "The data_source configuration is incorrect: "
-        "The table property is missing."
-    )
+    assert response.json()["error"] == "ERROR_SERVICE_IMPROPERLY_CONFIGURED"
+    assert response.json()["detail"] == "No table selected"
 
     url = reverse(
         "api:builder:data_source:dispatch", kwargs={"data_source_id": data_source2.id}
@@ -1549,11 +1548,8 @@ def test_dispatch_data_source_improperly_configured(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED"
-    assert (
-        response.json()["detail"] == "The data_source configuration is incorrect: "
-        "The integration property is missing."
-    )
+    assert response.json()["error"] == "ERROR_SERVICE_IMPROPERLY_CONFIGURED"
+    assert response.json()["detail"] == "No integration selected"
 
     url = reverse(
         "api:builder:data_source:dispatch", kwargs={"data_source_id": data_source3.id}
@@ -1574,10 +1570,9 @@ def test_dispatch_data_source_improperly_configured(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED"
+    assert response.json()["error"] == "ERROR_SERVICE_IMPROPERLY_CONFIGURED"
     assert (
-        response.json()["detail"] == "The data_source configuration is incorrect: "
-        "The result of the `row_id` formula must be an integer or "
+        response.json()["detail"] == "The `row_id` value must be an integer or "
         "convertible to an integer."
     )
 
@@ -1670,11 +1665,9 @@ def test_dispatch_data_sources(api_client, data_fixture):
             "order": AnyStr(),
         },
         str(data_source3.id): {
-            "_error": "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED",
-            "detail": "The data_source configuration is incorrect: "
-            "The `row_id` formula can't be resolved: "
-            "Invalid syntax at line 1, col 3: mismatched input "
-            "'the end of the formula' expecting '('",
+            "_error": "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+            "detail": "Row id formula could not be resolved: Invalid syntax at "
+            "line 1, col 3: mismatched input 'the end of the formula' expecting '('",
         },
     }
 
@@ -1970,7 +1963,7 @@ def test_get_record_names(api_client, data_fixture):
     url = f"{base_url}?record_ids=INVALID_1,INVALID_2"
     response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED"
+    assert response.json()["record_ids"] == ["The provided record ids are not valid."]
 
     # If the data source is not a list data source, it should raise an error
     non_list_data_source = (
@@ -1984,7 +1977,10 @@ def test_get_record_names(api_client, data_fixture):
     url = f"{base_url}?record_ids={','.join(rows.keys())}"
     response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED"
+    assert response.json()["error"] == "ERROR_SERVICE_IMPROPERLY_CONFIGURED"
+    assert (
+        response.json()["detail"] == "This data source does not provide a list service"
+    )
 
 
 @pytest.mark.django_db

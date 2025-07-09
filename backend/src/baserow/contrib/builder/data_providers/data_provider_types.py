@@ -7,18 +7,12 @@ from django.utils.translation import gettext as _
 
 from rest_framework import serializers
 
-from baserow.contrib.builder.data_providers.exceptions import (
-    DataProviderChunkInvalidException,
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
-from baserow.contrib.builder.data_sources.exceptions import (
-    DataSourceDoesNotExist,
-    DataSourceImproperlyConfigured,
-)
+from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
+from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
     CollectionElementTypeMixin,
@@ -28,7 +22,11 @@ from baserow.contrib.builder.elements.models import FormElement
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
-from baserow.core.formula.exceptions import FormulaRecursion, InvalidBaserowFormula
+from baserow.core.formula.exceptions import (
+    InvalidFormulaContext,
+    InvalidFormulaContextContent,
+    InvalidRuntimeFormula,
+)
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.types import DispatchResult
@@ -87,7 +85,7 @@ class FormDataProviderType(BuilderDataProviderType):
         """
         :param element_id: The ID of the element we're validating.
         :param data_chunk: The form data value which we're validating.
-        :raises FormDataProviderChunkInvalidException: if the validation fails.
+        :raises InvalidFormulaContextContent: if the validation fails.
         """
 
         element: Type[FormElement] = ElementHandler().get_element(element_id)  # type: ignore
@@ -95,11 +93,14 @@ class FormDataProviderType(BuilderDataProviderType):
 
         try:
             return element_type.is_valid(element, data_chunk, dispatch_context)
-        except FormDataProviderChunkInvalidException as exc:
-            raise FormDataProviderChunkInvalidException(
-                f"Provided value for form element with ID {element.id} of "
-                f"type {element_type.type} is invalid. {str(exc)}"
+        except ElementImproperlyConfigured as exc:
+            raise InvalidRuntimeFormula(
+                f"The form element with ID {element.id} of "
+                f"type {element_type.type} is misconfigured: {str(exc)}"
             ) from exc
+
+        except (TypeError, ValueError) as exc:
+            raise InvalidFormulaContextContent(str(exc)) from exc
 
     def get_data_chunk(self, dispatch_context: DispatchContext, path: List[str]):
         # The path can come in two lengths:
@@ -161,15 +162,16 @@ class DataSourceDataProviderType(BuilderDataProviderType):
 
         data_source_id, *rest = path
 
-        data_source = DataSourceHandler().get_data_source_with_cache(
-            dispatch_context.page, int(data_source_id)
-        )
+        try:
+            data_source = DataSourceHandler().get_data_source_with_cache(
+                dispatch_context.page, int(data_source_id)
+            )
+        except DataSourceDoesNotExist as exc:
+            # The data source has probably been deleted
+            raise InvalidRuntimeFormula() from exc
 
         # Declare the call and check for recursion
-        try:
-            dispatch_context.add_call(data_source.id)
-        except FormulaRecursion:
-            raise DataSourceImproperlyConfigured("Recursion detected.")
+        dispatch_context.add_call(data_source.id)
 
         dispatch_result = DataSourceHandler().dispatch_data_source(
             data_source, dispatch_context
@@ -231,7 +233,7 @@ class DataSourceDataProviderType(BuilderDataProviderType):
             )
         except DataSourceDoesNotExist as exc:
             # The data source has probably been deleted
-            raise InvalidBaserowFormula() from exc
+            raise InvalidRuntimeFormula() from exc
 
         service_type = data_source.service.specific.get_type()
 
@@ -253,9 +255,14 @@ class DataSourceContextDataProviderType(BuilderDataProviderType):
         """Load a data chunk from a datasource of the page in context."""
 
         data_source_id, *rest = path
-        data_source = DataSourceHandler().get_data_source_with_cache(
-            dispatch_context.page, int(data_source_id)
-        )
+
+        try:
+            data_source = DataSourceHandler().get_data_source_with_cache(
+                dispatch_context.page, int(data_source_id)
+            )
+        except DataSourceDoesNotExist as exc:
+            # The data source has probably been deleted
+            raise InvalidRuntimeFormula() from exc
 
         service_type = data_source.service.get_type()
         context_data = service_type.get_context_data(data_source.service)
@@ -309,7 +316,7 @@ class DataSourceContextDataProviderType(BuilderDataProviderType):
             )
         except DataSourceDoesNotExist as exc:
             # The data source has probably been deleted
-            raise InvalidBaserowFormula() from exc
+            raise InvalidRuntimeFormula() from exc
 
         service_type = data_source.service.specific.get_type()
 
@@ -416,7 +423,7 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
             )
         except DataSourceDoesNotExist as exc:
             # The data source is probably not accessible so we raise an invalid formula
-            raise InvalidBaserowFormula() from exc
+            raise InvalidRuntimeFormula() from exc
 
         service_type = data_source.service.specific.get_type()
 
@@ -458,11 +465,11 @@ class PreviousActionProviderType(BuilderDataProviderType):
 
         if previous_action_id not in previous_action_results:
             message = "The previous action id is not present in the dispatch context"
-            raise DataProviderChunkInvalidException(message)
+            raise InvalidFormulaContext(message)
 
         if "current_dispatch_id" not in previous_action_results:
             message = "The dispatch id is missing in the dispatch context"
-            raise DataProviderChunkInvalidException(message)
+            raise InvalidFormulaContext(message)
 
         dispatch_id = previous_action_results.get("current_dispatch_id")
 
@@ -560,7 +567,7 @@ class PreviousActionProviderType(BuilderDataProviderType):
                 previous_id
             )
         except WorkflowActionDoesNotExist as exc:
-            raise InvalidBaserowFormula() from exc
+            raise InvalidRuntimeFormula() from exc
 
         service_type = previous_action.service.specific.get_type()
         return {

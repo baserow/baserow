@@ -291,8 +291,8 @@ class DashboardDataSourceHandler:
         :param dispatch_context: The context used for the dispatch.
         :raises DashboardDataSourceImproperlyConfigured: If the data source is
             not properly configured.
-        :raises ServiceImproperlyConfigured: If the underlying service is
-            not properly configured.
+        :raises ServiceImproperlyConfiguredDispatchException: If the underlying service
+            is not properly configured.
         :raises DoesNotExist: If the requested data from the service
             don't exist.
         :return: The result of dispatching the data source.

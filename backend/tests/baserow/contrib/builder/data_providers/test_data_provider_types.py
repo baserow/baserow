@@ -24,21 +24,24 @@ from baserow.contrib.builder.data_providers.data_provider_types import (
     PreviousActionProviderType,
     UserDataProviderType,
 )
-from baserow.contrib.builder.data_providers.exceptions import (
-    DataProviderChunkInvalidException,
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
+from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.core.formula.exceptions import InvalidBaserowFormula
+from baserow.core.formula.exceptions import (
+    InvalidFormulaContext,
+    InvalidFormulaContextContent,
+    InvalidRuntimeFormula,
+)
 from baserow.core.formula.registries import DataProviderType
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.types import DispatchResult
 from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.user_sources.user_source_user import UserSourceUser
@@ -114,7 +117,9 @@ def test_form_data_provider_get_data_chunk(mock_validate):
 @patch("baserow.contrib.builder.data_providers.data_provider_types.ElementHandler")
 def test_form_data_provider_validate_data_chunk(mock_handler):
     mock_element = Mock()
+    mock_element.id = 42
     mock_element_type = Mock()
+    mock_element_type.type = "elt_type"
 
     mock_element.get_type.return_value = mock_element_type
     mock_handler().get_element.return_value = mock_element
@@ -125,13 +130,25 @@ def test_form_data_provider_validate_data_chunk(mock_handler):
     assert form_data_provider.validate_data_chunk("1", "horse", {}) == "something"
 
     def raise_exc(x, y, z):
-        raise FormDataProviderChunkInvalidException()
+        raise ValueError("Error")
 
     mock_element_type.is_valid.side_effect = raise_exc
-    with pytest.raises(FormDataProviderChunkInvalidException) as exc:
+    with pytest.raises(InvalidFormulaContextContent) as exc:
         assert form_data_provider.validate_data_chunk("1", 42, {})
 
-    assert exc.value.args[0].startswith("Provided value for form element with ID")
+    assert exc.value.args[0] == "Error"
+
+    def raise_element_exc(x, y, z):
+        raise ElementImproperlyConfigured("Error")
+
+    mock_element_type.is_valid.side_effect = raise_element_exc
+    with pytest.raises(InvalidRuntimeFormula) as exc:
+        assert form_data_provider.validate_data_chunk("1", 42, {})
+
+    assert (
+        exc.value.args[0]
+        == "The form element with ID 42 of type elt_type is misconfigured: Error"
+    )
 
 
 @pytest.mark.django_db
@@ -457,7 +474,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_to_missing_dataso
 
     dispatch_context = BuilderDispatchContext(fake_request, page)
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         data_source_provider.get_data_chunk(
             dispatch_context, [data_source.id, fields[1].db_column]
         )
@@ -531,10 +548,15 @@ def test_data_source_data_provider_get_data_chunk_with_formula_recursion(
         fake_request, page, only_expose_public_allowed_properties=False
     )
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         data_source_provider.get_data_chunk(
             dispatch_context, [data_source.id, fields[1].db_column]
         )
+
+    assert (
+        exc.value.args[0]
+        == "Row id formula could not be resolved: Formula recursion detected"
+    )
 
 
 @pytest.mark.django_db
@@ -683,10 +705,15 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_datasource_
         fake_request, page, only_expose_public_allowed_properties=False
     )
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         data_source_provider.get_data_chunk(
             dispatch_context, [data_source.id, fields[1].db_column]
         )
+
+    assert (
+        exc.value.args[0]
+        == "Row id formula could not be resolved: Formula recursion detected"
+    )
 
 
 @pytest.mark.django_db
@@ -936,7 +963,7 @@ def test_previous_action_data_provider_get_data_chunk(data_fixture):
     }
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
-    with pytest.raises(DataProviderChunkInvalidException):
+    with pytest.raises(InvalidFormulaContext):
         previous_action_data_provider.get_data_chunk(
             dispatch_context, [str(workflow_action.id), "path", "to"]
         )
@@ -960,7 +987,7 @@ def test_previous_action_data_provider_get_data_chunk(data_fixture):
         == 100
     )
 
-    with pytest.raises(DataProviderChunkInvalidException):
+    with pytest.raises(InvalidFormulaContext):
         previous_action_data_provider.get_data_chunk(dispatch_context, ["invalid"])
 
 
@@ -1599,12 +1626,12 @@ def test_data_source_context_data_provider_extract_properties_raises_if_data_sou
     """
     Test the DataSourceContextDataProviderType::extract_properties() method.
 
-    Ensure that InvalidBaserowFormula is raised if the Data Source doesn't exist.
+    Ensure that InvalidRuntimeFormula is raised if the Data Source doesn't exist.
     """
 
     mock_get_data_source.side_effect = DataSourceDoesNotExist()
 
-    with pytest.raises(InvalidBaserowFormula):
+    with pytest.raises(InvalidRuntimeFormula):
         DataSourceContextDataProviderType().extract_properties(path)
 
     mock_get_data_source.assert_called_once_with(int(path[0]), with_cache=True)
@@ -1626,12 +1653,12 @@ def test_data_source_data_provider_extract_properties_raises_if_data_source_does
     """
     Test the DataSourceDataProviderType::extract_properties() method.
 
-    Ensure that InvalidBaserowFormula is raised if the Data Source doesn't exist.
+    Ensure that InvalidRuntimeFormula is raised if the Data Source doesn't exist.
     """
 
     mock_get_data_source.side_effect = DataSourceDoesNotExist()
 
-    with pytest.raises(InvalidBaserowFormula):
+    with pytest.raises(InvalidRuntimeFormula):
         DataSourceDataProviderType().extract_properties(path)
 
     mock_get_data_source.assert_called_once_with(int(path[0]), with_cache=True)
@@ -1668,12 +1695,12 @@ def test_current_record_extract_properties_raises_if_data_source_doesnt_exist(
     """
     Test the CurrentRecordDataProviderType::extract_properties() method.
 
-    Ensure that InvalidBaserowFormula is raised if the Data Source doesn't exist.
+    Ensure that InvalidRuntimeFormula is raised if the Data Source doesn't exist.
     """
 
     mock_get_data_source.side_effect = DataSourceDoesNotExist()
 
-    with pytest.raises(InvalidBaserowFormula):
+    with pytest.raises(InvalidRuntimeFormula):
         CurrentRecordDataProviderType().extract_properties(path, invalid_data_source_id)
 
     mock_get_data_source.assert_called_once_with(
@@ -1913,7 +1940,7 @@ def test_previous_action_extract_properties_raises_if_invalid_service_id():
     """
 
     # The service ID of 100 doesn't exist
-    with pytest.raises(InvalidBaserowFormula):
+    with pytest.raises(InvalidRuntimeFormula):
         PreviousActionProviderType().extract_properties(["100", "field_123"])
 
 

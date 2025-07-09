@@ -6,9 +6,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.data_providers.data_provider_types import (
     PreviousNodeProviderType,
 )
-from baserow.contrib.builder.data_providers.exceptions import (
-    DataProviderChunkInvalidException,
-)
+from baserow.core.formula.exceptions import InvalidFormulaContext
 
 
 @pytest.mark.django_db
@@ -44,7 +42,7 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
     )
 
     # If a formula path references a non-existent node, it should raise an exception.
-    with pytest.raises(DataProviderChunkInvalidException) as exc:
+    with pytest.raises(InvalidFormulaContext) as exc:
         PreviousNodeProviderType().get_data_chunk(dispatch_context, ["999", "field_3"])
     assert (
         exc.value.args[0]

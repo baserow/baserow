@@ -25,10 +25,6 @@ from loguru import logger
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.contrib.builder.data_providers.exceptions import (
-    DataProviderChunkInvalidException,
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
 from baserow.contrib.database.api.rows.serializers import (
     RowSerializer,
@@ -111,11 +107,22 @@ from baserow.contrib.integrations.local_baserow.utils import (
 )
 from baserow.core.cache import global_cache
 from baserow.core.formula import resolve_formula
+from baserow.core.formula.exceptions import (
+    InvalidFormulaContext,
+    InvalidFormulaContextContent,
+)
+from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
-from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    DoesNotExist,
+    InvalidContextContentDispatchException,
+    InvalidContextDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
+)
 from baserow.core.services.registries import (
     DispatchTypes,
     ListServiceTypeMixin,
@@ -268,15 +275,18 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         :param service: A `LocalBaserowTableService` instance.
         :param dispatch_context: The dispatch_context instance used to
             resolve formulas (if any).
-        :raises ServiceImproperlyConfigured: When we try and dispatch a service that
-            has no `Table` associated with it, or if the table/database is trashed.
+        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
+            a service that has no `Table` associated with it, or if the table/database
+            is trashed.
         """
 
         if service.table_id is None:
-            raise ServiceImproperlyConfigured("The table property is missing.")
+            raise ServiceImproperlyConfiguredDispatchException("No table selected")
 
         if TrashHandler.item_has_a_trashed_parent(service.table, check_item_also=True):
-            raise ServiceImproperlyConfigured("The specified table is trashed")
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected table is trashed"
+            )
 
         resolved_values = super().resolve_service_formulas(service, dispatch_context)
         resolved_values["table"] = service.table
@@ -1073,12 +1083,13 @@ class LocalBaserowListRowsUserServiceType(
         :param record_ids: A list containing the record identifiers.
         :param dispatch_context: The context used for the dispatch.
         :return: A dictionary mapping each record id to its name.
-        :raises ServiceImproperlyConfigured: When service has no associated table.
-        :raises ServiceImproperlyConfigured: When the table is trashed.
+        :raises ServiceImproperlyConfiguredDispatchException: When service has no
+            associated table.
+        :raises ServiceImproperlyConfiguredDispatchException: When the table is trashed.
         """
 
         if not service.table_id:
-            raise ServiceImproperlyConfigured("The table property is missing.")
+            raise ServiceImproperlyConfiguredDispatchException("No table selected")
         try:
             table = TableHandler().get_table(service.table_id)
             # NOTE: This is an expensive operation, so in the future we need to
@@ -1092,7 +1103,9 @@ class LocalBaserowListRowsUserServiceType(
             record_names = {row.id: str(row) for row in queryset}
             return record_names
         except TableDoesNotExist as e:
-            raise ServiceImproperlyConfigured("The specified table is trashed") from e
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected table is trashed"
+            ) from e
 
 
 class LocalBaserowAggregateRowsUserServiceType(
@@ -1363,19 +1376,22 @@ class LocalBaserowAggregateRowsUserServiceType(
         :param service: A `LocalBaserowAggregateRows` instance.
         :param dispatch_context: The dispatch_context instance used to
             resolve formulas (if any).
-        :raises ServiceImproperlyConfigured: When we try and dispatch a service that
-            has no `Field` associated with it, or if aggregation type is invalid.
+        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
+            a service that has no `Field` associated with it, or if aggregation type
+            is invalid.
         """
 
         # We need a valid field to dispatch with.
         if not service.field:
-            raise ServiceImproperlyConfigured("The field property is missing.")
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The field property is missing."
+            )
 
         # We need a valid aggregation type to dispatch with.
         try:
             field_aggregation_registry.get(service.aggregation_type)
         except AggregationTypeDoesNotExist as exc:
-            raise ServiceImproperlyConfigured(exc.args[0]) from exc
+            raise ServiceImproperlyConfiguredDispatchException(exc.args[0]) from exc
 
         return super().resolve_service_formulas(service, dispatch_context)
 
@@ -1402,7 +1418,7 @@ class LocalBaserowAggregateRowsUserServiceType(
         try:
             table = resolved_values["table"]
             if service.field.trashed:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {service.field.id} is trashed."
                 )
             field = service.field
@@ -1419,11 +1435,11 @@ class LocalBaserowAggregateRowsUserServiceType(
                 "baserow_table_model": model,
             }
         except DjangoFieldDoesNotExist as ex:
-            raise ServiceImproperlyConfigured(
+            raise ServiceImproperlyConfiguredDispatchException(
                 f"The field with ID {service.field_id} does not exist."
             ) from ex
         except IncompatibleField as ex:
-            raise ServiceImproperlyConfigured(
+            raise ServiceImproperlyConfiguredDispatchException(
                 f"The field with ID {service.field_id} is not compatible "
                 f"with the aggregation type {service.aggregation_type}"
             ) from ex
@@ -1592,8 +1608,8 @@ class LocalBaserowGetRowUserServiceType(
         :param service: A `LocalBaserowTableService` instance.
         :param dispatch_context: The dispatch_context instance used to
             resolve formulas (if any).
-        :raises ServiceImproperlyConfigured: When we try and dispatch a service that
-            has no `Table` associated with it.
+        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
+            a service that has no `Table` associated with it.
         """
 
         resolved_values = super().resolve_service_formulas(service, dispatch_context)
@@ -1922,8 +1938,8 @@ class LocalBaserowUpsertRowServiceType(
         :param service: A `LocalBaserowTableService` instance.
         :param dispatch_context: The dispatch_context instance used to
             resolve formulas (if any).
-        :raises ServiceImproperlyConfigured: When we try and dispatch a service that
-            has no `Table` associated with it.
+        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
+            a service that has no `Table` associated with it.
         """
 
         resolved_values = super().resolve_service_formulas(service, dispatch_context)
@@ -1945,25 +1961,45 @@ class LocalBaserowUpsertRowServiceType(
                     formula_runtime_function_registry,
                     dispatch_context,
                 )
-            except FormDataProviderChunkInvalidException as e:
-                raise ServiceImproperlyConfigured(str(e)) from e
-            except DataProviderChunkInvalidException as e:
+            except InvalidFormulaContext as e:
+                raise InvalidContextDispatchException(str(e)) from e
+            except InvalidFormulaContextContent as e:
                 message = (
-                    "Path error in formula for "
-                    f"field {field_mapping.field.name}({field_mapping.field.id})"
+                    f'Value error for field "{field_mapping.field.name}": {str(e)}'
                 )
-                raise ServiceImproperlyConfigured(message) from e
+                raise InvalidContextContentDispatchException(message) from e
+            except BaserowFormulaException as e:
+                message = (
+                    "Error in formula for "
+                    f'field "{field_mapping.field.name}": {str(e)}'
+                )
+                raise ServiceImproperlyConfiguredDispatchException(message) from e
             except Exception as e:
                 logger.exception(
                     f"Unexpected error for field {field_mapping.field.name}"
                 )
                 message = (
                     "Unknown error in formula for "
-                    f"field {field_mapping.field.name}({field_mapping.field.id}): {repr(e)} - {str(e)}"
+                    f'field "{field_mapping.field.name}": {repr(e)} - {str(e)}'
                 )
-                raise ServiceImproperlyConfigured(message) from e
+                raise UnexpectedDispatchException(message) from e
 
         return resolved_values
+
+    def _get_validation_details(self, error):
+        detail = error.detail
+
+        if isinstance(detail, str):
+            return detail
+        elif isinstance(detail, list):
+            return str(detail[0]) if detail else ""
+        elif isinstance(detail, dict):
+            for field, errors in detail.items():
+                if isinstance(errors, list) and errors:
+                    return str(errors[0])
+                else:
+                    return str(errors)
+        return str(detail)
 
     def dispatch_data(
         self,
@@ -2047,10 +2083,14 @@ class LocalBaserowUpsertRowServiceType(
                 if cast_function:
                     resolved_value = cast_function(resolved_value)
                 resolved_value = serializer_field.run_validation(resolved_value)
-            except (ValidationError, DRFValidationError) as exc:
-                raise ServiceImproperlyConfigured(
-                    f"The result value '{str(resolved_value)}' of the formula is not valid for the "
-                    f"field `{field.name} ({field.db_column})`: {str(exc)}"
+            except ValidationError as exc:
+                raise InvalidContextContentDispatchException(
+                    f'Value error for field "{field.name}": {exc.message}'
+                ) from exc
+            except DRFValidationError as exc:
+                raise InvalidContextContentDispatchException(
+                    f'Value error for field "{field.name}"'
+                    f": {self._get_validation_details(exc)}"
                 ) from exc
 
             # Then transform and validate the resolved value for prepare value for db.
@@ -2058,9 +2098,8 @@ class LocalBaserowUpsertRowServiceType(
                 field_type.prepare_value_for_db(field.specific, resolved_value)
                 row_values[field.db_column] = resolved_value
             except ValidationError as exc:
-                raise ServiceImproperlyConfigured(
-                    "The result value of the formula is not valid for the "
-                    f"field `{field.name} ({field.db_column})`: {exc.message}"
+                raise InvalidContextContentDispatchException(
+                    f'Value error for field "{field.name}": {exc.message}'
                 ) from exc
 
         model = table.get_model()
@@ -2074,7 +2113,7 @@ class LocalBaserowUpsertRowServiceType(
                     model=model,
                 )
             except RowDoesNotExist as exc:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The row with id {row_id} does not exist."
                 ) from exc
         else:
@@ -2086,8 +2125,9 @@ class LocalBaserowUpsertRowServiceType(
                     model=model,
                 )
             except CannotCreateRowsInTable as exc:
-                raise ServiceImproperlyConfigured(
-                    f"Cannot create rows in table {table.id} because it has a data sync."
+                raise ServiceImproperlyConfiguredDispatchException(
+                    f"Cannot create rows in table {table.id} because "
+                    "it has a data sync."
                 ) from exc
 
         return {
@@ -2180,8 +2220,8 @@ class LocalBaserowDeleteRowServiceType(
         :param service: A `LocalBaserowTableService` instance.
         :param dispatch_context: The dispatch_context instance used to
             resolve formulas (if any).
-        :raises ServiceImproperlyConfigured: When we try and dispatch a service that
-            has no `Table` associated with it.
+        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
+            a service that has no `Table` associated with it.
         """
 
         resolved_values = super().resolve_service_formulas(service, dispatch_context)
@@ -2227,12 +2267,13 @@ class LocalBaserowDeleteRowServiceType(
                     integration.authorized_user, table, [row_id], model=model
                 )
             except RowDoesNotExist as exc:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The row with id {row_id} does not exist."
                 ) from exc
             except CannotDeleteRowsInTable as exc:
-                raise ServiceImproperlyConfigured(
-                    f"Cannot delete rows in table {table.id} because it has a data sync."
+                raise ServiceImproperlyConfiguredDispatchException(
+                    f"Cannot delete rows in table {table.id} because "
+                    "it has a data sync."
                 ) from exc
 
         return {"data": {}, "baserow_table_model": model}

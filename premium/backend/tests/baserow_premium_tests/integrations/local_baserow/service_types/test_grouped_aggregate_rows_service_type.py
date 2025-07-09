@@ -16,7 +16,9 @@ from baserow_premium.integrations.local_baserow.service_types import (
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
@@ -1281,7 +1283,7 @@ def test_grouped_aggregate_rows_service_dispatch_no_series(data_fixture):
 
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         ServiceHandler().dispatch_service(service, dispatch_context)
     assert exc.value.args[0] == "There are no aggregation series defined."
 
@@ -1314,7 +1316,7 @@ def test_grouped_aggregate_rows_service_dispatch_aggregation_type_doesnt_exist(
 
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         ServiceHandler().dispatch_service(service, dispatch_context)
     assert exc.value.args[0] == "The the aggregation type invalid doesn't exist."
 
@@ -1345,7 +1347,7 @@ def test_grouped_aggregate_rows_service_dispatch_incompatible_aggregation(data_f
 
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         ServiceHandler().dispatch_service(service, dispatch_context)
     assert (
         exc.value.args[0]
@@ -1380,7 +1382,7 @@ def test_dispatch_grouped_aggregate_rows_service_duplicate_series(
 
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         ServiceHandler().dispatch_service(service, dispatch_context)
     assert (
         exc.value.args[0]
@@ -1409,7 +1411,7 @@ def test_grouped_aggregate_rows_service_agg_series_field_trashed(data_fixture):
 
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         ServiceHandler().dispatch_service(service, dispatch_context)
     assert exc.value.args[0] == f"The field with ID {field.id} is trashed."
 
@@ -1438,7 +1440,7 @@ def test_grouped_aggregate_rows_service_group_by_field_trashed(data_fixture):
 
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         ServiceHandler().dispatch_service(service, dispatch_context)
     assert exc.value.args[0] == f"The field with ID {field_2.id} is trashed."
 
@@ -1467,7 +1469,7 @@ def test_grouped_aggregate_rows_service_group_by_field_not_compatible(data_fixtu
 
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         ServiceHandler().dispatch_service(service, dispatch_context)
     assert (
         exc.value.args[0]
@@ -1499,9 +1501,9 @@ def test_grouped_aggregate_rows_service_table_trashed(data_fixture):
 
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         ServiceHandler().dispatch_service(service, dispatch_context)
-    assert exc.value.args[0] == f"The specified table is trashed"
+    assert exc.value.args[0] == "The selected table is trashed"
 
 
 @pytest.mark.django_db
@@ -2344,7 +2346,7 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_field_outside_series_or
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(
-        ServiceImproperlyConfigured,
+        ServiceImproperlyConfiguredDispatchException,
         match=f"The sort reference 'field_{field_2.id}' cannot be used for sorting.",
     ):
         ServiceHandler().dispatch_service(service, dispatch_context)
@@ -2383,7 +2385,7 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_primary_field_no_group_
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(
-        ServiceImproperlyConfigured,
+        ServiceImproperlyConfiguredDispatchException,
         match=f"The sort reference 'field_{field.id}' cannot be used for sorting.",
     ):
         ServiceHandler().dispatch_service(service, dispatch_context)
@@ -2425,7 +2427,7 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_primary_field_group_by_
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(
-        ServiceImproperlyConfigured,
+        ServiceImproperlyConfiguredDispatchException,
         match=f"The sort reference 'field_{field.id}' cannot be used for sorting.",
     ):
         ServiceHandler().dispatch_service(service, dispatch_context)

@@ -1,6 +1,7 @@
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { resolveFormula } from '@baserow/modules/core/formula'
 import { uuid } from '@baserow/modules/core/utils/string'
+import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 
 /**
  * This might look like something that belongs in a registry, but it does not.
@@ -9,17 +10,8 @@ import { uuid } from '@baserow/modules/core/utils/string'
  * registry required.
  */
 export class Event {
-  constructor({
-    i18n,
-    store,
-    $registry,
-    name,
-    label,
-    applicationContextAdditions = {},
-  }) {
-    this.i18n = i18n
-    this.store = store
-    this.$registry = $registry
+  constructor({ app, name, label, applicationContextAdditions = {} }) {
+    this.app = app
     this.name = name
     this.label = label
     this.applicationContextAdditions = applicationContextAdditions
@@ -28,8 +20,8 @@ export class Event {
   async fire({ workflowActions, applicationContext }) {
     const additionalContext = {}
     const { element, recordIndexPath, builder, page } = applicationContext
-    const pages = [page, this.store.getters['page/getSharedPage'](builder)]
-    const elementType = this.$registry.get('element', element.type)
+    const pages = [page, this.app.store.getters['page/getSharedPage'](builder)]
+    const elementType = this.app.$registry.get('element', element.type)
     const dispatchedById = elementType.uniqueElementId(element, recordIndexPath)
 
     /**
@@ -46,7 +38,7 @@ export class Event {
     for (let i = 0; i < workflowActions.length; i += 1) {
       const workflowActionContext = {}
       const workflowAction = workflowActions[i]
-      const workflowActionType = this.$registry.get(
+      const workflowActionType = this.app.$registry.get(
         'workflowAction',
         workflowAction.type
       )
@@ -56,7 +48,7 @@ export class Event {
         // Stash away in the workflow action's context dataSource and
         // the page the dataSource belongs to. It's possible that the page
         // is not `applicationContext.page` - the dataSource could be shared.
-        workflowActionContext.dataSource = this.store.getters[
+        workflowActionContext.dataSource = this.app.store.getters[
           'dataSource/getPagesDataSourceById'
         ](pages, parseInt(workflowAction.data_source_id))
         workflowActionContext.dataSourcePage = pages.find(
@@ -67,12 +59,12 @@ export class Event {
       const localResolveFormula = (formula) => {
         const formulaFunctions = {
           get: (name) => {
-            return this.$registry.get('runtimeFormulaFunction', name)
+            return this.app.$registry.get('runtimeFormulaFunction', name)
           },
         }
         const runtimeFormulaContext = new Proxy(
           new RuntimeFormulaContext(
-            this.$registry.getAll('builderDataProvider'),
+            this.app.$registry.getAll('builderDataProvider'),
             {
               ...applicationContext,
               ...this.applicationContextAdditions,
@@ -96,7 +88,7 @@ export class Event {
         }
       }
 
-      this.store.dispatch('builderWorkflowAction/setDispatching', {
+      this.app.store.dispatch('builderWorkflowAction/setDispatching', {
         workflowAction,
         dispatchedById,
         isDispatching: true,
@@ -115,8 +107,16 @@ export class Event {
             resolveFormula: localResolveFormula,
           }
         )
+      } catch (e) {
+        handleDispatchError(
+          e,
+          this.app,
+          this.app.i18n.t('builderToast.errorWorkflowActionDispatch', {
+            name: workflowActionType.label,
+          })
+        )
       } finally {
-        this.store.dispatch('builderWorkflowAction/setDispatching', {
+        this.app.store.dispatch('builderWorkflowAction/setDispatching', {
           workflowAction,
           dispatchedById: null,
           isDispatching: false,
@@ -127,13 +127,13 @@ export class Event {
 }
 
 export class ClickEvent extends Event {
-  constructor({ namePrefix, labelSuffix, ...rest }) {
+  constructor({ namePrefix, labelSuffix, app }) {
     super({
-      ...rest,
+      app,
       name: namePrefix ? `${namePrefix}_click` : 'click',
       label: labelSuffix
-        ? `${rest.i18n.t('eventTypes.clickLabel')} ${labelSuffix}`
-        : rest.i18n.t('eventTypes.clickLabel'),
+        ? `${app.i18n.t('eventTypes.clickLabel')} ${labelSuffix}`
+        : app.i18n.t('eventTypes.clickLabel'),
     })
   }
 }
@@ -142,7 +142,7 @@ export class SubmitEvent extends Event {
   constructor(args) {
     super({
       name: 'submit',
-      label: args.i18n.t('eventTypes.submitLabel'),
+      label: args.app.i18n.t('eventTypes.submitLabel'),
       ...args,
     })
   }
@@ -152,7 +152,7 @@ export class AfterLoginEvent extends Event {
   constructor(args) {
     super({
       name: 'after_login',
-      label: args.i18n.t('eventTypes.afterLoginLabel'),
+      label: args.app.i18n.t('eventTypes.afterLoginLabel'),
       ...args,
     })
   }

@@ -837,7 +837,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
   }
 
   getEvents(element) {
-    return [new SubmitEvent({ ...this.app })]
+    return [new SubmitEvent({ app: this.app })]
   }
 
   getErrorMessage({ workspace, page, element, builder }) {
@@ -1037,7 +1037,7 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
         )
         return collectionFieldType.events.map((EventType) => {
           return new EventType({
-            ...this.app,
+            app: this.app,
             namePrefix: uid,
             labelSuffix: `- ${name}`,
             applicationContextAdditions: { allowSameElement: true },
@@ -1586,7 +1586,7 @@ export class ButtonElementType extends ElementType {
   }
 
   getEvents(element) {
-    return [new ClickEvent({ ...this.app })]
+    return [new ClickEvent({ app: this.app })]
   }
 
   /**
@@ -2436,7 +2436,7 @@ export class MenuElementType extends ElementType {
         if (menuItemType === 'button') {
           return [
             new ClickEvent({
-              ...this.app,
+              app: this.app,
               namePrefix: uid,
               labelSuffix: `- ${name}`,
               applicationContextAdditions: { allowSameElement: true },

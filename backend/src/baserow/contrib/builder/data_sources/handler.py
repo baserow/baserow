@@ -10,7 +10,6 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 )
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceDoesNotExist,
-    DataSourceImproperlyConfigured,
     DataSourceNameNotUniqueError,
 )
 from baserow.contrib.builder.data_sources.models import DataSource
@@ -20,6 +19,9 @@ from baserow.contrib.builder.types import DataSourceDict
 from baserow.core.cache import local_cache
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType
@@ -500,13 +502,15 @@ class DataSourceHandler:
 
         :param data_source: The data source to be dispatched.
         :param dispatch_context: The context used for the dispatch.
-        :raises DataSourceImproperlyConfigured: If the data source is
+        :raises ServiceImproperlyConfiguredDispatchException: If the data source is
           not properly configured.
         :return: The result of dispatching the data source.
         """
 
         if not data_source.service_id:
-            raise DataSourceImproperlyConfigured("The service type is missing.")
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The service type is missing."
+            )
 
         cache = dispatch_context.cache
 

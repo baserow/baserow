@@ -10,7 +10,7 @@ from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.services.exceptions import (
     ServiceDoesNotExist,
-    ServiceImproperlyConfigured,
+    ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
@@ -221,7 +221,9 @@ class ServiceHandler:
             service.integration_id is None
             and service.get_type().integration_type is not None
         ):
-            raise ServiceImproperlyConfigured("The integration property is missing.")
+            raise ServiceImproperlyConfiguredDispatchException(
+                "No integration selected"
+            )
 
         return service.get_type().dispatch(service, dispatch_context)
 

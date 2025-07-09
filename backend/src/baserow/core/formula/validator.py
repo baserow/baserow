@@ -90,7 +90,7 @@ def ensure_integer(value: Any, allow_empty: bool = False) -> Optional[int]:
 
     if value is None or value == "":
         if not allow_empty:
-            raise ValidationError("The value is required.")
+            raise ValidationError("The value is required")
         return None
 
     try:

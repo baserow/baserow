@@ -101,34 +101,11 @@ export default {
           ({ event: eventName }) => eventName === event.name
         )
 
-        try {
-          await event.fire({
-            workflowActions,
-            resolveFormula: this.resolveFormula,
-            applicationContext: this.applicationContext,
-          })
-        } catch (e) {
-          // Let's log the error for now as we don's have specific messages.
-          console.log('Error during action', e)
-          let toastTitle = this.$i18n.t(
-            'dispatchWorkflowActionError.defaultTitle'
-          )
-          let toastMessage = this.$i18n.t(
-            'dispatchWorkflowActionError.defaultMessage'
-          )
-          if (e.error !== 'ERROR_WORKFLOW_ACTION_FORM_DATA_INVALID') {
-            toastTitle = this.$i18n.t(
-              'dispatchWorkflowActionError.formDataInvalidTitle'
-            )
-            toastMessage = this.$i18n.t(
-              'dispatchWorkflowActionError.formDataInvalidMessage'
-            )
-          }
-          return this.$store.dispatch('toast/error', {
-            title: toastTitle,
-            message: toastMessage,
-          })
-        }
+        await event.fire({
+          workflowActions,
+          resolveFormula: this.resolveFormula,
+          applicationContext: this.applicationContext,
+        })
       }
     },
     getStyleOverride(key, colorVariables = null) {

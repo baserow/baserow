@@ -20,7 +20,9 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowTableServiceType,
     LocalBaserowViewServiceType,
 )
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.registries import service_type_registry
 from baserow.test_utils.helpers import setup_interesting_test_table
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
@@ -48,23 +50,23 @@ def test_local_baserow_table_service_before_dispatch_validation_error(
 
     service_without_table = Mock(table_id=None)
     dispatch_context = FakeDispatchContext()
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         cls().resolve_service_formulas(service_without_table, dispatch_context)
-    assert exc.value.args[0] == "The table property is missing."
+    assert exc.value.args[0] == "No table selected"
 
     service_with_trashed_table = Mock(table_id=trashed_table.id, table=trashed_table)
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         cls().resolve_service_formulas(service_with_trashed_table, dispatch_context)
-    assert exc.value.args[0] == "The specified table is trashed"
+    assert exc.value.args[0] == "The selected table is trashed"
 
     service_with_table_in_trashed_database = Mock(
         table_id=table_in_trashed_database.id, table=table_in_trashed_database
     )
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         cls().resolve_service_formulas(
             service_with_table_in_trashed_database, dispatch_context
         )
-    assert exc.value.args[0] == "The specified table is trashed"
+    assert exc.value.args[0] == "The selected table is trashed"
 
 
 @pytest.mark.django_db

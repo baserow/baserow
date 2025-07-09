@@ -76,8 +76,8 @@ import formElement from '@baserow/modules/builder/mixins/formElement'
 import collectionElement from '@baserow/modules/builder/mixins/collectionElement'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll.vue'
-import { notifyIf } from '@baserow/modules/core/utils/error'
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
+import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 
 export default {
   name: 'RecordSelectorElement',
@@ -273,8 +273,6 @@ export default {
       try {
         this.loading = true
         await this.loadMore()
-      } catch (e) {
-        notifyIf(e, 'application')
       } finally {
         this.loading = false
       }
@@ -301,8 +299,7 @@ export default {
 
       this.loading = true
       try {
-        const service = DataSourceService(this.$client)
-        const data = await service.getRecordNames(
+        const data = await DataSourceService(this.$client).getRecordNames(
           this.element.data_source_id,
           recordIds
         )
@@ -313,8 +310,14 @@ export default {
             actualName: name,
           })
         )
-      } catch (e) {
-        notifyIf(e, 'application')
+      } catch (error) {
+        handleDispatchError(
+          error,
+          this,
+          this.$t('builderToast.errorDataSourceDispatch', {
+            name: this.dataSource.name,
+          })
+        )
       } finally {
         this.loading = false
       }

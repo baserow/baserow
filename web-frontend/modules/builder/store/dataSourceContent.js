@@ -52,6 +52,7 @@ const actions = {
       service = PublishedBuilderService
     }
 
+    const failedDataSources = []
     try {
       const { data } = await service(this.app.$client).dispatchAll(
         page.id,
@@ -61,6 +62,10 @@ const actions = {
       Object.entries(data).forEach(([dataSourceIdStr, dataContent]) => {
         const dataSourceId = parseInt(dataSourceIdStr, 10)
         if (dataContent._error) {
+          failedDataSources.push({
+            id: dataSourceId,
+            error: { error: dataContent._error, detail: dataContent.detail },
+          })
           commit('SET_CONTENT', { page, dataSourceId, value: null })
         } else {
           commit('SET_CONTENT', { page, dataSourceId, value: dataContent })
@@ -71,6 +76,7 @@ const actions = {
       throw e
     }
     commit('SET_LOADING', { page, value: false })
+    return failedDataSources
   },
 
   async fetchPageDataSourceContentById(

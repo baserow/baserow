@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Toasts></Toasts>
+    <BuilderToasts></BuilderToasts>
     <RecursiveWrapper :components="builderPageDecorators">
       <PageContent
         v-if="canViewPage"
@@ -18,7 +18,7 @@ import PageContent from '@baserow/modules/builder/components/page/PageContent'
 import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
 
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
-import Toasts from '@baserow/modules/core/components/toasts/Toasts'
+import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
 import _ from 'lodash'
 import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
@@ -31,6 +31,7 @@ import {
 } from '@baserow/modules/core/utils/auth'
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import RecursiveWrapper from '@baserow/modules/database/components/RecursiveWrapper'
+import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
   await store.dispatch('userSourceUser/logoff', {
@@ -45,7 +46,7 @@ const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
 
 export default {
   name: 'PublicPage',
-  components: { RecursiveWrapper, PageContent, Toasts },
+  components: { RecursiveWrapper, PageContent, BuilderToasts },
   provide() {
     return {
       workspace: this.workspace,
@@ -289,12 +290,9 @@ export default {
     }
   },
   head() {
-    const pluginHeaders = this.$registry.getList('plugin').map((plugin) =>
-      plugin.getBuilderApplicationHeaderAddition({
-        builder: this.builder,
-        mode: this.mode,
-      })
-    )
+    const cssVars = Object.entries(this.themeStyle)
+      .map(([key, value]) => `\n${key}: ${value};`)
+      .join(' ')
 
     const header = {
       titleTemplate: '',
@@ -302,11 +300,24 @@ export default {
       bodyAttrs: {
         class: 'public-page',
       },
+      style: [
+        {
+          cssText: `:root { ${cssVars} }`,
+          type: 'text/css',
+        },
+      ],
     }
 
     if (this.faviconLink) {
       header.link = [this.faviconLink]
     }
+
+    const pluginHeaders = this.$registry.getList('plugin').map((plugin) =>
+      plugin.getBuilderApplicationHeaderAddition({
+        builder: this.builder,
+        mode: this.mode,
+      })
+    )
 
     const result = _.mergeWith(
       {},
@@ -326,6 +337,15 @@ export default {
     return result
   },
   computed: {
+    themeConfigBlocks() {
+      return this.$registry.getOrderedList('themeConfigBlock')
+    },
+    themeStyle() {
+      return ThemeConfigBlockType.getAllStyles(
+        this.themeConfigBlocks,
+        this.builder.theme
+      )
+    },
     elements() {
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
@@ -513,7 +533,7 @@ export default {
 
         const currentPath = this.$route.fullPath
         if (url !== currentPath) {
-          this.$store.dispatch('toast/info', {
+          this.$store.dispatch('builderToast/info', {
             title: this.$t('publicPage.authorizedToastTitle'),
             message: this.$t('publicPage.authorizedToastMessage'),
           })
@@ -555,7 +575,7 @@ export default {
             application: this.builder,
             token: refreshTokenFromProvider,
           })
-          this.$store.dispatch('toast/info', {
+          this.$store.dispatch('builderToast/info', {
             title: this.$t('publicPage.loginToastTitle'),
             message: this.$t('publicPage.loginToastMessage'),
           })

@@ -997,10 +997,8 @@ def test_dispatch_workflow_action_with_invalid_form_data(api_client, data_fixtur
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
-        "error": "ERROR_WORKFLOW_ACTION_IMPROPERLY_CONFIGURED",
-        "detail": "The workflow_action configuration is incorrect: "
-        f"Provided value for form element with ID {input_text_element.id} of type "
-        "input_text is invalid. The value is required.",
+        "error": "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
+        "detail": f'Value error for field "{field.name}": The value is required',
     }
 
 

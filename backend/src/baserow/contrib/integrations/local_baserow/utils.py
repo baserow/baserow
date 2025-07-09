@@ -32,7 +32,9 @@ from baserow.core.formula.validator import (
     ensure_integer,
     ensure_string,
 )
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.user_files.exceptions import (
     FileSizeTooLargeError,
     FileURLCouldNotBeReached,
@@ -173,16 +175,16 @@ def prepare_files_for_db(value: Any, user: AbstractUser) -> List[dict]:
             try:
                 result.append(_handle_file(f, user))
             except FileURLCouldNotBeReached as exc:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The file {file_name} couldn't be reached."
                 ) from exc
             except FileSizeTooLargeError as exc:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The file {file_name} is too large."
                 ) from exc
             except Exception as exc:
                 logger.exception(f"Unprocessed file {file_name}")
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The file {file_name} couldn't "
                     f"be processed for unknown reason: {exc}"
                 ) from exc

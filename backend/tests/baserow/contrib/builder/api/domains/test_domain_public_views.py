@@ -13,16 +13,19 @@ from rest_framework.status import (
 )
 
 from baserow.api.user_files.serializers import UserFileSerializer
-from baserow.contrib.builder.data_sources.exceptions import (
-    DataSourceDoesNotExist,
-    DataSourceImproperlyConfigured,
-)
+from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.core.exceptions import PermissionException
 from baserow.core.models import Workspace
-from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    DoesNotExist,
+    InvalidContextContentDispatchException,
+    InvalidContextDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
+)
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
@@ -719,14 +722,24 @@ def test_public_dispatch_data_sources_view(
             "The requested data_source does not exist.",
         ),
         (
-            DataSourceImproperlyConfigured,
-            "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED",
-            "The data_source configuration is incorrect: ",
+            ServiceImproperlyConfiguredDispatchException,
+            "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+            "Exception content",
         ),
         (
-            ServiceImproperlyConfigured,
-            "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED",
-            "The data_source configuration is incorrect: ",
+            InvalidContextDispatchException,
+            "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT",
+            "Exception content",
+        ),
+        (
+            InvalidContextContentDispatchException,
+            "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
+            "Exception content",
+        ),
+        (
+            UnexpectedDispatchException,
+            "ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR",
+            "Exception content",
         ),
         (
             DoesNotExist,
@@ -766,7 +779,7 @@ def test_public_dispatch_data_sources_view_returns_error(
     mock_dispatch_context = MagicMock()
     mock_builder_dispatch_context.return_value = mock_dispatch_context
 
-    mock_service_contents = {"101": expected_exception()}
+    mock_service_contents = {"101": expected_exception("Exception content")}
     mock_dispatch_page_data_sources.return_value = mock_service_contents
 
     mock_page_id = 100

@@ -535,5 +535,5 @@ def test_dispatch_data_source_improperly_configured(api_client, data_fixture):
     )
     assert (
         response.json()["detail"] == "The data_source configuration is incorrect: "
-        "The integration property is missing."
+        "No integration selected"
     )
