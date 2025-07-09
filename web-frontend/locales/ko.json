@@ -13,7 +13,8 @@
         "enabled": "활성화됨",
         "disabled": "비활성화됨",
         "or": "또는",
-        "and": "그리고"
+        "and": "그리고",
+        "optional": "선택적"
     },
     "action": {
         "close": "닫기",
@@ -109,7 +110,8 @@
         "minMaxValueField": "필드 값은 {min}에서 {max} 사이여야 합니다.",
         "invalidURL": "유효한 URL을 입력하세요.",
         "email": "필드는 이메일이어야 합니다.",
-        "alreadyInUse": "이 필드 이름은 이미 사용 중입니다."
+        "alreadyInUse": "이 필드 이름은 이미 사용 중입니다.",
+        "copyFailed": "클립보드에 복사하지 못했습니다. 다시 시도해 주세요."
     },
     "permission": {
         "admin": "관리자",
@@ -292,7 +294,9 @@
         "hasDateBefore": "날짜가 이전임",
         "hasDateOnOrBefore": "날짜가 이전 또는 같음",
         "hasNotDateAfter": "날짜가 이후가 아님",
-        "hasDateOnOrAfter": "날짜가 이후 또는 같음"
+        "hasDateOnOrAfter": "날짜가 이후 또는 같음",
+        "hasAnyOf": "다음 중 하나",
+        "hasNotAnyOf": "아느 것도 해당하지 않음"
     },
     "viewType": {
         "grid": "그리드",
@@ -311,7 +315,8 @@
         "row": "행",
         "rows": "행",
         "view": "뷰",
-        "automation_workflow": "자동화 워크플로"
+        "automation_workflow": "자동화 워크플로",
+        "automation_node": "자동화 노드"
     },
     "webhook": {
         "request": "요청",
@@ -465,7 +470,9 @@
         "sendWebhookEventsDescription": "`y`, `yes`, `true`, `t`, `on`, `1`로 설정하거나 비워 두면 작업 후 웹훅을 트리거하는 플래그 쿼리 매개변수입니다. 기본값은 `true`입니다",
         "singleRow": "단일",
         "batchRows": "배치",
-        "fileUploads": "파일 업로드"
+        "fileUploads": "파일 업로드",
+        "listTables": "테이블 목록",
+        "apiDocs": "모든 테이블 목록"
     },
     "exporterType": {
         "csv": "CSV로 내보내기"

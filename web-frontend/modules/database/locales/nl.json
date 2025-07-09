@@ -272,7 +272,10 @@
         "nameNotAllowed": "Deze veldnaam is niet toegestaan.",
         "nameTooLong": "Deze veldnaam is te lang.",
         "addDescription": "Beschrijving toevoegen",
-        "description": "Beschrijving"
+        "description": "Beschrijving",
+        "dbIndex": "Index",
+        "dbIndexError": "Dit veldtype kan geen index hebben. Verwijder deze voordat u het veldtype opslaat of wijzigt.",
+        "dbIndexDescription": "Indexeren kan de filterprestaties aanzienlijk verbeteren, maar vertraagt het maken, bijwerken en verwijderen."
     },
     "fieldLookupSubForm": {
         "noTable": "Je hebt minstens één link-rij veld nodig om een lookup veld te maken.",
@@ -919,7 +922,9 @@
         "durationFormatLabel": "Duur format"
     },
     "fieldPasswordSubForm": {
-        "description": "Het is nog niet mogelijk om direct iets te doen met het wachtwoordveld, dit wordt alleen gebruikt door de gebruikersauthenticatie in de applicatiebouwer."
+        "description": "Het is nog niet mogelijk om direct iets te doen met het wachtwoordveld, dit wordt alleen gebruikt door de gebruikersauthenticatie in de applicatiebouwer.",
+        "allowEndpointAuthentication": "API endpoint authenticatie toestaan",
+        "allowEndpointAuthenticationHelp": "Dit stelt een eindpunt beschikbaar waar de rij-ID en het wachtwoord kunnen worden gecontroleerd op juistheid. Hierdoor kan Baserow worden gebruikt als backend voor authenticatie."
     },
     "rowEditFieldPassword": {
         "setPassword": "Stel een wachtwoord in"
@@ -1077,7 +1082,9 @@
         "fields": "Selecteer de velden die je wilt synchroniseren",
         "create": "Tabel maken en synchroniseren",
         "error": "Er is iets misgegaan tijdens de synchronisatie",
-        "next": "Volgende"
+        "next": "Volgende",
+        "autoAddLabel": "Automatisch nieuwe eigenschappen toevoegen",
+        "autoAddHelper": "Voegt automatisch nieuw beschikbare eigenschappen toe aan de tabel en synchroniseert deze. Merk op dat om dit te laten werken, alle eigenschappen gesynchroniseerd moeten zijn."
     },
     "syncTableModal": {
         "title": "Sync {name}",
@@ -1162,5 +1169,12 @@
     "fieldMultipleSelectSubForm": {
         "optionsLabel": "Opties",
         "defaultOptionsLabel": "Standaardopties"
+    },
+    "apiDocsPasswordFieldAuthentication": {
+        "title": "{name} authenticatie",
+        "description": "Controleert of het opgegeven wachtwoord en de rij overeenkomen met wat is opgeslagen in de cel.",
+        "fieldId": "De veld-ID waarop het wachtwoord moet worden gecontroleerd.",
+        "rowId": "De rij-ID waarvoor het wachtwoord moet worden gecontroleerd.",
+        "password": "Het wachtwoord waarvan gecontroleerd moet worden of het correct is."
     }
 }

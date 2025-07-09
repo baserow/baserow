@@ -307,7 +307,11 @@
         "fieldLevelPermissionsContent": "Contrôlez qui peut modifier des champs spécifiques d'une table. Définissez des autorisations pour les Éditeurs, les Architectes, les Administrateurs, ou désactivez complètement les modifications des valeurs de ces champs.",
         "advancedWebhooksContent": "Déclencher des webhooks lorsqu'une ligne entre dans une vue spécifique - idéal pour l'automatisation des scénarios basés sur des conditions complexes.",
         "builderBranding": "Branding de l'application",
-        "builderBrandingContent": "Votre application en marque blanche avec la suppression du tampon « Made with Baserow » dans le pied de page de votre application."
+        "builderBrandingContent": "Votre application en marque blanche avec la suppression du tampon « Made with Baserow » dans le pied de page de votre application.",
+        "builderFileInputElement": "Champs fichier",
+        "builderFileInputElementContent": "L'élément d'entrée de fichier vous permet d'ajouter un champ à vos pages d'application pour le téléchargement de fichiers. Donnez à vos utilisateurs la possibilité de stocker des documents ou des images importants.",
+        "builderCustomCode": "Code personnalisé pour les applications",
+        "builderCustomCodeContent": "Vous pouvez ajouter du code CSS/JavaScript personnalisé pour personnaliser davantage l'aspect et le comportement de votre application. Par exemple, vous pouvez intégrer des services externes tels que l'analyse d'audience ou les réseaux sociaux."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Assistance"
@@ -403,7 +407,11 @@
         "projectKeyHelper": "La clé de projet du projet Jira (par exemple, PROJ). On peut la trouver en cliquant sur \"Paramètres du projet\" dans Jira. Si elle n'est pas fournie, tous les tickets seront renvoyés.",
         "jiraUsername": "Nom d'utilisateur Jira",
         "usernameHelper": "Le nom d'utilisateur du compte Jira utilisé pour l'authentification. Il s'agit de l'email que vous utilisez pour vous connecter.",
-        "apiToken": "Jeton d'API Jira"
+        "apiToken": "Jeton d'API Jira",
+        "authenticationLabel": "Authentification",
+        "authenticationHelper": "Choisissez comment vous authentifier auprès de Jira.",
+        "personalAccessToken": "Jeton d'accès personnel Jira",
+        "personalAccessTokenHelper": "Le jeton API du compte Jira utilisé pour l'authentification. Il peut être créé à l'adresse https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
     },
     "githubIssuesDataSync": {
         "ownerHelper": "Nom d'utilisateur ou propriétaire du dépôt. Typiquement dans le coin supérieur gauche `Propriétaire / dépôt`",
@@ -556,5 +564,39 @@
     },
     "advanced": {
         "license": "Avancé"
+    },
+    "builderSettingTypes": {
+        "customCode": "CSS/JS personnalisés"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "CSS personnalisé",
+        "customJS": "JavaScript personnalisé",
+        "customCSSPlaceholder": "Entrez un code CSS personnalisé...",
+        "customJSPlaceholder": "Entrez un code JS personnalisé...",
+        "externalScripts": "Scripts externes / feuilles de style",
+        "noScript": "Améliorer votre application avec des scripts ou des feuilles de style externes",
+        "customCodeTitle": "Code personnalisé",
+        "customCodeHelp": "Le code personnalisé n'est visible que dans les applications prévisualisées ou publiées. Les résultats ne sont pas visibles dans l'éditeur.",
+        "addExternalScript": "Ajouter un script externe"
+    },
+    "customCodeSettingScriptForm": {
+        "type": "Type",
+        "loadType": "Type de chargement",
+        "url": "URL",
+        "urlPlaceholder": "Entrez l'URL du script...",
+        "crossorigin": "Cross origin",
+        "includeCredentials": "Inclure les informations d'identification",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "Normal",
+        "loadTypeDefer": "Différer",
+        "loadTypeAsync": "Async",
+        "crossoriginTypeNone": "Normal",
+        "crossoriginTypeAnonymous": "Anonyme",
+        "crossoriginTypeCredentials": "Utiliser les données d'identification"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "La source d'utilisateurs sélectionnée n'a pas d'option de connexion",
+        "errorUserSourceMissing": "Aucune source utilisateur sélectionnée"
     }
 }

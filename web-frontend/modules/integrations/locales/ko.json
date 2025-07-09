@@ -16,7 +16,20 @@
         "localBaserowListRows": "다중 행 목록",
         "localBaserowAggregateRows": "필드 요약",
         "misconfigured": "잘못 구성됨",
-        "trashedField": "휴지통으로 이동된 필드"
+        "trashedField": "휴지통으로 이동된 필드",
+        "localBaserowRowsCreated": "행이 생성됨",
+        "localBaserowRowsCreatedDescription": "Baserow 테이블에 행이 생성될 때 트리거됩니다.",
+        "localBaserowCreateRow": "행 생성",
+        "localBaserowDeleteRow": "행 삭제",
+        "coreHTTPRequest": "HTTP 요청 보내기",
+        "localBaserowUpdateRow": "행 업데이트",
+        "localBaserowCreateRowDescription": "Baserow 테이블에 새 행을 만듭니다.",
+        "localBaserowDeleteRowDescription": "Baserow 테이블에서 행을 삭제합니다.",
+        "localBaserowRowsUpdated": "행 업데이트됨",
+        "localBaserowRowsDeleted": "행 삭제됨",
+        "localBaserowRowsDeletedDescription": "Baserow 테이블에서 행이 삭제되면 발생합니다.",
+        "localBaserowUpdateRowDescription": "Baserow 테이블의 기존 행을 업데이트합니다.",
+        "localBaserowRowsUpdatedDescription": "Baserow 테이블의 행이 업데이트될 때 트리거됩니다."
     },
     "userSourceType": {
         "localBaserow": "Baserow 테이블 인증"
@@ -42,7 +55,11 @@
         "searchTabTitle": "검색",
         "searchFieldPlaceHolder": "검색어 입력...",
         "noTableChosenForFiltering": "데이터 소스 필터를 사용하려면 테이블을 선택하세요.",
-        "noTableChosenForSorting": "데이터 소스 정렬을 사용하려면 테이블을 선택하세요."
+        "noTableChosenForSorting": "데이터 소스 정렬을 사용하려면 테이블을 선택하세요.",
+        "advancedConfig": "고급급",
+        "defaultResultCount": "기본 결과 수",
+        "defaultResultCountHelp": "이 데이터 소스가 페이지에서 가져오는 기본 항목 수입니다. 값을 0으로 설정하고 컬렉션 요소에 사용하면 해당 요소가 페이지 분할될 때만 레코드를 가져오므로 페이지 로드 성능이 향상됩니다.",
+        "defaultResultCountPlaceholder": "기본값..."
     },
     "localBaserowAggregateRowsForm": {
         "filterTabTitle": "필터",
@@ -83,5 +100,28 @@
         "chooseNoView": "선택되지 않음",
         "databaseFieldLabel": "데이터베이스",
         "dataSyncedTableDescription": "데이터 동기화 테이블"
+    },
+    "coreHTTPRequestServiceForm": {
+        "value": "값",
+        "httpMethod": "HTTP 메서드",
+        "url": "엔드포인트 URL",
+        "queryParams": "쿼리 매개변수",
+        "name": "이름",
+        "namePlaceholder": "이름...",
+        "valuePlaceholder": "값...",
+        "headers": "헤더",
+        "addQueryParam": "쿼리 매개변수 추가",
+        "addHeader": "헤더 추가",
+        "formData": "양식 데이터",
+        "addFormData": "양식 데이터 추가",
+        "bodyType": "본문 종류",
+        "bodyContent": "본문 콘텐츠",
+        "urlPlaceholder": "엔드포인트 URL을 입력하세요...",
+        "bodyPlaceholder": "요청 본문을 추가합니다...",
+        "timeoutPlaceholder": "시간초과 값을 입력하세요...",
+        "nameFieldRequired": "이름 속성은 필수입니다.",
+        "seconds": "초",
+        "timeout": "시간초과",
+        "nameFieldInvalid": "이름은 영숫자, 대시 또는 밑줄만 포함할 수 있으며 대시나 밑줄로 시작할 수 없습니다."
     }
 }

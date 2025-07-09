@@ -383,5 +383,8 @@
     },
     "kanbanView": {
         "addStack": "Stapel toevoegen"
+    },
+    "chart": {
+        "other": "Andere"
     }
 }

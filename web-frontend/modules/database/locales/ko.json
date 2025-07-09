@@ -235,7 +235,8 @@
         "placeholder": "기본 텍스트"
     },
     "fieldSingleSelectSubForm": {
-        "optionsLabel": "옵션"
+        "optionsLabel": "옵션",
+        "defaultOptionLabel": "기본 옵션"
     },
     "fieldSingleSelectDropdown": {
         "notFound": "옵션을 찾을 수 없습니다"
@@ -303,7 +304,10 @@
         "fieldAlreadyExists": "이 이름의 필드가 이미 있습니다.",
         "nameNotAllowed": "이 필드 이름은 허용되지 않습니다.",
         "nameTooLong": "이 필드 이름이 너무 깁니다.",
-        "addDescription": "설명 추가"
+        "addDescription": "설명 추가",
+        "dbIndex": "색인",
+        "dbIndexError": "이 필드 유형에는 인덱스가 있을 수 없습니다. 필드 유형을 저장하거나 변경하기 전에 인덱스를 제거하세요.",
+        "dbIndexDescription": "인덱싱을 사용하면 필터링 성능이 크게 향상되지만 생성, 업데이트 및 삭제 작업 속도가 느려집니다."
     },
     "fieldSelectThroughFieldSubForm": {
         "noTable": "이 필드를 생성하려면 최소 하나의 테이블 링크 필드가 필요합니다.",
@@ -912,7 +916,15 @@
     "rowHistorySidebar": {
         "name": "히스토리",
         "empty": "아직 변경 사항이 없습니다. 이 행에 대한 모든 변경 사항을 여기에서 추적할 수 있습니다.",
-        "you": "당신"
+        "you": "당신",
+        "created": "이 행을 생성했습니다",
+        "updated": "이 행을 업데이트했습니다",
+        "submitted": "이 행을 제출했습니다",
+        "deleted": "이 행을 삭제했습니다",
+        "createdUndo": "행 생성 취소",
+        "updatedUndo": "행 업데이트 취소",
+        "deletedUndo": "행 삭제 취소",
+        "restored": "이 행을 복원했습니다"
     },
     "fieldPasswordSubForm": {
         "description": "비밀번호 필드로 직접적으로 할 수 있는 것은 아직 없습니다. 이는 애플리케이션 빌더의 사용자 인증에서만 사용됩니다."
@@ -1008,7 +1020,7 @@
     },
     "databaseStep": {
         "title": "첫 번째 데이터베이스 생성",
-        "description": "시작할 항목을 선택하세요:",
+        "description": "시작할 위치를 선택하세요:",
         "databaseNameLabel": "데이터베이스 이름",
         "scratch": "처음부터",
         "import": "파일",
@@ -1043,7 +1055,9 @@
         "next": "다음",
         "fields": "동기화하려는 필드 선택",
         "create": "테이블 생성 및 동기화",
-        "error": "동기화 중 문제가 발생했습니다"
+        "error": "동기화 중 문제가 발생했습니다",
+        "autoAddLabel": "새로운 속성을 자동으로 추가합니다",
+        "autoAddHelper": "새로 사용 가능한 속성을 테이블에 자동으로 추가하고 동기화합니다. 이 기능을 사용하려면 모든 속성이 동기화되어야 합니다."
     },
     "syncTableModal": {
         "title": "{name} 동기화",
@@ -1106,5 +1120,13 @@
     },
     "fieldBooleanSubForm": {
         "defaultValue": "기본값"
+    },
+    "fieldMultipleSelectSubForm": {
+        "optionsLabel": "옵션",
+        "defaultOptionsLabel": "기본 옵션"
+    },
+    "apiDocsListTables": {
+        "listTablesDescription": "이 엔드포인트는 토큰 인증과 함께만 작동합니다. 토큰이 생성, 읽기, 업데이트 또는 삭제 권한을 가진 모든 테이블을 나열합니다.",
+        "listTables": "모든 테이블 목록"
     }
 }
