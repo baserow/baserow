@@ -1,5 +1,54 @@
 # Changelog
 
+## Released 1.34.0
+
+### New features
+* [Database] Limit the number of linked items returned by default in views. [#161](https://gitlab.com/baserow/baserow/-/issues/161)
+* [Database] Add ability to select multiple rows via checkbox or keyboard shortcut for bulk actions [#1923](https://gitlab.com/baserow/baserow/-/issues/1923)
+* [Builder] Allow to add custom CSS/JS and external scripts to a published application [#2344](https://gitlab.com/baserow/baserow/-/issues/2344)
+* [Database] Optionally auto sync newly added properties to the data sync. [#3423](https://gitlab.com/baserow/baserow/-/issues/3423)
+* [Dashboard] Group aggregated values into 'Other' bucket when the number of buckets is not sufficient [#3549](https://gitlab.com/baserow/baserow/-/issues/3549)
+* [Builder] Error messages are displayed in the editor when an element, an action or a data source is misconfigured [#3550](https://gitlab.com/baserow/baserow/-/issues/3550)
+* [Builder] Improve error message for data source and action errors [#3550](https://gitlab.com/baserow/baserow/-/issues/3550)
+* [Builder] Allow sending emails with SMTP [#3551](https://gitlab.com/baserow/baserow/-/issues/3551)
+* [Builder] User can define the default count of records returned by the Local Baserow List Rows data source. [#3673](https://gitlab.com/baserow/baserow/-/issues/3673)
+* [Builder] Allow to reference previous data source content from a following data source [#3711](https://gitlab.com/baserow/baserow/-/issues/3711)
+* [Database] Add support for 'unique with empty' constraint [#647](https://gitlab.com/baserow/baserow/-/issues/647)
+* [Core] Allow configuring PostgreSQL read-only replicas.
+* [Builder] Add application builder guided tour.
+* [Database] Password field API endpoint authentication. [#2321](https://gitlab.com/baserow/baserow/-/issues/2321)
+* [Core] Remember instance ID when navigating to pricing page.
+
+### Bug fixes
+* [Builder] Fix broken user source authentication for duplicated applications [#3391](https://gitlab.com/baserow/baserow/-/issues/3391)
+* [Database] Fix for Collaborator dropdown avatars overlap with created by/modified fields in row editor [#3607](https://gitlab.com/baserow/baserow/-/issues/3607)
+* [Database] Fix self reference table look bug. [#3620](https://gitlab.com/baserow/baserow/-/issues/3620)
+* [Database] Allow scrolling in field description tooltip. [#3648](https://gitlab.com/baserow/baserow/-/issues/3648)
+* [Database] Fix for copy to clipboard fails if document does not have focus on Chrome [#3660](https://gitlab.com/baserow/baserow/-/issues/3660)
+* [Database] Fix bug where clearing the cell with `DEL` breaks the file field component [#3671](https://gitlab.com/baserow/baserow/-/issues/3671)
+* [Database] Fix a bug while showing form views in templates [#3674](https://gitlab.com/baserow/baserow/-/issues/3674)
+* [Database] Prevent form submit when file is renamed [#3681](https://gitlab.com/baserow/baserow/-/issues/3681)
+* [Database] Prevent removing brackets in formula when a field is renamed. [#3693](https://gitlab.com/baserow/baserow/-/issues/3693)
+* [Database] Fixed issue with special characters being incorrectly rendered in distribution aggregation. [#3695](https://gitlab.com/baserow/baserow/-/issues/3695)
+* [Builder] Fix missing licences in published websites [#3725](https://gitlab.com/baserow/baserow/-/issues/3725)
+* [Database] Handle DoesNotExist exception in websocket background tasks [#3729](https://gitlab.com/baserow/baserow/-/issues/3729)
+* [Database] Additional fixes to number formatting when comma is used as decimal separator.
+* [Builder] Context data formula for list row data source were broken on published version
+* [Database] Fix Airtable import filter bugs.
+* [Builder] Fix crash when a previous action isn't configured
+* [Builder] Fix crashing builder when a choice element value formula is referencing a missing data
+* [Database] Fix bug where the MCP server didn't accept the single and multiple select ids correctly.
+* [Core] Fix BASEROW_OSS_ONLY environment variable.
+* [Database] Fix Rich Text Editor floating menus
+* [Database] Fix rich text field cell selected border styling bug.
+
+### Refactors
+* [Database] Improved search data management - use workspace-wide search table to store tsvectors instead of per-column storage [#3548](https://gitlab.com/baserow/baserow/-/issues/3548)
+* [Database] Reduce number of MCP tools by using single tool for rows list and delete.
+* [Database] Add the ability to return row_ids from UPDATE statements.
+* [Core] Use fakredis as default cache backend for tests
+
+
 ## Released 1.33.4
 
 ### New features
