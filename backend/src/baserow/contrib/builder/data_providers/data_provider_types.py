@@ -162,9 +162,13 @@ class DataSourceDataProviderType(BuilderDataProviderType):
 
         data_source_id, *rest = path
 
-        data_source = DataSourceHandler().get_data_source_with_cache(
-            dispatch_context.page, int(data_source_id)
-        )
+        try:
+            data_source = DataSourceHandler().get_data_source_with_cache(
+                dispatch_context.page, int(data_source_id)
+            )
+        except DataSourceDoesNotExist as exc:
+            # The data source has probably been deleted
+            raise InvalidRuntimeFormula() from exc
 
         # Declare the call and check for recursion
         dispatch_context.add_call(data_source.id)
@@ -251,9 +255,14 @@ class DataSourceContextDataProviderType(BuilderDataProviderType):
         """Load a data chunk from a datasource of the page in context."""
 
         data_source_id, *rest = path
-        data_source = DataSourceHandler().get_data_source_with_cache(
-            dispatch_context.page, int(data_source_id)
-        )
+
+        try:
+            data_source = DataSourceHandler().get_data_source_with_cache(
+                dispatch_context.page, int(data_source_id)
+            )
+        except DataSourceDoesNotExist as exc:
+            # The data source has probably been deleted
+            raise InvalidRuntimeFormula() from exc
 
         service_type = data_source.service.get_type()
         context_data = service_type.get_context_data(data_source.service)

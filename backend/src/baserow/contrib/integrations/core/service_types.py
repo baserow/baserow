@@ -14,9 +14,9 @@ from baserow.contrib.integrations.core.models import (
 )
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.exceptions import (
+    BaserowFormulaException,
     InvalidFormulaContext,
     InvalidFormulaContextContent,
-    RuntimeFormulaException,
 )
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.validator import ensure_string
@@ -459,7 +459,7 @@ class CoreHTTPRequestServiceType(ServiceType):
             except InvalidFormulaContextContent as e:
                 message = f'Value error for form data "{fdata.key}": {str(e)}'
                 raise InvalidContextContentDispatchException(message) from e
-            except RuntimeFormulaException as e:
+            except BaserowFormulaException as e:
                 message = f'Error in formula for form data "{fdata.key}": {str(e)}'
                 raise ServiceImproperlyConfiguredDispatchException(message) from e
             except ServiceImproperlyConfiguredDispatchException:
@@ -487,7 +487,7 @@ class CoreHTTPRequestServiceType(ServiceType):
             except InvalidFormulaContextContent as e:
                 message = f'Value error for header "{header.key}": {str(e)}'
                 raise InvalidContextContentDispatchException(message) from e
-            except RuntimeFormulaException as e:
+            except BaserowFormulaException as e:
                 message = f'Error in formula for header "{header.key}": {str(e)}'
                 raise ServiceImproperlyConfiguredDispatchException(message) from e
             except ServiceImproperlyConfiguredDispatchException:
@@ -515,7 +515,7 @@ class CoreHTTPRequestServiceType(ServiceType):
             except InvalidFormulaContextContent as e:
                 message = f'Value error for query param "{param.key}": {str(e)}'
                 raise InvalidContextContentDispatchException(message) from e
-            except RuntimeFormulaException as e:
+            except BaserowFormulaException as e:
                 message = f'Error in formula for query param "{param.key}": {str(e)}'
                 raise ServiceImproperlyConfiguredDispatchException(message) from e
             except ServiceImproperlyConfiguredDispatchException:

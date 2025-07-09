@@ -34,7 +34,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowViewService,
 )
 from baserow.core.formula import BaserowFormula, resolve_formula
-from baserow.core.formula.exceptions import RuntimeFormulaException
+from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.validator import ensure_integer, ensure_string
@@ -840,16 +840,14 @@ class LocalBaserowTableServiceSpecificRowMixin:
             raise ServiceImproperlyConfiguredDispatchException(
                 "The `row_id` value must be an integer or convertible to an integer."
             ) from exc
-        except RuntimeFormulaException as e:
+        except BaserowFormulaException as e:
             message = f"Row id formula could not be resolved: {str(e)}"
             raise ServiceImproperlyConfiguredDispatchException(message) from e
         except ServiceImproperlyConfiguredDispatchException:
             raise
         except Exception as e:
-            logger.exception(f"Unexpected error for row_id formula")
-            message = (
-                f"Unknown error in formula for row_id formula: {repr(e)} - {str(e)}"
-            )
+            logger.exception("Unexpected error for row_id formula")
+            message = f"Unknown error in formula for row_id formula: {str(e)}"
             raise UnexpectedDispatchException(message) from e
 
         return resolved_values

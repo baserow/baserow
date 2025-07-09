@@ -110,8 +110,8 @@ from baserow.core.formula import resolve_formula
 from baserow.core.formula.exceptions import (
     InvalidFormulaContext,
     InvalidFormulaContextContent,
-    RuntimeFormulaException,
 )
+from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.registry import Instance
@@ -1968,7 +1968,7 @@ class LocalBaserowUpsertRowServiceType(
                     f'Value error for field "{field_mapping.field.name}": {str(e)}'
                 )
                 raise InvalidContextContentDispatchException(message) from e
-            except RuntimeFormulaException as e:
+            except BaserowFormulaException as e:
                 message = (
                     "Error in formula for "
                     f'field "{field_mapping.field.name}": {str(e)}'

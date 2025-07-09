@@ -1666,7 +1666,7 @@ def test_dispatch_data_sources(api_client, data_fixture):
         },
         str(data_source3.id): {
             "_error": "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
-            "detail": "The `row_id` formula can't be resolved: Invalid syntax at "
+            "detail": "Row id formula could not be resolved: Invalid syntax at "
             "line 1, col 3: mismatched input 'the end of the formula' expecting '('",
         },
     }
