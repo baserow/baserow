@@ -21,7 +21,7 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.postgres.search import SearchQuery
-from django.db import ProgrammingError, connection, router, transaction
+from django.db import IntegrityError, ProgrammingError, connection, router, transaction
 from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db.models import (
     DateTimeField,
@@ -318,13 +318,23 @@ class SearchHandler(
                 with connection.schema_editor() as se:
                     se.create_model(search_table_model)
         except ProgrammingError as exc:
-            if isinstance(exc.__cause__, errors.DuplicateTable):
+            if isinstance(
+                exc.__cause__, (errors.DuplicateTable, errors.DuplicateObject)
+            ):
                 # If the table already exists, we can safely ignore the error.
                 logger.debug(
                     f"Search table for workspace {workspace_id} already exists."
                 )
             else:
                 raise exc
+        except IntegrityError as exc:
+            if isinstance(exc.__cause__, errors.UniqueViolation):
+                logger.debug(
+                    f"Race condition: sequence or object for workspace "
+                    f"{workspace_id} already exists (UniqueViolation)."
+                )
+            else:
+                raise
         _workspace_search_table_exists.cache_clear()
 
     @classmethod
