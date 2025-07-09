@@ -1,4 +1,4 @@
-FROM baserow/web-frontend:1.33.4
+FROM baserow/web-frontend:1.34.0
 
 USER root
 
