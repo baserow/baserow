@@ -15,7 +15,8 @@
         "enabled": "Activé·e",
         "summarize": "Résumer",
         "or": "ou",
-        "and": "et"
+        "and": "et",
+        "optional": "Optionel"
     },
     "action": {
         "upload": "Envoyer",
