@@ -513,12 +513,17 @@ class DataSourceHandler:
             )
 
         cache = dispatch_context.cache
+        call_stack = dispatch_context.call_stack
 
         current_data_source_dispatched = dispatch_context.data_source or data_source
 
         dispatch_context = BuilderDispatchContext.from_context(
-            dispatch_context, data_source=current_data_source_dispatched
+            dispatch_context,
+            data_source=current_data_source_dispatched,
         )
+
+        # keep the call stack
+        dispatch_context.call_stack = call_stack
 
         if current_data_source_dispatched != data_source:
             data_sources = self.get_data_sources_with_cache(dispatch_context.page)
@@ -526,7 +531,7 @@ class DataSourceHandler:
             if ordered_ids.index(current_data_source_dispatched.id) < ordered_ids.index(
                 data_source.id
             ):
-                raise DataSourceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     "You can't reference a data source after the current data source"
                 )
 

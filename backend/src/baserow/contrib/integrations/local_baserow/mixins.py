@@ -835,7 +835,6 @@ class LocalBaserowTableServiceSpecificRowMixin:
                     dispatch_context,
                 )
             )
-
         except ValidationError as exc:
             raise ServiceImproperlyConfiguredDispatchException(
                 "The `row_id` value must be an integer or convertible to an integer."
@@ -847,7 +846,7 @@ class LocalBaserowTableServiceSpecificRowMixin:
             raise
         except Exception as e:
             logger.exception("Unexpected error for row_id formula")
-            message = f"Unknown error in formula for row_id formula: {str(e)}"
+            message = f"Unknown error in row_id formula: {str(e)}"
             raise UnexpectedDispatchException(message) from e
 
         return resolved_values

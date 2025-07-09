@@ -712,7 +712,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_datasource_
 
     assert (
         exc.value.args[0]
-        == "Row id formula could not be resolved: Formula recursion detected"
+        == "You can't reference a data source after the current data source"
     )
 
 
