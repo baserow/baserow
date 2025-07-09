@@ -16,6 +16,7 @@ class AutomationConfig(AppConfig):
             DeleteAutomationNodeActionType,
             DuplicateAutomationNodeActionType,
             OrderAutomationNodesActionType,
+            ReplaceAutomationNodeActionType,
             UpdateAutomationNodeActionType,
         )
         from baserow.contrib.automation.nodes.node_types import (
@@ -130,6 +131,7 @@ class AutomationConfig(AppConfig):
             action_type_registry.register(DeleteAutomationNodeActionType())
             action_type_registry.register(OrderAutomationNodesActionType())
             action_type_registry.register(DuplicateAutomationNodeActionType())
+            action_type_registry.register(ReplaceAutomationNodeActionType())
 
             action_scope_registry.register(WorkflowActionScopeType())
 

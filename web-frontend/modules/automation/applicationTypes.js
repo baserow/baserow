@@ -75,8 +75,8 @@ export class AutomationApplicationType extends ApplicationType {
     if (!values.integrations) {
       values.integrations = []
     }
-    if (!values.selectedNode) {
-      values.selectedNode = null
+    if (!values.selectedNodeId) {
+      values.selectedNodeId = null
     }
     return values
   }

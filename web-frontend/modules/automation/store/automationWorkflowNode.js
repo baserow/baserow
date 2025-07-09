@@ -4,6 +4,13 @@ import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSideP
 
 const state = {}
 
+const updateContext = {
+  updateTimeout: null,
+  promiseResolve: null,
+  lastUpdatedValues: null,
+  valuesToUpdate: {},
+}
+
 const updateCachedValues = (workflow) => {
   if (!workflow || !workflow.nodes) return
 
@@ -19,17 +26,33 @@ export function populateNode(node) {
 const mutations = {
   SET_ITEMS(state, { workflow, nodes }) {
     workflow.nodes = nodes.map((node) => populateNode(node))
-    workflow.selectedNode = null
+    workflow.selectedNodeId = null
     updateCachedValues(workflow)
   },
   ADD_ITEM(state, { workflow, node }) {
     workflow.nodes.push(populateNode(node))
     updateCachedValues(workflow)
   },
-  UPDATE_ITEM(state, { workflow, node, values }) {
-    const index = workflow.nodes.findIndex((item) => item.id === node.id)
-    Object.assign(workflow.nodes[index], values)
-    updateCachedValues(workflow)
+  UPDATE_ITEM(
+    state,
+    { workflow, node: nodeToUpdate, values, override = false }
+  ) {
+    const index = workflow.nodes.findIndex(
+      (node) => node.id === nodeToUpdate.id
+    )
+    if (index === -1) {
+      // The node might have been deleted during the debounced update
+      return
+    }
+
+    const newValue = override
+      ? populateNode(values)
+      : {
+          ...workflow.nodes[index],
+          ...values,
+        }
+
+    Object.assign(workflow.nodes[index], newValue)
   },
   DELETE_ITEM(state, { workflow, nodeId }) {
     const nodeIdStr = nodeId.toString()
@@ -53,7 +76,7 @@ const mutations = {
     updateCachedValues(workflow)
   },
   SELECT_ITEM(state, { workflow, node }) {
-    workflow.selectedNode = node
+    workflow.selectedNodeId = node?.id || null
   },
   SET_LOADING(state, { node, value }) {
     node._.loading = value
@@ -140,38 +163,89 @@ const actions = {
       throw error
     }
   },
-  forceUpdate({ commit, dispatch }, { workflow, node, values }) {
-    commit('UPDATE_ITEM', { workflow, node, values })
+  forceUpdate({ commit, dispatch }, { workflow, node, values, override }) {
+    commit('UPDATE_ITEM', {
+      workflow,
+      node,
+      values,
+      override,
+    })
   },
-  async update({ commit, dispatch, getters }, { workflow, nodeId, values }) {
+  async updateDebounced(
+    { dispatch, commit, getters },
+    { workflow, node, values }
+  ) {
+    // These values should not be updated via a regular update request
+    const excludeValues = ['order']
+
     const oldValues = {}
-    const newValues = {}
-    const node = getters.findById(workflow, nodeId)
     Object.keys(values).forEach((name) => {
-      if (Object.prototype.hasOwnProperty.call(node, name)) {
+      if (
+        Object.prototype.hasOwnProperty.call(node, name) &&
+        !excludeValues.includes(name)
+      ) {
         oldValues[name] = node[name]
-        newValues[name] = values[name]
+        // Accumulate the changed values to send all the ongoing changes with the
+        // final request.
+        updateContext.valuesToUpdate[name] = structuredClone(values[name])
       }
     })
 
-    await dispatch('forceUpdate', { workflow, node, values: newValues })
+    await dispatch('forceUpdate', {
+      workflow,
+      node,
+      values: updateContext.valuesToUpdate,
+    })
 
-    commit('SET_LOADING', { node, value: true })
-    try {
-      const { data: updatedNode } = await AutomationWorkflowNodeService(
-        this.$client
-      ).update(node.id, newValues)
-      await dispatch('forceUpdate', {
-        workflow,
-        node,
-        values: updatedNode,
-      })
-    } catch (error) {
-      commit('UPDATE_ITEM', { workflow, node, values: oldValues })
-      throw error
-    } finally {
-      commit('SET_LOADING', { node, value: false })
-    }
+    return new Promise((resolve, reject) => {
+      const fire = async () => {
+        commit('SET_LOADING', { node, value: true })
+        const toUpdate = updateContext.valuesToUpdate
+        updateContext.valuesToUpdate = {}
+        try {
+          const { data } = await AutomationWorkflowNodeService(
+            this.$client
+          ).update(node.id, toUpdate)
+          updateContext.lastUpdatedValues = null
+
+          excludeValues.forEach((name) => {
+            delete data[name]
+          })
+
+          await dispatch('forceUpdate', {
+            workflow,
+            node,
+            values: data,
+          })
+
+          resolve()
+        } catch (error) {
+          await dispatch('forceUpdate', {
+            workflow,
+            node,
+            values: updateContext.lastUpdatedValues,
+          })
+          updateContext.lastUpdatedValues = null
+          reject(error)
+        }
+        updateContext.lastUpdatedValues = null
+        commit('SET_LOADING', { node, value: false })
+      }
+
+      if (updateContext.promiseResolve) {
+        updateContext.promiseResolve()
+        updateContext.promiseResolve = null
+      }
+
+      clearTimeout(updateContext.updateTimeout)
+
+      if (!updateContext.lastUpdatedValues) {
+        updateContext.lastUpdatedValues = oldValues
+      }
+
+      updateContext.updateTimeout = setTimeout(fire, 500)
+      updateContext.promiseResolve = resolve
+    })
   },
   async delete({ commit, dispatch, getters }, { workflow, nodeId }) {
     const node = getters.findById(workflow, nodeId)
@@ -186,6 +260,18 @@ const actions = {
       commit('ADD_ITEM', { workflow, node: originalNode })
       throw error
     }
+  },
+  async replace({ commit, dispatch, getters }, { workflow, nodeId, newType }) {
+    const { data: newNode } = await AutomationWorkflowNodeService(
+      this.$client
+    ).replace(nodeId, {
+      new_type: newType,
+    })
+    commit('DELETE_ITEM', { workflow, nodeId })
+    commit('ADD_ITEM', { workflow, node: newNode })
+    setTimeout(() => {
+      dispatch('select', { workflow, node: newNode })
+    })
   },
   async order({ commit }, { workflow, order, oldOrder }) {
     commit('ORDER_ITEMS', { workflow, order })
@@ -213,20 +299,19 @@ const getters = {
   getNodes: (state) => (workflow) => {
     if (!workflow) return []
     if (!workflow.nodes) workflow.nodes = []
-    return workflow.nodes
+    return workflow.nodes.sort((a, b) => a.order - b.order)
   },
   findById: (state) => (workflow, nodeId) => {
     if (!workflow || !workflow.nodes) return null
-
     const nodeIdStr = nodeId.toString()
-    if (workflow.nodeMap && workflow.nodeMap[nodeIdStr])
+    if (workflow.nodeMap && workflow.nodeMap[nodeIdStr]) {
       return workflow.nodeMap[nodeIdStr]
-
+    }
     return null
   },
   getSelected: (state) => (workflow) => {
     if (!workflow) return null
-    return workflow.selectedNode
+    return workflow.nodeMap?.[workflow.selectedNodeId] || null
   },
   getLoading: (state) => (node) => {
     return node._.loading

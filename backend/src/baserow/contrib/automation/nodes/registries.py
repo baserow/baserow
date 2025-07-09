@@ -68,6 +68,19 @@ class AutomationNodeType(
             service_type_registry.get(self.service_type) if self.service_type else None
         )
 
+    def is_replaceable_with(self, other_node_type: "AutomationNodeType") -> bool:
+        """
+        Determines if this node type can be replaced with another node type.
+
+        :param other_node_type: The other node type to check against.
+        :return: True if this node type can be replaced with the other, False otherwise.
+        """
+
+        return (
+            self.is_workflow_trigger == other_node_type.is_workflow_trigger
+            and self.is_workflow_action == other_node_type.is_workflow_action
+        )
+
     def export_prepared_values(self, node: AutomationNode) -> Dict[Any, Any]:
         """
         Return a serializable dict of prepared values for the node attributes.

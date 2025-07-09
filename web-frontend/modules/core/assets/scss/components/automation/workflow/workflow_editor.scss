@@ -23,12 +23,18 @@
   font-weight: 500;
 }
 
+.workflow-editor__node-more--wrapper {
+  display: flex;
+  margin-left: auto;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .workflow-editor__node-more-icon {
   color: $palette-neutral-800;
   font-size: 20px;
-  margin-left: auto;
-  width: 32px;
-  height: 32px;
+  width: 25px;
+  height: 25px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -55,3 +55,11 @@ class AutomationTriggerModificationDisallowed(AutomationNodeError):
     be one trigger node per workflow, and it is created automatically when the workflow
     is created. Users can only change the trigger node type, not create a new one.
     """
+
+
+class AutomationNodeTypeNotReplaceable(AutomationNodeError):
+    """
+    Raised when an API consumer tries to update an automation node with a
+    new type, but the source type and update type are irreplaceable. This
+    happens, for example, if you try and replace a trigger node with an action.
+    """

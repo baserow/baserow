@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
+    AutomationNodeTypeNotReplaceable,
     AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
@@ -22,81 +23,23 @@ from baserow.contrib.automation.nodes.operations import (
     ReadAutomationNodeOperationType,
     UpdateAutomationNodeOperationType,
 )
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_deleted,
     automation_node_updated,
     automation_nodes_reordered,
 )
-from baserow.contrib.automation.nodes.types import UpdatedAutomationNode
+from baserow.contrib.automation.nodes.types import (
+    ReplacedAutomationNode,
+    UpdatedAutomationNode,
+)
 from baserow.core.handler import CoreHandler
 
 
 class AutomationNodeService:
     def __init__(self):
         self.handler = AutomationNodeHandler()
-
-    def create_node(
-        self,
-        user: AbstractUser,
-        node_type: AutomationNodeType,
-        workflow: AutomationWorkflow,
-        before: Optional[AutomationNode] = None,
-        **kwargs,
-    ) -> AutomationNode:
-        """
-        Creates a new automation node for a workflow given the user permissions.
-
-        :param user: The user trying to create the automation node.
-        :param node_type: The type of the automation node.
-        :param workflow: The workflow the automation node is associated with.
-        :param before: If set, the new node is inserted before this node.
-        :param kwargs: Additional attributes of the automation node.
-        :raises AutomationTriggerModificationDisallowed: If the node_type is a trigger.
-        :return: The created automation node.
-        """
-
-        # Triggers are not directly created by users. When a workflow is created,
-        # the trigger node is created automatically, so users are only able to change
-        # the trigger node type, not create a new one.
-        if node_type.is_workflow_trigger:
-            raise AutomationTriggerModificationDisallowed()
-
-        CoreHandler().check_permissions(
-            user,
-            CreateAutomationNodeOperationType.type,
-            workspace=workflow.automation.workspace,
-            context=workflow,
-        )
-
-        # If we've been given a `before` node, validate it.
-        if before:
-            if workflow.id != before.workflow_id:
-                raise AutomationNodeBeforeInvalid(
-                    "The `before` node must belong to the same workflow "
-                    "as the one supplied."
-                )
-            # TODO: replace with a `before.get_type().is_trigger` check.
-            if isinstance(before.get_type(), AutomationNodeTriggerType):
-                # You can't create a node before a trigger node. Even if `node_type` is
-                # a trigger, API consumers must delete `before` and then try again.
-                raise AutomationNodeBeforeInvalid(
-                    "You cannot create an automation node before a trigger."
-                )
-
-        prepared_values = node_type.prepare_values(kwargs, user)
-
-        new_node = self.handler.create_node(
-            node_type, workflow=workflow, before=before, **prepared_values
-        )
-
-        automation_node_created.send(
-            self,
-            node=new_node,
-            user=user,
-        )
-
-        return new_node
 
     def get_node(self, user: AbstractUser, node_id: int) -> AutomationNode:
         """
@@ -151,6 +94,71 @@ class AutomationNodeService:
         return self.handler.get_nodes(
             workflow, specific=specific, base_queryset=user_nodes
         )
+
+    def create_node(
+        self,
+        user: AbstractUser,
+        node_type: AutomationNodeType,
+        workflow: AutomationWorkflow,
+        before: Optional[AutomationNode] = None,
+        order: Optional[str] = None,
+        **kwargs,
+    ) -> AutomationNode:
+        """
+        Creates a new automation node for a workflow given the user permissions.
+
+        :param user: The user trying to create the automation node.
+        :param node_type: The type of the automation node.
+        :param workflow: The workflow the automation node is associated with.
+        :param before: If set, the new node is inserted before this node.
+        :param order: The order of the new node. If not set, it will be determined
+            automatically based on the existing nodes in the workflow.
+        :param kwargs: Additional attributes of the automation node.
+        :raises AutomationTriggerModificationDisallowed: If the node_type is a trigger.
+        :return: The created automation node.
+        """
+
+        # Triggers are not directly created by users. When a workflow is created,
+        # the trigger node is created automatically, so users are only able to change
+        # the trigger node type, not create a new one.
+        if node_type.is_workflow_trigger:
+            raise AutomationTriggerModificationDisallowed()
+
+        CoreHandler().check_permissions(
+            user,
+            CreateAutomationNodeOperationType.type,
+            workspace=workflow.automation.workspace,
+            context=workflow,
+        )
+
+        # If we've been given a `before` node, validate it.
+        if before:
+            if workflow.id != before.workflow_id:
+                raise AutomationNodeBeforeInvalid(
+                    "The `before` node must belong to the same workflow "
+                    "as the one supplied."
+                )
+            # TODO: replace with a `before.get_type().is_trigger` check.
+            if isinstance(before.get_type(), AutomationNodeTriggerType):
+                # You can't create a node before a trigger node. Even if `node_type` is
+                # a trigger, API consumers must delete `before` and then try again.
+                raise AutomationNodeBeforeInvalid(
+                    "You cannot create an automation node before a trigger."
+                )
+
+        prepared_values = node_type.prepare_values(kwargs, user)
+
+        new_node = self.handler.create_node(
+            node_type, order=order, workflow=workflow, before=before, **prepared_values
+        )
+
+        automation_node_created.send(
+            self,
+            node=new_node,
+            user=user,
+        )
+
+        return new_node
 
     def update_node(
         self, user: AbstractUser, node_id: int, **kwargs
@@ -288,3 +296,40 @@ class AutomationNodeService:
         )
 
         return node_clone
+
+    def replace_node(
+        self, user: AbstractUser, node_id: int, new_node_type_str: str, **kwargs
+    ) -> ReplacedAutomationNode:
+        """
+        Replaces an existing automation node with a new one of a different type.
+
+        :param user: The user trying to replace the node.
+        :param node_id: The ID of the node to replace.
+        :param new_node_type_str: The type of the new node to replace with.
+        :raises AutomationNodeTypeNotReplaceable when the node type cannot be replaced
+        :return: The replaced automation node.
+        """
+
+        node = self.get_node(user, node_id)
+        node_type: AutomationNodeType = node.get_type()
+        new_node_type = automation_node_type_registry.get(new_node_type_str)
+
+        # If they tried to update a trigger with an action
+        # or vice versa, raise an error.
+        if not node_type.is_replaceable_with(new_node_type):
+            raise AutomationNodeTypeNotReplaceable()
+
+        CoreHandler().check_permissions(
+            user,
+            CreateAutomationNodeOperationType.type,
+            workspace=node.workflow.automation.workspace,
+            context=node.workflow,
+        )
+
+        return self.handler.replace_node(
+            user,
+            node,
+            new_node_type,
+            order=node.order,
+            previous_node_id=node.previous_node_id,
+        )

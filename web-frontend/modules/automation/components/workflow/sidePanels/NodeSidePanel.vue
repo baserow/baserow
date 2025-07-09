@@ -3,34 +3,16 @@
     v-if="node"
     :read-only="!$hasPermission('automation.node.update', node, workspace.id)"
   >
-    <FormGroup required :label="$t('nodeSidePanel.action')">
-      <Dropdown
-        v-model="node.type"
-        class="dropdown--floating margin-top-2"
-        :fixed-items="true"
-      >
-        <DropdownItem
-          v-for="siblingNodeType in siblingNodeTypes"
-          :key="siblingNodeType.getType()"
-          :name="siblingNodeType.name"
-          :value="siblingNodeType.getType()"
-          :description="siblingNodeType.description"
-        />
-      </Dropdown>
-    </FormGroup>
-    <hr class="separator" />
-    <FormGroup required :label="$t('nodeSidePanel.details')">
-      <component
-        :is="nodeType.formComponent"
-        :key="node.id"
-        :loading="nodeLoading"
-        :service="node.service"
-        :application="automation"
-        :default-values="node.service"
-        class="node-form margin-top-2"
-        @values-changed="handleNodeServiceChange"
-      />
-    </FormGroup>
+    <component
+      :is="nodeType.formComponent"
+      :key="node.id"
+      :loading="nodeLoading"
+      :service="node.service"
+      :application="automation"
+      :default-values="node.service"
+      class="node-form"
+      @values-changed="handleNodeServiceChange"
+    />
   </ReadOnlyForm>
 </template>
 
@@ -81,15 +63,15 @@ const applicationContext = reactive({
 provide('applicationContext', applicationContext)
 
 const nodeType = computed(() => {
-  return app.$registry.get('node', node.value.type)
+  return app.$registry.get('node', node.value?.type)
 })
 
-const handleNodeServiceChange = (newServiceChanges) => {
+const handleNodeServiceChange = async (newServiceChanges) => {
   const updatedNode = { ...node.value }
   updatedNode.service = { ...updatedNode.service, ...newServiceChanges }
-  store.dispatch('automationWorkflowNode/update', {
+  await store.dispatch('automationWorkflowNode/updateDebounced', {
     workflow: workflow.value,
-    nodeId: updatedNode.id,
+    node: node.value,
     values: updatedNode,
   })
 }
@@ -97,13 +79,4 @@ const handleNodeServiceChange = (newServiceChanges) => {
 const nodeLoading = computed(() => {
   return store.getters['automationWorkflowNode/getLoading'](node.value)
 })
-
-const nodeTypes = computed(() => app.$registry.getOrderedList('node'))
-const siblingNodeTypes = computed(() =>
-  nodeTypes.value.filter(
-    (type) =>
-      type.isWorkflowTrigger === nodeType.value.isWorkflowTrigger &&
-      type.isWorkflowAction === nodeType.value.isWorkflowAction
-  )
-)
 </script>

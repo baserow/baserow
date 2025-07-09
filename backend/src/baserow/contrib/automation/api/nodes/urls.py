@@ -5,6 +5,7 @@ from baserow.contrib.automation.api.nodes.views import (
     AutomationNodeView,
     DuplicateAutomationNodeView,
     OrderAutomationNodesView,
+    ReplaceAutomationNodeView,
 )
 
 app_name = "baserow.contrib.automation.api.nodes"
@@ -29,5 +30,10 @@ urlpatterns = [
         r"node/(?P<node_id>[0-9]+)/duplicate/$",
         DuplicateAutomationNodeView.as_view(),
         name="duplicate",
+    ),
+    re_path(
+        r"node/(?P<node_id>[0-9]+)/replace/$",
+        ReplaceAutomationNodeView.as_view(),
+        name="replace",
     ),
 ]

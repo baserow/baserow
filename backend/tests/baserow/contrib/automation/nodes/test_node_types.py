@@ -10,6 +10,18 @@ from baserow.contrib.automation.nodes.registries import automation_node_type_reg
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 
 
+def test_automation_node_type_is_replaceable_with():
+    trigger_node_type = automation_node_type_registry.get("rows_created")
+    update_trigger_node_type = automation_node_type_registry.get("rows_updated")
+    action_node_type = automation_node_type_registry.get("create_row")
+    update_action_node_type = automation_node_type_registry.get("update_row")
+
+    assert trigger_node_type.is_replaceable_with(update_trigger_node_type)
+    assert not trigger_node_type.is_replaceable_with(update_action_node_type)
+    assert action_node_type.is_replaceable_with(update_action_node_type)
+    assert not action_node_type.is_replaceable_with(update_trigger_node_type)
+
+
 @pytest.mark.django_db
 @patch(
     "baserow.contrib.automation.workflows.service.AutomationWorkflowService.run_workflow"
