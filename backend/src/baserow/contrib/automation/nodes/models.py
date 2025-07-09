@@ -220,6 +220,18 @@ class LocalBaserowDeleteRowActionNode(AutomationActionNode):
     ...
 
 
+class LocalBaserowGetRowActionNode(AutomationActionNode):
+    ...
+
+
+class LocalBaserowListRowsActionNode(AutomationActionNode):
+    ...
+
+
+class LocalBaserowAggregateRowsActionNode(AutomationActionNode):
+    ...
+
+
 class CoreHTTPRequestActionNode(AutomationActionNode):
     ...
 

@@ -20,9 +20,12 @@ import {
   LocalBaserowCreateRowActionNodeType,
   LocalBaserowUpdateRowActionNodeType,
   LocalBaserowDeleteRowActionNodeType,
+  LocalBaserowGetRowActionNodeType,
+  LocalBaserowListRowsActionNodeType,
   LocalBaserowRowsCreatedTriggerNodeType,
   LocalBaserowRowsUpdatedTriggerNodeType,
   LocalBaserowRowsDeletedTriggerNodeType,
+  LocalBaserowAggregateRowsActionNodeType,
   CoreHttpRequestNodeType,
   CoreSMTPEmailNodeType,
 } from '@baserow/modules/automation/nodeTypes'
@@ -94,6 +97,18 @@ export default (context) => {
     app.$registry.register(
       'node',
       new LocalBaserowDeleteRowActionNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowGetRowActionNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowListRowsActionNodeType(context)
+    )
+    app.$registry.register(
+      'node',
+      new LocalBaserowAggregateRowsActionNodeType(context)
     )
     app.$registry.register(
       'job',

@@ -52,15 +52,6 @@
       <ul class="context__menu">
         <li class="context__menu-item">
           <a
-            class="context__menu-item-link"
-            @click="emit('duplicate-node', props.id)"
-          >
-            <i class="context__menu-item-icon iconoir-copy"></i>
-            {{ $t('workflowNode.actionDuplicate') }}
-          </a>
-        </li>
-        <li class="context__menu-item">
-          <a
             role="button"
             class="context__menu-item-link context__menu-item-link--delete"
             @click="emit('remove-node', props.id)"

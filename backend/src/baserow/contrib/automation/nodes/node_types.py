@@ -11,8 +11,11 @@ from baserow.contrib.automation.nodes.models import (
     AutomationActionNode,
     CoreHTTPRequestActionNode,
     CoreSMTPEmailActionNode,
+    LocalBaserowAggregateRowsActionNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowDeleteRowActionNode,
+    LocalBaserowGetRowActionNode,
+    LocalBaserowListRowsActionNode,
     LocalBaserowRowsCreatedTriggerNode,
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
@@ -24,7 +27,10 @@ from baserow.contrib.integrations.core.service_types import (
     CoreSMTPEmailServiceType,
 )
 from baserow.contrib.integrations.local_baserow.service_types import (
+    LocalBaserowAggregateRowsUserServiceType,
     LocalBaserowDeleteRowServiceType,
+    LocalBaserowGetRowUserServiceType,
+    LocalBaserowListRowsUserServiceType,
     LocalBaserowRowsCreatedTriggerServiceType,
     LocalBaserowRowsDeletedTriggerServiceType,
     LocalBaserowRowsUpdatedTriggerServiceType,
@@ -72,6 +78,24 @@ class LocalBaserowDeleteRowNodeType(AutomationNodeActionNodeType):
     type = "delete_row"
     model_class = LocalBaserowDeleteRowActionNode
     service_type = LocalBaserowDeleteRowServiceType.type
+
+
+class LocalBaserowGetRowNodeType(AutomationNodeActionNodeType):
+    type = "get_row"
+    model_class = LocalBaserowGetRowActionNode
+    service_type = LocalBaserowGetRowUserServiceType.type
+
+
+class LocalBaserowListRowsNodeType(AutomationNodeActionNodeType):
+    type = "list_rows"
+    model_class = LocalBaserowListRowsActionNode
+    service_type = LocalBaserowListRowsUserServiceType.type
+
+
+class LocalBaserowAggregateRowsNodeType(AutomationNodeActionNodeType):
+    type = "aggregate_rows"
+    model_class = LocalBaserowAggregateRowsActionNode
+    service_type = LocalBaserowAggregateRowsUserServiceType.type
 
 
 class CoreHttpRequestNodeType(AutomationNodeActionNodeType):

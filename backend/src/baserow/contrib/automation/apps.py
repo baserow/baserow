@@ -22,8 +22,11 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.nodes.node_types import (
             CoreHttpRequestNodeType,
             CoreSMTPEmailNodeType,
+            LocalBaserowAggregateRowsNodeType,
             LocalBaserowCreateRowNodeType,
             LocalBaserowDeleteRowNodeType,
+            LocalBaserowGetRowNodeType,
+            LocalBaserowListRowsNodeType,
             LocalBaserowRowsCreatedNodeTriggerType,
             LocalBaserowRowsDeletedNodeTriggerType,
             LocalBaserowRowsUpdatedNodeTriggerType,
@@ -139,6 +142,9 @@ class AutomationConfig(AppConfig):
             automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
             automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
             automation_node_type_registry.register(LocalBaserowDeleteRowNodeType())
+            automation_node_type_registry.register(LocalBaserowGetRowNodeType())
+            automation_node_type_registry.register(LocalBaserowListRowsNodeType())
+            automation_node_type_registry.register(LocalBaserowAggregateRowsNodeType())
             automation_node_type_registry.register(CoreHttpRequestNodeType())
             automation_node_type_registry.register(CoreSMTPEmailNodeType())
             automation_node_type_registry.register(

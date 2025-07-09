@@ -6,11 +6,13 @@
     <component
       :is="nodeType.formComponent"
       :key="node.id"
+      small
       :loading="nodeLoading"
       :service="node.service"
       :application="automation"
+      enable-integration-picker
       :default-values="node.service"
-      class="node-form"
+      class="margin-top-2"
       @values-changed="handleNodeServiceChange"
     />
   </ReadOnlyForm>
@@ -28,6 +30,7 @@ import { reactive } from 'vue'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AutomationBuilderFormulaInput from '@baserow/modules/automation/components/AutomationBuilderFormulaInput'
 import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation/enums'
+import _ from 'lodash'
 
 const store = useStore()
 const { app } = useContext()
@@ -63,12 +66,21 @@ const applicationContext = reactive({
 provide('applicationContext', applicationContext)
 
 const nodeType = computed(() => {
-  return app.$registry.get('node', node.value?.type)
+  return app.$registry.get('node', node.value.type)
 })
 
 const handleNodeServiceChange = async (newServiceChanges) => {
+  const differences = Object.fromEntries(
+    Object.entries(newServiceChanges).filter(
+      ([key, value]) => !_.isEqual(value, node.value.service[key])
+    )
+  )
+  if (Object.keys(differences).length === 0) {
+    // Nothing has changed.
+    return
+  }
   const updatedNode = { ...node.value }
-  updatedNode.service = { ...updatedNode.service, ...newServiceChanges }
+  updatedNode.service = { ...updatedNode.service, ...differences }
   await store.dispatch('automationWorkflowNode/updateDebounced', {
     workflow: workflow.value,
     node: node.value,

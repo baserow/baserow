@@ -10,6 +10,9 @@ import {
   LocalBaserowRowsCreatedTriggerServiceType,
   LocalBaserowRowsDeletedTriggerServiceType,
   LocalBaserowRowsUpdatedTriggerServiceType,
+  LocalBaserowGetRowServiceType,
+  LocalBaserowListRowsServiceType,
+  LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
 import {
@@ -118,12 +121,15 @@ export class NodeType extends Registerable {
    */
   getDataSchema({ automation, node }) {
     const serviceSchema = this.serviceType.getDataSchema(node.service)
-    return {
-      type: this.dataType,
-      title: this.getLabel({ automation, node }),
-      properties: serviceSchema.properties || {},
-      items: serviceSchema.items || [],
+    if (serviceSchema) {
+      return {
+        type: this.dataType,
+        title: this.getLabel({ automation, node }),
+        properties: serviceSchema.properties || {},
+        items: serviceSchema.items || [],
+      }
     }
+    return null
   }
 }
 
@@ -315,6 +321,79 @@ export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
     return this.app.$registry.get(
       'service',
       LocalBaserowDeleteRowWorkflowServiceType.getType()
+    )
+  }
+}
+
+export class LocalBaserowGetRowActionNodeType extends ActionNodeTypeMixin(
+  LocalBaserowNodeType
+) {
+  static getType() {
+    return 'get_row'
+  }
+
+  getOrder() {
+    return 4
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowGetRowLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowGetRowServiceType.getType()
+    )
+  }
+}
+
+export class LocalBaserowListRowsActionNodeType extends ActionNodeTypeMixin(
+  LocalBaserowNodeType
+) {
+  static getType() {
+    return 'list_rows'
+  }
+
+  getOrder() {
+    return 5
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowListRowsLabel'
+  }
+
+  get dataType() {
+    return 'array'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowListRowsServiceType.getType()
+    )
+  }
+}
+
+export class LocalBaserowAggregateRowsActionNodeType extends ActionNodeTypeMixin(
+  LocalBaserowNodeType
+) {
+  static getType() {
+    return 'aggregate_rows'
+  }
+
+  getOrder() {
+    return 6
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowAggregateRowsLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowAggregateRowsServiceType.getType()
     )
   }
 }

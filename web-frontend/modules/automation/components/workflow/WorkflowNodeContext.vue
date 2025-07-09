@@ -1,31 +1,34 @@
 <template>
-  <Context class="workflow-node__context" @shown="$refs.nodeDropdown.show()">
-    <Dropdown
-      ref="nodeDropdown"
-      size="large"
-      show-search
-      open-on-mount
-      :show-input="false"
-      :search-text="
-        editingTriggerNode
-          ? $t('workflowNodeContext.searchPlaceholderTrigger')
-          : $t('workflowNodeContext.searchPlaceholderActions')
-      "
-      @change="onChange"
-    >
-      <DropdownItem
+  <Context class="workflow-node__context">
+    <ul class="select__items">
+      <li
         v-for="nodeType in nodeTypes"
         :key="nodeType.getType()"
-        :name="nodeType.name"
-        :image="nodeType.image"
-        :icon="nodeType.image ? null : nodeType.iconClass"
-        :value="nodeType.getType()"
-        :description="nodeType.description"
-      ></DropdownItem>
-      <template #emptyState>
-        {{ $t('workflowNodeContext.noResults') }}
-      </template>
-    </Dropdown>
+        class="select__item"
+      >
+        <a class="select__item-link" @click="onChange(nodeType.getType())"
+          ><div class="select__item-name">
+            <i
+              v-if="!nodeType.image"
+              class="select__item-icon"
+              :class="nodeType.iconClass"
+            />
+            <img
+              v-else
+              :alt="nodeType.name"
+              :src="nodeType.image"
+              class="select__item-image"
+            />
+            <span :title="nodeType.name" class="select__item-name-text">{{
+              nodeType.name
+            }}</span>
+          </div>
+          <div class="select__item-description">
+            {{ nodeType.description }}
+          </div></a
+        >
+      </li>
+    </ul>
   </Context>
 </template>
 
