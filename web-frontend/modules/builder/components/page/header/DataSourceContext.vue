@@ -27,6 +27,11 @@
             <DataSourceItem
               v-for="dataSource in sharedDataSources"
               :key="dataSource.id"
+              v-sortable="{
+                id: dataSource.id,
+                update: orderDS(true),
+                handle: '[data-sortable-handle]',
+              }"
               :data-source="dataSource"
               shared
               @delete="deleteDataSource($event)"
@@ -49,6 +54,11 @@
             <DataSourceItem
               v-for="dataSource in dataSources"
               :key="dataSource.id"
+              v-sortable="{
+                id: dataSource.id,
+                update: orderDS(false),
+                handle: '[data-sortable-handle]',
+              }"
               :data-source="dataSource"
               @delete="deleteDataSource($event)"
               @edit="editDataSource($event)"
@@ -169,6 +179,7 @@ export default {
       actionFetchIntegrations: 'integration/fetch',
       actionCreateDataSource: 'dataSource/create',
       actionMoveDataSourceToPage: 'dataSource/moveToPage',
+      actionMoveDataSource: 'dataSource/move',
       actionDeleteDataSource: 'dataSource/delete',
     }),
     async shown() {
@@ -187,6 +198,19 @@ export default {
     onHide() {
       this.editModalVisible = false
       this.currentDataSourceId = null
+    },
+    orderDS(shared) {
+      return async (newOrder, oldOrder, movedId, beforeId) => {
+        try {
+          await this.actionMoveDataSource({
+            page: shared ? this.sharedPage : this.page,
+            dataSourceId: movedId,
+            beforeDataSourceId: beforeId,
+          })
+        } catch (error) {
+          notifyIf(error)
+        }
+      }
     },
     async createDataSource() {
       this.currentDataSourceId = null

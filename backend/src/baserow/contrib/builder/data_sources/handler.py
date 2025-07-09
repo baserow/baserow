@@ -216,7 +216,7 @@ class DataSourceHandler:
             # Get the data source for the same builder on the shared page
             data_source_queryset = data_source_queryset.filter(
                 Q(page=page) | Q(page__builder_id=page.builder_id, page__shared=True)
-            )
+            ).order_by("-page__shared", "order", "id")
         else:
             data_source_queryset = data_source_queryset.filter(page=page)
 
@@ -508,20 +508,34 @@ class DataSourceHandler:
         if not data_source.service_id:
             raise DataSourceImproperlyConfigured("The service type is missing.")
 
-        if data_source.id not in dispatch_context.cache.setdefault(
-            "data_source_contents", {}
-        ):
+        cache = dispatch_context.cache
+
+        current_data_source_dispatched = dispatch_context.data_source or data_source
+
+        dispatch_context = BuilderDispatchContext.from_context(
+            dispatch_context, data_source=current_data_source_dispatched
+        )
+
+        if current_data_source_dispatched != data_source:
+            data_sources = self.get_data_sources_with_cache(dispatch_context.page)
+            ordered_ids = [d.id for d in data_sources]
+            if ordered_ids.index(current_data_source_dispatched.id) < ordered_ids.index(
+                data_source.id
+            ):
+                raise DataSourceImproperlyConfigured(
+                    "You can't reference a data source after the current data source"
+                )
+
+        if data_source.id not in cache.setdefault("data_source_contents", {}):
             service_dispatch = self.service_handler.dispatch_service(
                 data_source.service.specific, dispatch_context
             )
 
             # Cache the dispatch in the formula cache if we have formulas that need
             # it later
-            dispatch_context.cache["data_source_contents"][
-                data_source.id
-            ] = service_dispatch.data
+            cache["data_source_contents"][data_source.id] = service_dispatch.data
 
-        return dispatch_context.cache["data_source_contents"][data_source.id]
+        return cache["data_source_contents"][data_source.id]
 
     def move_data_source(
         self, data_source: DataSourceForUpdate, before: Optional[DataSource] = None

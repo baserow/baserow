@@ -273,7 +273,12 @@ export default {
       return
     }
 
-    binding.value.update(newOrder, oldOrder)
+    binding.value.update(
+      newOrder,
+      oldOrder,
+      el.sortableId,
+      el.sortableBeforeElement?.sortableId || null
+    )
   },
   /**
    * Cancels the sorting by removing the target indicator, sorting classes and event

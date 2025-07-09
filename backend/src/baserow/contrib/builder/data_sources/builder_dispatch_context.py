@@ -10,6 +10,7 @@ from baserow.contrib.builder.data_providers.registries import (
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceRefinementForbidden,
 )
+from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.handler import BuilderHandler
 from baserow.contrib.builder.pages.models import Page
@@ -33,6 +34,7 @@ class BuilderDispatchContext(DispatchContext):
         "request",
         "page",
         "workflow_action",
+        "data_source",
         "offset",
         "count",
         "only_record_id",
@@ -44,6 +46,7 @@ class BuilderDispatchContext(DispatchContext):
         request: HttpRequest,
         page: Page,
         workflow_action: Optional["WorkflowAction"] = None,
+        data_source: Optional["DataSource"] = None,
         offset: Optional[int] = None,
         count: Optional[int] = None,
         only_record_id: Optional[int | str] = None,
@@ -55,6 +58,7 @@ class BuilderDispatchContext(DispatchContext):
         :param request: The HTTP request from the view.
         :param page: The page related to the dispatch.
         :param workflow_action: The workflow action being executed, if any.
+        :param data_source: The data source initially being executed, if any.
         :param offset: When we dispatch a list service, starts by that offset.
         :param count: When we dispatch a list service returns that max amount of record.
         :param record_id: If we want to narrow down the results of a list service to
@@ -66,6 +70,7 @@ class BuilderDispatchContext(DispatchContext):
         self.request = request
         self.page = page
         self.workflow_action = workflow_action
+        self.data_source = data_source
         self.only_record_id = only_record_id
 
         # Overrides the `request` GET offset/count values.

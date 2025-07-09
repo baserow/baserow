@@ -22,7 +22,10 @@
         :default-values="dataSource"
         :integrations="integrations"
         :create="create"
-        :application-context-additions="{ page: dataSourcePage }"
+        :application-context-additions="{
+          page: dataSourcePage,
+          dataSource: dataSource,
+        }"
         @values-changed="onValuesChanged"
         @submitted="onFormSubmit($event)"
       />

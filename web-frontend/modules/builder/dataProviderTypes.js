@@ -93,6 +93,7 @@ export class DataSourceDataProviderType extends DataProviderType {
       applicationContext.page,
       this.app.store.getters['page/getSharedPage'](applicationContext.builder),
     ]
+
     const dataSource = this.app.store.getters[
       'dataSource/getPagesDataSourceById'
     ](pages, parseInt(dataSourceId))
@@ -157,15 +158,25 @@ export class DataSourceDataProviderType extends DataProviderType {
       applicationContext.page,
     ]
 
-    const dataSources =
+    const allDataSources =
       this.app.store.getters['dataSource/getPagesDataSources'](pages)
+
+    // If we have a data source id in the application context we keep data sources
+    // until this one because we can't use the ones after
+    const dataSources = applicationContext.dataSource?.id
+      ? _.takeWhile(
+          allDataSources,
+          ({ id }) => id !== applicationContext.dataSource.id
+        )
+      : allDataSources
 
     const result = Object.fromEntries(
       dataSources
-        .map((dataSource) => {
+        .map((dataSource, index) => {
           const dsSchema = this.getDataSourceSchema(dataSource)
           if (dsSchema) {
             delete dsSchema.$schema
+            dsSchema.order = index
           }
           return [dataSource.id, dsSchema]
         })
@@ -238,8 +249,8 @@ export class DataSourceContextDataProviderType extends DataProviderType {
 
   getDataSchema(applicationContext) {
     const pages = [
-      applicationContext.page,
       this.app.store.getters['page/getSharedPage'](applicationContext.builder),
+      applicationContext.page,
     ]
 
     const dataSources =
@@ -248,12 +259,16 @@ export class DataSourceContextDataProviderType extends DataProviderType {
     const contextDataSchema = Object.fromEntries(
       dataSources
         .filter((dataSource) => dataSource?.type)
-        .map((dataSource) => [
-          dataSource.id,
-          this.app.$registry
+        .map((dataSource, index) => {
+          const dsSchema = this.app.$registry
             .get('service', dataSource.type)
-            .getContextDataSchema(dataSource),
-        ])
+            .getContextDataSchema(dataSource)
+
+          if (dsSchema) {
+            dsSchema.order = index
+          }
+          return [dataSource.id, dsSchema]
+        })
         .filter(([, schema]) => schema)
     )
 
