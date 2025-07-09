@@ -314,7 +314,7 @@ class SearchHandler(
         )
 
         try:
-            with transaction.atomic():
+            with transaction.atomic(using=router.db_for_write(search_table_model)):
                 with connection.schema_editor() as se:
                     se.create_model(search_table_model)
         except ProgrammingError as exc:
