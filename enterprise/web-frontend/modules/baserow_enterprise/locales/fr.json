@@ -585,6 +585,18 @@
         "url": "URL",
         "urlPlaceholder": "Entrez l'URL du script...",
         "crossorigin": "Cross origin",
-        "includeCredentials": "Include credentials"
+        "includeCredentials": "Inclure les informations d'identification",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "Normal",
+        "loadTypeDefer": "Différer",
+        "loadTypeAsync": "Async",
+        "crossoriginTypeNone": "Normal",
+        "crossoriginTypeAnonymous": "Anonyme",
+        "crossoriginTypeCredentials": "Utiliser les données d'identification"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "La source d'utilisateurs sélectionnée n'a pas d'option de connexion",
+        "errorUserSourceMissing": "Aucune source utilisateur sélectionnée"
     }
 }
