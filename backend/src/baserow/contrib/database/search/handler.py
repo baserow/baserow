@@ -323,6 +323,8 @@ class SearchHandler(
                 logger.debug(
                     f"Search table for workspace {workspace_id} already exists."
                 )
+            else:
+                raise exc
         _workspace_search_table_exists.cache_clear()
 
     @classmethod
