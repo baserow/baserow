@@ -781,25 +781,23 @@ class CoreSMTPEmailServiceType(ServiceType):
                         dispatch_context,
                     )
                 )
-            except ValidationError as e:
-                raise ServiceImproperlyConfigured(
-                    f"Invalid value for {field_name}"
-                ) from e
-            except FormDataProviderChunkInvalidException as e:
-                raise ServiceImproperlyConfigured(str(e)) from e
-            except DataProviderChunkInvalidException as e:
-                message = f"Path error in formula for {field_name}"
-                raise ServiceImproperlyConfigured(message) from e
+            except InvalidFormulaContext as e:
+                raise InvalidContextDispatchException(str(e)) from e
+            except (InvalidFormulaContextContent, ValidationError) as e:
+                message = f'Value error for property "{field_name}": {str(e)}'
+                raise InvalidContextContentDispatchException(message) from e
+            except BaserowFormulaException as e:
+                message = f'Error in formula for property "{field_name}": {str(e)}'
+                raise ServiceImproperlyConfiguredDispatchException(message) from e
             except Exception as e:
-                logger.exception(f"Unexpected error for {field_name}")
+                logger.exception(f'Unexpected error for property "{field_name}"')
                 message = (
-                    "Unknown error in formula for "
-                    f"form_data {field_name}: {repr(e)} - {str(e)}"
+                    f'Unknown error in formula for property "{field_name}": {str(e)}'
                 )
-                raise ServiceImproperlyConfigured(message) from e
+                raise UnexpectedDispatchException(message) from e
 
         if not resolved_values["to_emails"]:
-            raise ServiceImproperlyConfigured(
+            raise InvalidContextContentDispatchException(
                 "At least one recipient email is required"
             )
 
@@ -812,8 +810,8 @@ class CoreSMTPEmailServiceType(ServiceType):
         dispatch_context: DispatchContext,
     ) -> Any:
         if not service.integration:
-            raise ServiceImproperlyConfigured(
-                "SMTP Email service must be connected to an SMTP integration."
+            raise ServiceImproperlyConfiguredDispatchException(
+                "SMTP Email service must be connected to an SMTP integration"
             )
 
         smtp_integration = service.integration.specific
@@ -861,26 +859,28 @@ class CoreSMTPEmailServiceType(ServiceType):
                 }
             }
         except SMTPNotSupportedError as e:
-            raise ServiceImproperlyConfigured("TLS not supported by server") from e
+            raise ServiceImproperlyConfiguredDispatchException(
+                "TLS not supported by server"
+            ) from e
         except socket.gaierror as e:
-            raise ServiceImproperlyConfigured(
+            raise ServiceImproperlyConfiguredDispatchException(
                 f"The host {smtp_integration.host}:{smtp_integration.port} could not "
                 "be reached"
             ) from e
         except ConnectionRefusedError as e:
-            raise ServiceImproperlyConfigured(
+            raise ServiceImproperlyConfiguredDispatchException(
                 f"Connection refused by {smtp_integration.host}:{smtp_integration.port}"
             ) from e
         except SMTPAuthenticationError as e:
-            raise ServiceImproperlyConfigured(
+            raise ServiceImproperlyConfiguredDispatchException(
                 "The username or password is incorrect"
             ) from e
         except SMTPConnectError as e:
-            raise ServiceImproperlyConfigured(
+            raise UnexpectedDispatchException(
                 "Unable to connect to the SMTP server"
             ) from e
         except Exception as e:
-            raise ServiceImproperlyConfigured(f"Failed to send email: {str(e)}") from e
+            raise UnexpectedDispatchException(f"Failed to send email: {str(e)}") from e
 
     def dispatch_transform(
         self,

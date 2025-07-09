@@ -7,7 +7,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from baserow.contrib.integrations.core.service_types import CoreSMTPEmailServiceType
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    InvalidContextContentDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.test_utils.helpers import AnyInt
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
@@ -153,7 +157,7 @@ def test_send_smtp_email_tls_not_supported_error(data_fixture):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc_info:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
         with mock_django_email(exception_class=smtplib.SMTPNotSupportedError):
             service_type.dispatch(service, dispatch_context)
 
@@ -178,7 +182,7 @@ def test_send_smtp_email_host_could_not_be_reached_error(data_fixture):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc_info:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
         with mock_django_email(exception_class=socket.gaierror):
             service_type.dispatch(service, dispatch_context)
 
@@ -206,7 +210,7 @@ def test_send_smtp_email_connection_refused_error(data_fixture):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc_info:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
         with mock_django_email(exception_class=ConnectionRefusedError):
             service_type.dispatch(service, dispatch_context)
 
@@ -233,7 +237,7 @@ def test_send_smtp_email_username_password_incorrect_error(data_fixture):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc_info:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
         with mock_django_email(exception_class=smtplib.SMTPAuthenticationError):
             service_type.dispatch(service, dispatch_context)
 
@@ -258,7 +262,7 @@ def test_send_smtp_email_unable_to_connect_to_the_smtp_server(data_fixture):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc_info:
+    with pytest.raises(UnexpectedDispatchException) as exc_info:
         with mock_django_email(exception_class=smtplib.SMTPConnectError):
             service_type.dispatch(service, dispatch_context)
 
@@ -320,12 +324,12 @@ def test_send_smtp_email_no_integration_error(data_fixture):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc_info:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
         service_type.dispatch(service, dispatch_context)
 
     assert (
         str(exc_info.value)
-        == "SMTP Email service must be connected to an SMTP integration."
+        == "SMTP Email service must be connected to an SMTP integration"
     )
 
 
@@ -347,7 +351,7 @@ def test_send_smtp_email_no_recipients_error(data_fixture):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfigured) as exc_info:
+    with pytest.raises(InvalidContextContentDispatchException) as exc_info:
         service_type.dispatch(service, dispatch_context)
 
     assert str(exc_info.value) == "At least one recipient email is required"
