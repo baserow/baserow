@@ -406,7 +406,9 @@
         "jiraUsername": "Jira gebruikersnaam",
         "apiTokenHelper": "Het API-token van het Jira-account dat wordt gebruikt voor verificatie. Kan worden aangemaakt op https://id.atlassian.com/manage-profile/security/api-tokens.",
         "authenticationLabel": "Authenticatie",
-        "authenticationHelper": "Kies hoe je je wilt verifiëren met Jira."
+        "authenticationHelper": "Kies hoe je je wilt authenticeren met Jira.",
+        "personalAccessToken": "Jira Persoonlijk Toegangstoken",
+        "personalAccessTokenHelper": "Het API-token van het Jira-account dat wordt gebruikt voor verificatie. Kan worden aangemaakt op https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
     },
     "githubIssuesDataSync": {
         "apiToken": "API-token",
@@ -562,5 +564,39 @@
     },
     "advanced": {
         "license": "Advanced"
+    },
+    "builderSettingTypes": {
+        "customCode": "Aangepaste CSS/JS"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "Aangepaste CSS",
+        "customJS": "Aangepaste JavaScript",
+        "customCSSPlaceholder": "Voer wat aangepaste CSS-code in...",
+        "customJSPlaceholder": "Voer wat aangepaste JS-code in...",
+        "externalScripts": "Externe scripts / stylesheets",
+        "noScript": "Je applicatie verbeteren met externe scripts of stylesheets",
+        "customCodeTitle": "Aangepaste code",
+        "customCodeHelp": "Aangepaste code is alleen zichtbaar in preview- of gepubliceerde applicaties, de resultaten zijn niet zichtbaar in de editor.",
+        "addExternalScript": "Een extern script toevoegen"
+    },
+    "customCodeSettingScriptForm": {
+        "type": "Type",
+        "loadType": "Laad type",
+        "url": "URL",
+        "urlPlaceholder": "Voer de URL van het script in...",
+        "crossorigin": "Kruis herkomst",
+        "includeCredentials": "Inclusief referenties",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "Normaal",
+        "loadTypeDefer": "Uitstellen",
+        "loadTypeAsync": "Async",
+        "crossoriginTypeNone": "Normaal",
+        "crossoriginTypeAnonymous": "Anoniem",
+        "crossoriginTypeCredentials": "Gebruik referenties"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "De geselecteerde gebruikersbron heeft geen aanmeldingsoptie",
+        "errorUserSourceMissing": "Geen gebruikersbron geselecteerd"
     }
 }
