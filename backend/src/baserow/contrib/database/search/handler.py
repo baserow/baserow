@@ -318,7 +318,9 @@ class SearchHandler(
                 with connection.schema_editor() as se:
                     se.create_model(search_table_model)
         except ProgrammingError as exc:
-            if isinstance(exc.__cause__, errors.DuplicateTable):
+            if isinstance(
+                exc.__cause__, (errors.DuplicateTable, errors.DuplicateObject)
+            ):
                 # If the table already exists, we can safely ignore the error.
                 logger.debug(
                     f"Search table for workspace {workspace_id} already exists."
