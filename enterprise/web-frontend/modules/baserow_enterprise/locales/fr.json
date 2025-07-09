@@ -583,6 +583,8 @@
         "type": "Type",
         "loadType": "Type de chargement",
         "url": "URL",
-        "urlPlaceholder": "Enter the script URL..."
+        "urlPlaceholder": "Entrez l'URL du script...",
+        "crossorigin": "Cross origin",
+        "includeCredentials": "Include credentials"
     }
 }
