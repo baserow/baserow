@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("automation", "0010_automation_published_from_and_more"),
+        ("automation", "0011_coresmtpemailactionnode"),
     ]
 
     operations = [

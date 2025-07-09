@@ -8,7 +8,13 @@
       >
         <a class="select__item-link" @click="onChange(nodeType.getType())"
           ><div class="select__item-name">
+            <i
+              v-if="!nodeType.image"
+              class="select__item-icon"
+              :class="nodeType.iconClass"
+            />
             <img
+              v-else
               :alt="nodeType.name"
               :src="nodeType.image"
               class="select__item-image"
