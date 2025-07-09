@@ -13,6 +13,8 @@ from typing import (
 from django.core.exceptions import ValidationError
 from django.db.models import OrderBy, Prefetch, QuerySet
 
+from loguru import logger
+
 from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.field_filters import FilterBuilder
 from baserow.contrib.database.fields.models import Field
@@ -42,6 +44,7 @@ from baserow.core.services.exceptions import (
     ServiceFilterPropertyDoesNotExist,
     ServiceImproperlyConfiguredDispatchException,
     ServiceSortPropertyDoesNotExist,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.types import (
     ServiceDict,
@@ -835,16 +838,18 @@ class LocalBaserowTableServiceSpecificRowMixin:
 
         except ValidationError as exc:
             raise ServiceImproperlyConfiguredDispatchException(
-                "The `row_id` value must be an integer or convertible " "to an integer."
+                "The `row_id` value must be an integer or convertible to an integer."
             ) from exc
         except RuntimeFormulaException as e:
-            message = message = f"Row id formula could not be resolved: {str(e)}"
+            message = f"Row id formula could not be resolved: {str(e)}"
             raise ServiceImproperlyConfiguredDispatchException(message) from e
         except ServiceImproperlyConfiguredDispatchException:
             raise
-        except Exception as exc:
-            raise ServiceImproperlyConfiguredDispatchException(
-                f"The `row_id` formula can't be resolved: {exc}"
-            ) from exc
+        except Exception as e:
+            logger.exception(f"Unexpected error for row_id formula")
+            message = (
+                f"Unknown error in formula for row_id formula: {repr(e)} - {str(e)}"
+            )
+            raise UnexpectedDispatchException(message) from e
 
         return resolved_values
