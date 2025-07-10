@@ -209,3 +209,8 @@ ERROR_INVALID_PASSWORD_FIELD_PASSWORD = (
     HTTP_401_UNAUTHORIZED,
     "The provided password in incorrect.",
 )
+ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE = (
+    "ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE",
+    HTTP_400_BAD_REQUEST,
+    "Cannot set this constraint when default value is set.",
+)

@@ -1234,23 +1234,15 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 inserted_rows = model.objects.bulk_create(rows)
         except Exception:
             inserted_rows = []
+            if not generate_error_report:
+                raise FieldDataConstraintException()
 
             for index, (row, _) in enumerate(rows_relationships):
-                try:
-                    with transaction.atomic():
-                        row.save()
-                        inserted_rows.append(row)
-                except Exception:
-                    report[index] = {
-                        "non_field_errors": [
-                            "Row was not inserted due to conflicts or constraints"
-                        ]
-                    }
-
-            if not generate_error_report and len(inserted_rows) != len(
-                rows_relationships
-            ):
-                raise FieldDataConstraintException()
+                report[index] = {
+                    "non_field_errors": [
+                        "Row was not inserted due to conflicts or constraints"
+                    ]
+                }
 
         inserted_rows_count = len(inserted_rows)
         rows_created_counter.add(inserted_rows_count)
@@ -1656,29 +1648,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     report.update(result.errors)
                     all_updated_rows.extend(result.updated_rows)
             except Exception:
-                for index, row_values in enumerate(chunk):
-                    try:
-                        row_id = row_values["id"]
-                        with transaction.atomic():
-                            updated_row = self.update_row_by_id(
-                                user,
-                                table,
-                                row_id,
-                                {k: v for k, v in row_values.items() if k != "id"},
-                                model=model,
-                                values_already_prepared=True,
-                            )
-                            all_updated_rows.append(updated_row)
-                    except RowDoesNotExist:
-                        report[row_start_index + index] = {
-                            "non_field_errors": ["Row does not exist"]
-                        }
-                    except Exception:
-                        report[row_start_index + index] = {
-                            "non_field_errors": [
-                                "Row was not updated due to conflicts or constraints"
-                            ]
-                        }
+                for index, _ in enumerate(chunk):
+                    report[row_start_index + index] = {
+                        "non_field_errors": [
+                            "Row was not updated due to conflicts or constraints"
+                        ]
+                    }
 
             if progress:
                 progress.increment(len(chunk))
@@ -2198,6 +2173,20 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     rows_to_update, bulk_update_fields, batch_size=2000
                 )
             except Exception:
+                if generate_error_report:
+                    for idx, row in enumerate(rows_to_update):
+                        report[idx] = {
+                            "non_field_errors": [
+                                "Row was not updated due to conflicts or constraints"
+                            ]
+                        }
+                    return UpdatedRowsData(
+                        [],
+                        [],
+                        original_row_values_by_id,
+                        fields_metadata_by_row_id,
+                        report,
+                    )
                 raise FieldDataConstraintException()
 
             rows_updated_counter.add(len(rows_to_update))

@@ -66,17 +66,16 @@ def schedule_update_search_data(
     row_ids: Optional[List[int]] = None,
 ):
     """
-    Schedules the `update_search_data` task for a table when changes occur. Field- or
-    row-specific updates are queued first to avoid any lost updates. Then the singleton
-    task is enqueued; if it’s already scheduled, a pending flag is set so new changes
-    will be processed once the current run finishes.
+    Schedules the `update_search_data` task for a table to initialize the search vectors
+    or when changes occur. Field- or row-specific updates are queued first to avoid any
+    lost updates. Then the singleton task is enqueued; if it’s already scheduled, a
+    pending flag is set so new changes will be processed once the current run finishes.
 
     :param table_id: The ID of the table to update the search data for.
     :param field_ids: Optional list of field IDs to update. If provided, only these
         fields will be updated in the search data.
     :param row_ids: Optional list of row IDs to update. If provided, only these rows
         will be updated in the search data.
-    :raises TableDoesNotExist: If the table with the given ID does not exist.
     """
 
     from baserow.contrib.database.search.handler import SearchHandler
@@ -86,6 +85,7 @@ def schedule_update_search_data(
         return
 
     # If any specific update is requested, queue it so it can be processed later.
+    new_pending_updates = False
     if field_ids or row_ids:
         try:
             table = TableHandler().get_table(table_id)
@@ -96,6 +96,7 @@ def schedule_update_search_data(
         SearchHandler.queue_pending_search_update(
             table=table, field_ids=field_ids, row_ids=row_ids
         )
+        new_pending_updates = True
 
     try:
         # debounce the task to avoid multiple calls in a short time
@@ -103,7 +104,10 @@ def schedule_update_search_data(
             countdown=settings.PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS
         )
     except DuplicateTaskError:
-        PendingSearchUpdateFlag(table_id).set()
+        # There are new updates pending to be processed, make sure the flag is set
+        # so the task will be re-scheduled at the end of the current run.
+        if new_pending_updates:
+            PendingSearchUpdateFlag(table_id).set()
 
 
 @app.task(
@@ -165,27 +169,19 @@ def update_search_data(table_id: int):
 
 @app.task(queue="export")
 def delete_search_data(
-    table_id: int, field_ids: List[int] | None, row_ids: List[int] | None = None
+    workspace_id: int, field_ids: List[int], row_ids: List[int] | None = None
 ):
     """
-    Deletes search data for a specific table and optionally for specific rows.
-    This task is used when rows are deleted or when the search data needs to be
-    cleared for a table.
+    Deletes the search data for specified fields in a table and, optionally, for
+    specific rows. This task is used when rows or fields are permanently deleted or when
+    search data needs to be cleared for a table.
 
-    :param table_id: The ID of the table to delete the search data for.
-    :param field_ids: Optional list of field IDs to delete from the search data.
-        If provided, only these fields will be deleted from the search data.
-    :param row_ids: Optional list of row IDs to delete. If provided, only these
-        rows will be deleted from the search data.
+    :param workspace_id: The ID of the workspace for which to delete search data.
+    :param field_ids: List of field IDs whose search data should be deleted.
+    :param row_ids: Optional list of row IDs. If provided, only these rows' search data
+        will be deleted.
     """
 
     from baserow.contrib.database.search.handler import SearchHandler
-    from baserow.contrib.database.table.handler import TableHandler
 
-    try:
-        table = TableHandler().get_table(table_id)
-    except TableDoesNotExist:
-        logger.warning(f"Table with id {table_id} doesn't exist.")
-        return
-
-    SearchHandler.delete_search_data(table, field_ids=field_ids, row_ids=row_ids)
+    SearchHandler.delete_search_data(workspace_id, field_ids=field_ids, row_ids=row_ids)

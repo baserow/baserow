@@ -1,7 +1,11 @@
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from django.db.models.constraints import BaseConstraint
 
+from baserow.contrib.database.fields.exceptions import (
+    FieldConstraintDoesNotSupportDefaultValueError,
+    InvalidFieldConstraint,
+)
 from baserow.contrib.database.fields.models import Field, FieldConstraint
 from baserow.contrib.database.fields.registries import (
     field_constraint_registry,
@@ -60,3 +64,63 @@ def build_django_field_constraints(
                 constraint_instance.build_field_constraint(field, field.db_column)
             )
     return db_constraints
+
+
+def validate_field_constraints(field_type, field_constraints: List[Dict[str, Any]]):
+    for constraint in field_constraints:
+        constraint_name = constraint.get("type_name")
+        if not constraint_name:
+            raise InvalidFieldConstraint(
+                field_type=field_type.type,
+                constraint_type="missing_type_name",
+            )
+
+        constraint_instance = field_constraint_registry.get_specific_constraint(
+            constraint_name, field_type
+        )
+        if not constraint_instance:
+            raise InvalidFieldConstraint(
+                field_type=field_type.type,
+                constraint_type=constraint_name,
+            )
+
+
+def validate_default_value_with_constraints(
+    field_type, field_constraints=None, field_data=None, field=None
+):
+    """
+    Validates that the field's default value is compatible with its constraints.
+
+    :param field_type: The field type instance
+    :param field_constraints: List of constraint data to validate against
+    :param field_data: Dictionary containing field attributes including default value
+    :param field: The field instance to check for existing default value
+    :raises FieldConstraintDoesNotSupportDefaultValueError: If any constraint
+        doesn't support default values
+    """
+
+    if not field_constraints:
+        return
+
+    default_field_name = field_type.get_default_options_field_name()
+
+    # default value from provided data takes precedence over
+    # default value stored in the field
+    if field_data and default_field_name:
+        default_value = field_data.get(default_field_name)
+    elif field:
+        default_value = getattr(field, default_field_name, None)
+    else:
+        default_value = None
+
+    if not default_value:
+        return
+
+    can_have_default_value = all(
+        field_constraint_registry.get_specific_constraint(
+            constraint.get("type_name"), field_type
+        ).can_support_default_value
+        for constraint in field_constraints
+    )
+    if not can_have_default_value:
+        raise FieldConstraintDoesNotSupportDefaultValueError()

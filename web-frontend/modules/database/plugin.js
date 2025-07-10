@@ -161,7 +161,7 @@ import {
 import {
   TextTypeUniqueWithEmptyConstraintType,
   RatingTypeUniqueWithEmptyConstraintType,
-  UniqueWithEmptyConstraintType,
+  GenericUniqueWithEmptyConstraintType,
 } from '@baserow/modules/database/fieldConstraintTypes'
 
 import { APITokenSettingsType } from '@baserow/modules/database/settingsTypes'
@@ -729,7 +729,7 @@ export default (context) => {
   )
   app.$registry.register(
     'fieldConstraint',
-    new UniqueWithEmptyConstraintType(context)
+    new GenericUniqueWithEmptyConstraintType(context)
   )
 
   app.$registry.register('importer', new CSVImporterType(context))

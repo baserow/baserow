@@ -1370,9 +1370,10 @@ def test_run_file_import_task_with_field_constraints(
     assert not job.failed
 
     rows = model.objects.all()
-    assert len(rows) == 4
+    assert len(rows) == 3
 
     assert "0" in job.report["failing_rows"]
+    assert "1" in job.report["failing_rows"]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1406,7 +1407,6 @@ def test_run_file_import_task_with_upsert_and_field_constraints(
 
     model = table.get_model()
 
-    # Initial data: two rows with unique values
     initial_data = {
         "data": [
             ["1", "1"],
@@ -1455,9 +1455,10 @@ def test_run_file_import_task_with_upsert_and_field_constraints(
     assert not job.failed
 
     assert "0" in job.report["failing_rows"]
+    assert "1" in job.report["failing_rows"]
 
     values = set(
         (getattr(row, f"field_{field_a.id}"), getattr(row, f"field_{field_b.id}"))
         for row in model.objects.all()
     )
-    assert values == {("1", "1"), ("2", "2"), ("3", "4")}
+    assert values == {("1", "1"), ("2", "2"), ("3", "3")}

@@ -5,6 +5,7 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
 from baserow.contrib.database.action.scopes import TableActionScopeType
 from baserow.contrib.database.fields.actions import UpdateFieldActionType
+from baserow.contrib.database.fields.constants import UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
 from baserow.contrib.database.fields.field_constraints import (
     TextTypeUniqueWithEmptyConstraint,
     UniqueWithEmptyConstraint,
@@ -843,3 +844,155 @@ def test_update_field_with_compatible_constraint(api_client, data_fixture):
     assert number_field.field_constraints.count() == 1
     constraint = number_field.field_constraints.get(id=constraint_id)
     assert constraint.type_name == UniqueWithEmptyConstraint.constraint_name
+
+
+@pytest.mark.django_db
+@pytest.mark.api_fields
+@pytest.mark.field_constraints
+def test_create_single_select_field_with_default_and_constraint(
+    api_client, data_fixture
+):
+    """
+    Test adding field with default value and constraint that does not support
+    default value.
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    url = reverse("api:database:fields:list", kwargs={"table_id": table.id})
+    response = api_client.post(
+        url,
+        {
+            "name": "Single Select Field",
+            "type": "single_select",
+            "single_select_default": -1,
+            "select_options": [
+                {"value": "Option 1", "color": "blue", "id": -1},
+                {"value": "Option 2", "color": "red", "id": -2},
+            ],
+            "field_constraints": [
+                {"type_name": UniqueWithEmptyConstraint.constraint_name}
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert (
+        response_json["error"]
+        == "ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE"
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.api_fields
+@pytest.mark.field_constraints
+def test_create_text_field_with_default_and_constraint(api_client, data_fixture):
+    """
+    Test creating a text field with default value and unique with empty constraint
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    text_field = data_fixture.create_text_field(table=table, order=0, name="Text Field")
+    model = table.get_model()
+    model.objects.create(**{f"field_{text_field.id}": "Row 1"})
+    model.objects.create(**{f"field_{text_field.id}": "Row 2"})
+
+    url = reverse("api:database:fields:list", kwargs={"table_id": table.id})
+    response = api_client.post(
+        url,
+        {
+            "name": "Text Field with Default",
+            "type": "text",
+            "text_default": "Default Value",
+            "field_constraints": [{"type_name": UNIQUE_WITH_EMPTY_CONSTRAINT_NAME}],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert (
+        response.json()["error"]
+        == "ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE"
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.api_fields
+@pytest.mark.field_constraints
+def test_update_field_add_constraint_to_field_with_default(api_client, data_fixture):
+    """Test updating a field to add constraint when it has default value fails."""
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Text Field", text_default="Default Value"
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{text_field.id}": "Row 1"})
+    model.objects.create(**{f"field_{text_field.id}": "Row 2"})
+
+    url = reverse("api:database:fields:item", kwargs={"field_id": text_field.id})
+    response = api_client.patch(
+        url,
+        {
+            "field_constraints": [{"type_name": UNIQUE_WITH_EMPTY_CONSTRAINT_NAME}],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert (
+        response.json()["error"]
+        == "ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE"
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.api_fields
+@pytest.mark.field_constraints
+def test_update_field_remove_default_and_add_constraint_succeeds(
+    api_client, data_fixture
+):
+    """Test updating a field to remove default value and add constraint succeeds."""
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Text Field", text_default="Default Value"
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{text_field.id}": "Row 1"})
+    model.objects.create(**{f"field_{text_field.id}": "Row 2"})
+
+    url = reverse("api:database:fields:item", kwargs={"field_id": text_field.id})
+    response = api_client.patch(
+        url,
+        {
+            "text_default": "",
+            "field_constraints": [{"type_name": UNIQUE_WITH_EMPTY_CONSTRAINT_NAME}],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+    text_field.refresh_from_db()
+    assert text_field.text_default == ""
+    assert text_field.field_constraints.count() == 1
+    assert (
+        text_field.field_constraints.first().type_name
+        == UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
+    )

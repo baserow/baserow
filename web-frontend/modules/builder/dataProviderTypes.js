@@ -29,12 +29,12 @@ export class DataSourceDataProviderType extends DataProviderType {
     return this.app.i18n.t('dataProviderType.dataSource')
   }
 
-  showDataSourceErrors(applicationContext, failedDataSources) {
+  showDataSourceErrors(page, failedDataSources) {
     failedDataSources.forEach(({ id, error }) => {
       const fakeError = { response: { data: error } }
       const dataSource = this.app.store.getters[
         'dataSource/getPageDataSourceById'
-      ](applicationContext.page, id)
+      ](page, id)
       handleDispatchError(
         fakeError,
         this.app,
@@ -70,7 +70,7 @@ export class DataSourceDataProviderType extends DataProviderType {
       }
     )
 
-    this.showDataSourceErrors(applicationContext, failedDataSources)
+    this.showDataSourceErrors(page, failedDataSources)
   }
 
   /**
@@ -96,7 +96,7 @@ export class DataSourceDataProviderType extends DataProviderType {
       }
     )
 
-    this.showDataSourceErrors(applicationContext, failedDataSources)
+    this.showDataSourceErrors(applicationContext.page, failedDataSources)
   }
 
   getDataSourceDispatchContext(applicationContext) {

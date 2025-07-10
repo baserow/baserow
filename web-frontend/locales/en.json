@@ -216,7 +216,8 @@
     "readonlyFieldMessage": "Constraints cannot be applied to read only fields.",
     "errorGenericData": "Cannot apply field constraint due to existing data conflicts.",
     "errorUniqueOrEmpty": "Some values in this field are duplicated. Remove or edit duplicates before applying this constraint.",
-    "errorInvalidConstraint": "This field constraint is not supported for this field type."
+    "errorInvalidConstraint": "This field constraint is not supported for this field type.",
+    "errorDoesNotSupportDefaultValue": "Cannot set this constraint when default value is set."
   },
   "fieldConstraintParametersText": {
     "placeholder": "Enter constraint value"

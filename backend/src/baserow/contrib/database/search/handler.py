@@ -44,6 +44,7 @@ from opentelemetry import trace
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.field_filters import FILTER_TYPE_OR, FilterBuilder
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.search.expressions import LocalisedSearchVector
 from baserow.contrib.database.search.models import (
     AbstractSearchValue,
@@ -59,12 +60,12 @@ from baserow.contrib.database.search.tasks import (
     delete_search_data,
     schedule_update_search_data,
 )
+from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.core.psycopg import errors
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.utils import to_camel_case
 
 if TYPE_CHECKING:
-    from baserow.contrib.database.fields.models import Field
     from baserow.contrib.database.table.models import Table
 
 tracer = trace.get_tracer(__name__)
@@ -113,7 +114,25 @@ def _workspace_search_table_exists(workspace_id: int) -> bool:
 def _generate_search_table_model(
     workspace_id: int, managed=False
 ) -> "AbstractSearchValue":
+    """
+    Generates the search table model for the given workspace ID. This model is used to
+    store search values for each row in the workspace's tables.
+
+    :param workspace_id: The ID of the workspace for which the search table model is
+        being generated.
+    :param managed: This flag should be set to True only when the database table needs
+        to be created or dropped, False otherwise.
+    :return: A dynamically generated model class that represents the search table for
+        the specified workspace.
+    :raises ValueError: If the workspace_id is not provided.
+    """
+
     from baserow.contrib.database.table.models import GeneratedModelAppsProxy
+
+    if not workspace_id:
+        raise ValueError(
+            "Workspace ID must be provided to generate a search table model."
+        )
 
     app_label = "database_search"
     table_name = SearchHandler.get_workspace_search_table_name(workspace_id)
@@ -314,7 +333,7 @@ class SearchHandler(
         )
 
         try:
-            with transaction.atomic(using=router.db_for_write(search_table_model)):
+            with transaction.atomic():
                 with connection.schema_editor() as se:
                     se.create_model(search_table_model)
         except ProgrammingError as exc:
@@ -547,51 +566,57 @@ class SearchHandler(
             all rows will be considered.
         """
 
-        transaction.on_commit(
-            lambda: delete_search_data.delay(table.id, field_ids, row_ids)
-        )
-
-    @classmethod
-    def delete_search_data(
-        cls,
-        table: "Table",
-        field_ids: List[int] | None = None,
-        row_ids: List[int] | None = None,
-    ):
-        """
-        Deletes search data for the given table, fields and row ids.
-        If row_ids is None, all rows will be deleted for the given fields.
-        """
-
-        workspace_id = table.database.workspace_id
-        if cls.workspace_search_table_exists(workspace_id) is False:
-            return
-
-        search_model = cls.get_workspace_search_table_model(workspace_id)
-
+        # extract the field IDs before the commit to ensure we have the correct IDs
         table_field_ids = [
-            f["field"].id
-            for f in table.get_model().get_field_objects(include_trash=True)
+            f.id for f in table.get_model().get_fields(include_trash=True)
         ]
         if field_ids is None:
             field_ids = table_field_ids
         else:
             field_ids = [fid for fid in set(field_ids) if fid in table_field_ids]
 
-        # Delete pending updates first
+        workspace_id = table.database.workspace_id
+        transaction.on_commit(
+            lambda: delete_search_data.delay(workspace_id, field_ids, row_ids)
+        )
+
+    @classmethod
+    def delete_search_data(
+        cls,
+        workspace_id: int,
+        field_ids: List[int],
+        row_ids: List[int] | None = None,
+    ):
+        """
+        Deletes search data for the specified fields in a workspace and, optionally, for
+        specific rows. This method is used when rows, fields or tables are permanently
+        deleted or when search data needs to be cleared. At this point, all the original
+        resources might have been permanently deleted from the database, so this method
+        cannot verify if the IDs are valid or not, but it will took them for granted and
+        delete the search data for them.
+
+        :param workspace_id: The ID of the workspace for which to delete search data.
+        :param field_ids: List of field IDs to delete search data for.
+        :param row_ids: Optional list of row IDs to delete search data for. If None, all
+            rows will be considered for deletion.
+        """
+
+        if not cls.workspace_search_table_exists(workspace_id):
+            return
+
+        search_model = cls.get_workspace_search_table_model(workspace_id)
+
+        # Delete any potential remaining pending update
         q = Q(field_id__in=field_ids)
         if row_ids is not None:
             q &= Q(row_id__in=row_ids)
         cls._delete_pending_updates(q)
 
-        # Now delete the actual search data
+        # And now delete the actual search data
         qs = search_model.objects.filter(field_id__in=field_ids)
         if row_ids is not None:
             qs = qs.filter(row_id__in=row_ids)
-
-        qs.filter(field_id__in=field_ids)._raw_delete(
-            using=router.db_for_write(search_model)
-        )
+        qs._raw_delete(using=router.db_for_write(search_model))
 
     @classmethod
     def queue_pending_search_update(
@@ -642,39 +667,35 @@ class SearchHandler(
     @classmethod
     def initialize_missing_search_data(cls, table: "Table"):
         """
-        Initializes the search data for all fields in the given table that have not
-        been initialized yet. This method will set the `search_data_initialized_at`
-        field to the current time for each field that is initialized.
-        This method processes each field separately to ensure progress on large
-        tables, and it will delete any pending updates for those fields after
-        initializing the search data.
+        Queues a pending update for all fields in the given table that have not yet
+        had their search data initialized.
 
         :param table: The table for which the search data should be initialized.
         :raises TableDoesNotExist: If the table does not exist.
         """
 
-        model = table.get_model()
-        fields_to_initialze = [
-            fo["field"]
-            for fo in model.get_field_objects(include_trash=True)
-            if fo["field"].search_data_initialized_at is None
-        ]
+        fields_to_initialize = Field.objects.filter(
+            table=table,
+            search_data_initialized_at__isnull=True,
+        ).order_by("id")
 
-        initialized_field_ids = []
-        for field in fields_to_initialze:
-            with transaction.atomic():
-                # Process each field separately to ensure progress on large tables.
-                cls.update_search_data(
-                    table, field_ids=[field.id], save_empty_values=False
-                )
+        if not fields_to_initialize:
+            return  # all fields already initializedl
 
-                field.search_data_initialized_at = datetime.now(tz=timezone.utc)
-                field.save(update_fields=["search_data_initialized_at"])
-                initialized_field_ids.append(field.id)
+        field_ids = []
+        now = datetime.now(tz=timezone.utc)
+        for field in fields_to_initialize:
+            field_ids.append(field.id)
+            field.search_data_initialized_at = now
 
-        # Clean up any other pending updates for these fields, since we just
-        # initialized the search data for it.
-        cls._delete_pending_updates(Q(field_id__in=initialized_field_ids))
+        with transaction.atomic():
+            Field.objects.bulk_update(
+                fields_to_initialize, ["search_data_initialized_at"]
+            )
+            cls.queue_pending_search_update(table, field_ids=field_ids)
+        # Ensure table models can see the updated field attributes to avoid
+        # rescheduling tasks for the same fields.
+        invalidate_table_in_model_cache(table.id)
 
     @classmethod
     def update_search_data(
@@ -682,7 +703,6 @@ class SearchHandler(
         table: "Table",
         field_ids: Iterable[int] | None = None,
         row_ids: Iterable[int] | None = None,
-        save_empty_values: bool = True,
     ):
         """
         Updates the search data for the given table, fields and row ids.
@@ -694,20 +714,16 @@ class SearchHandler(
             all searchable fields will be considered.
         :param row_ids: Optional list of row IDs to update search data for. If None,
             all rows will be considered.
-        :param save_empty_values: If True, empty search values will be saved.
-            This can be False when initializing search data for the first time to save
-            space, but should be True when updating existing search data to ensure
-            that all searchable fields are represented in the search table.
         """
 
         model = table.get_model()
-        searchable_fields = {
-            f.id: f for f in model.get_searchable_fields(include_trash=True)
-        }
         qs: QuerySet = model.objects_and_trash.all()
         if row_ids is not None:
             qs = qs.filter(id__in=list(row_ids))
 
+        searchable_fields = {
+            f.id: f for f in model.get_searchable_fields(include_trash=True)
+        }
         if field_ids is None:
             field_ids = list(searchable_fields.keys())
         else:
@@ -732,17 +748,14 @@ class SearchHandler(
             search_expr: Expression = field.get_type().get_search_expression(
                 field, field_qs
             )
-            qs = field_qs.annotate(
+            field_qs = field_qs.annotate(
                 row_id=F("id"),
                 field_id=Value(field_id, output_field=IntegerField()),
                 value=LocalisedSearchVector(search_expr),
                 timestamp=Value(now, output_field=DateTimeField()),
             )
-            if not save_empty_values:
-                qs = qs.exclude(Q(value__iexact="") | Q(value__isnull=True))
-
             field_querysets.append(
-                qs.values("field_id", "row_id", "value", "timestamp")
+                field_qs.values("field_id", "row_id", "value", "timestamp")
             )
 
         union_qs, *rest = field_querysets
@@ -770,80 +783,76 @@ class SearchHandler(
         method.
         """
 
-        PendingSearchValueUpdate.objects.filter(q)._raw_delete(
-            using=router.db_for_write(PendingSearchValueUpdate)
-        )
+        with transaction.atomic():
+            # Even if slower, enforce order and lock rows to prevent potential deadlocks
+            # If updates are already locked, they will be removed by the other process
+            PendingSearchValueUpdate.objects.filter(q).select_for_update(
+                of=("self",), skip_locked=True
+            ).order_by("field_id", "row_id")._raw_delete(
+                using=router.db_for_write(PendingSearchValueUpdate)
+            )
 
     @classmethod
-    def process_search_data_updates(cls, table: "Table", batch_size: int = 10):
+    def process_search_data_updates(cls, table: "Table"):
         """
         Process pending search updates for a given table in two phases:
 
         1. Full‐field updates (row_id=None): rebuilds the search index for an entire
            field.
         2. Row‐specific updates: groups updates for remaining fields into batches and
-           refreshes only affected rows.
-
-        Each update refreshes search data via `update_search_data` and then removes its
-        PendingSearchValueUpdate entry. The loop repeats in transactions until fewer
-        than `batch_size` updates are processed.
+           refreshes only affected cells.
 
         :param table: The Table whose pending search updates will be handled.
-        :param batch_size: Max number of update operations per transaction (default 10).
-            A higher number reduces the round trip to the database, but increases the
-            time between commits and if the task is killed all the updates will be lost.
         """
 
-        def next_batch(count: int) -> QuerySet[PendingSearchValueUpdate]:
+        full_field_updates = (
+            PendingSearchValueUpdate.objects.filter(table=table, row_id=None)
+            .select_for_update(of=("self",), skip_locked=True)
+            .order_by("field_id")
+            .values_list("field_id", flat=True)
+        )
+
+        # First process full-field updates (row_id=None), removing any remaining
+        # row-specific updates on the same field.
+        last = False
+        while not last:
+            with transaction.atomic():
+                batch_size = 5
+                field_ids = list(full_field_updates[:batch_size])
+                if not field_ids:
+                    break
+                elif len(field_ids) < batch_size:
+                    last = True
+
+                cls._delete_pending_updates(Q(field_id__in=field_ids))
+                cls.update_search_data(table, field_ids=field_ids)
+
+        def _fetch_next_batch() -> QuerySet[PendingSearchValueUpdate]:
             return (
                 PendingSearchValueUpdate.objects.filter(
                     table=table, row_id__isnull=False
                 )
                 .select_for_update(of=("self",), skip_locked=True)
-                .order_by("field_id", "row_id")[:count]
+                .order_by("field_id", "row_id")
             )
 
-        def process_batch(num_updates=10):
-            processed = 0
-
-            # Handle full-field updates (row_id=None) before row-specific updates
-            full_table_updates = PendingSearchValueUpdate.objects.filter(
-                table=table, row_id=None
-            ).select_for_update(of=("self",), skip_locked=True)[:num_updates]
-
-            for update in full_table_updates:
-                cls.update_search_data(table, field_ids=[update.field_id])
-                cls._delete_pending_updates(Q(field_id=update.field_id))
-
-                processed += 1
-                if processed >= num_updates:
-                    break
-
-            # Now handle single-row updates, grouping them for efficiency
-            while processed < num_updates:
-                rows_updates = next_batch(2500)
-
-                if not rows_updates:
-                    break
-
-                field_ids, row_ids = set(), set()
-                for u in rows_updates:
-                    field_ids.add(u.field_id)
-                    row_ids.add(u.row_id)
-
-                cls.update_search_data(
-                    table, field_ids=list(field_ids), row_ids=list(row_ids)
-                )
-                rows_updates._raw_delete(
-                    using=router.db_for_write(PendingSearchValueUpdate)
-                )
-
-                processed += 1
-
-            return processed
-
-        while True:
+        # Now handle single-cells updates, grouping them for efficiency
+        last = False
+        while not last:
             with transaction.atomic():
-                processed = process_batch(batch_size)
-            if processed < batch_size:
-                break
+                batch_size = 1000
+                pending_cells_updates = _fetch_next_batch()[:batch_size]
+                if len(pending_cells_updates) < batch_size:
+                    last = True
+
+                field_ids, row_ids, update_ids = set(), set(), []
+                for cell_update in pending_cells_updates:
+                    field_ids.add(cell_update.field_id)
+                    row_ids.add(cell_update.row_id)
+                    update_ids.append(cell_update.id)
+
+                if update_ids:
+                    cls.update_search_data(
+                        table, field_ids=list(field_ids), row_ids=list(row_ids)
+                    )
+                    cls._delete_pending_updates(Q(id__in=update_ids))

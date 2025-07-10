@@ -42,6 +42,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT,
     ERROR_FIELD_CIRCULAR_REFERENCE,
     ERROR_FIELD_CONSTRAINT,
+    ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE,
     ERROR_FIELD_DOES_NOT_EXIST,
     ERROR_FIELD_IS_ALREADY_PRIMARY,
     ERROR_FIELD_NOT_IN_TABLE,
@@ -82,6 +83,7 @@ from baserow.contrib.database.fields.exceptions import (
     CannotDeletePrimaryField,
     DbIndexNotSupportedError,
     FailedToLockFieldDueToConflict,
+    FieldConstraintDoesNotSupportDefaultValueError,
     FieldConstraintException,
     FieldDoesNotExist,
     FieldIsAlreadyPrimary,
@@ -292,6 +294,7 @@ class FieldsView(APIView):
             FieldConstraintException: ERROR_FIELD_CONSTRAINT,
             InvalidFieldConstraint: ERROR_INVALID_FIELD_CONSTRAINT,
             ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
+            FieldConstraintDoesNotSupportDefaultValueError: ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE,
         }
     )
     def post(self, request, data, table_id):
@@ -441,6 +444,7 @@ class FieldView(APIView):
             DbIndexNotSupportedError: ERROR_DB_INDEX_NOT_SUPPORTED,
             FieldConstraintException: ERROR_FIELD_CONSTRAINT,
             InvalidFieldConstraint: ERROR_INVALID_FIELD_CONSTRAINT,
+            FieldConstraintDoesNotSupportDefaultValueError: ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE,
         }
     )
     @require_request_data_type(dict)

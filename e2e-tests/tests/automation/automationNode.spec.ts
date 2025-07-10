@@ -8,10 +8,12 @@ test.describe("Automation node test suite", () => {
   });
 
   test("Can create an automation node", async ({ page }) => {
-    const createNodeButton = page.getByRole("button", { name: "Create automation node" });
+    const createNodeButton = page.getByRole("button", {
+      name: "Create automation node",
+    });
     await createNodeButton.click();
 
-    const rowsCreatedOption = page.getByText("Create a row")
+    const rowsCreatedOption = page.getByText("Create a row");
     await expect(rowsCreatedOption).toBeVisible();
     await rowsCreatedOption.click();
 
@@ -22,8 +24,14 @@ test.describe("Automation node test suite", () => {
     await expect(nodeDiv).toBeVisible();
   });
 
-  test("Can delete an automation node", async ({ page, automationWorkflowPage }) => {
-    await createAutomationNode(automationWorkflowPage.automationWorkflow, "create_row")
+  test("Can delete an automation node", async ({
+    page,
+    automationWorkflowPage,
+  }) => {
+    await createAutomationNode(
+      automationWorkflowPage.automationWorkflow,
+      "create_row"
+    );
 
     // TODO: Remove this manual reload once real-time events have been
     // implemented for automations.
@@ -35,7 +43,12 @@ test.describe("Automation node test suite", () => {
     });
     await expect(nodeDiv).toBeVisible();
 
-    const nodeMenuButton = page.getByRole("button", { name: "Node options" });
+    // Let's select the node
+    await nodeDiv.click();
+
+    const nodeMenuButton = page
+      .locator(".selected")
+      .getByRole("button", { name: "Node options" });
     await nodeMenuButton.click();
 
     const deleteNodeButton = page.getByRole("button", { name: "Delete" });

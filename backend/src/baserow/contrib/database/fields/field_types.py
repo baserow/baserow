@@ -106,6 +106,9 @@ from baserow.contrib.database.fields.utils.expression import (
     get_select_option_extractor,
     wrap_in_subquery,
 )
+from baserow.contrib.database.fields.utils.field_constraint import (
+    validate_default_value_with_constraints,
+)
 from baserow.contrib.database.formula import (
     BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
     BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES,
@@ -4155,6 +4158,15 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
     def init_field_data(self, field, model):
         if field.single_select_default:
+            field_data = {
+                self.get_default_options_field_name(): field.single_select_default
+            }
+            validate_default_value_with_constraints(
+                self,
+                [{"type_name": c.type_name} for c in field.field_constraints.all()],
+                field_data,
+                field,
+            )
             model.objects.all().update(
                 **{f"{field.db_column}_id": field.single_select_default}
             )
@@ -5797,7 +5809,10 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         # TODO: To improve performance, group formula fields at the same level and
         # in the same table and apply updates in one go.
         if apply_updates:
-            update_collector.apply_updates_and_get_updated_fields(field_cache)
+            update_collector.apply_updates_and_get_updated_fields(
+                field_cache,
+                skip_search_updates=True,  # will be updated at the end of the import
+            )
 
     def check_can_order_by(self, field, order_type):
         # The formula types are not compatible with the order type. Therefore,

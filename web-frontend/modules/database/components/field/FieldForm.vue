@@ -177,6 +177,7 @@ import {
   RESERVED_BASEROW_FIELD_NAMES,
   MAX_FIELD_NAME_LENGTH,
 } from '@baserow/modules/database/utils/constants'
+import { FIELD_CONSTRAINT_ERROR_CODES } from '@baserow/modules/database/constants'
 
 // @TODO focus form on open
 export default {
@@ -425,8 +426,7 @@ export default {
 
       if (
         error.handler &&
-        (error.handler.code === 'ERROR_FIELD_CONSTRAINT' ||
-          error.handler.code === 'ERROR_INVALID_FIELD_CONSTRAINT')
+        FIELD_CONSTRAINT_ERROR_CODES.includes(error.handler.code)
       ) {
         this.selectedTabIndex = 1
         this.fieldConstraintError = error.handler.code
