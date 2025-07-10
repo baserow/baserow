@@ -1,6 +1,6 @@
 import abc
 from decimal import Decimal
-from typing import Callable, List, Optional
+from typing import Callable, Generic, List, Optional, TypeVar
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
@@ -339,7 +339,10 @@ class PolymorphicContentTypeMixin:
         del self.specific_class
 
 
-class WithRegistry:
+T = TypeVar("T", bound="Instance")
+
+
+class WithRegistry(Generic[T]):
     """
     Add shortcuts to models related to a registry.
     """
@@ -349,7 +352,7 @@ class WithRegistry:
     def get_type_registry() -> ModelRegistryMixin:
         """Must return the registry related to this model class."""
 
-    def get_type(self) -> Instance:
+    def get_type(self) -> T:
         """Returns the type for this model instance"""
 
         return self.get_type_registry().get_by_model(self.specific_class)

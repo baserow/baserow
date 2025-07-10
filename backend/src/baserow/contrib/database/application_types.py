@@ -618,6 +618,8 @@ class DatabaseApplicationType(ApplicationType):
         :param serialized_tables: The serialized tables to import the rows into.
         :param imported_fields: The imported fields that were created during the import.
         :param user_email_mapping: A mapping of user emails to user instances.
+        :param deferred_fk_update_collector: A collector that collects all the foreign
+            keys to update them later when the model with all the fields is created.
         :param id_mapping: A mapping of any table ids that might be referenced in
             serialized_tables to their new/existing ids to use in this import.
         :param files_zip: An optional zip of files which can be used to retrieve
