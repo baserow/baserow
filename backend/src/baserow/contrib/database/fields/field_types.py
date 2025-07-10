@@ -5797,7 +5797,10 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         # TODO: To improve performance, group formula fields at the same level and
         # in the same table and apply updates in one go.
         if apply_updates:
-            update_collector.apply_updates_and_get_updated_fields(field_cache)
+            update_collector.apply_updates_and_get_updated_fields(
+                field_cache,
+                skip_search_updates=True,  # will be updated at the end of the import
+            )
 
     def check_can_order_by(self, field, order_type):
         # The formula types are not compatible with the order type. Therefore,

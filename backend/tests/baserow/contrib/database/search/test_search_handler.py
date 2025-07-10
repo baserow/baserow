@@ -7,9 +7,14 @@ import pytest
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchHandler, SearchMode
 from baserow.contrib.database.search.models import PendingSearchValueUpdate
+from baserow.contrib.database.table.handler import TableHandler
+from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.trash.handler import TrashHandler
+from baserow.core.utils import Progress
 
 
 def test_escape_query():
@@ -69,12 +74,19 @@ def test_get_fields_missing_search_index(data_fixture):
     model = table.get_model()
     assert list(model.get_fields_with_uninitialized_search_data()) == []
     text_field = data_fixture.create_text_field(table=table)
-    model = table.get_model()
-    assert list(model.get_fields_with_uninitialized_search_data()) == [text_field]
+
+    def get_uninitialized_fields():
+        return list(table.get_model().get_fields_with_uninitialized_search_data())
+
+    assert get_uninitialized_fields() == [text_field]
+    assert PendingSearchValueUpdate.objects.count() == 0
 
     SearchHandler.initialize_missing_search_data(table)
 
-    assert list(model.get_fields_with_uninitialized_search_data()) == []
+    assert get_uninitialized_fields() == []
+    assert list(PendingSearchValueUpdate.objects.values("field_id", "row_id")) == [
+        {"field_id": text_field.id, "row_id": None}
+    ]
 
 
 @pytest.mark.django_db
@@ -147,9 +159,10 @@ def test_delete_search_data(data_fixture):
         {"field_id": number_field.id, "row_id": row3.id},
     ]
 
+    workspace_id = table.database.workspace_id
     # A specific cell
     SearchHandler.delete_search_data(
-        table, field_ids=[text_field.id], row_ids=[row1.id]
+        workspace_id, field_ids=[text_field.id], row_ids=[row1.id]
     )
     res = list(search_table.objects.values("field_id", "row_id"))
     assert len(res) == 5
@@ -162,7 +175,9 @@ def test_delete_search_data(data_fixture):
     ]
 
     # All fields for a specific row
-    SearchHandler.delete_search_data(table, row_ids=[row2.id])
+    SearchHandler.delete_search_data(
+        workspace_id, field_ids=[text_field.id, number_field.id], row_ids=[row2.id]
+    )
     res = list(search_table.objects.values("field_id", "row_id"))
     assert len(res) == 3
     assert res == [
@@ -172,13 +187,13 @@ def test_delete_search_data(data_fixture):
     ]
 
     # All rows for a specific field
-    SearchHandler.delete_search_data(table, field_ids=[number_field.id])
+    SearchHandler.delete_search_data(workspace_id, field_ids=[number_field.id])
     res = list(search_table.objects.values("field_id", "row_id"))
     assert len(res) == 1
     assert res == [{"field_id": text_field.id, "row_id": row3.id}]
 
     # All table search data
-    SearchHandler.delete_search_data(table)
+    SearchHandler.delete_search_data(workspace_id, field_ids=[text_field.id])
     res = list(search_table.objects.values("field_id", "row_id"))
     assert len(res) == 0
 
@@ -203,8 +218,8 @@ def test_initialize_missing_search_data(data_fixture):
             user=user,
             table=table,
             rows_values=[
-                {text_field.db_column: "Row 1", number_field.db_column: 1},
-                {text_field.db_column: "Row 2"},
+                {text_field.db_column: "a", number_field.db_column: 1},
+                {text_field.db_column: "b"},
                 {number_field.db_column: 3},
             ],
             model=model,
@@ -213,27 +228,27 @@ def test_initialize_missing_search_data(data_fixture):
     )
 
     SearchHandler.initialize_missing_search_data(table)
+    model = table.get_model()  # refetch fields attributes
     assert list(model.get_fields_with_uninitialized_search_data()) == []
 
+    SearchHandler.process_search_data_updates(table)
     search_table = SearchHandler.get_workspace_search_table_model(
         table.database.workspace_id
     )
     res = list(search_table.objects.values("field_id", "row_id"))
-    # Emtpy values are not stored during initialization.
-    assert len(res) == 4
+    assert len(res) == 6
     assert res == [
         {"field_id": text_field.id, "row_id": row1.id},
         {"field_id": text_field.id, "row_id": row2.id},
+        {"field_id": text_field.id, "row_id": row3.id},
         {"field_id": number_field.id, "row_id": row1.id},
+        {"field_id": number_field.id, "row_id": row2.id},
         {"field_id": number_field.id, "row_id": row3.id},
     ]
 
 
 @pytest.mark.django_db(transaction=True)
-@patch(
-    "baserow.contrib.database.search.handler.SearchHandler.process_search_data_updates"
-)
-def test_update_rows_create_update_entries_for_all_updated_fields(mock, data_fixture):
+def test_update_rows_create_update_entries_for_all_updated_fields(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
 
@@ -242,22 +257,30 @@ def test_update_rows_create_update_entries_for_all_updated_fields(mock, data_fix
     model = table.get_model()
 
     SearchHandler.initialize_missing_search_data(table)
+    assert PendingSearchValueUpdate.objects.count() == 2
+    SearchHandler.process_search_data_updates(table)
     assert PendingSearchValueUpdate.objects.count() == 0
 
-    row1, row2, row3 = (
-        RowHandler()
-        .force_create_rows(
-            user=user,
-            table=table,
-            rows_values=[
-                {text_field.db_column: "Row 1"},
-                {text_field.db_column: "Row 2"},
-                {},
-            ],
-            model=model,
+    with patch(
+        "baserow.contrib.database.search.handler.SearchHandler.process_search_data_updates"
+    ) as mock:
+        row1, row2, row3 = (
+            RowHandler()
+            .force_create_rows(
+                user=user,
+                table=table,
+                rows_values=[
+                    {text_field.db_column: "Row 1"},
+                    {text_field.db_column: "Row 2"},
+                    {},
+                ],
+                model=model,
+            )
+            .created_rows
         )
-        .created_rows
-    )
+        assert (
+            mock.call_count == 2
+        )  # one for the text field, and one for the formula field
 
     res = list(PendingSearchValueUpdate.objects.values("field_id", "row_id"))
     assert len(res) == 6
@@ -279,8 +302,6 @@ def test_update_rows_process_update_entries(mock, data_fixture):
 
     text_field = data_fixture.create_text_field(table=table)
     formula_field = data_fixture.create_formula_field(table=table, formula="'b'")
-
-    SearchHandler.initialize_missing_search_data(table)
 
     PendingSearchValueUpdate.objects.bulk_create(
         [
@@ -343,11 +364,11 @@ def test_update_search_data(data_fixture):
     search_table = SearchHandler.get_workspace_search_table_model(
         workspace_id=table.database.workspace_id
     )
-    SearchHandler.initialize_missing_search_data(table)
+    SearchHandler.update_search_data(table)
     assert search_table.objects.count() == 0
 
-    dt = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-    with freeze_time(dt):
+    dt1 = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    with freeze_time(dt1):
         row1, row2, row3 = (
             RowHandler()
             .force_create_rows(
@@ -363,17 +384,23 @@ def test_update_search_data(data_fixture):
             .created_rows
         )
 
+    def get_search_data():
+        return list(
+            search_table.objects.order_by("row_id", "field_id").values(
+                "field_id", "row_id", "updated_on"
+            )
+        )
+
     # After the initialization, the search data is created for all fields
-    # no matter if the value is empty or not.
-    res = list(search_table.objects.values("field_id", "row_id", "updated_on"))
+    res = get_search_data()
     assert len(res) == 6
     assert res == [
-        {"field_id": text_field.id, "row_id": row1.id, "updated_on": dt},
-        {"field_id": text_field.id, "row_id": row2.id, "updated_on": dt},
-        {"field_id": text_field.id, "row_id": row3.id, "updated_on": dt},
-        {"field_id": number_field.id, "row_id": row1.id, "updated_on": dt},
-        {"field_id": number_field.id, "row_id": row2.id, "updated_on": dt},
-        {"field_id": number_field.id, "row_id": row3.id, "updated_on": dt},
+        {"row_id": row1.id, "field_id": text_field.id, "updated_on": dt1},
+        {"row_id": row1.id, "field_id": number_field.id, "updated_on": dt1},
+        {"row_id": row2.id, "field_id": text_field.id, "updated_on": dt1},
+        {"row_id": row2.id, "field_id": number_field.id, "updated_on": dt1},
+        {"row_id": row3.id, "field_id": text_field.id, "updated_on": dt1},
+        {"row_id": row3.id, "field_id": number_field.id, "updated_on": dt1},
     ]
 
     dt2 = datetime(2025, 1, 1, 12, 0, 10, tzinfo=timezone.utc)
@@ -388,23 +415,103 @@ def test_update_search_data(data_fixture):
                     text_field.db_column: None,
                     number_field.db_column: None,
                 },
-                {"id": row2.id, text_field.db_column: "", number_field.db_column: 5},
                 {
-                    "id": row3.id,
-                    text_field.db_column: "Row 3",
-                    number_field.db_column: 6,
+                    "id": row2.id,
+                    text_field.db_column: "",
+                    number_field.db_column: 5,
                 },
             ],
             model=model,
         )
 
-    res = list(search_table.objects.values("field_id", "row_id", "updated_on"))
+    res = get_search_data()
     assert len(res) == 6
     assert res == [
-        {"field_id": text_field.id, "row_id": row1.id, "updated_on": dt2},
-        {"field_id": text_field.id, "row_id": row2.id, "updated_on": dt2},
-        {"field_id": text_field.id, "row_id": row3.id, "updated_on": dt2},
-        {"field_id": number_field.id, "row_id": row1.id, "updated_on": dt2},
-        {"field_id": number_field.id, "row_id": row2.id, "updated_on": dt2},
-        {"field_id": number_field.id, "row_id": row3.id, "updated_on": dt2},
+        {"row_id": row1.id, "field_id": text_field.id, "updated_on": dt2},
+        {"row_id": row1.id, "field_id": number_field.id, "updated_on": dt2},
+        {"row_id": row2.id, "field_id": text_field.id, "updated_on": dt2},
+        {"row_id": row2.id, "field_id": number_field.id, "updated_on": dt2},
+        # Unmodified row3 still has the original timestamp
+        {"row_id": row3.id, "field_id": text_field.id, "updated_on": dt1},
+        {"row_id": row3.id, "field_id": number_field.id, "updated_on": dt1},
     ]
+
+    RowHandler().delete_row(user=user, table=table, row=row1, model=model)
+
+    # Trashing rows doesn't delete the search data
+    res = get_search_data()
+    assert len(res) == 6
+
+    # Once the row is permanently deleted, the search data is removed
+    TrashHandler.permanently_delete(row1, table.id)
+    res = get_search_data()
+
+    assert len(res) == 4
+    assert res == [
+        {"row_id": row2.id, "field_id": text_field.id, "updated_on": dt2},
+        {"row_id": row2.id, "field_id": number_field.id, "updated_on": dt2},
+        {"row_id": row3.id, "field_id": text_field.id, "updated_on": dt1},
+        {"row_id": row3.id, "field_id": number_field.id, "updated_on": dt1},
+    ]
+
+    # Trashing a field doesn't delete the search data
+    FieldHandler().delete_field(user=user, field=number_field)
+
+    res = get_search_data()
+    assert len(res) == 4
+
+    # Once the field is permanently deleted, the search data is removed
+    with transaction.atomic():
+        TrashHandler.permanently_delete(number_field)
+
+    res = get_search_data()
+    assert len(res) == 2
+    assert res == [
+        {"row_id": row2.id, "field_id": text_field.id, "updated_on": dt2},
+        {"row_id": row3.id, "field_id": text_field.id, "updated_on": dt1},
+    ]
+
+    # Trashing a table doesn't delete the search data
+    TableHandler().delete_table(user=user, table=table)
+    res = get_search_data()
+    assert len(res) == 2
+
+    # Once the table is permanently deleted, the search data is removed
+    with transaction.atomic():
+        TrashHandler.permanently_delete(table)
+
+    res = get_search_data()
+    assert len(res) == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_creating_a_snapshot_doesnt_schedule_search_updates(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    number_field = data_fixture.create_number_field(table=table)
+
+    RowHandler().force_create_rows(
+        user=user,
+        table=table,
+        rows_values=[
+            {text_field.db_column: "Row 1", number_field.db_column: 1},
+            {text_field.db_column: "Row 2"},
+            {},
+        ],
+    )
+
+    with patch(
+        "baserow.contrib.database.search.handler.SearchHandler.schedule_update_search_data"
+    ) as mock:
+        handler = SnapshotHandler()
+        snapshot = handler.create(table.database_id, user, "Test snapshot")
+        handler.perform_create(snapshot, Progress(100))
+        assert mock.call_count == 0
+
+        # once the snapshot is restored, the search data is updated
+        restored_app = handler.perform_restore(snapshot, Progress(100))
+        new_table = restored_app.table_set.first()
+        assert mock.call_count == 1
+        assert mock.call_args[0][0] == new_table
+        assert mock.call_args[1] == {}  # the whole table

@@ -1,6 +1,5 @@
-import typing
 from enum import Enum
-from typing import NewType
+from typing import TYPE_CHECKING, NewType
 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
@@ -47,8 +46,9 @@ from baserow.core.utils import remove_special_characters, to_snake_case
 
 from .fields import SerialField
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from baserow.contrib.database.fields.dependencies.handler import FieldDependants
+    from baserow.contrib.database.fields.registries import FieldType  # noqa: F401
 
 NUMBER_MAX_DECIMAL_PLACES = 10
 
@@ -124,7 +124,7 @@ class Field(
     CreatedAndUpdatedOnMixin,
     OrderableMixin,
     PolymorphicContentTypeMixin,
-    WithRegistry,
+    WithRegistry["FieldType"],
     models.Model,
 ):
     """
