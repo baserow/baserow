@@ -130,7 +130,8 @@ const openEditContext = () => {
 const replaceNodeContext = ref(null)
 const openReplaceContext = async () => {
   editNodeContext.value.hide()
-  // Makes sure the click event propagation is done
+  // As the target isn't the element that triggered the show of the context it is not
+  // ignored by the click outside handler and it immediately closes the context
   await flushPromises()
   activeNodeContext.value = replaceNodeContext
   replaceNodeContext.value.toggle(
