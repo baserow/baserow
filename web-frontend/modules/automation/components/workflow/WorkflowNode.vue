@@ -21,7 +21,6 @@
       class="workflow-editor__node-more--wrapper"
     >
       <a
-        v-if="!props.data.isTrigger"
         ref="editNodeContextToggle"
         role="button"
         title="Node options"
@@ -29,15 +28,6 @@
         @click="openEditContext()"
       >
         <i class="baserow-icon-more-vertical"></i>
-      </a>
-      <a
-        ref="replaceNodeContextToggle"
-        role="button"
-        :title="$t('workflowNode.moreReplace')"
-        class="workflow-editor__node-more-icon"
-        @click="openReplaceContext()"
-      >
-        <i class="baserow-icon-history"></i>
       </a>
     </div>
 
@@ -51,6 +41,16 @@
       </div>
       <ul class="context__menu">
         <li class="context__menu-item">
+          <a
+            role="button"
+            class="context__menu-item-link context__menu-item-link--switch"
+            @click="openReplaceContext()"
+          >
+            <i class="context__menu-item-icon baserow-icon-history"></i>
+            {{ $t('workflowNode.moreReplace') }}
+          </a>
+        </li>
+        <li v-if="!props.data.isTrigger" class="context__menu-item">
           <a
             role="button"
             class="context__menu-item-link context__menu-item-link--delete"
@@ -75,6 +75,7 @@ import { ref } from 'vue'
 import { useVueFlow } from '@vue2-flow/core'
 import { useStore, useContext, inject, computed } from '@nuxtjs/composition-api'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
+import flushPromises from 'flush-promises'
 
 const { onMove } = useVueFlow()
 const props = defineProps({
@@ -127,17 +128,18 @@ const openEditContext = () => {
 }
 
 const replaceNodeContext = ref(null)
-const replaceNodeContextToggle = ref(null)
-const openReplaceContext = () => {
-  if (replaceNodeContext.value && replaceNodeContextToggle.value) {
-    activeNodeContext.value = replaceNodeContext
-    replaceNodeContext.value.toggle(
-      replaceNodeContextToggle.value,
-      'bottom',
-      'left',
-      0
-    )
-  }
+const openReplaceContext = async () => {
+  editNodeContext.value.hide()
+  // As the target isn't the element that triggered the show of the context it is not
+  // ignored by the click outside handler and it immediately closes the context
+  await flushPromises()
+  activeNodeContext.value = replaceNodeContext
+  replaceNodeContext.value.toggle(
+    editNodeContextToggle.value,
+    'bottom',
+    'left',
+    0
+  )
 }
 
 const store = useStore()
