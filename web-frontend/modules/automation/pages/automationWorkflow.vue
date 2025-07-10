@@ -7,12 +7,13 @@
       @debug-toggled="handleDebugToggle"
     />
     <div
+      v-if="!$fetchState.error"
       class="layout__col-2-2 automation-workflow__content"
       :class="{
-        'automation-workflow__content--loading': workflowLoading,
+        'automation-workflow__content--loading': $fetchState.pending,
       }"
     >
-      <div v-if="workflowLoading" class="loading"></div>
+      <div v-if="$fetchState.pending" class="loading"></div>
       <div v-else class="automation-workflow__editor">
         <client-only>
           <WorkflowEditor
@@ -60,6 +61,7 @@ export default defineComponent({
   beforeRouteLeave(to, from, next) {
     this.onRouteChange(to, from, next)
   },
+
   layout: 'app',
   setup() {
     const store = useStore()
@@ -72,14 +74,52 @@ export default defineComponent({
     const automation = ref(null)
     const workflow = ref(null)
     const isAddingNode = ref(false)
-    const workflowLoading = ref(true)
-
     const sidePanelWidth = 360
 
     useFetch(async () => {
       try {
-        workflowLoading.value = true
+        const automationLocal = await store.dispatch(
+          'application/selectById',
+          automationId
+        )
+        const workspaceLocal = await store.dispatch(
+          'workspace/selectById',
+          automationLocal.workspace.id
+        )
+        const workflowLocal = await store.dispatch(
+          'automationWorkflow/fetchById',
+          {
+            automation: automationLocal,
+            workflowId,
+          }
+        )
+        await store.dispatch('automationWorkflow/selectById', {
+          automation: automationLocal,
+          workflowId,
+        })
+        await store.dispatch('automationWorkflowNode/fetch', {
+          workflow: workflowLocal,
+        })
 
+        const applicationType = app.$registry.get(
+          'application',
+          AutomationApplicationType.getType()
+        )
+        await applicationType.loadExtraData(automationLocal)
+
+        workspace.value = workspaceLocal
+        automation.value = automationLocal
+        workflow.value = workflowLocal
+      } catch (e) {
+        console.log(e)
+        error({
+          statusCode: 404,
+          message: 'Automation workflow or its nodes not found.',
+        })
+      }
+    })
+    /* useFetch(async () => {
+      try {
         automation.value = await store.dispatch(
           'application/selectById',
           automationId
@@ -117,10 +157,8 @@ export default defineComponent({
           statusCode: 404,
           message: 'Automation workflow or its nodes not found.',
         })
-      } finally {
-        workflowLoading.value = false
       }
-    })
+    }) */
 
     const isDev = computed(() => {
       return process.env.NODE_ENV === 'development'
@@ -133,9 +171,12 @@ export default defineComponent({
 
     const workflowReadOnly = ref(false)
     const workflowNodes = computed(() => {
-      return store.getters['automationWorkflowNode/getNodesOrdered'](
-        workflow.value
-      )
+      if (workflow.value) {
+        return store.getters['automationWorkflowNode/getNodesOrdered'](
+          workflow.value
+        )
+      }
+      return []
     })
 
     const handleReadOnlyToggle = (newReadOnlyState) => {
@@ -200,7 +241,7 @@ export default defineComponent({
 
     const selectedNodeId = computed({
       get() {
-        return workflow.value.selectedNodeId
+        return workflow.value ? workflow.value.selectedNodeId : null
       },
       set(nodeId) {
         let nodeToSelect = null
@@ -250,7 +291,6 @@ export default defineComponent({
       workspace,
       automation,
       workflow,
-      workflowLoading,
       sidePanelWidth,
       workflowReadOnly,
       workflowNodes,
@@ -264,6 +304,59 @@ export default defineComponent({
       workflowId,
       isAddingNode,
       onRouteChange,
+    }
+  },
+  async asyncData({
+    store,
+    params,
+    error,
+    $registry,
+    app,
+    req,
+    redirect,
+    route,
+    query,
+  }) {
+    console.log('AsyncData')
+    try {
+      const automationLocal = await store.dispatch(
+        'application/selectById',
+        automationId
+      )
+      const workspaceLocal = await store.dispatch(
+        'workspace/selectById',
+        automationLocal.workspace.id
+      )
+      const workflowLocal = await store.dispatch(
+        'automationWorkflow/fetchById',
+        {
+          automation: automationLocal,
+          workflowId,
+        }
+      )
+      await store.dispatch('automationWorkflow/selectById', {
+        automation: automationLocal,
+        workflowId,
+      })
+      await store.dispatch('automationWorkflowNode/fetch', {
+        workflow: workflowLocal,
+      })
+
+      const applicationType = app.$registry.get(
+        'application',
+        AutomationApplicationType.getType()
+      )
+      await applicationType.loadExtraData(automationLocal)
+
+      workspace.value = workspaceLocal
+      automation.value = automationLocal
+      workflow.value = workflowLocal
+    } catch (e) {
+      console.log(e)
+      return error({
+        statusCode: 404,
+        message: 'Automation workflow or its nodes not found.',
+      })
     }
   },
 })
