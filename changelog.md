@@ -1,5 +1,13 @@
 # Changelog
 
+## Released 1.34.1
+
+### Bug fixes
+* [Builder] Fix error when a shared data source dispatch fails
+* [Core] Fix font lighter default css bug.
+* [Database] Fix minor issues after the TSVectors refactor.
+
+
 ## Released 1.34.0
 
 ### New features
