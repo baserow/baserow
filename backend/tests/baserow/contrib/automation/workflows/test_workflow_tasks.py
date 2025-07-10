@@ -39,5 +39,6 @@ def test_run_workflow_handles_error(mock_logger, data_fixture):
         run_workflow(workflow.id, None)
 
     mock_logger.error.assert_called_once_with(
-        "Error while running workflow 1: The node 2 has a misconfigured service. Test error"
+        f"Error while running workflow {workflow.id}: "
+        f"The node {action_node.id} has a misconfigured service. Test error"
     )
