@@ -25,6 +25,7 @@ class FieldValueConstraint(Instance):
 
     type = None
     constraint_name = None
+    can_support_default_value = None
 
     def get_constraint_name(self, field, field_name):
         return f"{field_name}_{self.type}"
@@ -44,6 +45,7 @@ class FieldValueConstraint(Instance):
 class UniqueWithEmptyConstraint(FieldValueConstraint):
     type = "generic_unique_with_empty"
     constraint_name = UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
+    can_support_default_value = False
 
     def build_field_constraint(self, field, field_name, **kwargs):
         return django_models.UniqueConstraint(
@@ -67,6 +69,7 @@ class UniqueWithEmptyConstraint(FieldValueConstraint):
 class TextTypeUniqueWithEmptyConstraint(FieldValueConstraint):
     type = "text_type_unique_with_empty"
     constraint_name = UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
+    can_support_default_value = False
 
     def build_field_constraint(self, field, field_name, **kwargs):
         return django_models.UniqueConstraint(
@@ -91,6 +94,7 @@ class TextTypeUniqueWithEmptyConstraint(FieldValueConstraint):
 class RatingTypeUniqueWithEmptyConstraint(FieldValueConstraint):
     type = "rating_type_unique_with_empty"
     constraint_name = UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
+    can_support_default_value = False
 
     def build_field_constraint(self, field, field_name, **kwargs):
         return django_models.UniqueConstraint(

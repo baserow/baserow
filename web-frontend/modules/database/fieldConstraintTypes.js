@@ -91,16 +91,32 @@ export class FieldConstraintType extends Registerable {
   }
 
   /**
+   * Returns a map of error codes to their corresponding error messages.
+   * Subclasses can override this method to provide custom error messages
+   * for specific error codes.
+   * @returns {Object} Object mapping error codes to error messages
+   */
+  getErrorMap() {
+    return {
+      ERROR_INVALID_FIELD_CONSTRAINT: this.$t(
+        'fieldConstraintsSubform.errorInvalidConstraint'
+      ),
+      ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE: this.$t(
+        'fieldConstraintsSubform.errorDoesNotSupportDefaultValue'
+      ),
+    }
+  }
+
+  /**
    * Returns the error message that should be displayed when the field constraint
    * cannot be applied.
    * @returns {string} The error message.
    */
   getErrorMessage(error) {
-    if (error === 'ERROR_INVALID_FIELD_CONSTRAINT') {
-      return this.$t('fieldConstraintsSubform.errorInvalidConstraint')
-    }
-
-    return this.$t('fieldConstraintsSubform.errorGenericData')
+    const errorMap = this.getErrorMap()
+    return (
+      errorMap[error] || this.$t('fieldConstraintsSubform.errorGenericData')
+    )
   }
 
   /**
@@ -139,14 +155,29 @@ export class FieldConstraintType extends Registerable {
   }
 }
 
-export class TextTypeUniqueWithEmptyConstraintType extends FieldConstraintType {
-  static getType() {
-    return 'text_type_unique_with_empty'
-  }
-
+export class UniqueWithEmptyConstraintType extends FieldConstraintType {
   getName() {
     const { i18n } = this.app
     return i18n.t('fieldConstraint.uniqueWithEmpty')
+  }
+
+  getTypeName() {
+    return UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
+  }
+
+  getErrorMap() {
+    return {
+      ...super.getErrorMap(),
+      ERROR_FIELD_CONSTRAINT: this.$t(
+        'fieldConstraintsSubform.errorUniqueOrEmpty'
+      ),
+    }
+  }
+}
+
+export class TextTypeUniqueWithEmptyConstraintType extends UniqueWithEmptyConstraintType {
+  static getType() {
+    return 'text_type_unique_with_empty'
   }
 
   getCompatibleFieldTypes() {
@@ -157,55 +188,21 @@ export class TextTypeUniqueWithEmptyConstraintType extends FieldConstraintType {
       EmailFieldType.getType(),
     ]
   }
-
-  getTypeName() {
-    return UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
-  }
-
-  getErrorMessage(error) {
-    if (error === 'ERROR_FIELD_CONSTRAINT') {
-      return this.$t('fieldConstraintsSubform.errorUniqueOrEmpty')
-    }
-
-    return super.getErrorMessage(error)
-  }
 }
 
-export class RatingTypeUniqueWithEmptyConstraintType extends FieldConstraintType {
+export class RatingTypeUniqueWithEmptyConstraintType extends UniqueWithEmptyConstraintType {
   static getType() {
     return 'rating_type_unique_with_empty'
-  }
-
-  getName() {
-    const { i18n } = this.app
-    return i18n.t('fieldConstraint.uniqueWithEmpty')
   }
 
   getCompatibleFieldTypes() {
     return [RatingFieldType.getType()]
   }
-
-  getTypeName() {
-    return UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
-  }
-
-  getErrorMessage(error) {
-    if (error === 'ERROR_FIELD_CONSTRAINT') {
-      return this.$t('fieldConstraintsSubform.errorUniqueOrEmpty')
-    }
-
-    return super.getErrorMessage(error)
-  }
 }
 
-export class UniqueWithEmptyConstraintType extends FieldConstraintType {
+export class GenericUniqueWithEmptyConstraintType extends UniqueWithEmptyConstraintType {
   static getType() {
     return 'generic_unique_with_empty'
-  }
-
-  getName() {
-    const { i18n } = this.app
-    return i18n.t('fieldConstraint.uniqueWithEmpty')
   }
 
   getCompatibleFieldTypes() {
@@ -215,17 +212,5 @@ export class UniqueWithEmptyConstraintType extends FieldConstraintType {
       DurationFieldType.getType(),
       SingleSelectFieldType.getType(),
     ]
-  }
-
-  getTypeName() {
-    return UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
-  }
-
-  getErrorMessage(error) {
-    if (error === 'ERROR_FIELD_CONSTRAINT') {
-      return this.$t('fieldConstraintsSubform.errorUniqueOrEmpty')
-    }
-
-    return super.getErrorMessage(error)
   }
 }

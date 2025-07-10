@@ -106,6 +106,9 @@ from baserow.contrib.database.fields.utils.expression import (
     get_select_option_extractor,
     wrap_in_subquery,
 )
+from baserow.contrib.database.fields.utils.field_constraint import (
+    validate_default_value_with_constraints,
+)
 from baserow.contrib.database.formula import (
     BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
     BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES,
@@ -4155,6 +4158,15 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
     def init_field_data(self, field, model):
         if field.single_select_default:
+            field_data = {
+                self.get_default_options_field_name(): field.single_select_default
+            }
+            validate_default_value_with_constraints(
+                self,
+                [{"type_name": c.type_name} for c in field.field_constraints.all()],
+                field_data,
+                field,
+            )
             model.objects.all().update(
                 **{f"{field.db_column}_id": field.single_select_default}
             )

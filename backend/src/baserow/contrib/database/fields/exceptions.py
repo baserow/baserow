@@ -310,6 +310,13 @@ class FieldConstraintException(Exception):
         super().__init__(*args, **kwargs)
 
 
+class FieldConstraintDoesNotSupportDefaultValueError(FieldConstraintException):
+    """
+    Raised when a constraint is being set but the field has a default value and the
+    constraint does not support it.
+    """
+
+
 class ImmutableFieldProperties(Exception):
     """
     Raised when trying to change any of the field properties and the field properties

@@ -47,10 +47,11 @@ from baserow.contrib.database.fields.operations import (
     ReadFieldOperationType,
     UpdateFieldOperationType,
 )
-from baserow.contrib.database.fields.registries import field_constraint_registry
 from baserow.contrib.database.fields.utils.field_constraint import (
     _create_constraint_objects,
     build_django_field_constraints,
+    validate_default_value_with_constraints,
+    validate_field_constraints,
 )
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
@@ -87,7 +88,6 @@ from .exceptions import (
     IncompatibleFieldTypeForUniqueValues,
     IncompatiblePrimaryFieldTypeError,
     InvalidBaserowFieldName,
-    InvalidFieldConstraint,
     MaxFieldLimitExceeded,
     MaxFieldNameLengthExceeded,
     PrimaryFieldAlreadyExists,
@@ -156,25 +156,6 @@ def _validate_field_name(
             f"A field named {name} cannot be created as it already exists as a "
             f"reserved Baserow field name."
         )
-
-
-def _validate_field_constraints(field_type, field_constraints: List[Dict[str, Any]]):
-    for constraint in field_constraints:
-        constraint_name = constraint.get("type_name")
-        if not constraint_name:
-            raise InvalidFieldConstraint(
-                field_type=field_type.type,
-                constraint_type="missing_type_name",
-            )
-
-        constraint_instance = field_constraint_registry.get_specific_constraint(
-            constraint_name, field_type
-        )
-        if not constraint_instance:
-            raise InvalidFieldConstraint(
-                field_type=field_type.type,
-                constraint_type=constraint_name,
-            )
 
 
 T = TypeVar("T", bound="Field")
@@ -398,7 +379,11 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             **field_values,
         )
 
-        _validate_field_constraints(field_type, field_constraints)
+        validate_field_constraints(field_type, field_constraints)
+
+        validate_default_value_with_constraints(
+            field_type, field_constraints, field_values, None
+        )
 
         field_cache = FieldCache()
         instance.save(field_cache=field_cache, raise_if_invalid=True)
@@ -636,12 +621,18 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         if field_constraints is not None:
-            _validate_field_constraints(to_field_type, field_constraints)
+            validate_field_constraints(to_field_type, field_constraints)
+            validate_default_value_with_constraints(
+                to_field_type, field_constraints, field_values, field
+            )
         elif baserow_field_type_changed and old_constraints:
             existing_constraint_data = [
                 {"type_name": c.type_name} for c in old_constraints
             ]
-            _validate_field_constraints(to_field_type, existing_constraint_data)
+            validate_field_constraints(to_field_type, existing_constraint_data)
+            validate_default_value_with_constraints(
+                to_field_type, existing_constraint_data, field_values, field
+            )
 
         field_values = to_field_type.prepare_values(field_values, user)
         before = to_field_type.before_update(old_field, field_values, user, kwargs)
