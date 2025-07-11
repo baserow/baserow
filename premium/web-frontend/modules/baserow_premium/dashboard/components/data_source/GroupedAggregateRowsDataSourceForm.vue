@@ -77,7 +77,7 @@
         <ButtonText
           icon="iconoir-plus"
           type="secondary"
-          :disabled="!canAddSeries"
+          :disabled="!canAddSeries || disabled || loading"
           tooltip-position="bottom-left"
           @click="addSeries"
         >
@@ -95,6 +95,7 @@
         :series-index="index"
         :default-values="series"
         :widget="widget"
+        :loading="loading"
         @delete-series="deleteSeries"
         @values-changed="onAggregationSeriesUpdated(index, $event)"
         @series-config-changed="onSeriesConfigUpdated($event)"
@@ -159,6 +160,11 @@ export default {
       type: String,
       required: false,
       default: '',
+    },
+    loading: {
+      type: Boolean,
+      required: false,
+      default: true,
     },
   },
   setup() {
