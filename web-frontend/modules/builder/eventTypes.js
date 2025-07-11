@@ -127,9 +127,10 @@ export class Event {
 }
 
 export class ClickEvent extends Event {
-  constructor({ namePrefix, labelSuffix, app }) {
+  constructor({ namePrefix, labelSuffix, app, applicationContextAdditions }) {
     super({
       app,
+      applicationContextAdditions,
       name: namePrefix ? `${namePrefix}_click` : 'click',
       label: labelSuffix
         ? `${app.i18n.t('eventTypes.clickLabel')} ${labelSuffix}`
