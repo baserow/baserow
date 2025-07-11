@@ -1,5 +1,11 @@
 # Changelog
 
+## Released 1.34.2
+
+### Bug fixes
+* [Builder] Resolved an issue which prevented the table element's button events from working correctly.
+
+
 ## Released 1.34.1
 
 ### Bug fixes
