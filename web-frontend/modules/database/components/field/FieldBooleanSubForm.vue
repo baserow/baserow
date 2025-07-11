@@ -1,6 +1,6 @@
 <template>
   <FormGroup>
-    <Checkbox v-model="values.boolean_default">
+    <Checkbox v-model="values.boolean_default" :disabled="defaultValueDisabled">
       {{ $t('fieldBooleanSubForm.defaultValue') }}
     </Checkbox>
   </FormGroup>
@@ -13,6 +13,13 @@ import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 export default {
   name: 'FieldBooleanSubForm',
   mixins: [form, fieldSubForm],
+  props: {
+    defaultValueDisabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
   data() {
     return {
       allowedValues: ['boolean_default'],

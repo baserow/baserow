@@ -99,9 +99,21 @@
               :name="values.name"
               :default-values="defaultValues"
               :database="database"
+              :default-value-disabled="defaultValueDisabled"
               @validate="v$.$touch"
               @suggested-field-name="handleSuggestedFieldName($event)"
             />
+
+            <div
+              v-if="defaultValueDisabled"
+              class="control__messages padding-top-0"
+            >
+              <p
+                class="control__helper-text control__helper-text--warning field-context__inner-element-width"
+              >
+                {{ $t('fieldForm.defaultValueDisabledByConstraint') }}
+              </p>
+            </div>
           </template>
           <FormGroup
             v-if="showDescription"
@@ -129,6 +141,8 @@
             :field="fieldForConstraints"
             :disabled="defaultValues.immutable_properties"
             :error="fieldConstraintError"
+            :default-value-disabled="defaultValueDisabled"
+            :field-default-value="fieldDefaultValue"
           />
 
           <FormGroup
@@ -285,6 +299,37 @@ export default {
           ) ||
         this.isPrefilledWithSuggestedFieldName
       )
+    },
+    defaultValueDisabled() {
+      if (
+        !this.values.field_constraints ||
+        this.values.field_constraints.length === 0
+      ) {
+        return false
+      }
+
+      return this.values.field_constraints.some(
+        (constraint) =>
+          constraint.type_name &&
+          !this.$registry
+            .getSpecificConstraint(
+              'fieldConstraint',
+              constraint.type_name,
+              this.values.type
+            )
+            ?.canSupportDefaultValue()
+      )
+    },
+    fieldDefaultValue() {
+      if (!this.values.type) {
+        return null
+      }
+
+      const allValues = Object.assign({}, this.defaultValues, this.values)
+      const childFormValues = this.getChildFormsValues()
+      const combinedValues = Object.assign({}, allValues, childFormValues)
+
+      return this.fieldTypes[this.values.type]?.getDefaultValue(combinedValues)
     },
   },
   watch: {

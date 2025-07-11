@@ -5,6 +5,7 @@
       v-model="values.text_default"
       type="text"
       :placeholder="$t('fieldTextSubForm.placeholder')"
+      :disabled="defaultValueDisabled"
     ></FormInput>
   </FormGroup>
 </template>
@@ -17,6 +18,13 @@ import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 export default {
   name: 'FieldTextSubForm',
   mixins: [form, fieldSubForm],
+  props: {
+    defaultValueDisabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
   data() {
     return {
       allowedValues: ['text_default'],

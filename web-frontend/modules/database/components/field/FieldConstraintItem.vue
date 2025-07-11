@@ -13,7 +13,9 @@
             :key="constraintType.type"
             :name="constraintType.getName()"
             :value="constraintType.getTypeName()"
-          ></DropdownItem>
+            :disabled="constraintType.isDisabled"
+          >
+          </DropdownItem>
         </Dropdown>
       </div>
 
@@ -64,6 +66,11 @@ export default {
       type: String,
       required: false,
       default: null,
+    },
+    defaultValueDisabled: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   methods: {

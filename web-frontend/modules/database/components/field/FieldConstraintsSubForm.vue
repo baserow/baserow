@@ -8,8 +8,10 @@
     >
       <div class="control__elements flex justify-content-end">
         <ButtonText
-          v-if="!disabled && hasAvailableConstraints"
-          :disabled="allConstraintsAdded"
+          v-if="
+            !disabled && hasAvailableConstraints && !hasConflictingConstraints
+          "
+          :disabled="allConstraintsAdded || hasDisabledFieldConstraints"
           icon="iconoir-plus"
           @click.prevent="addConstraint"
         >
@@ -25,7 +27,26 @@
       >
         {{ $t('fieldConstraintsSubform.readonlyFieldMessage') }}
       </p>
-      <p v-else-if="hasAvailableConstraints" class="control__helper-text">
+      <p
+        v-else-if="hasConflictingConstraints"
+        class="control__helper-text control__helper-text--warning"
+      >
+        {{
+          $t('fieldConstraintsSubform.noConstraintsCompatibleWithDefaultValue')
+        }}
+      </p>
+      <p
+        v-else-if="hasDisabledFieldConstraints"
+        class="control__helper-text control__helper-text--warning"
+      >
+        {{
+          $t('fieldConstraintsSubform.noConstraintsCompatibleWithDefaultValue')
+        }}
+      </p>
+      <p
+        v-else-if="hasAvailableConstraints && !hasDisabledFieldConstraints"
+        class="control__helper-text"
+      >
         {{ $t('fieldConstraintsSubform.description') }}
       </p>
       <p v-else class="control__helper-text control__helper-text--warning">
@@ -34,11 +55,12 @@
     </div>
 
     <FieldConstraintItems
-      v-if="hasAvailableConstraints"
+      v-if="hasAvailableConstraints && !hasDisabledFieldConstraints"
       :value="value"
       :field="field"
       :disabled="disabled"
       :error="error"
+      :default-value-disabled="defaultValueDisabled"
       @input="$emit('input', $event)"
     />
   </div>
@@ -71,6 +93,16 @@ export default {
       required: false,
       default: null,
     },
+    fieldDefaultValue: {
+      type: [String, Number, Boolean, null],
+      required: false,
+      default: null,
+    },
+    defaultValueDisabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   computed: {
     constraintTypes() {
@@ -86,12 +118,32 @@ export default {
     hasAvailableConstraints() {
       return this.allowedConstraintTypes.length > 0
     },
+    hasDisabledFieldConstraints() {
+      return false
+    },
     allConstraintsAdded() {
       const addedConstraintNames = this.value.map(
         (constraint) => constraint.type_name
       )
       return this.allowedConstraintTypes.every((constraintType) =>
         addedConstraintNames.includes(constraintType.getTypeName())
+      )
+    },
+    hasConflictingConstraints() {
+      const defaultValue = this.fieldDefaultValue
+
+      if (!defaultValue) {
+        return false
+      }
+
+      const constraintsThatSupportDefaultValue =
+        this.allowedConstraintTypes.filter((constraintType) =>
+          constraintType.canSupportDefaultValue()
+        )
+
+      return (
+        this.allowedConstraintTypes.length > 0 &&
+        constraintsThatSupportDefaultValue.length === 0
       )
     },
   },

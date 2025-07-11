@@ -21,6 +21,7 @@
           v-model="v$.values.multiple_select_default.$model"
           :fixed-items="true"
           :multiple="true"
+          :disabled="defaultValueDisabled"
         >
           <DropdownItem
             v-for="option in values.select_options"
@@ -41,6 +42,13 @@ import fieldOptionsSubForm from '@baserow/modules/database/mixins/fieldOptionsSu
 export default {
   name: 'FieldMultipleSelectOptionsSubForm',
   mixins: [fieldOptionsSubForm],
+  props: {
+    defaultValueDisabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

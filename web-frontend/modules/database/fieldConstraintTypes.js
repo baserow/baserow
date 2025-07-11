@@ -91,6 +91,15 @@ export class FieldConstraintType extends Registerable {
   }
 
   /**
+   * Returns whether this constraint can support default values.
+   * If false, the default value field should be disabled when this constraint is selected.
+   * @returns {boolean} True if the constraint can support default values, false otherwise.
+   */
+  canSupportDefaultValue() {
+    return true
+  }
+
+  /**
    * Returns a map of error codes to their corresponding error messages.
    * Subclasses can override this method to provide custom error messages
    * for specific error codes.
@@ -163,6 +172,10 @@ export class UniqueWithEmptyConstraintType extends FieldConstraintType {
 
   getTypeName() {
     return UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
+  }
+
+  canSupportDefaultValue() {
+    return false
   }
 
   getErrorMap() {

@@ -78,6 +78,7 @@
         :error="fieldHasErrors('number_default')"
         type="text"
         :placeholder="$t('fieldNumberSubForm.defaultValuePlaceholder')"
+        :disabled="defaultValueDisabled"
         @focus="onDefaultValueFocus"
         @blur="onDefaultValueBlur"
         @keypress="onKeyPress"
@@ -103,6 +104,11 @@ export default {
       type: Boolean,
       required: false,
       default: true,
+    },
+    defaultValueDisabled: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   setup() {

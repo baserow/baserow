@@ -20,6 +20,7 @@
         <Dropdown
           v-model="v$.values.single_select_default.$model"
           :fixed-items="true"
+          :disabled="defaultValueDisabled"
         >
           <DropdownItem key="empty-option" name="" :value="null" />
           <DropdownItem
@@ -41,6 +42,13 @@ import fieldOptionsSubForm from '@baserow/modules/database/mixins/fieldOptionsSu
 export default {
   name: 'FieldSingleSelectOptionsSubForm',
   mixins: [fieldOptionsSubForm],
+  props: {
+    defaultValueDisabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
