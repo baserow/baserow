@@ -204,6 +204,11 @@ export default {
           ]
           this.values.aggregation_group_bys = []
           this.values.aggregation_sorts = []
+
+          // reset widget conf
+          this.$emit('widget-values-changed', {
+            series_config: [],
+          })
         }
       },
     },
