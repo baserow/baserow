@@ -515,3 +515,25 @@ def test_creating_a_snapshot_doesnt_schedule_search_updates(data_fixture):
         assert mock.call_count == 1
         assert mock.call_args[0][0] == new_table
         assert mock.call_args[1] == {}  # the whole table
+
+
+@pytest.mark.django_db
+def test_not_schedule_task_if_workspace_is_none(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user, workspace=None)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    with patch(
+        "baserow.contrib.database.search.handler.SearchHandler.update_search_data"
+    ) as mock:
+        SearchHandler.schedule_update_search_data(table)
+
+        assert mock.call_count == 0
+        assert PendingSearchValueUpdate.objects.count() == 0
+
+    with patch(
+        "baserow.contrib.database.search.handler.SearchHandler.delete_search_data"
+    ) as mock:
+        SearchHandler.schedule_delete_search_data(table)
+
+        assert mock.call_count == 0
