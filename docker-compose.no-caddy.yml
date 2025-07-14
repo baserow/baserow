@@ -1,4 +1,3 @@
-version: "3.4"
 ########################################################################################
 #
 # This compose file runs every service separately without any reverse proxy or http

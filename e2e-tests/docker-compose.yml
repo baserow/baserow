@@ -1,5 +1,3 @@
-version: "3.4"
-
 services:
   backend:
     image: ${BACKEND_CI_DEV_IMAGE:-baserow_backend_dev:latest}

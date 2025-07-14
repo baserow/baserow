@@ -1,6 +1,5 @@
 # This is the recommended way of running Baserow using docker-compose for most users.
 # See https://baserow.io/docs/installation%2Finstall-with-docker for more details.
-version: "3.4"
 services:
   baserow:
     container_name: baserow

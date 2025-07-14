@@ -8,7 +8,6 @@ you how to configure Baserow to work with Traefik.
 See below for an example docker-compose file that will enable Baserow with Traefik.
 
 ```
-version: "3.4"
 services:
   baserow:
     image: baserow/baserow:1.34.2

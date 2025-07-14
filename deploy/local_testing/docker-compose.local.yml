@@ -1,5 +1,3 @@
-version: "3.4"
-
 # This compose override runs a production version of Baserow, but builds images from
 # the local repository. It comes with a mailhog at http://localhost:8025 for testing.
 services:
