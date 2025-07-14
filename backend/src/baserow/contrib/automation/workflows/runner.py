@@ -8,9 +8,6 @@ from baserow.contrib.automation.nodes.exceptions import (
 )
 from baserow.contrib.automation.nodes.node_types import AutomationNodeActionNodeType
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.core.services.exceptions import (
-    ServiceImproperlyConfiguredDispatchException,
-)
 
 if TYPE_CHECKING:
     from baserow.contrib.automation.nodes.models import AutomationNode
