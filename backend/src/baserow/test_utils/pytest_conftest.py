@@ -4,7 +4,8 @@ import os
 import sys
 import threading
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -13,7 +14,7 @@ from unittest.mock import patch
 from django.conf import settings as django_settings
 from django.core.cache import cache
 from django.core.management import call_command
-from django.db import DEFAULT_DB_ALIAS, OperationalError, connection
+from django.db import DEFAULT_DB_ALIAS, OperationalError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.test.utils import CaptureQueriesContext
 
@@ -929,3 +930,88 @@ def baserow_db_setup(django_db_setup, django_db_blocker):
 @pytest.fixture()
 def use_tmp_media_root(tmpdir, settings):
     settings.MEDIA_ROOT = tmpdir
+
+
+@pytest.fixture
+def create_postgresql_test_table():
+    table_name = "test_table"
+
+    column_definitions = {
+        "text_col": "TEXT",
+        "char_col": "CHAR(10)",
+        "int_col": "INTEGER",
+        "float_col": "REAL",
+        "numeric_col": "NUMERIC",
+        "numeric2_col": "NUMERIC(100, 4)",
+        "smallint_col": "SMALLINT",
+        "bigint_col": "BIGINT",
+        "decimal_col": "DECIMAL",
+        "date_col": "DATE",
+        "datetime_col": "TIMESTAMP",
+        "boolean_col": "BOOLEAN",
+    }
+
+    # Create the schema of the initial table.
+    create_table_sql = f"""
+    CREATE TABLE {table_name} (
+        id SERIAL PRIMARY KEY,
+        {', '.join([f"{col_name} {col_type}" for col_name, col_type in column_definitions.items()])}
+    )
+    """
+
+    # Inserts a couple of random rows for testing purposes.
+    insert_sql = f"""
+    INSERT INTO {table_name} ({', '.join(column_definitions.keys())})
+    VALUES (
+        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+    )
+    """
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(create_table_sql)
+
+            cursor.execute(
+                insert_sql,
+                (
+                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas non nunc et sapien ultricies blandit. ",
+                    "Short char",
+                    10,
+                    10.10,
+                    100,
+                    "10.4444",
+                    200,
+                    99999999,
+                    Decimal("99999999.22"),
+                    date(2023, 1, 17),
+                    datetime(2022, 2, 28, 12, 00),
+                    True,
+                ),
+            )
+            cursor.execute(
+                insert_sql,
+                (
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                ),
+            )
+
+        transaction.commit()
+
+        yield table_name  # Provide table name to tests that need to access it
+
+    finally:
+        # Drop the table after test completes or fails
+        with connection.cursor() as cursor:
+            cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+        transaction.commit()

@@ -16,20 +16,30 @@ class DataSyncSyncedPropertySerializer(serializers.ModelSerializer):
 class DataSyncSerializer(serializers.ModelSerializer):
     synced_properties = DataSyncSyncedPropertySerializer(many=True)
     type = serializers.SerializerMethodField()
+    two_way_sync_strategy_type = serializers.SerializerMethodField(
+        help_text="Indicates which strategy the two-way sync uses if enabled."
+    )
 
     class Meta:
         model = DataSync
         fields = (
             "id",
             "type",
+            "two_way_sync_strategy_type",
             "synced_properties",
             "last_sync",
             "last_error",
             "auto_add_new_properties",
+            "two_way_sync",
         )
 
     def get_type(self, instance):
         return data_sync_type_registry.get_by_model(instance.specific_class).type
+
+    def get_two_way_sync_strategy_type(self, instance):
+        return data_sync_type_registry.get_by_model(
+            instance.specific_class
+        ).two_way_sync_strategy_type
 
 
 class CreateDataSyncSerializer(serializers.ModelSerializer):
@@ -45,7 +55,13 @@ class CreateDataSyncSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DataSync
-        fields = ("synced_properties", "type", "table_name", "auto_add_new_properties")
+        fields = (
+            "synced_properties",
+            "type",
+            "table_name",
+            "auto_add_new_properties",
+            "two_way_sync",
+        )
 
 
 class UpdateDataSyncSerializer(serializers.ModelSerializer):
@@ -58,6 +74,7 @@ class UpdateDataSyncSerializer(serializers.ModelSerializer):
         fields = (
             "synced_properties",
             "auto_add_new_properties",
+            "two_way_sync",
         )
 
 

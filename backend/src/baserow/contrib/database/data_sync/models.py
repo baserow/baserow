@@ -42,6 +42,13 @@ class DataSync(
         help_text="If enabled and new properties are detected on sync, then they're "
         "automatically added. Note that this means all properties will always be added.",
     )
+    two_way_sync = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="If enabled, then it's possible to make changes to the synced "
+        "table. They will automatically be synced with the source data. Note that "
+        "this is only possible if the data sync type has a two way sync strategy.",
+    )
 
     @staticmethod
     def get_type_registry():

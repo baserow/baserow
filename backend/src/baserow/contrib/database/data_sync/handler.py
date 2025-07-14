@@ -36,6 +36,7 @@ from .exceptions import (
     PropertyNotFound,
     SyncDataSyncTableAlreadyRunning,
     SyncError,
+    TwoWayDataSyncNotSupported,
     UniquePrimaryPropertyNotFound,
 )
 from .models import DataSync, DataSyncSyncedProperty
@@ -111,9 +112,18 @@ class DataSyncHandler:
         data_sync_type = data_sync_type_registry.get(type_name)
         model_class = data_sync_type.model_class
 
-        allowed_fields = ["auto_add_new_properties"] + data_sync_type.allowed_fields
+        allowed_fields = [
+            "auto_add_new_properties",
+            "two_way_sync",
+        ] + data_sync_type.allowed_fields
         values = extract_allowed(kwargs, allowed_fields)
         values = data_sync_type.prepare_values(user, values)
+
+        # Validate two-way sync support
+        if values.get("two_way_sync") and not data_sync_type.two_way_sync_strategy_type:
+            raise TwoWayDataSyncNotSupported(
+                "Two-way sync is not supported for this data sync type."
+            )
 
         # Create an empty table where we're going to sync the data into, and add it to
         # the values, so that it already can be used in the `get_properties` method.
@@ -224,7 +234,21 @@ class DataSyncHandler:
         data_sync = data_sync.specific
         data_sync_type = data_sync_type_registry.get_by_model(data_sync)
 
-        allowed_fields = ["auto_add_new_properties"] + data_sync_type.allowed_fields
+        allowed_fields = [
+            "auto_add_new_properties",
+            "two_way_sync",
+        ] + data_sync_type.allowed_fields
+
+        # Validate two-way sync support before setting attributes
+        if (
+            "two_way_sync" in kwargs
+            and kwargs["two_way_sync"]
+            and not data_sync_type.two_way_sync_strategy_type
+        ):
+            raise TwoWayDataSyncNotSupported(
+                "Two-way sync is not supported for this data sync type."
+            )
+
         data_sync = set_allowed_attrs(kwargs, allowed_fields, data_sync)
         data_sync.save()
 
