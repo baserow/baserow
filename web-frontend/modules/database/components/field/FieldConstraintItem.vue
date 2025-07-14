@@ -67,11 +67,6 @@ export default {
       required: false,
       default: null,
     },
-    defaultValueDisabled: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
   },
   methods: {
     updateConstraintTypeName(typeName) {

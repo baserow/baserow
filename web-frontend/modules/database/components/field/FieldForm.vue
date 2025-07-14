@@ -252,6 +252,7 @@ export default {
       selectedTabIndex: 0,
       dbIndexError: false,
       fieldConstraintError: null,
+      fieldDefaultValue: null,
     }
   },
   computed: {
@@ -320,17 +321,6 @@ export default {
             ?.canSupportDefaultValue()
       )
     },
-    fieldDefaultValue() {
-      if (!this.values.type) {
-        return null
-      }
-
-      const allValues = Object.assign({}, this.defaultValues, this.values)
-      const childFormValues = this.getChildFormsValues()
-      const combinedValues = Object.assign({}, allValues, childFormValues)
-
-      return this.fieldTypes[this.values.type]?.getDefaultValue(combinedValues)
-    },
   },
   watch: {
     // if the name field is empty or prefilled by a default value
@@ -345,6 +335,7 @@ export default {
         this.values.name = availableFieldName
       }
       this.isPrefilledWithSuggestedFieldName = false
+      this.fieldDefaultValue = null
 
       this.findAndSetCompatibleConstraints(newValueType)
     },

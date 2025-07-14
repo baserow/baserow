@@ -25,4 +25,11 @@ export default {
       required: true,
     },
   },
+  methods: {
+    updateParentDefaultValue(newValue) {
+      if (this.$parent && this.$parent.fieldDefaultValue !== undefined) {
+        this.$parent.fieldDefaultValue = newValue
+      }
+    },
+  },
 }

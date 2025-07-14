@@ -173,6 +173,9 @@ export default {
       },
       immediate: true,
     },
+    'values.number_default'(newValue) {
+      this.updateParentDefaultValue(newValue)
+    },
     values: {
       handler() {
         this.updateFormattedValueIfNotFocussed()

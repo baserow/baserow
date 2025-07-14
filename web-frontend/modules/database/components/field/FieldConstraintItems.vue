@@ -9,7 +9,6 @@
       :disabled="disabled"
       :error="error"
       :allowed-constraint-types="getAvailableConstraintTypes(index)"
-      :default-value-disabled="defaultValueDisabled"
       @update="updateConstraint"
       @remove="removeConstraint"
     />
@@ -41,10 +40,10 @@ export default {
       required: false,
       default: null,
     },
-    defaultValueDisabled: {
-      type: Boolean,
+    fieldDefaultValue: {
+      type: [String, Number, Boolean, Object],
       required: false,
-      default: false,
+      default: null,
     },
   },
   computed: {
@@ -77,7 +76,7 @@ export default {
         const constraintName = constraintType.getTypeName()
         const isSelected = selectedNames.includes(constraintName)
         const isDisabled =
-          this.defaultValueDisabled && !constraintType.canSupportDefaultValue()
+          this.fieldDefaultValue && !constraintType.canSupportDefaultValue()
 
         return Object.assign(constraintType, {
           isDisabled: isSelected || isDisabled,

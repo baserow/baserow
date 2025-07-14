@@ -33,6 +33,11 @@ export default {
       },
     }
   },
+  watch: {
+    'values.text_default'(newValue) {
+      this.updateParentDefaultValue(newValue)
+    },
+  },
   methods: {
     isFormValid() {
       return true

@@ -28,6 +28,11 @@ export default {
       },
     }
   },
+  watch: {
+    'values.boolean_default'(newValue) {
+      this.updateParentDefaultValue(newValue)
+    },
+  },
   methods: {
     isFormValid() {
       return true

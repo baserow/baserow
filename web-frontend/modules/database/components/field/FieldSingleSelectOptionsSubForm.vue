@@ -80,6 +80,9 @@ export default {
       },
       deep: true,
     },
+    'values.single_select_default'(newValue) {
+      this.updateParentDefaultValue(newValue)
+    },
   },
 }
 </script>

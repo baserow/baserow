@@ -60,7 +60,7 @@
       :field="field"
       :disabled="disabled"
       :error="error"
-      :default-value-disabled="defaultValueDisabled"
+      :field-default-value="fieldDefaultValue"
       @input="$emit('input', $event)"
     />
   </div>
@@ -94,14 +94,9 @@ export default {
       default: null,
     },
     fieldDefaultValue: {
-      type: [String, Number, Boolean, null],
+      type: [String, Number, Boolean, Object],
       required: false,
       default: null,
-    },
-    defaultValueDisabled: {
-      type: Boolean,
-      required: false,
-      default: false,
     },
   },
   computed: {
