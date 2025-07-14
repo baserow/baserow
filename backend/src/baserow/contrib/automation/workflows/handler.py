@@ -110,6 +110,21 @@ class AutomationWorkflowHandler:
 
         return _get_published_workflow(workflow)
 
+    def get_original_workflow(
+        self, workflow: AutomationWorkflow
+    ) -> Optional[AutomationWorkflow]:
+        """
+        Gets the original workflow related to the provided published
+        AutomationWorkflow instance.
+
+        :param workflow: The published workflow for which the original version
+            should be returned.
+        :raises AutomationWorkflowDoesNotExist: If the workflow doesn't exist.
+        :return: The original workflow, if it exists.
+        """
+
+        return workflow.automation.published_from if workflow.published else None
+
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
     ) -> QuerySet:
