@@ -1,4 +1,4 @@
-FROM node:24-bookworm as base
+FROM node:24-bookworm AS base
 
 ARG UID
 ENV UID=${UID:-9999}
@@ -61,7 +61,7 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/do
 HEALTHCHECK --interval=60s CMD ["curl", "-f", "http://localhost:3000/_health/"]
 EXPOSE 3000
 
-FROM base as dev
+FROM base AS dev
 
 COPY --chown=$UID:$GID ./tests /baserow/tests/
 
@@ -73,7 +73,7 @@ RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node
 # be used when running the nuxt dev server.
 CMD ["nuxt-dev"]
 
-FROM base as local
+FROM base AS local
 
 # Run the nuxt build and then remove all dev dependencies as we don't need them after.
 RUN yarn run build-local && rm -rf node_modules && yarn install --production && yarn cache clean

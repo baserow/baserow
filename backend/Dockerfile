@@ -1,5 +1,5 @@
 # syntax = docker/dockerfile:1.3
-FROM debian:bookworm-slim as base
+FROM debian:bookworm-slim AS base
 
 ARG UID
 ENV UID=${UID:-9999}
@@ -73,7 +73,7 @@ RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baser
     && pip3 install -r /baserow/requirements/base.txt
 
 # Build a dev_deps stage which also has the dev dependencies for use by the dev layer.
-FROM base as dev_deps
+FROM base AS dev_deps
 
 COPY ./backend/requirements/dev.txt /baserow/requirements/
 # hadolint ignore=SC1091,DL3042,DL3013
@@ -82,7 +82,7 @@ RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baser
     && pip3 install -r /baserow/requirements/dev.txt
 
 # The core stage contains all of Baserows source code and sets up the entrypoint
-FROM base as core
+FROM base AS core
 
 # Copy over backend code.
 COPY --chown=$UID:$GID ./docs /baserow/docs
@@ -96,7 +96,7 @@ WORKDIR /baserow/backend
 
 # Ensure that Python outputs everything that's printed inside
 # the application rather than buffering it.
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 
 COPY --chown=$UID:$GID ./deploy/plugins/*.sh /baserow/plugins/
 
@@ -109,7 +109,7 @@ RUN dos2unix /baserow/backend/docker/docker-entrypoint.sh && \
 HEALTHCHECK --interval=60s CMD ["/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh", "backend-healthcheck"]
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh"]
 
-FROM core as dev
+FROM core AS dev
 
 COPY --chown=$UID:$GID ./tests /baserow/tests/
 
@@ -130,7 +130,7 @@ COPY --chown=$UID:$GID --from=dev_deps /baserow/venv /baserow/venv
 ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.dev'
 CMD ["django-dev"]
 
-FROM core as local
+FROM core AS local
 
 ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.base'
 CMD ["gunicorn"]

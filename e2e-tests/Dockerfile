@@ -1,4 +1,4 @@
-FROM node:24-bookworm as base
+FROM node:24-bookworm AS base
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
