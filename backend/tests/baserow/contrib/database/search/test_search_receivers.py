@@ -54,8 +54,8 @@ def test_perm_deleted_database(mock, data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
-    table_1 = data_fixture.create_database_table(database=database, name="table_1")
-    table_2 = data_fixture.create_database_table(database=database, name="table_2")
+    data_fixture.create_database_table(database=database, name="table_1", order=1)
+    data_fixture.create_database_table(database=database, name="table_2", order=2)
 
     TrashHandler.trash(user, workspace, database, database)
     TrashHandler.permanently_delete(database)
