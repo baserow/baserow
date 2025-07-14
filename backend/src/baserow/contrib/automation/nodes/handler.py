@@ -18,6 +18,7 @@ from baserow.contrib.automation.nodes.types import (
     ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.services.handler import ServiceHandler
@@ -34,6 +35,7 @@ class AutomationNodeHandler:
         "previous_node_output",
         "service",
     ]
+    workflow_handler = AutomationWorkflowHandler()
 
     def get_nodes(
         self,
@@ -100,6 +102,28 @@ class AutomationNodeHandler:
             )
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
+
+    def get_original_node(self, node: AutomationNode) -> Optional[AutomationNode]:
+        """
+        Gets the original node related to the provided published
+        AutomationNode instance.
+
+        :param node: The published node for which the original version
+            should be returned.
+        :raises AutomationNodeDoesNotExist: If the node doesn't exist.
+        :return: The model instance of the original AutomationNode, if it exists.
+        """
+
+        original_workflow = self.workflow_handler.get_original_workflow(node.workflow)
+        if not original_workflow:
+            return None
+
+        # For now, just use the order, which should match b/w the original
+        # and published versions. To be more correct, we could add a
+        # published_from field to the node model.
+        return original_workflow.automation_workflow_nodes.filter(
+            order=node.order
+        ).first()
 
     def create_node(
         self,
