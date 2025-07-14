@@ -24,7 +24,6 @@ from baserow.core.registry import (
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
-from baserow.core.services.types import DispatchResult
 
 
 class AutomationNodeType(
@@ -226,17 +225,6 @@ class AutomationNodeType(
         dispatch_context: AutomationDispatchContext,
     ):
         raise InvalidServiceTypeDispatchSource("This service cannot be dispatched.")
-
-
-class AutomationNodeActionNodeType(AutomationNodeType):
-    def dispatch(
-        self,
-        automation_node: AutomationNode,
-        dispatch_context: AutomationDispatchContext,
-    ) -> DispatchResult:
-        return ServiceHandler().dispatch_service(
-            automation_node.service.specific, dispatch_context
-        )
 
 
 class AutomationNodeTypeRegistry(
