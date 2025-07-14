@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from unittest.mock import patch
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db import connection
 
@@ -1818,3 +1819,174 @@ def test_duplicate_data_sync_field(data_fixture):
     assert getattr(rows[0], f"field_{duplicated_field.id}") == getattr(
         rows[0], f"field_{fields[0].id}"
     )
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.contrib.database.table.signals.table_created.send")
+def test_create_two_way_data_sync_table(
+    send_mock, data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=[
+            "id",
+            "text_col",
+        ],
+        two_way_sync=True,
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 2
+    assert fields[0].primary is True
+    assert fields[0].read_only is False
+    assert fields[1].primary is False
+    assert fields[1].read_only is False
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.contrib.database.table.signals.table_created.send")
+def test_create_two_way_data_sync_table_and_add_properties(
+    send_mock, data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=[
+            "id",
+        ],
+        two_way_sync=True,
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 1
+    assert fields[0].primary is True
+    assert fields[0].read_only is False
+
+    data_sync = handler.update_data_sync_table(
+        user=user,
+        data_sync=data_sync,
+        synced_properties=["id", "text_col"],
+        two_way_sync=True,
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 2
+    assert fields[0].primary is True
+    assert fields[0].read_only is False
+    assert fields[1].primary is False
+    assert fields[1].read_only is False
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.contrib.database.table.signals.table_created.send")
+def test_create_and_unset_two_way_data_sync_table(
+    send_mock, data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        two_way_sync=True,
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 1
+    assert fields[0].primary is True
+    assert fields[0].read_only is False
+
+    data_sync = handler.update_data_sync_table(
+        user=user, data_sync=data_sync, synced_properties=["id"], two_way_sync=False
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 1
+    assert fields[0].primary is True
+    assert fields[0].read_only is True
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.contrib.database.table.signals.table_created.send")
+def test_create_and_set_two_way_data_sync_table(
+    send_mock, data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        two_way_sync=False,
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 1
+    assert fields[0].primary is True
+    assert fields[0].read_only is True
+
+    data_sync = handler.update_data_sync_table(
+        user=user, data_sync=data_sync, synced_properties=["id"], two_way_sync=True
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 1
+    assert fields[0].primary is True
+    assert fields[0].read_only is False

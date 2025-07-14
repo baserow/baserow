@@ -163,7 +163,7 @@ class DataSyncHandler:
             baserow_field = data_sync_property.to_baserow_field()
             baserow_field.order = index
             baserow_field.table = table
-            baserow_field.read_only = True
+            baserow_field.read_only = not values.get("two_way_sync")
             baserow_field.immutable_type = True
             baserow_field.immutable_properties = data_sync_property.immutable_properties
             if data_sync_property.unique_primary and not has_primary:
@@ -590,6 +590,7 @@ class DataSyncHandler:
                     not isinstance(new_field, existing_field_class)
                     or data_sync_property.immutable_properties
                     != enabled_property.field.immutable_properties
+                    or not data_sync.two_way_sync != enabled_property.field.read_only
                     or data_sync_property.unique_primary
                     != enabled_property.unique_primary
                     # If the metadata has changed, then the field must be updated
@@ -622,7 +623,7 @@ class DataSyncHandler:
             baserow_field = data_sync_property.to_baserow_field()
             baserow_field_type = field_type_registry.get_by_model(baserow_field)
             field_kwargs = baserow_field.__dict__
-            field_kwargs["read_only"] = True
+            field_kwargs["read_only"] = not data_sync.two_way_sync
             field_kwargs["immutable_type"] = True
             field_kwargs[
                 "immutable_properties"
@@ -658,7 +659,7 @@ class DataSyncHandler:
             baserow_field = data_sync_property.to_baserow_field()
             baserow_field_type = field_type_registry.get_by_model(baserow_field)
             field_kwargs = baserow_field.__dict__
-            field_kwargs["read_only"] = True
+            field_kwargs["read_only"] = not data_sync.two_way_sync
             field_kwargs["immutable_type"] = True
             field_kwargs[
                 "immutable_properties"
