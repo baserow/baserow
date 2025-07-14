@@ -56,6 +56,25 @@
         {{ $t('createDataSync.autoAddLabel') }}</SwitchInput
       >
     </FormGroup>
+    <FormGroup
+      small-label
+      class="margin-top-2"
+      :helper-text="
+        $t(
+          'createDataSync.twoWaySyncHelper_' +
+            dataSyncType.twoWayDataSyncStrategy()
+        )
+      "
+    >
+      <SwitchInput
+        v-model="twoWaySync"
+        class="margin-top-2"
+        small
+        :disabled="jobIsRunning || jobHasSucceeded"
+      >
+        {{ $t('createDataSync.twoWaySyncLabel') }}</SwitchInput
+      >
+    </FormGroup>
     <Error :error="error"></Error>
     <div class="modal-progress__actions margin-top-2">
       <ProgressBar
@@ -106,9 +125,15 @@ export default {
       creatingTable: false,
       createdTable: null,
       autoAddNewProperties: false,
+      twoWaySync: false,
     }
   },
   computed: {
+    dataSyncType() {
+      return this.chosenType === ''
+        ? null
+        : this.$registry.get('dataSync', this.chosenType)
+    },
     dataSyncComponent() {
       return this.chosenType === ''
         ? null
@@ -151,6 +176,7 @@ export default {
       formValues.table_name = formValues.name
       formValues.synced_properties = this.syncedProperties
       formValues.auto_add_new_properties = this.autoAddNewProperties
+      formValues.two_way_sync = this.twoWaySync
 
       this.creatingTable = true
       this.hideError()

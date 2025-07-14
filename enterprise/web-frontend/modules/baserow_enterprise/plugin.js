@@ -57,6 +57,7 @@ import {
   GitHubIssuesDataSyncType,
   GitLabIssuesDataSyncType,
   HubspotContactsDataSyncType,
+  PostgreSQLDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 import { PeriodicDataSyncDeactivatedNotificationType } from '@baserow_enterprise/notificationTypes'
@@ -171,6 +172,8 @@ export default (context) => {
   app.$registry.register('element', new AuthFormElementType(context))
   app.$registry.register('element', new FileInputElementType(context))
 
+  app.$registry.unregister('dataSync', PostgreSQLDataSyncType.getType())
+  app.$registry.register('dataSync', new PostgreSQLDataSyncType(context))
   app.$registry.register('dataSync', new LocalBaserowTableDataSyncType(context))
   app.$registry.register('dataSync', new JiraIssuesDataSyncType(context))
   app.$registry.register('dataSync', new GitHubIssuesDataSyncType(context))

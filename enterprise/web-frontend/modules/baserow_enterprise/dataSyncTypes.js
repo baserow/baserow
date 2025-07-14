@@ -1,4 +1,8 @@
-import { DataSyncType } from '@baserow/modules/database/dataSyncTypes'
+import {
+  DataSyncType,
+  PostgreSQLDataSyncType as BasePostgreSQLDataSyncType,
+  TWO_WAY_DATA_SYNC_REALTIME_PUSH,
+} from '@baserow/modules/database/dataSyncTypes'
 
 import LocalBaserowTableDataSync from '@baserow_enterprise/components/dataSync/LocalBaserowTableDataSync'
 import EnterpriseFeatures from '@baserow_enterprise/features'
@@ -156,5 +160,15 @@ export class HubspotContactsDataSyncType extends DataSyncType {
       PaidFeaturesModal,
       { 'initial-selected-type': DataSyncPaidFeature.getType() },
     ]
+  }
+}
+
+export class PostgreSQLDataSyncType extends BasePostgreSQLDataSyncType {
+  hasTwoWaySyncCompatibility() {
+    return true
+  }
+
+  twoWayDataSyncStrategy() {
+    return TWO_WAY_DATA_SYNC_REALTIME_PUSH
   }
 }

@@ -130,7 +130,7 @@ class CreateRowActionType(UndoableActionType):
         :return: The created row instance.
         """
 
-        if table.is_data_synced_table:
+        if table.is_read_only_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )
@@ -240,7 +240,7 @@ class CreateRowsActionType(UndoableActionType):
         :return: The created list of rows instances.
         """
 
-        if table.is_data_synced_table:
+        if table.is_read_only_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )
@@ -346,7 +346,7 @@ class ImportRowsActionType(UndoableActionType):
         :return: The created list of rows instances and the error report.
         """
 
-        if table.is_data_synced_table:
+        if table.is_read_only_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )
@@ -442,7 +442,7 @@ class DeleteRowActionType(UndoableActionType):
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
-        if table.is_data_synced_table:
+        if table.is_read_only_data_synced_table:
             raise CannotDeleteRowsInTable(
                 "Can't delete rows because it has a data sync."
             )
@@ -537,7 +537,7 @@ class DeleteRowsActionType(UndoableActionType):
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
-        if table.is_data_synced_table:
+        if table.is_read_only_data_synced_table:
             raise CannotDeleteRowsInTable(
                 "Can't delete rows because it has a data sync."
             )

@@ -31,11 +31,6 @@ def test_serializer_to_openapi_inline():
                         "description": "If enabled, then it's possible to make changes to the synced table. They will automatically be synced with the source data. Note that this is only possible if the data sync type has a two way sync strategy.",
                         "type": "boolean",
                     },
-                    "two_way_sync_strategy_type": {
-                        "description": "Indicates which strategy the two-way sync uses if enabled.",
-                        "readOnly": True,
-                        "type": "string",
-                    },
                     "id": {"type": "integer", "readOnly": True},
                     "type": {"type": "string", "readOnly": True},
                     "synced_properties": {
@@ -68,7 +63,6 @@ def test_serializer_to_openapi_inline():
                 "required": [
                     "id",
                     "synced_properties",
-                    "two_way_sync_strategy_type",
                     "type",
                 ],
             },

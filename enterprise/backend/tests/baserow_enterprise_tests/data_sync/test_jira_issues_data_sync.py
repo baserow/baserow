@@ -1202,7 +1202,6 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
         "last_error": None,
         "auto_add_new_properties": False,
         "two_way_sync": False,
-        "two_way_sync_strategy_type": None,
         # The `jira_api_token` should not be in here.
         "jira_url": "https://test.atlassian.net",
         "jira_authentication": "API_TOKEN",
@@ -1260,7 +1259,6 @@ def test_create_data_sync_personal_access_token(enterprise_data_fixture, api_cli
         "last_error": None,
         "auto_add_new_properties": False,
         "two_way_sync": False,
-        "two_way_sync_strategy_type": None,
         "jira_url": "https://test.atlassian.net",
         "jira_authentication": "PERSONAL_ACCESS_TOKEN",
         "jira_project_key": "",

@@ -219,7 +219,6 @@ def test_create_data_sync(data_fixture, api_client):
             "type": "ical_calendar",
             "auto_add_new_properties": False,
             "two_way_sync": False,
-            "two_way_sync_strategy_type": None,
             "synced_properties": [
                 {
                     "field_id": properties[0].field_id,
@@ -297,7 +296,6 @@ def test_create_data_sync_with_auto_add_new_properties(data_fixture, api_client)
             "type": "ical_calendar",
             "auto_add_new_properties": True,
             "two_way_sync": False,
-            "two_way_sync_strategy_type": None,
             "synced_properties": [
                 {
                     "field_id": properties[0].field_id,
@@ -521,7 +519,6 @@ def test_update_data_sync_not_providing_anything(data_fixture, api_client):
         "type": "ical_calendar",
         "auto_add_new_properties": False,
         "two_way_sync": False,
-        "two_way_sync_strategy_type": None,
         "synced_properties": [
             {
                 "field_id": data_sync.table.field_set.all().first().id,
@@ -570,7 +567,6 @@ def test_update_data_sync(data_fixture, api_client):
         "type": "ical_calendar",
         "auto_add_new_properties": False,
         "two_way_sync": False,
-        "two_way_sync_strategy_type": None,
         "synced_properties": [
             {
                 "field_id": properties[0].field_id,
@@ -1330,7 +1326,6 @@ def test_get_data_sync(data_fixture, api_client):
         "type": "ical_calendar",
         "auto_add_new_properties": False,
         "two_way_sync": False,
-        "two_way_sync_strategy_type": None,
         "synced_properties": [
             {
                 "field_id": data_sync.table.field_set.all().first().id,
@@ -1376,7 +1371,6 @@ def test_create_data_sync_with_two_way_sync_supported_type(
     data_sync = DataSync.objects.get(id=response.json()["data_sync"]["id"])
     assert data_sync.two_way_sync is True
     assert response.json()["data_sync"]["two_way_sync"] is True
-    assert response.json()["data_sync"]["two_way_sync_strategy_type"] == "realtime_push"
 
 
 @pytest.mark.django_db
@@ -1441,7 +1435,6 @@ def test_update_data_sync_enable_two_way_sync_supported_type(
     )
     assert response.status_code == HTTP_200_OK
     assert response.json()["two_way_sync"] is True
-    assert response.json()["two_way_sync_strategy_type"] == "realtime_push"
 
     url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
     response = api_client.patch(

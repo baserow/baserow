@@ -3,6 +3,8 @@ import { Registerable } from '@baserow/modules/core/registry'
 import ICalCalendarDataSync from '@baserow/modules/database/components/dataSync/ICalCalendarDataSync'
 import PostgreSQLDataSync from '@baserow/modules/database/components/dataSync/PostgreSQLDataSync'
 
+export const TWO_WAY_DATA_SYNC_REALTIME_PUSH = 'realtime_push'
+
 export class DataSyncType extends Registerable {
   /**
    * Should return a icon class name related to the icon that must be displayed
@@ -56,6 +58,21 @@ export class DataSyncType extends Registerable {
    * When the disabled data sync is clicked, this modal will be shown.
    */
   getDeactivatedClickModal() {
+    return null
+  }
+
+  /**
+   * Indicates whether the data sync has a two-way sync. If so, then the user can
+   * optionally choose to use that.
+   */
+  hasTwoWaySyncCompatibility() {
+    return false
+  }
+
+  /**
+   * Name of the two-way sync strategy. This is just used for showing the correct label.
+   */
+  twoWayDataSyncStrategy() {
     return null
   }
 }

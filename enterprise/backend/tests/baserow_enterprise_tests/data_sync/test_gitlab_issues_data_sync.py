@@ -904,7 +904,6 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
         "last_error": None,
         "auto_add_new_properties": False,
         "two_way_sync": False,
-        "two_way_sync_strategy_type": None,
         # The `gitlab_access_token` should not be in here.
         "gitlab_url": "https://gitlab.com",
         "gitlab_project_id": "1",
