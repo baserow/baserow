@@ -14,7 +14,6 @@
         @keydown="handleKeyDown"
       >
         <ThemeProvider class="page">
-          <BuilderToasts></BuilderToasts>
           <template v-if="headerElements.length !== 0">
             <header
               class="page__header"
