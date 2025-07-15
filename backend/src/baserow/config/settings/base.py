@@ -791,6 +791,10 @@ INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT = int(
     os.getenv("BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT", 200)
 )
 
+AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
+    os.getenv("BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT", 100)
+)
+
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.
 
 # How many unique row values can be requested at once.
