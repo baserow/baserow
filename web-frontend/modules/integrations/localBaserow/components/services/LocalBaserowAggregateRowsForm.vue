@@ -55,8 +55,8 @@
         </FormGroup>
       </div>
     </div>
-    <ServiceFormRefinements
-      v-if="!fieldsLoading"
+    <ServiceRefinementForms
+      v-if="!fieldsLoading && values.table_id"
       :small="small"
       :values="values"
       :table-fields="tableFields"
@@ -74,14 +74,14 @@ import LocalBaserowTableServiceConditionalForm from '@baserow/modules/integratio
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm.vue'
 import localBaserowService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowService'
-import ServiceFormRefinements from '@baserow/modules/integrations/localBaserow/components/services/ServiceFormRefinements'
+import ServiceRefinementForms from '@baserow/modules/integrations/localBaserow/components/services/ServiceRefinementForms'
 
 export default {
   components: {
     LocalBaserowServiceForm,
     InjectedFormulaInput,
     LocalBaserowTableServiceConditionalForm,
-    ServiceFormRefinements,
+    ServiceRefinementForms,
   },
   mixins: [form, localBaserowService],
   data() {

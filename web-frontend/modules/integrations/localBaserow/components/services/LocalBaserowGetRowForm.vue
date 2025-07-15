@@ -28,8 +28,8 @@
           </FormGroup>
         </div>
       </div>
-      <ServiceFormRefinements
-        v-if="!fieldsLoading"
+      <ServiceRefinementForms
+        v-if="!fieldsLoading && values.table_id"
         class="margin-top-2"
         :small="small"
         :values="values"
@@ -48,13 +48,13 @@ import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import localBaserowService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowService'
 import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm'
-import ServiceFormRefinements from '@baserow/modules/integrations/localBaserow/components/services/ServiceFormRefinements'
+import ServiceRefinementForms from '@baserow/modules/integrations/localBaserow/components/services/ServiceRefinementForms'
 
 export default {
   components: {
     LocalBaserowServiceForm,
     InjectedFormulaInput,
-    ServiceFormRefinements,
+    ServiceRefinementForms,
   },
   mixins: [form, localBaserowService],
   data() {

@@ -77,8 +77,8 @@
     "defaultResultCountPlaceholder": "Default value..."
   },
   "serviceFormRefinements": {
-    "filterTabTitle": "Filter | 1 Filter | {count} Filters",
-    "sortTabTitle": "Sort | 1 Sort | {count} Sorts",
+    "filterTabTitle": "Filter",
+    "sortTabTitle": "Sort",
     "searchTabTitle": "Search",
     "searchFieldPlaceHolder": "Enter a search term...",
     "noTableChosenForFiltering": "Choose a table to begin using data source filters.",

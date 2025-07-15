@@ -11,8 +11,8 @@
       </div>
     </div>
 
-    <ServiceFormRefinements
-      v-if="!fieldsLoading"
+    <ServiceRefinementForms
+      v-if="!fieldsLoading && values.table_id"
       :small="small"
       :values="values"
       :table-fields="tableFields"
@@ -65,7 +65,7 @@
           </FormGroup>
         </Tab>
       </template>
-    </ServiceFormRefinements>
+    </ServiceRefinementForms>
     <div v-if="fieldsLoading" class="loading-spinner"></div>
   </form>
 </template>
@@ -73,7 +73,7 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import localBaserowService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowService'
-import ServiceFormRefinements from '@baserow/modules/integrations/localBaserow/components/services/ServiceFormRefinements'
+import ServiceRefinementForms from '@baserow/modules/integrations/localBaserow/components/services/ServiceRefinementForms'
 import Tab from '@baserow/modules/core/components/Tab'
 import {
   required,
@@ -88,7 +88,7 @@ import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/
 export default {
   components: {
     LocalBaserowServiceForm,
-    ServiceFormRefinements,
+    ServiceRefinementForms,
     Tab,
   },
   mixins: [form, localBaserowService],
