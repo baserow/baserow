@@ -591,5 +591,9 @@
         "crossoriginTypeNone": "일반",
         "crossoriginTypeAnonymous": "익명",
         "crossoriginTypeCredentials": "자격 증명 사용"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "선택된 사용자 소스에 로그인 옵션이 없습니다",
+        "errorUserSourceMissing": "사용자 소스가 선택되지 않았습니다"
     }
 }
