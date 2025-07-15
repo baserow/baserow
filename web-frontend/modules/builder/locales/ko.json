@@ -137,7 +137,7 @@
         "errorCollectionFieldInError": "적어도 하나의 필드가 잘못 구성되었습니다",
         "errorNavigateToPageMissing": "이동 속성이 누락되었습니다",
         "errorPageParameterInError": "하나 이상의 페이지 매개변수가 잘못 구성되었습니다",
-        "errorNavigationUrlMissing": "이동 URL 속성이 없습니다",
+        "errorNavigationUrlMissing": "네비게이션 URL 속성이 없습니다",
         "errorImageFileMissing": "이미지 파일이 없습니다",
         "errorImageUrlMissing": "이미지 URL 속성이 누락되었습니다",
         "errorNoWorkflowAction": "워크플로 작업이 구성되지 않았습니다",
@@ -145,7 +145,8 @@
         "errorIframeUrlMissing": "IFrame URL 속성이 없습니다",
         "errorIframeContentMissing": "IFrame 콘텐츠가 누락되었습니다",
         "errorNoMenuItem": "메뉴 항목이 구성되지 않았습니다",
-        "errorMenuItemInError": "최소한 하나의 메뉴가 잘못 구성되었습니다."
+        "errorMenuItemInError": "최소한 하나의 메뉴가 잘못 구성되었습니다",
+        "errorSubMenuItemInError": "적어도 하나의 하위 메뉴가 잘못 구성되었습니다"
     },
     "addElementButton": {
         "label": "요소"
@@ -636,7 +637,8 @@
         "orientationHorizontal": "수평",
         "orientationVertical": "수직",
         "buttonLoadMoreLabel": "더 보기 표시",
-        "propertySelectorMissingArrays": "행으로 사용할 다중 값 필드를 찾을 수 없습니다."
+        "propertySelectorMissingArrays": "행으로 사용할 다중 값 필드를 찾을 수 없습니다.",
+        "noName": "이름 없음"
     },
     "tableElement": {
         "showMore": "더 보기"
@@ -710,7 +712,11 @@
         "deleteRowLabel": "행 삭제",
         "logoutLabel": "로그아웃",
         "refreshDataSourceLabel": "데이터 소스 새로 고침",
-        "httpRequest": "HTTP 요청 보내기"
+        "httpRequest": "HTTP 요청 보내기",
+        "errorNavigateToPageMissing": "이동대상 속성이 누락되었습니다",
+        "errorPageParameterInError": "하나 이상의 페이지 매개변수가 잘못 구성되었습니다",
+        "errorNavigationUrlMissing": "네비게이션 URL 속성이 없습니다",
+        "errorDataSourceMissing": "선택된 데이터 소스가 없습니다"
     },
     "notificationWorkflowActionForm": {
         "titleLabel": "제목",
