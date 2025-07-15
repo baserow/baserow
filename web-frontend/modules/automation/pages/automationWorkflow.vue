@@ -91,6 +91,11 @@ export default defineComponent({
           automation: automation.value,
           workflowId,
         })
+
+        await store.dispatch('automationHistory/fetchWorkflowHistory', {
+          workflowId,
+        })
+
         await store.dispatch('automationWorkflow/selectById', {
           automation: automation.value,
           workflowId,

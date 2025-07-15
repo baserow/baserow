@@ -8,6 +8,9 @@ export default (client) => {
     read(workflowId) {
       return client.get(`automation/workflows/${workflowId}/`)
     },
+    getHistory(workflowId) {
+      return client.get(`automation/workflows/${workflowId}/history/`)
+    },
     update(workflowId, values) {
       return client.patch(`automation/workflows/${workflowId}/`, values)
     },
