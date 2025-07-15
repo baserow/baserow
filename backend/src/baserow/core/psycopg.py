@@ -12,3 +12,7 @@ else:
 
 def is_deadlock_error(exc: DatabaseError) -> bool:
     return isinstance(exc.__cause__, errors.DeadlockDetected)
+
+
+def is_unique_violation_error(exc: DatabaseError) -> bool:
+    return isinstance(exc.__cause__, errors.UniqueViolation)
