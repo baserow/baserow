@@ -927,7 +927,9 @@
         "restored": "이 행을 복원했습니다"
     },
     "fieldPasswordSubForm": {
-        "description": "비밀번호 필드로 직접적으로 할 수 있는 것은 아직 없습니다. 이는 애플리케이션 빌더의 사용자 인증에서만 사용됩니다."
+        "description": "비밀번호 필드는 애플리케이션 빌더에서 사용자 인증에 사용될 수도 있습니다.",
+        "allowEndpointAuthentication": "API 엔드포인트 인증 허용",
+        "allowEndpointAuthenticationHelp": "이렇게 하면 행 ID와 비밀번호가 올바른지 확인할 수 있는 엔드포인트가 노출됩니다. 이를 통해 Baserow를 인증 백엔드로 사용할 수 있습니다."
     },
     "rowEditFieldPassword": {
         "setPassword": "비밀번호 설정"
@@ -1128,5 +1130,12 @@
     "apiDocsListTables": {
         "listTablesDescription": "이 엔드포인트는 토큰 인증과 함께만 작동합니다. 토큰이 생성, 읽기, 업데이트 또는 삭제 권한을 가진 모든 테이블을 나열합니다.",
         "listTables": "모든 테이블 목록"
+    },
+    "apiDocsPasswordFieldAuthentication": {
+        "title": "{name} 인증",
+        "description": "제공된 비밀번호와 행이 셀에 저장된 내용과 일치하는지 확인합니다.",
+        "fieldId": "비밀번호를 확인할 필드 ID입니다.",
+        "rowId": "비밀번호를 확인할 행 ID입니다.",
+        "password": "비밀번호가 맞는지 확인해야 합니다."
     }
 }
