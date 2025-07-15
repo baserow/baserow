@@ -1,4 +1,7 @@
 from datetime import datetime
+from typing import Optional
+
+from django.db.models import QuerySet
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.models import (
@@ -15,6 +18,22 @@ class AutomationHistoryHandler:
 
     workflow_handler = AutomationWorkflowHandler()
     node_handler = AutomationNodeHandler()
+
+    def get_workflow_history(
+        self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
+    ) -> QuerySet[AutomationWorkflowHistory]:
+        """
+        Returns all the AutomationWorkflowHistory related to the provided workflow.
+        """
+
+        if base_queryset is None:
+            base_queryset = AutomationWorkflowHistory.objects.all()
+
+        return (
+            base_queryset.filter(workflow=workflow)
+            .prefetch_related("workflow__automation__workspace")
+            .order_by("-id")
+        )
 
     def create_workflow_history(
         self,
