@@ -165,7 +165,12 @@
         "ccEmailsPlaceholder": "cc1@example.com,cc2@example.com",
         "bccEmails": "숨은 참조 이메일",
         "bccEmailsPlaceholder": "bcc1@example.com,bcc2@example.com",
-        "subject": "주제",
-        "subjectPlaceholder": "귀하의 이메일 제목"
+        "subject": "제목",
+        "subjectPlaceholder": "귀하의 이메일 제목",
+        "bodyType": "Body 유형",
+        "bodyTypePlain": "일반 텍스트",
+        "bodyTypeHtml": "HTML",
+        "body": "Body",
+        "bodyPlaceholder": "이메일 내용..."
     }
 }
