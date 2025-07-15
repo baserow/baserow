@@ -55,41 +55,15 @@
         </FormGroup>
       </div>
     </div>
-    <div v-if="!small && !fieldsLoading" class="row">
-      <div class="col col-12">
-        <Tabs>
-          <Tab
-            :title="$t('localBaserowAggregateRowsForm.filterTabTitle')"
-            class="service-form__condition-form-tab"
-          >
-            <LocalBaserowTableServiceConditionalForm
-              v-if="values.table_id"
-              v-model="values.filters"
-              :fields="tableFields"
-              :filter-type.sync="values.filter_type"
-            >
-            </LocalBaserowTableServiceConditionalForm>
-            <p v-if="!values.table_id">
-              {{
-                $t('localBaserowAggregateRowsForm.noTableChosenForFiltering')
-              }}
-            </p>
-          </Tab>
-          <Tab
-            :title="$t('localBaserowAggregateRowsForm.searchTabTitle')"
-            class="service-form__search-form-tab"
-          >
-            <InjectedFormulaInput
-              v-model="values.search_query"
-              small
-              :placeholder="
-                $t('localBaserowAggregateRowsForm.searchFieldPlaceHolder')
-              "
-            />
-          </Tab>
-        </Tabs>
-      </div>
-    </div>
+    <ServiceFormRefinements
+      v-if="!fieldsLoading"
+      :small="small"
+      :values="values"
+      :table-fields="tableFields"
+      :show-filter="true"
+      :show-sort="false"
+      :show-search="true"
+    />
     <div v-if="fieldsLoading" class="loading-spinner"></div>
   </form>
 </template>
@@ -100,12 +74,14 @@ import LocalBaserowTableServiceConditionalForm from '@baserow/modules/integratio
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm.vue'
 import localBaserowService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowService'
+import ServiceFormRefinements from '@baserow/modules/integrations/localBaserow/components/services/ServiceFormRefinements'
 
 export default {
   components: {
     LocalBaserowServiceForm,
     InjectedFormulaInput,
     LocalBaserowTableServiceConditionalForm,
+    ServiceFormRefinements,
   },
   mixins: [form, localBaserowService],
   data() {
