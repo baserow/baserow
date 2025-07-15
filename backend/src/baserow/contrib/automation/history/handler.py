@@ -35,6 +35,22 @@ class AutomationHistoryHandler:
             .order_by("-id")
         )
 
+    def get_node_history(
+        self, node: AutomationNode, base_queryset: Optional[QuerySet] = None
+    ) -> QuerySet[AutomationNodeHistory]:
+        """
+        Returns all the AutomationNodeHistory related to the provided node.
+        """
+
+        if base_queryset is None:
+            base_queryset = AutomationNodeHistory.objects.all()
+
+        return (
+            base_queryset.filter(node=node)
+            .prefetch_related("node__workflow__automation__workspace")
+            .order_by("-id")
+        )
+
     def create_workflow_history(
         self,
         workflow: AutomationWorkflow,
