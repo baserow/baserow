@@ -651,7 +651,7 @@ class NumberFieldType(FieldType):
     def get_serializer_field(self, instance: NumberField, **kwargs):
         required = kwargs.pop("required", False)
 
-        kwargs["decimal_places"] = instance.number_decimal_places or 0
+        kwargs["decimal_places"] = instance.number_decimal_places
 
         if not instance.number_negative:
             kwargs["min_value"] = Decimal("0")
@@ -732,7 +732,7 @@ class NumberFieldType(FieldType):
         )
 
     def get_model_field(self, instance, **kwargs):
-        kwargs["decimal_places"] = instance.number_decimal_places or 0
+        kwargs["decimal_places"] = instance.number_decimal_places
         default = instance.number_default
         if default is not None:
             kwargs["default"] = default
@@ -798,7 +798,7 @@ class NumberFieldType(FieldType):
         self, formula_type: BaserowFormulaNumberType
     ) -> NumberField:
         return NumberField(
-            number_decimal_places=formula_type.number_decimal_places,
+            number_decimal_places=formula_type.number_decimal_places or 0,
             number_negative=True,
             number_prefix=formula_type.number_prefix,
             number_suffix=formula_type.number_suffix,
