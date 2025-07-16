@@ -60,14 +60,9 @@
     "rowFieldHelpText": "Leave this value empty to return the first row.",
     "searchFieldPlaceHolder": "Enter a search term...",
     "noTableChosenForFiltering": "Choose a table to begin using data source filters.",
-    "filterTabTitle": "Filter | 1 Filter | {count} Filters",
-    "searchTabTitle": "Search",
     "noTableChosenForSorting": "Choose a table to begin using data source sorts."
   },
   "localBaserowListRowsForm": {
-    "filterTabTitle": "Filter | 1 Filter | {count} Filters",
-    "sortTabTitle": "Sort | 1 Sort | {count} Sorts",
-    "searchTabTitle": "Search",
     "searchFieldPlaceHolder": "Enter a search term...",
     "noTableChosenForFiltering": "Choose a table to begin using data source filters.",
     "noTableChosenForSorting": "Choose a table to begin using data source sorts.",
@@ -85,8 +80,6 @@
     "noTableChosenForSorting": "Choose a table to begin using data source sorts."
   },
   "localBaserowAggregateRowsForm": {
-    "filterTabTitle": "Filter | 1 Filter | {count} Filters",
-    "searchTabTitle": "Search",
     "aggregationFieldLabel": "Field",
     "aggregationTypeLabel": "Aggregation",
     "searchFieldPlaceHolder": "Enter a search term...",

@@ -20,7 +20,7 @@
       show-sort
       show-search
     >
-      <template #additional-content>
+      <template #additional-buttons>
         <FormGroup
           class="margin-top-2"
           small-label

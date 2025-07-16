@@ -62,7 +62,7 @@
       </a>
 
       <!-- Additional Content Slot -->
-      <slot name="additional-content"></slot>
+      <slot name="additional-buttons"></slot>
 
       <!-- Filter Context -->
       <Context
