@@ -60,9 +60,8 @@
       :small="small"
       :values="values"
       :table-fields="tableFields"
-      :show-filter="true"
-      :show-sort="false"
-      :show-search="true"
+      show-filter
+      show-search
     />
     <div v-if="fieldsLoading" class="loading-spinner"></div>
   </form>

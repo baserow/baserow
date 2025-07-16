@@ -16,9 +16,9 @@
       :small="small"
       :values="values"
       :table-fields="tableFields"
-      :show-filter="true"
-      :show-sort="true"
-      :show-search="true"
+      show-filter
+      show-sort
+      show-search
     >
       <template #additional-content>
         <FormGroup

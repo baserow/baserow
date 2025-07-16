@@ -224,7 +224,7 @@ export default {
     },
     showFilter: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     showSort: {
       type: Boolean,
@@ -232,7 +232,7 @@ export default {
     },
     showSearch: {
       type: Boolean,
-      default: true,
+      default: false,
     },
   },
   computed: {
