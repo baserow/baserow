@@ -1,9 +1,15 @@
+from unittest.mock import patch
+
 import pytest
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeMisconfiguredService,
+)
 from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
+from baserow.core.services.exceptions import DispatchException
 
 
 @pytest.mark.django_db
@@ -112,3 +118,40 @@ def test_run_workflow_with_delete_row_action(data_fixture):
     AutomationWorkflowRunner().run(workflow, AutomationDispatchContext(workflow, {}))
 
     assert action_table.get_model().objects.all().count() == 0
+
+
+@pytest.mark.django_db
+def test_dispatch_error_is_handled(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    integration = data_fixture.create_local_baserow_integration(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    trigger_table = data_fixture.create_database_table(database=database)
+    action_table = data_fixture.create_database_table(database=database)
+    action_table_field = data_fixture.create_text_field(table=action_table)
+    workflow = data_fixture.create_automation_workflow(user=user)
+    data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow,
+        service=data_fixture.create_local_baserow_rows_created_service(
+            table=trigger_table,
+            integration=integration,
+        ),
+    )
+    action_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        service=data_fixture.create_local_baserow_upsert_row_service(
+            table=action_table,
+            integration=integration,
+        ),
+    )
+    action_node.service.field_mappings.create(field=action_table_field, value="'Horse'")
+
+    with patch.object(
+        action_node.get_type(), "dispatch", side_effect=DispatchException("Test error")
+    ):
+        with pytest.raises(AutomationNodeMisconfiguredService) as e:
+            AutomationWorkflowRunner().run(
+                workflow, AutomationDispatchContext(workflow, {})
+            )
+
+    assert str(e.value) == f"The node {action_node.id} has a misconfigured service."

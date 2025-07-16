@@ -9,9 +9,7 @@ from baserow.contrib.automation.nodes.exceptions import (
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeActionNodeType
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.core.services.exceptions import (
-    ServiceImproperlyConfiguredDispatchException,
-)
+from baserow.core.services.exceptions import DispatchException
 
 
 class AutomationWorkflowRunner:
@@ -41,5 +39,5 @@ class AutomationWorkflowRunner:
             try:
                 dispatch_result = node_type.dispatch(node, dispatch_context)
                 dispatch_context.register_node_result(node, dispatch_result.data)
-            except ServiceImproperlyConfiguredDispatchException as e:
+            except DispatchException as e:
                 raise AutomationNodeMisconfiguredService(node.id) from e
