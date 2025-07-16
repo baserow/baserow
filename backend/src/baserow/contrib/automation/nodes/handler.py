@@ -130,8 +130,8 @@ class AutomationNodeHandler:
         # Are we creating a node as a child of another node?
         parent_node_id = allowed_prepared_values.get("parent_node_id", None)
 
-        # If we don't already have a `previous_node_id`
-        if "previous_node_id" not in allowed_prepared_values:  # this is only in tests
+        # If we don't already have a `previous_node_id` (users won't provide this)
+        if "previous_node_id" not in allowed_prepared_values:
             # Figure out what the previous node ID should be. If we've been given a
             # `before` node, then we'll use its previous node ID. If not, we'll use the
             # last node ID of the workflow, which is the last node in the hierarchy.
@@ -143,8 +143,6 @@ class AutomationNodeHandler:
 
         order = kwargs.pop("order", None)
         if before:
-            # If we're creating a node before another node, then we'll use its
-            # previous node ID, since we're taking its place in the hierarchy.
             order = AutomationNode.get_unique_order_before_node(before, parent_node_id)
         elif not order:
             order = AutomationNode.get_last_order(workflow)

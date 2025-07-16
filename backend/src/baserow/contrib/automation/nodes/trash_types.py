@@ -33,11 +33,12 @@ class AutomationNodeTrashableItemType(TrashableItemType):
 
         super().trash(item_to_trash, requesting_user, trash_entry)
 
-        for next_node in next_nodes:
-            # As `item_to_trash` is trashed, we need to update `next_node`'s
-            # previous_node_id to point to the node before `item_to_trash`.
-            next_node.previous_node_id = item_to_trash.previous_node_id
-            next_node.save(update_fields=["previous_node_id"])
+        # As `item_to_trash` is trashed, we need to update the nodes that immediately
+        # follow this node, to point to the node before `item_to_trash`.
+        next_node_ids = [next_node.id for next_node in next_nodes]
+        AutomationNode.objects.filter(id__in=next_node_ids).update(
+            previous_node_id=item_to_trash.previous_node_id
+        )
 
         automation_node_deleted.send(
             self,
@@ -51,13 +52,10 @@ class AutomationNodeTrashableItemType(TrashableItemType):
 
         # Determine if this restored node has a node after it. If it does, we'll
         # need to update its previous_node_id to point to `trashed_item.id`
-        next_nodes = AutomationNode.objects.exclude(id=trashed_item.id).filter(
+        AutomationNode.objects.exclude(id=trashed_item.id).filter(
             workflow=trashed_item.workflow,
             previous_node_id=trashed_item.previous_node_id,
-        )
-        for next_node in next_nodes:
-            next_node.previous_node_id = trashed_item.id
-            next_node.save(update_fields=["previous_node_id"])
+        ).update(previous_node_id=trashed_item.id)
 
         automation_node_created.send(self, node=trashed_item, user=None)
 
