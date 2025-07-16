@@ -5,7 +5,7 @@ from django.db.models.signals import post_migrate
 import snoop
 
 from .base import *  # noqa: F403, F401
-from .utils import setup_dev_e2e
+from .utils import setup_dev_e2e, str_to_bool
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev_hardcoded_secret_key")  # noqa: F405
 SIMPLE_JWT["SIGNING_KEY"] = (  # noqa: F405
@@ -20,7 +20,7 @@ BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL = 4
 INSTALLED_APPS.insert(0, "daphne")  # noqa: F405
 INSTALLED_APPS += ["django_extensions"]  # noqa: F405
 
-BASEROW_ENABLE_SILK = os.getenv("BASEROW_ENABLE_SILK", "on").lower() == "on"
+BASEROW_ENABLE_SILK = str_to_bool(os.getenv("BASEROW_ENABLE_SILK", "on"))
 if DEBUG and BASEROW_ENABLE_SILK:
     INSTALLED_APPS += ["silk"]  # noqa: F405
     MIDDLEWARE += [  # noqa: F405
