@@ -69,8 +69,6 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import LocalBaserowTableServiceConditionalForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableServiceConditionalForm'
-import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm.vue'
 import localBaserowService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowService'
 import ServiceRefinementForms from '@baserow/modules/integrations/localBaserow/components/services/ServiceRefinementForms'
@@ -78,8 +76,6 @@ import ServiceRefinementForms from '@baserow/modules/integrations/localBaserow/c
 export default {
   components: {
     LocalBaserowServiceForm,
-    InjectedFormulaInput,
-    LocalBaserowTableServiceConditionalForm,
     ServiceRefinementForms,
   },
   mixins: [form, localBaserowService],
