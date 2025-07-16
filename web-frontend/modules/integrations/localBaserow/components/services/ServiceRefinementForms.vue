@@ -8,7 +8,7 @@
         ref="filterContextLink"
         class="header__filter-link"
         :class="{
-          'active active--success': hasActiveFilters,
+          active: hasActiveFilters,
         }"
         @click="openContextWithContent('filter', $refs.filterContextLink)"
       >
@@ -29,7 +29,7 @@
         ref="sortContextLink"
         class="header__filter-link"
         :class="{
-          'active active--success': hasActiveSorts,
+          active: hasActiveSorts,
         }"
         @click="openContextWithContent('sort', $refs.sortContextLink)"
       >
@@ -50,7 +50,7 @@
         ref="searchContextLink"
         class="header__filter-link"
         :class="{
-          'active active--success': hasActiveSearch,
+          active: hasActiveSearch,
         }"
         @click="openContextWithContent('search', $refs.searchContextLink)"
       >
@@ -58,6 +58,7 @@
         <span class="header__filter-name">{{
           $t('serviceFormRefinements.searchTabTitle')
         }}</span>
+        <BadgeCounter v-if="hasActiveSearch" class="margin-left-1" :count="1" />
       </a>
 
       <!-- Additional Content Slot -->
