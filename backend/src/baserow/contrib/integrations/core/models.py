@@ -47,6 +47,17 @@ class SMTPIntegration(Integration):
     )
 
 
+class CoreIteratorService(Service):
+    """
+    A service to iterate over an array of data.
+    """
+
+    source = FormulaField(
+        blank=True,
+        help_text="The path of the array.",
+    )
+
+
 class CoreHTTPRequestService(Service):
     """
     A service for handling HTTP requests.

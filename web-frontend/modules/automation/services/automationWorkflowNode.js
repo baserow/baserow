@@ -5,7 +5,8 @@ export default (client) => {
       type,
       beforeId = null,
       previousNodeId = null,
-      previousNodeOutput = null
+      previousNodeOutput = null,
+      parentNodeId = null
     ) {
       const payload = { type }
       if (beforeId !== null) {
@@ -16,6 +17,9 @@ export default (client) => {
       }
       if (previousNodeOutput !== null) {
         payload.previous_node_output = previousNodeOutput
+      }
+      if (parentNodeId !== null) {
+        payload.parent_node_id = parentNodeId
       }
       return client.post(`automation/workflow/${workflowId}/nodes/`, payload)
     },

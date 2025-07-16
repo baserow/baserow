@@ -1,0 +1,84 @@
+.workflow-edge {
+  min-width: 200px;
+}
+
+.workflow-edge,
+.workflow-edge__dropzone-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.workflow-edge__dropzone-wrapper {
+  position: relative;
+  width: 400px;
+}
+
+.workflow-edge__dropzone-wrapper--with-next::after {
+  content: '';
+  display: block;
+  height: $connectorHeight;
+  border-left: 2px solid $palette-neutral-400;
+}
+
+.workflow-edge__label {
+  position: relative;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  border-radius: 25px;
+  font-size: 11px;
+  font-weight: 500;
+  background-color: $palette-neutral-200;
+  border: 1px solid $palette-neutral-400;
+  color: $palette-neutral-900;
+  display: block;
+
+  @include elevation($elevation-low);
+
+  &::after {
+    content: '';
+    position: absolute;
+    display: block;
+    left: 50%;
+    bottom: -12px;
+    height: 10px;
+    border-left: 2px solid $palette-neutral-400;
+  }
+}
+
+.workflow-edge__add-button {
+  pointer-events: initial;
+}
+
+.workflow-edge__dropzone {
+  position: absolute;
+  top: -18px;
+  left: 0;
+  width: 100%;
+  z-index: 1;
+  height: 70px;
+  pointer-events: initial;
+
+  @include rounded($rounded-xl);
+
+  &--hover {
+    border: 2px dashed $palette-blue-500;
+  }
+}
+
+.workflow-edge__add-button--active {
+  & > .button-floating {
+    transition: all 0.2s ease;
+    background: $palette-blue-100;
+    border: 1px dashed $palette-blue-400;
+  }
+}
+
+.workflow-edge__add-button--hover {
+  & > .button-floating {
+    background: $palette-green-200;
+    border: 1px solid $palette-green-500;
+    color: $palette-green-700;
+  }
+}

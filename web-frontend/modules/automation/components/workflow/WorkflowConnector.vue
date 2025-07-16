@@ -46,7 +46,7 @@ const pathData = computed(() => {
 
   const localRadius = props.radius
 
-  if (localEndX === localStartX) {
+  if (Math.abs(localEndX - localStartX) < 5) {
     localStartX += 1
     // Let's go straight as it's a simple line.
     return `M ${localStartX},${localStartY} L ${localStartX},${localEndY}`
@@ -83,7 +83,6 @@ const viewBox = computed(
 const svgStyle = computed(() => ({
   position: 'absolute',
   left: `${bounds.value.left}px`,
-  top: `${bounds.value.top}px`,
   width: `${bounds.value.width}px`,
   height: `${bounds.value.height}px`,
   pointerEvents: 'none',

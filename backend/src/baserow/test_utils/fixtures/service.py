@@ -3,6 +3,7 @@ from uuid import uuid4
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
+    CoreIteratorService,
     CoreRouterService,
     CoreSMTPEmailService,
 )
@@ -98,6 +99,9 @@ class ServiceFixtures:
 
         service = self.create_service(CoreSMTPEmailService, **kwargs)
         return service
+
+    def create_core_iterator_service(self, **kwargs):
+        return self.create_service(CoreIteratorService, **kwargs)
 
     def create_core_router_service(self, **kwargs):
         return self.create_service(CoreRouterService, **kwargs)

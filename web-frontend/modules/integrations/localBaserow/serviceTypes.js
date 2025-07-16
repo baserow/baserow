@@ -129,6 +129,10 @@ export class LocalBaserowGetRowServiceType extends DataSourceLocalBaserowTableSe
     return this.app.i18n.t('serviceType.localBaserowGetRowDescription')
   }
 
+  get icon() {
+    return 'iconoir-pin'
+  }
+
   /**
    * A hook called prior to an update to modify the filters and
    * sortings if the `table_id` changes from one ID to another.
@@ -166,6 +170,10 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
 
   get description() {
     return this.app.i18n.t('serviceType.localBaserowListRowsDescription')
+  }
+
+  get icon() {
+    return 'iconoir-list'
   }
 
   /**
@@ -290,6 +298,10 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
     return LocalBaserowAggregateRowsForm
   }
 
+  get icon() {
+    return 'iconoir-sigma-function'
+  }
+
   /**
    * Local Baserow aggregate rows does not currently support the distribution
    * aggregation type, this will be resolved in a future release.
@@ -374,6 +386,10 @@ export class LocalBaserowCreateRowWorkflowServiceType extends WorkflowActionServ
     return 'local_baserow_create_row'
   }
 
+  get icon() {
+    return 'iconoir-plus'
+  }
+
   get name() {
     return this.app.i18n.t('serviceType.localBaserowCreateRow')
   }
@@ -394,6 +410,10 @@ export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServ
     return 'local_baserow_update_row'
   }
 
+  get icon() {
+    return 'iconoir-edit-pencil'
+  }
+
   get name() {
     return this.app.i18n.t('serviceType.localBaserowUpdateRow')
   }
@@ -412,6 +432,10 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
 ) {
   static getType() {
     return 'local_baserow_delete_row'
+  }
+
+  get icon() {
+    return 'iconoir-bin'
   }
 
   get name() {
@@ -453,6 +477,10 @@ export class LocalBaserowRowsCreatedTriggerServiceType extends LocalBaserowTrigg
     return this.app.i18n.t('serviceType.localBaserowRowsCreatedDescription')
   }
 
+  get icon() {
+    return 'iconoir-plus'
+  }
+
   get formComponent() {
     return LocalBaserowSignalTriggerServiceForm
   }
@@ -471,6 +499,10 @@ export class LocalBaserowRowsUpdatedTriggerServiceType extends LocalBaserowTrigg
     return this.app.i18n.t('serviceType.localBaserowRowsUpdatedDescription')
   }
 
+  get icon() {
+    return 'iconoir-edit'
+  }
+
   get formComponent() {
     return LocalBaserowSignalTriggerServiceForm
   }
@@ -487,6 +519,10 @@ export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowTrigg
 
   get description() {
     return this.app.i18n.t('serviceType.localBaserowRowsDeletedDescription')
+  }
+
+  get icon() {
+    return 'iconoir-trash'
   }
 
   get formComponent() {
