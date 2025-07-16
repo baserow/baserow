@@ -29,6 +29,7 @@ import {
   LocalBaserowAggregateRowsActionNodeType,
   CoreHttpRequestNodeType,
   CoreSMTPEmailNodeType,
+  CoreRouterNodeType,
 } from '@baserow/modules/automation/nodeTypes'
 import { DuplicateAutomationWorkflowJobType } from '@baserow/modules/automation/jobTypes'
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
@@ -96,6 +97,7 @@ export default (context) => {
     )
     app.$registry.register('node', new CoreHttpRequestNodeType(context))
     app.$registry.register('node', new CoreSMTPEmailNodeType(context))
+    app.$registry.register('node', new CoreRouterNodeType(context))
     app.$registry.register(
       'node',
       new LocalBaserowDeleteRowActionNodeType(context)

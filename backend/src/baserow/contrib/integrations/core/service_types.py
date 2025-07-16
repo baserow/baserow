@@ -1,5 +1,6 @@
 import json
 import socket
+import uuid
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
@@ -13,12 +14,13 @@ from rest_framework import serializers
 
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
+    CoreRouterService,
     CoreSMTPEmailService,
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
 )
-from baserow.core.formula.validator import ensure_array, ensure_email, ensure_string
+from baserow.core.formula.validator import ensure_array, ensure_email, ensure_string, ensure_boolean
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -31,6 +33,7 @@ from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
 
+from ..api.core.serializers import CoreRouterServiceEdgeSerializer
 from .constants import BODY_TYPE, HTTP_METHOD
 from .integration_types import SMTPIntegrationType
 
@@ -819,3 +822,122 @@ class CoreSMTPEmailServiceType(ServiceType):
             del values["integration"]
             values["integration_id"] = instance.integration_id
         return values
+
+
+class CoreRouterServiceType(ServiceType):
+    type = "router"
+    model_class = CoreRouterService
+    dispatch_type = DispatchTypes.DISPATCH_TRIGGER
+    serializer_field_names = ["edges"]
+
+    class SerializedDict(ServiceDict):
+        edges: List[Dict]
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            **super().serializer_field_overrides,
+            "edges": CoreRouterServiceEdgeSerializer(
+                many=True,
+                required=False,
+                help_text="The edges associated with this service.",
+            ),
+        }
+
+    def serialize_property(
+        self,
+        service: CoreRouterService,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        """
+        Responsible for serializing the `edges` properties.
+
+        :param service: The CoreRouterService service.
+        :param prop_name: The property name we're serializing.
+        :param files_zip: The zip file containing the files.
+        :param storage: The storage to use for the files.
+        :param cache: The cache to use for the files.
+        """
+
+        if prop_name == "edges":
+            return [
+                {
+                    "label": e.label,
+                    "uid": str(
+                        uuid.uuid4()
+                    ),  # todo: the nodes which rely on the uid need to be updated too
+                    "condition": e.condition,
+                }
+                for e in service.edges.all()
+            ]
+
+        return super().serialize_property(
+            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+        )
+
+    def formula_generator(
+        self, service: CoreRouterService
+    ) -> Generator[str | Instance, str, None]:
+        yield from super().formula_generator(service)
+
+        for edge in service.edges.all():
+            new_formula = yield edge.condition
+            if new_formula is not None:
+                edge.condition = new_formula
+                yield edge
+
+    def dispatch_data(
+        self,
+        service: CoreRouterService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Dispatches the router service by evaluating the conditions of its edges
+        and returning the first edge that matches the condition.
+
+        If no conditions evaluate to true, it returns the last edge by default, which
+        is always false.
+
+        :param service: The CoreRouterService instance to dispatch.
+        :param resolved_values: The resolved values from the service's formulas.
+        :param dispatch_context: The context in which the service is being dispatched.
+        :return: A dictionary containing the data of the first matching edge.
+        """
+
+        for edge in service.edges.all():
+            try:
+                condition_result = ensure_boolean(
+                    resolve_formula(
+                        edge.condition,
+                        formula_runtime_function_registry,
+                        dispatch_context,
+                    )
+                )
+                if condition_result:
+                    return {
+                        "output_uid": edge.uid,
+                        "data": {"label": edge.label},
+                    }
+            except BaserowFormulaException as e:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    f"Error in formula for edge {edge.label}: {str(e)}"
+                ) from e
+            except Exception as e:
+                raise UnexpectedDispatchException(
+                    f"Unknown error in formula for edge {edge.label}: {str(e)}"
+                ) from e
+
+        return {
+            "output_uid": "",
+            "data": {"label": service.default_edge_label},
+        }
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(output_uid=data["output_uid"], data=data["data"])

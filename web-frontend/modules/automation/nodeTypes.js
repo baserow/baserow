@@ -17,6 +17,7 @@ import {
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
 import {
   CoreHTTPRequestServiceType,
+  CoreRouterServiceType,
   CoreSMTPEmailServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 
@@ -442,5 +443,27 @@ export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
 
   get serviceType() {
     return this.app.$registry.get('service', CoreSMTPEmailServiceType.getType())
+  }
+}
+
+export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'router'
+  }
+
+  getOrder() {
+    return 6
+  }
+
+  get iconClass() {
+    return 'iconoir-git-fork'
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.routerLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreRouterServiceType.getType())
   }
 }
