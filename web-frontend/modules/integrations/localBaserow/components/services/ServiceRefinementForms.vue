@@ -276,7 +276,7 @@ export default {
         'bottom',
         'left',
         -32,
-        horizontalOffset - 20
+        horizontalOffset - 30
       )
     },
   },
