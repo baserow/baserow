@@ -12,6 +12,12 @@
     </p>
   </div>
   <div v-else>
+    <div class="history__title">
+      {{ $t('historySidePanel.title') }}
+      <a role="button" @click="closeHistory()">
+        <i class="history__close-side-panel iconoir-cancel"></i>
+      </a>
+    </div>
     <HistorySection
       v-for="item in workflowHistoryItems"
       :key="item.id"
@@ -29,4 +35,8 @@ const workflowHistoryItems = computed(() => {
   const history = store.getters['automationHistory/getWorkflowHistory']()
   return history?.results || []
 })
+
+const closeHistory = () => {
+  store.dispatch('automationWorkflow/setActiveSidePanel', null)
+}
 </script>

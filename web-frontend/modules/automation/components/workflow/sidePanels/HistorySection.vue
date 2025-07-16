@@ -13,6 +13,7 @@
           <span class="history__date">{{ completedDate }}</span>
 
           <i
+            class="history__collapse"
             :class="{
               'iconoir-nav-arrow-down': expanded,
               'iconoir-nav-arrow-right': !expanded,

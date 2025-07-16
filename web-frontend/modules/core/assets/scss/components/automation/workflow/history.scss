@@ -1,3 +1,18 @@
+.history__title {
+  display: flex;
+  justify-content: space-between;
+  flex-direction: row;
+  padding-top: 10px;
+  padding-bottom: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.history__close-side-panel {
+  color: $palette-neutral-700;
+}
+
 .history__section {
   /** workaround because align-items: center didn't work */
   padding-top: 20px;
@@ -26,6 +41,12 @@
   align-items: center;
   align-self: center;
   gap: 5px;
+
+  &-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: $palette-neutral-1200;
+  }
 }
 
 .history__icon {
@@ -52,6 +73,10 @@
 }
 
 .history__date {
-  font-size: 12px;
+  font-size: 11px;
+  color: $palette-neutral-700;
+}
+
+.history__collapse {
   color: $palette-neutral-700;
 }
