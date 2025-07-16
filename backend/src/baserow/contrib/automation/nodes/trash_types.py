@@ -48,7 +48,9 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         # follow this node, to point to the node before `item_to_trash`, and ensure
         # that the previous_node_output is set to the output of the node before.
         AutomationNodeHandler().update_previous_node(
-            item_to_trash.previous_node, next_nodes, item_to_trash.previous_node_output
+            item_to_trash.previous_node,
+            next_nodes,
+            previous_node_output=item_to_trash.previous_node_output,
         )
 
     def restore(

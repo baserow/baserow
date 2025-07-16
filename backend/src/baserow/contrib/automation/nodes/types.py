@@ -24,6 +24,7 @@ class ReplacedAutomationNode:
 class NextAutomationNodeValues:
     id: int
     previous_node_id: int
+    parent_node_id: int
     previous_node_output: str
 
 
@@ -44,6 +45,7 @@ class AutomationNodeMove:
     # The original position & output of the node before the move.
     origin_previous_node_id: int
     origin_previous_node_output: str
+    origin_parent_node_id: int
     # The pre-move values of the next nodes after `node`, at the original position.
     origin_old_next_nodes_values: List[NextAutomationNodeValues]
     # The post-move values of the next nodes after `node`, at the original position.
@@ -51,6 +53,7 @@ class AutomationNodeMove:
     # The destination position & output of the node after the move.
     destination_previous_node_id: int
     destination_previous_node_output: str
+    destination_parent_node_id: int
     # The pre-move values of the next nodes after
     # `destination_previous_node_id`, at the new position.
     destination_old_next_nodes_values: List[NextAutomationNodeValues]
@@ -63,7 +66,9 @@ class AutomationNodeDict(TypedDict):
     id: int
     type: str
     order: float
+    label: str
+    service: dict
     workflow_id: int
-    parent_node_id: int
     previous_node_id: int
     previous_node_output: str
+    parent_node_id: int

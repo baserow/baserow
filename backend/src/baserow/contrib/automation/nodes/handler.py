@@ -41,7 +41,17 @@ from .signals import automation_node_updated
 
 
 class AutomationNodeHandler:
-    allowed_fields = ["label", "service", "previous_node_id", "previous_node_output"]
+    allowed_fields = [
+        "label",
+        "service",
+        "previous_node_id",
+        "previous_node_output",
+        "parent_node_id",
+    ]
+    allowed_update_fields = [
+        "label",
+        "service",
+    ]
 
     def get_nodes(
         self,
@@ -93,12 +103,22 @@ class AutomationNodeHandler:
             )
         return _get_nodes()
 
+    def get_children(self, node, specific=True):
+        nodes = self.get_nodes(node.workflow, specific=specific)
+
+        return [
+            n
+            for n in nodes
+            if n.parent_node_id == node.id and n.previous_node_id is None
+        ]
+
     def get_next_nodes(
         self,
         workflow,
         node: None | AutomationNode,
         output_uid: str | None = None,
-        specific: bool = False,
+        parent: None | AutomationNode = None,
+        specific: bool = True,
     ) -> Iterable["AutomationNode"]:
         """
         Returns all nodes which follow the given node in the workflow. A list of nodes
@@ -111,14 +131,16 @@ class AutomationNodeHandler:
         :param specific: If True, returns the specific node type.
         """
 
-        queryset = AutomationNode.objects.filter(
-            previous_node_id=node.id if node else None
-        )
+        nodes = self.get_nodes(workflow, specific=specific)
 
-        if output_uid is not None:
-            queryset = queryset.filter(previous_node_output=output_uid)
-
-        return self.get_nodes(workflow, base_queryset=queryset, specific=specific)
+        return [
+            n
+            for n in nodes
+            if n.previous_node_id == (node.id if node else None)
+            and n.parent_node_id
+            == (parent.id if parent else (node.parent_node_id if node else None))
+            and (output_uid is None or n.previous_node_output == output_uid)
+        ]
 
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
@@ -169,6 +191,7 @@ class AutomationNodeHandler:
             for key, value in update_kwargs.items():
                 setattr(node, key, value)
             updates.append(node)
+        print("update", updates, update_kwargs)
         AutomationNode.objects.bulk_update(updates, update_kwargs.keys())
 
         return updates
@@ -204,6 +227,7 @@ class AutomationNodeHandler:
         node_type: AutomationNodeType,
         workflow: AutomationWorkflow,
         before: Optional[AutomationNode] = None,
+        parent: Optional[AutomationNode] = None,
         **kwargs,
     ) -> AutomationNode:
         """
@@ -213,6 +237,8 @@ class AutomationNodeHandler:
         :param workflow: The workflow the automation node is associated with.
         :param before: If provided and no order is provided, will place the new node
             before the given node.
+        :param before: If provided and no before is provided, will place the new node
+            as child of the given parent node.
         :return: The newly created automation node instance.
         """
 
@@ -220,59 +246,37 @@ class AutomationNodeHandler:
             kwargs, self.allowed_fields + node_type.allowed_fields
         )
 
-        # Are we creating a node as a child of another node?
-        parent_node_id = allowed_prepared_values.get("parent_node_id", None)
-
-        node_previous_ids_to_update = []
-
         # Are we creating a node before another? If we are, the
-        # `previous_node_id` and `previous_node_output` fields
+        # `previous_node_id`, `previous_node_output` and `parent_node_id` fields
         # need to be adjusted.
         if before:
-            # We're creating a node before another, and it has an
-            # output, so we need to re-use it for this new node.
-            if before.previous_node_output:
-                allowed_prepared_values[
-                    "previous_node_output"
-                ] = before.previous_node_output
-
-            # Find the nodes that are using `before` as their previous node.
-            # If `before` has a `previous_node_id`, then we get `before.previous_node`'s
-            # next nodes. If there's no `previous_node_id`, then `before` is a trigger,
-            # so we want the nodes that come after this trigger.
-            node_previous_ids_to_update = list(
-                workflow.automation_workflow_nodes.filter(
-                    previous_node_id=before.id
-                    if before.previous_node_id is None
-                    else before.previous_node_id,
-                    previous_node_output=before.previous_node_output,
-                )
+            allowed_prepared_values["previous_node_id"] = before.previous_node_id
+            allowed_prepared_values[
+                "previous_node_output"
+            ] = before.previous_node_output
+            allowed_prepared_values["parent_node_id"] = before.parent_node_id
+        else:
+            allowed_prepared_values[
+                "previous_node_id"
+            ] = AutomationWorkflow.get_last_node_id(
+                workflow, parent.id if parent else None
             )
 
-        # If we don't already have a `previous_node_id`...
-        if "previous_node_id" not in allowed_prepared_values:
-            # Figure out what the previous node ID should be. If we've been given a
-            # `before` node, then we'll use its previous node ID. If not, we'll use the
-            # last node ID of the workflow, which is the last node in the hierarchy.
-            allowed_prepared_values["previous_node_id"] = (
-                before.previous_node_id
-                if before
-                else AutomationWorkflow.get_last_node_id(workflow, parent_node_id)
-            )
+            allowed_prepared_values["parent_node_id"] = parent.id if parent else None
 
         order = kwargs.pop("order", None)
         if before:
-            order = AutomationNode.get_unique_order_before_node(before, parent_node_id)
+            order = AutomationNode.get_unique_order_before_node(before)
         elif not order:
             order = AutomationNode.get_last_order(workflow)
 
-        allowed_prepared_values["workflow"] = workflow
-        node = node_type.model_class(order=order, **allowed_prepared_values)
-        node.save()
+        node = node_type.model_class.objects.create(
+            workflow=workflow, order=order, **allowed_prepared_values
+        )
 
         # If we have `previous_node_id` to update, we need to adjust them.
-        if node_previous_ids_to_update:
-            self.update_previous_node(node, node_previous_ids_to_update)
+        if before:
+            self.update_previous_node(node, [before])
 
         # If we have a `before` node, and it had an output, then
         # we need to clear it as `node` has now claimed it as its output.
@@ -292,7 +296,8 @@ class AutomationNodeHandler:
         :return: The updated AutomationNode.
         """
 
-        allowed_values = extract_allowed(kwargs, self.allowed_fields)
+        allowed_values = extract_allowed(kwargs, self.allowed_update_fields)
+
         for key, value in allowed_values.items():
             setattr(node, key, value)
 
@@ -362,6 +367,7 @@ class AutomationNodeHandler:
                 id=nn.id,
                 previous_node_id=nn.previous_node_id,
                 previous_node_output=nn.previous_node_output,
+                parent_node_id=nn.parent_node_id,
             )
             for nn in source_node_next_nodes
         ]
@@ -371,6 +377,7 @@ class AutomationNodeHandler:
         exported_node["previous_node_output"] = ""
         # The duplicated node will follow `node`.
         exported_node["previous_node_id"] = source_node.id
+        exported_node["parent_node_id"] = source_node.parent_node_id
 
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["automation_workflow_nodes"] = MirrorDict()
@@ -399,6 +406,7 @@ class AutomationNodeHandler:
                 id=nn.id,
                 previous_node_id=nn.previous_node_id,
                 previous_node_output=nn.previous_node_output,
+                parent_node_id=nn.parent_node_id,
             )
             for nn in duplicated_node_next_nodes
         ]
@@ -413,9 +421,9 @@ class AutomationNodeHandler:
     def move_node(
         self,
         node: AutomationActionNode,
-        after_node: AutomationNode,
+        after_node: AutomationNode | None,
         previous_node_output: Optional[str] = None,
-        order: Optional[float] = None,
+        parent_node: AutomationNode | None = None,
     ) -> AutomationNodeMove:
         """
         Moves an action node to be after another node in the same workflow.
@@ -429,6 +437,8 @@ class AutomationNodeHandler:
             its original previous node values and its new previous node values.
         """
 
+        workflow = node.workflow
+
         # Does `node`, in its current position, have any next nodes? If so,
         # we need to ensure their `previous_node_id` are updated to the new
         # previous node of `node`.
@@ -437,6 +447,7 @@ class AutomationNodeHandler:
             NextAutomationNodeValues(
                 id=nn.id,
                 previous_node_id=nn.previous_node_id,
+                parent_node_id=nn.parent_node_id,
                 previous_node_output=nn.previous_node_output,
             )
             for nn in origin_next_nodes
@@ -458,35 +469,59 @@ class AutomationNodeHandler:
             NextAutomationNodeValues(
                 id=nn.id,
                 previous_node_id=nn.previous_node_id,
+                parent_node_id=nn.parent_node_id,
                 previous_node_output=nn.previous_node_output,
             )
             for nn in updated_origin_next_nodes
         ]
 
-        # Does `after_node`, the node that `node` is being moved after,
+        # Does `after_node` or `parent_node`,
         # have any next nodes? If so, we need to ensure their `previous_node_id`
         # are updated to `node`.
-        destination_next_nodes = list(after_node.get_next_nodes(previous_node_output))
+        if after_node is not None:
+            destination_next_nodes = list(
+                self.get_next_nodes(
+                    workflow,
+                    after_node,
+                    output_uid=previous_node_output,
+                    parent=parent_node,
+                )
+            )
+        else:
+            destination_next_nodes = list(parent_node.get_children())
+
         destination_old_next_nodes_values = [
             NextAutomationNodeValues(
                 id=nn.id,
                 previous_node_id=nn.previous_node_id,
+                parent_node_id=nn.parent_node_id,
                 previous_node_output=nn.previous_node_output,
             )
             for nn in destination_next_nodes
         ]
 
-        # Store the original `previous_node_{id,output}` so we can revert.
+        # Store the original `previous_node_{id,output}` and parent_id so we can revert.
         origin_previous_node_id = node.previous_node_id
         origin_previous_node_output = node.previous_node_output
+        origin_parent_node_id = node.parent_node_id
 
         # Set the new position.
-        node.previous_node_id = after_node.id
+        node.previous_node_id = after_node.id if after_node else None
         node.previous_node_output = previous_node_output or ""
-        node.order = order or AutomationNode.get_unique_order_before_node(
-            after_node, after_node.parent_node
+        node.parent_node_id = parent_node.id if parent_node else None
+        node.order = (
+            AutomationNode.get_unique_order_before_node(after_node)
+            if after_node
+            else AutomationNode.get_last_order(workflow, parent_node)
         )
-        node.save(update_fields=["previous_node_id", "previous_node_output", "order"])
+        node.save(
+            update_fields=[
+                "previous_node_id",
+                "previous_node_output",
+                "parent_node_id",
+                "order",
+            ]
+        )
 
         # Update the nodes at the destination that their previous node is now `node`.
         updated_destination_next_nodes = self.update_previous_node(
@@ -500,6 +535,7 @@ class AutomationNodeHandler:
             NextAutomationNodeValues(
                 id=nn.id,
                 previous_node_id=nn.previous_node_id,
+                parent_node_id=nn.parent_node_id,
                 previous_node_output=nn.previous_node_output,
             )
             for nn in updated_destination_next_nodes
@@ -510,10 +546,12 @@ class AutomationNodeHandler:
             next_node_updates=next_node_updates,
             origin_previous_node_id=origin_previous_node_id,
             origin_previous_node_output=origin_previous_node_output,
+            origin_parent_node_id=origin_parent_node_id,
             origin_old_next_nodes_values=origin_old_next_nodes_values,
             origin_new_next_nodes_values=origin_new_next_nodes_values,
             destination_previous_node_id=node.previous_node_id,
             destination_previous_node_output=node.previous_node_output,
+            destination_parent_node_id=node.parent_node_id,
             destination_old_next_nodes_values=destination_old_next_nodes_values,
             destination_new_next_nodes_values=destination_new_next_nodes_values,
         )
@@ -629,7 +667,10 @@ class AutomationNodeHandler:
         return node_instance
 
     def dispatch_node(
-        self, node: "AutomationNode", dispatch_context: AutomationDispatchContext
+        self,
+        node: "AutomationNode",
+        dispatch_context: AutomationDispatchContext,
+        allowed_nodes=None,
     ):
         """
         Dispatch one node and recursively dispatch the next nodes.
@@ -637,7 +678,20 @@ class AutomationNodeHandler:
         :param node: The node to start with.
         :param dispatch_context: The context in which the workflow is being dispatched,
             which contains the event payload and other relevant data.
+        :param allowed_nodes: if set only the nodes from the list will be dispatched.
         """
+
+        print(f"dipatch node {node.id} - {node.get_type().type}")
+
+        if dispatch_context.simulate_until_node and allowed_nodes is None:
+            allowed_nodes = {
+                *dispatch_context.simulate_until_node.get_previous_nodes(),
+                dispatch_context.simulate_until_node,
+            }
+
+        if allowed_nodes is not None and node not in allowed_nodes:
+            # Return early as the node is not on the path until the simulated node
+            return
 
         node_type: Type[AutomationNodeActionNodeType] = node.get_type()
         try:
@@ -653,10 +707,35 @@ class AutomationNodeHandler:
                     automation_node_updated.send(self, user=None, node=node)
                     return
 
+            if children := node.get_children():
+                node_data = (
+                    dispatch_result.data
+                    if isinstance(dispatch_result.data, list)
+                    else [dispatch_result.data]
+                )
+
+                if dispatch_context.simulate_until_node:
+                    iterations = [0]
+                else:
+                    iterations = range(len(node_data))
+
+                for index in iterations:
+                    sub_dispatch_context = dispatch_context.clone()
+                    sub_dispatch_context.set_current_iteration(node, index)
+
+                    # dispatch context build
+                    for child in children:
+                        self.dispatch_node(
+                            child, sub_dispatch_context, allowed_nodes=allowed_nodes
+                        )
+
             next_nodes = node.get_next_nodes(dispatch_result.output_uid)
 
+            print(f"Next nodes {next_nodes}")
             for next_node in next_nodes:
-                self.dispatch_node(next_node, dispatch_context)
+                self.dispatch_node(
+                    next_node, dispatch_context, allowed_nodes=allowed_nodes
+                )
         except ServiceImproperlyConfiguredDispatchException as e:
             raise AutomationNodeMisconfiguredService(
                 f"The node {node.id} has a misconfigured service."

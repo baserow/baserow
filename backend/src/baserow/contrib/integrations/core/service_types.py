@@ -40,6 +40,7 @@ from baserow.contrib.integrations.core.integration_types import SMTPIntegrationT
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
+    CoreIteratorService,
     CorePeriodicService,
     CoreRouterService,
     CoreRouterServiceEdge,
@@ -1585,3 +1586,88 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         values["uid"] = str(values["uid"])
 
         return values
+
+
+class CoreIteratorServiceType(ServiceType):
+    type = "iterator"
+    model_class = CoreIteratorService
+    dispatch_types = DispatchTypes.ACTION
+
+    allowed_fields = [
+        "source",
+    ]
+
+    serializer_field_names = [
+        "source",
+    ]
+
+    class SerializedDict(ServiceDict):
+        source: str
+
+    simple_formula_fields = [
+        "source",
+    ]
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "source": FormulaSerializerField(
+                help_text=CoreIteratorService._meta.get_field("source").help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+        }
+
+    def get_schema_name(self, service: CoreSMTPEmailService) -> str:
+        return f"Iterator{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreIteratorService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        if service.sample_data and (
+            allowed_fields is None or "items" in allowed_fields
+        ):
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(service.sample_data["data"])
+            schema = schema_builder.to_schema()
+
+            return {
+                "title": self.get_schema_name(service),
+                "type": "array",
+                "items": schema["items"],
+            }
+        else:
+            return None
+
+    def formulas_to_resolve(self, service: CoreRouterService) -> list[FormulaToResolve]:
+        """
+        Returns the formula to resolve for this service.
+        """
+
+        return [
+            FormulaToResolve(
+                "source",
+                service.source,
+                ensure_array,
+                "'source' property",
+            )
+        ]
+
+    def dispatch_data(
+        self,
+        service: CoreSMTPEmailService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        return resolved_values["source"]
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(data)

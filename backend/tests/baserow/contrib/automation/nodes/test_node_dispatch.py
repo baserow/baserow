@@ -177,3 +177,179 @@ def test_run_workflow_with_router_action(data_fixture):
         router_node.id,
         edge2_output_node.id,
     ]
+
+
+@pytest.fixture
+def iterator_graph_fixture(data_fixture):
+    """
+    Fixture that creates the following graph:
+    rows_created -> iterator [ -> create_row -> create_row3 ] -> create_row2
+
+    trigger sample data are
+    [
+        {"field_1": "value 1", "field_2": "other 1"},
+        {"field_1": "value 2", "field_2": "other 2"},
+    ]
+    """
+
+    user = data_fixture.create_user()
+
+    trigger_table, trigger_table_fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+
+    action_table, action_table_fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    action2_table, action2_table_fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    action3_table, action3_table_fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+
+    integration = data_fixture.create_local_baserow_integration(user=user)
+
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        state=WorkflowState.LIVE,
+        trigger_type="rows_created",
+        trigger_service_kwargs={
+            "table": trigger_table,
+            "integration": integration,
+            "sample_data": {
+                "data": [
+                    {"field_1": "value 1", "field_2": "other 1"},
+                    {"field_1": "value 2", "field_2": "other 2"},
+                ]
+            },
+        },
+    )
+
+    trigger = workflow.get_trigger()
+
+    iterator_node = data_fixture.create_core_iterator_action_node(
+        workflow=workflow,
+        previous_node=trigger,
+        service_kwargs={
+            "source": f'get("previous_node.{trigger.id}")',
+            "integration": integration,
+        },
+    )
+
+    action_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        parent_node_id=iterator_node.id,
+        service_kwargs={"table": action_table, "integration": integration},
+    )
+    action_node.service.specific.field_mappings.create(
+        field=action_table_fields[0],
+        value=f'get("current_iteration.{iterator_node.id}.item.field_1")',
+    )
+
+    action2_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        previous_node_id=iterator_node.id,
+        service_kwargs={"table": action2_table, "integration": integration},
+    )
+    action2_node.service.specific.field_mappings.create(
+        field=action2_table_fields[0],
+        value=f'get("previous_node.{iterator_node.id}.*.field_1")',
+    )
+
+    action3_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        previous_node_id=action_node.id,
+        parent_node_id=iterator_node.id,
+        service_kwargs={"table": action3_table, "integration": integration},
+    )
+    action3_node.service.specific.field_mappings.create(
+        field=action3_table_fields[0],
+        value=f'get("current_iteration.{iterator_node.id}.item.field_2")',
+    )
+
+    return {
+        "workflow": workflow,
+        "action_node": action_node,
+        "action_table": action_table,
+        "action_table_fields": action_table_fields,
+        "action2_table": action2_table,
+        "action2_table_fields": action2_table_fields,
+        "action3_table": action3_table,
+        "action3_table_fields": action3_table_fields,
+    }
+
+
+@pytest.mark.django_db
+def test_run_workflow_with_iterator_action(iterator_graph_fixture):
+    workflow = iterator_graph_fixture["workflow"]
+    action_table = iterator_graph_fixture["action_table"]
+    action_table_fields = iterator_graph_fixture["action_table_fields"]
+    action2_table = iterator_graph_fixture["action2_table"]
+    action2_table_fields = iterator_graph_fixture["action2_table_fields"]
+    action3_table = iterator_graph_fixture["action3_table"]
+    action3_table_fields = iterator_graph_fixture["action3_table_fields"]
+
+    dispatch_context = AutomationDispatchContext(
+        workflow,
+        [
+            {"field_1": "value 1", "field_2": "other 1"},
+            {"field_1": "value 2", "field_2": "other 2"},
+        ],
+    )
+
+    AutomationNodeHandler().dispatch_node(workflow.get_trigger(), dispatch_context)
+
+    # At this point all node should have been executed
+    rows = list(action_table.get_model().objects.all())
+    assert len(rows) == 2
+
+    assert getattr(rows[0], action_table_fields[0].db_column) == "value 1"
+    assert getattr(rows[1], action_table_fields[0].db_column) == "value 2"
+
+    rows2 = list(action2_table.get_model().objects.all())
+    assert len(rows2) == 1
+    assert getattr(rows2[0], action2_table_fields[0].db_column) == "value 1,value 2"
+
+    rows3 = list(action3_table.get_model().objects.all())
+    assert len(rows3) == 2
+
+    assert getattr(rows3[0], action3_table_fields[0].db_column) == "other 1"
+    assert getattr(rows3[1], action3_table_fields[0].db_column) == "other 2"
+
+
+@pytest.mark.django_db
+def test_run_workflow_with_iterator_action_simulate(iterator_graph_fixture):
+    workflow = iterator_graph_fixture["workflow"]
+    action_node = iterator_graph_fixture["action_node"]
+    action_table = iterator_graph_fixture["action_table"]
+    action_table_fields = iterator_graph_fixture["action_table_fields"]
+    action2_table = iterator_graph_fixture["action2_table"]
+    action3_table = iterator_graph_fixture["action3_table"]
+
+    dispatch_context = AutomationDispatchContext(
+        workflow,
+        simulate_until_node=action_node,
+    )
+
+    AutomationNodeHandler().dispatch_node(workflow.get_trigger(), dispatch_context)
+
+    # At this point only nodes until the action_node should have been executed
+    rows = list(action_table.get_model().objects.all())
+    assert len(rows) == 1
+
+    assert getattr(rows[0], action_table_fields[0].db_column) == "value 1"
+
+    rows2 = list(action2_table.get_model().objects.all())
+    assert len(rows2) == 0
+
+    rows3 = list(action3_table.get_model().objects.all())
+    assert len(rows3) == 0

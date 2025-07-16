@@ -2,8 +2,6 @@ from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import AbstractUser
 
-from rest_framework import serializers
-
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
@@ -39,21 +37,6 @@ class AutomationNodeType(
     parent_property_name = "workflow"
     id_mapping_name = "automation_workflow_nodes"
 
-    request_serializer_field_names = ["previous_node_id", "previous_node_output"]
-    request_serializer_field_overrides = {
-        "previous_node_id": serializers.IntegerField(
-            required=False,
-            default=None,
-            allow_null=True,
-        ),
-        "previous_node_output": serializers.CharField(
-            required=False,
-            default="",
-            allow_blank=True,
-            help_text="The output of the previous node.",
-        ),
-    }
-
     # Whether this node type is allowed to be moved in a workflow.
     is_fixed = False
 
@@ -65,16 +48,14 @@ class AutomationNodeType(
     is_workflow_action = False
 
     class SerializedDict(AutomationNodeDict):
-        label: str
-        service: Dict
-        parent_node_id: Optional[int]
-        previous_node_id: Optional[int]
+        ...
 
     @property
     def allowed_fields(self):
         return super().allowed_fields + [
             "label",
             "previous_node_id",
+            "parent_node_id",
             "previous_node_output",
             "service",
         ]
@@ -86,8 +67,6 @@ class AutomationNodeType(
 
         :param node: The node instance to about to be deleted.
         """
-
-        ...
 
     def before_replace(self, node: AutomationNode, new_node_type: Instance) -> None:
         """
@@ -112,8 +91,6 @@ class AutomationNodeType(
 
         :param node: The node instance that was just created.
         """
-
-        ...
 
     def get_service_type(self) -> Optional[ServiceTypeSubClass]:
         return (

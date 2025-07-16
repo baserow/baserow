@@ -51,20 +51,25 @@ def test_create_node_at_the_end(data_fixture):
 
 @pytest.mark.django_db
 def test_create_node_applies_previous_node_id(data_fixture):
-    workflow = data_fixture.create_automation_workflow()
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
     trigger = workflow.get_trigger()
     first = data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
     second = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
     )
+    node_type = automation_node_type_registry.get("create_row")
 
     assert trigger.previous_node_id is None
     assert first.previous_node_id == trigger.id
     assert second.previous_node_id == first.id
 
-    before_second = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, before=second
+    prepared_values = node_type.prepare_values({}, user)
+
+    before_second = AutomationNodeHandler().create_node(
+        node_type, workflow=workflow, before=second, **prepared_values
     )
+
     trigger.refresh_from_db()
     first.refresh_from_db()
     second.refresh_from_db()
@@ -73,6 +78,47 @@ def test_create_node_applies_previous_node_id(data_fixture):
     assert first.previous_node_id == trigger.id
     assert before_second.previous_node_id == first.id
     assert second.previous_node_id == before_second.id
+
+
+@pytest.mark.django_db
+def test_create_node_applies_parent_node_id(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    iterator = data_fixture.create_core_iterator_action_node(workflow=workflow)
+
+    node_type = automation_node_type_registry.get("create_row")
+
+    prepared_values = node_type.prepare_values({}, user)
+
+    first_child = AutomationNodeHandler().create_node(
+        node_type, workflow=workflow, parent=iterator, **prepared_values
+    )
+
+    assert first_child.previous_node_id is None
+    assert first_child.parent_node_id == iterator.id
+
+    prepared_values = node_type.prepare_values({}, user)
+
+    before_first_child = AutomationNodeHandler().create_node(
+        node_type, workflow=workflow, before=first_child, **prepared_values
+    )
+
+    first_child.refresh_from_db()
+
+    assert first_child.previous_node_id == before_first_child.id
+    assert first_child.parent_node_id == iterator.id
+
+    assert before_first_child.previous_node_id is None
+    assert before_first_child.parent_node_id == iterator.id
+
+    prepared_values = node_type.prepare_values({}, user)
+
+    after_first_child = AutomationNodeHandler().create_node(
+        node_type, workflow=workflow, parent=iterator, **prepared_values
+    )
+
+    assert after_first_child.previous_node_id == first_child.id
+    assert after_first_child.parent_node_id == iterator.id
 
 
 @pytest.mark.django_db
@@ -133,13 +179,11 @@ def test_update_node(data_fixture):
     user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user)
 
-    assert node.previous_node_output == ""
+    assert node.label == ""
 
-    updated_node = AutomationNodeHandler().update_node(
-        node, previous_node_output="foo result"
-    )
+    updated_node = AutomationNodeHandler().update_node(node, label="foo result")
 
-    assert updated_node.previous_node_output == "foo result"
+    assert updated_node.label == "foo result"
 
 
 @pytest.mark.django_db
@@ -152,6 +196,7 @@ def test_export_prepared_values(data_fixture):
         "label": "My node",
         "service": AnyDict(),
         "workflow": node.workflow_id,
+        "parent_node_id": node.parent_node_id,
         "previous_node_id": node.previous_node_id,
         "previous_node_output": node.previous_node_output,
     }
@@ -229,6 +274,26 @@ def test_duplicate_node(data_fixture):
     duplication = AutomationNodeHandler().duplicate_node(action1)
     action2.refresh_from_db()
     assert duplication.duplicated_node.previous_node_id == action1.id
+    assert action2.previous_node_id == duplication.duplicated_node.id
+
+
+@pytest.mark.django_db
+def test_duplicate_node_in_parent(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    iterator = data_fixture.create_core_iterator_action_node(workflow=workflow)
+    action1 = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, parent=iterator
+    )
+    action2 = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, parent=iterator
+    )
+
+    duplication = AutomationNodeHandler().duplicate_node(action1)
+
+    action2.refresh_from_db()
+
+    assert duplication.duplicated_node.previous_node_id == action1.id
+    assert duplication.duplicated_node.parent_node_id == iterator.id
     assert action2.previous_node_id == duplication.duplicated_node.id
 
 

@@ -18,6 +18,7 @@ from baserow.contrib.automation.nodes.models import (
     AutomationTriggerNode,
     CoreHTTPRequestActionNode,
     CoreHTTPTriggerNode,
+    CoreIteratorActionNode,
     CorePeriodicTriggerNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
@@ -36,6 +37,7 @@ from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
+    CoreIteratorServiceType,
     CorePeriodicServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
@@ -107,6 +109,12 @@ class CoreHttpRequestNodeType(AutomationNodeActionNodeType):
     type = "http_request"
     model_class = CoreHTTPRequestActionNode
     service_type = CoreHTTPRequestServiceType.type
+
+
+class CoreIteratorNodeType(AutomationNodeActionNodeType):
+    type = "iterator"
+    model_class = CoreIteratorActionNode
+    service_type = CoreIteratorServiceType.type
 
 
 class CoreSMTPEmailNodeType(AutomationNodeActionNodeType):
@@ -195,12 +203,17 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
 
         if instance:
             service = instance.service.specific
-            prepared_uids = [edge["uid"] for edge in values["service"].get("edges", [])]
+
+            prepared_uids = [
+                str(edge["uid"]) for edge in values["service"].get("edges", [])
+            ]
             persisted_uids = [str(edge.uid) for edge in service.edges.only("uid")]
             removed_uids = list(set(persisted_uids) - set(prepared_uids))
+
             output_nodes_with_removed_uids = AutomationNode.objects.filter(
                 previous_node_id=instance.id, previous_node_output__in=removed_uids
             ).exists()
+
             if output_nodes_with_removed_uids:
                 raise AutomationNodeMisconfiguredService(
                     "One or more branches have been removed from the router node, "

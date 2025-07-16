@@ -19,20 +19,10 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
     service = PolymorphicServiceSerializer(
         help_text="The service associated with this automation node."
     )
-    simulate_until_node = serializers.SerializerMethodField(
-        help_text="Whether to simulate the dispatching of the node."
-    )
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
         return automation_node_type_registry.get_by_model(instance.specific_class).type
-
-    @extend_schema_field(OpenApiTypes.BOOL)
-    def get_simulate_until_node(self, instance):
-        if not instance.workflow.simulate_until_node:
-            return False
-
-        return instance == instance.workflow.simulate_until_node.specific
 
     class Meta:
         model = AutomationNode
@@ -45,7 +35,7 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
             "type",
             "previous_node_id",
             "previous_node_output",
-            "simulate_until_node",
+            "parent_node_id",
         )
 
         extra_kwargs = {
@@ -53,8 +43,8 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
             "workflow_id": {"read_only": True},
             "type": {"read_only": True},
             "previous_node_id": {"read_only": True},
+            "parent_node_id": {"read_only": True},
             "order": {"read_only": True, "help_text": "Lowest first."},
-            "simulate_until_node": {"read_only": True},
         }
 
 
@@ -72,6 +62,10 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
         required=False,
         help_text="If provided, creates the node after this given id.",
     )
+    parent_node_id = serializers.IntegerField(
+        required=False,
+        help_text="If provided, creates the node as childe of the given id.",
+    )
     previous_node_output = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -80,7 +74,14 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AutomationNode
-        fields = ("id", "type", "before_id", "previous_node_id", "previous_node_output")
+        fields = (
+            "id",
+            "type",
+            "before_id",
+            "previous_node_id",
+            "previous_node_output",
+            "parent_node_id",
+        )
 
 
 class UpdateAutomationNodeSerializer(serializers.ModelSerializer):
@@ -93,7 +94,6 @@ class UpdateAutomationNodeSerializer(serializers.ModelSerializer):
         fields = (
             "label",
             "service",
-            "previous_node_output",
         )
 
 
@@ -115,10 +115,16 @@ class ReplaceAutomationNodeSerializer(serializers.Serializer):
 class MoveAutomationNodeSerializer(serializers.Serializer):
     previous_node_id = serializers.IntegerField(
         required=False,
+        allow_null=True,
         help_text="The ID of the node that should be before the moved node.",
     )
     previous_node_output = serializers.CharField(
         required=False,
         allow_blank=True,
         help_text="The output UID of the destination.",
+    )
+    parent_node_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="The ID of the node that should be parent of the moved node.",
     )

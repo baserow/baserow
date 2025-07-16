@@ -36,12 +36,14 @@ class AutomationDispatchContext(DispatchContext):
         self.previous_nodes_results: Dict[int, Any] = {}
         self.dispatch_history: List[int] = []
         self.simulate_until_node = simulate_until_node
+        self.current_iterations: Dict[int, int] = {}
 
         services = (
             [self.simulate_until_node.service.specific]
             if self.simulate_until_node
             else None
         )
+
         force_outputs = (
             simulate_until_node.get_previous_service_outputs()
             if simulate_until_node
@@ -58,6 +60,7 @@ class AutomationDispatchContext(DispatchContext):
     def clone(self, **kwargs):
         new_context = super().clone(**kwargs)
         new_context.previous_nodes_results = {**self.previous_nodes_results}
+        new_context.current_iterations = {**self.current_iterations}
         new_context.dispatch_history = list(self.dispatch_history)
 
         return new_context
@@ -79,6 +82,9 @@ class AutomationDispatchContext(DispatchContext):
 
         self.dispatch_history.append(node.id)
         self._register_node_result(node, dispatch_result.data)
+
+    def set_current_iteration(self, node, index):
+        self.current_iterations[node.id] = index
 
     def range(self, service: Service):
         return [0, None]

@@ -24,15 +24,18 @@ class PreviousNodeProviderType(AutomationDataProviderType):
         self, dispatch_context: AutomationDispatchContext, path: List[str]
     ):
         previous_node_id, *rest = path
-        previous_node_results = dispatch_context.previous_nodes_results.get(
-            int(previous_node_id), SENTINEL
-        )
-        if previous_node_results is SENTINEL:
+
+        try:
+            previous_node_results = dispatch_context.previous_nodes_results[
+                int(previous_node_id)
+            ]
+        except KeyError as exc:
             message = (
                 "The previous node id is not present in the dispatch context results"
             )
-            raise InvalidFormulaContext(message)
-        return get_value_at_path(previous_node_results, rest)
+            raise InvalidFormulaContext(message) from exc
+        else:
+            return get_value_at_path(previous_node_results, rest)
 
     def import_path(self, path, id_mapping, **kwargs):
         """
@@ -52,6 +55,64 @@ class PreviousNodeProviderType(AutomationDataProviderType):
             # In the event the `previous_node_id` is not found in the `id_mapping`,
             # or if the previous node does not exist, we return the malformed path.
             return [str(previous_node_id), *rest]
+        else:
+            service_type = node.service.get_type()
+            rest = service_type.import_context_path(rest, id_mapping)
+
+            return [str(new_node_id), *rest]
+
+
+class CurrentIterationDataProviderType(AutomationDataProviderType):
+    type = "current_iteration"
+
+    def get_data_chunk(
+        self, dispatch_context: AutomationDispatchContext, path: List[str]
+    ):
+        parent_node_id, *rest = path
+
+        parent_node_id = int(parent_node_id)
+
+        try:
+            parent_node_results = dispatch_context.previous_nodes_results[
+                parent_node_id
+            ]
+        except KeyError as exc:
+            message = (
+                "The parent node id is not present in the dispatch context results"
+            )
+            raise InvalidFormulaContext(message) from exc
+
+        try:
+            current_iteration = dispatch_context.current_iterations[parent_node_id]
+        except KeyError as exc:
+            message = (
+                "The current node iteration is not present in the dispatch context"
+            )
+            raise InvalidFormulaContext(message) from exc
+
+        current_item = parent_node_results[current_iteration]
+        data = {"index": current_iteration, "item": current_item}
+
+        return get_value_at_path(data, rest)
+
+    def import_path(self, path, id_mapping, **kwargs):
+        """
+        Update the parent node ID of the path.
+
+        :param path: the path part list.
+        :param id_mapping: The id_mapping of the process import.
+        :return: The updated path.
+        """
+
+        parent_node_id, *rest = path
+
+        try:
+            new_node_id = id_mapping["automation_workflow_nodes"][int(parent_node_id)]
+            node = AutomationNodeHandler().get_node(new_node_id)
+        except (KeyError, AutomationNodeDoesNotExist):
+            # In the event the `previous_node_id` is not found in the `id_mapping`,
+            # or if the previous node does not exist, we return the malformed path.
+            return [str(parent_node_id), *rest]
         else:
             service_type = node.service.get_type()
             rest = service_type.import_context_path(rest, id_mapping)

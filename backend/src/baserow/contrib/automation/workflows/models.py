@@ -108,7 +108,9 @@ class AutomationWorkflow(
         return last_node.id if last_node else None
 
     def get_trigger(self, specific: bool = True) -> "AutomationTriggerNode":
-        node = self.automation_workflow_nodes.get(previous_node_id=None)
+        node = self.automation_workflow_nodes.get(
+            previous_node_id=None, parent_node_id=None
+        )
         return node.specific if specific else node
 
     def can_immediately_be_tested(self):
@@ -128,6 +130,15 @@ class AutomationWorkflow(
             workflow = published_workflow
 
         return workflow.state == WorkflowState.LIVE
+
+    def print_workflow(self):
+        for node in self.automation_workflow_nodes.all():
+            print(
+                f"Node {node.id} ({node.get_type().type})",
+                node.previous_node_id,
+                node.previous_node_output,
+                node.parent_node_id,
+            )
 
 
 class DuplicateAutomationWorkflowJob(

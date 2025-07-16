@@ -7,6 +7,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
     AutomationNodeNotMovable,
     AutomationTriggerModificationDisallowed,
+    AutomationNodeNotInWorkflow,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
@@ -107,6 +108,7 @@ class AutomationNodeService:
         node_type: AutomationNodeType,
         workflow: AutomationWorkflow,
         before: Optional[AutomationNode] = None,
+        parent: Optional[AutomationNode] = None,
         order: Optional[str] = None,
         **kwargs,
     ) -> AutomationNode:
@@ -117,6 +119,7 @@ class AutomationNodeService:
         :param node_type: The type of the automation node.
         :param workflow: The workflow the automation node is associated with.
         :param before: If set, the new node is inserted before this node.
+        :param parent: If set, the new node is inserted as child of this node.
         :param order: The order of the new node. If not set, it will be determined
             automatically based on the existing nodes in the workflow.
         :param kwargs: Additional attributes of the automation node.
@@ -144,17 +147,31 @@ class AutomationNodeService:
                     "The `before` node must belong to the same workflow "
                     "as the one supplied."
                 )
-            if not before.previous_node_id:
+            if not before.previous_node_id and not before.parent_node_id:
                 # You can't create a node before a trigger node. Even if `node_type` is
                 # a trigger, API consumers must delete `before` and then try again.
                 raise AutomationNodeBeforeInvalid(
                     "You cannot create an automation node before a trigger."
                 )
 
+        # If we've been given a `before` node, validate it.
+        if parent:
+            if workflow.id != parent.workflow_id:
+                raise AutomationNodeNotInWorkflow(
+                    "The `parent` node must belong to the same workflow "
+                    "as the one supplied."
+                )
+            # TODO, parent node must be a container
+
         prepared_values = node_type.prepare_values(kwargs, user)
 
         new_node = self.handler.create_node(
-            node_type, order=order, workflow=workflow, before=before, **prepared_values
+            node_type,
+            order=order,
+            workflow=workflow,
+            before=before,
+            parent=parent,
+            **prepared_values,
         )
         node_type.after_create(new_node)
 
@@ -430,9 +447,9 @@ class AutomationNodeService:
         self,
         user: AbstractUser,
         node_id: int,
-        new_previous_node_id: int,
+        new_previous_node_id: int | None,
         new_previous_output: Optional[str] = None,
-        new_order: Optional[float] = None,
+        new_parent_node_id: int | None = None,
     ) -> AutomationNodeMove:
         """
         Moves an existing automation node to a new position in the workflow.
@@ -462,8 +479,18 @@ class AutomationNodeService:
         if node_type.is_fixed:
             raise AutomationNodeNotMovable("This automation node cannot be moved.")
 
-        after_node = self.get_node(user, new_previous_node_id)
-        move = self.handler.move_node(node, after_node, new_previous_output, new_order)
+        after_node = (
+            self.get_node(user, new_previous_node_id) if new_previous_node_id else None
+        )
+        if after_node:
+            parent_node = after_node.parent_node
+        else:
+            # new_parent_node_id can't be null here as we don't have a previous node
+            parent_node = self.get_node(user, new_parent_node_id)
+
+        move = self.handler.move_node(
+            node, after_node, new_previous_output, parent_node
+        )
 
         updated_nodes = [move.node] + move.next_node_updates
         automation_nodes_updated.send(

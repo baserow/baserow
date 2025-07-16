@@ -124,18 +124,43 @@ class AutomationNode(
     def get_parent(self):
         return self.workflow
 
-    def get_previous_service_outputs(self):
-        return (
-            (
-                {self.previous_node.service.id: str(self.previous_node_output)}
-                | self.previous_node.get_previous_service_outputs()
-            )
-            if self.previous_node
-            else {}
+    def get_previous_nodes(self, specific: bool = True):
+        """
+        Returns the nodes before the current node. A previous node can be a
+        `previous_node` or a `parent_node`.
+        """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        nodes = AutomationNodeHandler().get_nodes(
+            workflow=self.workflow, specific=specific
         )
 
+        node_map = {node.id: node for node in nodes}
+
+        def _previous_nodes(node):
+            if node.previous_node_id:
+                previous = node_map[node.previous_node_id]
+                return [*_previous_nodes(previous), previous]
+
+            if node.parent_node_id:
+                parent = node_map[node.parent_node_id]
+                return [*_previous_nodes(parent), parent]
+
+            return []
+
+        return _previous_nodes(self)
+
+    def get_previous_service_outputs(self):
+        previous_nodes = [*self.get_previous_nodes(), self]
+
+        return {
+            previous_nodes[index].service_id: str(node.previous_node_output)
+            for index, node in enumerate(previous_nodes[1:])
+        }
+
     def get_next_nodes(
-        self, output_uid: str | None = None, specific: bool = False
+        self, output_uid: str | None = None, specific: bool = True
     ) -> Iterable["AutomationNode"]:
         """
         Returns all nodes which follow this node in the workflow. A list of nodes
@@ -152,15 +177,23 @@ class AutomationNode(
             self.workflow, self, output_uid=output_uid, specific=specific
         )
 
+    def get_children(self, specific=True):
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        return AutomationNodeHandler().get_children(self, specific=specific)
+
     @classmethod
-    def get_last_order(cls, workflow: "AutomationWorkflow"):
-        queryset = AutomationNode.objects.filter(workflow=workflow)
+    def get_last_order(
+        cls, workflow: "AutomationWorkflow", parent: "AutomationNode | None" = None
+    ):
+        queryset = AutomationNode.objects.filter(
+            workflow=workflow, parent_node_id=parent.id if parent else None
+        )
+
         return cls.get_highest_order_of_queryset(queryset)[0]
 
     @classmethod
-    def get_unique_order_before_node(
-        cls, before: "AutomationNode", parent_node_id: Optional[int]
-    ) -> Decimal:
+    def get_unique_order_before_node(cls, before: "AutomationNode") -> Decimal:
         """
         Returns a safe order value before the given node in the given workflow.
 
@@ -173,7 +206,7 @@ class AutomationNode(
         """
 
         queryset = AutomationNode.objects.filter(workflow=before.workflow).filter(
-            parent_node_id=parent_node_id
+            parent_node_id=before.parent_node_id
         )
 
         return cls.get_unique_orders_before_item(before, queryset)[0]
@@ -268,4 +301,8 @@ class CoreSMTPEmailActionNode(AutomationActionNode):
 
 
 class CoreRouterActionNode(AutomationActionNode):
+    ...
+
+
+class CoreIteratorActionNode(AutomationActionNode):
     ...

@@ -29,6 +29,7 @@ import {
   CoreHTTPTriggerNodeType,
   LocalBaserowAggregateRowsActionNodeType,
   CoreHttpRequestNodeType,
+  CoreIteratorNodeType,
   CoreSMTPEmailNodeType,
   CoreRouterNodeType,
   CorePeriodicTriggerNodeType,
@@ -42,8 +43,11 @@ import {
   HistoryEditorSidePanelType,
   NodeEditorSidePanelType,
 } from '@baserow/modules/automation/editorSidePanelTypes'
-import { PreviousNodeDataProviderType } from '@baserow/modules/automation/dataProviderTypes'
 import { PeriodicTriggerServiceType } from '@baserow/modules/automation/serviceTypes'
+import {
+  PreviousNodeDataProviderType,
+  CurrentIterationDataProviderType,
+} from '@baserow/modules/automation/dataProviderTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -82,6 +86,10 @@ export default (context) => {
       new PreviousNodeDataProviderType(context)
     )
     app.$registry.register(
+      'automationDataProvider',
+      new CurrentIterationDataProviderType(context)
+    )
+    app.$registry.register(
       'node',
       new LocalBaserowRowsCreatedTriggerNodeType(context)
     )
@@ -105,6 +113,7 @@ export default (context) => {
     app.$registry.register('node', new CoreHttpRequestNodeType(context))
     app.$registry.register('node', new CoreSMTPEmailNodeType(context))
     app.$registry.register('node', new CoreRouterNodeType(context))
+    app.$registry.register('node', new CoreIteratorNodeType(context))
     app.$registry.register(
       'node',
       new LocalBaserowDeleteRowActionNodeType(context)

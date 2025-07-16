@@ -50,6 +50,7 @@ def test_get_previous_service_outputs(data_fixture):
         previous_node_id=router_a.id,
         previous_node_output=router_a_edge_1.uid,
     )
+    print(router_b.previous_node_output, router_b.id)
     data_fixture.create_core_router_service_edge(
         service=router_b.service,
         label="Router B, Edge 1",

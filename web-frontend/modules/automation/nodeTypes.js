@@ -3,6 +3,7 @@ import {
   ActionNodeTypeMixin,
   TriggerNodeTypeMixin,
   UtilityNodeMixin,
+  containerNodeTypeMixin,
 } from '@baserow/modules/automation/nodeTypeMixins'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
@@ -21,6 +22,7 @@ import {
   CoreRouterServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
+  CoreIteratorServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { uuid } from '@baserow/modules/core/utils/string'
 
@@ -77,8 +79,9 @@ export class NodeType extends Registerable {
    * The icon which is shown inside the editor's node.
    * @returns {string} - The node's icon class.
    */
+
   get iconClass() {
-    return 'iconoir-table'
+    return this.serviceType.icon
   }
 
   /**
@@ -207,13 +210,21 @@ export class NodeType extends Registerable {
     const serviceSchema = this.serviceType.getDataSchema(node.service)
     if (serviceSchema) {
       return {
-        type: this.dataType,
+        ...serviceSchema,
         title: this.getLabel({ automation, node }),
-        properties: serviceSchema.properties || {},
-        items: serviceSchema.items || [],
       }
     }
     return null
+  }
+
+  /**
+   * Returns the sample data for this node.
+   */
+  getSampleData({ service }) {
+    if (!service) {
+      return null
+    }
+    return this.serviceType.getSampleData(service)
   }
 
   getEdges({ node }) {
@@ -582,6 +593,26 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
+export class CoreIteratorNodeType extends containerNodeTypeMixin(
+  ActionNodeTypeMixin(NodeType)
+) {
+  static getType() {
+    return 'iterator'
+  }
+
+  getOrder() {
+    return 8
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.iterationLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreIteratorServiceType.getType())
+  }
+}
+
 export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {
     return 'smtp_email'
@@ -589,10 +620,6 @@ export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
 
   getOrder() {
     return 8
-  }
-
-  get iconClass() {
-    return 'iconoir-send-mail'
   }
 
   get name() {
@@ -632,10 +659,6 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
           edgeCount: this.getEdges({ node }).length,
         })
       : this.name
-  }
-
-  get iconClass() {
-    return 'iconoir-git-fork'
   }
 
   get serviceType() {
