@@ -14,8 +14,16 @@
 }
 
 .service-form__context {
+  &--filter {
+    width: 656px;
+  }
+
+  &--sort {
+    width: 436px;
+  }
+
   &--search {
-    width: 500px;
+    width: 400px;
   }
 
   .filters__none {

@@ -68,7 +68,7 @@
       <Context
         v-if="showFilter"
         ref="filterContext"
-        class="service-form__context"
+        class="service-form__context service-form__context--filter"
         overflow-scroll
         max-height-if-outside-viewport
       >
@@ -92,7 +92,7 @@
       <Context
         v-if="showSort"
         ref="sortContext"
-        class="service-form__context"
+        class="service-form__context service-form__context--sort"
         overflow-scroll
         max-height-if-outside-viewport
       >
@@ -255,9 +255,29 @@ export default {
     },
   },
   methods: {
+    getContextHorizontalOffset(contentType) {
+      // Calculate horizontal offset based on context width
+      switch (contentType) {
+        case 'search':
+          return -400
+        case 'filter':
+          return -656
+        case 'sort':
+          return -436
+        default:
+          return 0
+      }
+    },
     openContextWithContent(contentType, targetElement) {
       const contextRef = `${contentType}Context`
-      this.$refs[contextRef].toggle(targetElement, 'bottom', 'right', -32, -320)
+      const horizontalOffset = this.getContextHorizontalOffset(contentType)
+      this.$refs[contextRef].toggle(
+        targetElement,
+        'bottom',
+        'left',
+        -32,
+        horizontalOffset - 20
+      )
     },
   },
 }
