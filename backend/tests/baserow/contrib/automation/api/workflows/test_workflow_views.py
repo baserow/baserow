@@ -427,7 +427,11 @@ def test_disable_workflow_test_run(api_client, data_fixture):
 @pytest.mark.django_db(transaction=True)
 def test_run_workflow_in_test_mode(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
+
+    original_workflow = data_fixture.create_automation_workflow(user=user)
     workflow = data_fixture.create_automation_workflow(user=user)
+    workflow.automation.published_from = original_workflow
+    workflow.automation.save()
 
     # First create a trigger node
     table_1, fields_1, _ = data_fixture.build_table(
