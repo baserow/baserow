@@ -8,9 +8,9 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.contrib.automation.api.utils import get_api_kwargs
 from baserow.contrib.automation.nodes.models import AutomationNode
-from tests.baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
+from baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
+from tests.baserow.contrib.automation.api.utils import get_api_kwargs
 
 API_URL_BASE = "api:automation:nodes"
 API_URL_LIST = f"{API_URL_BASE}:list"

@@ -123,7 +123,10 @@ class AutomationWorkflowHandler:
         :return: The original workflow, if it exists.
         """
 
-        return workflow.automation.published_from if workflow.published else None
+        if workflow.published or workflow.allow_test_run_until:
+            return workflow.automation.published_from
+
+        return None
 
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
