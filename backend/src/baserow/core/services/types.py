@@ -29,6 +29,7 @@ class ServiceSortDict(TypedDict):
 class DispatchResult:
     data: dict = field(default_factory=dict)
     status: int = 200
+    output_uid: str = ""
 
 
 @dataclass

@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from baserow.contrib.automation.data_providers.registries import (
     automation_data_provider_type_registry,
@@ -7,6 +7,7 @@ from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.models import Service
+from baserow.core.services.types import DispatchResult
 from baserow.core.services.utils import ServiceAdhocRefinements
 
 
@@ -29,7 +30,8 @@ class AutomationDispatchContext(DispatchContext):
         """
 
         self.workflow = workflow
-        self.previous_nodes_results: Dict[int, any] = {}
+        self.previous_nodes_results: Dict[int, Any] = {}
+        self.dispatch_history: List[int] = []
         self._initialize_trigger_results(event_payload)
         super().__init__()
 
@@ -39,7 +41,7 @@ class AutomationDispatchContext(DispatchContext):
 
     def _initialize_trigger_results(
         self,
-        event_payload: Optional[Union[List[Dict[any, any]], Dict[any, any]]] = None,
+        event_payload: Optional[Union[List[Dict[Any, Any]], Dict[Any, Any]]] = None,
     ):
         """
         Responsible for finding the trigger node in the workflow and storing the
@@ -51,10 +53,21 @@ class AutomationDispatchContext(DispatchContext):
 
         trigger_node = self.workflow.get_trigger(specific=False)
         if event_payload and trigger_node:
-            self.register_node_result(trigger_node, event_payload)
+            self._register_node_result(trigger_node, event_payload)
 
-    def register_node_result(self, node: AutomationNode, dispatch_data: Dict[any, any]):
+    def _register_node_result(
+        self, node: AutomationNode, dispatch_data: Dict[str, Any]
+    ):
         self.previous_nodes_results[node.id] = dispatch_data
+
+    def after_dispatch(self, node: AutomationNode, dispatch_result: DispatchResult):
+        """
+        This method is called after each node dispatch. It can be used
+        to perform any final actions or cleanup.
+        """
+
+        self.dispatch_history.append(node.id)
+        self._register_node_result(node, dispatch_result.data)
 
     def range(self, service: Service):
         pass

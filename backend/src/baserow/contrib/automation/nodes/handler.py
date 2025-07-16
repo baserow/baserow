@@ -18,6 +18,7 @@ from baserow.contrib.automation.nodes.types import (
     ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.services.handler import ServiceHandler
@@ -28,18 +29,14 @@ from baserow.core.utils import MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
-    allowed_fields = [
-        "previous_node",
-        "previous_node_id",
-        "previous_node_output",
-        "service",
-    ]
+    allowed_fields = ["service", "previous_node_id", "previous_node_output"]
 
     def get_nodes(
         self,
         workflow: AutomationWorkflow,
         specific: Optional[bool] = True,
         base_queryset: Optional[QuerySet] = None,
+        with_cache: bool = True,
     ) -> Union[QuerySet[AutomationNode], Iterable[AutomationNode]]:
         """
         Returns all the nodes, filtered by a workflow.
@@ -48,33 +45,41 @@ class AutomationNodeHandler:
         :param specific: A boolean flag indicating whether to return the specific
             nodes and their services
         :param base_queryset: Optional base queryset to filter the results.
+        :param with_cache: Whether to return a cached value, if available.
         :return: A queryset or list of automation nodes.
         """
 
-        if base_queryset is None:
-            base_queryset = AutomationNode.objects.all()
+        def _get_nodes(base_queryset=base_queryset):
+            if base_queryset is None:
+                base_queryset = AutomationNode.objects.all()
 
-        nodes = base_queryset.select_related("workflow__automation__workspace").filter(
-            workflow=workflow
-        )
+            nodes = base_queryset.select_related(
+                "workflow__automation__workspace"
+            ).filter(workflow=workflow)
 
-        if specific:
-            nodes = specific_iterator(nodes.select_related("content_type"))
-            service_ids = [
-                node.service_id for node in nodes if node.service_id is not None
-            ]
-            specific_services_map = {
-                s.id: s
-                for s in ServiceHandler().get_services(
-                    base_queryset=Service.objects.filter(id__in=service_ids)
-                )
-            }
-            for node in nodes:
-                service_id = node.service_id
-                if service_id is not None and service_id in specific_services_map:
-                    node.service = specific_services_map[service_id]
+            if specific:
+                nodes = specific_iterator(nodes.select_related("content_type"))
+                service_ids = [
+                    node.service_id for node in nodes if node.service_id is not None
+                ]
+                specific_services_map = {
+                    s.id: s
+                    for s in ServiceHandler().get_services(
+                        base_queryset=Service.objects.filter(id__in=service_ids)
+                    )
+                }
+                for node in nodes:
+                    service_id = node.service_id
+                    if service_id is not None and service_id in specific_services_map:
+                        node.service = specific_services_map[service_id]
+            return nodes
 
-        return nodes
+        if with_cache:
+            return local_cache.get(
+                f"wa_get_{workflow.id}_nodes_{specific}",
+                _get_nodes,
+            )
+        return _get_nodes()
 
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
@@ -122,9 +127,24 @@ class AutomationNodeHandler:
             kwargs, self.allowed_fields + node_type.allowed_fields
         )
 
+        # Are we creating a node as a child of another node?
+        parent_node_id = allowed_prepared_values.get("parent_node_id", None)
+
+        # If we don't already have a `previous_node_id`
+        if "previous_node_id" not in allowed_prepared_values:  # this is only in tests
+            # Figure out what the previous node ID should be. If we've been given a
+            # `before` node, then we'll use its previous node ID. If not, we'll use the
+            # last node ID of the workflow, which is the last node in the hierarchy.
+            allowed_prepared_values["previous_node_id"] = (
+                before.previous_node_id
+                if before
+                else AutomationWorkflow.get_last_node_id(workflow, parent_node_id)
+            )
+
         order = kwargs.pop("order", None)
         if before:
-            parent_node_id = allowed_prepared_values.get("parent_node_id", None)
+            # If we're creating a node before another node, then we'll use its
+            # previous node ID, since we're taking its place in the hierarchy.
             order = AutomationNode.get_unique_order_before_node(before, parent_node_id)
         elif not order:
             order = AutomationNode.get_last_order(workflow)
@@ -132,6 +152,12 @@ class AutomationNodeHandler:
         allowed_prepared_values["workflow"] = workflow
         node = node_type.model_class(order=order, **allowed_prepared_values)
         node.save()
+
+        # If we've created a node before another, then that node's
+        # previous node ID should be updated to point to the new node.
+        if before:
+            before.previous_node_id = node.id
+            before.save(update_fields=["previous_node_id"])
 
         return node
 
@@ -227,6 +253,9 @@ class AutomationNodeHandler:
         exported_node = self.export_node(node)
 
         exported_node["order"] = AutomationNode.get_last_order(node.workflow)
+        exported_node["previous_node_id"] = AutomationWorkflow.get_last_node_id(
+            node.workflow, node.parent_node_id
+        )
 
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["automation_workflow_nodes"] = MirrorDict()
