@@ -445,3 +445,15 @@ def test_update_workflow_correctly_pauses_published_workflow(data_fixture):
 
     published_workflow.refresh_from_db()
     assert published_workflow.paused is True
+
+
+@pytest.mark.django_db
+def test_get_original_workflow_returns_correct_workflow(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    workflow = AutomationWorkflowHandler().get_original_workflow(published_workflow)
+
+    assert workflow == original_workflow

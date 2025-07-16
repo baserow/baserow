@@ -2,6 +2,8 @@ from typing import Dict, List, Optional, Union
 
 from django.utils import timezone
 
+from loguru import logger
+
 from baserow.config.celery import app
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -31,10 +33,13 @@ def run_workflow(
         history_status = HistoryStatusChoices.ERROR
     except Exception as e:
         # For unexpected errors, store a generic message in history
-        history_message = f"Unexpected error while running workflow {workflow_id}"
+        original_workflow = workflow.automation.published_from
+        history_message = (
+            f"Unexpected error while running workflow {original_workflow.id}"
+        )
         history_status = HistoryStatusChoices.ERROR
 
-        raise e
+        logger.error(f"{history_message}. Error: {str(e)}")
     else:
         history_message = ""
         history_status = HistoryStatusChoices.SUCCESS
@@ -46,6 +51,8 @@ def run_workflow(
             message=history_message,
         )
 
+        # The allow_test_run_until value must be reset after the history is
+        # created, since the history creation accesses this value.
         if workflow.allow_test_run_until:
             workflow.allow_test_run_until = None
             workflow.save(update_fields=["allow_test_run_until"])
