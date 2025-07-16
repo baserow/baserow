@@ -14,6 +14,7 @@ from baserow.contrib.database.data_sync.models import DataSyncSyncedProperty
 from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
 from baserow.contrib.database.data_sync.utils import (
     compare_date,
+    handle_license_loss,
     update_baserow_field_select_options,
 )
 from baserow.contrib.database.fields.field_types import (
@@ -203,9 +204,10 @@ class LocalBaserowTableDataSyncType(DataSyncType):
     def prepare_sync_job_values(self, instance):
         # Raise the error so that the job doesn't start and the user is informed with
         # the correct error.
-        LicenseHandler.raise_if_workspace_doesnt_have_feature(
+        if not LicenseHandler.workspace_has_feature(
             DATA_SYNC, instance.table.database.workspace
-        )
+        ):
+            handle_license_loss(instance)
 
     def before_sync_table(self, user, instance):
         # If the authorized user was deleted, or the table was duplicated,

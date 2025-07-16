@@ -5,7 +5,14 @@
     @click.native="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n path="periodicDataSyncDeactivatedNotification.body" tag="span">
+      <i18n
+        :path="
+          isLicenseLoss
+            ? 'periodicDataSyncDeactivatedNotification.licenseLoss'
+            : 'periodicDataSyncDeactivatedNotification.failure'
+        "
+        tag="span"
+      >
         <template #name>
           <strong>{{ notification.data.table_name }}</strong>
         </template>
@@ -20,6 +27,11 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 export default {
   name: 'PeriodicDataSyncDeactivatedNotification',
   mixins: [notificationContent],
+  computed: {
+    isLicenseLoss() {
+      return this.notification.data.deactivation_reason === 'LICENSE_LOST'
+    },
+  },
   methods: {
     handleClick() {
       this.$emit('close-panel')

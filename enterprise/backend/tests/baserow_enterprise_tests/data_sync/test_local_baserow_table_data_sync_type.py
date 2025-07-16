@@ -28,6 +28,7 @@ from baserow_enterprise.data_sync.models import LocalBaserowTableDataSync
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_create_data_sync_table(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -82,6 +83,7 @@ def test_create_data_sync_table(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_create_data_sync_table_table_does_not_exist(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -102,6 +104,7 @@ def test_create_data_sync_table_table_does_not_exist(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_create_data_sync_table_without_access_to_source_table(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -124,6 +127,7 @@ def test_create_data_sync_table_without_access_to_source_table(enterprise_data_f
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_source_table_deleted(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -154,6 +158,7 @@ def test_sync_data_sync_table_source_table_deleted(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_no_access_authorized_user(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -187,6 +192,7 @@ def test_sync_data_sync_table_no_access_authorized_user(enterprise_data_fixture)
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -241,6 +247,7 @@ def test_sync_data_sync_table(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_authorized_user_is_none(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -270,6 +277,7 @@ def test_sync_data_sync_table_authorized_user_is_none(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_authorized_user_is_set(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -302,6 +310,7 @@ def test_sync_data_sync_table_authorized_user_is_set(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_with_interesting_table_as_source(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -443,6 +452,7 @@ def test_sync_data_sync_table_with_interesting_table_as_source(enterprise_data_f
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_is_equal(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -491,6 +501,7 @@ def test_sync_data_sync_table_is_equal(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_create_data_sync_via_api_no_access_to_source_table(
     enterprise_data_fixture, api_client
@@ -523,6 +534,7 @@ def test_create_data_sync_via_api_no_access_to_source_table(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_get_data_sync_properties_source_table_does_not_exist(
     enterprise_data_fixture, api_client
@@ -548,6 +560,7 @@ def test_get_data_sync_properties_source_table_does_not_exist(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_get_data_sync_properties_no_access_to_source_table(
     enterprise_data_fixture, api_client
@@ -577,6 +590,7 @@ def test_get_data_sync_properties_no_access_to_source_table(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_get_data_sync_properties(enterprise_data_fixture, api_client):
     enterprise_data_fixture.enable_enterprise()
@@ -630,6 +644,7 @@ def test_get_data_sync_properties(enterprise_data_fixture, api_client):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_create_data_sync_without_license(enterprise_data_fixture, api_client):
     user, token = enterprise_data_fixture.create_user_and_token()
@@ -679,6 +694,7 @@ def test_sync_data_sync_table_without_license(enterprise_data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_async_sync_data_sync_table_without_license(
     api_client, enterprise_data_fixture, synced_roles
@@ -719,6 +735,7 @@ def test_async_sync_data_sync_table_without_license(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_import_export_including_source_table(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -829,6 +846,7 @@ def test_import_export_duplicate_table(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_import_export_excluding_source_table(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -893,6 +911,7 @@ def test_import_export_excluding_source_table(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_single_select_field(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -964,6 +983,7 @@ def test_sync_data_sync_table_single_select_field(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_single_select_field_and_making_changes(
     enterprise_data_fixture,
@@ -1056,6 +1076,7 @@ def test_sync_data_sync_table_single_select_field_and_making_changes(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_single_select_get_metadata_create(
     enterprise_data_fixture, django_assert_num_queries
@@ -1107,6 +1128,7 @@ def test_sync_data_sync_table_single_select_get_metadata_create(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_single_select_get_metadata_update(
     enterprise_data_fixture, django_assert_num_queries
@@ -1176,6 +1198,7 @@ def test_sync_data_sync_table_single_select_get_metadata_update(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_single_select_get_metadata_delete(
     enterprise_data_fixture, django_assert_num_queries
@@ -1275,6 +1298,7 @@ def test_change_source_table_with_changing_synced_fields(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_create_data_sync_view_does_not_exist(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -1303,6 +1327,7 @@ def test_create_data_sync_view_does_not_exist(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_create_data_sync_view_does_not_belong_to_table(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -1385,6 +1410,7 @@ def test_create_data_sync_with_view_provided(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_get_properties_with_view_provided_only_public_fields(
     enterprise_data_fixture, api_client
@@ -1471,6 +1497,7 @@ def test_get_properties_with_table_view_id_none(enterprise_data_fixture, api_cli
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_with_view_provided_having_filter_and_sort(
     enterprise_data_fixture,
@@ -1541,6 +1568,7 @@ def test_sync_data_sync_table_with_view_provided_having_filter_and_sort(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_source_table_view_deleted(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -1591,6 +1619,7 @@ def test_source_table_view_deleted(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_table_with_trashed_synced_field(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -1626,6 +1655,7 @@ def test_table_with_trashed_synced_field(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_table_model_is_data_synced_table(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()

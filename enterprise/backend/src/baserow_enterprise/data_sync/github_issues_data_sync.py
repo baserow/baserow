@@ -7,7 +7,7 @@ from requests.exceptions import JSONDecodeError, RequestException
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
-from baserow.contrib.database.data_sync.utils import compare_date
+from baserow.contrib.database.data_sync.utils import compare_date, handle_license_loss
 from baserow.contrib.database.fields.models import (
     DateField,
     LongTextField,
@@ -172,9 +172,10 @@ class GitHubIssuesDataSyncType(DataSyncType):
     def prepare_sync_job_values(self, instance):
         # Raise the error so that the job doesn't start and the user is informed with
         # the correct error.
-        LicenseHandler.raise_if_workspace_doesnt_have_feature(
+        if not LicenseHandler.workspace_has_feature(
             DATA_SYNC, instance.table.database.workspace
-        )
+        ):
+            handle_license_loss(instance)
 
     def get_properties(self, instance) -> List[DataSyncProperty]:
         # The `table_id` is not set if when just listing the properties using the
@@ -184,6 +185,7 @@ class GitHubIssuesDataSyncType(DataSyncType):
             LicenseHandler.raise_if_workspace_doesnt_have_feature(
                 DATA_SYNC, instance.table.database.workspace
             )
+
         return [
             GitHubIDDataSyncProperty("id", "GitHub Issue ID"),
             GitHubTitleDataSyncProperty("title", "Title"),

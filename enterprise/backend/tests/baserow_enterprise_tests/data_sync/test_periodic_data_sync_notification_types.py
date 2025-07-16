@@ -43,5 +43,5 @@ def test_webhook_deactivated_notification_can_be_render_as_email(
             notification, {}
         )
         == "The periodic data sync failed more than 4 consecutive times"
-        "and was therefore deactivated."
+        " and was therefore deactivated."
     )

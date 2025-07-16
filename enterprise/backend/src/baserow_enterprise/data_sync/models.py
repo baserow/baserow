@@ -12,6 +12,9 @@ DATA_SYNC_INTERVAL_MANUAL = "MANUAL"
 DATA_SYNC_INTERVAL_DAILY = "DAILY"
 DATA_SYNC_INTERVAL_HOURLY = "HOURLY"
 
+DEACTIVATION_REASON_FAILURE = "FAILURE"
+DEACTIVATION_REASON_LICENSE_LOST = "LICENSE_LOST"
+
 JIRA_ISSUES_DATA_SYNC_API_TOKEN = "API_TOKEN"  # nosec B105
 JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN = "PERSONAL_ACCESS_TOKEN"  # nosec B105
 
@@ -43,6 +46,15 @@ class PeriodicDataSyncInterval(models.Model):
         default=0,
         help_text="The number of failed sync data sync operations that have failed. "
         "This is used to deactivate the periodic sync if it keeps failing.",
+    )
+    deactivation_reason = models.CharField(
+        max_length=20,
+        choices=(
+            (DEACTIVATION_REASON_FAILURE, DEACTIVATION_REASON_FAILURE),
+            (DEACTIVATION_REASON_LICENSE_LOST, DEACTIVATION_REASON_LICENSE_LOST),
+        ),
+        null=True,
+        help_text="The reason why the periodic data sync was deactivated.",
     )
     authorized_user = models.ForeignKey(
         User,
