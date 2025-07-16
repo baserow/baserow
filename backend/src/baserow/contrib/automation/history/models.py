@@ -26,11 +26,3 @@ class AutomationWorkflowHistory(AutomationHistory):
         on_delete=models.CASCADE,
         related_name="workflow_history",
     )
-
-
-class AutomationNodeHistory(AutomationHistory):
-    node = models.ForeignKey(
-        "automation.AutomationNode",
-        on_delete=models.CASCADE,
-        related_name="node_history",
-    )

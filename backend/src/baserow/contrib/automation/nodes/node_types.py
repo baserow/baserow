@@ -7,7 +7,6 @@ from django.utils import timezone
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
-from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.nodes.models import (
     AutomationActionNode,
     CoreHTTPRequestActionNode,
@@ -37,7 +36,6 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsUpdatedTriggerServiceType,
     LocalBaserowUpsertRowServiceType,
 )
-from baserow.core.services.exceptions import DispatchException
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
@@ -52,40 +50,9 @@ class AutomationNodeActionNodeType(AutomationNodeType):
         automation_node: AutomationActionNode,
         dispatch_context: AutomationDispatchContext,
     ) -> DispatchResult:
-        from baserow.contrib.automation.history.handler import AutomationHistoryHandler
-
-        history_handler = AutomationHistoryHandler()
-
-        result = None
-
-        try:
-            result = ServiceHandler().dispatch_service(
-                automation_node.service.specific, dispatch_context
-            )
-        except DispatchException as e:
-            history_message = str(e)
-            history_status = HistoryStatusChoices.ERROR
-
-            raise e
-        except Exception as e:
-            # For unexpected errors, store a generic message in history
-            history_message = (
-                f"Unexpected error while running node {automation_node.id}"
-            )
-            history_status = HistoryStatusChoices.ERROR
-
-            raise e
-        else:
-            history_message = ""
-            history_status = HistoryStatusChoices.SUCCESS
-            return result
-        finally:
-            history_handler.create_node_history(
-                automation_node,
-                completed_on=timezone.now(),
-                message=history_message,
-                status=history_status,
-            )
+        return ServiceHandler().dispatch_service(
+            automation_node.service.specific, dispatch_context
+        )
 
 
 class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
