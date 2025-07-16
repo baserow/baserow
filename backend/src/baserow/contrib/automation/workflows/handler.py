@@ -148,7 +148,7 @@ class AutomationWorkflowHandler:
             if "unique constraint" in e.args[0] and "name" in e.args[0]:
                 raise AutomationWorkflowNameNotUnique(
                     name=name, automation_id=automation.id
-                )
+                ) from e
             raise
 
         return workflow

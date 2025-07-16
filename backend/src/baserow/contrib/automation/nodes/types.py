@@ -20,6 +20,12 @@ class ReplacedAutomationNode:
     original_node_type: str
 
 
+@dataclass
+class DeletedAutomationNode:
+    node: AutomationNode
+    next_node_ids: list[int]
+
+
 class AutomationNodeDict(TypedDict):
     id: int
     type: str

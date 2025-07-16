@@ -31,10 +31,12 @@ from baserow.contrib.automation.nodes.signals import (
     automation_nodes_reordered,
 )
 from baserow.contrib.automation.nodes.types import (
+    DeletedAutomationNode,
     ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.trash.handler import TrashHandler
 
 
 class AutomationNodeService:
@@ -188,7 +190,7 @@ class AutomationNodeService:
 
         return updated_node
 
-    def delete_node(self, user: AbstractUser, node_id: int) -> AutomationNode:
+    def delete_node(self, user: AbstractUser, node_id: int) -> DeletedAutomationNode:
         """
         Deletes the specified automation node.
 
@@ -210,7 +212,12 @@ class AutomationNodeService:
             context=node,
         )
 
-        self.handler.delete_node(user, node)
+        # Before we trash it we relink the next nodes
+        next_nodes = node.get_next_nodes()
+        self.handler.replace_previous_node(node.previous_node, next_nodes)
+
+        automation = node.workflow.automation
+        TrashHandler.trash(user, automation.workspace, automation, node)
 
         automation_node_deleted.send(
             self,
@@ -219,7 +226,9 @@ class AutomationNodeService:
             user=user,
         )
 
-        return node
+        return DeletedAutomationNode(
+            node=node, next_node_ids=[str(n.id) for n in next_nodes]
+        )
 
     def order_nodes(
         self, user: AbstractUser, workflow: AutomationWorkflow, order: List[int]
@@ -298,7 +307,11 @@ class AutomationNodeService:
         return node_clone
 
     def replace_node(
-        self, user: AbstractUser, node_id: int, new_node_type_str: str, **kwargs
+        self,
+        user: AbstractUser,
+        node_id: int,
+        new_node_type_str: str | None = None,
+        replace_with_node_id: int | None = None,
     ) -> ReplacedAutomationNode:
         """
         Replaces an existing automation node with a new one of a different type.
@@ -306,18 +319,13 @@ class AutomationNodeService:
         :param user: The user trying to replace the node.
         :param node_id: The ID of the node to replace.
         :param new_node_type_str: The type of the new node to replace with.
+        :param replace_with_node_id: We can choose the node we want to replace it with.
         :raises AutomationNodeTypeNotReplaceable when the node type cannot be replaced
         :return: The replaced automation node.
         """
 
         node = self.get_node(user, node_id)
         node_type: AutomationNodeType = node.get_type()
-        new_node_type = automation_node_type_registry.get(new_node_type_str)
-
-        # If they tried to update a trigger with an action
-        # or vice versa, raise an error.
-        if not node_type.is_replaceable_with(new_node_type):
-            raise AutomationNodeTypeNotReplaceable()
 
         CoreHandler().check_permissions(
             user,
@@ -326,10 +334,43 @@ class AutomationNodeService:
             context=node.workflow,
         )
 
-        return self.handler.replace_node(
-            user,
-            node,
-            new_node_type,
-            order=node.order,
-            previous_node_id=node.previous_node_id,
+        if new_node_type_str:
+            new_node_type = automation_node_type_registry.get(new_node_type_str)
+
+            # If they tried to update a trigger with an action
+            # or vice versa, raise an error.
+            if not node_type.is_replaceable_with(new_node_type):
+                raise AutomationNodeTypeNotReplaceable()
+
+            prepared_values = new_node_type.prepare_values(
+                {
+                    "previous_node_id": node.previous_node_id,
+                    "previous_node_output": node.previous_node_output,
+                },
+                user,
+            )
+
+            new_node = self.handler.create_node(
+                new_node_type,
+                workflow=node.workflow,
+                before=node,
+                order=node.order,
+                **prepared_values,
+            )
+        elif replace_with_node_id:
+            new_node = self.get_node(user, replace_with_node_id)
+        else:
+            raise ValueError()
+
+        self.handler.replace_previous_node(new_node, node.get_next_nodes())
+
+        automation = node.workflow.automation
+        TrashHandler.trash(user, automation.workspace, automation, node)
+
+        # TODO signal missing
+
+        return ReplacedAutomationNode(
+            node=new_node,
+            original_node_id=node.id,
+            original_node_type=node_type.type,
         )

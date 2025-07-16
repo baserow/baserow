@@ -29,6 +29,24 @@ def test_create_node(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_node_at_the_end(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node1 = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow,
+    )
+    node_type = automation_node_type_registry.get("create_row")
+
+    prepared_values = node_type.prepare_values({}, user)
+
+    node = AutomationNodeHandler().create_node(
+        node_type, workflow=workflow, **prepared_values
+    )
+
+    assert node.previous_node.id == node1.id
+
+
+@pytest.mark.django_db
 def test_create_node_applies_previous_node_id(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
@@ -135,19 +153,6 @@ def test_export_prepared_values(data_fixture):
         "workflow": node.workflow_id,
         "previous_node_output": "",
     }
-
-
-@pytest.mark.django_db
-def test_delete_node(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user=user)
-    node = data_fixture.create_automation_node(user=user, workflow=workflow)
-
-    assert workflow.automation_workflow_nodes.count() == 1
-
-    AutomationNodeHandler().delete_node(user, node)
-
-    assert workflow.automation_workflow_nodes.count() == 0
 
 
 @pytest.mark.django_db

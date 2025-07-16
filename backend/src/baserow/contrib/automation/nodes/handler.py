@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Union
 
-from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
@@ -15,7 +14,6 @@ from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
-    ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
 from baserow.core.cache import local_cache
@@ -24,7 +22,6 @@ from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.storage import ExportZipFile
-from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict, extract_allowed
 
 
@@ -106,6 +103,18 @@ class AutomationNodeHandler:
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
+    def replace_previous_node(self, new_previous_node, nodes):
+        """
+        Relink all nodes to the given new previous node.
+
+        :param new_previous_node: The new previous node.
+        :param nodes: The nodes to relink.
+        """
+
+        for next_node in nodes:
+            next_node.previous_node = new_previous_node
+            next_node.save(update_fields=["previous_node_id"])
+
     def create_node(
         self,
         node_type: AutomationNodeType,
@@ -130,6 +139,8 @@ class AutomationNodeHandler:
         # Are we creating a node as a child of another node?
         parent_node_id = allowed_prepared_values.get("parent_node_id", None)
 
+        nodes_to_relink = []
+
         # If we don't already have a `previous_node_id` (users won't provide this)
         if "previous_node_id" not in allowed_prepared_values:
             # Figure out what the previous node ID should be. If we've been given a
@@ -140,6 +151,8 @@ class AutomationNodeHandler:
                 if before
                 else AutomationWorkflow.get_last_node_id(workflow, parent_node_id)
             )
+            if before and before.previous_node:
+                nodes_to_relink = before.previous_node.get_next_nodes()
 
         order = kwargs.pop("order", None)
         if before:
@@ -153,9 +166,8 @@ class AutomationNodeHandler:
 
         # If we've created a node before another, then that node's
         # previous node ID should be updated to point to the new node.
-        if before:
-            before.previous_node_id = node.id
-            before.save(update_fields=["previous_node_id"])
+        if nodes_to_relink:
+            self.replace_previous_node(node, nodes_to_relink)
 
         return node
 
@@ -185,17 +197,6 @@ class AutomationNodeHandler:
             original_values=original_node_values,
             new_values=new_node_values,
         )
-
-    def delete_node(self, user: AbstractUser, node: AutomationNode) -> None:
-        """
-        Deletes the specified AutomationNode.
-
-        :param user: The user trying to delete the automation node.
-        :param node: The AutomationNode that must be deleted.
-        """
-
-        automation = node.workflow.automation
-        TrashHandler.trash(user, automation.workspace, automation, node)
 
     def get_nodes_order(self, workflow: AutomationWorkflow) -> List[int]:
         """
@@ -265,36 +266,6 @@ class AutomationNodeHandler:
         )
 
         return new_node_clone
-
-    def replace_node(
-        self,
-        user: AbstractUser,
-        node: AutomationNode,
-        new_type: AutomationNodeType,
-        **kwargs,
-    ) -> ReplacedAutomationNode:
-        """
-        Replaces the `type` of an existing AutomationNode instance with a new type.
-
-        :param user: The user performing the replacement.
-        :param node: The AutomationNode that is being replaced.
-        :param new_type: The new AutomationNodeType to replace the existing node with.
-        :param kwargs: Additional keyword arguments that will be used to prepare the
-            new node's values.
-        :return: A ReplacedAutomationNode instance containing the new node and
-            information about the original node.
-        """
-
-        node_type = node.get_type()
-        self.delete_node(user, node)
-        prepared_values = new_type.prepare_values(kwargs, user)
-        new_node = self.create_node(new_type, node.workflow, **prepared_values)
-
-        return ReplacedAutomationNode(
-            node=new_node,
-            original_node_id=node.id,
-            original_node_type=node_type.type,
-        )
 
     def export_node(
         self,
@@ -392,9 +363,6 @@ class AutomationNodeHandler:
         *args: Any,
         **kwargs: Any,
     ) -> AutomationNode:
-        if "automation_workflow_nodes" not in id_mapping:
-            id_mapping["automation_workflow_nodes"] = {}
-
         node_type = automation_node_type_registry.get(serialized_node["type"])
 
         node_instance = node_type.import_serialized(
@@ -404,9 +372,5 @@ class AutomationNodeHandler:
             *args,
             **kwargs,
         )
-
-        id_mapping["automation_workflow_nodes"][
-            serialized_node["id"]
-        ] = node_instance.id
 
         return node_instance
