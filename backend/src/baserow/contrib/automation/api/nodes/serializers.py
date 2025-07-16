@@ -8,6 +8,7 @@ from baserow.api.services.serializers import (
     PolymorphicServiceRequestSerializer,
     PolymorphicServiceSerializer,
 )
+from baserow.contrib.automation.history.models import AutomationNodeHistory
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 
@@ -87,3 +88,16 @@ class ReplaceAutomationNodeSerializer(serializers.Serializer):
         required=True,
         help_text="The type of the new automation node",
     )
+
+
+class AutomationNodeHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AutomationNodeHistory
+        fields = (
+            "id",
+            "created_on",
+            "completed_on",
+            "is_test_run",
+            "message",
+            "status",
+        )
