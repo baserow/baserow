@@ -12,7 +12,6 @@ state should be temporary, and they will be migrated to search data tables event
 
 """
 
-import traceback
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import Enum
@@ -541,12 +540,6 @@ class SearchHandler(
 
         workspace_id = table.database.workspace_id
         if workspace_id is None:
-            stack = "".join(traceback.format_stack())
-            logger.debug(
-                "WARNING: Task scheduled without workspace_id. "
-                "This should never happen:\n%s",
-                stack,
-            )
             return
 
         field_ids = None
@@ -579,12 +572,6 @@ class SearchHandler(
 
         workspace_id = table.database.workspace_id
         if workspace_id is None:
-            stack = "".join(traceback.format_stack())
-            logger.debug(
-                "WARNING: Task scheduled without workspace_id. "
-                "This should never happen:\n%s",
-                stack,
-            )
             return
 
         # extract the field IDs before the commit to ensure we have the correct IDs
