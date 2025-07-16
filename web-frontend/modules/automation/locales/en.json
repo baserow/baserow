@@ -52,6 +52,7 @@
     "previousNode": "Previous node"
   },
   "historySidePanel": {
+    "title": "History",
     "noRunsTitle": "No runs yet",
     "noRunsDescription": "When this automation has run, the results will be shown here.",
     "statusSuccess": "Ran successfully",
