@@ -43,6 +43,43 @@ def test_create_chart_widget(api_client, premium_data_fixture):
         "order": "1.00000000000000000000",
         "type": "chart",
         "series_config": [],
+        "default_series_chart_type": "BAR",
+    }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_create_chart_widget_default_line(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    dashboard = premium_data_fixture.create_dashboard_application(user=user)
+
+    url = reverse("api:dashboard:widgets:list", kwargs={"dashboard_id": dashboard.id})
+    response = api_client.post(
+        url,
+        {
+            "title": "Title",
+            "description": "Description",
+            "type": "chart",
+            "default_series_chart_type": "LINE",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
+    assert response_json == {
+        "id": AnyInt(),
+        "title": "Title",
+        "description": "Description",
+        "data_source_id": AnyInt(),
+        "dashboard_id": dashboard.id,
+        "order": "1.00000000000000000000",
+        "type": "chart",
+        "series_config": [],
+        "default_series_chart_type": "LINE",
     }
 
 
@@ -106,6 +143,7 @@ def test_get_widgets_with_chart_widget(api_client, premium_data_fixture):
                     "series_chart_type": "LINE",
                 },
             ],
+            "default_series_chart_type": "BAR",
         },
     ]
 
@@ -274,4 +312,5 @@ def test_update_widget_preserve_chart_config(api_client, premium_data_fixture):
                 "series_chart_type": "LINE",
             },
         ],
+        "default_series_chart_type": "BAR",
     }

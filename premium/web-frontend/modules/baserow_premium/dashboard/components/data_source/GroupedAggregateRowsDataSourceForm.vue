@@ -77,7 +77,8 @@
         <ButtonText
           icon="iconoir-plus"
           type="secondary"
-          :disabled="!canAddSeries"
+          :disabled="!canAddSeries || disabled"
+          :loading="loading"
           tooltip-position="bottom-left"
           @click="addSeries"
         >
@@ -95,6 +96,7 @@
         :series-index="index"
         :default-values="series"
         :widget="widget"
+        :loading="loading"
         @delete-series="deleteSeries"
         @values-changed="onAggregationSeriesUpdated(index, $event)"
         @series-config-changed="onSeriesConfigUpdated($event)"
@@ -160,6 +162,11 @@ export default {
       required: false,
       default: '',
     },
+    loading: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
   },
   setup() {
     return { v$: useVuelidate() }
@@ -198,6 +205,11 @@ export default {
           ]
           this.values.aggregation_group_bys = []
           this.values.aggregation_sorts = []
+
+          // reset widget conf
+          this.$emit('widget-values-changed', {
+            series_config: [],
+          })
         }
       },
     },

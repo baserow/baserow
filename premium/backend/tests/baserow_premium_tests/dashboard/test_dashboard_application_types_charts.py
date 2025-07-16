@@ -130,6 +130,7 @@ def test_dashboard_export_serialized_with_chart_widget(premium_data_fixture):
                 "title": "Widget 1",
                 "type": "chart",
                 "series_config": [],
+                "default_series_chart_type": "BAR",
             },
         ],
     }
@@ -378,6 +379,7 @@ def test_dashboard_export_serialized_with_chart_widget_config(premium_data_fixtu
                     {"series_chart_type": "BAR", "series_id": series_1.id},
                     {"series_chart_type": "LINE", "series_id": series_2.id},
                 ],
+                "default_series_chart_type": "BAR",
             },
         ],
     }
@@ -512,3 +514,178 @@ def test_dashboard_import_serialized_with_widget_config(premium_data_fixture):
     assert series_configs.count() == 2
     assert series_configs[0].series_chart_type == "BAR"
     assert series_configs[1].series_chart_type == "LINE"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_dashboard_export_serialized_with_default_chart_type(premium_data_fixture):
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    workspace = premium_data_fixture.create_workspace(user=user)
+    database = premium_data_fixture.create_database_application(
+        user=user, workspace=workspace
+    )
+    table = premium_data_fixture.create_database_table(database=database)
+    dashboard = cast(
+        Dashboard,
+        CoreHandler().create_application(
+            user,
+            workspace,
+            type_name="dashboard",
+            description="Dashboard description",
+            init_with_data=True,
+        ),
+    )
+    integration = Integration.objects.filter(application=dashboard).first()
+    dashboard_widget = WidgetService().create_widget(
+        user,
+        "chart",
+        dashboard.id,
+        title="Widget 1",
+        description="Description 1",
+        default_series_chart_type="LINE",
+    )
+    service = dashboard_widget.data_source.service
+    service.table = table
+    service.save()
+
+    serialized = DashboardApplicationType().export_serialized(
+        dashboard, ImportExportConfig(include_permission_data=True)
+    )
+
+    serialized = json.loads(json.dumps(serialized))
+    assert serialized == {
+        "id": dashboard.id,
+        "name": dashboard.name,
+        "description": "Dashboard description",
+        "order": dashboard.order,
+        "type": "dashboard",
+        "integrations": [
+            {
+                "authorized_user": user.email,
+                "id": integration.id,
+                "name": "",
+                "order": "1.00000000000000000000",
+                "type": "local_baserow",
+            },
+        ],
+        "data_sources": [
+            {
+                "id": dashboard_widget.data_source.id,
+                "name": dashboard_widget.data_source.name,
+                "order": "1.00000000000000000000",
+                "service": {
+                    "filter_type": "AND",
+                    "filters": [],
+                    "id": service.id,
+                    "integration_id": service.integration.id,
+                    "service_aggregation_group_bys": [],
+                    "service_aggregation_series": [],
+                    "service_aggregation_sorts": [],
+                    "table_id": table.id,
+                    "type": "local_baserow_grouped_aggregate_rows",
+                    "view_id": None,
+                },
+            },
+        ],
+        "widgets": [
+            {
+                "data_source_id": dashboard_widget.data_source.id,
+                "description": "Description 1",
+                "id": dashboard_widget.id,
+                "order": "1.00000000000000000000",
+                "title": "Widget 1",
+                "type": "chart",
+                "series_config": [],
+                "default_series_chart_type": "LINE",
+            },
+        ],
+    }
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+def test_dashboard_import_serialized_with_default_chart_type(premium_data_fixture):
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    workspace = premium_data_fixture.create_workspace(user=user)
+    database = premium_data_fixture.create_database_application(
+        user=user, workspace=workspace
+    )
+    table = premium_data_fixture.create_database_table(database=database)
+    field = premium_data_fixture.create_number_field(table=table)
+    field_2 = premium_data_fixture.create_number_field(table=table, primary=True)
+
+    id_mapping = {
+        "database_tables": {1: table.id},
+        "database_fields": {1: field.id, 2: field_2.id},
+    }
+
+    serialized = {
+        "id": "999",
+        "name": "Dashboard 1",
+        "description": "Description 1",
+        "order": 99,
+        "type": "dashboard",
+        "integrations": [
+            {
+                "authorized_user": user.email,
+                "id": 1,
+                "name": "IntegrationName",
+                "order": "1.00000000000000000000",
+                "type": "local_baserow",
+            },
+        ],
+        "data_sources": [
+            {
+                "id": 1,
+                "name": "DataSource1",
+                "order": "1.00000000000000000000",
+                "service": {
+                    "filter_type": "AND",
+                    "filters": [],
+                    "id": 1,
+                    "integration_id": 1,
+                    "service_aggregation_group_bys": [],
+                    "service_aggregation_series": [
+                        {"aggregation_type": "sum", "field_id": 1, "id": 1},
+                        {"aggregation_type": "min", "field_id": 2, "id": 2},
+                    ],
+                    "service_aggregation_sorts": [],
+                    "table_id": 1,
+                    "type": "local_baserow_grouped_aggregate_rows",
+                    "view_id": None,
+                },
+            },
+        ],
+        "widgets": [
+            {
+                "data_source_id": 1,
+                "description": "Description 1",
+                "id": 45,
+                "order": "1.00000000000000000000",
+                "title": "Widget 1",
+                "type": "chart",
+                "default_series_chart_type": "LINE",
+            },
+        ],
+    }
+
+    progress = Progress(100)
+    progress_builder = ChildProgressBuilder(parent=progress, represents_progress=100)
+    assert progress.progress == 0
+
+    dashboard = DashboardApplicationType().import_serialized(
+        workspace,
+        serialized,
+        ImportExportConfig(include_permission_data=True),
+        id_mapping,
+        progress_builder=progress_builder,
+    )
+
+    widgets = Widget.objects.filter(dashboard=dashboard)
+    assert widgets.count() == 1
+    widget1 = widgets[0].specific
+    assert widget1.content_type == ContentType.objects.get_for_model(ChartWidget)
+    assert widget1.title == "Widget 1"
+    assert widget1.description == "Description 1"
+    assert widget1.order == Decimal("1.0")
+    assert widget1.default_series_chart_type == "LINE"

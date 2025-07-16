@@ -7,6 +7,7 @@
     :data-source="dataSource"
     :default-values="dataSource"
     :store-prefix="storePrefix"
+    :loading="loading"
     @values-changed="onDataSourceValuesChanged"
     @widget-values-changed="widgetValuesChanged"
   />
@@ -55,18 +56,33 @@ export default {
   },
   methods: {
     async onDataSourceValuesChanged(changedDataSourceValues) {
+      const aggSeries = changedDataSourceValues.aggregation_series
+      if (
+        aggSeries &&
+        aggSeries.at(-1).id === undefined &&
+        aggSeries.at(-1).field_id === null &&
+        aggSeries.at(-1).aggregation_type === ''
+      ) {
+        // Loading state will be used for situations where a new
+        // aggregation series needs widget configuration to be saved
+        // before it is allowed to be changed.
+        this.loading = true
+      }
       try {
         await this.$store.dispatch(
           `${this.storePrefix}dashboardApplication/updateDataSource`,
           {
             dataSourceId: this.dataSource.id,
             values: changedDataSourceValues,
+            widget: this.widget,
           }
         )
       } catch (error) {
         this.$refs.dataSourceForm.reset()
         this.$refs.dataSourceForm.touch()
         notifyIf(error, 'dashboard')
+      } finally {
+        this.loading = false
       }
     },
     async widgetValuesChanged(values) {

@@ -3,7 +3,7 @@
     <CreateWidgetModal
       ref="createWidgetModal"
       :dashboard="dashboard"
-      @widget-type-selected="$emit('widget-type-selected', $event)"
+      @widget-variation-selected="$emit('widget-variation-selected', $event)"
     />
     <ButtonFloating
       icon="iconoir-plus"

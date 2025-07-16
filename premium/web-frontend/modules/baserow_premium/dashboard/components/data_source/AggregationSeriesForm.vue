@@ -7,12 +7,12 @@
         required
         horizontal
         horizontal-narrow
-        :disabled="disabled"
         class="margin-bottom-2"
       >
         <Dropdown
           :value="values.aggregation_type"
           :error="!disabled && fieldHasErrors('aggregation_type')"
+          :disabled="disabled || loading"
           @change="aggregationTypeChanged"
         >
           <DropdownItem
@@ -30,12 +30,12 @@
         required
         horizontal
         horizontal-narrow
-        :disabled="disabled"
         class="margin-bottom-2"
       >
         <Dropdown
           v-model="values.field_id"
           :error="!disabled && fieldHasErrors('field_id')"
+          :disabled="disabled || loading"
           @change="v$.values.field_id.$touch"
         >
           <DropdownItem
@@ -56,8 +56,12 @@
         horizontal-narrow
       >
         <Dropdown
-          :value="currentSeriesConfig.series_chart_type || 'BAR'"
+          :value="
+            currentSeriesConfig.series_chart_type ||
+            widget.default_series_chart_type
+          "
           :error="fieldHasErrors('chart_type')"
+          :disabled="disabled || loading"
           @change="seriesChartTypeChanged"
         >
           <DropdownItem
@@ -79,6 +83,7 @@
       <ButtonText
         icon="iconoir-bin"
         type="secondary"
+        :disabled="disabled || loading"
         @click="$emit('delete-series', seriesIndex)"
         >{{ $t('aggregationSeriesForm.deleteSeries') }}</ButtonText
       >
@@ -119,6 +124,11 @@ export default {
     widget: {
       type: Object,
       required: true,
+    },
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   setup() {

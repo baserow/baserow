@@ -520,12 +520,12 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 else:
                     sort["reference"] = None
 
-        # TODO: update id_mapping?
-        self._update_service_aggregation_series(service, series, id_mapping)
-        self._update_service_aggregation_group_bys(service, group_bys)
-        self._update_service_sorts(
-            service, [sort for sort in sorts if sort["reference"] is not None]
-        )
+        if service.table_id is not None:
+            self._update_service_aggregation_series(service, series, id_mapping)
+            self._update_service_aggregation_group_bys(service, group_bys)
+            self._update_service_sorts(
+                service, [sort for sort in sorts if sort["reference"] is not None]
+            )
 
         return service
 

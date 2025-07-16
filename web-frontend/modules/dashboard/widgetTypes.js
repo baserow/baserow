@@ -33,6 +33,26 @@ export class WidgetType extends Registerable {
     return null
   }
 
+  /**
+   * When the same widget can be created with different
+   * options resulting in different name, image, and
+   * settings.
+   */
+  get variations() {
+    return [
+      {
+        name: this.name,
+        createWidgetImage: this.createWidgetImage,
+        type: this,
+        params: {},
+      },
+    ]
+  }
+
+  getOrder() {
+    return 0
+  }
+
   isLoading(widget, data) {
     return false
   }
