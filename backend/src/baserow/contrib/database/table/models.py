@@ -889,6 +889,10 @@ class Table(
     def is_read_only_data_synced_table(self) -> bool:
         return self.is_data_synced_table and not self.data_sync.two_way_sync
 
+    @property
+    def is_two_way_data_synced_table(self) -> bool:
+        return self.is_data_synced_table and self.data_sync.two_way_sync
+
     def get_parent(self):
         return self.database
 

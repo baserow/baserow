@@ -1,1 +1,1 @@
-from .receivers import *
+from .receivers import *  # noqa: F401

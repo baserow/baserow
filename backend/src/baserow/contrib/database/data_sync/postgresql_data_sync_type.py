@@ -1,5 +1,6 @@
 import contextlib
-from typing import Any, Dict, List, Optional
+from itertools import chain
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from django.conf import settings
 from django.db import DEFAULT_DB_ALIAS
@@ -19,6 +20,9 @@ from .exceptions import SyncError
 from .models import PostgreSQLDataSync
 from .registries import DataSyncProperty, DataSyncType
 from .utils import compare_date
+
+if TYPE_CHECKING:
+    from baserow.contrib.database.data_sync.models import DataSync
 
 
 class BasePostgreSQLSyncProperty(DataSyncProperty):
@@ -322,3 +326,154 @@ class PostgreSQLDataSyncType(DataSyncType):
             }
             for record in records
         ]
+
+    def _get_unique_primaries(self, properties):
+        primaries = [p for p in properties if p.unique_primary]
+        if not primaries:
+            raise SyncError("No unique primary defined. Cannot safely proceed.")
+        return primaries
+
+    def _get_pk_tuple(self, row, unique_primaries):
+        return tuple(row[p.field.db_column] for p in unique_primaries)
+
+    def _execute_query_and_commit(self, query, params, data_sync):
+        with self._connection(data_sync) as cursor:
+            try:
+                cursor.execute(query, params)
+                cursor.connection.commit()
+            except psycopg.Error as e:
+                raise SyncError(f"Database error: {str(e)}")
+
+    def create_rows(self, serialized_rows, data_sync: "DataSync"):
+        properties = data_sync.synced_properties.all()
+        columns = [p.key for p in properties if not p.unique_primary]
+
+        values = [
+            [row.get(p.field.db_column) for p in properties if not p.unique_primary]
+            for row in serialized_rows
+        ]
+        if not values:
+            return
+
+        insert_query = sql.SQL("INSERT INTO {}.{} ({}) VALUES {}").format(
+            sql.Identifier(data_sync.postgresql_schema),
+            sql.Identifier(data_sync.postgresql_table),
+            sql.SQL(", ").join(map(sql.Identifier, columns)),
+            sql.SQL(", ").join(
+                sql.SQL("({})").format(
+                    sql.SQL(", ").join(sql.Placeholder() for _ in columns)
+                )
+                for _ in values
+            ),
+        )
+        params = list(chain.from_iterable(values))
+        self._execute_query_and_commit(insert_query, params, data_sync)
+
+        # @TODO update the unique primary field with the created row id.
+
+    def update_rows(self, serialized_rows, data_sync: "DataSync", updated_field_ids):
+        properties = data_sync.synced_properties.all()
+        table_name = data_sync.postgresql_table
+        schema_name = data_sync.postgresql_schema
+
+        unique_primaries = self._get_unique_primaries(properties)
+
+        field_id_to_property = {p.field_id: p for p in properties}
+
+        set_clauses = []
+        params = []
+
+        for field_id in updated_field_ids:
+            prop = field_id_to_property.get(field_id)
+            if not prop:
+                continue
+
+            cases = []
+            for row in serialized_rows:
+                if f"field_{field_id}" not in row:
+                    continue
+
+                pk_vals = self._get_pk_tuple(row, unique_primaries)
+                value = row[f"field_{field_id}"]
+
+                when_clause = sql.SQL(" WHEN ({}) THEN %s").format(
+                    sql.SQL(", ").join(sql.Placeholder() for _ in pk_vals)
+                )
+                cases.append((when_clause, list(pk_vals) + [value]))
+
+            if not cases:
+                continue
+
+            # CASE (pk1, pk2, ...) WHEN (...) THEN ... ELSE column END
+            case_expr = sql.SQL("CASE ({}) ").format(
+                sql.SQL(", ").join(sql.Identifier(p.key) for p in unique_primaries)
+            )
+            for when_sql, values in cases:
+                case_expr += when_sql
+                params.extend(values)
+            case_expr += sql.SQL(" ELSE {} END").format(sql.Identifier(prop.key))
+
+            set_clause = sql.SQL("{} = ").format(sql.Identifier(prop.key)) + case_expr
+            set_clauses.append(set_clause)
+
+        if not set_clauses:
+            return
+
+        # Collect all unique PK values for the WHERE clause
+        pk_tuples = {
+            self._get_pk_tuple(row, unique_primaries) for row in serialized_rows
+        }
+        pk_placeholders = [
+            sql.SQL("({})").format(sql.SQL(", ").join(sql.Placeholder() for _ in pk))
+            for pk in pk_tuples
+        ]
+        for pk in pk_tuples:
+            params.extend(pk)
+
+        where_clause = sql.SQL("({}) IN ({})").format(
+            sql.SQL(", ").join(sql.Identifier(p.key) for p in unique_primaries),
+            sql.SQL(", ").join(pk_placeholders),
+        )
+
+        # Final update query
+        update_query = sql.SQL("UPDATE {}.{} SET {} WHERE {}").format(
+            sql.Identifier(schema_name),
+            sql.Identifier(table_name),
+            sql.SQL(", ").join(set_clauses),
+            where_clause,
+        )
+
+        self._execute_query_and_commit(update_query, params, data_sync)
+
+    def delete_rows(self, serialized_rows, data_sync: "DataSync"):
+        properties = data_sync.synced_properties.all()
+        table_name = data_sync.postgresql_table
+        schema_name = data_sync.postgresql_schema
+
+        unique_primaries = self._get_unique_primaries(properties)
+
+        pk_tuples = {
+            self._get_pk_tuple(row, unique_primaries) for row in serialized_rows
+        }
+        if not pk_tuples:
+            return
+
+        where_clause = sql.SQL("({}) IN ({})").format(
+            sql.SQL(", ").join(sql.Identifier(p.key) for p in unique_primaries),
+            sql.SQL(", ").join(
+                sql.SQL("({})").format(
+                    sql.SQL(", ").join(sql.Placeholder() for _ in pk)
+                )
+                for pk in pk_tuples
+            ),
+        )
+
+        delete_query = sql.SQL("DELETE FROM {}.{} WHERE {}").format(
+            sql.Identifier(schema_name),
+            sql.Identifier(table_name),
+            where_clause,
+        )
+
+        params = [val for pk in pk_tuples for val in pk]
+
+        self._execute_query_and_commit(delete_query, params, data_sync)

@@ -1,11 +1,16 @@
-import traceback
-
 from django.dispatch import receiver
 
+from baserow.contrib.database.api.rows.serializers import serialize_rows_for_response
 from baserow.contrib.database.rows.signals import (
     rows_created,
     rows_deleted,
     rows_updated,
+)
+
+from .tasks import (
+    two_way_sync_row_created,
+    two_way_sync_row_deleted,
+    two_way_sync_row_updated,
 )
 
 
@@ -22,10 +27,13 @@ def rows_created_receiver(
     m2m_change_tracker=None,
     **kwargs,
 ):
-    if not table.is_data_synced_table:
+    if not table.is_two_way_data_synced_table:
         return
 
-    print("rows created")
+    two_way_sync_row_created.delay(
+        serialized_rows=serialize_rows_for_response(rows, model),
+        data_sync_id=table.data_sync.id,
+    )
 
 
 @receiver(rows_updated)
@@ -40,10 +48,14 @@ def rows_updated_receiver(
     m2m_change_tracker=None,
     **kwargs,
 ):
-    if not table.is_data_synced_table:
+    if not table.is_two_way_data_synced_table:
         return
 
-    print("rows updated")
+    two_way_sync_row_updated.delay(
+        serialized_rows=serialize_rows_for_response(rows, model),
+        data_sync_id=table.data_sync.id,
+        updated_field_ids=list(updated_field_ids),
+    )
 
 
 @receiver(rows_deleted)
@@ -57,7 +69,10 @@ def rows_deleted_receiver(
     m2m_change_tracker=None,
     **kwargs,
 ):
-    if not table.is_data_synced_table:
+    if not table.is_two_way_data_synced_table:
         return
 
-    print("rows deleted")
+    two_way_sync_row_deleted.delay(
+        serialized_rows=serialize_rows_for_response(rows, model),
+        data_sync_id=table.data_sync.id,
+    )
