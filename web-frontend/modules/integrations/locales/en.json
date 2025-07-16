@@ -34,6 +34,8 @@
     "coreHTTPRequest": "Send an HTTP request",
     "coreHTTPRequestDescription": "Sends an HTTP request to a specified endpoint.",
     "coreSMTPEmail": "Send Email",
+    "coreRouter": "Router",
+    "coreRouterDescription": "Routes the workflow to the next step based on conditions.",
     "coreSMTPEmailDescription": "Sends an email using SMTP configuration.",
     "errorFromEmailMissing": "Missing From Email property",
     "errorToEmailsMissing": "Missing To Emails property",

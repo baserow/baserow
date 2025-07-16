@@ -262,3 +262,7 @@ class CoreHTTPRequestActionNode(AutomationActionNode):
 
 class CoreSMTPEmailActionNode(AutomationActionNode):
     ...
+
+
+class CoreRouterActionNode(AutomationActionNode):
+    ...

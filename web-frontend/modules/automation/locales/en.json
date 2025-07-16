@@ -76,7 +76,8 @@
     "localBaserowListRowsLabel": "List rows in {tableName}",
     "localBaserowAggregateRowsLabel": "Summarize rows in {tableName}",
     "httpRequestLabel": "Send an HTTP request",
-    "smtpEmailLabel": "Send an email"
+    "smtpEmailLabel": "Send an email",
+    "routerLabel": "Router"
   },
   "workflowNode": {
     "actionDelete": "Delete",
