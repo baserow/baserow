@@ -77,7 +77,8 @@
         <ButtonText
           icon="iconoir-plus"
           type="secondary"
-          :disabled="!canAddSeries || disabled || loading"
+          :disabled="!canAddSeries || disabled"
+          :loading="loading"
           tooltip-position="bottom-left"
           @click="addSeries"
         >
