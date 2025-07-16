@@ -4,7 +4,11 @@ from typing import Optional
 from django.db.models import QuerySet
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
-from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+from baserow.contrib.automation.history.models import (
+    AutomationNodeHistory,
+    AutomationWorkflowHistory,
+)
+from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 
 
@@ -44,5 +48,37 @@ class AutomationHistoryHandler:
             message=message,
             completed_on=completed_on,
             is_test_run=bool(workflow.allow_test_run_until),
+            status=status,
+        )
+
+    def get_node_history(
+        self, node: AutomationNode, base_queryset: Optional[QuerySet] = None
+    ) -> QuerySet[AutomationNodeHistory]:
+        """
+        Returns all the AutomationNodeHistory related to the provided node.
+        """
+
+        if base_queryset is None:
+            base_queryset = AutomationNodeHistory.objects.all()
+
+        return (
+            base_queryset.filter(node=node)
+            .prefetch_related("node__workflow__automation__workspace")
+            .order_by("-id")
+        )
+
+    def create_node_history(
+        self,
+        node: AutomationNode,
+        completed_on: datetime,
+        status: HistoryStatusChoices,
+        message: str = "",
+    ) -> AutomationWorkflowHistory:
+        original_node = self.node_handler.get_original_node(node)
+        return AutomationNodeHistory.objects.create(
+            node=original_node,
+            message=message,
+            completed_on=completed_on,
+            is_test_run=bool(node.workflow.allow_test_run_until),
             status=status,
         )

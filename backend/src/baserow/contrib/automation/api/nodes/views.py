@@ -1,5 +1,6 @@
 from typing import Dict
 
+from django.conf import settings
 from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
@@ -13,7 +14,9 @@ from baserow.api.decorators import (
     validate_body,
     validate_body_custom_fields,
 )
+from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
+from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
 from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_BEFORE_INVALID,
@@ -23,6 +26,7 @@ from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
 )
 from baserow.contrib.automation.api.nodes.serializers import (
+    AutomationNodeHistorySerializer,
     AutomationNodeSerializer,
     CreateAutomationNodeSerializer,
     OrderAutomationNodesSerializer,
@@ -32,6 +36,7 @@ from baserow.contrib.automation.api.nodes.serializers import (
 from baserow.contrib.automation.api.workflows.errors import (
     ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
 )
+from baserow.contrib.automation.history.service import AutomationHistoryService
 from baserow.contrib.automation.nodes.actions import (
     CreateAutomationNodeActionType,
     DeleteAutomationNodeActionType,
@@ -386,3 +391,49 @@ class ReplaceAutomationNodeView(APIView):
                 replaced_node, AutomationNodeSerializer
             ).data
         )
+
+
+class AutomationNodeHistoryView(APIView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="node_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The id of the node.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=[AUTOMATION_NODES_TAG],
+        operation_id="get_automation_node_history",
+        description="Retrieve the history for a node.",
+        responses={
+            200: get_example_pagination_serializer_class(
+                AutomationNodeHistorySerializer
+            ),
+            404: get_error_schema(
+                [
+                    "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+        }
+    )
+    def get(self, request, node_id: int):
+        queryset = AutomationHistoryService().get_node_history(request.user, node_id)
+
+        paginator = PageNumberPagination(
+            limit_page_size=settings.AUTOMATION_HISTORY_PAGE_SIZE_LIMIT
+        )
+        page = paginator.paginate_queryset(queryset, request, self)
+        serializer = AutomationNodeHistorySerializer(
+            page,
+            many=True,
+        )
+
+        return paginator.get_paginated_response(serializer.data)

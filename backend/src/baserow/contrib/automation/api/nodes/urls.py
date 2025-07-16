@@ -1,6 +1,7 @@
 from django.urls import re_path
 
 from baserow.contrib.automation.api.nodes.views import (
+    AutomationNodeHistoryView,
     AutomationNodesView,
     AutomationNodeView,
     DuplicateAutomationNodeView,
@@ -35,5 +36,10 @@ urlpatterns = [
         r"node/(?P<node_id>[0-9]+)/replace/$",
         ReplaceAutomationNodeView.as_view(),
         name="replace",
+    ),
+    re_path(
+        r"node/(?P<node_id>[0-9]+)/history/$",
+        AutomationNodeHistoryView.as_view(),
+        name="history",
     ),
 ]
