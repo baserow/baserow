@@ -29,7 +29,8 @@
           <a
             class="context__menu-item-link context__menu-item-link--with-desc"
             :class="{
-              active: subject[roleValueColumn] === role.uid,
+              active:
+                !role.isDeactivated && subject[roleValueColumn] === role.uid,
               disabled: role.isDeactivated,
             }"
             @click="
@@ -64,7 +65,9 @@
               {{ role.description }}
             </div>
             <i
-              v-if="subject[roleValueColumn] === role.uid"
+              v-if="
+                !role.isDeactivated && subject[roleValueColumn] === role.uid
+              "
               class="context__menu-active-icon iconoir-check"
             ></i>
           </a>
