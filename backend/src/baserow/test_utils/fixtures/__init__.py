@@ -4,6 +4,7 @@ from .airtable import AirtableFixtures
 from .app_auth_provider import AppAuthProviderFixtures
 from .application import ApplicationFixtures
 from .auth_provider import AuthProviderFixtures
+from .automation_history import AutomationHistoryFixtures
 from .automation_node import AutomationNodeFixtures
 from .automation_workflow import AutomationWorkflowFixtures
 from .dashboard_data_source import DashboardDataSourceFixtures
@@ -46,6 +47,7 @@ class Fixtures(
     ApplicationFixtures,
     AutomationWorkflowFixtures,
     AutomationNodeFixtures,
+    AutomationHistoryFixtures,
     TableFixtures,
     ViewFixtures,
     FieldFixtures,
