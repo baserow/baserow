@@ -1581,7 +1581,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         all_created_rows = []
         for count, chunk in enumerate(grouper(BATCH_SIZE, rows_values)):
             row_start_index = count * BATCH_SIZE
-            created_rows, creation_report = self.create_rows(
+            created_rows, creation_report = self.force_create_rows(
                 user=user,
                 table=table,
                 model=model,
@@ -2565,7 +2565,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.schedule_update_search_data(table, row_ids=[row.id])
 
         rows_deleted.send(
             self,

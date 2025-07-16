@@ -32,7 +32,7 @@ def handle_permanently_deleted_table(
 
     table = trash_item
     if SearchHandler.full_text_enabled():
-        SearchHandler.schedule_delete_search_data(table)
+        SearchHandler.mark_search_data_for_deletion(table)
     else:  # we can drop the entire search table if exists
         workspace_id = table.database.workspace_id
         SearchHandler.delete_workspace_search_table_if_exists(workspace_id)
@@ -50,7 +50,7 @@ def handle_permanently_deleted_field(
     field = trash_item
     table = field.table
     if SearchHandler.full_text_enabled():
-        SearchHandler.schedule_delete_search_data(table, field_ids=[trash_item_id])
+        SearchHandler.mark_search_data_for_deletion(table, field_ids=[trash_item_id])
     else:  # we can drop the entire search table if exists
         workspace_id = table.database.workspace_id
         SearchHandler.delete_workspace_search_table_if_exists(workspace_id)
@@ -67,7 +67,7 @@ def handle_permanently_deleted_row(
 
     row = trash_item
     if SearchHandler.full_text_enabled():
-        SearchHandler.schedule_delete_search_data(row.baserow_table, row_ids=[row.id])
+        SearchHandler.mark_search_data_for_deletion(row.baserow_table, row_ids=[row.id])
     else:  # we can drop the entire search table if exists
         workspace_id = row.baserow_table.database.workspace_id
         SearchHandler.delete_workspace_search_table_if_exists(workspace_id)
@@ -88,7 +88,7 @@ def handle_permanently_deleted_rows(
 
     table = trash_item.table
     if SearchHandler.full_text_enabled():
-        SearchHandler.schedule_delete_search_data(table, row_ids=row_ids)
+        SearchHandler.mark_search_data_for_deletion(table, row_ids=row_ids)
     else:  # we can drop the entire search table if exists
         workspace_id = table.database.workspace_id
         SearchHandler.delete_workspace_search_table_if_exists(workspace_id)

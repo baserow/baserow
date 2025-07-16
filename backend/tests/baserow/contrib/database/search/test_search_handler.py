@@ -118,7 +118,7 @@ def test_delete_workspace_search_table(data_fixture):
         search_table.objects.count()
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_delete_search_data(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -145,8 +145,11 @@ def test_delete_search_data(data_fixture):
     search_table = SearchHandler.get_workspace_search_table_model(
         table.database.workspace_id
     )
-    assert search_table.objects.count() == 0
-    SearchHandler.update_search_data(table)
+
+    def get_marked_for_deletion():
+        return PendingSearchValueUpdate.objects_and_trash.filter(
+            deletion_workspace_id__isnull=False
+        )
 
     res = list(search_table.objects.values("field_id", "row_id"))
     assert len(res) == 6
@@ -159,11 +162,12 @@ def test_delete_search_data(data_fixture):
         {"field_id": number_field.id, "row_id": row3.id},
     ]
 
-    workspace_id = table.database.workspace_id
     # A specific cell
-    SearchHandler.delete_search_data(
-        workspace_id, field_ids=[text_field.id], row_ids=[row1.id]
+    SearchHandler.mark_search_data_for_deletion(
+        table, field_ids=[text_field.id], row_ids=[row1.id]
     )
+    assert get_marked_for_deletion().count() == 1
+    SearchHandler.process_search_data_marked_for_deletion()
     res = list(search_table.objects.values("field_id", "row_id"))
     assert len(res) == 5
     assert res == [
@@ -173,11 +177,14 @@ def test_delete_search_data(data_fixture):
         {"field_id": number_field.id, "row_id": row2.id},
         {"field_id": number_field.id, "row_id": row3.id},
     ]
+    assert get_marked_for_deletion().count() == 0
 
     # All fields for a specific row
-    SearchHandler.delete_search_data(
-        workspace_id, field_ids=[text_field.id, number_field.id], row_ids=[row2.id]
+    SearchHandler.mark_search_data_for_deletion(
+        table, field_ids=[text_field.id, number_field.id], row_ids=[row2.id]
     )
+    assert get_marked_for_deletion().count() == 2
+    SearchHandler.process_search_data_marked_for_deletion()
     res = list(search_table.objects.values("field_id", "row_id"))
     assert len(res) == 3
     assert res == [
@@ -185,15 +192,22 @@ def test_delete_search_data(data_fixture):
         {"field_id": number_field.id, "row_id": row1.id},
         {"field_id": number_field.id, "row_id": row3.id},
     ]
+    assert get_marked_for_deletion().count() == 0
 
     # All rows for a specific field
-    SearchHandler.delete_search_data(workspace_id, field_ids=[number_field.id])
+    SearchHandler.mark_search_data_for_deletion(table, field_ids=[number_field.id])
+    assert get_marked_for_deletion().count() == 1
+    SearchHandler.process_search_data_marked_for_deletion()
+    assert get_marked_for_deletion().count() == 0
     res = list(search_table.objects.values("field_id", "row_id"))
     assert len(res) == 1
     assert res == [{"field_id": text_field.id, "row_id": row3.id}]
 
     # All table search data
-    SearchHandler.delete_search_data(workspace_id, field_ids=[text_field.id])
+    SearchHandler.mark_search_data_for_deletion(table, field_ids=[text_field.id])
+    assert get_marked_for_deletion().count() == 1
+    SearchHandler.process_search_data_marked_for_deletion()
+    assert get_marked_for_deletion().count() == 0
     res = list(search_table.objects.values("field_id", "row_id"))
     assert len(res) == 0
 
@@ -282,7 +296,11 @@ def test_update_rows_create_update_entries_for_all_updated_fields(data_fixture):
             mock.call_count == 2
         )  # one for the text field, and one for the formula field
 
-    res = list(PendingSearchValueUpdate.objects.values("field_id", "row_id"))
+    res = list(
+        PendingSearchValueUpdate.objects.order_by("field_id", "row_id").values(
+            "field_id", "row_id"
+        )
+    )
     assert len(res) == 6
     assert res == [
         {"field_id": text_field.id, "row_id": row1.id},
@@ -444,6 +462,15 @@ def test_update_search_data(data_fixture):
 
     # Once the row is permanently deleted, the search data is removed
     TrashHandler.permanently_delete(row1, table.id)
+
+    def get_marked_for_deletion():
+        return PendingSearchValueUpdate.objects_and_trash.filter(
+            deletion_workspace_id__isnull=False
+        )
+
+    assert get_marked_for_deletion().count() == 2  # both fields for row1
+    SearchHandler.process_search_data_marked_for_deletion()
+    assert get_marked_for_deletion().count() == 0
     res = get_search_data()
 
     assert len(res) == 4
@@ -464,6 +491,10 @@ def test_update_search_data(data_fixture):
     with transaction.atomic():
         TrashHandler.permanently_delete(number_field)
 
+    assert get_marked_for_deletion().count() == 1  # all rows for the number field
+    SearchHandler.process_search_data_marked_for_deletion()
+    assert get_marked_for_deletion().count() == 0
+
     res = get_search_data()
     assert len(res) == 2
     assert res == [
@@ -480,6 +511,9 @@ def test_update_search_data(data_fixture):
     with transaction.atomic():
         TrashHandler.permanently_delete(table)
 
+    assert get_marked_for_deletion().count() == 1  # all rows for the text field
+    SearchHandler.process_search_data_marked_for_deletion()
+    assert get_marked_for_deletion().count() == 0
     res = get_search_data()
     assert len(res) == 0
 
@@ -531,9 +565,42 @@ def test_not_schedule_task_if_workspace_is_none(data_fixture):
         assert mock.call_count == 0
         assert PendingSearchValueUpdate.objects.count() == 0
 
-    with patch(
-        "baserow.contrib.database.search.handler.SearchHandler.delete_search_data"
-    ) as mock:
-        SearchHandler.schedule_delete_search_data(table)
 
-        assert mock.call_count == 0
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.contrib.database.search.tasks.update_search_data.apply_async")
+def test_search_data_updates_dont_clear_concurrent_updates(mock, data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+
+    with freeze_time("2025-01-01 12:00:05"):
+        SearchHandler.initialize_missing_search_data(table)
+        SearchHandler.process_search_data_updates(table)
+
+        RowHandler().force_create_rows(
+            user=user,
+            table=table,
+            rows_values=[
+                {text_field.db_column: "Row 1"},
+                {text_field.db_column: "Row 2"},
+            ],
+        )
+
+    # This simulates an update taks that was already running when the
+    # `process_search_data_updates` was called. The `updated_on` timestamp is not
+    # checked when fetching the pending updates, but it is used to determine which
+    # updates are older and should be deleted.
+
+    assert PendingSearchValueUpdate.objects.count() == 2
+    with freeze_time("2025-01-01 12:00:00"):
+        SearchHandler.process_search_data_updates(table)
+
+        # The updates for the new rows have not been cleared, because they have a newer
+        # `updated_on` timestamp compared to when the `process_search_data_updates` was
+        # called.
+        assert PendingSearchValueUpdate.objects.count() == 2
+
+    with freeze_time("2025-01-01 12:00:10"):
+        # If the updates are processed again, the pending updates are cleared.
+        SearchHandler.process_search_data_updates(table)
+        assert PendingSearchValueUpdate.objects.count() == 0

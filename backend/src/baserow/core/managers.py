@@ -1,4 +1,4 @@
-from django.db import models
+from django_cte import CTEManager
 
 
 def make_trash_manager(trashed, parent=None):
@@ -25,7 +25,7 @@ def make_trash_manager(trashed, parent=None):
     else:
         filter_kwargs[f"{parent}__trashed"] = trashed
 
-    class Manager(models.Manager):
+    class Manager(CTEManager):
         def get_queryset(self):
             return super().get_queryset().filter(**filter_kwargs)
 
