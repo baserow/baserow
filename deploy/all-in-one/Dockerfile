@@ -2,10 +2,10 @@ ARG FROM_BACKEND_IMAGE=baserow_backend
 ARG FROM_WEBFRONTEND_IMAGE=baserow_web-frontend
 # This is pinned as version pinning is done by the CI setting FROM_IMAGE.
 # hadolint ignore=DL3006
-FROM $FROM_BACKEND_IMAGE as backend_image_base
+FROM $FROM_BACKEND_IMAGE AS backend_image_base
 # hadolint ignore=DL3006
-FROM $FROM_WEBFRONTEND_IMAGE as web_frontend_image_base
-FROM debian:bookworm-slim as base
+FROM $FROM_WEBFRONTEND_IMAGE AS web_frontend_image_base
+FROM debian:bookworm-slim AS base
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 

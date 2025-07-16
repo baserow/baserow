@@ -1,5 +1,3 @@
-version: "3.4"
-
 # MAKE SURE YOU HAVE SET THE REQUIRED VARIABLES IN the .env FILE.configs:
 
 # This compose file starts up a prodish version of the plugin using a caddy reverse

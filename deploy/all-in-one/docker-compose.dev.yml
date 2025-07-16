@@ -1,4 +1,3 @@
-version: "3.4"
 services:
   # A dev compose file for quickly setting up an all in one with hot code reloading
   baserow_all_in_one_dev:

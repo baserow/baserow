@@ -1,4 +1,3 @@
-version: "3.4"
 # Runs Baserow with each service in its own container and builds the Baserow images
 # from this local repository instead of using the pre-built images from Dockerhub.
 # Otherwise, identical to docker-compose.yml.

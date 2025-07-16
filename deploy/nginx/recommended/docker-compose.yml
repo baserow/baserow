@@ -1,4 +1,3 @@
-version: "3.4"
 # This compose file is for testing our example Nginx configuration locally.
 # To test you have to add `127.0.0.1 example.localhost` to your /etc/hosts and then run
 # docker-compose up

@@ -1,5 +1,3 @@
-version: "3.4"
-
 services:
   db:
     # use lowest supported version for dev to check compatibility
