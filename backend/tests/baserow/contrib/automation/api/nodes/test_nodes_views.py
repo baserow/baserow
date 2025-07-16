@@ -8,8 +8,9 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.automation.api.utils import get_api_kwargs
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
+from tests.baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
 
 API_URL_BASE = "api:automation:nodes"
 API_URL_LIST = f"{API_URL_BASE}:list"
@@ -19,14 +20,6 @@ API_URL_DUPLICATE = f"{API_URL_BASE}:duplicate"
 API_URL_REPLACE = f"{API_URL_BASE}:replace"
 API_URL_UNDO = "api:user:undo"
 API_URL_REDO = "api:user:redo"
-
-
-def get_api_kwargs(token):
-    return {
-        "format": "json",
-        "HTTP_AUTHORIZATION": f"JWT {token}",
-        "HTTP_CLIENTSESSIONID": "test",
-    }
 
 
 @pytest.mark.django_db
