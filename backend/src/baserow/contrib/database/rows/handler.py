@@ -66,7 +66,7 @@ from baserow.core.db import (
 )
 from baserow.core.exceptions import CannotCalculateIntermediateOrder, PermissionDenied
 from baserow.core.handler import CoreHandler
-from baserow.core.psycopg import sql
+from baserow.core.psycopg import is_unique_violation_error, sql
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
@@ -827,8 +827,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         try:
             instance = model.objects.create(**row_values)
             rows_created_counter.add(1)
-        except Exception:
-            raise FieldDataConstraintException()
+        except Exception as exc:
+            if is_unique_violation_error(exc):
+                raise FieldDataConstraintException()
+            else:
+                raise exc
 
         m2m_change_tracker = RowM2MChangeTracker()
         for field_name, value in manytomany_values.items():
@@ -1040,8 +1043,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         try:
             row.save(update_fields=update_row_fields + always_updated_fields)
-        except Exception:
-            raise FieldDataConstraintException()
+        except Exception as exc:
+            if is_unique_violation_error(exc):
+                raise FieldDataConstraintException()
+            else:
+                raise exc
         rows_updated_counter.add(1)
 
         dependant_fields = self.update_dependencies_of_rows_updated(
@@ -1232,17 +1238,20 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         try:
             with transaction.atomic():
                 inserted_rows = model.objects.bulk_create(rows)
-        except Exception:
+        except Exception as exc:
             inserted_rows = []
-            if not generate_error_report:
-                raise FieldDataConstraintException()
+            if is_unique_violation_error(exc):
+                if not generate_error_report:
+                    raise FieldDataConstraintException()
 
-            for index, (row, _) in enumerate(rows_relationships):
-                report[index] = {
-                    "non_field_errors": [
-                        "Row was not inserted due to conflicts or constraints"
-                    ]
-                }
+                for index, (row, _) in enumerate(rows_relationships):
+                    report[index] = {
+                        "non_field_errors": [
+                            "Row was not inserted due to conflicts or constraints"
+                        ]
+                    }
+            else:
+                raise exc
 
         inserted_rows_count = len(inserted_rows)
         rows_created_counter.add(inserted_rows_count)
@@ -1647,13 +1656,16 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     )
                     report.update(result.errors)
                     all_updated_rows.extend(result.updated_rows)
-            except Exception:
-                for index, _ in enumerate(chunk):
-                    report[row_start_index + index] = {
-                        "non_field_errors": [
-                            "Row was not updated due to conflicts or constraints"
-                        ]
-                    }
+            except Exception as exc:
+                if is_unique_violation_error(exc):
+                    for index, _ in enumerate(chunk):
+                        report[row_start_index + index] = {
+                            "non_field_errors": [
+                                "Row was not updated due to conflicts or constraints"
+                            ]
+                        }
+                else:
+                    raise exc
 
             if progress:
                 progress.increment(len(chunk))
@@ -2172,22 +2184,23 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 model.objects.bulk_update(
                     rows_to_update, bulk_update_fields, batch_size=2000
                 )
-            except Exception:
-                if generate_error_report:
-                    for idx, row in enumerate(rows_to_update):
-                        report[idx] = {
-                            "non_field_errors": [
-                                "Row was not updated due to conflicts or constraints"
-                            ]
-                        }
-                    return UpdatedRowsData(
-                        [],
-                        [],
-                        original_row_values_by_id,
-                        fields_metadata_by_row_id,
-                        report,
-                    )
-                raise FieldDataConstraintException()
+            except Exception as exc:
+                if is_unique_violation_error(exc):
+                    if generate_error_report:
+                        for idx, row in enumerate(rows_to_update):
+                            report[idx] = {
+                                "non_field_errors": [
+                                    "Row was not updated due to conflicts or constraints"
+                                ]
+                            }
+                        return UpdatedRowsData(
+                            [],
+                            [],
+                            original_row_values_by_id,
+                            fields_metadata_by_row_id,
+                            report,
+                        )
+                    raise FieldDataConstraintException()
 
             rows_updated_counter.add(len(rows_to_update))
 
