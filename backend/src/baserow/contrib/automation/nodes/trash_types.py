@@ -1,3 +1,4 @@
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.operations import (
     RestoreAutomationNodeOperationType,
@@ -19,7 +20,7 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         return trashed_item.workflow
 
     def get_name(self, trashed_item: AutomationActionNode) -> str:
-        return f"{trashed_item.specific.get_type().type} ({trashed_item.id})"
+        return f"{trashed_item.get_type().type} ({trashed_item.id})"
 
     def trash(
         self,
@@ -29,15 +30,14 @@ class AutomationNodeTrashableItemType(TrashableItemType):
     ):
         # Determine if this node has a node after it. If it does, we'll
         # need to update its previous_node_id after `item_to_trash` is trashed.
-        next_nodes = item_to_trash.get_next_nodes()
+        next_nodes = list(item_to_trash.get_next_nodes())
 
         super().trash(item_to_trash, requesting_user, trash_entry)
 
         # As `item_to_trash` is trashed, we need to update the nodes that immediately
         # follow this node, to point to the node before `item_to_trash`.
-        next_node_ids = [next_node.id for next_node in next_nodes]
-        AutomationNode.objects.filter(id__in=next_node_ids).update(
-            previous_node_id=item_to_trash.previous_node_id
+        AutomationNodeHandler().update_previous_node(
+            item_to_trash.previous_node, next_nodes
         )
 
         automation_node_deleted.send(
@@ -48,14 +48,19 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         )
 
     def restore(self, trashed_item: AutomationActionNode, trash_entry: TrashEntry):
+        next_nodes = list(
+            AutomationNodeHandler().get_next_nodes(
+                trashed_item.workflow, trashed_item.previous_node
+            )
+        )
+
         super().restore(trashed_item, trash_entry)
 
         # Determine if this restored node has a node after it. If it does, we'll
         # need to update its previous_node_id to point to `trashed_item.id`
-        AutomationNode.objects.exclude(id=trashed_item.id).filter(
-            workflow=trashed_item.workflow,
-            previous_node_id=trashed_item.previous_node_id,
-        ).update(previous_node_id=trashed_item.id)
+        # TODO this works for now but as soon as we can add more branches, we'll have
+        #      to store somewhere the next nodes when we trash the item
+        AutomationNodeHandler().update_previous_node(trashed_item, next_nodes)
 
         automation_node_created.send(self, node=trashed_item, user=None)
 

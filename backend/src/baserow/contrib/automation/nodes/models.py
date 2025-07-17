@@ -146,15 +146,9 @@ class AutomationNode(
 
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
-        # Using handler here to benefit from the cache
-        nodes = AutomationNodeHandler().get_nodes(self.workflow)
-
-        return [
-            node
-            for node in nodes
-            if node.previous_node_id == self.id
-            and (output_uid is None or node.previous_node_output == output_uid)
-        ]
+        return AutomationNodeHandler().get_next_nodes(
+            self.workflow, self, output_uid=output_uid
+        )
 
     @classmethod
     def get_last_order(cls, workflow: "AutomationWorkflow"):

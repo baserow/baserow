@@ -176,22 +176,20 @@ class DeleteAutomationNodeActionType(UndoableActionType):
         automation_name: str
         node_id: int
         node_type: str
-        next_node_ids: list[int]
 
     @classmethod
     def do(cls, user: AbstractUser, node_id: int) -> None:
-        result = AutomationNodeService().delete_node(user, node_id)
-        automation = result.node.workflow.automation
+        node = AutomationNodeService().delete_node(user, node_id)
+        automation = node.workflow.automation
         cls.register_action(
             user=user,
             params=cls.Params(
                 automation.id,
                 automation.name,
                 node_id,
-                result.node.get_type().type,
-                next_node_ids=result.next_node_ids,
+                node.get_type().type,
             ),
-            scope=cls.scope(result.node.workflow.id),
+            scope=cls.scope(node.workflow.id),
             workspace=automation.workspace,
         )
 
@@ -211,15 +209,6 @@ class DeleteAutomationNodeActionType(UndoableActionType):
             AutomationNodeTrashableItemType.type,
             params.node_id,
         )
-
-        # Restore previous linked nodes
-        restored_node = AutomationNodeService().get_node(user, params.node_id)
-        next_nodes = AutomationNodeHandler().get_nodes(
-            restored_node.workflow,
-            base_queryset=AutomationNode.objects.filter(id__in=params.next_node_ids),
-        )
-
-        AutomationNodeHandler().update_previous_node(restored_node, next_nodes)
 
     @classmethod
     def redo(
@@ -430,9 +419,7 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
             AutomationNodeTrashableItemType.type,
             params.original_node_id,
         )
-        AutomationNodeService().replace_node(
-            user, params.node_id, replace_with_node_id=params.original_node_id
-        )
+        AutomationNodeService().delete_node(user, params.node_id)
 
     @classmethod
     def redo(
@@ -446,6 +433,4 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
             AutomationNodeTrashableItemType.type,
             params.node_id,
         )
-        AutomationNodeService().replace_node(
-            user, params.original_node_id, replace_with_node_id=params.node_id
-        )
+        AutomationNodeService().delete_node(user, params.original_node_id)

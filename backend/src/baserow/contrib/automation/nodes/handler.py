@@ -71,12 +71,34 @@ class AutomationNodeHandler:
                         node.service = specific_services_map[service_id]
             return nodes
 
-        if with_cache:
+        if with_cache and not base_queryset:
             return local_cache.get(
                 f"wa_get_{workflow.id}_nodes_{specific}",
                 _get_nodes,
             )
         return _get_nodes()
+
+    def get_next_nodes(
+        self, workflow, node: None | AutomationNode, output_uid: str | None = None
+    ) -> Iterable["AutomationNode"]:
+        """
+        Returns all nodes which follow the given node in the workflow. A list of nodes
+        is returned as there can be multiple nodes that follow this one, for example
+        when there are multiple branches in the workflow.
+
+        :param workflow: filter nodes for this workflow.
+        :param node: this is the previous not. If null, first nodes are returned.
+        :param output_uid: filter nodes only for this output uid.
+        """
+
+        queryset = AutomationNode.objects.filter(
+            previous_node_id=node.id if node else None
+        )
+
+        if output_uid is not None:
+            queryset.filter(previous_node_output=output_uid)
+
+        return self.get_nodes(workflow, base_queryset=queryset)
 
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
@@ -141,6 +163,11 @@ class AutomationNodeHandler:
 
         nodes_to_relink = []
 
+        if before:
+            nodes_to_relink = list(
+                AutomationNode.objects.filter(previous_node_id=before.previous_node_id)
+            )
+
         # If we don't already have a `previous_node_id` (users won't provide this)
         if "previous_node_id" not in allowed_prepared_values:
             # Figure out what the previous node ID should be. If we've been given a
@@ -151,8 +178,6 @@ class AutomationNodeHandler:
                 if before
                 else AutomationWorkflow.get_last_node_id(workflow, parent_node_id)
             )
-            if before and before.previous_node_id:
-                nodes_to_relink = before.previous_node.get_next_nodes()
 
         order = kwargs.pop("order", None)
         if before:
