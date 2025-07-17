@@ -103,7 +103,7 @@ class AutomationNodeHandler:
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
-    def replace_previous_node(self, new_previous_node, nodes):
+    def update_previous_node(self, new_previous_node, nodes):
         """
         Relink all nodes to the given new previous node.
 
@@ -111,9 +111,9 @@ class AutomationNodeHandler:
         :param nodes: The nodes to relink.
         """
 
-        for next_node in nodes:
-            next_node.previous_node = new_previous_node
-            next_node.save(update_fields=["previous_node_id"])
+        AutomationNode.objects.filter(id__in=[n.id for n in nodes]).update(
+            previous_node=new_previous_node
+        )
 
     def create_node(
         self,
@@ -151,7 +151,7 @@ class AutomationNodeHandler:
                 if before
                 else AutomationWorkflow.get_last_node_id(workflow, parent_node_id)
             )
-            if before and before.previous_node:
+            if before and before.previous_node_id:
                 nodes_to_relink = before.previous_node.get_next_nodes()
 
         order = kwargs.pop("order", None)
@@ -167,7 +167,7 @@ class AutomationNodeHandler:
         # If we've created a node before another, then that node's
         # previous node ID should be updated to point to the new node.
         if nodes_to_relink:
-            self.replace_previous_node(node, nodes_to_relink)
+            self.update_previous_node(node, nodes_to_relink)
 
         return node
 

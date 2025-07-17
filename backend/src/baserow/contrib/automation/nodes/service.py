@@ -214,7 +214,7 @@ class AutomationNodeService:
 
         # Before we trash it we relink the next nodes
         next_nodes = node.get_next_nodes()
-        self.handler.replace_previous_node(node.previous_node, next_nodes)
+        self.handler.update_previous_node(node.previous_node, next_nodes)
 
         automation = node.workflow.automation
         TrashHandler.trash(user, automation.workspace, automation, node)
@@ -227,7 +227,7 @@ class AutomationNodeService:
         )
 
         return DeletedAutomationNode(
-            node=node, next_node_ids=[str(n.id) for n in next_nodes]
+            node=node, next_node_ids=[n.id for n in next_nodes]
         )
 
     def order_nodes(
@@ -362,7 +362,7 @@ class AutomationNodeService:
         else:
             raise ValueError()
 
-        self.handler.replace_previous_node(new_node, node.get_next_nodes())
+        self.handler.update_previous_node(new_node, node.get_next_nodes())
 
         automation = node.workflow.automation
         TrashHandler.trash(user, automation.workspace, automation, node)

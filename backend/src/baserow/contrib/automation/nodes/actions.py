@@ -219,7 +219,7 @@ class DeleteAutomationNodeActionType(UndoableActionType):
             base_queryset=AutomationNode.objects.filter(id__in=params.next_node_ids),
         )
 
-        AutomationNodeHandler().replace_previous_node(restored_node, next_nodes)
+        AutomationNodeHandler().update_previous_node(restored_node, next_nodes)
 
     @classmethod
     def redo(

@@ -46,8 +46,6 @@ class PreviousNodeProviderType(AutomationDataProviderType):
         previous_node_id, *rest = path
 
         try:
-            print(id_mapping["automation_workflow_nodes"])
-            print(id_mapping["automation_workflow_nodes"][int(previous_node_id)])
             new_node_id = id_mapping["automation_workflow_nodes"][int(previous_node_id)]
             node = AutomationNodeHandler().get_node(new_node_id)
         except (KeyError, AutomationNodeDoesNotExist):
