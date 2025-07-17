@@ -21,7 +21,7 @@ INSTALLED_APPS.insert(0, "daphne")  # noqa: F405
 INSTALLED_APPS += ["django_extensions"]  # noqa: F405
 
 BASEROW_ENABLE_SILK = str_to_bool(os.getenv("BASEROW_ENABLE_SILK", "on"))
-if DEBUG and BASEROW_ENABLE_SILK:
+if BASEROW_ENABLE_SILK:
     INSTALLED_APPS += ["silk"]  # noqa: F405
     MIDDLEWARE += [  # noqa: F405
         "silk.middleware.SilkyMiddleware",
