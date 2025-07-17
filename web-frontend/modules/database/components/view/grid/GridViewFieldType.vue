@@ -23,7 +23,7 @@
         <i
           v-if="synced"
           v-tooltip="
-            table.data_sync.two_way_sync
+            table.data_sync.two_way_sync && canWriteFieldValues
               ? $t('gridViewFieldType.dataSyncFieldTwoWaySync')
               : $t('gridViewFieldType.dataSyncField')
           "
