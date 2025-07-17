@@ -336,17 +336,27 @@ class PostgreSQLDataSyncType(DataSyncType):
     def _get_pk_tuple(self, row, unique_primaries):
         return tuple(row[p.field.db_column] for p in unique_primaries)
 
-    def _execute_query_and_commit(self, query, params, data_sync):
+    def _execute_query_and_commit(self, query, params, data_sync, fetch_all=False):
+        returning = None
+
         with self._connection(data_sync) as cursor:
             try:
                 cursor.execute(query, params)
+                if fetch_all:
+                    returning = cursor.fetchall()
                 cursor.connection.commit()
             except psycopg.Error as e:
                 raise SyncError(f"Database error: {str(e)}")
 
-    def create_rows(self, serialized_rows, data_sync: "DataSync"):
+        return returning
+
+    def create_rows(self, serialized_rows, data_sync: "DataSync") -> List[dict]:
         properties = data_sync.synced_properties.all()
-        columns = [p.key for p in properties if not p.unique_primary]
+        schema_name = data_sync.postgresql_schema
+        table_name = data_sync.postgresql_table
+
+        insert_columns = [p.key for p in properties if not p.unique_primary]
+        return_columns = [p.key for p in properties if p.unique_primary]
 
         values = [
             [row.get(p.field.db_column) for p in properties if not p.unique_primary]
@@ -355,21 +365,36 @@ class PostgreSQLDataSyncType(DataSyncType):
         if not values:
             return
 
-        insert_query = sql.SQL("INSERT INTO {}.{} ({}) VALUES {}").format(
-            sql.Identifier(data_sync.postgresql_schema),
-            sql.Identifier(data_sync.postgresql_table),
-            sql.SQL(", ").join(map(sql.Identifier, columns)),
+        insert_query = sql.SQL("INSERT INTO {}.{} ({}) VALUES {} RETURNING {}").format(
+            sql.Identifier(schema_name),
+            sql.Identifier(table_name),
+            sql.SQL(", ").join(map(sql.Identifier, insert_columns)),
             sql.SQL(", ").join(
                 sql.SQL("({})").format(
-                    sql.SQL(", ").join(sql.Placeholder() for _ in columns)
+                    sql.SQL(", ").join(sql.Placeholder() for _ in insert_columns)
                 )
                 for _ in values
             ),
+            sql.SQL(", ").join(map(sql.Identifier, return_columns)),
         )
-        params = list(chain.from_iterable(values))
-        self._execute_query_and_commit(insert_query, params, data_sync)
 
-        # @TODO update the unique primary field with the created row id.
+        params = list(chain.from_iterable(values))
+        returned = self._execute_query_and_commit(
+            insert_query, params, data_sync, fetch_all=True
+        )
+
+        return [
+            {
+                **dict(
+                    zip(
+                        [p.field.db_column for p in properties if p.unique_primary],
+                        returned_row,
+                    )
+                ),
+                "id": serialized_row["id"],
+            }
+            for returned_row, serialized_row in zip(returned, serialized_rows)
+        ]
 
     def update_rows(self, serialized_rows, data_sync: "DataSync", updated_field_ids):
         properties = data_sync.synced_properties.all()

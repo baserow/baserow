@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.dispatch import receiver
 
 from baserow.contrib.database.api.rows.serializers import serialize_rows_for_response
@@ -30,9 +31,11 @@ def rows_created_receiver(
     if not table.is_two_way_data_synced_table:
         return
 
-    two_way_sync_row_created.delay(
-        serialized_rows=serialize_rows_for_response(rows, model),
-        data_sync_id=table.data_sync.id,
+    transaction.on_commit(
+        lambda: two_way_sync_row_created.delay(
+            serialized_rows=serialize_rows_for_response(rows, model),
+            data_sync_id=table.data_sync.id,
+        )
     )
 
 
@@ -51,10 +54,26 @@ def rows_updated_receiver(
     if not table.is_two_way_data_synced_table:
         return
 
-    two_way_sync_row_updated.delay(
-        serialized_rows=serialize_rows_for_response(rows, model),
-        data_sync_id=table.data_sync.id,
-        updated_field_ids=list(updated_field_ids),
+    synced_properties_field_ids = [
+        p.field_id for p in table.data_sync.synced_properties.all()
+    ]
+    any_synced_property_updated = any(
+        updated_field_id in synced_properties_field_ids
+        for updated_field_id in updated_field_ids
+    )
+
+    # If none of the synced properties were updated, then there is no need to run the
+    # task. This is also used to prevent that a loop when the unique primary properties
+    # are updated after creating a row.
+    if not any_synced_property_updated:
+        return
+
+    transaction.on_commit(
+        lambda: two_way_sync_row_updated.delay(
+            serialized_rows=serialize_rows_for_response(rows, model),
+            data_sync_id=table.data_sync.id,
+            updated_field_ids=list(updated_field_ids),
+        )
     )
 
 
@@ -72,7 +91,9 @@ def rows_deleted_receiver(
     if not table.is_two_way_data_synced_table:
         return
 
-    two_way_sync_row_deleted.delay(
-        serialized_rows=serialize_rows_for_response(rows, model),
-        data_sync_id=table.data_sync.id,
+    transaction.on_commit(
+        lambda: two_way_sync_row_deleted.delay(
+            serialized_rows=serialize_rows_for_response(rows, model),
+            data_sync_id=table.data_sync.id,
+        )
     )

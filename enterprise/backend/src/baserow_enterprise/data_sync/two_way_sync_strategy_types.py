@@ -1,7 +1,10 @@
+from django.db import transaction
+
 from baserow.contrib.database.data_sync.registries import (
     TwoWaySyncStrategy,
     data_sync_type_registry,
 )
+from baserow.contrib.database.rows.handler import RowHandler
 
 
 class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
@@ -20,7 +23,27 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
 
     def rows_created(self, serialized_rows, data_sync):
         data_sync_type = data_sync_type_registry.get_by_model(data_sync.specific_class)
-        data_sync_type.create_rows(serialized_rows, data_sync)
+        rows_to_update = data_sync_type.create_rows(serialized_rows, data_sync)
+
+        if rows_to_update is None:
+            return
+
+        rows_to_update = [
+            row
+            for row in rows_to_update
+            # Filter out the objects that don't contain any updates.
+            if row and not (len(row) == 1 and "id" in row)
+        ]
+
+        if len(rows_to_update) == 0:
+            return
+
+        with transaction.atomic():
+            RowHandler().force_update_rows(
+                user=None,
+                table=data_sync.table,
+                rows_values=rows_to_update,
+            )
 
     def rows_updated(self, serialized_rows, data_sync, updated_field_ids):
         data_sync_type = data_sync_type_registry.get_by_model(data_sync.specific_class)

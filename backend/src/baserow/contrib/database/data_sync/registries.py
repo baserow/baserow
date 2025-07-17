@@ -174,7 +174,9 @@ class DataSyncType(
         :return: Iterable of all rows in the data sync source.
         """
 
-    def create_rows(self, serialized_rows: List[dict], data_sync: "DataSync"):
+    def create_rows(
+        self, serialized_rows: List[dict], data_sync: "DataSync"
+    ) -> (List)[dict]:
         """
         If a `two_way_sync_strategy_type` is set, and `data_sync.two_way_sync` is True,
         then this method is called when a rows are created is the data sync table. Its
@@ -182,6 +184,8 @@ class DataSyncType(
 
         :param serialized_rows: List containing the serialized rows that were created.
         :param data_sync: The data sync object of the table where the rows were created.
+        :return: A list of row dicts that must be updated. This is typically used to
+            set the newly created unique primary.
         """
 
         raise NotImplementedError(
