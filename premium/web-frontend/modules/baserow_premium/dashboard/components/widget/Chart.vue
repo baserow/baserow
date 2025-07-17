@@ -340,6 +340,14 @@ export default {
         )
       }
 
+      if (item[fieldName] === true) {
+        return this.$t('chart.true')
+      }
+
+      if (item[fieldName] === false) {
+        return this.$t('chart.false')
+      }
+
       return item[fieldName] ?? ''
     },
     getIndividualSeriesConfig(seriesId) {
