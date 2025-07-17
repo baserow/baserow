@@ -7,10 +7,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import (
-    AutomationNode,
-    LocalBaserowCreateRowActionNode,
-)
+from baserow.contrib.automation.nodes.models import LocalBaserowCreateRowActionNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.core.exceptions import UserNotInWorkspace
@@ -30,31 +27,6 @@ def test_create_node(mocked_signal, data_fixture):
 
     assert isinstance(node, LocalBaserowCreateRowActionNode)
     mocked_signal.send.assert_called_once_with(service, node=node, user=user)
-
-
-@pytest.mark.django_db
-def test_create_node_before(data_fixture):
-    user = data_fixture.create_user()
-    workflow = data_fixture.create_automation_workflow(user=user)
-    node1 = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow, order="1.0000"
-    )
-    node3 = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, order="2.0000"
-    )
-
-    node_type = automation_node_type_registry.get("create_row")
-    node2 = AutomationNodeService().create_node(
-        user,
-        node_type,
-        workflow=workflow,
-        before=node3,
-    )
-
-    nodes = AutomationNode.objects.all()
-    assert nodes[0].id == node1.id
-    assert nodes[1].id == node2.id
-    assert nodes[2].id == node3.id
 
 
 @pytest.mark.django_db
@@ -327,4 +299,116 @@ def test_duplicate_node_permission_error(data_fixture):
     assert str(e.value) == (
         f"User {another_user.email} doesn't belong to "
         f"workspace {workflow.automation.workspace}."
+    )
+
+
+@pytest.mark.django_db
+def test_replace_simple_node(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    node_type = automation_node_type_registry.get("update_row")
+
+    service = AutomationNodeService()
+    replace_result = service.replace_node(user, node.id, node_type.type)
+
+    assert workflow.automation_workflow_nodes.count() == 1
+    assert workflow.automation_workflow_nodes(manager="objects_and_trash").count() == 2
+
+    assert replace_result.node.id == workflow.automation_workflow_nodes.first().id
+    assert workflow.automation_workflow_nodes.first().get_type() == node_type
+    assert replace_result.original_node_id == node.id
+    assert replace_result.original_node_type == "create_row"
+
+
+@pytest.mark.django_db
+def test_replace_node_in_first(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    first_node = data_fixture.create_automation_node(user=user, workflow=workflow)
+    second_node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, previous_node=first_node
+    )
+    last_node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, previous_node=second_node
+    )
+
+    node_type = automation_node_type_registry.get("update_row")
+
+    service = AutomationNodeService()
+    replace_result = service.replace_node(user, first_node.id, node_type.type)
+
+    assert workflow.automation_workflow_nodes.count() == 3
+
+    second_node.refresh_from_db()
+    last_node.refresh_from_db()
+
+    assert replace_result.node.id == second_node.previous_node.id
+    assert replace_result.node.previous_node is None
+    assert last_node.previous_node.id == second_node.id
+
+    assert second_node.previous_node.get_type().type == "update_row"
+
+
+@pytest.mark.django_db
+def test_replace_node_in_middle(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    first_node = data_fixture.create_automation_node(user=user, workflow=workflow)
+    node_to_replace = data_fixture.create_automation_node(
+        user=user, workflow=workflow, previous_node=first_node
+    )
+    last_node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, previous_node=node_to_replace
+    )
+
+    node_type = automation_node_type_registry.get("update_row")
+
+    service = AutomationNodeService()
+    replace_result = service.replace_node(user, node_to_replace.id, node_type.type)
+
+    assert workflow.automation_workflow_nodes.count() == 3
+
+    last_node.refresh_from_db()
+    first_node.refresh_from_db()
+
+    assert replace_result.node.id == last_node.previous_node.id
+    assert replace_result.node.previous_node.id == first_node.id
+    assert first_node.previous_node is None
+
+    assert last_node.previous_node.get_type().type == "update_row"
+
+
+@pytest.mark.django_db
+def test_replace_node_in_last(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    first_node = data_fixture.create_automation_node(user=user, workflow=workflow)
+    second_node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, previous_node=first_node
+    )
+    last_node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, previous_node=second_node
+    )
+
+    node_type = automation_node_type_registry.get("update_row")
+
+    service = AutomationNodeService()
+    replace_result = service.replace_node(user, last_node.id, node_type.type)
+
+    assert workflow.automation_workflow_nodes.count() == 3
+
+    first_node.refresh_from_db()
+    second_node.refresh_from_db()
+
+    assert replace_result.node.previous_node.id == second_node.id
+    assert second_node.previous_node.id == first_node.id
+    assert first_node.previous_node is None
+
+    assert (
+        workflow.automation_workflow_nodes.get(previous_node=second_node)
+        .get_type()
+        .type
+        == "update_row"
     )

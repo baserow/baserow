@@ -29,6 +29,53 @@ def test_create_node(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_node_at_the_end(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node1 = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow,
+    )
+    node_type = automation_node_type_registry.get("create_row")
+
+    prepared_values = node_type.prepare_values({}, user)
+
+    node = AutomationNodeHandler().create_node(
+        node_type, workflow=workflow, **prepared_values
+    )
+
+    assert node.previous_node.id == node1.id
+
+
+@pytest.mark.django_db
+def test_create_node_applies_previous_node_id(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow
+    )
+    first = data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
+    second = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+    )
+
+    assert trigger.previous_node_id is None
+    assert first.previous_node_id == trigger.id
+    assert second.previous_node_id == first.id
+
+    before_second = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, before=second
+    )
+    trigger.refresh_from_db()
+    first.refresh_from_db()
+    second.refresh_from_db()
+
+    assert trigger.previous_node_id is None
+    assert first.previous_node_id == trigger.id
+    assert before_second.previous_node_id == first.id
+    assert second.previous_node_id == before_second.id
+
+
+@pytest.mark.django_db
 def test_get_nodes(data_fixture, django_assert_num_queries):
     node = data_fixture.create_local_baserow_rows_created_trigger_node()
     workflow = node.workflow
@@ -109,19 +156,6 @@ def test_export_prepared_values(data_fixture):
 
 
 @pytest.mark.django_db
-def test_delete_node(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user=user)
-    node = data_fixture.create_automation_node(user=user, workflow=workflow)
-
-    assert workflow.automation_workflow_nodes.count() == 1
-
-    AutomationNodeHandler().delete_node(user, node)
-
-    assert workflow.automation_workflow_nodes.count() == 0
-
-
-@pytest.mark.django_db
 def test_get_nodes_order(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
@@ -184,17 +218,22 @@ def test_order_nodes_invalid_node(data_fixture):
 def test_duplicate_node(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
-    node = data_fixture.create_automation_node(
-        user=user, workflow=workflow, previous_node_output="foo"
+    trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow
     )
-    assert node.previous_node_output == "foo"
+    action1 = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, previous_node_output="foo"
+    )
 
-    assert workflow.automation_workflow_nodes.count() == 1
-
-    new_node = AutomationNodeHandler().duplicate_node(node)
-    assert new_node.workflow == workflow
-    assert new_node.previous_node_output == "foo"
+    assert action1.previous_node_id == trigger.id
+    assert action1.previous_node_output == "foo"
     assert workflow.automation_workflow_nodes.count() == 2
+
+    action2 = AutomationNodeHandler().duplicate_node(action1)
+    assert action2.workflow == workflow
+    assert action2.previous_node_id == action1.id
+    assert action2.previous_node_output == "foo"
+    assert workflow.automation_workflow_nodes.count() == 3
 
 
 @pytest.mark.django_db

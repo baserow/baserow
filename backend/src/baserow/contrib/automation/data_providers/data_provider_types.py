@@ -45,18 +45,15 @@ class PreviousNodeProviderType(AutomationDataProviderType):
 
         previous_node_id, *rest = path
 
-        if "automation_workflow_nodes" in id_mapping:
-            try:
-                previous_node_id = id_mapping["automation_workflow_nodes"][
-                    int(previous_node_id)
-                ]
-                node = AutomationNodeHandler().get_node(previous_node_id)
-            except (KeyError, AutomationNodeDoesNotExist):
-                # In the event the `previous_node_id` is not found in the `id_mapping`,
-                # or if the previous node does not exist, we return the malformed path.
-                return [str(previous_node_id), *rest]
-
-            service_type = node.service.specific.get_type()
+        try:
+            new_node_id = id_mapping["automation_workflow_nodes"][int(previous_node_id)]
+            node = AutomationNodeHandler().get_node(new_node_id)
+        except (KeyError, AutomationNodeDoesNotExist):
+            # In the event the `previous_node_id` is not found in the `id_mapping`,
+            # or if the previous node does not exist, we return the malformed path.
+            return [str(previous_node_id), *rest]
+        else:
+            service_type = node.service.get_type()
             rest = service_type.import_context_path(rest, id_mapping)
 
-        return [str(previous_node_id), *rest]
+            return [str(new_node_id), *rest]

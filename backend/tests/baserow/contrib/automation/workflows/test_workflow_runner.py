@@ -35,10 +35,12 @@ def test_run_workflow_with_create_row_action(data_fixture):
     action_table_model = action_table.get_model()
     assert action_table_model.objects.count() == 0
 
-    AutomationWorkflowRunner().run(workflow, AutomationDispatchContext(workflow, {}))
+    dispatch_context = AutomationDispatchContext(workflow, {})
+    AutomationWorkflowRunner().run(workflow, dispatch_context)
 
     row = action_table_model.objects.first()
     assert getattr(row, action_table_field.db_column) == "Horse"
+    assert dispatch_context.dispatch_history == [action_node.id]
 
 
 @pytest.mark.django_db
@@ -72,10 +74,13 @@ def test_run_workflow_with_update_row_action(data_fixture):
     action_node.service.field_mappings.create(
         field=action_table_field, value="'Badger'"
     )
-    AutomationWorkflowRunner().run(workflow, AutomationDispatchContext(workflow, {}))
+
+    dispatch_context = AutomationDispatchContext(workflow, {})
+    AutomationWorkflowRunner().run(workflow, dispatch_context)
 
     action_table_row.refresh_from_db()
     assert getattr(action_table_row, action_table_field.db_column) == "Badger"
+    assert dispatch_context.dispatch_history == [action_node.id]
 
 
 @pytest.mark.django_db
@@ -98,7 +103,7 @@ def test_run_workflow_with_delete_row_action(data_fixture):
             integration=integration,
         ),
     )
-    data_fixture.create_local_baserow_delete_row_action_node(
+    action_node = data_fixture.create_local_baserow_delete_row_action_node(
         workflow=workflow,
         service=data_fixture.create_local_baserow_delete_row_service(
             table=action_table,
@@ -109,6 +114,8 @@ def test_run_workflow_with_delete_row_action(data_fixture):
 
     assert action_table.get_model().objects.all().count() == 1
 
-    AutomationWorkflowRunner().run(workflow, AutomationDispatchContext(workflow, {}))
+    dispatch_context = AutomationDispatchContext(workflow, {})
+    AutomationWorkflowRunner().run(workflow, dispatch_context)
 
     assert action_table.get_model().objects.all().count() == 0
+    assert dispatch_context.dispatch_history == [action_node.id]

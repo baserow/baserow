@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Union
 
-from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
@@ -15,31 +14,26 @@ from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
-    ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.storage import ExportZipFile
-from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
-    allowed_fields = [
-        "previous_node",
-        "previous_node_id",
-        "previous_node_output",
-        "service",
-    ]
+    allowed_fields = ["service", "previous_node_id", "previous_node_output"]
 
     def get_nodes(
         self,
         workflow: AutomationWorkflow,
         specific: Optional[bool] = True,
         base_queryset: Optional[QuerySet] = None,
+        with_cache: bool = True,
     ) -> Union[QuerySet[AutomationNode], Iterable[AutomationNode]]:
         """
         Returns all the nodes, filtered by a workflow.
@@ -48,33 +42,63 @@ class AutomationNodeHandler:
         :param specific: A boolean flag indicating whether to return the specific
             nodes and their services
         :param base_queryset: Optional base queryset to filter the results.
+        :param with_cache: Whether to return a cached value, if available.
         :return: A queryset or list of automation nodes.
         """
 
-        if base_queryset is None:
-            base_queryset = AutomationNode.objects.all()
+        def _get_nodes(base_queryset=base_queryset):
+            if base_queryset is None:
+                base_queryset = AutomationNode.objects.all()
 
-        nodes = base_queryset.select_related("workflow__automation__workspace").filter(
-            workflow=workflow
+            nodes = base_queryset.select_related(
+                "workflow__automation__workspace"
+            ).filter(workflow=workflow)
+
+            if specific:
+                nodes = specific_iterator(nodes.select_related("content_type"))
+                service_ids = [
+                    node.service_id for node in nodes if node.service_id is not None
+                ]
+                specific_services_map = {
+                    s.id: s
+                    for s in ServiceHandler().get_services(
+                        base_queryset=Service.objects.filter(id__in=service_ids)
+                    )
+                }
+                for node in nodes:
+                    service_id = node.service_id
+                    if service_id is not None and service_id in specific_services_map:
+                        node.service = specific_services_map[service_id]
+            return nodes
+
+        if with_cache and not base_queryset:
+            return local_cache.get(
+                f"wa_get_{workflow.id}_nodes_{specific}",
+                _get_nodes,
+            )
+        return _get_nodes()
+
+    def get_next_nodes(
+        self, workflow, node: None | AutomationNode, output_uid: str | None = None
+    ) -> Iterable["AutomationNode"]:
+        """
+        Returns all nodes which follow the given node in the workflow. A list of nodes
+        is returned as there can be multiple nodes that follow this one, for example
+        when there are multiple branches in the workflow.
+
+        :param workflow: filter nodes for this workflow.
+        :param node: this is the previous not. If null, first nodes are returned.
+        :param output_uid: filter nodes only for this output uid.
+        """
+
+        queryset = AutomationNode.objects.filter(
+            previous_node_id=node.id if node else None
         )
 
-        if specific:
-            nodes = specific_iterator(nodes.select_related("content_type"))
-            service_ids = [
-                node.service_id for node in nodes if node.service_id is not None
-            ]
-            specific_services_map = {
-                s.id: s
-                for s in ServiceHandler().get_services(
-                    base_queryset=Service.objects.filter(id__in=service_ids)
-                )
-            }
-            for node in nodes:
-                service_id = node.service_id
-                if service_id is not None and service_id in specific_services_map:
-                    node.service = specific_services_map[service_id]
+        if output_uid is not None:
+            queryset.filter(previous_node_output=output_uid)
 
-        return nodes
+        return self.get_nodes(workflow, base_queryset=queryset)
 
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
@@ -101,6 +125,18 @@ class AutomationNodeHandler:
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
+    def update_previous_node(self, new_previous_node, nodes):
+        """
+        Relink all nodes to the given new previous node.
+
+        :param new_previous_node: The new previous node.
+        :param nodes: The nodes to relink.
+        """
+
+        AutomationNode.objects.filter(id__in=[n.id for n in nodes]).update(
+            previous_node=new_previous_node
+        )
+
     def create_node(
         self,
         node_type: AutomationNodeType,
@@ -122,9 +158,29 @@ class AutomationNodeHandler:
             kwargs, self.allowed_fields + node_type.allowed_fields
         )
 
+        # Are we creating a node as a child of another node?
+        parent_node_id = allowed_prepared_values.get("parent_node_id", None)
+
+        nodes_to_relink = []
+
+        if before:
+            nodes_to_relink = list(
+                AutomationNode.objects.filter(previous_node_id=before.previous_node_id)
+            )
+
+        # If we don't already have a `previous_node_id` (users won't provide this)
+        if "previous_node_id" not in allowed_prepared_values:
+            # Figure out what the previous node ID should be. If we've been given a
+            # `before` node, then we'll use its previous node ID. If not, we'll use the
+            # last node ID of the workflow, which is the last node in the hierarchy.
+            allowed_prepared_values["previous_node_id"] = (
+                before.previous_node_id
+                if before
+                else AutomationWorkflow.get_last_node_id(workflow, parent_node_id)
+            )
+
         order = kwargs.pop("order", None)
         if before:
-            parent_node_id = allowed_prepared_values.get("parent_node_id", None)
             order = AutomationNode.get_unique_order_before_node(before, parent_node_id)
         elif not order:
             order = AutomationNode.get_last_order(workflow)
@@ -132,6 +188,11 @@ class AutomationNodeHandler:
         allowed_prepared_values["workflow"] = workflow
         node = node_type.model_class(order=order, **allowed_prepared_values)
         node.save()
+
+        # If we've created a node before another, then that node's
+        # previous node ID should be updated to point to the new node.
+        if nodes_to_relink:
+            self.update_previous_node(node, nodes_to_relink)
 
         return node
 
@@ -161,17 +222,6 @@ class AutomationNodeHandler:
             original_values=original_node_values,
             new_values=new_node_values,
         )
-
-    def delete_node(self, user: AbstractUser, node: AutomationNode) -> None:
-        """
-        Deletes the specified AutomationNode.
-
-        :param user: The user trying to delete the automation node.
-        :param node: The AutomationNode that must be deleted.
-        """
-
-        automation = node.workflow.automation
-        TrashHandler.trash(user, automation.workspace, automation, node)
 
     def get_nodes_order(self, workflow: AutomationWorkflow) -> List[int]:
         """
@@ -227,6 +277,9 @@ class AutomationNodeHandler:
         exported_node = self.export_node(node)
 
         exported_node["order"] = AutomationNode.get_last_order(node.workflow)
+        exported_node["previous_node_id"] = AutomationWorkflow.get_last_node_id(
+            node.workflow, node.parent_node_id
+        )
 
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["automation_workflow_nodes"] = MirrorDict()
@@ -238,36 +291,6 @@ class AutomationNodeHandler:
         )
 
         return new_node_clone
-
-    def replace_node(
-        self,
-        user: AbstractUser,
-        node: AutomationNode,
-        new_type: AutomationNodeType,
-        **kwargs,
-    ) -> ReplacedAutomationNode:
-        """
-        Replaces the `type` of an existing AutomationNode instance with a new type.
-
-        :param user: The user performing the replacement.
-        :param node: The AutomationNode that is being replaced.
-        :param new_type: The new AutomationNodeType to replace the existing node with.
-        :param kwargs: Additional keyword arguments that will be used to prepare the
-            new node's values.
-        :return: A ReplacedAutomationNode instance containing the new node and
-            information about the original node.
-        """
-
-        node_type = node.get_type()
-        self.delete_node(user, node)
-        prepared_values = new_type.prepare_values(kwargs, user)
-        new_node = self.create_node(new_type, node.workflow, **prepared_values)
-
-        return ReplacedAutomationNode(
-            node=new_node,
-            original_node_id=node.id,
-            original_node_type=node_type.type,
-        )
 
     def export_node(
         self,
@@ -365,9 +388,6 @@ class AutomationNodeHandler:
         *args: Any,
         **kwargs: Any,
     ) -> AutomationNode:
-        if "automation_workflow_nodes" not in id_mapping:
-            id_mapping["automation_workflow_nodes"] = {}
-
         node_type = automation_node_type_registry.get(serialized_node["type"])
 
         node_instance = node_type.import_serialized(
@@ -377,9 +397,5 @@ class AutomationNodeHandler:
             *args,
             **kwargs,
         )
-
-        id_mapping["automation_workflow_nodes"][
-            serialized_node["id"]
-        ] = node_instance.id
 
         return node_instance

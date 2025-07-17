@@ -13,6 +13,7 @@ from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandl
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_create_do(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
@@ -25,6 +26,7 @@ def test_create_do(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_create_undo(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
@@ -49,6 +51,7 @@ def test_create_undo(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_create_redo(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
@@ -75,6 +78,7 @@ def test_create_redo(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_update_do(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
@@ -91,6 +95,7 @@ def test_update_do(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_update_undo(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
@@ -120,6 +125,7 @@ def test_update_undo(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_update_redo(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
@@ -152,6 +158,7 @@ def test_update_redo(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_delete_do(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
@@ -166,6 +173,7 @@ def test_delete_do(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_delete_undo(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
@@ -193,6 +201,7 @@ def test_delete_undo(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_delete_redo(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
@@ -222,6 +231,7 @@ def test_delete_redo(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_duplicate_do(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(name="test", user=user)
@@ -237,6 +247,7 @@ def test_duplicate_do(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_duplicate_undo(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(name="test", user=user)
@@ -263,6 +274,7 @@ def test_duplicate_undo(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_duplicate_redo(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(name="test", user=user)
@@ -292,6 +304,7 @@ def test_duplicate_redo(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_order_do(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
@@ -314,6 +327,7 @@ def test_order_do(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_order_undo(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
@@ -346,6 +360,7 @@ def test_order_undo(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_order_redo(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
