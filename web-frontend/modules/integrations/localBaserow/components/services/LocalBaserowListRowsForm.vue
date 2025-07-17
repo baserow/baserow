@@ -22,7 +22,7 @@
     >
       <template #additional-buttons>
         <FormGroup
-          class="margin-top-2"
+          class="margin-top-1"
           small-label
           :label="$t('localBaserowListRowsForm.defaultResultCount')"
           :helper-text="$t('localBaserowListRowsForm.defaultResultCountHelp')"

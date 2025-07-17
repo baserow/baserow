@@ -14,12 +14,19 @@
 }
 
 .service-form__context {
-  &--filter {
-    width: 656px;
-  }
-
+  &--filter,
   &--sort {
-    width: 436px;
+    width: 660px;
+
+    .sortings__field {
+      flex: none;
+      flex-grow: 1;
+
+      .dropdown,
+      .dropdown__selected {
+        width: 100%;
+      }
+    }
   }
 
   &--search {
@@ -123,4 +130,9 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.service-form__filter-title {
+  font-size: 13px;
+  font-weight: 500;
 }

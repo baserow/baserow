@@ -2,25 +2,25 @@
   <div>
     <!-- Small screen: Buttons + Contexts -->
     <div v-if="small" class="service-form__filter-buttons">
+      <span class="service-form__filter-title">{{
+        $t('serviceRefinementForms.refinements')
+      }}</span>
       <!-- Filter Button -->
       <a
         v-if="showFilter"
         ref="filterContextLink"
         class="header__filter-link"
         :class="{
-          active: hasActiveFilters,
+          'active active--success': hasActiveFilters,
         }"
         @click="openContextWithContent('filter', $refs.filterContextLink)"
       >
         <i class="header__filter-icon iconoir-filter"></i>
         <span class="header__filter-name">{{
-          $t('serviceFormRefinements.filterTabTitle')
+          $tc('serviceRefinementForms.filterTabTitle', filterCount, {
+            count: filterCount,
+          })
         }}</span>
-        <BadgeCounter
-          v-if="filterCount > 0"
-          class="margin-left-1"
-          :count="filterCount"
-        />
       </a>
 
       <!-- Sort Button -->
@@ -29,19 +29,16 @@
         ref="sortContextLink"
         class="header__filter-link"
         :class="{
-          active: hasActiveSorts,
+          'active active--warning': hasActiveSorts,
         }"
         @click="openContextWithContent('sort', $refs.sortContextLink)"
       >
         <i class="header__filter-icon iconoir-sort"></i>
         <span class="header__filter-name">{{
-          $t('serviceFormRefinements.sortTabTitle')
+          $tc('serviceRefinementForms.sortTabTitle', sortCount, {
+            count: sortCount,
+          })
         }}</span>
-        <BadgeCounter
-          v-if="sortCount > 0"
-          class="margin-left-1"
-          :count="sortCount"
-        />
       </a>
 
       <!-- Search Button -->
@@ -50,15 +47,18 @@
         ref="searchContextLink"
         class="header__filter-link"
         :class="{
-          active: hasActiveSearch,
+          'active active--purple': hasActiveSearch,
         }"
         @click="openContextWithContent('search', $refs.searchContextLink)"
       >
         <i class="header__filter-icon iconoir-search"></i>
         <span class="header__filter-name">{{
-          $t('serviceFormRefinements.searchTabTitle')
+          $tc(
+            'serviceRefinementForms.searchTabTitle',
+            hasActiveSearch ? 1 : 0,
+            { count: 1 }
+          )
         }}</span>
-        <BadgeCounter v-if="hasActiveSearch" class="margin-left-1" :count="1" />
       </a>
 
       <!-- Additional Content Slot -->
@@ -74,7 +74,7 @@
       >
         <div class="service-form__context-content">
           <span class="service-form__context-title">
-            {{ $t('serviceFormRefinements.filterTabTitle') }}
+            {{ $tc('serviceRefinementForms.filterTabTitle', 0, { count: 0 }) }}
           </span>
           <LocalBaserowTableServiceConditionalForm
             v-if="values.table_id"
@@ -83,7 +83,7 @@
             :filter-type.sync="values.filter_type"
           />
           <p v-if="!values.table_id">
-            {{ $t('serviceFormRefinements.noTableChosenForFiltering') }}
+            {{ $t('serviceRefinementForms.noTableChosenForFiltering') }}
           </p>
         </div>
       </Context>
@@ -98,7 +98,7 @@
       >
         <div class="service-form__context-content">
           <span class="service-form__context-title">
-            {{ $t('serviceFormRefinements.sortTabTitle') }}
+            {{ $tc('serviceRefinementForms.sortTabTitle', 0, { count: 0 }) }}
           </span>
           <LocalBaserowTableServiceSortForm
             v-if="values.table_id"
@@ -106,7 +106,7 @@
             :fields="tableFields"
           />
           <p v-if="!values.table_id">
-            {{ $t('serviceFormRefinements.noTableChosenForSorting') }}
+            {{ $t('serviceRefinementForms.noTableChosenForSorting') }}
           </p>
         </div>
       </Context>
@@ -121,12 +121,12 @@
       >
         <div class="service-form__context-content">
           <span class="service-form__context-title">
-            {{ $t('serviceFormRefinements.searchTabTitle') }}
+            {{ $tc('serviceRefinementForms.searchTabTitle', 0, { count: 0 }) }}
           </span>
           <InjectedFormulaInput
             v-model="values.search_query"
             small
-            :placeholder="$t('serviceFormRefinements.searchFieldPlaceHolder')"
+            :placeholder="$t('serviceRefinementForms.searchFieldPlaceHolder')"
           />
         </div>
       </Context>
@@ -138,7 +138,7 @@
         <Tabs>
           <Tab
             v-if="showFilter"
-            :title="$t('serviceFormRefinements.filterTabTitle')"
+            :title="$t('serviceRefinementForms.filterTabTitle')"
             class="service-form__condition-form-tab"
           >
             <LocalBaserowTableServiceConditionalForm
@@ -148,12 +148,12 @@
               :filter-type.sync="values.filter_type"
             />
             <p v-if="!values.table_id">
-              {{ $t('serviceFormRefinements.noTableChosenForFiltering') }}
+              {{ $t('serviceRefinementForms.noTableChosenForFiltering') }}
             </p>
           </Tab>
           <Tab
             v-if="showSort"
-            :title="$t('serviceFormRefinements.sortTabTitle')"
+            :title="$t('serviceRefinementForms.sortTabTitle')"
             class="service-form__sort-form-tab"
           >
             <LocalBaserowTableServiceSortForm
@@ -162,19 +162,19 @@
               :fields="tableFields"
             />
             <p v-if="!values.table_id">
-              {{ $t('serviceFormRefinements.noTableChosenForSorting') }}
+              {{ $t('serviceRefinementForms.noTableChosenForSorting') }}
             </p>
           </Tab>
           <Tab
             v-if="showSearch"
-            :title="$t('serviceFormRefinements.searchTabTitle')"
+            :title="$t('serviceRefinementForms.searchTabTitle')"
             class="service-form__search-form-tab"
           >
             <FormGroup>
               <InjectedFormulaInput
                 v-model="values.search_query"
                 :placeholder="
-                  $t('serviceFormRefinements.searchFieldPlaceHolder')
+                  $t('serviceRefinementForms.searchFieldPlaceHolder')
                 "
               />
             </FormGroup>
@@ -195,7 +195,6 @@ import InjectedFormulaInput from '@baserow/modules/core/components/formula/Injec
 import Tabs from '@baserow/modules/core/components/Tabs'
 import Tab from '@baserow/modules/core/components/Tab'
 import FormGroup from '@baserow/modules/core/components/FormGroup'
-import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
 
 export default {
   name: 'ServiceRefinementForms',
@@ -207,7 +206,6 @@ export default {
     Tabs,
     Tab,
     FormGroup,
-    BadgeCounter,
   },
   props: {
     values: {
@@ -221,6 +219,11 @@ export default {
     small: {
       type: Boolean,
       required: true,
+    },
+    contextsAlignment: {
+      type: String,
+      default: 'left',
+      validator: (value) => ['left', 'right'].includes(value),
     },
     showFilter: {
       type: Boolean,
@@ -261,9 +264,9 @@ export default {
         case 'search':
           return -400
         case 'filter':
-          return -656
+          return -660
         case 'sort':
-          return -436
+          return -660
         default:
           return 0
       }
@@ -274,7 +277,7 @@ export default {
       this.$refs[contextRef].toggle(
         targetElement,
         'bottom',
-        'left',
+        this.contextsAlignment,
         -32,
         horizontalOffset - 30
       )
