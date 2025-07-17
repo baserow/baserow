@@ -138,7 +138,9 @@
         <Tabs>
           <Tab
             v-if="showFilter"
-            :title="$t('serviceRefinementForms.filterTabTitle')"
+            :title="
+              $tc('serviceRefinementForms.filterTabTitle', 0, { count: 0 })
+            "
             class="service-form__condition-form-tab"
           >
             <LocalBaserowTableServiceConditionalForm
@@ -153,7 +155,7 @@
           </Tab>
           <Tab
             v-if="showSort"
-            :title="$t('serviceRefinementForms.sortTabTitle')"
+            :title="$tc('serviceRefinementForms.sortTabTitle', 0, { count: 0 })"
             class="service-form__sort-form-tab"
           >
             <LocalBaserowTableServiceSortForm
@@ -167,7 +169,9 @@
           </Tab>
           <Tab
             v-if="showSearch"
-            :title="$t('serviceRefinementForms.searchTabTitle')"
+            :title="
+              $tc('serviceRefinementForms.searchTabTitle', 0, { count: 0 })
+            "
             class="service-form__search-form-tab"
           >
             <FormGroup>
