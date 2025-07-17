@@ -29,7 +29,7 @@
         ref="sortContextLink"
         class="header__filter-link"
         :class="{
-          'active active--warning': hasActiveSorts,
+          'active active--success': hasActiveSorts,
         }"
         @click="openContextWithContent('sort', $refs.sortContextLink)"
       >
@@ -47,7 +47,7 @@
         ref="searchContextLink"
         class="header__filter-link"
         :class="{
-          'active active--purple': hasActiveSearch,
+          'active active--success': hasActiveSearch,
         }"
         @click="openContextWithContent('search', $refs.searchContextLink)"
       >
@@ -224,11 +224,6 @@ export default {
       type: Boolean,
       required: true,
     },
-    contextsAlignment: {
-      type: String,
-      default: 'left',
-      validator: (value) => ['left', 'right'].includes(value),
-    },
     showFilter: {
       type: Boolean,
       default: false,
@@ -281,7 +276,7 @@ export default {
       this.$refs[contextRef].toggle(
         targetElement,
         'bottom',
-        this.contextsAlignment,
+        'left',
         -32,
         horizontalOffset - 30
       )
