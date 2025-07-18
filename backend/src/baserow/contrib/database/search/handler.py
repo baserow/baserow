@@ -538,6 +538,10 @@ class SearchHandler(
             None, all rows in the table will be considered.
         """
 
+        workspace_id = table.database.workspace_id
+        if workspace_id is None:
+            return
+
         field_ids = None
         if fields:
             field_ids = [f.id for f in fields]
@@ -566,6 +570,10 @@ class SearchHandler(
             all rows will be considered.
         """
 
+        workspace_id = table.database.workspace_id
+        if workspace_id is None:
+            return
+
         # extract the field IDs before the commit to ensure we have the correct IDs
         table_field_ids = [
             f.id for f in table.get_model().get_fields(include_trash=True)
@@ -575,7 +583,6 @@ class SearchHandler(
         else:
             field_ids = [fid for fid in set(field_ids) if fid in table_field_ids]
 
-        workspace_id = table.database.workspace_id
         transaction.on_commit(
             lambda: delete_search_data.delay(workspace_id, field_ids, row_ids)
         )
