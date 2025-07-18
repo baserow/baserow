@@ -392,6 +392,7 @@ export default (context) => {
 
   app.$registry.registerNamespace('viewDecorator')
   app.$registry.registerNamespace('decoratorValueProvider')
+  app.$registry.registerNamespace('twoWaySyncStrategy')
 
   app.$registry.register('plugin', new DatabasePlugin(context))
   app.$registry.register('application', new DatabaseApplicationType(context))

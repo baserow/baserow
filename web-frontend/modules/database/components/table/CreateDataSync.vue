@@ -57,14 +57,10 @@
       >
     </FormGroup>
     <FormGroup
+      v-if="twoWaySyncStrategy"
       small-label
       class="margin-top-2"
-      :helper-text="
-        $t(
-          'createDataSync.twoWaySyncHelper_' +
-            dataSyncType.twoWayDataSyncStrategy()
-        )
-      "
+      :helper-text="twoWaySyncStrategy.getDescription()"
     >
       <SwitchInput
         v-model="twoWaySync"
@@ -138,6 +134,14 @@ export default {
       return this.chosenType === ''
         ? null
         : this.$registry.get('dataSync', this.chosenType).getFormComponent()
+    },
+    twoWaySyncStrategy() {
+      const strategy = this.dataSyncType.getTwoWayDataSyncStrategy()
+      if (!strategy) {
+        return null
+      }
+
+      return this.$registry.get('twoWaySyncStrategy', strategy)
     },
   },
   watch: {

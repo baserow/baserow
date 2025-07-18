@@ -1,7 +1,6 @@
 import {
   DataSyncType,
   PostgreSQLDataSyncType as BasePostgreSQLDataSyncType,
-  TWO_WAY_DATA_SYNC_REALTIME_PUSH,
 } from '@baserow/modules/database/dataSyncTypes'
 
 import LocalBaserowTableDataSync from '@baserow_enterprise/components/dataSync/LocalBaserowTableDataSync'
@@ -12,6 +11,7 @@ import GitLabIssuesDataSyncForm from '@baserow_enterprise/components/dataSync/Gi
 import HubspotContactsDataSyncForm from '@baserow_enterprise/components/dataSync/HubspotContactsDataSyncForm'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { DataSyncPaidFeature } from '@baserow_enterprise/paidFeatures'
+import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
 
 export class LocalBaserowTableDataSyncType extends DataSyncType {
   static getType() {
@@ -164,11 +164,7 @@ export class HubspotContactsDataSyncType extends DataSyncType {
 }
 
 export class PostgreSQLDataSyncType extends BasePostgreSQLDataSyncType {
-  hasTwoWaySyncCompatibility() {
-    return true
-  }
-
-  twoWayDataSyncStrategy() {
-    return TWO_WAY_DATA_SYNC_REALTIME_PUSH
+  getTwoWayDataSyncStrategy() {
+    return RealtimePushTwoWaySyncStrategyType.getType()
   }
 }

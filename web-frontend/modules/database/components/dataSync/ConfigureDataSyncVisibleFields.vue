@@ -45,14 +45,10 @@
         >
       </FormGroup>
       <FormGroup
+        v-if="twoWaySyncStrategy"
         small-label
         class="margin-top-2"
-        :helper-text="
-          $t(
-            'createDataSync.twoWaySyncHelper_' +
-              dataSyncType.twoWayDataSyncStrategy()
-          )
-        "
+        :helper-text="twoWaySyncStrategy.getDescription()"
       >
         <SwitchInput
           v-model="twoWayDataSync"
@@ -131,6 +127,14 @@ export default {
   computed: {
     dataSyncType() {
       return this.$registry.get('dataSync', this.table.data_sync.type)
+    },
+    twoWaySyncStrategy() {
+      const strategy = this.dataSyncType.getTwoWayDataSyncStrategy()
+      if (!strategy) {
+        return null
+      }
+
+      return this.$registry.get('twoWaySyncStrategy', strategy)
     },
   },
   mounted() {

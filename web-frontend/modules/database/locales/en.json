@@ -1081,8 +1081,7 @@
     "error": "Something went wrong during the sync",
     "autoAddLabel": "Auto add new properties",
     "autoAddHelper": "Automatically adds and synchronizes newly available properties to the table. Note that in order for this to work, all properties must be synced.",
-    "twoWaySyncLabel": "Two-way sync",
-    "twoWaySyncHelper_realtime_push": "Allows editing the cell values directly in Baserow, and pushes them in real-time to the data sync source. Note that the changes are not pulled in real-time because they rely on the (periodic) sync action to complete."
+    "twoWaySyncLabel": "Two-way sync"
   },
   "syncTableModal": {
     "title": "Sync {name}",
