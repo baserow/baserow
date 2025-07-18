@@ -2219,6 +2219,20 @@ def test_formula_text_field_type_get_order_collate(data_fixture):
 
 @pytest.mark.django_db
 def test_formula_number_type_without_decimal_places(data_fixture):
+    """
+    Tests if a number formula field will be processed properly, if there's no
+    number_decimal_places value defined for the field.
+
+    See: https://gitlab.com/baserow/baserow/-/issues/3616
+
+    A FormulaField instance may end up in a state, where the type is set to `number`,
+    but there's no value in .number_decimal_places. This value is used in several
+    field operations, and `None` was causing an error.
+
+    While the cause of this invalid state is not entirely known, the fix works around
+    the missing part by replacing `None` with a number.
+    """
+
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     handler = FieldHandler()
@@ -2226,9 +2240,11 @@ def test_formula_number_type_without_decimal_places(data_fixture):
         user=user, table=table, name="1", type_name="formula", formula="1+1"
     )
 
-    # simulate error condition
+    # Simulate error condition - formula field is of type `number`, but it has no
+    # number_decimal_places value.
     formula_field.number_decimal_places = None
     formula_field.save()
 
-    # this should fail without a fix
+    # the fix in NumerFieldType.from_baserow_formula_type replaces `None` with `0`,
+    # otherwise the operation below would fail.
     FieldHandler().duplicate_field(user, formula_field, duplicate_data=True)
