@@ -20,7 +20,7 @@
         <Dropdown
           v-model="v$.values.single_select_default.$model"
           :fixed-items="true"
-          :disabled="defaultValueDisabled"
+          :disabled="isDisabled"
         >
           <DropdownItem key="empty-option" name="" :value="null" />
           <DropdownItem
@@ -30,6 +30,13 @@
             :value="option.id"
           />
         </Dropdown>
+        <div v-if="isDisabled" class="control__messages padding-top-0">
+          <p
+            class="control__helper-text control__helper-text--warning field-context__inner-element-width"
+          >
+            {{ $t('fieldForm.defaultValueDisabledByConstraint') }}
+          </p>
+        </div>
       </FormGroup>
     </template>
   </div>
@@ -42,13 +49,6 @@ import fieldOptionsSubForm from '@baserow/modules/database/mixins/fieldOptionsSu
 export default {
   name: 'FieldSingleSelectOptionsSubForm',
   mixins: [fieldOptionsSubForm],
-  props: {
-    defaultValueDisabled: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-  },
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
@@ -59,6 +59,14 @@ export default {
         single_select_default: null,
       },
     }
+  },
+  computed: {
+    isDisabled() {
+      return this.isDefaultValueFieldDisabled(
+        this.values.single_select_default,
+        this.formValues
+      )
+    },
   },
   validations() {
     return {
@@ -79,9 +87,6 @@ export default {
         }
       },
       deep: true,
-    },
-    'values.single_select_default'(newValue) {
-      this.updateParentDefaultValue(newValue)
     },
   },
 }

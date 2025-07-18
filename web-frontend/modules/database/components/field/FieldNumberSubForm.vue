@@ -78,11 +78,18 @@
         :error="fieldHasErrors('number_default')"
         type="text"
         :placeholder="$t('fieldNumberSubForm.defaultValuePlaceholder')"
-        :disabled="defaultValueDisabled"
+        :disabled="isDisabled"
         @focus="onDefaultValueFocus"
         @blur="onDefaultValueBlur"
         @keypress="onKeyPress"
       ></FormInput>
+      <div v-if="isDisabled" class="control__messages padding-top-0">
+        <p
+          class="control__helper-text control__helper-text--warning field-context__inner-element-width"
+        >
+          {{ $t('fieldForm.defaultValueDisabledByConstraint') }}
+        </p>
+      </div>
     </FormGroup>
   </div>
 </template>
@@ -104,11 +111,6 @@ export default {
       type: Boolean,
       required: false,
       default: true,
-    },
-    defaultValueDisabled: {
-      type: Boolean,
-      required: false,
-      default: false,
     },
   },
   setup() {
@@ -162,6 +164,12 @@ export default {
         number_negative: this.values.number_negative,
       }
     },
+    isDisabled() {
+      return this.isDefaultValueFieldDisabled(
+        this.values.number_default,
+        this.formValues
+      )
+    },
   },
   watch: {
     'values.number_negative': {
@@ -172,9 +180,6 @@ export default {
         }
       },
       immediate: true,
-    },
-    'values.number_default'(newValue) {
-      this.updateParentDefaultValue(newValue)
     },
     values: {
       handler() {

@@ -93,27 +93,16 @@
               ref="childForm"
               :table="table"
               :field-type="values.type"
+              :form-values="getFormValues()"
               :view="view"
               :primary="primary"
               :all-fields-in-table="allFieldsInTable"
               :name="values.name"
               :default-values="defaultValues"
               :database="database"
-              :default-value-disabled="defaultValueDisabled"
               @validate="v$.$touch"
               @suggested-field-name="handleSuggestedFieldName($event)"
             />
-
-            <div
-              v-if="defaultValueDisabled"
-              class="control__messages padding-top-0"
-            >
-              <p
-                class="control__helper-text control__helper-text--warning field-context__inner-element-width"
-              >
-                {{ $t('fieldForm.defaultValueDisabledByConstraint') }}
-              </p>
-            </div>
           </template>
           <FormGroup
             v-if="showDescription"
@@ -141,8 +130,7 @@
             :field="fieldForConstraints"
             :disabled="defaultValues.immutable_properties"
             :error="fieldConstraintError"
-            :default-value-disabled="defaultValueDisabled"
-            :field-default-value="fieldDefaultValue"
+            :form-values="getFormValues()"
           />
 
           <FormGroup
@@ -252,7 +240,6 @@ export default {
       selectedTabIndex: 0,
       dbIndexError: false,
       fieldConstraintError: null,
-      fieldDefaultValue: null,
     }
   },
   computed: {
@@ -301,26 +288,6 @@ export default {
         this.isPrefilledWithSuggestedFieldName
       )
     },
-    defaultValueDisabled() {
-      if (
-        !this.values.field_constraints ||
-        this.values.field_constraints.length === 0
-      ) {
-        return false
-      }
-
-      return this.values.field_constraints.some(
-        (constraint) =>
-          constraint.type_name &&
-          !this.$registry
-            .getSpecificConstraint(
-              'fieldConstraint',
-              constraint.type_name,
-              this.values.type
-            )
-            ?.canSupportDefaultValue()
-      )
-    },
   },
   watch: {
     // if the name field is empty or prefilled by a default value
@@ -335,7 +302,6 @@ export default {
         this.values.name = availableFieldName
       }
       this.isPrefilledWithSuggestedFieldName = false
-      this.fieldDefaultValue = null
 
       this.findAndSetCompatibleConstraints(newValueType)
     },

@@ -60,7 +60,7 @@
       :field="field"
       :disabled="disabled"
       :error="error"
-      :field-default-value="fieldDefaultValue"
+      :form-values="formValues"
       @input="$emit('input', $event)"
     />
   </div>
@@ -70,6 +70,7 @@
 import ButtonText from '@baserow/modules/core/components/ButtonText'
 import FormGroup from '@baserow/modules/core/components/FormGroup'
 import FieldConstraintItems from '@baserow/modules/database/components/field/FieldConstraintItems.vue'
+import { getFieldDefaultValue } from '@baserow/modules/database/utils/field'
 
 export default {
   name: 'FieldConstraintsSubForm',
@@ -77,6 +78,10 @@ export default {
   props: {
     value: {
       type: Array,
+      required: true,
+    },
+    formValues: {
+      type: Object,
       required: true,
     },
     field: {
@@ -90,11 +95,6 @@ export default {
     },
     error: {
       type: String,
-      required: false,
-      default: null,
-    },
-    fieldDefaultValue: {
-      type: [String, Number, Boolean, Object],
       required: false,
       default: null,
     },
@@ -122,6 +122,13 @@ export default {
       )
       return this.allowedConstraintTypes.every((constraintType) =>
         addedConstraintNames.includes(constraintType.getTypeName())
+      )
+    },
+    fieldDefaultValue() {
+      return getFieldDefaultValue(
+        this.formValues,
+        this.field.type,
+        this.$registry
       )
     },
     hasConflictingConstraints() {

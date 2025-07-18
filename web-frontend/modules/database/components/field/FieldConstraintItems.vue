@@ -17,6 +17,7 @@
 
 <script>
 import FieldConstraintItem from '@baserow/modules/database/components/field/FieldConstraintItem.vue'
+import { getFieldDefaultValue } from '@baserow/modules/database/utils/field'
 
 export default {
   name: 'FieldConstraintItems',
@@ -40,10 +41,9 @@ export default {
       required: false,
       default: null,
     },
-    fieldDefaultValue: {
-      type: [String, Number, Boolean, Object],
-      required: false,
-      default: null,
+    formValues: {
+      type: Object,
+      required: true,
     },
   },
   computed: {
@@ -64,6 +64,13 @@ export default {
           .getCompatibleFieldTypes()
           .includes(this.field.type)
       })
+    },
+    fieldDefaultValue() {
+      return getFieldDefaultValue(
+        this.formValues,
+        this.field.type,
+        this.$registry
+      )
     },
   },
   methods: {
