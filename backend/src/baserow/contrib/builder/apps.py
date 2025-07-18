@@ -327,6 +327,12 @@ class BuilderConfig(AppConfig):
 
         connect_to_data_source_pre_delete_signal()
 
+        from baserow.contrib.builder.workflow_actions.receivers import (
+            connect_to_builder_workflow_action_pre_delete_signal,
+        )
+
+        connect_to_builder_workflow_action_pre_delete_signal()
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.builder.signals  # noqa: F403, F401
