@@ -622,7 +622,8 @@
         "readonlyFieldMessage": "읽기 전용 필드에는 제약 조건을 적용할 수 없습니다.",
         "errorGenericData": "기존 데이터 충돌로 인해 필드 제약 조건을 적용할 수 없습니다.",
         "errorUniqueOrEmpty": "이 필드의 일부 값이 중복되었습니다. 이 제약 조건을 적용하기 전에 중복된 값을 제거하거나 편집하세요.",
-        "errorInvalidConstraint": "이 필드 제약조건은 이 필드 유형에 지원되지 않습니다."
+        "errorInvalidConstraint": "이 필드 제약조건은 이 필드 유형에 지원되지 않습니다.",
+        "errorDoesNotSupportDefaultValue": "기본값이 설정되어 있으면 이 제약 조건을 설정할 수 없습니다."
     },
     "fieldConstraintParametersText": {
         "placeholder": "제약 조건 값을 입력하세요"
