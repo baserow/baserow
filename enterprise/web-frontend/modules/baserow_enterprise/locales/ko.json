@@ -496,7 +496,9 @@
         "triggerWhenRowsEnterView": "행이 뷰에 진입할 때 작동합니다."
     },
     "chartWidget": {
-        "name": "차트"
+        "name": "차트",
+        "bar": "막대형 차트",
+        "line": "선형 차트"
     },
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "필드",
