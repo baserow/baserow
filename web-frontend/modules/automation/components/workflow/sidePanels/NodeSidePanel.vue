@@ -8,6 +8,7 @@
   >
     <component
       :is="nodeType.formComponent"
+      ref="formComponent"
       :key="node.id"
       small
       :loading="nodeLoading"
@@ -29,7 +30,7 @@ import {
   useContext,
   computed,
 } from '@nuxtjs/composition-api'
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AutomationBuilderFormulaInput from '@baserow/modules/automation/components/AutomationBuilderFormulaInput'
 import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation/enums'
@@ -73,7 +74,11 @@ const nodeType = computed(() => {
   return app.$registry.get('node', node.value.type)
 })
 
+const formComponent = ref(null)
 const handleNodeServiceChange = async (newServiceChanges) => {
+  if (!formComponent.value?.isFormValid()) {
+    return
+  }
   const differences = Object.fromEntries(
     Object.entries(newServiceChanges).filter(
       ([key, value]) => !_.isEqual(value, node.value.service[key])
