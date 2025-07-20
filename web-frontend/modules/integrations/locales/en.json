@@ -35,6 +35,9 @@
     "coreHTTPRequestDescription": "Sends an HTTP request to a specified endpoint.",
     "coreSMTPEmail": "Send Email",
     "coreRouter": "Router",
+    "coreRouterEdgesRequired": "At least one edge is required",
+    "coreRouterEdgeLabelRequired": "A branch label is required.",
+    "coreRouterEdgeConditionRequired": "A branch condition is required.",
     "coreRouterDescription": "Routes the workflow to the next step based on conditions.",
     "coreSMTPEmailDescription": "Sends an email using SMTP configuration.",
     "errorFromEmailMissing": "Missing From Email property",
@@ -176,5 +179,16 @@
     "bodyTypeHtml": "HTML",
     "body": "Body",
     "bodyPlaceholder": "Your email content..."
+  },
+  "routerForm": {
+    "defaultEdgeLabelLabel": "Default branch label",
+    "defaultEdgeLabelPlaceholder": "Default",
+    "branchesHeading": "Branches",
+    "branchLabel": "Label",
+    "branchConditionLabel": "Condition",
+    "branchConditionPlaceholder": "Enter condition...",
+    "addEdge": "Add branch",
+    "edgeDefaultName": "Branch",
+    "noLabel": "No label"
   }
 }
