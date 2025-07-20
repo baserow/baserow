@@ -1,6 +1,7 @@
 <template>
   <form @submit.prevent>
     <LocalBaserowServiceForm
+      ref="serviceForm"
       :application="application"
       :default-values="defaultValues"
       :enable-view-picker="false"
@@ -35,7 +36,14 @@ export default defineComponent({
       emit('values-changed', newValues)
     }
 
+    const serviceForm = ref(null)
+    const isFormValid = (deep) => {
+      return serviceForm.value?.isFormValid(deep)
+    }
+
     return {
+      serviceForm,
+      isFormValid,
       defaultValues,
       emitServiceChange,
     }
