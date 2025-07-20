@@ -19,6 +19,7 @@ from baserow.contrib.integrations.core.models import (
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
+    CoreRouterServiceEdge,
 )
 from baserow.core.formula.validator import ensure_array, ensure_email, ensure_string, ensure_boolean
 from baserow.core.registry import Instance
@@ -827,11 +828,16 @@ class CoreSMTPEmailServiceType(ServiceType):
 class CoreRouterServiceType(ServiceType):
     type = "router"
     model_class = CoreRouterService
+    allowed_fields = ["default_edge_label"]
     dispatch_type = DispatchTypes.DISPATCH_TRIGGER
-    serializer_field_names = ["edges"]
+    serializer_field_names = ["default_edge_label", "edges"]
 
     class SerializedDict(ServiceDict):
         edges: List[Dict]
+        default_edge_label: str
+
+    def enhance_queryset(self, queryset):
+        return super().enhance_queryset(queryset).prefetch_related("edges")
 
     @property
     def serializer_field_overrides(self):
@@ -889,6 +895,32 @@ class CoreRouterServiceType(ServiceType):
                 edge.condition = new_formula
                 yield edge
 
+    def after_update(
+        self,
+        instance: CoreRouterService,
+        values: Dict,
+        changes: Dict[str, Tuple],
+    ) -> None:
+        """
+        Responsible for updating router edges which have been PATCHED.
+
+        :param instance: The service we want to manage edges for.
+        :param values: A dictionary which may contain edges.
+        :param changes: A dictionary containing all changes which were made to the
+            service prior to `after_update` being called.
+        """
+
+        super().after_update(instance, values, changes)
+
+        if "edges" in values:
+            instance.edges.all().delete()
+            CoreRouterServiceEdge.objects.bulk_create(
+                [
+                    CoreRouterServiceEdge(**edge, service=instance, order=index)
+                    for index, edge in enumerate(values["edges"])
+                ]
+            )
+
     def dispatch_data(
         self,
         service: CoreRouterService,
@@ -919,7 +951,7 @@ class CoreRouterServiceType(ServiceType):
                 )
                 if condition_result:
                     return {
-                        "output_uid": edge.uid,
+                        "output_uid": str(edge.uid),
                         "data": {"label": edge.label},
                     }
             except BaserowFormulaException as e:
