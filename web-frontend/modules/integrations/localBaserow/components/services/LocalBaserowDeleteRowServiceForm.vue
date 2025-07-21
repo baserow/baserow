@@ -1,5 +1,10 @@
 <template>
-  <LocalBaserowServiceForm enable-row-id v-bind="$attrs" v-on="$listeners" />
+  <LocalBaserowServiceForm
+    enable-row-id
+    v-bind="$attrs"
+    :enable-view-picker="false"
+    v-on="$listeners"
+  />
 </template>
 
 <script>

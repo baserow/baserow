@@ -20,6 +20,7 @@
       :view-id.sync="values.view_id"
       disallow-data-synced-tables
       :databases="databases"
+      :display-view-dropdown="enableViewPicker"
     />
     <FormGroup
       v-if="enableRowId && values.integration_id"
@@ -69,6 +70,16 @@ export default {
       default: false,
     },
     /**
+     * Whether to show the view picker or not.
+     * By default, we do show it, but in some cases,
+     * we don't want to allow the user to select a view.
+     */
+    enableViewPicker: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
+    /**
      * Whether to show the integration picker or not.
      * By default, we show it, but in some cases, we've
      * already collected the integration ID.
@@ -80,11 +91,15 @@ export default {
     },
   },
   data() {
-    const values = { table_id: null, view_id: null, integration_id: null }
-    const allowedValues = ['table_id', 'view_id', 'integration_id']
+    const values = { table_id: null, integration_id: null }
+    const allowedValues = ['table_id', 'integration_id']
     if (this.enableRowId) {
       values.row_id = null
       allowedValues.push('row_id')
+    }
+    if (this.enableViewPicker) {
+      values.view_id = null
+      allowedValues.push('view_id')
     }
     return {
       values,

@@ -3,6 +3,7 @@
     <LocalBaserowServiceForm
       :application="application"
       :default-values="defaultValues"
+      :enable-view-picker="false"
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
   </form>
