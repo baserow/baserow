@@ -798,7 +798,7 @@ class NumberFieldType(FieldType):
         self, formula_type: BaserowFormulaNumberType
     ) -> NumberField:
         return NumberField(
-            number_decimal_places=formula_type.number_decimal_places,
+            number_decimal_places=formula_type.number_decimal_places or 0,
             number_negative=True,
             number_prefix=formula_type.number_prefix,
             number_suffix=formula_type.number_suffix,
