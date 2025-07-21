@@ -6,7 +6,6 @@
           <LocalBaserowServiceForm
             :application="application"
             :default-values="defaultValues"
-            :enable-view-picker="enableViewPicker"
             :enable-integration-picker="enableIntegrationPicker"
             @values-changed="values = { ...values, ...$event }"
           ></LocalBaserowServiceForm>

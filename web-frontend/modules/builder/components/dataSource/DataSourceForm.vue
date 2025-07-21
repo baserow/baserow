@@ -62,7 +62,6 @@
       <component
         :is="serviceType.formComponent"
         ref="subForm"
-        enable-view-picker
         :application="builder"
         :service="dataSource"
         :default-values="defaultValues"
