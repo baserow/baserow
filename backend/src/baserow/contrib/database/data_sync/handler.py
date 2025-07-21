@@ -41,7 +41,7 @@ from .exceptions import (
 )
 from .models import DataSync, DataSyncSyncedProperty
 from .operations import SyncTableOperationType
-from .registries import data_sync_type_registry
+from .registries import data_sync_type_registry, two_way_sync_strategy_type_registry
 
 
 class DataSyncHandler:
@@ -120,10 +120,16 @@ class DataSyncHandler:
         values = data_sync_type.prepare_values(user, values)
 
         # Validate two-way sync support
-        if values.get("two_way_sync") and not data_sync_type.two_way_sync_strategy_type:
-            raise TwoWayDataSyncNotSupported(
-                "Two-way sync is not supported for this data sync type."
+        if values.get("two_way_sync"):
+            strategy_type = data_sync_type.two_way_sync_strategy_type
+            if not strategy_type:
+                raise TwoWayDataSyncNotSupported(
+                    "Two-way sync is not supported for this data sync type."
+                )
+            two_way_sync_strategy = two_way_sync_strategy_type_registry.get(
+                strategy_type
             )
+            two_way_sync_strategy.before_enable(database.workspace)
 
         # Create an empty table where we're going to sync the data into, and add it to
         # the values, so that it already can be used in the `get_properties` method.
@@ -242,14 +248,16 @@ class DataSyncHandler:
         ] + data_sync_type.allowed_fields
 
         # Validate two-way sync support before setting attributes
-        if (
-            "two_way_sync" in kwargs
-            and kwargs["two_way_sync"]
-            and not data_sync_type.two_way_sync_strategy_type
-        ):
-            raise TwoWayDataSyncNotSupported(
-                "Two-way sync is not supported for this data sync type."
+        if "two_way_sync" in kwargs and kwargs["two_way_sync"]:
+            strategy_type = data_sync_type.two_way_sync_strategy_type
+            if not strategy_type:
+                raise TwoWayDataSyncNotSupported(
+                    "Two-way sync is not supported for this data sync type."
+                )
+            two_way_sync_strategy = two_way_sync_strategy_type_registry.get(
+                strategy_type
             )
+            two_way_sync_strategy.before_enable(data_sync.table.database.workspace)
 
         data_sync = set_allowed_attrs(kwargs, allowed_fields, data_sync)
         data_sync.save()

@@ -382,6 +382,12 @@ class TwoWaySyncStrategy(Instance, ABC):
     when the data is updated. It could for make changes in real-time or queue them up.
     """
 
+    def before_enable(self):
+        """
+        Hook that is called before a two-way sync is created or updated, and the two-way
+        sync is enabled.
+        """
+
     def rows_created(self, serialized_rows: List[dict], data_sync: DataSync):
         """
         Called when rows are created in the data sync table. These are by default

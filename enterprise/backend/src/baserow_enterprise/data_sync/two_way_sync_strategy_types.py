@@ -1,10 +1,13 @@
 from django.db import transaction
 
+from baserow_premium.license.handler import LicenseHandler
+
 from baserow.contrib.database.data_sync.registries import (
     TwoWaySyncStrategy,
     data_sync_type_registry,
 )
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow_enterprise.features import DATA_SYNC
 
 
 class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
@@ -20,6 +23,9 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
     """
 
     type = "realtime_push"
+
+    def before_enable(self, workspace):
+        LicenseHandler.raise_if_workspace_doesnt_have_feature(DATA_SYNC, workspace)
 
     def rows_created(self, serialized_rows, data_sync):
         data_sync_type = data_sync_type_registry.get_by_model(data_sync.specific_class)
