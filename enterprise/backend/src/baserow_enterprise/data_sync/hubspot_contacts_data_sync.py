@@ -11,7 +11,6 @@ from baserow.contrib.database.data_sync.registries import DataSyncProperty, Data
 from baserow.contrib.database.data_sync.utils import (
     SourceOption,
     compare_date,
-    handle_license_loss,
     update_baserow_field_select_options,
 )
 from baserow.contrib.database.fields.models import (
@@ -193,18 +192,17 @@ class HubspotContactsDataSyncType(DataSyncType):
     def prepare_sync_job_values(self, instance):
         # Raise the error so that the job doesn't start and the user is informed with
         # the correct error.
-        if instance.table_id:
-            LicenseHandler.raise_if_workspace_doesnt_have_feature(
-                DATA_SYNC, instance.table.database.workspace
-            )
+        LicenseHandler.raise_if_workspace_doesnt_have_feature(
+            DATA_SYNC, instance.table.database.workspace
+        )
 
     def get_properties(self, instance):
         # The `table_id` is not set if when just listing the properties using the
         # `DataSyncPropertiesView` endpoint, but it will be set when creating the view.
-        if instance.table_id and not LicenseHandler.workspace_has_feature(
-            DATA_SYNC, instance.table.database.workspace
-        ):
-            handle_license_loss(instance)
+        if instance.table_id:
+            LicenseHandler.raise_if_workspace_doesnt_have_feature(
+                DATA_SYNC, instance.table.database.workspace
+            )
 
         try:
             # This endpoint responds with all the available contact properties and

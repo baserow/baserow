@@ -501,7 +501,7 @@
   },
   "periodicDataSyncDeactivatedNotification": {
     "failure": "{name} periodic data sync has been deactivated because it failed too many times consecutively.",
-    "licenseLoss": "{name} periodic data sync has been disabled because the workspace no longer has a valid license. Please update your license to restore automatic syncing."
+    "licenseUnavailable": "{name} periodic data sync has been disabled because the workspace no longer has a valid license. Please update your license to restore automatic syncing."
   },
   "webhook": {
     "rowsEnterVieweventType": "Rows enter view"

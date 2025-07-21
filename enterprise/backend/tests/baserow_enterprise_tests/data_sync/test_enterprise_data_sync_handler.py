@@ -20,7 +20,7 @@ from baserow_enterprise.data_sync.models import (
     DATA_SYNC_INTERVAL_DAILY,
     DATA_SYNC_INTERVAL_MANUAL,
     DEACTIVATION_REASON_FAILURE,
-    DEACTIVATION_REASON_LICENSE_LOST,
+    DEACTIVATION_REASON_LICENSE_UNAVAILABLE,
     PeriodicDataSyncInterval,
 )
 from baserow_enterprise.data_sync.notification_types import (
@@ -773,7 +773,10 @@ def test_periodic_sync_disabled_on_license_loss_sends_notification(
     periodic_data_sync.refresh_from_db()
     assert periodic_data_sync.interval == DATA_SYNC_INTERVAL_MANUAL
     assert periodic_data_sync.automatically_deactivated is True
-    assert periodic_data_sync.deactivation_reason == DEACTIVATION_REASON_LICENSE_LOST
+    assert (
+        periodic_data_sync.deactivation_reason
+        == DEACTIVATION_REASON_LICENSE_UNAVAILABLE
+    )
 
     notifications = Notification.objects.filter(
         type=PeriodicDataSyncDeactivatedNotificationType.type
@@ -783,7 +786,10 @@ def test_periodic_sync_disabled_on_license_loss_sends_notification(
     notification_data = notifications[0].data
     assert notification_data["data_sync_id"] == periodic_data_sync.data_sync_id
     assert notification_data["table_name"] == periodic_data_sync.data_sync.table.name
-    assert notification_data["deactivation_reason"] == DEACTIVATION_REASON_LICENSE_LOST
+    assert (
+        notification_data["deactivation_reason"]
+        == DEACTIVATION_REASON_LICENSE_UNAVAILABLE
+    )
 
 
 @pytest.mark.django_db

@@ -11,7 +11,7 @@ from baserow.core.notifications.registries import (
     NotificationType,
 )
 
-from .models import DEACTIVATION_REASON_LICENSE_LOST, PeriodicDataSyncInterval
+from .models import DEACTIVATION_REASON_LICENSE_UNAVAILABLE, PeriodicDataSyncInterval
 
 
 @dataclass
@@ -72,7 +72,7 @@ class PeriodicDataSyncDeactivatedNotificationType(
     @classmethod
     def get_notification_description_for_email(cls, notification, context):
         deactivation_reason = notification.data.get("deactivation_reason")
-        if deactivation_reason == DEACTIVATION_REASON_LICENSE_LOST:
+        if deactivation_reason == DEACTIVATION_REASON_LICENSE_UNAVAILABLE:
             return _(
                 "The periodic data sync has been disabled because the workspace "
                 "no longer has a valid license for data sync features. "

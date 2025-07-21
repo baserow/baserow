@@ -2,10 +2,6 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import List
 
-from django.db import transaction
-
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
-
 from baserow.contrib.database.fields.models import Field, SelectOption
 
 
@@ -117,39 +113,3 @@ def update_baserow_field_select_options(
         SelectOption.objects.filter(id__in=to_delete_ids).delete()
 
     return select_options_mapping
-
-
-def handle_license_loss(instance):
-    """
-    Handle license loss by disabling periodic sync and sending notifications
-    to the authorized user.
-
-    :param instance: The data sync instance that lost license access
-    """
-
-    from baserow_enterprise.data_sync.models import (
-        DATA_SYNC_INTERVAL_MANUAL,
-        DEACTIVATION_REASON_LICENSE_LOST,
-        PeriodicDataSyncInterval,
-    )
-    from baserow_enterprise.data_sync.notification_types import (
-        PeriodicDataSyncDeactivatedNotificationType,
-    )
-
-    try:
-        periodic_interval = PeriodicDataSyncInterval.objects.get(data_sync=instance)
-        if periodic_interval.interval != DATA_SYNC_INTERVAL_MANUAL:
-            periodic_interval.interval = DATA_SYNC_INTERVAL_MANUAL
-            periodic_interval.automatically_deactivated = True
-            periodic_interval.deactivation_reason = DEACTIVATION_REASON_LICENSE_LOST
-            periodic_interval.save()
-
-            transaction.on_commit(
-                lambda: PeriodicDataSyncDeactivatedNotificationType.notify_authorized_user(
-                    periodic_interval
-                )
-            )
-    except (PeriodicDataSyncInterval.DoesNotExist, ValueError):
-        pass
-
-    raise FeaturesNotAvailableError()

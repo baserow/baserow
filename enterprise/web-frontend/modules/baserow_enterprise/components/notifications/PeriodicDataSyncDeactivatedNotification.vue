@@ -1,14 +1,14 @@
 <template>
   <nuxt-link
     class="notification-panel__notification-link"
-    :to="route"
+    :to="isLicenseUnavailable ? '' : route"
     @click.native="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
       <i18n
         :path="
-          isLicenseLoss
-            ? 'periodicDataSyncDeactivatedNotification.licenseLoss'
+          isLicenseUnavailable
+            ? 'periodicDataSyncDeactivatedNotification.licenseUnavailable'
             : 'periodicDataSyncDeactivatedNotification.failure'
         "
         tag="span"
@@ -28,8 +28,10 @@ export default {
   name: 'PeriodicDataSyncDeactivatedNotification',
   mixins: [notificationContent],
   computed: {
-    isLicenseLoss() {
-      return this.notification.data.deactivation_reason === 'LICENSE_LOST'
+    isLicenseUnavailable() {
+      return (
+        this.notification.data.deactivation_reason === 'LICENSE_UNAVAILABLE'
+      )
     },
   },
   methods: {

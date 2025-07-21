@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-29 15:40+0000\n"
+"POT-Creation-Date: 2025-07-25 07:49+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -71,16 +71,23 @@ msgstr ""
 msgid "Data sync table \"%(table_name)s\" (%(table_id)s) updated"
 msgstr ""
 
-#: src/baserow_enterprise/data_sync/notification_types.py:66
+#: src/baserow_enterprise/data_sync/notification_types.py:68
 #, python-format
 msgid "%(name)s periodic data sync has been deactivated."
 msgstr ""
 
-#: src/baserow_enterprise/data_sync/notification_types.py:73
+#: src/baserow_enterprise/data_sync/notification_types.py:77
+msgid ""
+"The periodic data sync has been disabled because the workspace no longer has "
+"a valid license for data sync features. Please update your license to "
+"restore automatic syncing."
+msgstr ""
+
+#: src/baserow_enterprise/data_sync/notification_types.py:83
 #, python-format
 msgid ""
-"The periodic data sync failed more than %(max_failures)s consecutive "
-"timesand was therefore deactivated."
+"The periodic data sync failed more than %(max_failures)s consecutive times "
+"and was therefore deactivated."
 msgstr ""
 
 #: src/baserow_enterprise/field_permissions/actions.py:25

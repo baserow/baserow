@@ -22,7 +22,7 @@ from baserow_enterprise.data_sync.models import (
     DATA_SYNC_INTERVAL_HOURLY,
     DATA_SYNC_INTERVAL_MANUAL,
     DEACTIVATION_REASON_FAILURE,
-    DEACTIVATION_REASON_LICENSE_LOST,
+    DEACTIVATION_REASON_LICENSE_UNAVAILABLE,
     PeriodicDataSyncInterval,
 )
 from baserow_enterprise.features import DATA_SYNC
@@ -165,13 +165,12 @@ class EnterpriseDataSyncHandler:
                         lambda: sync_periodic_data_sync.delay(periodic_data_sync.id)
                     )
             else:
-                if periodic_data_sync.interval != DATA_SYNC_INTERVAL_MANUAL:
-                    periodic_data_sync.interval = DATA_SYNC_INTERVAL_MANUAL
-                    periodic_data_sync.automatically_deactivated = True
-                    periodic_data_sync.deactivation_reason = (
-                        DEACTIVATION_REASON_LICENSE_LOST
-                    )
-                    periodic_syncs_to_disable.append(periodic_data_sync)
+                periodic_data_sync.interval = DATA_SYNC_INTERVAL_MANUAL
+                periodic_data_sync.automatically_deactivated = True
+                periodic_data_sync.deactivation_reason = (
+                    DEACTIVATION_REASON_LICENSE_UNAVAILABLE
+                )
+                periodic_syncs_to_disable.append(periodic_data_sync)
 
         # Update the last periodic sync so the periodic sync won't be triggerd the next
         # time this method is called.
