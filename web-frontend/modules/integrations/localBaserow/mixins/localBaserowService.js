@@ -28,6 +28,16 @@ export default {
       default: false,
     },
     /**
+     * Determines whether the view picker is enabled in this service form.
+     * If enabled, the user can select a view to use for this service.
+     * By default, it is disabled.
+     */
+    enableViewPicker: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    /**
      * Determines whether the integration picker is enabled in this service form.
      * If enabled, the user can select an integration to use for this service.
      * By default, it is disabled.

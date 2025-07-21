@@ -6,6 +6,7 @@
           <LocalBaserowServiceForm
             :application="application"
             :default-values="defaultValues"
+            :enable-view-picker="enableViewPicker"
             :enable-integration-picker="enableIntegrationPicker"
             @values-changed="values = { ...values, ...$event }"
           ></LocalBaserowServiceForm>
@@ -35,7 +36,7 @@
         :values="values"
         :table-fields="tableFields"
         show-filter
-        show-search="true"
+        show-search
       />
       <div v-if="fieldsLoading" class="loading-spinner"></div>
     </div>
