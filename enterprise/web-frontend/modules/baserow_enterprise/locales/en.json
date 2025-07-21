@@ -301,7 +301,7 @@
     "auditLogs": "Audit logs",
     "auditLogsContent": "Track everything that happens. View a full history of actions across your instance or workspace, filterable by user, action, and more.",
     "dataSync": "Data sync",
-    "dataSyncContent": "Automatically keep tables up to date by syncing with other Baserow tables, or external sources like Jira, GitHub, GitLab, or HubSpot.",
+    "dataSyncContent": "Automatically keep tables up to date by syncing with other Baserow tables, or external sources like Jira, GitHub, GitLab, or HubSpot. It also allows to sync periodically, and enables two-way data sync for supported data sync types.",
     "coBranding": "Co-branding logo replacement",
     "coBrandingContent": "Customize the Baserow interface with your own logo. Note that \"powered by Baserow\" is added.",
     "support": "Direct support",

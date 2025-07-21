@@ -66,11 +66,19 @@
         v-model="twoWaySync"
         class="margin-top-2"
         small
-        :disabled="jobIsRunning || jobHasSucceeded"
+        :disabled="jobIsRunning || jobHasSucceeded || isTwoWaySyncDeactivated"
+        @click="clickTwoWaySync"
       >
-        {{ $t('createDataSync.twoWaySyncLabel') }}</SwitchInput
-      >
+        {{ $t('createDataSync.twoWaySyncLabel') }}
+        <i v-if="isTwoWaySyncDeactivated" class="iconoir-lock"></i>
+      </SwitchInput>
     </FormGroup>
+    <component
+      :is="twoWaySyncDeactivatedModal[0]"
+      v-if="twoWaySyncDeactivatedModal !== null"
+      ref="twoWaySyncDeactivatedModal"
+      v-bind="twoWaySyncDeactivatedModal[1]"
+    ></component>
     <Error :error="error"></Error>
     <div class="modal-progress__actions margin-top-2">
       <ProgressBar
@@ -143,6 +151,18 @@ export default {
 
       return this.$registry.get('twoWaySyncStrategy', strategy)
     },
+    isTwoWaySyncDeactivated() {
+      if (!this.twoWaySyncStrategy) {
+        return true
+      }
+      return this.twoWaySyncStrategy.isDeactivated(this.database.workspace.id)
+    },
+    twoWaySyncDeactivatedModal() {
+      if (!this.twoWaySyncStrategy) {
+        return null
+      }
+      return this.twoWaySyncStrategy.getDeactivatedClickModal()
+    },
   },
   watch: {
     chosenType(newValue, oldValue) {
@@ -211,6 +231,11 @@ export default {
         },
       })
       this.$emit('hide')
+    },
+    clickTwoWaySync() {
+      if (this.isTwoWaySyncDeactivated) {
+        this.$refs.twoWaySyncDeactivatedModal.show()
+      }
     },
   },
 }
