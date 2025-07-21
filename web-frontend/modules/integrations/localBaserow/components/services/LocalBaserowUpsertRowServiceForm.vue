@@ -3,6 +3,7 @@
     <LocalBaserowServiceForm
       :enable-row-id="enableRowId"
       :application="application"
+      :enable-view-picker="false"
       :default-values="defaultValues"
       @table-changed="handleTableChange"
       @values-changed="emitServiceChange($event)"

@@ -35,7 +35,7 @@
         :values="values"
         :table-fields="tableFields"
         show-filter
-        show-search="true"
+        show-search
       />
       <div v-if="fieldsLoading" class="loading-spinner"></div>
     </div>
