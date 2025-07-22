@@ -1,5 +1,11 @@
 # Changelog
 
+## Released 1.34.4
+
+### Bug fixes
+* [Database] Fix Field `id` expected by got dict error
+
+
 ## Released 1.34.3
 
 ### New features
