@@ -28,6 +28,6 @@ def run_calculate_storage():
 @app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(
-        timedelta(seconds=20),
+        timedelta(minutes=30),
         run_calculate_storage.s(),
     )
