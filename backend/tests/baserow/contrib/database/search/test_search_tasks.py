@@ -66,4 +66,4 @@ def test_periodic_check_pending_search_data(data_fixture):
     ) as mock:
         periodic_check_pending_search_data()
         mock.assert_called_once()
-        assert mock.call_args[0][0] == {"table_id": table.id}
+        assert mock.call_args[0][0] == table.id

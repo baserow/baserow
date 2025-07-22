@@ -15,7 +15,7 @@ guide on the specifics of how to work with this image.
 services:
   baserow:
     container_name: baserow
-    image: baserow/baserow:1.34.3
+    image: baserow/baserow:1.34.4
     environment:
       BASEROW_PUBLIC_URL: 'http://localhost'
     ports:
