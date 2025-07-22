@@ -196,6 +196,7 @@ def periodic_check_pending_search_data():
     cte = With(PendingSearchValueUpdate.objects.values("field_id").distinct())
     table_ids_with_pending_updates = (
         cte.join(Field.objects_and_trash.all(), id=cte.col.field_id)
+        .with_cte(cte)
         .values("table_id")
         .distinct()
     )
