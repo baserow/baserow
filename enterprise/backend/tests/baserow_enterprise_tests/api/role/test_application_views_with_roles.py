@@ -5,7 +5,7 @@ from django.test.utils import CaptureQueriesContext
 import pytest
 from rest_framework.status import HTTP_200_OK
 
-from baserow.test_utils.helpers import AnyInt, AnyStr
+from baserow.test_utils.helpers import AnyStr
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
