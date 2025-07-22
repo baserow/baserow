@@ -34,6 +34,7 @@ class PendingSearchValueUpdate(models.Model):
     )
     updated_on = models.DateTimeField(
         auto_now=True,
+        db_default=models.functions.Now(),
         help_text="The time this update was last modified.",
     )
     deletion_workspace_id = models.IntegerField(
