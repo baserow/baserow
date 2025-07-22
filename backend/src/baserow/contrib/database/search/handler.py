@@ -56,10 +56,7 @@ from baserow.contrib.database.search.regexes import (
     RE_REMOVE_ALL_PUNCTUATION_ALREADY_REMOVED_FROM_TSVS_FOR_QUERY,
     RE_REMOVE_NON_SEARCHABLE_PUNCTUATION_FROM_TSVECTOR_DATA,
 )
-from baserow.contrib.database.search.tasks import (
-    delete_search_data,
-    schedule_update_search_data,
-)
+from baserow.contrib.database.search.tasks import schedule_update_search_data
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.core.psycopg import errors
 from baserow.core.telemetry.utils import baserow_trace_methods
@@ -538,6 +535,10 @@ class SearchHandler(
             None, all rows in the table will be considered.
         """
 
+        workspace_id = table.database.workspace_id
+        if workspace_id is None:
+            return
+
         field_ids = None
         if fields:
             field_ids = [f.id for f in fields]
@@ -547,11 +548,11 @@ class SearchHandler(
         )
 
     @classmethod
-    def schedule_delete_search_data(
+    def mark_search_data_for_deletion(
         cls,
         table: "Table",
-        field_ids: List[int] | None = None,
-        row_ids: List[int] | None = None,
+        field_ids: Iterable[int] | None = None,
+        row_ids: Iterable[int] | None = None,
     ):
         """
         Schedules the deletion of search data for the given table, fields and row ids.
@@ -566,6 +567,10 @@ class SearchHandler(
             all rows will be considered.
         """
 
+        workspace_id = table.database.workspace_id
+        if workspace_id is None:
+            return
+
         # extract the field IDs before the commit to ensure we have the correct IDs
         table_field_ids = [
             f.id for f in table.get_model().get_fields(include_trash=True)
@@ -575,48 +580,31 @@ class SearchHandler(
         else:
             field_ids = [fid for fid in set(field_ids) if fid in table_field_ids]
 
-        workspace_id = table.database.workspace_id
-        transaction.on_commit(
-            lambda: delete_search_data.delay(workspace_id, field_ids, row_ids)
-        )
+        def mark_for_deletion():
+            """
+            Marks the search data for deletion by creating a PendingSearchValueUpdate
+            entry with deletion_workspace_id set to the workspace ID of the table.
+            This will ensure that the search data is deleted when the
+            `process_search_data_marked_for_deletion` method is called.
+            """
 
-    @classmethod
-    def delete_search_data(
-        cls,
-        workspace_id: int,
-        field_ids: List[int],
-        row_ids: List[int] | None = None,
-    ):
-        """
-        Deletes search data for the specified fields in a workspace and, optionally, for
-        specific rows. This method is used when rows, fields or tables are permanently
-        deleted or when search data needs to be cleared. At this point, all the original
-        resources might have been permanently deleted from the database, so this method
-        cannot verify if the IDs are valid or not, but it will took them for granted and
-        delete the search data for them.
+            PendingSearchValueUpdate.objects.bulk_create(
+                [
+                    PendingSearchValueUpdate(
+                        field_id=field_id,
+                        row_id=row_id,
+                        deletion_workspace_id=table.database.workspace_id,
+                    )
+                    for field_id in sorted(field_ids)
+                    for row_id in sorted(row_ids or [None])
+                ],
+                update_conflicts=True,
+                unique_fields=["field_id", "row_id"],
+                update_fields=["updated_on", "deletion_workspace_id"],
+                batch_size=1000,
+            )
 
-        :param workspace_id: The ID of the workspace for which to delete search data.
-        :param field_ids: List of field IDs to delete search data for.
-        :param row_ids: Optional list of row IDs to delete search data for. If None, all
-            rows will be considered for deletion.
-        """
-
-        if not cls.workspace_search_table_exists(workspace_id):
-            return
-
-        search_model = cls.get_workspace_search_table_model(workspace_id)
-
-        # Delete any potential remaining pending update
-        q = Q(field_id__in=field_ids)
-        if row_ids is not None:
-            q &= Q(row_id__in=row_ids)
-        cls._delete_pending_updates(q)
-
-        # And now delete the actual search data
-        qs = search_model.objects.filter(field_id__in=field_ids)
-        if row_ids is not None:
-            qs = qs.filter(row_id__in=row_ids)
-        qs._raw_delete(using=router.db_for_write(search_model))
+        transaction.on_commit(mark_for_deletion)
 
     @classmethod
     def queue_pending_search_update(
@@ -648,20 +636,19 @@ class SearchHandler(
         else:
             field_ids = [fid for fid in set(field_ids) if fid in searchable_field_ids]
 
+        # Ensure order to avoid deadlocks updating the same cells.
         ordered_field_ids = sorted(field_ids)
         ordered_row_ids = sorted(set(row_ids or [None]))
         PendingSearchValueUpdate.objects.bulk_create(
             [
-                PendingSearchValueUpdate(
-                    table=table,
-                    field_id=field_id,
-                    row_id=row_id,
-                )
+                PendingSearchValueUpdate(field_id=field_id, row_id=row_id)
                 for field_id in ordered_field_ids
                 for row_id in ordered_row_ids
             ],
-            ignore_conflicts=True,
-            batch_size=2500,
+            update_conflicts=True,
+            unique_fields=["field_id", "row_id"],
+            update_fields=["updated_on"],
+            batch_size=1000,
         )
 
     @classmethod
@@ -696,6 +683,71 @@ class SearchHandler(
         # Ensure table models can see the updated field attributes to avoid
         # rescheduling tasks for the same fields.
         invalidate_table_in_model_cache(table.id)
+
+    @classmethod
+    def _delete_workspace_data_marked_for_deletion(cls, workspace_id: int):
+        """
+        Deletes search data marked for deletion in the specified workspace.
+
+        :param workspace_id: The ID of the workspace for which the search data should be
+            deleted.
+        """
+
+        search_model = cls.get_workspace_search_table_model(workspace_id)
+
+        with connection.cursor() as cursor:
+            # We use two separate DELETE statements:
+            # 1. Delete all rows for full-field removals (p.row_id IS NULL)
+            # 2. Delete specific rows for per-row removals (d.row_id = p.row_id)
+            #
+            # A single DELETE with
+            #   WHERE p.row_id IS NULL OR d.row_id = p.row_id
+            # would disable index usage and be extremely slow (>10s on large tables).
+            # Two indexed deletes each complete in ~10ms even for large tables.
+
+            row_checks = ("p.row_id IS NULL", "d.row_id = p.row_id")
+
+            for row_check in row_checks:
+                raw_sql = f"""
+                    DELETE FROM {search_model._meta.db_table} d
+                    USING {PendingSearchValueUpdate._meta.db_table} p
+                    WHERE d.field_id = p.field_id
+                    AND {row_check}
+                    AND p.deletion_workspace_id = %s;
+                """  # nosec B608
+                cursor.execute(raw_sql, (workspace_id,))
+
+        cls._delete_pending_updates(
+            Q(deletion_workspace_id=workspace_id), manager="objects_and_trash"
+        )
+
+    @classmethod
+    def process_search_data_marked_for_deletion(cls):
+        """
+        Deletes all search data marked for deletion in all workspaces, committing the
+        changes for each workspace separately to avoid locking issues and ensure
+        progress can be made even if some workspaces fail.
+        :param table: The table for which the search data should be deleted.
+        """
+
+        qs = (
+            PendingSearchValueUpdate.objects_and_trash.filter(
+                deletion_workspace_id__isnull=False
+            )
+            .values_list("deletion_workspace_id", flat=True)
+            .order_by("deletion_workspace_id")
+            .distinct()
+        )
+
+        for workspace_id in qs:
+            try:
+                with transaction.atomic():
+                    cls._delete_workspace_data_marked_for_deletion(workspace_id)
+            except Exception as exc:
+                # Report the error but continue processing other workspaces.
+                logger.error(
+                    f"Failed to delete search data for workspace {workspace_id}: {exc}"
+                )
 
     @classmethod
     def update_search_data(
@@ -776,21 +828,26 @@ class SearchHandler(
             cursor.execute(raw_sql, params)
 
     @classmethod
-    def _delete_pending_updates(cls, q: Q):
+    def _delete_pending_updates(cls, q: Q, manager: str = "objects"):
         """
-        Deletes pending search value updates based on the provided Q object. This is a
-        helper method to avoid code duplication in the process_search_data_updates
-        method.
+        Deletes pending search value updates based on the provided Q object.
+
+        :param q: The Q object representing the filter criteria for the updates to be
+            deleted.
+        :param manager: The manager to use for the deletion. Defaults to "objects".
+        :raises ValueError: If the specified manager does not exist on
+            PendingSearchValueUpdate.
         """
 
-        with transaction.atomic():
-            # Even if slower, enforce order and lock rows to prevent potential deadlocks
-            # If updates are already locked, they will be removed by the other process
-            PendingSearchValueUpdate.objects.filter(q).select_for_update(
-                of=("self",), skip_locked=True
-            ).order_by("field_id", "row_id")._raw_delete(
-                using=router.db_for_write(PendingSearchValueUpdate)
+        manager = getattr(PendingSearchValueUpdate, manager, None)
+        if manager is None:
+            raise ValueError(
+                f"Manager '{manager}' does not exist on PendingSearchValueUpdate."
             )
+
+        manager.filter(q)._raw_delete(
+            using=router.db_for_write(PendingSearchValueUpdate)
+        )
 
     @classmethod
     def process_search_data_updates(cls, table: "Table"):
@@ -805,44 +862,46 @@ class SearchHandler(
         :param table: The Table whose pending search updates will be handled.
         """
 
-        full_field_updates = (
-            PendingSearchValueUpdate.objects.filter(table=table, row_id=None)
-            .select_for_update(of=("self",), skip_locked=True)
-            .order_by("field_id")
-            .values_list("field_id", flat=True)
+        table_field_ids = (
+            Field.objects_and_trash.filter(table=table).order_by().values("id")
         )
+        full_field_updates = PendingSearchValueUpdate.objects.filter(
+            field_id__in=table_field_ids, row_id=None
+        ).values_list("field_id", flat=True)
+
+        # Balance between query efficiency and cpu-usage for complex search expressions.
+        fields_batch_size = 5
 
         # First process full-field updates (row_id=None), removing any remaining
         # row-specific updates on the same field.
         last = False
         while not last:
             with transaction.atomic():
-                batch_size = 5
-                field_ids = list(full_field_updates[:batch_size])
-                if not field_ids:
-                    break
-                elif len(field_ids) < batch_size:
+                field_ids = list(full_field_updates[:fields_batch_size])
+                # Only delete updates older than this timestamp to avoid
+                # loosing newer updates made while processing.
+                check_timestamp = datetime.now(tz=timezone.utc)
+                if len(field_ids) < fields_batch_size:
                     last = True
-
-                cls._delete_pending_updates(Q(field_id__in=field_ids))
-                cls.update_search_data(table, field_ids=field_ids)
+                if field_ids:
+                    cls.update_search_data(table, field_ids=field_ids)
+                    cls._delete_pending_updates(
+                        Q(field_id__in=field_ids, updated_on__lte=check_timestamp)
+                    )
 
         def _fetch_next_batch() -> QuerySet[PendingSearchValueUpdate]:
-            return (
-                PendingSearchValueUpdate.objects.filter(
-                    table=table, row_id__isnull=False
-                )
-                .select_for_update(of=("self",), skip_locked=True)
-                .order_by("field_id", "row_id")
-            )
+            return PendingSearchValueUpdate.objects.filter(
+                field_id__in=table_field_ids, row_id__isnull=False
+            ).order_by("field_id", "row_id")
 
         # Now handle single-cells updates, grouping them for efficiency
         last = False
         while not last:
             with transaction.atomic():
-                batch_size = 1000
-                pending_cells_updates = _fetch_next_batch()[:batch_size]
-                if len(pending_cells_updates) < batch_size:
+                count = settings.BATCH_ROWS_SIZE_LIMIT
+                pending_cells_updates = _fetch_next_batch()[:count]
+                check_timestamp = datetime.now(tz=timezone.utc)
+                if len(pending_cells_updates) < count:
                     last = True
 
                 field_ids, row_ids, update_ids = set(), set(), []
@@ -855,4 +914,6 @@ class SearchHandler(
                     cls.update_search_data(
                         table, field_ids=list(field_ids), row_ids=list(row_ids)
                     )
-                    cls._delete_pending_updates(Q(id__in=update_ids))
+                    cls._delete_pending_updates(
+                        Q(id__in=update_ids, updated_on__lte=check_timestamp)
+                    )

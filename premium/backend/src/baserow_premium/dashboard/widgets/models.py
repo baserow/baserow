@@ -7,17 +7,24 @@ from baserow_premium.integrations.local_baserow.models import (
 from baserow.contrib.dashboard.widgets.models import Widget
 
 
+class ChartSeriesChartType(models.TextChoices):
+    BAR = "BAR", "Bar"
+    LINE = "LINE", "Line"
+
+
 class ChartWidget(Widget):
     data_source = models.ForeignKey(
         "dashboard.DashboardDataSource",
         on_delete=models.PROTECT,
         help_text="Data source for fetching the result to display.",
     )
-
-
-class ChartSeriesChartType(models.TextChoices):
-    BAR = "BAR", "Bar"
-    LINE = "LINE", "Line"
+    default_series_chart_type = models.CharField(
+        max_length=4,
+        choices=ChartSeriesChartType.choices,
+        default=ChartSeriesChartType.BAR,
+        db_default=ChartSeriesChartType.BAR,
+        help_text="Default chart type.",
+    )
 
 
 class ChartSeriesConfig(models.Model):

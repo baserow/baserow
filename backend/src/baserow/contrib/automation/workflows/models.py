@@ -1,4 +1,4 @@
-import typing
+from typing import TYPE_CHECKING, Optional
 
 from django.db import models
 
@@ -17,7 +17,7 @@ from baserow.core.mixins import (
     WithRegistry,
 )
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from baserow.contrib.automation.models import Automation
     from baserow.contrib.automation.nodes.models import AutomationTriggerNode
 
@@ -81,12 +81,24 @@ class AutomationWorkflow(
         queryset = AutomationWorkflow.objects.filter(automation=automation)
         return cls.get_highest_order_of_queryset(queryset) + 1
 
-    def get_trigger(
-        self, specific: bool = True
-    ) -> typing.Optional["AutomationTriggerNode"]:
-        node = self.automation_workflow_nodes.order_by("order").first()
-        if not node or not node.get_type().is_workflow_trigger:
-            return None
+    @classmethod
+    def get_last_node_id(
+        cls, workflow: "AutomationWorkflow", parent_node_id: Optional[int] = None
+    ) -> Optional[int]:
+        from baserow.contrib.automation.nodes.models import AutomationNode
+
+        last_node = (
+            AutomationNode.objects.filter(
+                workflow=workflow, parent_node_id=parent_node_id
+            )
+            .order_by("order")
+            .only("id")
+            .last()
+        )
+        return last_node.id if last_node else None
+
+    def get_trigger(self, specific: bool = True) -> "AutomationTriggerNode":
+        node = self.automation_workflow_nodes.get(previous_node_id=None)
         return node.specific if specific else node
 
 

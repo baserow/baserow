@@ -9,8 +9,6 @@ to made specifically.
 Replace the first part of your `docker-compose.dev.yml` with the following:
 
 ```
-version: "3.4"
-
 services:
   db:
     image: postgres:12

@@ -1,4 +1,3 @@
-version: "3.4"
 services:
   {{ cookiecutter.project_slug }}:
     container_name: {{ cookiecutter.project_slug }}

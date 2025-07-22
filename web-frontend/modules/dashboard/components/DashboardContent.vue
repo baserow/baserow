@@ -17,7 +17,7 @@
             <EmptyDashboard
               v-if="isEmpty"
               :dashboard="dashboard"
-              @widget-type-selected="createWidget($event)"
+              @widget-variation-selected="createWidget($event)"
             />
             <template v-else>
               <WidgetBoard :dashboard="dashboard" :store-prefix="storePrefix" />
@@ -25,7 +25,7 @@
                 v-if="isEditMode && canCreateWidget"
                 :dashboard="dashboard"
                 :store-prefix="storePrefix"
-                @widget-type-selected="createWidget($event)"
+                @widget-variation-selected="createWidget($event)"
               />
             </template>
           </div>
@@ -118,12 +118,17 @@ export default {
         this.dashboard.workspace.id
       )
     },
-    async createWidget(widgetType) {
+    async createWidget(widgetVariation) {
+      const widgetType = widgetVariation.type.getType()
       const typeFromRegistry = this.$registry.get('dashboardWidget', widgetType)
       try {
         await this.$store.dispatch('dashboardApplication/createWidget', {
           dashboard: this.dashboard,
-          widget: { title: typeFromRegistry.name, type: widgetType },
+          widget: {
+            title: typeFromRegistry.name,
+            type: widgetType,
+            ...widgetVariation.params,
+          },
         })
         this.enterEditMode()
       } catch (error) {

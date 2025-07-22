@@ -1,4 +1,4 @@
-from django.db import DatabaseError
+from django.db import IntegrityError, OperationalError
 from django.db.backends.postgresql.psycopg_any import is_psycopg3
 
 if is_psycopg3:
@@ -10,5 +10,11 @@ else:
     from psycopg2 import errors, sql  # noqa: F401
 
 
-def is_deadlock_error(exc: DatabaseError) -> bool:
+def is_deadlock_error(exc: OperationalError) -> bool:
     return isinstance(exc.__cause__, errors.DeadlockDetected)
+
+
+def is_unique_violation_error(exc: Exception) -> bool:
+    return isinstance(exc, IntegrityError) and isinstance(
+        exc.__cause__, errors.UniqueViolation
+    )

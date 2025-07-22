@@ -7,6 +7,7 @@ from baserow.contrib.automation.data_providers.data_provider_types import (
     PreviousNodeProviderType,
 )
 from baserow.core.formula.exceptions import InvalidFormulaContext
+from baserow.core.services.types import DispatchResult
 
 
 @pytest.mark.django_db
@@ -23,7 +24,9 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
         workflow=workflow, previous_node=trigger
     )
     dispatch_context = AutomationDispatchContext(workflow, [{"field_1": "Horse"}])
-    dispatch_context.register_node_result(first_action, {"field_2": "Badger"})
+    dispatch_context.after_dispatch(
+        first_action, DispatchResult(data={"field_2": "Badger"})
+    )
 
     # `first_action` referencing the trigger input data.
     assert (
@@ -51,13 +54,20 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
 
 
 @pytest.mark.django_db
-def test_previous_node_data_provider_import_path():
+def test_previous_node_data_provider_import_path(data_fixture):
     data_provider = PreviousNodeProviderType()
-    path = ["1", "0", "field_1"]
 
-    valid_id_mapping = {"automation_workflow_nodes": {1: 2}}
+    node = data_fixture.create_local_baserow_create_row_action_node()
+
+    valid_id_mapping = {"automation_workflow_nodes": {1: node.id}}
     invalid_id_mapping = {"automation_workflow_nodes": {3: 4}}
+
+    path = ["1", "0", "field_1"]
 
     assert data_provider.import_path(path, {}) == ["1", "0", "field_1"]
     assert data_provider.import_path(path, invalid_id_mapping) == ["1", "0", "field_1"]
-    assert data_provider.import_path(path, valid_id_mapping) == ["2", "0", "field_1"]
+    assert data_provider.import_path(path, valid_id_mapping) == [
+        str(node.id),
+        "0",
+        "field_1",
+    ]

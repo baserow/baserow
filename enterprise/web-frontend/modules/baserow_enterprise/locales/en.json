@@ -468,7 +468,9 @@
     "placeholderWithOIDC": "{login} with {provider}"
   },
   "chartWidget": {
-    "name": "Chart"
+    "name": "Chart",
+    "bar": "Bar chart",
+    "line": "Line chart"
   },
   "groupedAggregateRowsDataSourceForm": {
     "series": "Series",

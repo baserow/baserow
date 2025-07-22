@@ -1,6 +1,6 @@
 FROM debian:bookworm-slim
 #Don't ask questions during install
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 #Install apache2 and enable proxy mode
 RUN apt-get update \

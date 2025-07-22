@@ -14,6 +14,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     NotificationWorkflowActionType,
     OpenPageWorkflowActionType,
 )
+from baserow.core.services.models import Service
 
 
 @pytest.mark.django_db
@@ -49,6 +50,24 @@ def test_delete_workflow_action(data_fixture):
     BuilderWorkflowActionHandler().delete_workflow_action(workflow_action)
 
     assert BuilderWorkflowAction.objects.count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_delete_workflow_action_with_service(data_fixture):
+    page = data_fixture.create_builder_page()
+    element = data_fixture.create_builder_button_element(page=page)
+    event = EventTypes.CLICK
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=event
+    )
+
+    assert BuilderWorkflowAction.objects.count() == 1
+    assert Service.objects.count() == 1
+
+    BuilderWorkflowActionHandler().delete_workflow_action(workflow_action)
+
+    assert BuilderWorkflowAction.objects.count() == 0
+    assert Service.objects.count() == 0
 
 
 @pytest.mark.django_db

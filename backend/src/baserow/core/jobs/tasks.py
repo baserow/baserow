@@ -56,14 +56,18 @@ def run_async_job(self, job_id: int):
             }
             exception_mapping.update(job_type.job_exceptions_map)
 
+            should_raise = True
             for exception, error_message in exception_mapping.items():
                 if isinstance(e, exception):
                     error = error_message.format(e=e)
+                    should_raise = False
                     break
 
             job.set_state_failed(str(e), error)
             job.save()
-            raise
+
+            if should_raise:
+                raise
         finally:
             # Delete the import job cached entry because the transaction has been
             # committed and the Job entry now contains the latest data.

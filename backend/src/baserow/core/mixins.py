@@ -4,10 +4,12 @@ from typing import Callable, Generic, List, Optional, TypeVar
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from django.db.models import Case, Manager, QuerySet, Value, When
+from django.db.models import Case, QuerySet, Value, When
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.mixins import FieldCacheMixin
 from django.utils.functional import cached_property
+
+from django_cte import CTEManager
 
 from baserow.core.db import (
     get_highest_order_of_queryset,
@@ -417,7 +419,7 @@ def make_trashable_mixin(parent):
     class TrashableMixin(models.Model):
         objects = no_trash_manager()
         trash = trash_only_manager()
-        objects_and_trash = Manager()
+        objects_and_trash = CTEManager()
 
         class Meta:
             abstract = True
@@ -438,7 +440,7 @@ class TrashableModelMixin(models.Model):
 
     objects = NoTrashManager()
     trash = TrashOnlyManager()
-    objects_and_trash = Manager()
+    objects_and_trash = CTEManager()
 
     class Meta:
         abstract = True

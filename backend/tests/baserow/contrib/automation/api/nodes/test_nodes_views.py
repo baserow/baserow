@@ -77,7 +77,7 @@ def test_create_node_before(api_client, data_fixture):
     assert response.json() == {
         "id": AnyInt(),
         "order": "1.50000000000000000000",
-        "previous_node_id": None,
+        "previous_node_id": node1.id,
         "previous_node_output": "",
         "service": AnyDict(),
         "type": "create_row",

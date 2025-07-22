@@ -293,19 +293,13 @@ export default {
     const cssVars = Object.entries(this.themeStyle)
       .map(([key, value]) => `\n${key}: ${value};`)
       .join(' ')
-
     const header = {
       titleTemplate: '',
       title: this.currentPage.name,
       bodyAttrs: {
         class: 'public-page',
+        style: cssVars,
       },
-      style: [
-        {
-          cssText: `:root { ${cssVars} }`,
-          type: 'text/css',
-        },
-      ],
     }
 
     if (this.faviconLink) {

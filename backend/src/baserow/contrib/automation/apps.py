@@ -184,3 +184,8 @@ class AutomationConfig(AppConfig):
             import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401
             import baserow.contrib.automation.workflows.signals  # noqa: F403, F401
             import baserow.contrib.automation.workflows.ws.signals  # noqa: F403, F401
+            from baserow.contrib.automation.nodes.receivers import (
+                connect_to_node_pre_delete_signal,
+            )
+
+            connect_to_node_pre_delete_signal()

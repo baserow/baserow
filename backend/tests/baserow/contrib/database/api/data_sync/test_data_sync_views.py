@@ -13,10 +13,6 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.contrib.database.data_sync.exceptions import (
-    SyncDataSyncTableAlreadyRunning,
-    SyncError,
-)
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import (
     DataSync,
@@ -24,7 +20,6 @@ from baserow.contrib.database.data_sync.models import (
     SyncDataSyncTableJob,
 )
 from baserow.contrib.database.table.handler import TableHandler
-from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.tasks import run_async_job
 from baserow.core.models import WorkspaceUser
 
@@ -683,15 +678,14 @@ def test_async_sync_data_sync_table_failed_sync(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     data_sync_id = response.json()["data_sync"]["id"]
 
-    with pytest.raises(SyncError):
-        api_client.post(
-            reverse(
-                "api:database:data_sync:sync_table",
-                kwargs={"data_sync_id": data_sync_id},
-            ),
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
+    api_client.post(
+        reverse(
+            "api:database:data_sync:sync_table",
+            kwargs={"data_sync_id": data_sync_id},
+        ),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
 
     job = SyncDataSyncTableJob.objects.all().first()
 
@@ -747,8 +741,7 @@ def test_async_sync_data_sync_table_already_running(api_client, data_fixture):
     cache.add(f"data_sync_{data_sync_id}_syncing_table", "locked", timeout=2)
 
     job = SyncDataSyncTableJob.objects.create(data_sync_id=data_sync_id, user=user)
-    with pytest.raises(SyncDataSyncTableAlreadyRunning):
-        run_async_job(job.id)
+    run_async_job(job.id)
 
     job.refresh_from_db()
     assert job.human_readable_error == "The sync data sync job is already running."
@@ -832,8 +825,7 @@ def test_async_sync_data_sync_table_unauthorized_after_job_created(
 
     job = SyncDataSyncTableJob.objects.create(data_sync_id=data_sync_id, user=user)
     WorkspaceUser.objects.all().delete()
-    with pytest.raises(UserNotInWorkspace):
-        run_async_job(job.id)
+    run_async_job(job.id)
 
 
 @pytest.mark.django_db(transaction=True)

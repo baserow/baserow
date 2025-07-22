@@ -13,10 +13,6 @@ from baserow.contrib.database.fields.dependencies.handler import FieldDependency
 from baserow.contrib.database.fields.exceptions import (
     FieldNotInTable,
     IncompatibleField,
-    InvalidBaserowFieldName,
-    MaxFieldLimitExceeded,
-    MaxFieldNameLengthExceeded,
-    ReservedBaserowFieldNameException,
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.field_constraints import (
@@ -24,15 +20,7 @@ from baserow.contrib.database.fields.field_constraints import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption, TextField
-from baserow.contrib.database.rows.exceptions import (
-    InvalidRowLength,
-    ReportMaxErrorCountExceeded,
-)
-from baserow.contrib.database.table.exceptions import (
-    InitialTableDataDuplicateName,
-    InitialTableDataLimitExceeded,
-    InvalidInitialTableData,
-)
+from baserow.contrib.database.rows.exceptions import InvalidRowLength
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.constants import (
@@ -54,27 +42,31 @@ def test_run_file_import_task(data_fixture, patch_filefield_storage):
         job = data_fixture.create_file_import_job(user=user, database=database)
         run_async_job(job.id)
 
-    with patch_filefield_storage(), pytest.raises(InvalidInitialTableData):
+    with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": []})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
-    with patch_filefield_storage(), pytest.raises(InvalidInitialTableData):
+    with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": [[]]})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
-    with override_settings(
-        INITIAL_TABLE_DATA_LIMIT=2
-    ), patch_filefield_storage(), pytest.raises(InitialTableDataLimitExceeded):
+    with override_settings(INITIAL_TABLE_DATA_LIMIT=2), patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": [[], [], []]})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
-    with override_settings(MAX_FIELD_LIMIT=2), patch_filefield_storage(), pytest.raises(
-        MaxFieldLimitExceeded
-    ):
+    with override_settings(MAX_FIELD_LIMIT=2), patch_filefield_storage():
         job = data_fixture.create_file_import_job(
             data={"data": [["fields"] * 3, ["rows"] * 3]}
         )
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
     too_long_field_name = "x" * 256
     field_name_with_ok_length = "x" * 255
@@ -86,26 +78,36 @@ def test_run_file_import_task(data_fixture, patch_filefield_storage):
         ["3-1", "3-2"],
     ]
 
-    with patch_filefield_storage(), pytest.raises(MaxFieldNameLengthExceeded):
+    with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": data})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
     data[0][0] = field_name_with_ok_length
     with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": data})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FINISHED
 
-    with patch_filefield_storage(), pytest.raises(ReservedBaserowFieldNameException):
+    with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": [["id"]]})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
-    with patch_filefield_storage(), pytest.raises(InitialTableDataDuplicateName):
+    with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": [["test", "test"]]})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
-    with patch_filefield_storage(), pytest.raises(InvalidBaserowFieldName):
+    with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": [[" "]]})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
     # Basic use
     with patch_filefield_storage():
@@ -562,8 +564,7 @@ def test_run_file_import_limit(data_fixture, patch_filefield_storage):
             table=table, data={"data": data}, user=user
         )
 
-        with pytest.raises(ReportMaxErrorCountExceeded):
-            run_async_job(job.id)
+        run_async_job(job.id)
 
     job.refresh_from_db()
 
@@ -584,9 +585,7 @@ def test_run_file_import_limit(data_fixture, patch_filefield_storage):
         job = data_fixture.create_file_import_job(
             table=table, data={"data": data}, user=user
         )
-
-        with pytest.raises(ReportMaxErrorCountExceeded):
-            run_async_job(job.id)
+        run_async_job(job.id)
 
     job.refresh_from_db()
 

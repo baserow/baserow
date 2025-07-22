@@ -3,7 +3,6 @@
 # This compose file starts up a dev version of the plugin with hot code reloading.
 # It is accessible at http://localhost .
 
-version: "3.4"
 services:
   {{ cookiecutter.project_slug }}:
     container_name: {{ cookiecutter.project_slug }}

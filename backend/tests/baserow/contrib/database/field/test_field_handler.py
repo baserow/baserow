@@ -87,6 +87,7 @@ from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import ViewFilter
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
+from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.helpers import setup_interesting_test_table
@@ -2024,7 +2025,7 @@ def test_field_constraints_unique_with_empty(data_fixture):
     ), f"Fields that should be tested are missing: {missing_fields}"
 
     for field_type, field_data in fields.items():
-        with pytest.raises(Exception):
+        with pytest.raises(Exception) as exc_info:
             handler.create_field(
                 user=user,
                 table=table,
@@ -2032,6 +2033,7 @@ def test_field_constraints_unique_with_empty(data_fixture):
                 name=f"Unique {field_type} Field",
                 field_constraints=[{"type_name": "invalid_constraint_name"}],
             )
+            assert is_unique_violation_error(exc_info.value) is True
         field = handler.create_field(
             user=user,
             table=table,
@@ -2206,21 +2208,25 @@ def test_import_export_field_constraints_preservation(data_fixture):
         imported_number_field.field_constraints.values_list("type_name", flat=True)
     ) == [UniqueWithEmptyConstraint.constraint_name]
 
-    with transaction.atomic(), pytest.raises(IntegrityError):
+    with transaction.atomic(), pytest.raises(IntegrityError) as exc_info:
         imported_model.objects.create(
             **{f"field_{imported_text_field.id}": "unique_value_1"}
         )
+        assert is_unique_violation_error(exc_info.value) is True
 
-    with transaction.atomic(), pytest.raises(IntegrityError):
+    with transaction.atomic(), pytest.raises(IntegrityError) as exc_info:
         imported_model.objects.create(
             **{f"field_{imported_long_text_field.id}": "unique_long_value_1"}
         )
+        assert is_unique_violation_error(exc_info.value) is True
 
-    with transaction.atomic(), pytest.raises(IntegrityError):
+    with transaction.atomic(), pytest.raises(IntegrityError) as exc_info:
         imported_model.objects.create(**{f"field_{imported_rating_field.id}": 3})
+        assert is_unique_violation_error(exc_info.value) is True
 
-    with transaction.atomic(), pytest.raises(IntegrityError):
+    with transaction.atomic(), pytest.raises(IntegrityError) as exc_info:
         imported_model.objects.create(**{f"field_{imported_number_field.id}": 42})
+        assert is_unique_violation_error(exc_info.value) is True
 
     imported_model.objects.create(**{f"field_{imported_text_field.id}": ""})
     imported_model.objects.create(**{f"field_{imported_long_text_field.id}": ""})

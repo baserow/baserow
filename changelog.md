@@ -1,5 +1,24 @@
 # Changelog
 
+## Released 1.34.3
+
+### New features
+* [Dashboard] Separate bar and line charts as new chart options [#3663](https://gitlab.com/baserow/baserow/-/issues/3663)
+
+### Bug fixes
+* [Database] Handle empty number_decimal_places value for number formula field [#3616](https://gitlab.com/baserow/baserow/-/issues/3616)
+* [Builder] Remove toast in the editor as it is confusing [#3750](https://gitlab.com/baserow/baserow/-/issues/3750)
+* [Database] Do not re-raise mapped exceptions when running jobs [#3753](https://gitlab.com/baserow/baserow/-/issues/3753)
+* [Builder] Fix font family from theme not applied to previewed/published page
+* [Core] Fixed issue where applications failed to load properly with multiple workspaces
+* [Builder] Resolved an issue which prevented data sources from being able to choose a specific view.
+* [Database] Stop scheduling search tasks if the workspace is None (i.e. snapshots)
+
+### Refactors
+* [Builder] Automatically delete services when workflow actions are deleted
+* [Core] Remove obsolete compose versions
+
+
 ## Released 1.34.2
 
 ### Bug fixes

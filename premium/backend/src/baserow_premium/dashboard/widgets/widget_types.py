@@ -28,7 +28,11 @@ from baserow.core.services.registries import service_type_registry
 class ChartWidgetType(WidgetType):
     type = "chart"
     model_class = ChartWidget
-    serializer_field_names = ["data_source_id", "series_config"]
+    serializer_field_names = [
+        "data_source_id",
+        "series_config",
+        "default_series_chart_type",
+    ]
     serializer_field_overrides = {
         "data_source_id": serializers.PrimaryKeyRelatedField(
             queryset=DashboardDataSource.objects.all(),
@@ -42,7 +46,7 @@ class ChartWidgetType(WidgetType):
             help_text="Provides series configuration.",
         ),
     }
-    request_serializer_field_names = ["series_config"]
+    request_serializer_field_names = ["series_config", "default_series_chart_type"]
     request_serializer_field_overrides = {
         "series_config": serializers.ListSerializer(
             child=ChartSeriesConfigSerializer(),
@@ -54,6 +58,11 @@ class ChartWidgetType(WidgetType):
     class SerializedDict(WidgetDict):
         data_source_id: int
         series_config: list[SeriesConfig]
+        default_series_chart_type: str
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + ["default_series_chart_type"]
 
     def enhance_queryset(self, queryset: QuerySet[Widget]) -> QuerySet[Widget]:
         return queryset.prefetch_related("series_config")

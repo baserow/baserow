@@ -165,8 +165,9 @@ class ServiceHandler:
         Updates and service with values. Will also check if the values are allowed
         to be set on the service first.
 
+        :param service_type: The type of the service.
         :param service: The service that should be updated.
-        :param values: The values that should be set on the service.
+        :param kwargs: The values that should be set on the service.
         :return: The updated service.
         """
 

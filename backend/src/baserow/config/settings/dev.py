@@ -5,7 +5,7 @@ from django.db.models.signals import post_migrate
 import snoop
 
 from .base import *  # noqa: F403, F401
-from .utils import setup_dev_e2e
+from .utils import setup_dev_e2e, str_to_bool
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev_hardcoded_secret_key")  # noqa: F405
 SIMPLE_JWT["SIGNING_KEY"] = (  # noqa: F405
@@ -18,18 +18,20 @@ BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES = 4
 BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL = 4
 
 INSTALLED_APPS.insert(0, "daphne")  # noqa: F405
-INSTALLED_APPS += ["django_extensions", "silk"]  # noqa: F405
+INSTALLED_APPS += ["django_extensions"]  # noqa: F405
 
-MIDDLEWARE += [  # noqa: F405
-    "silk.middleware.SilkyMiddleware",
-]
-
-CACHALOT_UNCACHABLE_TABLES += [  # noqa: F405
-    "silk_request",
-    "silk_response",
-    "silk_sqlquery",
-    "silk_profile",
-]
+BASEROW_ENABLE_SILK = str_to_bool(os.getenv("BASEROW_ENABLE_SILK", "on"))
+if BASEROW_ENABLE_SILK:
+    INSTALLED_APPS += ["silk"]  # noqa: F405
+    MIDDLEWARE += [  # noqa: F405
+        "silk.middleware.SilkyMiddleware",
+    ]
+    CACHALOT_UNCACHABLE_TABLES += [  # noqa: F405
+        "silk_request",
+        "silk_response",
+        "silk_sqlquery",
+        "silk_profile",
+    ]
 
 # Set this env var to any non-blank value in your dev env so django-silk will EXPLAIN
 # all queries run.

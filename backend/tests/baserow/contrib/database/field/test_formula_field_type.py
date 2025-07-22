@@ -300,13 +300,13 @@ def test_can_rename_field_preserving_whitespace(
         user=user, table=table, type_name="formula", name="2", formula=" field('a') \n"
     )
 
-    assert formula_field.formula == f" field('a') \n"
+    assert formula_field.formula == " field('a') \n"
 
     handler.update_field(user=user, field=test_field, name="b")
 
     formula_field.refresh_from_db()
 
-    assert formula_field.formula == f" field('b') \n"
+    assert formula_field.formula == " field('b') \n"
 
 
 @pytest.mark.django_db
@@ -325,13 +325,13 @@ def test_can_rename_field_preserving_brackets(data_fixture):
         formula="field('a') / (field('a') + field('a'))",
     )
 
-    assert formula_field.formula == f"field('a') / (field('a') + field('a'))"
+    assert formula_field.formula == "field('a') / (field('a') + field('a'))"
 
     handler.update_field(user=user, field=test_field, name="b")
 
     formula_field.refresh_from_db()
 
-    assert formula_field.formula == f"field('b') / (field('b') + field('b'))"
+    assert formula_field.formula == "field('b') / (field('b') + field('b'))"
 
 
 @pytest.mark.django_db
@@ -361,8 +361,8 @@ def test_can_update_lookup_field_value(
     )
 
     table2_model = table2.get_model(attribute_names=True)
-    a = table2_model.objects.create(lookupfield=f"2021-02-01", primaryfield="primary a")
-    b = table2_model.objects.create(lookupfield=f"2022-02-03", primaryfield="primary b")
+    a = table2_model.objects.create(lookupfield="2021-02-01", primaryfield="primary a")
+    b = table2_model.objects.create(lookupfield="2022-02-03", primaryfield="primary b")
 
     table_model = table.get_model(attribute_names=True)
 
@@ -476,11 +476,11 @@ def test_nested_lookup_with_formula(
     table3_c = table3_model.objects.create(p="table3 c")
     table3_d = table3_model.objects.create(p="table3 d")
     table2_model = table2.get_model(attribute_names=True)
-    table2_1 = table2_model.objects.create(lookupfield=f"lookup 1", p=f"primary 1")
+    table2_1 = table2_model.objects.create(lookupfield="lookup 1", p="primary 1")
     table2_1.table2linkrowfield.add(table3_a.id)
     table2_1.save()
-    table2_2 = table2_model.objects.create(lookupfield=f"lookup 2", p=f"primary 2")
-    table2_3 = table2_model.objects.create(lookupfield=f"lookup 3", p=f"primary 3")
+    table2_2 = table2_model.objects.create(lookupfield="lookup 2", p="primary 2")
+    table2_3 = table2_model.objects.create(lookupfield="lookup 3", p="primary 3")
     table2_3.table2linkrowfield.add(table3_c.id)
     table2_3.table2linkrowfield.add(table3_d.id)
     table2_3.save()
@@ -583,8 +583,8 @@ def test_can_delete_lookup_field_value(
     )
 
     table2_model = table2.get_model(attribute_names=True)
-    a = table2_model.objects.create(lookupfield=f"2021-02-01", primaryfield="primary a")
-    b = table2_model.objects.create(lookupfield=f"2022-02-03", primaryfield="primary b")
+    a = table2_model.objects.create(lookupfield="2021-02-01", primaryfield="primary a")
+    b = table2_model.objects.create(lookupfield="2022-02-03", primaryfield="primary b")
 
     table_model = table.get_model(attribute_names=True)
 
@@ -955,7 +955,7 @@ def test_saving_after_properties_have_been_cached_does_recalculation(data_fixtur
     formula_field.save()
 
     assert str(formula_field.cached_untyped_expression) == "1"
-    assert str(formula_field.cached_typed_internal_expression) == f"error_to_nan(1)"
+    assert str(formula_field.cached_typed_internal_expression) == "error_to_nan(1)"
     assert formula_field.cached_formula_type.type == BaserowFormulaNumberType.type
 
 
@@ -1165,7 +1165,7 @@ def test_multiple_formula_fields_with_different_django_lookups_being_used_to_fil
     option_field = data_fixture.create_single_select_field(user=user, table=table)
 
     formula_field_ref_link_field = FieldHandler().create_field(
-        user=user, table=table, name="a", type_name="formula", formula=f"1"
+        user=user, table=table, name="a", type_name="formula", formula="1"
     )
     formula_referencing_single_select = FieldHandler().create_field(
         user=user,
@@ -2215,3 +2215,36 @@ def test_formula_text_field_type_get_order_collate(data_fixture):
         result += getattr(char, f"field_{formula_field.id}")
 
     assert result == sorted_chars
+
+
+@pytest.mark.django_db
+def test_formula_number_type_without_decimal_places(data_fixture):
+    """
+    Tests if a number formula field will be processed properly, if there's no
+    number_decimal_places value defined for the field.
+
+    See: https://gitlab.com/baserow/baserow/-/issues/3616
+
+    A FormulaField instance may end up in a state, where the type is set to `number`,
+    but there's no value in .number_decimal_places. This value is used in several
+    field operations, and `None` was causing an error.
+
+    While the cause of this invalid state is not entirely known, the fix works around
+    the missing part by replacing `None` with a number.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    handler = FieldHandler()
+    formula_field: FormulaField = handler.create_field(
+        user=user, table=table, name="1", type_name="formula", formula="1+1"
+    )
+
+    # Simulate error condition - formula field is of type `number`, but it has no
+    # number_decimal_places value.
+    formula_field.number_decimal_places = None
+    formula_field.save()
+
+    # the fix in NumerFieldType.from_baserow_formula_type replaces `None` with `0`,
+    # otherwise the operation below would fail.
+    FieldHandler().duplicate_field(user, formula_field, duplicate_data=True)

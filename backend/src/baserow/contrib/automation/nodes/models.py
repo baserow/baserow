@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import List, Optional
+from typing import Iterable, List, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
@@ -132,6 +132,23 @@ class AutomationNode(
 
     def get_parent(self):
         return self.workflow
+
+    def get_next_nodes(
+        self, output_uid: str | None = None
+    ) -> Iterable["AutomationNode"]:
+        """
+        Returns all nodes which follow this node in the workflow. A list of nodes
+        is returned as there can be multiple nodes that follow this one, for example
+        when there are multiple branches in the workflow.
+
+        :param output_uid: filter nodes only for this output uid.
+        """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        return AutomationNodeHandler().get_next_nodes(
+            self.workflow, self, output_uid=output_uid
+        )
 
     @classmethod
     def get_last_order(cls, workflow: "AutomationWorkflow"):

@@ -1,4 +1,3 @@
-version: "3.4"
 ########################################################################################
 #
 # READ ME FIRST!
@@ -249,7 +248,7 @@ services:
       local:
 
   backend:
-    image: baserow/backend:1.34.2
+    image: baserow/backend:1.34.3
     restart: unless-stopped
 
     environment:
@@ -263,7 +262,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:1.34.2
+    image: baserow/web-frontend:1.34.3
     restart: unless-stopped
     environment:
       BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
@@ -303,7 +302,7 @@ services:
       local:
 
   celery:
-    image: baserow/backend:1.34.2
+    image: baserow/backend:1.34.3
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -324,7 +323,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:1.34.2
+    image: baserow/backend:1.34.3
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -345,7 +344,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:1.34.2
+    image: baserow/backend:1.34.3
     restart: unless-stopped
     command: celery-beat
     environment:
