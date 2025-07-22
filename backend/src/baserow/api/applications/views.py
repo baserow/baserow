@@ -81,22 +81,20 @@ class AllApplicationsView(APIView):
         returned.
         """
 
-        workspaces = CoreService().list_workspaces(request.user)
+        workspaces = CoreService().list_workspaces(request.user).order_by("id")
 
-        applications_qs = Application.objects.none()
+        all_applications = []
         for workspace in workspaces:
             workspace_applications_qs = CoreService().list_applications_in_workspace(
                 request.user, workspace
             )
-            applications_qs = applications_qs.union(
-                workspace_applications_qs.order_by(), all=True
-            )
+            all_applications += list(workspace_applications_qs.order_by("order", "id"))
 
         data = [
             PolymorphicApplicationResponseSerializer(
                 application, context={"request": request}
             ).data
-            for application in applications_qs.order_by("workspace_id", "order", "id")
+            for application in all_applications
         ]
 
         return Response(data)
