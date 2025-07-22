@@ -200,8 +200,8 @@ def periodic_check_pending_search_data():
         .values("table_id")
         .distinct()
     )
-    for table_id in table_ids_with_pending_updates:
-        schedule_update_search_data(table_id)
+    for table in table_ids_with_pending_updates:
+        schedule_update_search_data(table["table_id"])
 
 
 @app.on_after_finalize.connect
