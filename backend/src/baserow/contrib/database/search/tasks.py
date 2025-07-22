@@ -1,12 +1,15 @@
+from datetime import timedelta
 from typing import List, Optional
 
 from django.conf import settings
 from django.core.cache import cache
 
 from celery_singleton import DuplicateTaskError, Singleton
+from django_cte import With
 from loguru import logger
 
 from baserow.config.celery import app
+from baserow.contrib.database.search.models import PendingSearchValueUpdate
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 
 
@@ -167,21 +170,42 @@ def update_search_data(table_id: int):
         schedule_update_search_data.delay(table_id)
 
 
-@app.task(queue="export")
-def delete_search_data(
-    workspace_id: int, field_ids: List[int], row_ids: List[int] | None = None
-):
+@app.task(queue="export", base=Singleton, raise_on_duplicate=False)
+def periodic_check_pending_search_data():
     """
-    Deletes the search data for specified fields in a table and, optionally, for
-    specific rows. This task is used when rows or fields are permanently deleted or when
-    search data needs to be cleared for a table.
-
-    :param workspace_id: The ID of the workspace for which to delete search data.
-    :param field_ids: List of field IDs whose search data should be deleted.
-    :param row_ids: Optional list of row IDs. If provided, only these rows' search data
-        will be deleted.
+    Periodically checks for any pending search data updates and processes them.
+    It deletes all the pending updates that are marked for deletion and tries to
+    re-schedule the update task for any table that has pending updates. It may be that
+    the original task stopped before completing, so this task ensures that any
+    pending updates are eventually processed.
     """
 
     from baserow.contrib.database.search.handler import SearchHandler
+    from baserow.contrib.database.table.models import Field
 
-    SearchHandler.delete_search_data(workspace_id, field_ids=field_ids, row_ids=row_ids)
+    if not SearchHandler.full_text_enabled():
+        return
+
+    # Remove pending update entries for data that's already been deleted. Since those
+    # records have been permanently deleted from the database, nothing should try to
+    # update their search vectors, so this call won’t interfere with any running tasks.
+    SearchHandler.process_search_data_marked_for_deletion()
+
+    # Verify if there are any pending updates to process and try to re-schedule the
+    # singleton table task in case the original one stopped before completing.
+    cte = With(PendingSearchValueUpdate.objects.values("field_id").distinct())
+    table_ids_with_pending_updates = (
+        cte.join(Field.objects_and_trash.all(), id=cte.col.field_id)
+        .with_cte(cte)
+        .values("table_id")
+        .distinct()
+    )
+    for table_id in table_ids_with_pending_updates:
+        schedule_update_search_data(table_id)
+
+
+@app.on_after_finalize.connect
+def setup_periodic_tasks(sender, **kwargs):
+    sender.add_periodic_task(
+        timedelta(minutes=15), periodic_check_pending_search_data.s()
+    )

@@ -5,6 +5,11 @@ from django.db import models
 from django_cte import CTEManager
 
 
+class PendingSearchValueUpdateTrashManager(CTEManager):
+    def get_queryset(self):
+        return super().get_queryset().filter(models.Q(deletion_workspace_id=None))
+
+
 class PendingSearchValueUpdate(models.Model):
     """
     A table to collect pending updates for TSVector values.
@@ -16,21 +21,45 @@ class PendingSearchValueUpdate(models.Model):
         serialize=False,
         verbose_name="ID",
     )
+    # DEPRECATED: Remove this FK in future versions. Use `field_id` instead.
     table = models.ForeignKey(
-        "database.Table", on_delete=models.CASCADE, related_name="+"
+        "database.Table", on_delete=models.CASCADE, related_name="+", null=True
+    )
+    field_id = models.IntegerField(
+        help_text="The ID of the field to update.",
     )
     row_id = models.IntegerField(
         null=True,
         help_text="The ID of the row to update. If null, all table rows will be updated.",
     )
-    field_id = models.IntegerField(
-        help_text="The ID of the field to update.",
+    updated_on = models.DateTimeField(
+        auto_now=True,
+        db_default=models.functions.Now(),
+        help_text="The time this update was last modified.",
+    )
+    deletion_workspace_id = models.IntegerField(
+        null=True,
+        help_text=(
+            "The workspace ID used to mark this pending update for deletion "
+            "once its associated table, field or row is permanently removed."
+        ),
     )
 
+    objects = PendingSearchValueUpdateTrashManager()
+    objects_and_trash = CTEManager()
+
     class Meta:
-        ordering = ["field_id", "row_id"]
         # Avoid duplicate entries for the same field and row.
         unique_together = [("field_id", "row_id")]
+
+        # Speed up deletion of pending updates
+        indexes = [
+            models.Index(
+                fields=["deletion_workspace_id", "field_id", "row_id"],
+                name="pendingsearchvaluedeletion_idx",
+                condition=models.Q(deletion_workspace_id__isnull=False),
+            ),
+        ]
 
 
 class AbstractSearchValue(models.Model):

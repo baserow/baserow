@@ -44,7 +44,7 @@ def test_perm_deleted_workspace(data_fixture):
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.database.search.handler.SearchHandler.schedule_delete_search_data"
+    "baserow.contrib.database.search.handler.SearchHandler.mark_search_data_for_deletion"
 )
 def test_perm_deleted_database(mock, data_fixture):
     """
@@ -70,7 +70,7 @@ def test_perm_deleted_database(mock, data_fixture):
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.database.search.handler.SearchHandler.schedule_delete_search_data"
+    "baserow.contrib.database.search.handler.SearchHandler.mark_search_data_for_deletion"
 )
 def test_perm_deleted_table(mock, data_fixture):
     """
@@ -93,7 +93,7 @@ def test_perm_deleted_table(mock, data_fixture):
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.database.search.handler.SearchHandler.schedule_delete_search_data"
+    "baserow.contrib.database.search.handler.SearchHandler.mark_search_data_for_deletion"
 )
 def test_perm_deleted_field(mock, data_fixture):
     """
@@ -118,7 +118,7 @@ def test_perm_deleted_field(mock, data_fixture):
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.database.search.handler.SearchHandler.schedule_delete_search_data"
+    "baserow.contrib.database.search.handler.SearchHandler.mark_search_data_for_deletion"
 )
 def test_perm_deleted_row(mock, data_fixture):
     """
@@ -144,7 +144,7 @@ def test_perm_deleted_row(mock, data_fixture):
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.database.search.handler.SearchHandler.schedule_delete_search_data"
+    "baserow.contrib.database.search.handler.SearchHandler.mark_search_data_for_deletion"
 )
 def test_perm_deleted_rows(mock, data_fixture):
     """
