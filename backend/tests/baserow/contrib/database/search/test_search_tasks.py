@@ -1,7 +1,5 @@
 import pytest
-from baserow_enterprise_tests.data_sync.test_enterprise_data_sync_handler import (
-    freeze_time,
-)
+from freezegun import freeze_time
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchHandler
