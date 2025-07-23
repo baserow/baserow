@@ -217,7 +217,7 @@ class DataSourceHandler:
         if with_shared:
             # Get the data source for the same builder on the shared page
             data_source_queryset = data_source_queryset.filter(
-                Q(page=page) | Q(page__builder_id=page.builder_id, page__shared=True)
+                page__in=[page, page.builder.shared_page]
             ).order_by("-page__shared", "order", "id")
         else:
             data_source_queryset = data_source_queryset.filter(page=page)
