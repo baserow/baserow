@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Union
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 from django.db.utils import DatabaseError, IntegrityError
 
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
@@ -217,8 +217,12 @@ class DataSourceHandler:
         if with_shared:
             # Get the data source for the same builder on the shared page
             data_source_queryset = data_source_queryset.filter(
-                Q(page=page) | Q(page__builder_id=page.builder_id, page__shared=True)
+                page__in=[page.builder.shared_page, page]
+                # We order by shared page because shared pages must appear before local
+                # data source so that later we can reference previous data sources
+                # only in formulas.
             ).order_by("-page__shared", "order", "id")
+
         else:
             data_source_queryset = data_source_queryset.filter(page=page)
 
