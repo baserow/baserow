@@ -1,27 +1,131 @@
-import pytest
+from datetime import date, datetime, timezone
+from decimal import Decimal
 
+from django.conf import settings
+from django.db import connection
 from django.test.utils import override_settings
 
+import pytest
+
+from baserow.contrib.database.api.rows.serializers import serialize_rows_for_response
+from baserow.contrib.database.data_sync.handler import DataSyncHandler
+from baserow.contrib.database.data_sync.registries import (
+    data_sync_type_registry,
+    two_way_sync_strategy_type_registry,
+)
+from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.db import specific_iterator
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+def test_create_row_in_postgresql_table(
+    enterprise_data_fixture, create_postgresql_test_table
+):
+    enterprise_data_fixture.enable_enterprise()
+    default_database = settings.DATABASES["default"]
+    user = enterprise_data_fixture.create_user()
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        two_way_sync=True,
+        synced_properties=[
+            "id",
+            "text_col",
+            "int_col",
+            "numeric_col",
+            "decimal_col",
+            "date_col",
+            "datetime_col",
+            "boolean_col",
+        ],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    id_field = fields[0]
+    text_field = fields[1]
+    int_field = fields[2]
+    numeric_field = fields[3]
+    decimal_field = fields[4]
+    date_field = fields[5]
+    datetime_field = fields[6]
+    boolean_field = fields[7]
+
+    row_handler = RowHandler()
+    rows = row_handler.create_rows(
+        user=user,
+        table=data_sync.table,
+        rows_values=[
+            {
+                f"field_{text_field.id}": "text",
+                f"field_{int_field.id}": 1,
+                f"field_{numeric_field.id}": "1",
+                f"field_{decimal_field.id}": "1",
+                f"field_{date_field.id}": "2021-01-01",
+                f"field_{datetime_field.id}": "2021-01-01 12:00",
+                f"field_{boolean_field.id}": True,
+            }
+        ],
+    ).created_rows
+
+    model = data_sync.table.get_model()
+    serialized_rows = serialize_rows_for_response(rows, model)
+    data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+    two_way_sync_strategy = two_way_sync_strategy_type_registry.get(
+        data_sync_type.two_way_sync_strategy_type
+    )
+
+    two_way_sync_strategy.rows_created(serialized_rows, data_sync)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"SELECT id, text_col, int_col, numeric_col, decimal_col, date_col, datetime_col, boolean_col "
+            f"FROM {create_postgresql_test_table} ORDER BY id DESC LIMIT 1"
+        )
+        result = cursor.fetchone()
+        assert result is not None
+        fetched_id = result[0]
+        assert result[1] == "text"
+        assert result[2] == 1
+        assert result[3] == Decimal("1")
+        assert result[4] == Decimal("1")
+        assert result[5] == date(2021, 1, 1)
+        assert result[6].replace(tzinfo=timezone.utc) == datetime(
+            2021, 1, 1, 12, 0, tzinfo=timezone.utc
+        )
+        assert result[7] is True
+
+    rows[0].refresh_from_db()
+    postgres_id = getattr(rows[0], f"field_{id_field.id}")
+    assert postgres_id == fetched_id
+
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_create_row_in_postgresql_table():
+def test_unique_primary_is_updated_after_creating_a_row(enterprise_data_fixture):
     assert False
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_unique_primary_is_updated_after_creating_a_row():
+def test_update_row_in_postgresql_table(enterprise_data_fixture):
     assert False
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_update_row_in_postgresql_table():
-    assert False
-
-
-@pytest.mark.django_db
-@override_settings(DEBUG=True)
-def test_delete_row_in_postgresql_table():
+def test_delete_row_in_postgresql_table(enterprise_data_fixture):
     assert False

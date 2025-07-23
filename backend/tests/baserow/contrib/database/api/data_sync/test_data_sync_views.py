@@ -1398,3 +1398,23 @@ def test_update_data_sync_enable_two_way_sync_unsupported_type(
         "Two-way sync is not supported for this data sync type"
         in response_json["detail"]
     )
+
+
+@pytest.mark.django_db
+def test_cannot_create_row_without_two_way_data_sync(data_fixture):
+    assert False
+
+
+@pytest.mark.django_db
+def test_cannot_delete_row_without_two_way_data_sync(data_fixture):
+    assert False
+
+
+@pytest.mark.django_db
+def test_can_create_row_with_two_way_data_sync(data_fixture):
+    assert False
+
+
+@pytest.mark.django_db
+def test_can_delete_row_with_two_way_data_sync(data_fixture):
+    assert False
