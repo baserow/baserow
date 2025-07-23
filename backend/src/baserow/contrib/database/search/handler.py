@@ -717,7 +717,7 @@ class SearchHandler(
                 """  # nosec B608
                 cursor.execute(raw_sql, (workspace_id,))
 
-        cls._delete_pending_updates(
+        cls.delete_pending_updates(
             Q(deletion_workspace_id=workspace_id), manager="objects_and_trash"
         )
 
@@ -828,7 +828,7 @@ class SearchHandler(
             cursor.execute(raw_sql, params)
 
     @classmethod
-    def _delete_pending_updates(cls, q: Q, manager: str = "objects"):
+    def delete_pending_updates(cls, q: Q, manager: str = "objects"):
         """
         Deletes pending search value updates based on the provided Q object.
 
@@ -862,8 +862,10 @@ class SearchHandler(
         :param table: The Table whose pending search updates will be handled.
         """
 
-        table_field_ids = (
-            Field.objects_and_trash.filter(table=table).order_by().values("id")
+        table_field_ids = list(
+            Field.objects_and_trash.filter(table=table)
+            .order_by()
+            .values_list("id", flat=True)
         )
         full_field_updates = PendingSearchValueUpdate.objects.filter(
             field_id__in=table_field_ids, row_id=None
@@ -885,14 +887,14 @@ class SearchHandler(
                     last = True
                 if field_ids:
                     cls.update_search_data(table, field_ids=field_ids)
-                    cls._delete_pending_updates(
+                    cls.delete_pending_updates(
                         Q(field_id__in=field_ids, updated_on__lte=check_timestamp)
                     )
 
         def _fetch_next_batch() -> QuerySet[PendingSearchValueUpdate]:
             return PendingSearchValueUpdate.objects.filter(
                 field_id__in=table_field_ids, row_id__isnull=False
-            ).order_by("field_id", "row_id")
+            )
 
         # Now handle single-cells updates, grouping them for efficiency
         last = False
@@ -914,6 +916,6 @@ class SearchHandler(
                     cls.update_search_data(
                         table, field_ids=list(field_ids), row_ids=list(row_ids)
                     )
-                    cls._delete_pending_updates(
+                    cls.delete_pending_updates(
                         Q(id__in=update_ids, updated_on__lte=check_timestamp)
                     )
