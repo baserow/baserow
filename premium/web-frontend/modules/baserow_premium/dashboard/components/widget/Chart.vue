@@ -140,7 +140,11 @@ export default {
                   for (const dataset of chart.data.datasets) {
                     originalLabels.forEach((label) => {
                       const newLabel = JSON.parse(JSON.stringify(label))
-                      newLabel.text = `${label.text} - ${dataset.label}`
+                      if (label.text) {
+                        newLabel.text = `${label.text} - ${dataset.label}`
+                      } else {
+                        newLabel.text = dataset.label
+                      }
                       newLabel.fillStyle =
                         datasetColors[label.index + colorOffset]
                       newLabels.push(newLabel)
