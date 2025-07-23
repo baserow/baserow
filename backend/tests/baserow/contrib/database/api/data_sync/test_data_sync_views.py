@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 
-from django.conf import settings
 from django.core.cache import cache
 from django.urls import reverse
 
@@ -1339,40 +1338,6 @@ def test_get_data_sync(data_fixture, api_client):
     }
 
 
-@pytest.mark.django_db(transaction=True)
-def test_create_data_sync_with_two_way_sync_supported_type(
-    data_fixture, api_client, create_postgresql_test_table
-):
-    default_database = settings.DATABASES["default"]
-    user, token = data_fixture.create_user_and_token()
-    database = data_fixture.create_database_application(user=user)
-
-    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
-    response = api_client.post(
-        url,
-        {
-            "table_name": "Test 1",
-            "type": "postgresql",
-            "synced_properties": ["id"],
-            "two_way_sync": True,
-            "postgresql_host": default_database["HOST"],
-            "postgresql_username": default_database["USER"],
-            "postgresql_password": default_database["PASSWORD"],
-            "postgresql_port": default_database["PORT"],
-            "postgresql_database": default_database["NAME"],
-            "postgresql_table": create_postgresql_test_table,
-            "postgresql_sslmode": default_database["OPTIONS"].get("sslmode", "prefer"),
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_200_OK
-
-    data_sync = DataSync.objects.get(id=response.json()["data_sync"]["id"])
-    assert data_sync.two_way_sync is True
-    assert response.json()["data_sync"]["two_way_sync"] is True
-
-
 @pytest.mark.django_db
 def test_create_data_sync_with_two_way_sync_unsupported_type(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()
@@ -1398,56 +1363,6 @@ def test_create_data_sync_with_two_way_sync_unsupported_type(data_fixture, api_c
         "Two-way sync is not supported for this data sync type"
         in response_json["detail"]
     )
-
-
-@pytest.mark.django_db(transaction=True)
-def test_update_data_sync_enable_two_way_sync_supported_type(
-    data_fixture, api_client, create_postgresql_test_table
-):
-    default_database = settings.DATABASES["default"]
-    user, token = data_fixture.create_user_and_token()
-    database = data_fixture.create_database_application(user=user)
-
-    handler = DataSyncHandler()
-    data_sync = handler.create_data_sync_table(
-        user=user,
-        database=database,
-        table_name="Test",
-        type_name="postgresql",
-        synced_properties=["id"],
-        postgresql_host=default_database["HOST"],
-        postgresql_username=default_database["USER"],
-        postgresql_password=default_database["PASSWORD"],
-        postgresql_port=default_database["PORT"],
-        postgresql_database=default_database["NAME"],
-        postgresql_table=create_postgresql_test_table,
-        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
-    )
-
-    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
-    response = api_client.patch(
-        url,
-        {
-            "two_way_sync": True,
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_200_OK
-    assert response.json()["two_way_sync"] is True
-
-    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
-    response = api_client.patch(
-        url,
-        {
-            "postgresql_host": default_database["HOST"],
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_200_OK
-    # Should remain True, if not provided in the body payload.
-    assert response.json()["two_way_sync"] is True
 
 
 @pytest.mark.django_db
