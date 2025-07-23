@@ -56,6 +56,7 @@ from dateutil.parser import ParserError
 from loguru import logger
 from rest_framework import serializers
 
+from baserow.contrib.database.airtable.exceptions import FileDownloadFailed
 from baserow.contrib.database.api.fields.errors import (
     ERROR_DATE_FORCE_TIMEZONE_OFFSET_ERROR,
     ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE,
@@ -157,7 +158,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
-from baserow.core.user_files.exceptions import FileDownloadFailed, UserFileDoesNotExist
+from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import grouper, list_to_comma_separated_string
 
@@ -3984,7 +3985,7 @@ class FileFieldType(FieldType):
                     value["visible_name"] = file["visible_name"]
                     files.append(value)
                 except FileDownloadFailed:
-                    logger.exception(f"File {file['name']} not found.")
+                    pass
 
         setattr(row, field_name, files)
 
