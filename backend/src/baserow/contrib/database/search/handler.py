@@ -814,7 +814,7 @@ class SearchHandler(
         if rest:
             union_qs = union_qs.union(*rest)
 
-        sql, params = union_qs.order_by("field_id", "row_id").query.sql_with_params()
+        sql, params = union_qs.query.sql_with_params()
 
         with connection.cursor() as cursor:
             raw_sql = f"""
@@ -872,7 +872,7 @@ class SearchHandler(
         ).values_list("field_id", flat=True)
 
         # Balance between query efficiency and cpu-usage for complex search expressions.
-        fields_batch_size = 5
+        fields_batch_size = 3
 
         # First process full-field updates (row_id=None), removing any remaining
         # row-specific updates on the same field.
