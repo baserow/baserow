@@ -37,9 +37,6 @@ class LocalBaserowTableService(Service):
 
     class Meta:
         abstract = True
-        indexes = [
-            models.Index(fields=["service_ptr_id"]),
-        ]
 
 
 class LocalBaserowViewService(LocalBaserowTableService):
