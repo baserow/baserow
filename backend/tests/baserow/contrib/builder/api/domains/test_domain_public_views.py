@@ -1094,7 +1094,7 @@ def test_public_dispatch_data_sources_list_rows_no_elements(
 
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
-        str(data_source.id): {"has_next_page": False, "results": [{}] * 3}
+        str(data_source.id): {"has_next_page": False, "results": []}
     }
 
 
@@ -1203,7 +1203,7 @@ def test_public_dispatch_data_sources_list_rows_with_elements_and_role(
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
-                "results": [{}] * 3,
+                "results": [],
             },
         }
 
@@ -1383,7 +1383,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
-                "results": [{}] * 3,
+                "results": [],
             },
         }
 
@@ -1697,7 +1697,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_logged_in(
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
-                "results": [{}] * 3,
+                "results": [],
             },
         }
 
@@ -2330,7 +2330,19 @@ def test_public_dispatch_data_source_with_refinements_referencing_trashed_field(
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
-    table = data_fixture.create_database_table(database=database)
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        database=database,
+        columns=[
+            ("Name", "text"),
+            ("Color", "text"),
+        ],
+        rows=[
+            ["Apple", "Red"],
+            ["Banana", "Yellow"],
+            ["Cherry", "Purple"],
+        ],
+    )
     trashed_field = data_fixture.create_text_field(table=table, trashed=True)
     builder = data_fixture.create_builder_application(workspace=workspace)
     integration = data_fixture.create_local_baserow_integration(
@@ -2345,6 +2357,11 @@ def test_public_dispatch_data_source_with_refinements_referencing_trashed_field(
     )
     service_filter = data_fixture.create_local_baserow_table_service_filter(
         service=data_source.service, field=trashed_field, value="abc", order=0
+    )
+
+    data_fixture.create_builder_heading_element(
+        page=page,
+        value=f"get('data_source.{data_source.id}.field_{fields[0].id}')",
     )
 
     url = reverse(

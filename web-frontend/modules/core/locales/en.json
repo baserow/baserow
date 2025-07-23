@@ -594,6 +594,7 @@
     "statePending": "Waiting to start...",
     "stateStarted": "Started...",
     "stateFinished": "Finished",
+    "stateCanceled": "Canceled",
     "stateFailed": "Failed",
     "errorJobCannotBeCancelledTitle": "Could not cancel",
     "errorJobCannotBeCancelledDescription": "It’s not possible to cancel the job as it has already been completed.\nPlease delete the first snapshot in the list below to remove it.",

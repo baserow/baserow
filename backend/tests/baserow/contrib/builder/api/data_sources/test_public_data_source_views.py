@@ -124,7 +124,7 @@ def test_dispatch_data_sources_list_rows_no_elements(
     assert response.json() == {
         str(data_source.id): {
             "has_next_page": False,
-            "results": [{}] * 3,
+            "results": [],
         },
     }
 
@@ -501,8 +501,6 @@ def test_dispatch_data_sources_list_rows_with_elements_and_role(
             expected_results.append(
                 {field_name: getattr(row, field_name), "id": row.id}
             )
-        else:
-            expected_results.append({})
 
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
@@ -678,13 +676,13 @@ def test_dispatch_data_sources_page_visibility_logged_in_returns_no_elements_for
 
     response = api_client.post(url, {}, format="json")
 
-    # Since the request was made with an anonymous user and the Page visiblity
+    # Since the request was made with an anonymous user and the Page visibility
     # is 'logged-in', the response should *not* contain any resolved formulas.
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         str(data_source.id): {
             "has_next_page": False,
-            "results": [{}] * 3,
+            "results": [],
         },
     }
 
@@ -820,7 +818,7 @@ def test_dispatch_data_sources_page_visibility_logged_in_allow_all_except(
             {f"field_{field.id}": "Cherry"},
         ]
     else:
-        expected_results = [{}, {}, {}]
+        expected_results = []
 
     assert response.json() == {
         str(data_source.id): {
