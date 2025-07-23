@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.conf import settings
 
 from celery_singleton import Singleton
@@ -26,6 +28,6 @@ def run_calculate_storage():
 @app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(
-        settings.BASEROW_STORAGE_USAGE_JOB_CRONTAB,
+        timedelta(minutes=30),
         run_calculate_storage.s(),
     )

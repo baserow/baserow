@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from django.db.models import F, OuterRef, PositiveIntegerField, Subquery, Sum
+from django.conf import settings
+from django.db.models import F, OuterRef, PositiveIntegerField, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 
 from baserow.core.models import Workspace
@@ -23,17 +24,35 @@ class UsageHandler:
         :return: The amount of workspaces that have been updated.
         """
 
+        # Run the instance wide storage updates. These are typically the ones that have
+        # been queued and are waiting for execution.
+        for item in workspace_storage_usage_item_registry.get_all():
+            item.calculate_storage_usage_instance()
+
         count, chunk_size = 0, 256
-        qs = Workspace.objects.filter(template__isnull=True)
+        hours_ago = datetime.now(tz=timezone.utc) - timedelta(
+            hours=settings.BASEROW_UPDATE_WORKSPACE_STORAGE_USAGE_HOURS
+        )
+        qs = (
+            Workspace.objects.filter(
+                # Only update the workspaces that have been updated more than X number
+                # hours ago. The task runs every 30 minutes, so even if the task fails
+                # or can't complete, it will resume the next time it runs.
+                Q(storage_usage_updated_at__lt=hours_ago)
+                | Q(storage_usage_updated_at__isnull=True),
+                template__isnull=True,
+            )
+            # Make sure that the workspaces that have last been updated are going to be
+            # updated first.
+            .order_by("storage_usage_updated_at")
+        )
         workspaces_queryset = qs.iterator(chunk_size=chunk_size)
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=qs.count())
 
-        for item in workspace_storage_usage_item_registry.get_all():
-            item.calculate_storage_usage_instance()
-
+        # Loop over the workspaces that have not been updated in the last X number
+        # hours. Call the update method for each storage usage type.
         for workspaces in grouper(chunk_size, workspaces_queryset):
-            now = datetime.now(tz=timezone.utc)
             for workspace in workspaces:
                 usage_in_megabytes = 0
                 for item in workspace_storage_usage_item_registry.get_all():
@@ -42,7 +61,7 @@ class UsageHandler:
                     )
 
                 workspace.storage_usage = usage_in_megabytes
-                workspace.storage_usage_updated_at = now
+                workspace.storage_usage_updated_at = datetime.now(tz=timezone.utc)
                 progress.increment()
 
             Workspace.objects.bulk_update(

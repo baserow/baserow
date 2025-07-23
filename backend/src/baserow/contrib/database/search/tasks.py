@@ -1,8 +1,9 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db.models import Q
 
 from celery_singleton import DuplicateTaskError, Singleton
 from django_cte import With
@@ -191,17 +192,26 @@ def periodic_check_pending_search_data():
     # update their search vectors, so this call won’t interfere with any running tasks.
     SearchHandler.process_search_data_marked_for_deletion()
 
+    # Delete any stale pending update that is waiting for too long.
+    cutoff_time = datetime.now(tz=timezone.utc) - timedelta(
+        hours=settings.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED
+    )
+    SearchHandler.delete_pending_updates(Q(updated_on__lt=cutoff_time))
+
     # Verify if there are any pending updates to process and try to re-schedule the
     # singleton table task in case the original one stopped before completing.
     cte = With(PendingSearchValueUpdate.objects.values("field_id").distinct())
     table_ids_with_pending_updates = (
-        cte.join(Field.objects_and_trash.all(), id=cte.col.field_id)
+        cte.join(
+            Field.objects_and_trash.filter(table__database__workspace_id__isnull=False),
+            id=cte.col.field_id,
+        )
         .with_cte(cte)
-        .values("table_id")
+        .values_list("table_id", flat=True)
         .distinct()
     )
-    for table in table_ids_with_pending_updates:
-        schedule_update_search_data(table["table_id"])
+    for table_id in table_ids_with_pending_updates:
+        schedule_update_search_data(table_id)
 
 
 @app.on_after_finalize.connect

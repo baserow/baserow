@@ -92,6 +92,10 @@ class Page(
             "order",
         )
         unique_together = [["builder", "name"], ["builder", "path"]]
+        indexes = [
+            models.Index(fields=["-shared", "order"]),
+            models.Index(fields=["builder", "-shared", "order"]),
+        ]
 
     def get_parent(self):
         return self.builder

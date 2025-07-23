@@ -1,5 +1,15 @@
 # Changelog
 
+## Released 1.34.5
+
+### Bug fixes
+* [Database] Speed up a slow query to update search vectors and automatically remove stale entries from the pending updates table.
+
+### Refactors
+* [Builder] Improve performances of page data sources dispatch endpoint
+* [Core] Process storage usage update more often
+
+
 ## Released 1.34.4
 
 ### Bug fixes
