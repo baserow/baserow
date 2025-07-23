@@ -827,10 +827,9 @@ STALE_MENTIONS_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_STALE_MENTIONS_CLEANUP_INTERVAL_MINUTES", "") or 360
 )
 
-MIDNIGHT_CRONTAB_STR = "0 0 * * *"
-BASEROW_STORAGE_USAGE_JOB_CRONTAB = get_crontab_from_env(
-    "BASEROW_STORAGE_USAGE_JOB_CRONTAB", default_crontab=MIDNIGHT_CRONTAB_STR
-)
+# Indicates how frequently the workspace storage should be updated. Once every X number
+# of hours.
+BASEROW_UPDATE_WORKSPACE_STORAGE_USAGE_HOURS = 24
 
 ONE_AM_CRONTRAB_STR = "0 1 * * *"
 BASEROW_SEAT_USAGE_JOB_CRONTAB = get_crontab_from_env(
