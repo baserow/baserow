@@ -218,6 +218,9 @@ class DataSourceHandler:
             # Get the data source for the same builder on the shared page
             data_source_queryset = data_source_queryset.filter(
                 page__in=[page.builder.shared_page, page]
+                # We order by shared page because shared pages must appear before local
+                # data source so that later we can reference previous data sources
+                # only in formulas.
             ).order_by("-page__shared", "order", "id")
 
         else:
