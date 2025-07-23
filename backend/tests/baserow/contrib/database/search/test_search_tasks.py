@@ -1,6 +1,5 @@
-from unittest.mock import patch
-
 import pytest
+from freezegun import freeze_time
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchHandler
@@ -58,12 +57,28 @@ def test_periodic_check_pending_search_data(data_fixture):
     assert workspace_search_table.objects.count() == 0
     assert PendingSearchValueUpdate.objects_and_trash.count() == 0
 
-    # If there are pending updates for a table, it should re-schedule the task
-    PendingSearchValueUpdate.objects.create(field_id=field.id, row_id=1)
+    # Too-old pending updates should be deleted, without creating a search value
+    with freeze_time("2024-01-01 00:00:00"):
+        PendingSearchValueUpdate.objects.create(field_id=field.id, row_id=1)
 
-    with patch(
-        "baserow.contrib.database.search.tasks.schedule_update_search_data"
-    ) as mock:
-        periodic_check_pending_search_data()
-        mock.assert_called_once()
-        assert mock.call_args[0][0] == table.id
+    assert PendingSearchValueUpdate.objects_and_trash.count() == 1
+    assert workspace_search_table.objects.count() == 0
+
+    periodic_check_pending_search_data()
+
+    # The pending update is removed and nothing is created in the search table
+    assert PendingSearchValueUpdate.objects_and_trash.count() == 0
+    assert workspace_search_table.objects.count() == 0
+
+    # If there are valid pending updates for a table, it should re-schedule the task
+    # and add them
+    PendingSearchValueUpdate.objects.create(field_id=field.id, row_id=1)
+    assert PendingSearchValueUpdate.objects_and_trash.count() == 1
+    assert workspace_search_table.objects.count() == 0
+
+    periodic_check_pending_search_data()
+
+    # The task is called for the table with pending updates and the search value
+    # is created accordingly
+    assert PendingSearchValueUpdate.objects_and_trash.count() == 0
+    assert workspace_search_table.objects.count() == 1

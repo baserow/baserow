@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Speed up a slow query to update search vectors and automatically remove stale entries from the pending updates table.",
+    "domain": "database",
+    "issue_number": null,
+    "bullet_points": [],
+    "created_at": "2025-07-23"
+}
