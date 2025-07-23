@@ -48,10 +48,10 @@ class DataSource(
     )
 
     class Meta:
-        ordering = ("page_id", "-trashed", "order", "id")
+        ordering = ("page_id", "order", "id")
         unique_together = [["page", "name"]]
         indexes = [
-            models.Index(fields=["page_id", "-trashed", "order", "id"]),
+            models.Index(fields=["page_id", "order", "id"]),
         ]
 
     def get_parent(self):
