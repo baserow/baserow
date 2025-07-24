@@ -132,12 +132,11 @@ export default {
                   const original =
                     ChartJS.overrides.pie.plugins.legend.labels.generateLabels
                   const originalLabels = original.call(this, chart)
-                  let datasetColors = chart.data.datasets.map(function (e) {
+                  const datasetColors = chart.data.datasets.map(function (e) {
                     return e.backgroundColor
                   })
-                  datasetColors = datasetColors.flat()
+                  let datasetIndex = 0
                   const newLabels = []
-                  let colorOffset = 0
                   for (const dataset of chart.data.datasets) {
                     originalLabels.forEach((label) => {
                       const newLabel = JSON.parse(JSON.stringify(label))
@@ -147,10 +146,10 @@ export default {
                         newLabel.text = dataset.label
                       }
                       newLabel.fillStyle =
-                        datasetColors[label.index + colorOffset]
+                        datasetColors[datasetIndex][label.index]
                       newLabels.push(newLabel)
                     })
-                    colorOffset += dataset.data.length
+                    datasetIndex += 1
                   }
                   return newLabels
                 }
