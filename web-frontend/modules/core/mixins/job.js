@@ -49,7 +49,7 @@ export default {
         started: this.$t('job.stateStarted'),
         failed: this.$t('job.stateFailed'),
         finished: this.$t('job.stateFinished'),
-        cancelled: this.$t('Cancelled'),
+        cancelled: this.$t('job.stateCanceled'),
       }
       if (translations[this.job.state]) {
         return translations[this.job.state]
