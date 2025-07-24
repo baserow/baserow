@@ -2,7 +2,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import connection
+from django.db import connection, transaction
 from django.test.utils import override_settings
 
 import pytest
@@ -113,19 +113,187 @@ def test_create_row_in_postgresql_table(
     assert postgres_id == fetched_id
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
-def test_unique_primary_is_updated_after_creating_a_row(enterprise_data_fixture):
-    assert False
+def test_update_row_in_postgresql_table(
+    enterprise_data_fixture,
+    create_postgresql_test_table,
+):
+    enterprise_data_fixture.enable_enterprise()
+    default_database = settings.DATABASES["default"]
+    user = enterprise_data_fixture.create_user()
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        two_way_sync=True,
+        synced_properties=[
+            "id",
+            "text_col",
+            "int_col",
+            "numeric_col",
+            "decimal_col",
+            "date_col",
+            "datetime_col",
+            "boolean_col",
+        ],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    id_field = fields[0]
+    text_field = fields[1]
+    int_field = fields[2]
+    numeric_field = fields[3]
+    decimal_field = fields[4]
+    date_field = fields[5]
+    datetime_field = fields[6]
+    boolean_field = fields[7]
+
+    model = data_sync.table.get_model()
+    rows = model.objects.all()
+
+    row_handler = RowHandler()
+
+    with transaction.atomic():
+        rows = row_handler.update_rows(
+            user=user,
+            table=data_sync.table,
+            rows_values=[
+                {
+                    "id": rows[0].id,
+                    f"field_{text_field.id}": "text",
+                    f"field_{int_field.id}": 1,
+                    f"field_{numeric_field.id}": "1",
+                    f"field_{decimal_field.id}": "1",
+                    f"field_{date_field.id}": "2021-01-01",
+                    f"field_{datetime_field.id}": "2021-01-01 12:00",
+                    f"field_{boolean_field.id}": True,
+                }
+            ],
+        )[0]
+
+    serialized_rows = serialize_rows_for_response(rows, model)
+    data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+    two_way_sync_strategy = two_way_sync_strategy_type_registry.get(
+        data_sync_type.two_way_sync_strategy_type
+    )
+
+    two_way_sync_strategy.rows_updated(
+        serialized_rows,
+        data_sync,
+        updated_field_ids=[
+            text_field.id,
+            int_field.id,
+            numeric_field.id,
+            decimal_field.id,
+            date_field.id,
+            datetime_field.id,
+            boolean_field.id,
+        ],
+    )
+
+    with connection.cursor() as cursor:
+        row_id = getattr(rows[0], f"field_{id_field.id}")
+        cursor.execute(
+            f"SELECT id, text_col, int_col, numeric_col, decimal_col, date_col, datetime_col, boolean_col "
+            f"FROM {create_postgresql_test_table} WHERE id = {row_id} LIMIT 1"
+        )
+        result = cursor.fetchone()
+        assert result is not None
+        assert result[0] == row_id
+        assert result[1] == "text"
+        assert result[2] == 1
+        assert result[3] == Decimal("1")
+        assert result[4] == Decimal("1")
+        assert result[5] == date(2021, 1, 1)
+        assert result[6].replace(tzinfo=timezone.utc) == datetime(
+            2021, 1, 1, 12, 0, tzinfo=timezone.utc
+        )
+        assert result[7] is True
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
-def test_update_row_in_postgresql_table(enterprise_data_fixture):
-    assert False
+def test_delete_row_in_postgresql_table(
+    enterprise_data_fixture,
+    create_postgresql_test_table,
+):
+    enterprise_data_fixture.enable_enterprise()
+    default_database = settings.DATABASES["default"]
+    user = enterprise_data_fixture.create_user()
 
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
 
-@pytest.mark.django_db
-@override_settings(DEBUG=True)
-def test_delete_row_in_postgresql_table(enterprise_data_fixture):
-    assert False
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        two_way_sync=True,
+        synced_properties=[
+            "id",
+            "text_col",
+            "int_col",
+            "numeric_col",
+            "decimal_col",
+            "date_col",
+            "datetime_col",
+            "boolean_col",
+        ],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    id_field = fields[0]
+
+    model = data_sync.table.get_model()
+    rows = model.objects.all()
+    serialized_rows = serialize_rows_for_response([rows[0]], model)
+
+    row_handler = RowHandler()
+
+    with transaction.atomic():
+        row_handler.delete_rows(
+            user=user,
+            table=data_sync.table,
+            row_ids=[rows[0].id],
+        )
+
+    data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+    two_way_sync_strategy = two_way_sync_strategy_type_registry.get(
+        data_sync_type.two_way_sync_strategy_type
+    )
+
+    two_way_sync_strategy.rows_deleted(serialized_rows, data_sync)
+
+    with connection.cursor() as cursor:
+        row_id = serialized_rows[0][f"field_{id_field.id}"]
+        cursor.execute(
+            f"SELECT count(*) " f"FROM {create_postgresql_test_table} WHERE id = %s",
+            [row_id],
+        )
+        result = cursor.fetchone()
+        assert result[0] == 0

@@ -501,4 +501,6 @@ class PostgreSQLDataSyncType(DataSyncType):
 
         params = [val for pk in pk_tuples for val in pk]
 
+        print(delete_query, params)
+
         self._execute_query_and_commit(delete_query, params, data_sync)
