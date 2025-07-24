@@ -117,16 +117,22 @@ class AutomationWorkflowHandler:
         Gets the original workflow related to the provided published
         AutomationWorkflow instance.
 
+        If the workflow isn't published but allow_test_run_until is set,
+        it indicates that the provided workflow is the one being run. Thus the
+        same workflow is returned.
+
         :param workflow: The published workflow for which the original version
             should be returned.
         :raises AutomationWorkflowDoesNotExist: If the workflow doesn't exist.
         :return: The original workflow, if it exists.
         """
 
-        if workflow.published or workflow.allow_test_run_until:
+        if workflow.published:
             return workflow.automation.published_from
-
-        return None
+        elif workflow.allow_test_run_until:
+            return workflow
+        else:
+            return None
 
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
