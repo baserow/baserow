@@ -24,8 +24,8 @@
     </template>
 
     <template #default>
-      <div v-if="item.message" class="history-section__message">
-        {{ item.message }}
+      <div class="history-section__message">
+        {{ historyMessage }}
       </div>
     </template>
   </Expandable>
@@ -71,5 +71,26 @@ const completedDate = computed(() => {
     .utc(props.item.completed_on)
     .tz(getUserTimeZone())
     .format('YYYY-MM-DD HH:mm:ss')
+})
+
+const historyMessage = computed(() => {
+  if (props.item.status === 'success') {
+    const start = new Date(props.item.created_on)
+    const end = new Date(props.item.completed_on)
+
+    const deltaMs = end - start
+    if (deltaMs < 1000) {
+      return app.i18n.t('historySidePanel.completedInMilliseconds', {
+        ms: deltaMs.toFixed(2),
+      })
+    } else {
+      const deltaSeconds = deltaMs / 1000
+      return app.i18n.t('historySidePanel.completedInSeconds', {
+        s: deltaSeconds.toFixed(2),
+      })
+    }
+  } else {
+    return props.item.message
+  }
 })
 </script>

@@ -57,7 +57,9 @@
     "noRunsDescription": "When this automation has run, the results will be shown here.",
     "statusSuccess": "Ran successfully",
     "statusError": "Failed to run",
-    "statusDisabled": "Disabled by Baserow"
+    "statusDisabled": "Disabled by Baserow",
+    "completedInSeconds": "Completed in {s} seconds.",
+    "completedInMilliseconds": "Completed in {ms} milliseconds."
   },
   "nodeType": {
     "localBaserowRowsCreatedLabel": "Rows are created in {tableName}",

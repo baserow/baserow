@@ -26,6 +26,8 @@ def run_workflow(
     dispatch_context = AutomationDispatchContext(workflow, event_payload)
     history_handler = AutomationHistoryHandler()
 
+    start_time = timezone.now()
+
     try:
         AutomationWorkflowRunner().run(workflow, dispatch_context)
     except DispatchException as e:
@@ -46,6 +48,7 @@ def run_workflow(
     finally:
         history_handler.create_workflow_history(
             workflow,
+            created_on=start_time,
             completed_on=timezone.now(),
             status=history_status,
             message=history_message,

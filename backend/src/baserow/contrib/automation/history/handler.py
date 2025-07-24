@@ -34,15 +34,27 @@ class AutomationHistoryHandler:
     def create_workflow_history(
         self,
         workflow: AutomationWorkflow,
+        created_on: datetime,
         completed_on: datetime,
         status: HistoryStatusChoices,
         message: str = "",
     ) -> AutomationWorkflowHistory:
         original_workflow = self.workflow_handler.get_original_workflow(workflow)
-        return AutomationWorkflowHistory.objects.create(
+        history = AutomationWorkflowHistory.objects.create(
             workflow=original_workflow,
             message=message,
             completed_on=completed_on,
             is_test_run=bool(workflow.allow_test_run_until),
             status=status,
         )
+
+        # The created_on field must be manually saved to ensure the workflow's
+        # start time is accurately recorded.
+        #
+        # When the task is executed very quickly, Django's auto_now_add/auto_now
+        # behaviour can save the created_on field to be slightly after the
+        # completed_on field.
+        history.created_on = created_on
+        history.save()
+
+        return history

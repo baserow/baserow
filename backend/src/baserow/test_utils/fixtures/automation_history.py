@@ -21,6 +21,10 @@ class AutomationHistoryFixtures:
         published_workflow.automation.published_from = original_workflow
         published_workflow.automation.save()
 
+        created_on = kwargs.pop("created_on", None)
+        if created_on is None:
+            created_on = timezone.now()
+
         completed_on = kwargs.pop("completed_on", None)
         if completed_on is None:
             completed_on = timezone.now()
@@ -38,6 +42,7 @@ class AutomationHistoryFixtures:
 
         return AutomationHistoryHandler().create_workflow_history(
             workflow=published_workflow,
+            created_on=created_on,
             completed_on=completed_on,
             status=status,
         )

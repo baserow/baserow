@@ -56,6 +56,7 @@ def test_create_workflow_history(data_fixture):
     history = AutomationHistoryHandler().create_workflow_history(
         published_workflow,
         now,
+        now,
         HistoryStatusChoices.SUCCESS,
     )
 

@@ -1,11 +1,6 @@
 <template>
-  <div
-    v-if="!workflowHistoryItems.length"
-    class="history-side-panel__empty"
-  >
-    <i
-      class="baserow-icon-automation history-side-panel__empty-icon"
-    ></i>
+  <div v-if="!workflowHistoryItems.length" class="history-side-panel__empty">
+    <i class="baserow-icon-automation history-side-panel__empty-icon"></i>
     <h4>{{ $t('historySidePanel.noRunsTitle') }}</h4>
     <p class="margin-top-0">
       {{ $t('historySidePanel.noRunsDescription') }}
