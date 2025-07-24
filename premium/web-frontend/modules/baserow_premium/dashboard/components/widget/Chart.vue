@@ -246,7 +246,7 @@ export default {
             this.convertChartJsType(seriesConfig.series_chart_type) || 'bar',
           data: seriesData,
           label,
-          ...this.chartColors[index],
+          ...this.seriesColors[index],
         })
       }
       return {
@@ -263,17 +263,32 @@ export default {
         }
       })
     },
-    chartColors() {
+    seriesColors() {
       return [
         {
-          backgroundColor: '#5190ef',
-          borderColor: '#5190ef',
-          hoverBackgroundColor: '#5190ef',
+          backgroundColor: '#2E90FA',
+          borderColor: '#2E90FA',
+          hoverBackgroundColor: '#2E90FA',
         },
         {
-          backgroundColor: '#2BC3F1',
-          borderColor: '#2BC3F1',
-          hoverBackgroundColor: '#2BC3F1',
+          backgroundColor: '#F79009',
+          borderColor: '#F79009',
+          hoverBackgroundColor: '#F79009',
+        },
+        {
+          backgroundColor: '#12D452',
+          borderColor: '#12D452',
+          hoverBackgroundColor: '#12D452',
+        },
+        {
+          backgroundColor: '#EE46BC',
+          borderColor: '#EE46BC',
+          hoverBackgroundColor: '#EE46BC',
+        },
+        {
+          backgroundColor: '#2970FF',
+          borderColor: '#2970FF',
+          hoverBackgroundColor: '#2970FF',
         },
         {
           backgroundColor: '#FFC744',
@@ -281,14 +296,54 @@ export default {
           hoverBackgroundColor: '#FFC744',
         },
         {
-          backgroundColor: '#E26AB0',
-          borderColor: '#E26AB0',
-          hoverBackgroundColor: '#E26AB0',
+          backgroundColor: '#AF50EA',
+          borderColor: '#AF50EA',
+          hoverBackgroundColor: '#AF50EA',
         },
         {
-          backgroundColor: '#3E4ACB',
-          borderColor: '#3E4ACB',
-          hoverBackgroundColor: '#3E4ACB',
+          backgroundColor: '#2ED3B7',
+          borderColor: '#2ED3B7',
+          hoverBackgroundColor: '#2ED3B7',
+        },
+        {
+          backgroundColor: '#F04438',
+          borderColor: '#F04438',
+          hoverBackgroundColor: '#F04438',
+        },
+        {
+          backgroundColor: '#85E13A',
+          borderColor: '#85E13A',
+          hoverBackgroundColor: '#85E13A',
+        },
+        {
+          backgroundColor: '#D444F1',
+          borderColor: '#D444F1',
+          hoverBackgroundColor: '#D444F1',
+        },
+        {
+          backgroundColor: '#2BC3F1',
+          borderColor: '#2BC3F1',
+          hoverBackgroundColor: '#2BC3F1',
+        },
+        {
+          backgroundColor: '#FF692E',
+          borderColor: '#FF692E',
+          hoverBackgroundColor: '#FF692E',
+        },
+        {
+          backgroundColor: '#875AF8',
+          borderColor: '#875AF8',
+          hoverBackgroundColor: '#875AF8',
+        },
+        {
+          backgroundColor: '#86CB3C',
+          borderColor: '#86CB3C',
+          hoverBackgroundColor: '#86CB3C',
+        },
+        {
+          backgroundColor: '#4E5CFE',
+          borderColor: '#4E5CFE',
+          hoverBackgroundColor: '#4E5CFE',
         },
       ]
     },
@@ -296,10 +351,10 @@ export default {
   methods: {
     chartColorsSeriesOrValues(index, offset) {
       if (this.colorSeries) {
-        return this.chartColors[index]
+        return this.seriesColors[index]
       } else {
         return {
-          backgroundColor: this.chartColors
+          backgroundColor: this.seriesColors
             .slice(offset || 0)
             .map((item) => item.backgroundColor),
         }
