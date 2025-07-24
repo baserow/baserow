@@ -1,19 +1,19 @@
 <template>
   <Expandable>
     <template #header="{ toggle, expanded }">
-      <div class="history__section">
-        <a class="history__status" @click="toggle">
-          <div class="history__status-heading">
+      <div class="history-section">
+        <a class="history-section__status" @click="toggle">
+          <div class="history-section__status-heading">
             <i :class="statusIconClass" />
-            <span class="history__status-heading-title">
+            <span class="history-section__status-heading-title">
               {{ statusTitle }}
             </span>
           </div>
 
-          <span class="history__date">{{ completedDate }}</span>
+          <span class="history-section__date">{{ completedDate }}</span>
 
           <i
-            class="history__collapse"
+            class="history-section__collapse"
             :class="{
               'iconoir-nav-arrow-down': expanded,
               'iconoir-nav-arrow-right': !expanded,
@@ -24,7 +24,7 @@
     </template>
 
     <template #default>
-      <div v-if="item.message" class="history__message">
+      <div v-if="item.message" class="history-section__message">
         {{ item.message }}
       </div>
     </template>
@@ -47,11 +47,11 @@ const props = defineProps({
 const statusIconClass = computed(() => {
   switch (props.item.status) {
     case 'success':
-      return 'history__icon--success iconoir-check-circle'
+      return 'history-section__icon--success iconoir-check-circle'
     case 'error':
-      return 'history__icon--error iconoir-warning-circle'
+      return 'history-section__icon--error iconoir-warning-circle'
     default:
-      return 'history__icon--disabled iconoir-warning-circle'
+      return 'history-section__icon--disabled iconoir-warning-circle'
   }
 })
 

@@ -1,25 +1,10 @@
-.history__title {
-  display: flex;
-  justify-content: space-between;
-  flex-direction: row;
-  padding-top: 10px;
-  padding-bottom: 20px;
-  font-size: 13px;
-  font-weight: 500;
-  color: $palette-neutral-1200;
-}
-
-.history__close-side-panel {
-  color: $palette-neutral-700;
-}
-
-.history__section {
+.history-section {
   padding-top: 20px;
   padding-bottom: 10px;
   border-top: 1px solid $palette-neutral-200;
 }
 
-.history__status {
+.history-section__status {
   color: $color-neutral-900;
   font-size: 14px;
   font-weight: 500;
@@ -35,7 +20,7 @@
   }
 }
 
-.history__status-heading {
+.history-section__status-heading {
   display: flex;
   align-items: center;
   align-self: center;
@@ -48,7 +33,7 @@
   }
 }
 
-.history__icon {
+.history-section__icon {
   font-weight: 500;
   font-size: 16px;
 
@@ -65,17 +50,17 @@
   }
 }
 
-.history__message {
+.history-section__message {
   display: flex;
   padding: 5px 5px 5px 10px;
   margin-bottom: 10px;
 }
 
-.history__date {
+.history-section__date {
   font-size: 11px;
   color: $palette-neutral-700;
 }
 
-.history__collapse {
+.history-section__collapse {
   color: $palette-neutral-700;
 }
