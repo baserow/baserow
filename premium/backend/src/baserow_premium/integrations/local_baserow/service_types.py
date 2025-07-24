@@ -571,7 +571,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         :return: Aggregation results.
         """
 
-        table = resolved_values["table"]
+        table = service.table
         model = self.get_table_model(service)
         queryset = self.build_queryset(service, table, dispatch_context, model=model)
         other_buckets_qs = queryset.all()

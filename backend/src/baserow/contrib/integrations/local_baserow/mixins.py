@@ -47,6 +47,7 @@ from baserow.core.services.exceptions import (
     UnexpectedDispatchException,
 )
 from baserow.core.services.types import (
+    FormulaToResolve,
     ServiceDict,
     ServiceFilterDictSubClass,
     ServiceSortDictSubClass,
@@ -811,7 +812,22 @@ class LocalBaserowTableServiceSpecificRowMixin:
     class SerializedDict(ServiceDict):
         row_id: BaserowFormula
 
-    def resolve_row_id(
+    def formulas_to_resolve(self, service: ServiceSubClass) -> list[FormulaToResolve]:
+        """
+        Returns the formula to resolve for this service.
+        """
+
+        super_formulas = super().formulas_to_resolve(service)
+
+        # Ignore empty formulas
+        if not service.row_id:
+            return super_formulas
+
+        return super_formulas + [
+            FormulaToResolve("row_id", service.row_id, ensure_integer, '"row_id"')
+        ]
+
+    def _resolve_row_id(
         self, resolved_values, service, dispatch_context
     ) -> Dict[str, Any]:
         """

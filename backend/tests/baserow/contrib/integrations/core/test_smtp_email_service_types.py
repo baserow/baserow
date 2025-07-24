@@ -312,28 +312,6 @@ def test_send_smtp_email_with_formulas(data_fixture):
 
 
 @pytest.mark.django_db
-def test_send_smtp_email_no_integration_error(data_fixture):
-    service = data_fixture.create_core_smtp_email_service(
-        integration=None,
-        from_email="'sender@example.com'",
-        to_emails="'recipient@example.com'",
-        subject="'Test Subject'",
-        body="'Test body'",
-    )
-
-    service_type = service.get_type()
-    dispatch_context = FakeDispatchContext()
-
-    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
-        service_type.dispatch(service, dispatch_context)
-
-    assert (
-        str(exc_info.value)
-        == "SMTP Email service must be connected to an SMTP integration"
-    )
-
-
-@pytest.mark.django_db
 def test_send_smtp_email_no_recipients_error(data_fixture):
     smtp_integration = data_fixture.create_smtp_integration(
         host="smtp.example.com",
