@@ -1027,6 +1027,11 @@ BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE = int(
     os.getenv("BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE", BATCH_ROWS_SIZE_LIMIT)
 )
 
+
+INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
+    os.getenv("BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS", False)
+)
+
 # ======== WARNING ========
 # Please read and understand everything at:
 # https://docs.djangoproject.com/en/3.2/ref/settings/#secure-proxy-ssl-header

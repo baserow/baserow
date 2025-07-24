@@ -3,9 +3,9 @@ import socket
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
+from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 
-import advocate
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
@@ -459,6 +459,24 @@ class CoreHTTPRequestServiceType(ServiceType):
 
         return formulas
 
+    def _get_request_function(self) -> callable:
+        """
+        Return the appropriate request function based on production environment
+        or settings.
+        In production mode, the advocate library is used so that the internal
+        network can't be reached. This can be disabled by changing the Django
+        setting INTEGRATIONS_ALLOW_PRIVATE_ADDRESS.
+        """
+
+        if settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS is True:
+            from requests import request
+
+            return request
+        else:
+            from advocate import request
+
+            return request
+
     def dispatch_data(
         self,
         service: CoreHTTPRequestService,
@@ -494,10 +512,8 @@ class CoreHTTPRequestServiceType(ServiceType):
             q.key: resolved_values[f"param_{q.id}"] for q in service.query_params.all()
         }
 
-        # TODO add variable to allow internal addresses
-
         try:
-            response = advocate.request(
+            response = self._get_request_function()(
                 method=service.http_method,
                 url=resolved_values["url"],
                 headers=headers,
