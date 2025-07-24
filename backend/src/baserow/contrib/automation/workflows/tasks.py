@@ -32,14 +32,14 @@ def run_workflow(
         history_message = str(e)
         history_status = HistoryStatusChoices.ERROR
     except Exception as e:
-        # For unexpected errors, store a generic message in history
         original_workflow = workflow.automation.published_from
         history_message = (
-            f"Unexpected error while running workflow {original_workflow.id}"
+            f"Unexpected error while running workflow {original_workflow.id}. "
+            f"Error: {str(e)}"
         )
         history_status = HistoryStatusChoices.ERROR
 
-        logger.error(f"{history_message}. Error: {str(e)}")
+        logger.exception(history_message)
     else:
         history_message = ""
         history_status = HistoryStatusChoices.SUCCESS

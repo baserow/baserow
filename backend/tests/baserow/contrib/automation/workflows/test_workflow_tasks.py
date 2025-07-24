@@ -13,6 +13,9 @@ def test_run_workflow_success_creates_workflow_history(data_fixture):
     published_workflow = data_fixture.create_automation_workflow(published=True)
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
+    data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=published_workflow
+    )
 
     assert (
         AutomationWorkflowHistory.objects.filter(workflow=original_workflow).count()
@@ -37,6 +40,9 @@ def test_run_workflow_dispatch_error_creates_workflow_history(mock_run, data_fix
     published_workflow = data_fixture.create_automation_workflow(published=True)
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
+    data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=published_workflow
+    )
 
     mock_run.side_effect = DispatchException("mock dispatch error")
 
@@ -66,6 +72,9 @@ def test_run_workflow_unexpected_error_creates_workflow_history(
     published_workflow = data_fixture.create_automation_workflow(published=True)
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
+    data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=published_workflow
+    )
 
     mock_run.side_effect = ValueError("mock unexpected error")
 
@@ -83,11 +92,9 @@ def test_run_workflow_unexpected_error_creates_workflow_history(
     history = histories[0]
     assert history.workflow == original_workflow
     assert history.status == "error"
-    assert (
-        history.message
-        == f"Unexpected error while running workflow {original_workflow.id}"
-    )
-    mock_logger.error.assert_called_once_with(
+    error_msg = (
         f"Unexpected error while running workflow {original_workflow.id}. "
         "Error: mock unexpected error"
     )
+    assert history.message == error_msg
+    mock_logger.exception.assert_called_once_with(error_msg)
