@@ -537,8 +537,7 @@ class DataSourceHandler:
 
         current_data_source_dispatched = dispatch_context.data_source or data_source
 
-        dispatch_context = BuilderDispatchContext.from_context(
-            dispatch_context,
+        dispatch_context = dispatch_context.clone(
             data_source=current_data_source_dispatched,
         )
 

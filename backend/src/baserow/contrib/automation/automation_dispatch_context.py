@@ -12,7 +12,7 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 
 
 class AutomationDispatchContext(DispatchContext):
-    own_properties = ["event_payload", "automation"]
+    own_properties = ["workflow"]
 
     def __init__(
         self,
@@ -34,6 +34,13 @@ class AutomationDispatchContext(DispatchContext):
         self.dispatch_history: List[int] = []
         self._initialize_trigger_results(event_payload)
         super().__init__()
+
+    def clone(self, **kwargs):
+        new_context = super().clone(**kwargs)
+        new_context.previous_nodes_results = {**self.previous_nodes_results}
+        new_context.dispatch_history = list(self.dispatch_history)
+
+        return new_context
 
     @property
     def data_provider_registry(self):

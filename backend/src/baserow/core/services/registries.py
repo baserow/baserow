@@ -258,19 +258,19 @@ class ServiceType(
 
         resolved_values = {}
         for key, formula, ensurer, label in self.formulas_to_resolve(service):
-            dispatch_context.reset_call_stack()
             try:
                 resolved_values[key] = ensurer(
                     resolve_formula(
                         formula,
                         formula_runtime_function_registry,
-                        dispatch_context,
+                        dispatch_context.clone(),
                     )
                 )
             except InvalidFormulaContext as e:
                 raise InvalidContextDispatchException(str(e)) from e
             except InvalidFormulaContextContent as e:
                 message = f"Value error for {label}: {str(e)}"
+                raise InvalidContextContentDispatchException(message) from e
             except ValidationError as e:
                 message = f"Value error for {label}: {e.message}"
                 raise InvalidContextContentDispatchException(message) from e

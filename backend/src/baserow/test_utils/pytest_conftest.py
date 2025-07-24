@@ -758,6 +758,14 @@ def fake_import_formula(formula, id_mapping):
 
 
 class FakeDispatchContext(DispatchContext):
+    own_properties = [
+        "context",
+        "_public_allowed_properties",
+        "_searchable_fields",
+        "_search_query",
+        "_count",
+    ]
+
     def __init__(self, **kwargs):
         super().__init__()
         self.context = kwargs.pop("context", {})

@@ -6,6 +6,8 @@ from typing import Any, Dict, Generator, List, Optional, Tuple
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 
+from advocate.connection import UnacceptableAddressException
+from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
@@ -521,9 +523,15 @@ class CoreHTTPRequestServiceType(ServiceType):
                 timeout=service.timeout,
                 **body_dict,
             )
+
+        except (UnacceptableAddressException, ConnectionError) as e:
+            raise UnexpectedDispatchException(
+                f'Invalid URL: {resolved_values["url"]}'
+            ) from e
         except request_exceptions.RequestException as e:
             raise UnexpectedDispatchException(str(e)) from e
         except Exception as e:
+            logger.exception("Error while dispatching HTTP request")
             raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
 
         response_body = (
@@ -698,8 +706,6 @@ class CoreSMTPEmailServiceType(ServiceType):
         """
         Returns the formula to resolve for this service.
         """
-
-        # TODO Add reply to
 
         ensurers = {
             "from_email": ensure_email,

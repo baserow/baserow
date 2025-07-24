@@ -50,6 +50,24 @@ class DispatchContext(RuntimeFormulaContext, ABC):
 
         new_context = cls(**new_values)
         new_context.cache = {**context.cache}
+        new_context.call_stack = set(context.call_stack)
+
+        return new_context
+
+    def clone(self, **kwargs) -> RuntimeFormulaContextSubClass:
+        """
+        Return a new DispatchContext instance cloned from the current context, without
+        losing the original cached data and call stack but updating some properties.
+        """
+
+        new_values = {}
+        for prop in self.own_properties:
+            new_values[prop] = getattr(self, prop)
+        new_values.update(kwargs)
+
+        new_context = self.__class__(**new_values)
+        new_context.cache = {**self.cache}
+        new_context.call_stack = set(self.call_stack)
 
         return new_context
 

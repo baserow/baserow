@@ -1570,10 +1570,10 @@ def test_dispatch_data_source_raises_service_improperly_configured(
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_SERVICE_IMPROPERLY_CONFIGURED"
+    assert response.json()["error"] == "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT"
     assert (
-        response.json()["detail"] == "The `row_id` value must be an integer or "
-        "convertible to an integer."
+        response.json()["detail"] == 'Value error for "row_id": '
+        "The value must be an integer or convertible to an integer."
     )
 
 
@@ -1666,7 +1666,7 @@ def test_dispatch_data_sources(api_client, data_fixture):
         },
         str(data_source3.id): {
             "_error": "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
-            "detail": "Row id formula could not be resolved: Invalid syntax at "
+            "detail": 'Error in formula for "row_id": Invalid syntax at '
             "line 1, col 3: mismatched input 'the end of the formula' expecting '('",
         },
     }
