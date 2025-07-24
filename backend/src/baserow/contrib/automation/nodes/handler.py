@@ -16,8 +16,8 @@ from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
     UpdatedAutomationNode,
 )
-from baserow.core.cache import local_cache
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.services.handler import ServiceHandler
