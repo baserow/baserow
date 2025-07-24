@@ -146,7 +146,7 @@ export default {
                         newLabel.text = dataset.label
                       }
                       newLabel.fillStyle =
-                        datasetColors[datasetIndex][label.index]
+                        datasetColors[datasetIndex][label.index % 10]
                       newLabels.push(newLabel)
                     })
                     datasetIndex += 1
