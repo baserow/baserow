@@ -306,28 +306,28 @@ export const colorPalette = [
     { color: '#4E1D09' }, // orange 1000
   ],
   [
-    { color: '#D0F6DC' }, // green 100
-    { color: '#A0EEBA' }, // green 200
-    { color: '#71E597' }, // green 300
-    { color: '#41DD75' }, // green 400
-    { color: '#12D452' }, // green 500
-    { color: '#10BF4A' }, // green 600
-    { color: '#0EAA42' }, // green 700
-    { color: '#0D9439' }, // green 800
-    { color: '#0B7F31' }, // green 900
-    { color: '#096A29' }, // green 1000
+    { color: '#F0FDF9' }, // teal 100
+    { color: '#CCFBEF' }, // teal 200
+    { color: '#99F6E0' }, // teal 300
+    { color: '#5FE9D0' }, // teal 400
+    { color: '#2ED3B7' }, // teal 500
+    { color: '#15B79E' }, // teal 600
+    { color: '#0E9384' }, // teal 700
+    { color: '#107569' }, // teal 800
+    { color: '#125D56' }, // teal 900
+    { color: '#134E48' }, // teal 1000
   ],
   [
-    { color: '#FCE7F6' }, // pink 100
-    { color: '#FCCEEE' }, // pink 200
-    { color: '#FAA7E0' }, // pink 300
-    { color: '#F670C7' }, // pink 400
-    { color: '#EE46BC' }, // pink 500
-    { color: '#DD2590' }, // pink 600
-    { color: '#C11574' }, // pink 700
-    { color: '#9E165F' }, // pink 800
-    { color: '#851651' }, // pink 900
-    { color: '#4E0D30' }, // pink 1000
+    { color: '#EFDCFB' }, // purple 100
+    { color: '#DFB9F7' }, // purple 200
+    { color: '#CF96F2' }, // purple 300
+    { color: '#BF73EE' }, // purple 400
+    { color: '#AF50EA' }, // purple 500
+    { color: '#9D48D3' }, // purple 600
+    { color: '#8C40BB' }, // purple 700
+    { color: '#7B38A4' }, // purple 800
+    { color: '#69308C' }, // purple 900
+    { color: '#582875' }, // purple 1000
   ],
   [
     { color: '#D1E0FF' }, // dark blue 100
@@ -354,28 +354,28 @@ export const colorPalette = [
     { color: '#806422' }, // yellow 1000
   ],
   [
-    { color: '#EFDCFB' }, // purple 100
-    { color: '#DFB9F7' }, // purple 200
-    { color: '#CF96F2' }, // purple 300
-    { color: '#BF73EE' }, // purple 400
-    { color: '#AF50EA' }, // purple 500
-    { color: '#9D48D3' }, // purple 600
-    { color: '#8C40BB' }, // purple 700
-    { color: '#7B38A4' }, // purple 800
-    { color: '#69308C' }, // purple 900
-    { color: '#582875' }, // purple 1000
+    { color: '#FCE7F6' }, // pink 100
+    { color: '#FCCEEE' }, // pink 200
+    { color: '#FAA7E0' }, // pink 300
+    { color: '#F670C7' }, // pink 400
+    { color: '#EE46BC' }, // pink 500
+    { color: '#DD2590' }, // pink 600
+    { color: '#C11574' }, // pink 700
+    { color: '#9E165F' }, // pink 800
+    { color: '#851651' }, // pink 900
+    { color: '#4E0D30' }, // pink 1000
   ],
   [
-    { color: '#F0FDF9' }, // teal 100
-    { color: '#CCFBEF' }, // teal 200
-    { color: '#99F6E0' }, // teal 300
-    { color: '#5FE9D0' }, // teal 400
-    { color: '#2ED3B7' }, // teal 500
-    { color: '#15B79E' }, // teal 600
-    { color: '#0E9384' }, // teal 700
-    { color: '#107569' }, // teal 800
-    { color: '#125D56' }, // teal 900
-    { color: '#134E48' }, // teal 1000
+    { color: '#D0F6DC' }, // green 100
+    { color: '#A0EEBA' }, // green 200
+    { color: '#71E597' }, // green 300
+    { color: '#41DD75' }, // green 400
+    { color: '#12D452' }, // green 500
+    { color: '#10BF4A' }, // green 600
+    { color: '#0EAA42' }, // green 700
+    { color: '#0D9439' }, // green 800
+    { color: '#0B7F31' }, // green 900
+    { color: '#096A29' }, // green 1000
   ],
   [
     { color: '#FEE4E2' }, // red 100

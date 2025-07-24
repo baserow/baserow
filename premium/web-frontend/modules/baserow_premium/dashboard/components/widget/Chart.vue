@@ -272,15 +272,15 @@ export default {
       return colorPalette.map((palette) => {
         return [
           palette[4].color,
-          palette[0].color,
-          palette[9].color,
-          palette[1].color,
-          palette[8].color,
-          palette[2].color,
-          palette[7].color,
-          palette[3].color,
           palette[6].color,
-          palette[4].color,
+          palette[8].color,
+          palette[0].color,
+          palette[2].color,
+          palette[9].color,
+          palette[7].color,
+          palette[5].color,
+          palette[3].color,
+          palette[1].color,
         ]
       })
     },
