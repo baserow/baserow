@@ -40,11 +40,16 @@ class AutomationHistoryHandler:
         message: str = "",
     ) -> AutomationWorkflowHistory:
         original_workflow = self.workflow_handler.get_original_workflow(workflow)
+        is_test_run = (
+            bool(original_workflow.allow_test_run_until)
+            if not original_workflow.published
+            else False
+        )
         history = AutomationWorkflowHistory.objects.create(
             workflow=original_workflow,
             message=message,
             completed_on=completed_on,
-            is_test_run=bool(workflow.allow_test_run_until),
+            is_test_run=is_test_run,
             status=status,
         )
 

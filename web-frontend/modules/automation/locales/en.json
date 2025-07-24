@@ -59,7 +59,8 @@
     "statusError": "Failed to run",
     "statusDisabled": "Disabled by Baserow",
     "completedInSeconds": "Completed in {s} seconds.",
-    "completedInMilliseconds": "Completed in {ms} milliseconds."
+    "completedInMilliseconds": "Completed in {ms} milliseconds.",
+    "testRun": "Test Run"
   },
   "nodeType": {
     "localBaserowRowsCreatedLabel": "Rows are created in {tableName}",

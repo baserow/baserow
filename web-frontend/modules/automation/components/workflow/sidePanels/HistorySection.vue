@@ -25,7 +25,7 @@
 
     <template #default>
       <div class="history-section__message">
-        {{ historyMessage }}
+        {{ historyMessagePrefix }}{{ historyMessage }}
       </div>
     </template>
   </Expandable>
@@ -71,6 +71,12 @@ const completedDate = computed(() => {
     .utc(props.item.completed_on)
     .tz(getUserTimeZone())
     .format('YYYY-MM-DD HH:mm:ss')
+})
+
+const historyMessagePrefix = computed(() => {
+  return props.item.is_test_run === true
+    ? `[${app.i18n.t('historySidePanel.testRun')}] `
+    : ''
 })
 
 const historyMessage = computed(() => {
