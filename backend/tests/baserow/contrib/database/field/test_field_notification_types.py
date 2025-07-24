@@ -843,13 +843,17 @@ def test_notifications_are_not_sent_twice_on_undo_redo_row_update(
 
     with transaction.atomic(), freeze_time("2023-07-06 12:00"):
         row = RowHandler().create_row(user=user_1, table=table, model=model)
-        (row,) = action_type_registry.get_by_type(UpdateRowsActionType).do(
-            user=user_1,
-            table=table,
-            rows_values=[
-                {"id": row.id, rich_text_field.db_column: f"Hello @{user_2.id}!"}
-            ],
-            model=model,
+        (row,) = (
+            action_type_registry.get_by_type(UpdateRowsActionType)
+            .do(
+                user=user_1,
+                table=table,
+                rows_values=[
+                    {"id": row.id, rich_text_field.db_column: f"Hello @{user_2.id}!"}
+                ],
+                model=model,
+            )
+            .updated_rows
         )
 
     # Ensure the mention is created in the apposite table

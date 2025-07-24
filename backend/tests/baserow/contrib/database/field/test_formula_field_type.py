@@ -2326,9 +2326,9 @@ def test_count_formula_for_link_row_field_with_null_values(data_fixture):
     )
 
     row_handler = RowHandler()
-    rows, _ = row_handler.create_rows(
+    rows = row_handler.create_rows(
         user=user, table=table_b, rows_values=[{}, {}, {}], model=table_b.get_model()
-    )
+    ).created_rows
 
     row_a = row_handler.create_row(
         user=user,

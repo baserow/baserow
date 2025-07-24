@@ -54,6 +54,18 @@ export class RolePermissionManagerType extends PermissionManagerType {
   }
 }
 
+export class DateDependencyPermissionManagerType extends PermissionManagerType {
+  static getType() {
+    return 'date_dependency'
+  }
+
+  hasPermission(permissions, operation, context, workspaceId) {
+    if (operation === 'database.table.date_dependency.set_permissions') {
+      return !permissions[operation].exceptions.includes(context.id)
+    }
+  }
+}
+
 const WRITE_FIELD_VALUES_OPERATION_NAME = 'database.table.field.write_values'
 const SUBMIT_FORM_VALUES_OPERATION_NAME =
   'database.table.field.submit_anonymous_values'

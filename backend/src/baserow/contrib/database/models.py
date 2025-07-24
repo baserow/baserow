@@ -1,6 +1,7 @@
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.core.models import Application
 
+from .field_rules.models import FieldRule
 from .fields.models import (
     BooleanField,
     DateField,
@@ -62,6 +63,7 @@ __all__ = [
     "TableWebhookHeader",
     "TableWebhookCall",
     "FieldDependency",
+    "FieldRule",
 ]
 
 

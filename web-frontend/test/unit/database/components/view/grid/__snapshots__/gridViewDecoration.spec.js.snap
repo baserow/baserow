@@ -221,6 +221,7 @@ exports[`GridView component with decoration Default component with first_cell de
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -272,6 +273,7 @@ exports[`GridView component with decoration Default component with first_cell de
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -323,6 +325,7 @@ exports[`GridView component with decoration Default component with first_cell de
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -719,6 +722,7 @@ exports[`GridView component with decoration Default component with row wrapper d
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -770,6 +774,7 @@ exports[`GridView component with decoration Default component with row wrapper d
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -821,6 +826,7 @@ exports[`GridView component with decoration Default component with row wrapper d
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -1224,6 +1230,7 @@ exports[`GridView component with decoration Default component with unavailable d
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -1275,6 +1282,7 @@ exports[`GridView component with decoration Default component with unavailable d
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -1326,6 +1334,7 @@ exports[`GridView component with decoration Default component with unavailable d
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a

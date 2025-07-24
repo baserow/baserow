@@ -83,7 +83,7 @@ export default (client) => {
     },
     batchCreate(tableId, rows, beforeId = null, undoRedoActionGroupId = null) {
       const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
-      config.params = {}
+      config.params = { include_metadata: true }
 
       if (beforeId !== null) {
         config.params.before = beforeId
@@ -100,6 +100,7 @@ export default (client) => {
     },
     batchUpdate(tableId, items, undoRedoActionGroupId = null) {
       const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
+      config.params.include_metadata = true
       return client.patch(
         `/database/rows/table/${tableId}/batch/`,
         { items },

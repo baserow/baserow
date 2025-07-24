@@ -400,7 +400,7 @@ def test_single_select_field_type_multiple_rows(
             ],
         )
 
-    rows, error_report = RowHandler().create_rows(
+    rows, error_report, updated_field_ids = RowHandler().create_rows(
         user,
         table,
         rows_values=[

@@ -311,3 +311,29 @@ export class BuilderCustomCodePaidFeature extends PaidFeature {
     return this.app.i18n.t('enterpriseFeatures.builderCustomCodeContent')
   }
 }
+
+export class DateDependencyPaidFeature extends PaidFeature {
+  static getType() {
+    return 'date_dependency'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-lock'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.dateDependencyFeature')
+  }
+
+  getImage() {
+    return '/img/features/field_level_permissions.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.dateDependencyFeatureContent')
+  }
+}

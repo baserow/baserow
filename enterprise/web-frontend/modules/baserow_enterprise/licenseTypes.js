@@ -13,6 +13,7 @@ const commonAdvancedFeatures = [
   EnterpriseFeaturesObject.DATA_SYNC,
   EnterpriseFeaturesObject.ADVANCED_WEBHOOKS,
   EnterpriseFeaturesObject.FIELD_LEVEL_PERMISSIONS,
+  EnterpriseFeaturesObject.DATE_DEPENDENCY,
   // application builder
   EnterpriseFeaturesObject.BUILDER_SSO,
   EnterpriseFeaturesObject.BUILDER_NO_BRANDING,

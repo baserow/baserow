@@ -1,5 +1,10 @@
 from django.conf import settings
 
+from .field_rules.signals import (
+    on_field_rule_created,
+    on_field_rule_deleted,
+    on_field_rule_updated,
+)
 from .fields.signals import field_created, field_deleted, field_updated
 from .rows.signals import rows_created, rows_deleted, rows_updated
 from .table.signals import table_created, table_deleted, table_updated
@@ -64,5 +69,8 @@ __all__ = [
     "field_created",
     "field_updated",
     "field_deleted",
+    "on_field_rule_created",
+    "on_field_rule_updated",
+    "on_field_rule_deleted",
     *PUBLIC_SIGNALS,
 ]

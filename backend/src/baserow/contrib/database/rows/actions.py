@@ -21,7 +21,11 @@ from baserow.contrib.database.rows.handler import (
     GeneratedTableModelForUpdate,
     RowHandler,
 )
-from baserow.contrib.database.rows.types import FileImportDict
+from baserow.contrib.database.rows.types import (
+    CreatedRowsData,
+    FileImportDict,
+    UpdatedRowsData,
+)
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import (
     FieldObject,
@@ -220,7 +224,7 @@ class CreateRowsActionType(UndoableActionType):
         before_row: Optional[GeneratedTableModel] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
         send_webhook_events: bool = True,
-    ) -> List[GeneratedTableModel]:
+    ) -> CreatedRowsData:
         """
         Creates rows for a given table with the provided values if the user
         belongs to the related workspace. It also calls the rows_created signal.
@@ -245,14 +249,15 @@ class CreateRowsActionType(UndoableActionType):
                 "Can't create rows because it has a data sync."
             )
         rh = RowHandler()
-        rows = rh.create_rows(
+        created_rows = rh.create_rows(
             user,
             table,
             rows_values,
             before_row=before_row,
             model=model,
             send_webhook_events=send_webhook_events,
-        ).created_rows
+        )
+        rows = created_rows.created_rows
 
         workspace = table.database.workspace
         tmodel = table.get_model()
@@ -910,7 +915,7 @@ class UpdateRowsActionType(UndoableActionType):
         rows_values: List[Dict[str, Any]],
         model: Optional[Type[GeneratedTableModel]] = None,
         send_webhook_events: bool = True,
-    ) -> List[GeneratedTableModelForUpdate]:
+    ) -> UpdatedRowsData:
         """
         Updates field values in batch based on provided rows with the new values.
         See the baserow.contrib.database.rows.handler.RowHandler.update_rows
@@ -953,7 +958,7 @@ class UpdateRowsActionType(UndoableActionType):
         )
         cls.register_action(user, params, cls.scope(table.id), workspace=workspace)
 
-        return updated_rows
+        return result
 
     @classmethod
     def serialized_to_params(cls, serialized_params: Any) -> Any:

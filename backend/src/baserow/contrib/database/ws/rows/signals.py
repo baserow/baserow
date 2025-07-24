@@ -20,9 +20,18 @@ if TYPE_CHECKING:
 
 @receiver(row_signals.before_rows_update)
 def serialize_rows_values(
-    sender, rows, user, table, model, updated_field_ids, **kwargs
+    sender,
+    rows,
+    user,
+    table,
+    model,
+    updated_field_ids,
+    use_fields_subset: bool = False,
+    **kwargs,
 ):
-    return serialize_rows_for_response(rows, model)
+    return serialize_rows_for_response(
+        rows, model, field_ids=updated_field_ids if use_fields_subset else None
+    )
 
 
 @receiver(row_signals.rows_created)
@@ -69,6 +78,7 @@ def rows_updated(
     before_return,
     updated_field_ids,
     send_realtime_update=True,
+    use_fields_subset: bool = False,
     **kwargs,
 ):
     if not send_realtime_update:
@@ -82,7 +92,10 @@ def rows_updated(
                 table_id=table.id,
                 serialized_rows_before_update=before_rows_values,
                 serialized_rows=get_row_serializer_class(
-                    model, RowSerializer, is_response=True
+                    model,
+                    RowSerializer,
+                    is_response=True,
+                    field_ids=updated_field_ids if use_fields_subset else None,
                 )(rows, many=True).data,
                 # Broadcast a list of updated fields so that the listener can take
                 # action even if the value didn't change.

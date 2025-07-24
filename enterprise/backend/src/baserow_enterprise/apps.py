@@ -3,6 +3,8 @@ from django.db.models.signals import post_migrate
 
 from tqdm import tqdm
 
+from baserow.core.feature_flags import FF_DATE_DEPENDENCY, feature_flag_is_enabled
+
 
 class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
@@ -131,6 +133,15 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(UpdateFieldPermissionsOperationType())
         operation_type_registry.register(ReadFieldPermissionsOperationType())
         operation_type_registry.register(ChatAssistantChatOperationType())
+
+        if feature_flag_is_enabled(FF_DATE_DEPENDENCY):
+            from baserow.contrib.database.field_rules.registries import (
+                field_rules_type_registry,
+            )
+
+            from .date_dependency.field_rule_types import DateDependencyFieldRuleType
+
+            field_rules_type_registry.register(DateDependencyFieldRuleType())
 
         from baserow.core.registries import subject_type_registry
 

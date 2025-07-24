@@ -17,7 +17,7 @@
       }"
       :title="segment.label"
       class="segment-control__button"
-      @click="setActiveIndex(index)"
+      @click.prevent="setActiveIndex(index)"
     >
       <i v-if="segment.icon" :class="segment.icon"></i>
       <span v-if="segment.label" class="segment-control__button-label">{{

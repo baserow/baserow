@@ -15,3 +15,5 @@ BUILDER_SSO = "application_user_sso"
 BUILDER_NO_BRANDING = "application_no_branding"
 BUILDER_FILE_INPUT = "builder_file_input"
 BUILDER_CUSTOM_CODE = "builder_custom_code"
+
+DATE_DEPENDENCY = "date_dependency"

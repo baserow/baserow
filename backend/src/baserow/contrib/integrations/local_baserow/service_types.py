@@ -2031,7 +2031,7 @@ class LocalBaserowUpsertRowServiceType(
                     table,
                     rows_values=[{**row_values, "id": row_id}],
                     model=model,
-                )
+                ).updated_rows
             except RowDoesNotExist as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The row with id {row_id} does not exist."
