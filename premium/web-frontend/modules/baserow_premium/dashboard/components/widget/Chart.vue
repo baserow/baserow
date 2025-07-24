@@ -19,6 +19,7 @@
 </template>
 
 <script>
+import { colorPalette, getBaseColors } from '@baserow/modules/core/utils/colors'
 import { Bar, Pie } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -209,7 +210,6 @@ export default {
         return this.getGroupByValue(`field_${primaryField.metadata.id}`, item)
       })
       const datasets = []
-      let colorOffset = 0
       for (const [index, series] of this.chartSeries.entries()) {
         const seriesData = this.result.map((item) => {
           return item[`${series.fieldName}_${series.aggregationType}`]
@@ -221,11 +221,8 @@ export default {
             this.convertChartJsType(seriesConfig.series_chart_type) || 'bar',
           data: seriesData,
           label,
-          ...this.chartColorsSeriesOrValues(index, colorOffset),
+          ...this.chartColorsSeriesOrValues(index),
         })
-        if (!this.colorSeries) {
-          colorOffset += seriesData.length
-        }
       }
       return {
         labels,
@@ -264,99 +261,38 @@ export default {
       })
     },
     seriesColors() {
-      return [
-        {
-          backgroundColor: '#2E90FA',
-          borderColor: '#2E90FA',
-          hoverBackgroundColor: '#2E90FA',
-        },
-        {
-          backgroundColor: '#F79009',
-          borderColor: '#F79009',
-          hoverBackgroundColor: '#F79009',
-        },
-        {
-          backgroundColor: '#12D452',
-          borderColor: '#12D452',
-          hoverBackgroundColor: '#12D452',
-        },
-        {
-          backgroundColor: '#EE46BC',
-          borderColor: '#EE46BC',
-          hoverBackgroundColor: '#EE46BC',
-        },
-        {
-          backgroundColor: '#2970FF',
-          borderColor: '#2970FF',
-          hoverBackgroundColor: '#2970FF',
-        },
-        {
-          backgroundColor: '#FFC744',
-          borderColor: '#FFC744',
-          hoverBackgroundColor: '#FFC744',
-        },
-        {
-          backgroundColor: '#AF50EA',
-          borderColor: '#AF50EA',
-          hoverBackgroundColor: '#AF50EA',
-        },
-        {
-          backgroundColor: '#2ED3B7',
-          borderColor: '#2ED3B7',
-          hoverBackgroundColor: '#2ED3B7',
-        },
-        {
-          backgroundColor: '#F04438',
-          borderColor: '#F04438',
-          hoverBackgroundColor: '#F04438',
-        },
-        {
-          backgroundColor: '#85E13A',
-          borderColor: '#85E13A',
-          hoverBackgroundColor: '#85E13A',
-        },
-        {
-          backgroundColor: '#D444F1',
-          borderColor: '#D444F1',
-          hoverBackgroundColor: '#D444F1',
-        },
-        {
-          backgroundColor: '#2BC3F1',
-          borderColor: '#2BC3F1',
-          hoverBackgroundColor: '#2BC3F1',
-        },
-        {
-          backgroundColor: '#FF692E',
-          borderColor: '#FF692E',
-          hoverBackgroundColor: '#FF692E',
-        },
-        {
-          backgroundColor: '#875AF8',
-          borderColor: '#875AF8',
-          hoverBackgroundColor: '#875AF8',
-        },
-        {
-          backgroundColor: '#86CB3C',
-          borderColor: '#86CB3C',
-          hoverBackgroundColor: '#86CB3C',
-        },
-        {
-          backgroundColor: '#4E5CFE',
-          borderColor: '#4E5CFE',
-          hoverBackgroundColor: '#4E5CFE',
-        },
-      ]
+      return getBaseColors().map((color) => {
+        return {
+          backgroundColor: color,
+          borderColor: color,
+          hoverBackgroundColor: color,
+        }
+      })
+    },
+    valuesColors() {
+      return colorPalette.map((palette) => {
+        return [
+          palette[4].color,
+          palette[0].color,
+          palette[9].color,
+          palette[1].color,
+          palette[8].color,
+          palette[2].color,
+          palette[7].color,
+          palette[3].color,
+          palette[6].color,
+          palette[4].color,
+        ]
+      })
     },
   },
   methods: {
-    chartColorsSeriesOrValues(index, offset) {
+    chartColorsSeriesOrValues(seriesIndex) {
       if (this.colorSeries) {
-        return this.seriesColors[index]
+        return this.seriesColors[seriesIndex]
       } else {
         return {
-          backgroundColor: this.seriesColors
-            .slice(offset || 0)
-            .map((item) => item.backgroundColor),
+          backgroundColor: this.valuesColors[seriesIndex],
         }
       }
     },
