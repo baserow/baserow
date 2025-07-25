@@ -6,10 +6,11 @@ from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 
 class AutomationHistoryFixtures:
     def create_workflow_history(self, user=None, **kwargs):
+        if user is None:
+            user = self.create_user()
+
         published_workflow = kwargs.pop("published_workflow", None)
         if published_workflow is None:
-            if user is None:
-                user = self.create_user()
             published_workflow = self.create_automation_workflow(
                 user=user, published=True
             )
@@ -33,6 +34,8 @@ class AutomationHistoryFixtures:
         if status is None:
             status = HistoryStatusChoices.SUCCESS
 
+        is_test_run = kwargs.pop("status", False)
+
         self.create_local_baserow_rows_created_trigger_node(
             user=user, workflow=original_workflow
         )
@@ -41,8 +44,9 @@ class AutomationHistoryFixtures:
         )
 
         return AutomationHistoryHandler().create_workflow_history(
-            workflow=published_workflow,
+            workflow=original_workflow,
             created_on=created_on,
             completed_on=completed_on,
             status=status,
+            is_test_run=is_test_run,
         )

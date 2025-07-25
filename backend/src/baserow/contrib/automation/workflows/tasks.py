@@ -17,12 +17,16 @@ from baserow.core.services.exceptions import DispatchException
 @app.task(bind=True, queue="automation_workflow")
 @atomic_with_retry_on_deadlock()
 def run_workflow(
-    self, workflow_id: int, event_payload: Optional[Union[Dict, List[Dict]]]
+    self,
+    workflow_id: int,
+    is_test_run: bool,
+    event_payload: Optional[Union[Dict, List[Dict]]],
 ):
     from baserow.contrib.automation.history.handler import AutomationHistoryHandler
     from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
     workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+    original_workflow = workflow.automation.published_from
     dispatch_context = AutomationDispatchContext(workflow, event_payload)
     history_handler = AutomationHistoryHandler()
 
@@ -34,7 +38,6 @@ def run_workflow(
         history_message = str(e)
         history_status = HistoryStatusChoices.ERROR
     except Exception as e:
-        original_workflow = workflow.automation.published_from
         history_message = (
             f"Unexpected error while running workflow {original_workflow.id}. "
             f"Error: {str(e)}"
@@ -47,15 +50,10 @@ def run_workflow(
         history_status = HistoryStatusChoices.SUCCESS
     finally:
         history_handler.create_workflow_history(
-            workflow,
+            workflow if is_test_run else original_workflow,
             created_on=start_time,
             completed_on=timezone.now(),
             status=history_status,
+            is_test_run=is_test_run,
             message=history_message,
         )
-
-        # The allow_test_run_until value must be reset after the history is
-        # created, since the history creation accesses this value.
-        if workflow.allow_test_run_until:
-            workflow.allow_test_run_until = None
-            workflow.save(update_fields=["allow_test_run_until"])

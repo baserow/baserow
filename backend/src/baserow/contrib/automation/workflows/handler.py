@@ -41,7 +41,10 @@ class AutomationWorkflowHandler:
     allowed_fields = ["name", "allow_test_run_until", "paused"]
 
     def run_workflow(
-        self, workflow_id: int, event_payload: Optional[List[Dict]] = None
+        self,
+        workflow_id: int,
+        is_test_run: bool,
+        event_payload: Optional[List[Dict]] = None,
     ) -> None:
         """
         Runs the provided workflow.
@@ -50,7 +53,7 @@ class AutomationWorkflowHandler:
         :param event_payload: The payload from the action.
         """
 
-        run_workflow.delay(workflow_id, event_payload)
+        run_workflow.delay(workflow_id, is_test_run, event_payload)
 
     def get_workflow(
         self,
@@ -667,3 +670,15 @@ class AutomationWorkflowHandler:
         duplicate_automation.save(update_fields=["published_from"])
 
         return duplicate_automation.workflows.first()
+
+    def is_test_run(self, workflow: AutomationWorkflow) -> bool:
+        """
+        Returns True if the current workflow run is a Test Run, False otherwise.
+        """
+
+        original_workflow = self.get_original_workflow(workflow)
+        return (
+            bool(original_workflow.allow_test_run_until)
+            if not original_workflow.published
+            else False
+        )

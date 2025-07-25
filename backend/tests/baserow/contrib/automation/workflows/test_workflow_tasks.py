@@ -22,7 +22,7 @@ def test_run_workflow_success_creates_workflow_history(data_fixture):
         == 0
     )
 
-    result = run_workflow(published_workflow.id, None)
+    result = run_workflow(published_workflow.id, False, None)
 
     assert result is None
     histories = AutomationWorkflowHistory.objects.filter(workflow=original_workflow)
@@ -51,7 +51,7 @@ def test_run_workflow_dispatch_error_creates_workflow_history(mock_run, data_fix
         == 0
     )
 
-    result = run_workflow(published_workflow.id, None)
+    result = run_workflow(published_workflow.id, False, None)
 
     assert result is None
     histories = AutomationWorkflowHistory.objects.filter(workflow=original_workflow)
@@ -83,7 +83,7 @@ def test_run_workflow_unexpected_error_creates_workflow_history(
         == 0
     )
 
-    result = run_workflow(published_workflow.id, None)
+    result = run_workflow(published_workflow.id, False, None)
 
     assert result is None
 

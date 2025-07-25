@@ -54,10 +54,11 @@ def test_create_workflow_history(data_fixture):
 
     now = timezone.now()
     history = AutomationHistoryHandler().create_workflow_history(
-        published_workflow,
+        original_workflow,
         now,
         now,
         HistoryStatusChoices.SUCCESS,
+        False,
     )
 
     assert isinstance(history, AutomationWorkflowHistory)
