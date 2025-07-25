@@ -142,7 +142,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
         for trigger in triggers:
             workflow = trigger.workflow
             workflow_handler.run_workflow(
-                workflow.id,
+                workflow,
                 event_payload,
             )
             if workflow.allow_test_run_until:

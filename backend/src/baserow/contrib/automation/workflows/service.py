@@ -46,7 +46,8 @@ class AutomationWorkflowService:
         :param event_payload: The payload from the action.
         """
 
-        self.handler.run_workflow(workflow_id, event_payload)
+        workflow = self.get_workflow(user, workflow_id)
+        self.handler.run_workflow(workflow, event_payload)
 
     def get_workflow(self, user: AbstractUser, workflow_id: int) -> AutomationWorkflow:
         """
