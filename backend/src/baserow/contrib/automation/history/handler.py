@@ -27,7 +27,6 @@ class AutomationHistoryHandler:
         return (
             base_queryset.filter(workflow=workflow)
             .prefetch_related("workflow__automation__workspace")
-            .order_by("-started_on")
         )
 
     def create_workflow_history(

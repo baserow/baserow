@@ -18,6 +18,7 @@ class AutomationHistory(models.Model):
 
     class Meta:
         abstract = True
+        ordering = ("-started_on",)
 
 
 class AutomationWorkflowHistory(AutomationHistory):
