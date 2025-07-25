@@ -86,9 +86,7 @@ const historyMessage = computed(() => {
 
     const deltaMs = end - start
     if (deltaMs < 1000) {
-      return app.i18n.t('historySidePanel.completedInMilliseconds', {
-        ms: deltaMs.toFixed(2),
-      })
+      return app.i18n.t('historySidePanel.completedInLessThanSecond')
     } else {
       const deltaSeconds = deltaMs / 1000
       return app.i18n.t('historySidePanel.completedInSeconds', {

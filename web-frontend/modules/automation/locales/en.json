@@ -59,7 +59,7 @@
     "statusError": "Failed to run",
     "statusDisabled": "Disabled by Baserow",
     "completedInSeconds": "Completed in {s} seconds.",
-    "completedInMilliseconds": "Completed in {ms} milliseconds.",
+    "completedInLessThanSecond": "Completed in less than 1 second.",
     "testRun": "Test"
   },
   "nodeType": {
