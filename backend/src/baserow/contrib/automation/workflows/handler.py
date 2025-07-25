@@ -676,9 +676,4 @@ class AutomationWorkflowHandler:
         Returns True if the current workflow run is a Test Run, False otherwise.
         """
 
-        original_workflow = self.get_original_workflow(workflow)
-        return (
-            bool(original_workflow.allow_test_run_until)
-            if not original_workflow.published
-            else False
-        )
+        return bool(workflow.allow_test_run_until)
