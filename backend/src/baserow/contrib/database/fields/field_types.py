@@ -4236,7 +4236,8 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             (
                 index
                 for index, option in enumerate(select_options)
-                if option["id"] == default
+                if option.get("id") == default
+                or option.get(UPSERT_OPTION_DICT_KEY) == default
             ),
             None,
         )
