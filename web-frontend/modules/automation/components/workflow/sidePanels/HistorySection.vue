@@ -1,8 +1,8 @@
 <template>
   <Expandable>
     <template #header="{ toggle, expanded }">
-      <div class="history-section">
-        <a class="history-section__status" @click="toggle">
+      <div class="history-section" @click="toggle">
+        <a class="history-section__status">
           <div class="history-section__status-heading">
             <i :class="statusIconClass" />
             <span class="history-section__status-heading-title">

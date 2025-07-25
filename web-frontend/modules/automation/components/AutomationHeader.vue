@@ -14,7 +14,7 @@
         <a
           data-item-type="history"
           class="header__filter-link"
-          :class="{'active--primary': activeSidePanel === 'history'}"
+          :class="{ 'active--primary': activeSidePanel === 'history' }"
           @click="historyClick()"
           ><i class="header__filter-icon baserow-icon-history"></i>
           <span class="header__filter-name">{{
