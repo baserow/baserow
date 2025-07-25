@@ -24,9 +24,8 @@ class AutomationHistoryHandler:
         if base_queryset is None:
             base_queryset = AutomationWorkflowHistory.objects.all()
 
-        return (
-            base_queryset.filter(workflow=workflow)
-            .prefetch_related("workflow__automation__workspace")
+        return base_queryset.filter(workflow=workflow).prefetch_related(
+            "workflow__automation__workspace"
         )
 
     def create_workflow_history(
