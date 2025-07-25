@@ -60,7 +60,7 @@
     "statusDisabled": "Disabled by Baserow",
     "completedInSeconds": "Completed in {s} seconds.",
     "completedInMilliseconds": "Completed in {ms} milliseconds.",
-    "testRun": "Test Run"
+    "testRun": "Test"
   },
   "nodeType": {
     "localBaserowRowsCreatedLabel": "Rows are created in {tableName}",

@@ -6,7 +6,7 @@
           <div class="history-section__status-heading">
             <i :class="statusIconClass" />
             <span class="history-section__status-heading-title">
-              {{ statusTitle }}
+              {{ historyTitlePrefix }}{{ statusTitle }}
             </span>
           </div>
 
@@ -25,7 +25,7 @@
 
     <template #default>
       <div class="history-section__message">
-        {{ historyMessagePrefix }}{{ historyMessage }}
+        {{ historyMessage }}
       </div>
     </template>
   </Expandable>
@@ -73,7 +73,7 @@ const completedDate = computed(() => {
     .format('YYYY-MM-DD HH:mm:ss')
 })
 
-const historyMessagePrefix = computed(() => {
+const historyTitlePrefix = computed(() => {
   return props.item.is_test_run === true
     ? `[${app.i18n.t('historySidePanel.testRun')}] `
     : ''
