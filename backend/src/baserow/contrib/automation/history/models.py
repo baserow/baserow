@@ -1,10 +1,10 @@
 from django.db import models
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
-from baserow.core.mixins import CreatedAndUpdatedOnMixin
 
 
-class AutomationHistory(CreatedAndUpdatedOnMixin):
+class AutomationHistory(models.Model):
+    started_on = models.DateTimeField()
     completed_on = models.DateTimeField(null=True, blank=True)
 
     message = models.TextField()

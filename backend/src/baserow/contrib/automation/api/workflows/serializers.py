@@ -92,7 +92,7 @@ class AutomationWorkflowHistorySerializer(serializers.ModelSerializer):
         model = AutomationWorkflowHistory
         fields = (
             "id",
-            "created_on",
+            "started_on",
             "completed_on",
             "is_test_run",
             "message",

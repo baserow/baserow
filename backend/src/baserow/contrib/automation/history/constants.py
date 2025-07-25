@@ -5,3 +5,4 @@ class HistoryStatusChoices(models.TextChoices):
     SUCCESS = "success"
     ERROR = "error"
     DISABLED = "disabled"
+    STARTED = "started"

@@ -81,7 +81,7 @@ const historyMessagePrefix = computed(() => {
 
 const historyMessage = computed(() => {
   if (props.item.status === 'success') {
-    const start = new Date(props.item.created_on)
+    const start = new Date(props.item.started_on)
     const end = new Date(props.item.completed_on)
 
     const deltaMs = end - start

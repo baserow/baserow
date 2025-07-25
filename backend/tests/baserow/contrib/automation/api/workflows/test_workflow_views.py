@@ -556,7 +556,7 @@ def test_get_workflow_history(api_client, data_fixture):
         "results": [
             {
                 "completed_on": AnyStr(),
-                "created_on": AnyStr(),
+                "started_on": AnyStr(),
                 "id": history.id,
                 "is_test_run": False,
                 "message": "",

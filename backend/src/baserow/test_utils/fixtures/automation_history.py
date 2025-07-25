@@ -22,9 +22,9 @@ class AutomationHistoryFixtures:
         published_workflow.automation.published_from = original_workflow
         published_workflow.automation.save()
 
-        created_on = kwargs.pop("created_on", None)
-        if created_on is None:
-            created_on = timezone.now()
+        started_on = kwargs.pop("started_on", None)
+        if started_on is None:
+            started_on = timezone.now()
 
         completed_on = kwargs.pop("completed_on", None)
         if completed_on is None:
@@ -43,10 +43,14 @@ class AutomationHistoryFixtures:
             user=user, workflow=original_workflow
         )
 
-        return AutomationHistoryHandler().create_workflow_history(
+        history = AutomationHistoryHandler().create_workflow_history(
             workflow=original_workflow,
-            created_on=created_on,
-            completed_on=completed_on,
-            status=status,
+            started_on=started_on,
             is_test_run=is_test_run,
         )
+
+        history.completed_on = completed_on
+        history.status = status
+        history.save()
+
+        return history

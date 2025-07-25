@@ -2,7 +2,6 @@ from django.utils import timezone
 
 import pytest
 
-from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 
@@ -56,8 +55,6 @@ def test_create_workflow_history(data_fixture):
     history = AutomationHistoryHandler().create_workflow_history(
         original_workflow,
         now,
-        now,
-        HistoryStatusChoices.SUCCESS,
         False,
     )
 
