@@ -119,12 +119,11 @@ class AutomationNodeTriggerType(AutomationNodeType):
         event_payload: Optional[List[Dict]] = None,
         user: Optional[AbstractUser] = None,
     ):
-        from baserow.contrib.automation.workflows.service import (
-            AutomationWorkflowService,
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
         )
 
-        workflow_service = AutomationWorkflowService()
-
+        workflow_handler = AutomationWorkflowHandler()
         now = timezone.now()
 
         triggers = (
@@ -142,10 +141,9 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
         for trigger in triggers:
             workflow = trigger.workflow
-            workflow_service.run_workflow(
+            workflow_handler.run_workflow(
                 workflow.id,
                 event_payload,
-                user=user,
             )
             if workflow.allow_test_run_until:
                 workflow.allow_test_run_until = None

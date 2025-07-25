@@ -24,7 +24,7 @@ def test_automation_node_type_is_replaceable_with():
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.automation.workflows.service.AutomationWorkflowService.run_workflow"
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.run_workflow"
 )
 def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_fixture):
     user = data_fixture.create_user()
