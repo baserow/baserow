@@ -5,6 +5,7 @@
       :application="application"
       :enable-view-picker="false"
       :default-values="defaultValues"
+      disallow-data-synced-tables
       @table-changed="handleTableChange"
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
