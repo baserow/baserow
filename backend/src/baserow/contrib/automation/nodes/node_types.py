@@ -119,15 +119,11 @@ class AutomationNodeTriggerType(AutomationNodeType):
         event_payload: Optional[List[Dict]] = None,
         user: Optional[AbstractUser] = None,
     ):
-        from baserow.contrib.automation.workflows.handler import (
-            AutomationWorkflowHandler,
-        )
         from baserow.contrib.automation.workflows.service import (
             AutomationWorkflowService,
         )
 
         workflow_service = AutomationWorkflowService()
-        workflow_handler = AutomationWorkflowHandler()
 
         now = timezone.now()
 
@@ -146,20 +142,8 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
         for trigger in triggers:
             workflow = trigger.workflow
-
-            # The workflow is run as an async task, and its history is created
-            # at the end of that run. The allow_test_run_until value is
-            # evaluated during history creation, but it may be updated before
-            # the async task completes.
-            #
-            # Therefore, the value must be passed in manually to ensure the
-            # workflow history correctly reflects the test run state at
-            # execution time.
-            is_test_run = workflow_handler.is_test_run(workflow)
-
             workflow_service.run_workflow(
                 workflow.id,
-                is_test_run,
                 event_payload,
                 user=user,
             )

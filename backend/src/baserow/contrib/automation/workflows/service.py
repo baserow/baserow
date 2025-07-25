@@ -36,7 +36,6 @@ class AutomationWorkflowService:
     def run_workflow(
         self,
         workflow_id: int,
-        is_test_run: bool,
         event_payload: Optional[List[Dict]] = None,
         user: Optional[AbstractUser] = None,
     ):
@@ -47,7 +46,7 @@ class AutomationWorkflowService:
         :param event_payload: The payload from the action.
         """
 
-        self.handler.run_workflow(workflow_id, is_test_run, event_payload)
+        self.handler.run_workflow(workflow_id, event_payload)
 
     def get_workflow(self, user: AbstractUser, workflow_id: int) -> AutomationWorkflow:
         """

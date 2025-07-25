@@ -43,7 +43,6 @@ class AutomationWorkflowHandler:
     def run_workflow(
         self,
         workflow_id: int,
-        is_test_run: bool,
         event_payload: Optional[List[Dict]] = None,
     ) -> None:
         """
@@ -53,7 +52,8 @@ class AutomationWorkflowHandler:
         :param event_payload: The payload from the action.
         """
 
-        run_workflow.delay(workflow_id, is_test_run, event_payload)
+        workflow = self.get_workflow(workflow_id)
+        run_workflow.delay(workflow_id, self.is_test_run(workflow), event_payload)
 
     def get_workflow(
         self,
