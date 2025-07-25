@@ -13,7 +13,8 @@
       <li v-if="isDev" class="header__filter-item">
         <a
           data-item-type="history"
-          :class="historyButtonClass"
+          class="header__filter-link"
+          :class="{'active--primary': activeSidePanel === 'history'}"
           @click="historyClick()"
           ><i class="header__filter-icon baserow-icon-history"></i>
           <span class="header__filter-name">{{
@@ -157,14 +158,6 @@ export default defineComponent({
       return store.getters['automationWorkflow/getActiveSidePanel']
     })
 
-    const historyButtonClass = computed(() => {
-      if (activeSidePanel.value === 'history') {
-        return 'header__filter-link active--primary'
-      } else {
-        return 'header__filter-link'
-      }
-    })
-
     const toggleTestRun = async () => {
       try {
         await store.dispatch('automationWorkflow/toggleTestRun', {
@@ -239,7 +232,7 @@ export default defineComponent({
       isPaused,
       selectedWorkflow,
       workflow,
-      historyButtonClass,
+      activeSidePanel,
     }
   },
 })
