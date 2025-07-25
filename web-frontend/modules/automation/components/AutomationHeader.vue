@@ -195,10 +195,14 @@ export default defineComponent({
     }
 
     const historyClick = () => {
-      store.dispatch(
-        'automationWorkflow/setActiveSidePanel',
-        HistoryEditorSidePanelType.getType()
-      )
+      let sidePanelType = HistoryEditorSidePanelType.getType()
+
+      // Clicking the History button should toggle the active state
+      if (activeSidePanel.value === sidePanelType) {
+        sidePanelType = null
+      }
+
+      store.dispatch('automationWorkflow/setActiveSidePanel', sidePanelType)
     }
 
     const publishWorkflow = async () => {
