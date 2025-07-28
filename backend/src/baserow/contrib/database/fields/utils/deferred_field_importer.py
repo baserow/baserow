@@ -51,7 +51,7 @@ class DeferredFieldImporter:
         self, field_name_fields_mapping: Dict[int, Dict[str, "Field"]]
     ) -> Dict[str, Set[str]]:
         """
-        Merges all the field dependencies into a single dictionary. Depdencies use the
+        Merges all the field dependencies into a single dictionary. Dependencies use the
         table id and the field name to identify the field. The returned dictionary will
         have the field name as the key and a set of field names that it depends on as
         the value.
@@ -66,9 +66,18 @@ class DeferredFieldImporter:
         for field_temp_id, (table, field_deps) in self.deferred_field_imports.items():
             for dep_field_name, via_field_name in field_deps:
                 if via_field_name is not None:
-                    # The target field is in the linked table
-                    link_row_field = field_name_fields_mapping[table.id][via_field_name]
-                    dep_table_id = link_row_field.link_row_table_id
+                    try:
+                        # The target field is in the linked table
+                        link_row_field = field_name_fields_mapping[table.id][
+                            via_field_name
+                        ]
+                        dep_table_id = link_row_field.link_row_table_id
+                    except KeyError:
+                        # If the `via_field_name` does not exist, then there is a
+                        # broken dependency. In that case, it's okay to use the
+                        # `table.id` as `dep_table_id` because it does not matter how
+                        # it's grouped later.
+                        dep_table_id = table.id
                 else:
                     # The target field is in the same table
                     dep_table_id = table.id
