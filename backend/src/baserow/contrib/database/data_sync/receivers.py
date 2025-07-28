@@ -31,6 +31,12 @@ def rows_created_receiver(
     if not table.is_two_way_data_synced_table:
         return
 
+    # If there is no need to send a realtime update event, these rows were most
+    # likely created via a data sync or another process where no action has to be
+    # taken. It's therefore not needed to do make a two-way sync update.
+    if not send_realtime_update:
+        return
+
     transaction.on_commit(
         lambda: two_way_sync_row_created.delay(
             serialized_rows=serialize_rows_for_response(rows, model),
@@ -48,10 +54,18 @@ def rows_updated_receiver(
     model,
     before_return,
     updated_field_ids,
+    send_realtime_update=True,
+    send_webhook_events=True,
     m2m_change_tracker=None,
     **kwargs,
 ):
     if not table.is_two_way_data_synced_table:
+        return
+
+    # If there is no need to send a realtime update event, these rows were most
+    # likely updated via a data sync or another process where no action has to be
+    # taken. It's therefore not needed to do make a two-way sync update.
+    if not send_realtime_update:
         return
 
     synced_properties_field_ids = [
@@ -85,10 +99,18 @@ def rows_deleted_receiver(
     table,
     model,
     before_return,
+    send_realtime_update=True,
+    send_webhook_events=True,
     m2m_change_tracker=None,
     **kwargs,
 ):
     if not table.is_two_way_data_synced_table:
+        return
+
+    # If there is no need to send a realtime update event, these rows were most
+    # likely deleted via a data sync or another process where no action has to be
+    # taken. It's therefore not needed to do make a two-way sync update.
+    if not send_realtime_update:
         return
 
     transaction.on_commit(
