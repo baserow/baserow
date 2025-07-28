@@ -5897,6 +5897,12 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             row, field
         )
 
+    def should_update_search_data(
+        self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_formula = new_field_attrs.get("formula", old_field.formula)
+        return old_field.formula != new_formula
+
     def should_backup_field_data_for_same_type_update(
         self, old_field: FormulaField, new_field_attrs: Dict[str, Any]
     ) -> bool:
@@ -6332,6 +6338,24 @@ class RollupFieldType(FormulaFieldType):
     ) -> QuerySet[Field]:
         return queryset.select_related("through_field", "target_field")
 
+    def should_update_search_data(
+        self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_through_field_id = new_field_attrs.get(
+            "through_field_id", old_field.through_field_id
+        )
+        new_target_field_id = new_field_attrs.get(
+            "target_field_id", old_field.target_field_id
+        )
+        new_rollup_function = new_field_attrs.get(
+            "rollup_function", old_field.rollup_function
+        )
+        return (
+            old_field.through_field_id != new_through_field_id
+            or old_field.target_field_id != new_target_field_id
+            or old_field.rollup_function != new_rollup_function
+        )
+
 
 class LookupFieldType(FormulaFieldType):
     type = "lookup"
@@ -6634,6 +6658,20 @@ class LookupFieldType(FormulaFieldType):
         self, queryset: QuerySet[Field], field: Field
     ) -> QuerySet[Field]:
         return queryset.select_related("through_field", "target_field")
+
+    def should_update_search_data(
+        self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_through_field_id = new_field_attrs.get(
+            "through_field_id", old_field.through_field_id
+        )
+        new_target_field_id = new_field_attrs.get(
+            "target_field_id", old_field.target_field_id
+        )
+        return (
+            old_field.through_field_id != new_through_field_id
+            or old_field.target_field_id != new_target_field_id
+        )
 
 
 class MultipleCollaboratorsFieldType(
