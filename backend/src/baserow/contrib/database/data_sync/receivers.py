@@ -26,15 +26,16 @@ def rows_created_receiver(
     send_realtime_update=True,
     send_webhook_events=True,
     m2m_change_tracker=None,
+    skip_two_way_sync=False,
     **kwargs,
 ):
     if not table.is_two_way_data_synced_table:
         return
 
-    # If there is no need to send a realtime update event, these rows were most
-    # likely created via a data sync or another process where no action has to be
-    # taken. It's therefore not needed to do make a two-way sync update.
-    if not send_realtime_update:
+    # If set to True when the rows are created, updated, or deleted via a sync. In
+    # that case, it's directly from the source table, and we don't want to re do the
+    # operation in the source.
+    if skip_two_way_sync:
         return
 
     transaction.on_commit(
@@ -57,15 +58,16 @@ def rows_updated_receiver(
     send_realtime_update=True,
     send_webhook_events=True,
     m2m_change_tracker=None,
+    skip_two_way_sync=False,
     **kwargs,
 ):
     if not table.is_two_way_data_synced_table:
         return
 
-    # If there is no need to send a realtime update event, these rows were most
-    # likely updated via a data sync or another process where no action has to be
-    # taken. It's therefore not needed to do make a two-way sync update.
-    if not send_realtime_update:
+    # If set to True when the rows are created, updated, or deleted via a sync. In
+    # that case, it's directly from the source table, and we don't want to maintain
+    # duplicates.
+    if skip_two_way_sync:
         return
 
     synced_properties_field_ids = [
@@ -76,9 +78,9 @@ def rows_updated_receiver(
         for updated_field_id in updated_field_ids
     )
 
-    # If none of the synced properties were updated, then there is no need to run the
-    # task. This is also used to prevent that a loop when the unique primary properties
-    # are updated after creating a row.
+    # If set to True when the rows are created, updated, or deleted via a sync. In
+    # that case, it's directly from the source table, and we don't want to re do the
+    # operation in the source.
     if not any_synced_property_updated:
         return
 
@@ -102,15 +104,16 @@ def rows_deleted_receiver(
     send_realtime_update=True,
     send_webhook_events=True,
     m2m_change_tracker=None,
+    skip_two_way_sync=False,
     **kwargs,
 ):
     if not table.is_two_way_data_synced_table:
         return
 
-    # If there is no need to send a realtime update event, these rows were most
-    # likely deleted via a data sync or another process where no action has to be
-    # taken. It's therefore not needed to do make a two-way sync update.
-    if not send_realtime_update:
+    # If set to True when the rows are created, updated, or deleted via a sync. In
+    # that case, it's directly from the source table, and we don't want to re do the
+    # operation in the source.
+    if skip_two_way_sync:
         return
 
     transaction.on_commit(

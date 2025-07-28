@@ -473,6 +473,7 @@ class DataSyncHandler:
                 send_realtime_update=False,
                 send_webhook_events=False,
                 skip_search_update=True,
+                signal_params={"skip_two_way_sync": True},
             )
         progress.increment(by=10)  # makes the total `80`
 
@@ -485,6 +486,7 @@ class DataSyncHandler:
                 send_realtime_update=False,
                 send_webhook_events=False,
                 skip_search_update=True,
+                signal_params={"skip_two_way_sync": True},
             )
         progress.increment(by=10)  # makes the total `90`
 
@@ -498,6 +500,7 @@ class DataSyncHandler:
                 send_webhook_events=False,
                 # The rows should not be trashed
                 permanently_delete=True,
+                signal_params={"skip_two_way_sync": True},
             )
         progress.increment(by=10)  # makes the total `100`
 

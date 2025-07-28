@@ -80,6 +80,7 @@ def test_create_row_in_postgresql_table(
                 f"field_{boolean_field.id}": True,
             }
         ],
+        signal_params={"skip_two_way_sync": True},
     ).created_rows
 
     model = data_sync.table.get_model()
@@ -185,6 +186,7 @@ def test_update_row_in_postgresql_table(
                     f"field_{boolean_field.id}": True,
                 }
             ],
+            signal_params={"skip_two_way_sync": True},
         )[0]
 
     serialized_rows = serialize_rows_for_response(rows, model)
@@ -284,7 +286,7 @@ def test_skip_update_row_in_postgresql_table_if_unique_primary_is_empty(
                     f"field_{text_field.id}": "new",
                 }
             ],
-            send_realtime_update=False,
+            signal_params={"skip_two_way_sync": True},
         )[0]
 
     serialized_rows = serialize_rows_for_response(rows, model)
@@ -369,6 +371,7 @@ def test_delete_row_in_postgresql_table(
             user=user,
             table=data_sync.table,
             row_ids=[rows[0].id],
+            signal_params={"skip_two_way_sync": True},
         )
 
     data_sync_type = data_sync_type_registry.get_by_model(data_sync)
@@ -440,6 +443,7 @@ def test_skip_delete_row_in_postgresql_table_if_unique_primary_is_empty(
             user=user,
             table=data_sync.table,
             row_ids=[rows[0].id],
+            signal_params={"skip_two_way_sync": True},
         )
 
     data_sync_type = data_sync_type_registry.get_by_model(data_sync)

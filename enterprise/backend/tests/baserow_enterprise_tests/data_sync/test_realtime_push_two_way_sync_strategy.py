@@ -149,6 +149,7 @@ def test_update_row_is_retried_on_sync_error(
                 f"field_{text_field.id}": "text",
             }
         ],
+        signal_params={"skip_two_way_sync": True},
     ).created_rows
 
     model = data_sync.table.get_model()
@@ -224,6 +225,7 @@ def test_two_way_sync_is_notified_after_retries(
                 f"field_{text_field.id}": "text",
             }
         ],
+        signal_params={"skip_two_way_sync": True},
     ).created_rows
 
     model = data_sync.table.get_model()
@@ -329,6 +331,7 @@ def test_two_way_sync_is_deactivated_after_consecutive_failure(
                 f"field_{text_field.id}": "text",
             }
         ],
+        signal_params={"skip_two_way_sync": True},
     ).created_rows
 
     model = data_sync.table.get_model()
@@ -434,6 +437,7 @@ def test_two_way_sync_consecutive_failures_are_reset_on_success(
                 f"field_{text_field.id}": "text",
             }
         ],
+        signal_params={"skip_two_way_sync": True},
     ).created_rows
 
     model = data_sync.table.get_model()
@@ -506,7 +510,7 @@ def test_two_way_sync_update_without_valid_license(
                 f"field_{text_field.id}": "text",
             }
         ],
-        send_realtime_update=False,
+        signal_params={"skip_two_way_sync": True},
     ).created_rows
 
     model = data_sync.table.get_model()
