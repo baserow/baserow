@@ -23,9 +23,12 @@ def run_workflow(
     event_payload: Optional[Union[Dict, List[Dict]]],
 ):
     from baserow.contrib.automation.history.handler import AutomationHistoryHandler
-    from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+    from baserow.contrib.automation.workflows.handler import (
+        AutomationWorkflowHandler,
+    )
 
-    workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+    workflow_handler = AutomationWorkflowHandler()
+    workflow = workflow_handler.get_workflow(workflow_id)
     original_workflow = workflow.automation.published_from
     dispatch_context = AutomationDispatchContext(workflow, event_payload)
     history_handler = AutomationHistoryHandler()
@@ -38,6 +41,21 @@ def run_workflow(
         is_test_run=is_test_run,
     )
 
+    if workflow_handler.is_rate_limited(original_workflow.id):
+        now = timezone.now()
+        history.completed_on = now
+        history.message = (
+            f"The workflow {original_workflow.id} was rate limited and "
+            "disabled due to too many recent runs."
+        )
+        history.status = HistoryStatusChoices.DISABLED
+        history.save()
+
+        workflow.disabled_on = now
+        workflow.save()
+
+        return
+
     try:
         AutomationWorkflowRunner().run(workflow, dispatch_context)
     except DispatchException as e:
@@ -49,7 +67,6 @@ def run_workflow(
             f"Error: {str(e)}"
         )
         history_status = HistoryStatusChoices.ERROR
-
         logger.exception(history_message)
     else:
         history_message = ""

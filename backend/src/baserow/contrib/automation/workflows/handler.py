@@ -35,6 +35,12 @@ from baserow.core.utils import (
     extract_allowed,
     find_unused_name,
 )
+from django.core.cache import cache
+from datetime import datetime, timedelta
+from django.utils import timezone
+from django.conf import settings
+
+WORKFLOW_RATE_LIMIT_CACHE_PREFIX = "automation_workflow_{}"
 
 
 class AutomationWorkflowHandler:
@@ -679,3 +685,39 @@ class AutomationWorkflowHandler:
         """
 
         return bool(workflow.allow_test_run_until)
+
+    def get_rate_limit_cache_key(self, workflow_id: int) -> str:
+        return WORKFLOW_RATE_LIMIT_CACHE_PREFIX.format(workflow_id)
+
+    def is_rate_limited(self, workflow_id: int) -> bool:
+        """
+        Returns True if the workflow is rate limited, False otherwise.
+
+        Uses a global cache key to track recent runs for the given workflow.
+        """
+
+        now = timezone.now()
+        expiry_seconds = settings.AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS
+        start_window = now - timedelta(seconds=expiry_seconds)
+        cache_key = self.get_rate_limit_cache_key(workflow_id)
+
+        data = cache.get(cache_key, default=[])
+
+        # Check the number of past runs that are in the window
+        runs_in_window = [
+            timestamp for timestamp in data
+            if isinstance(timestamp, datetime) and timestamp > start_window
+        ]
+
+        if len(runs_in_window) >= settings.AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
+            return True
+
+        runs_in_window.append(now)
+
+        cache.set(
+            cache_key,
+            runs_in_window,
+            timeout=expiry_seconds,
+        )
+
+        return False
