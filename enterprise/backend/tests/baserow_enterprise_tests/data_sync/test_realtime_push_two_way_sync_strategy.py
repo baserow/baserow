@@ -6,6 +6,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 import pytest
+from baserow_premium.license.models import License
 from rest_framework.status import HTTP_402_PAYMENT_REQUIRED
 
 from baserow.contrib.database.api.rows.serializers import serialize_rows_for_response
@@ -16,6 +17,7 @@ from baserow.contrib.database.data_sync.registries import (
 )
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.notifications.models import Notification
 from baserow_enterprise.data_sync.notification_types import (
@@ -251,7 +253,6 @@ def test_two_way_sync_is_notified_after_retries(
     assert all_notifications[0].broadcast is False
     assert all_notifications[0].workspace_id == data_sync.table.database.workspace_id
     assert all_notifications[0].sender is None
-    print(all_notifications[0].data["error"])
     assert all_notifications[0].data == {
         "data_sync_id": data_sync.id,
         "table_name": data_sync.table.name,
@@ -450,3 +451,81 @@ def test_two_way_sync_consecutive_failures_are_reset_on_success(
 
     data_sync.refresh_from_db()
     assert data_sync.two_way_sync_consecutive_failures == 0
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+def test_two_way_sync_update_without_valid_license(
+    enterprise_data_fixture, create_postgresql_test_table, api_client
+):
+    enterprise_data_fixture.enable_enterprise()
+    default_database = settings.DATABASES["default"]
+    user = enterprise_data_fixture.create_user()
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+
+    # Create a field unrelated to the data sync that is writeable to make sure that
+    # one is not set to read_only after the data sync is deactivated.
+    enterprise_data_fixture.create_text_field(read_only=False)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        two_way_sync=True,
+        synced_properties=[
+            "id",
+            "text_col",
+        ],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    License.objects.all().delete()
+    local_cache.clear()
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    text_field = fields[1]
+
+    row_handler = RowHandler()
+    rows = row_handler.create_rows(
+        user=user,
+        table=data_sync.table,
+        rows_values=[
+            {
+                f"field_{text_field.id}": "text",
+            }
+        ],
+        send_realtime_update=False,
+    ).created_rows
+
+    model = data_sync.table.get_model()
+    serialized_rows = serialize_rows_for_response(rows, model)
+    data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+    two_way_sync_strategy = two_way_sync_strategy_type_registry.get(
+        data_sync_type.two_way_sync_strategy_type
+    )
+
+    mock_task_context = Mock()
+    mock_task_context.request.retries = 0
+    mock_task_context.retry = Mock()
+
+    two_way_sync_strategy.rows_created(mock_task_context, serialized_rows, data_sync)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"SELECT count(*) " f"FROM {create_postgresql_test_table}",
+        )
+        result = cursor.fetchone()
+        # Should be equal to the old number because no rows should have been created.
+        assert result[0] == 2

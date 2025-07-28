@@ -81,6 +81,11 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
             data_sync.save()
 
     def rows_created(self, task_context, serialized_rows, data_sync):
+        if not LicenseHandler.workspace_has_feature(
+            DATA_SYNC, data_sync.table.database.workspace
+        ):
+            return
+
         data_sync_type = data_sync_type_registry.get_by_model(data_sync.specific_class)
 
         try:
@@ -113,6 +118,11 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
             )
 
     def rows_updated(self, task_context, serialized_rows, data_sync, updated_field_ids):
+        if not LicenseHandler.workspace_has_feature(
+            DATA_SYNC, data_sync.table.database.workspace
+        ):
+            return
+
         data_sync_type = data_sync_type_registry.get_by_model(data_sync.specific_class)
 
         try:
@@ -125,6 +135,11 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
         self.reset_failures_if_needed(data_sync)
 
     def rows_deleted(self, task_context, serialized_rows, data_sync):
+        if not LicenseHandler.workspace_has_feature(
+            DATA_SYNC, data_sync.table.database.workspace
+        ):
+            return
+
         data_sync_type = data_sync_type_registry.get_by_model(data_sync.specific_class)
 
         try:
