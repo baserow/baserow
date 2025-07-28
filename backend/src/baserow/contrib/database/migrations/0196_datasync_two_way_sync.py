@@ -18,4 +18,13 @@ class Migration(migrations.Migration):
                 help_text="If enabled, then it's possible to make changes to the synced table. They will automatically be synced with the source data. Note that this is only possible if the data sync type has a two way sync strategy.",
             ),
         ),
+        migrations.AddField(
+            model_name="datasync",
+            name="two_way_sync_consecutive_failures",
+            field=models.PositiveSmallIntegerField(
+                db_default=0,
+                default=0,
+                help_text="Indicates the total number of two-way sync consecutive failures. Canbe used by the strategy to disable the two-way sync if needed.",
+            ),
+        ),
     ]
