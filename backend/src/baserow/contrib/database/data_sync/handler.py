@@ -258,6 +258,11 @@ class DataSyncHandler:
                 strategy_type
             )
             two_way_sync_strategy.before_enable(data_sync.table.database.workspace)
+            if not data_sync.two_way_sync:
+                # If the two-way sync is enabled, but wasn't before, then reset the
+                # number of consecutive failures because the user could have fixed the
+                # problem after it was automatically disabled.
+                data_sync.two_way_sync_consecutive_failures = 0
 
         data_sync = set_allowed_attrs(kwargs, allowed_fields, data_sync)
         data_sync.save()
@@ -513,7 +518,7 @@ class DataSyncHandler:
 
     def set_data_sync_synced_properties(
         self,
-        user: AbstractUser,
+        user: Optional[AbstractUser],
         data_sync: DataSync,
         synced_properties: List[str],
         data_sync_properties: Optional[List[DataSyncSyncedProperty]] = None,

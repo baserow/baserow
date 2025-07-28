@@ -512,6 +512,12 @@
     "failure": "{name} periodic data sync has been deactivated because it failed too many times consecutively.",
     "licenseUnavailable": "{name} periodic data sync has been disabled because the workspace no longer has a valid license. Please update your license to restore automatic syncing."
   },
+  "twoWaySyncUpdateFailed": {
+    "title": "{name} two-way sync update failed: {error}"
+  },
+  "twoWaySyncDeactivated": {
+    "title": "{name} two-way sync deactivated because an update failed too many times consecutively. Please manually sync, and reactivate when the problem is resolved."
+  },
   "webhook": {
     "rowsEnterVieweventType": "Rows enter view"
   },

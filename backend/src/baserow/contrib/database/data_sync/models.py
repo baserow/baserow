@@ -49,6 +49,12 @@ class DataSync(
         "table. They will automatically be synced with the source data. Note that "
         "this is only possible if the data sync type has a two way sync strategy.",
     )
+    two_way_sync_consecutive_failures = models.PositiveSmallIntegerField(
+        default=0,
+        db_default=0,
+        help_text="Indicates the total number of two-way sync consecutive failures. Can"
+        "be used by the strategy to disable the two-way sync if needed.",
+    )
 
     @staticmethod
     def get_type_registry():

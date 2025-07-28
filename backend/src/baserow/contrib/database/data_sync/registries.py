@@ -4,6 +4,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
+from celery.app.task import Context
+
 from baserow.contrib.database.data_sync.export_serialized import (
     DataSyncExportSerializedStructure,
 )
@@ -315,11 +317,14 @@ class TwoWaySyncStrategy(Instance, ABC):
         sync is enabled.
         """
 
-    def rows_created(self, serialized_rows: List[dict], data_sync: DataSync):
+    def rows_created(
+        self, task_context: Context, serialized_rows: List[dict], data_sync: DataSync
+    ):
         """
         Called when rows are created in the data sync table. These are by default
         routed through a celery task.
 
+        :param task_context: The context object of the task. Can be used for retrying.
         :param serialized_rows: List containing the serialized rows that were created.
         :param data_sync: The data sync object of the table where the rows were created.
         """
@@ -330,6 +335,7 @@ class TwoWaySyncStrategy(Instance, ABC):
 
     def rows_updated(
         self,
+        task_context: Context,
         serialized_rows: List[dict],
         data_sync: DataSync,
         updated_field_ids: List[int],
@@ -338,6 +344,7 @@ class TwoWaySyncStrategy(Instance, ABC):
         Called when rows are updated in the data sync table. These are by default
         routed through a celery task.
 
+        :param task_context: The context object of the task. Can be used for retrying.
         :param serialized_rows: List containing the serialized rows that were updated.
         :param data_sync: The data sync object of the table where the rows were updated.
         :param updated_field_ids: Contains the field ids that actually changed.
@@ -352,6 +359,7 @@ class TwoWaySyncStrategy(Instance, ABC):
         Called when rows are deleted in the data sync table. These are by default
         routed through a celery task.
 
+        :param task_context: The context object of the task. Can be used for retrying.
         :param serialized_rows: List containing the serialized rows that were deleted.
         :param data_sync: The data sync object of the table where the rows were deleted.
         """

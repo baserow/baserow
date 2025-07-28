@@ -60,7 +60,11 @@ import {
   PostgreSQLDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
-import { PeriodicDataSyncDeactivatedNotificationType } from '@baserow_enterprise/notificationTypes'
+import {
+  PeriodicDataSyncDeactivatedNotificationType,
+  TwoWayDataSyncUpdateFiledNotificationType,
+  TwoWaySyncDeactivatedNotificationType,
+} from '@baserow_enterprise/notificationTypes'
 import { RowsEnterViewWebhookEventType } from '@baserow_enterprise/webhookEventTypes'
 import {
   AdvancedWebhooksPaidFeature,
@@ -184,6 +188,14 @@ export default (context) => {
   app.$registry.register(
     'notification',
     new PeriodicDataSyncDeactivatedNotificationType(context)
+  )
+  app.$registry.register(
+    'notification',
+    new TwoWayDataSyncUpdateFiledNotificationType(context)
+  )
+  app.$registry.register(
+    'notification',
+    new TwoWaySyncDeactivatedNotificationType(context)
   )
 
   app.$registry.register(

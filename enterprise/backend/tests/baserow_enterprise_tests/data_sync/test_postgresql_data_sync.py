@@ -6,6 +6,7 @@ from django.db import connection, transaction
 from django.test.utils import override_settings
 
 import pytest
+from celery.app.task import Task
 
 from baserow.contrib.database.api.rows.serializers import serialize_rows_for_response
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
@@ -88,7 +89,7 @@ def test_create_row_in_postgresql_table(
         data_sync_type.two_way_sync_strategy_type
     )
 
-    two_way_sync_strategy.rows_created(serialized_rows, data_sync)
+    two_way_sync_strategy.rows_created(Task(), serialized_rows, data_sync)
 
     with connection.cursor() as cursor:
         cursor.execute(
@@ -193,6 +194,7 @@ def test_update_row_in_postgresql_table(
     )
 
     two_way_sync_strategy.rows_updated(
+        Task(),
         serialized_rows,
         data_sync,
         updated_field_ids=[
@@ -287,7 +289,7 @@ def test_delete_row_in_postgresql_table(
         data_sync_type.two_way_sync_strategy_type
     )
 
-    two_way_sync_strategy.rows_deleted(serialized_rows, data_sync)
+    two_way_sync_strategy.rows_deleted(Task(), serialized_rows, data_sync)
 
     with connection.cursor() as cursor:
         row_id = serialized_rows[0][f"field_{id_field.id}"]

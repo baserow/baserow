@@ -829,6 +829,7 @@ def test_periodic_sync_failure_deactivation_shows_failure_message(
     assert notification_data["table_name"] == periodic_data_sync.data_sync.table.name
     assert notification_data["deactivation_reason"] == DEACTIVATION_REASON_FAILURE
 
+
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.table.signals.table_created.send")
@@ -995,6 +996,7 @@ def test_create_and_set_two_way_data_sync_table(
         type_name="postgresql",
         synced_properties=["id", "text_col"],
         two_way_sync=False,
+        two_way_sync_consecutive_failures=3,
         postgresql_host=default_database["HOST"],
         postgresql_username=default_database["USER"],
         postgresql_password=default_database["PASSWORD"],
@@ -1018,6 +1020,9 @@ def test_create_and_set_two_way_data_sync_table(
             synced_properties=["id", "text_col"],
             two_way_sync=True,
         )
+
+    # THis value should be reset when the two-way data sync is enabled.
+    assert data_sync.two_way_sync_consecutive_failures == 0
 
     fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
     assert len(fields) == 2

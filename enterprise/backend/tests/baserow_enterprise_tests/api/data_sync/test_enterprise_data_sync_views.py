@@ -13,7 +13,6 @@ from rest_framework.status import (
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import DataSync
-from baserow.core.db import specific_iterator
 from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_enterprise.data_sync.handler import EnterpriseDataSyncHandler
 

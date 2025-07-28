@@ -397,6 +397,8 @@ class PostgreSQLDataSyncType(DataSyncType):
         ]
 
     def update_rows(self, serialized_rows, data_sync: "DataSync", updated_field_ids):
+        # @TODO don't do update if the unique primary is empty.
+
         properties = data_sync.synced_properties.all()
         table_name = data_sync.postgresql_table
         schema_name = data_sync.postgresql_schema

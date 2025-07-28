@@ -280,11 +280,15 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow.core.notifications.registries import notification_type_registry
         from baserow_enterprise.data_sync.notification_types import (
             PeriodicDataSyncDeactivatedNotificationType,
+            TwoWaySyncDeactivatedNotificationType,
+            TwoWaySyncUpdateFailedNotificationType,
         )
 
         notification_type_registry.register(
             PeriodicDataSyncDeactivatedNotificationType()
         )
+        notification_type_registry.register(TwoWaySyncUpdateFailedNotificationType())
+        notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

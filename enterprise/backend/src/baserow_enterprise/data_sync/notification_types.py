@@ -4,7 +4,9 @@ from typing import List, Optional
 from django.conf import settings
 from django.utils.translation import gettext as _
 
+from baserow.contrib.database.data_sync.models import DataSync
 from baserow.core.notifications.handler import NotificationHandler
+from baserow.core.notifications.helpers import notify_admins_in_workspace
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.notifications.registries import (
     EmailNotificationTypeMixin,
@@ -30,6 +32,42 @@ class DeactivatedPeriodicDataSyncData:
             table_id=periodic_data_sync.data_sync.table.id,
             database_id=periodic_data_sync.data_sync.table.database_id,
             deactivation_reason=periodic_data_sync.deactivation_reason,
+        )
+
+
+@dataclass
+class TwoWaySyncUpdateFailedData:
+    data_sync_id: int
+    table_name: str
+    table_id: int
+    database_id: int
+    error: str
+
+    @classmethod
+    def from_data_sync(cls, data_sync: DataSync, error: str):
+        return cls(
+            data_sync_id=data_sync.id,
+            table_name=data_sync.table.name,
+            table_id=data_sync.table.id,
+            database_id=data_sync.table.database_id,
+            error=error,
+        )
+
+
+@dataclass
+class TwoWaySyncDeactivatedData:
+    data_sync_id: int
+    table_name: str
+    table_id: int
+    database_id: int
+
+    @classmethod
+    def from_data_sync(cls, data_sync: DataSync):
+        return cls(
+            data_sync_id=data_sync.id,
+            table_name=data_sync.table.name,
+            table_id=data_sync.table.id,
+            database_id=data_sync.table.database_id,
         )
 
 
@@ -85,3 +123,68 @@ class PeriodicDataSyncDeactivatedNotificationType(
             ) % {
                 "max_failures": settings.BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS,
             }
+
+
+class TwoWaySyncUpdateFailedNotificationType(
+    EmailNotificationTypeMixin, NotificationType
+):
+    type = "two_way_sync_update_failed"
+    has_web_frontend_route = True
+
+    @classmethod
+    def notify_admins_in_workspace(
+        cls, data_sync: DataSync, error: str
+    ) -> List[NotificationRecipient]:
+        table = data_sync.table
+        workspace = table.database.workspace
+        return notify_admins_in_workspace(
+            workspace,
+            cls.type,
+            data=asdict(
+                TwoWaySyncUpdateFailedData.from_data_sync(data_sync, error),
+            ),
+        )
+
+    @classmethod
+    def get_notification_title_for_email(cls, notification, context):
+        return _("%(table_name)s two-way sync update failed.") % {
+            "table_name": notification.data["table_name"],
+        }
+
+    @classmethod
+    def get_notification_description_for_email(cls, notification, context):
+        return notification.data["error"]
+
+
+class TwoWaySyncDeactivatedNotificationType(
+    EmailNotificationTypeMixin, NotificationType
+):
+    type = "two_way_sync_deactivated"
+    has_web_frontend_route = True
+
+    @classmethod
+    def notify_admins_in_workspace(
+        cls,
+        data_sync: DataSync,
+    ) -> List[NotificationRecipient]:
+        table = data_sync.table
+        workspace = table.database.workspace
+        return notify_admins_in_workspace(
+            workspace,
+            cls.type,
+            data=asdict(TwoWaySyncDeactivatedData.from_data_sync(data_sync)),
+        )
+
+    @classmethod
+    def get_notification_title_for_email(cls, notification, context):
+        return _("%(table_name)s two-way sync deactivated.") % {
+            "table_name": notification.data["table_name"],
+        }
+
+    @classmethod
+    def get_notification_description_for_email(cls, notification, context):
+        return _(
+            "The two-way sync was deactivated because an update failed too many times "
+            "consecutively. Please manually sync, and reactivate when the problem is "
+            "resolved."
+        )
