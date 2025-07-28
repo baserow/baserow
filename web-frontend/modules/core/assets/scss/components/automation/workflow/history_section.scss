@@ -1,67 +1,27 @@
-.history-section {
-  padding-top: 20px;
-  padding-bottom: 10px;
+.history-section__header {
+  display: flex;
+  padding: 18px 0;
+  gap: 10px;
+  align-items: center;
   border-top: 1px solid $palette-neutral-200;
-  cursor: pointer;
-}
-
-.history-section__status {
-  color: $color-neutral-900;
   font-size: 14px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  place-content: center space-between;
-  margin-bottom: 15px;
-  padding: 0;
+  color: $palette-neutral-600;
   user-select: none;
-
-  &:hover {
-    text-decoration: none;
-  }
 }
 
-.history-section__status-heading {
-  display: flex;
-  align-items: center;
-  align-self: center;
-  gap: 5px;
-
-  &-title {
-    font-size: 12px;
-    font-weight: 500;
-    color: $palette-neutral-1200;
-  }
-}
-
-.history-section__icon {
+.history-section__header-title {
+  color: $color-neutral-900;
+  font-size: 12px;
   font-weight: 500;
-  font-size: 16px;
+  flex: 1;
+}
 
-  &--success {
-    color: $palette-green-500;
-  }
-
-  &--error {
-    color: $palette-red-500;
-  }
-
-  &--disabled {
-    color: $palette-neutral-500;
-  }
+.history-section__header-date {
+  font-size: 11px;
 }
 
 .history-section__message {
   display: flex;
   padding: 5px 5px 5px 10px;
   margin-bottom: 10px;
-}
-
-.history-section__date {
-  font-size: 11px;
-  color: $palette-neutral-700;
-}
-
-.history-section__collapse {
-  color: $palette-neutral-700;
 }

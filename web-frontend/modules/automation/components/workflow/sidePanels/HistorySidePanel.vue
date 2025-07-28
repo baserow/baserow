@@ -1,6 +1,10 @@
 <template>
   <div v-if="!workflowHistoryItems.length" class="history-side-panel__empty">
-    <i class="baserow-icon-automation history-side-panel__empty-icon"></i>
+    <Icon
+      class="history-side-panel__empty-icon"
+      icon="baserow-icon-automation"
+      type="secondary"
+    />
     <h4>{{ $t('historySidePanel.noRunsTitle') }}</h4>
     <p class="margin-top-0">
       {{ $t('historySidePanel.noRunsDescription') }}
@@ -10,7 +14,7 @@
     <div class="history-side-panel__title">
       {{ $t('historySidePanel.title') }}
       <a role="button" @click="closeHistory()">
-        <i class="history-side-panel__close-side-panel iconoir-cancel"></i>
+        <Icon icon="iconoir-cancel" type="secondary" />
       </a>
     </div>
     <HistorySection

@@ -1,25 +1,25 @@
 <template>
-  <Expandable>
-    <template #header="{ toggle, expanded }">
-      <div class="history-section" @click="toggle">
-        <a class="history-section__status">
-          <div class="history-section__status-heading">
-            <i :class="statusIconClass" />
-            <span class="history-section__status-heading-title">
-              {{ historyTitlePrefix }}{{ statusTitle }}
-            </span>
-          </div>
-
-          <span class="history-section__date">{{ completedDate }}</span>
-
-          <i
-            class="history-section__collapse"
-            :class="{
-              'iconoir-nav-arrow-down': expanded,
-              'iconoir-nav-arrow-right': !expanded,
-            }"
-          />
-        </a>
+  <Expandable toggle-on-click>
+    <template #header="{ expanded }">
+      <div class="history-section__header">
+        <Icon
+          v-if="props.item.status === 'success'"
+          icon="iconoir-check-circle"
+          type="success"
+        />
+        <Icon v-else icon="iconoir-warning-circle" type="error" />
+        <span class="history-section__header-title">
+          {{ historyTitlePrefix }}{{ statusTitle }}
+        </span>
+        <span :title="completedDate" class="history-section__header-date">
+          {{ humanCompletedDate }}
+        </span>
+        <Icon
+          :icon="
+            expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
+          "
+          type="secondary"
+        />
       </div>
     </template>
 
@@ -44,17 +44,6 @@ const props = defineProps({
   },
 })
 
-const statusIconClass = computed(() => {
-  switch (props.item.status) {
-    case 'success':
-      return 'history-section__icon--success iconoir-check-circle'
-    case 'error':
-      return 'history-section__icon--error iconoir-warning-circle'
-    default:
-      return 'history-section__icon--disabled iconoir-warning-circle'
-  }
-})
-
 const statusTitle = computed(() => {
   switch (props.item.status) {
     case 'success':
@@ -71,6 +60,10 @@ const completedDate = computed(() => {
     .utc(props.item.completed_on)
     .tz(getUserTimeZone())
     .format('YYYY-MM-DD HH:mm:ss')
+})
+
+const humanCompletedDate = computed(() => {
+  return moment.utc(props.item.completed_on).tz(getUserTimeZone()).fromNow()
 })
 
 const historyTitlePrefix = computed(() => {
