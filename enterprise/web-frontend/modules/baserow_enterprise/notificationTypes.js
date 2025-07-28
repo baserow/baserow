@@ -4,9 +4,7 @@ import PeriodicDataSyncDeactivatedNotification from '@baserow_enterprise/compone
 import TwoWaySyncUpdateFailedNotification from '@baserow_enterprise/components/notifications/TwoWaySyncUpdateFailedNotification'
 import TwoWaySyncDeactivatedNotification from '@baserow_enterprise/components/notifications/TwoWaySyncDeactivatedNotification'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
-import {
-  SyncedFieldsConfigureDataSyncType
-} from '@baserow/modules/database/configureDataSyncTypes'
+import { SyncedFieldsConfigureDataSyncType } from '@baserow/modules/database/configureDataSyncTypes'
 
 export class PeriodicDataSyncDeactivatedNotificationType extends NotificationType {
   static getType() {
