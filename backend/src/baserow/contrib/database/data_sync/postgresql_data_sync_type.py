@@ -350,6 +350,16 @@ class PostgreSQLDataSyncType(DataSyncType):
 
         return returning
 
+    def _filter_rows_without_unique_primary(self, serialized_rows, unique_primaries):
+        # Filters out the rows that have an empty unique primary value. If the value is
+        # empty, then the update can't be done reliably. A row could and up in that
+        # state if the creation has gone wrong.
+        return [
+            row
+            for row in serialized_rows
+            if all(bool(row.get(p.field.db_column)) for p in unique_primaries)
+        ]
+
     def create_rows(self, serialized_rows, data_sync: "DataSync") -> List[dict]:
         properties = data_sync.synced_properties.all()
         schema_name = data_sync.postgresql_schema
@@ -397,15 +407,21 @@ class PostgreSQLDataSyncType(DataSyncType):
         ]
 
     def update_rows(self, serialized_rows, data_sync: "DataSync", updated_field_ids):
-        # @TODO don't do update if the unique primary is empty.
-
         properties = data_sync.synced_properties.all()
         table_name = data_sync.postgresql_table
         schema_name = data_sync.postgresql_schema
 
         unique_primaries = self._get_unique_primaries(properties)
-
         field_id_to_property = {p.field_id: p for p in properties}
+
+        serialized_rows = self._filter_rows_without_unique_primary(
+            serialized_rows, unique_primaries
+        )
+
+        # If there are no rows to update, then there is no point is doing the update
+        # query.
+        if len(serialized_rows) == 0:
+            return
 
         set_clauses = []
         params = []
@@ -478,6 +494,15 @@ class PostgreSQLDataSyncType(DataSyncType):
         schema_name = data_sync.postgresql_schema
 
         unique_primaries = self._get_unique_primaries(properties)
+
+        serialized_rows = self._filter_rows_without_unique_primary(
+            serialized_rows, unique_primaries
+        )
+
+        # If there are no rows to delete, then there is no point is doing executing
+        # the delete query.
+        if len(serialized_rows) == 0:
+            return
 
         pk_tuples = {
             self._get_pk_tuple(row, unique_primaries) for row in serialized_rows

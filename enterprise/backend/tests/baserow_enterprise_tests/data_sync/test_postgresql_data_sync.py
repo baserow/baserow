@@ -230,6 +230,93 @@ def test_update_row_in_postgresql_table(
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
+def test_skip_update_row_in_postgresql_table_if_unique_primary_is_empty(
+    enterprise_data_fixture,
+    create_postgresql_test_table,
+):
+    enterprise_data_fixture.enable_enterprise()
+    default_database = settings.DATABASES["default"]
+    user = enterprise_data_fixture.create_user()
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        two_way_sync=True,
+        synced_properties=[
+            "id",
+            "text_col",
+        ],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    id_field = fields[0]
+    text_field = fields[1]
+
+    model = data_sync.table.get_model()
+    rows = list(model.objects.all())
+    old_id = getattr(rows[0], f"field_{id_field.id}")
+    setattr(rows[0], f"field_{id_field.id}", None)
+    rows[0].save()
+
+    row_handler = RowHandler()
+
+    with transaction.atomic():
+        rows = row_handler.update_rows(
+            user=user,
+            table=data_sync.table,
+            rows_values=[
+                {
+                    "id": rows[0].id,
+                    f"field_{text_field.id}": "new",
+                }
+            ],
+            send_realtime_update=False,
+        )[0]
+
+    serialized_rows = serialize_rows_for_response(rows, model)
+    data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+    two_way_sync_strategy = two_way_sync_strategy_type_registry.get(
+        data_sync_type.two_way_sync_strategy_type
+    )
+
+    two_way_sync_strategy.rows_updated(
+        Task(),
+        serialized_rows,
+        data_sync,
+        updated_field_ids=[text_field.id],
+    )
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"SELECT id, text_col "
+            f"FROM {create_postgresql_test_table} WHERE id = {old_id} LIMIT 1"
+        )
+        result = cursor.fetchone()
+        assert result is not None
+        # Should still  have the old value because the unique primary is empty, and
+        # it's therefore not allowed to do the update on the row.
+        assert result[1] == (
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas non "
+            "nunc et sapien ultricies blandit. "
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
 def test_delete_row_in_postgresql_table(
     enterprise_data_fixture,
     create_postgresql_test_table,
@@ -299,3 +386,73 @@ def test_delete_row_in_postgresql_table(
         )
         result = cursor.fetchone()
         assert result[0] == 0
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+def test_skip_delete_row_in_postgresql_table_if_unique_primary_is_empty(
+    enterprise_data_fixture,
+    create_postgresql_test_table,
+):
+    enterprise_data_fixture.enable_enterprise()
+    default_database = settings.DATABASES["default"]
+    user = enterprise_data_fixture.create_user()
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        two_way_sync=True,
+        synced_properties=[
+            "id",
+            "text_col",
+        ],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    id_field = fields[0]
+
+    model = data_sync.table.get_model()
+    rows = list(model.objects.all())
+    old_id = getattr(rows[0], f"field_{id_field.id}")
+    setattr(rows[0], f"field_{id_field.id}", None)
+    rows[0].save()
+
+    serialized_rows = serialize_rows_for_response([rows[0]], model)
+
+    row_handler = RowHandler()
+
+    with transaction.atomic():
+        row_handler.delete_rows(
+            user=user,
+            table=data_sync.table,
+            row_ids=[rows[0].id],
+        )
+
+    data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+    two_way_sync_strategy = two_way_sync_strategy_type_registry.get(
+        data_sync_type.two_way_sync_strategy_type
+    )
+
+    two_way_sync_strategy.rows_deleted(Task(), serialized_rows, data_sync)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"SELECT count(*) " f"FROM {create_postgresql_test_table} WHERE id = %s",
+            [old_id],
+        )
+        result = cursor.fetchone()
+        assert result[0] == 1
