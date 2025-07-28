@@ -1,0 +1,29 @@
+.history-side-panel__title {
+  display: flex;
+  justify-content: space-between;
+  flex-direction: row;
+  padding-top: 10px;
+  padding-bottom: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.history-side-panel__close-side-panel {
+  color: $palette-neutral-700;
+}
+
+.history-side-panel__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0 20%;
+  text-align: center;
+}
+
+.history-side-panel__empty-icon {
+  font-size: 40px;
+}

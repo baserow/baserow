@@ -2,6 +2,10 @@
   font-size: 15px;
   color: $palette-neutral-1200;
 
+  &--secondary {
+    color: $palette-neutral-700;
+  }
+
   &--warning {
     color: $palette-yellow-600;
   }

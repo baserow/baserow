@@ -2,7 +2,10 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from baserow.contrib.automation.models import AutomationWorkflow
+from baserow.contrib.automation.models import (
+    AutomationWorkflow,
+    AutomationWorkflowHistory,
+)
 from baserow.contrib.automation.workflows.constants import ALLOW_TEST_RUN_MINUTES
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
@@ -82,3 +85,16 @@ class OrderAutomationWorkflowsSerializer(serializers.Serializer):
             "The ids of the workflows in the order they are supposed to be set in."
         ),
     )
+
+
+class AutomationWorkflowHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AutomationWorkflowHistory
+        fields = (
+            "id",
+            "started_on",
+            "completed_on",
+            "is_test_run",
+            "message",
+            "status",
+        )

@@ -16,7 +16,8 @@ from rest_framework.status import (
 
 from baserow.contrib.automation.workflows.constants import ALLOW_TEST_RUN_MINUTES
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.test_utils.helpers import AnyInt
+from baserow.test_utils.helpers import AnyInt, AnyStr
+from tests.baserow.contrib.automation.api.utils import get_api_kwargs
 
 API_URL_BASE_AUTOMATION = "api:automation:automation_id"
 API_URL_CREATE = f"{API_URL_BASE_AUTOMATION}:workflows:create"
@@ -25,6 +26,7 @@ API_URL_BASE_WORKFLOW = "api:automation:workflows"
 API_URL_WORKFLOW_ITEM = f"{API_URL_BASE_WORKFLOW}:item"
 API_URL_WORKFLOW_PUBLISH = f"{API_URL_BASE_WORKFLOW}:async_publish"
 API_URL_WORKFLOW_DUPLICATE = f"{API_URL_BASE_WORKFLOW}:async_duplicate"
+API_URL_WORKFLOW_HISTORY = f"{API_URL_BASE_WORKFLOW}:history"
 
 
 @pytest.mark.django_db
@@ -425,7 +427,11 @@ def test_disable_workflow_test_run(api_client, data_fixture):
 @pytest.mark.django_db(transaction=True)
 def test_run_workflow_in_test_mode(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
+
+    original_workflow = data_fixture.create_automation_workflow(user=user)
     workflow = data_fixture.create_automation_workflow(user=user)
+    workflow.automation.published_from = original_workflow
+    workflow.automation.save()
 
     # First create a trigger node
     table_1, fields_1, _ = data_fixture.build_table(
@@ -531,4 +537,62 @@ def test_publish_workflow_error_invalid_workflow(api_client, data_fixture):
     assert response.json() == {
         "detail": "The requested workflow does not exist.",
         "error": "ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST",
+    }
+
+
+@pytest.mark.django_db
+def test_get_workflow_history(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    history = data_fixture.create_workflow_history(user=user)
+
+    url = reverse(API_URL_WORKFLOW_HISTORY, kwargs={"workflow_id": history.workflow.id})
+    response = api_client.get(url, **get_api_kwargs(token))
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "count": 1,
+        "next": None,
+        "previous": None,
+        "results": [
+            {
+                "completed_on": AnyStr(),
+                "started_on": AnyStr(),
+                "id": history.id,
+                "is_test_run": False,
+                "message": "",
+                "status": "success",
+            },
+        ],
+    }
+
+
+@pytest.mark.django_db
+def test_get_workflow_history_invalid_workflow(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+
+    url = reverse(API_URL_WORKFLOW_HISTORY, kwargs={"workflow_id": 99999})
+    response = api_client.get(url, **get_api_kwargs(token))
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json() == {
+        "detail": "The requested workflow does not exist.",
+        "error": "ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST",
+    }
+
+
+@pytest.mark.django_db
+def test_get_workflow_history_permission_error(api_client, data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    history = data_fixture.create_workflow_history(user=user)
+
+    url = reverse(API_URL_WORKFLOW_HISTORY, kwargs={"workflow_id": history.workflow.id})
+
+    # different user
+    _, token_2 = data_fixture.create_user_and_token()
+    response = api_client.get(url, **get_api_kwargs(token_2))
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json() == {
+        "detail": "You don't have the required permission to execute this operation.",
+        "error": "PERMISSION_DENIED",
     }

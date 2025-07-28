@@ -19,7 +19,9 @@ export default {
       type: String,
       default: 'primary',
       validator: function (value) {
-        return ['primary', 'warning', 'error', 'success'].includes(value)
+        return ['primary', 'secondary', 'warning', 'error', 'success'].includes(
+          value
+        )
       },
     },
     /**
