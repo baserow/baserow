@@ -21,12 +21,9 @@ export class PreviousNodeDataProviderType extends DataProviderType {
   getDataSchema(applicationContext) {
     const { automation, workflow, node: currentNode } = applicationContext
 
-    // TODO: currently finds nodes "before" the current node in the workflow
-    //  exclusively using the `order` property. This will require more nuance
-    //  in the future, as we might want to consider other factors.
     const previousNodes = this.app.store.getters[
-      'automationWorkflowNode/getNodesOrdered'
-    ](workflow).filter((node) => node.order < currentNode.order)
+      'automationWorkflowNode/getPreviousNodes'
+    ](workflow, currentNode)
 
     const previousNodeSchema = _.chain(previousNodes)
       // Retrieve the associated schema for each node
@@ -36,10 +33,11 @@ export class PreviousNodeDataProviderType extends DataProviderType {
       ])
       // Remove nodes without schema
       .filter(([_, schema]) => schema)
-      // Add an index number to the schema title for each node of the same type.
-      // For example if we have 2 update and create row nodes we want their
-      // titles to be: [Update row,  Create row, Update row 2, Create row 2]
-      .groupBy('0.type')
+      // Add an index number to the schema title for each node of the same
+      // schema title. For example if we have two "Create a row in Customers"
+      // nodes, then the schema titles will be:
+      // [Create a row in Customers,  Create a row in Customers 2]
+      .groupBy('1.title')
       .flatMap((previousNodes) =>
         previousNodes.map(([previousNode, schema], index) => [
           previousNode.id,
