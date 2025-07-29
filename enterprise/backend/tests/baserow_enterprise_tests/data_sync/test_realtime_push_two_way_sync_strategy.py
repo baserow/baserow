@@ -6,7 +6,6 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 import pytest
-from baserow_premium.license.models import License
 from rest_framework.status import HTTP_402_PAYMENT_REQUIRED
 
 from baserow.contrib.database.api.rows.serializers import serialize_rows_for_response
@@ -17,7 +16,6 @@ from baserow.contrib.database.data_sync.registries import (
 )
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.notifications.models import Notification
 from baserow_enterprise.data_sync.notification_types import (
@@ -387,7 +385,7 @@ def test_two_way_sync_is_deactivated_after_consecutive_failure(
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_two_way_sync_consecutive_failures_are_reset_on_success(
-    enterprise_data_fixture, create_postgresql_test_table, api_client
+    enterprise_data_fixture, create_postgresql_test_table, api_client, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
     default_database = settings.DATABASES["default"]
@@ -495,8 +493,7 @@ def test_two_way_sync_update_without_valid_license(
 
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
-    License.objects.all().delete()
-    local_cache.clear()
+    enterprise_data_fixture.delete_all_licenses()
 
     fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
     text_field = fields[1]

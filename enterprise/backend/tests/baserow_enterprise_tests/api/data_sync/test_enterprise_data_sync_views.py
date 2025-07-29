@@ -208,7 +208,7 @@ def test_update_periodic_data_sync_audit_log_created(
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_create_data_sync_with_two_way_sync_supported_type(
-    enterprise_data_fixture, api_client, create_postgresql_test_table
+    enterprise_data_fixture, api_client, create_postgresql_test_table, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 
@@ -245,8 +245,11 @@ def test_create_data_sync_with_two_way_sync_supported_type(
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_update_data_sync_enable_two_way_sync_supported_type(
-    enterprise_data_fixture, api_client, create_postgresql_test_table
+    enterprise_data_fixture, api_client, create_postgresql_test_table, synced_roles
 ):
+    # @TODO remove this.
+    enterprise_data_fixture.delete_all_licenses()
+
     enterprise_data_fixture.enable_enterprise()
 
     default_database = settings.DATABASES["default"]
@@ -298,7 +301,7 @@ def test_update_data_sync_enable_two_way_sync_supported_type(
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_can_create_row_with_two_way_data_sync(
-    enterprise_data_fixture, api_client, create_postgresql_test_table
+    enterprise_data_fixture, api_client, create_postgresql_test_table, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 
@@ -339,7 +342,7 @@ def test_can_create_row_with_two_way_data_sync(
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_can_delete_row_with_two_way_data_sync(
-    enterprise_data_fixture, api_client, create_postgresql_test_table
+    enterprise_data_fixture, api_client, create_postgresql_test_table, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 
