@@ -9,7 +9,7 @@ export default (client, $hasFeature, $registry) => {
                 uid: role.getUid(),
                 description: role.getDescription(),
                 showIsBillable: role.showIsBillable(workspace.id),
-                isBillable: role.getIsBillable(workspace.id),
+                isBillable: role.getIsBillable(),
                 isVisible: role.isVisible(workspace.id),
                 isDeactivated: role.isDeactivated(workspace.id),
                 allowed_scope_types: ['workspace'],
@@ -19,7 +19,7 @@ export default (client, $hasFeature, $registry) => {
                 uid: role.getUid(),
                 description: role.getDescription(),
                 showIsBillable: role.showIsBillable(workspace.id),
-                isBillable: role.getIsBillable(workspace.id),
+                isBillable: role.getIsBillable(),
                 isVisible: role.isVisible(workspace.id),
                 isDeactivated: role.isDeactivated(workspace.id),
               }

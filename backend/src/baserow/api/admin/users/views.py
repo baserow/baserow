@@ -35,6 +35,7 @@ from baserow.core.admin.users.handler import UserAdminHandler
 from baserow.core.user.exceptions import DeactivatedUserException, UserAlreadyExist
 from baserow.core.user.utils import generate_session_tokens_for_user
 
+from ...user.registries import member_data_registry
 from .serializers import BaserowImpersonateAuthTokenSerializer
 
 User = get_user_model()
@@ -67,7 +68,16 @@ class UsersAdminView(AdminListingView):
         ),
     )
     def get(self, request):
-        return super().get(request)
+        response = super().get(request)
+        results = response.data["results"]
+        user_ids = [result["id"] for result in results]
+        # Iterate over any registered `member_data_registry member data types and
+        # annotate the response with it.
+        for data_type in member_data_registry.get_all():
+            data_type.annotate_serialized_admin_users_data(
+                user_ids, results, request.user
+            )
+        return response
 
     @extend_schema(
         tags=["Admin"],

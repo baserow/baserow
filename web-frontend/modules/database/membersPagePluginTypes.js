@@ -24,6 +24,13 @@ export class MembersPagePluginType extends Registerable {
   }
 
   /**
+   * A hook that lets you manipulate the columns of the admin users listing page.
+   */
+  mutateAdminUsersTableColumns(columns, context) {
+    return columns
+  }
+
+  /**
    * Set to false in order to enable the plugin
    */
   isDeactivated(workspaceId) {

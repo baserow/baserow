@@ -1,0 +1,8 @@
+{
+  "type": "feature",
+  "message": "Show highest role on admin user listing page.",
+  "domain": "core",
+  "issue_number": 3754,
+  "bullet_points": [],
+  "created_at": "2025-07-29"
+}

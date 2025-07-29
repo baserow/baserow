@@ -1,4 +1,4 @@
-from typing import Dict, Generator, Optional, Set
+from typing import Dict, Generator, List, Optional, Set
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -249,6 +249,30 @@ class LicensePlugin:
             most_relevant_license_type = sorted_licenses[0]
             return most_relevant_license_type.get_seat_usage_summary_for_workspace(
                 workspace
+            )
+        else:
+            return None
+
+    def get_seat_usage_for_specific_users(
+        self, user_ids: List[int]
+    ) -> Optional[SeatUsageSummary]:
+        """
+        Returns for the most important (the license type with the highest order) active
+        license type for specific users the seat usage.
+
+        If it doesn't make sense for that license type to have usage at the user level
+        None will be returned.
+        """
+
+        sorted_licenses = sorted(
+            self.get_active_instance_wide_license_types(user=None),
+            key=lambda t: t.order,
+            reverse=True,
+        )
+        if sorted_licenses:
+            most_relevant_license_type = sorted_licenses[0]
+            return most_relevant_license_type.get_seat_usage_summary_for_specific_users(
+                user_ids
             )
         else:
             return None

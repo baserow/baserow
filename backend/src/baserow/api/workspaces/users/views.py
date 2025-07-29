@@ -134,7 +134,9 @@ class WorkspaceUsersView(APIView, SearchableViewMixin, SortableViewMixin):
         # Iterate over any registered `member_data_registry`
         # member data types and annotate the response with it.
         for data_type in member_data_registry.get_all():
-            data_type.annotate_serialized_data(workspace, serializer.data, request.user)
+            data_type.annotate_serialized_workspace_members_data(
+                workspace, serializer.data, request.user
+            )
 
         return Response(serializer.data)
 

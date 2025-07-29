@@ -1756,6 +1756,25 @@ def test_can_query_for_summary_per_workspace(
             user3_free_both_grps.id: "VIEWER",
         },
     )
+    assert RoleBasedSeatUsageSummaryCalculator.get_seat_usage_for_specific_users(
+        [user1_paid_in_grp1.id, user3_free_both_grps.id]
+    ) == SeatUsageSummary(
+        seats_taken=1,
+        free_users_count=1,
+        num_users_with_highest_role={
+            "ADMIN": 0,
+            "BUILDER": 0,
+            "EDITOR": 1,
+            "COMMENTER": 0,
+            "VIEWER": 1,
+            "NO_ACCESS": 0,
+            "NO_ROLE_LOW_PRIORITY": 0,
+        },
+        highest_role_per_user_id={
+            user1_paid_in_grp1.id: "EDITOR",
+            user3_free_both_grps.id: "VIEWER",
+        },
+    )
 
 
 @pytest.mark.django_db

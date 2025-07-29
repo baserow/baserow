@@ -43,7 +43,7 @@ class EnterpriseRolesDataType(MemberDataType):
             ),
         }
 
-    def annotate_serialized_data(
+    def annotate_serialized_workspace_members_data(
         self,
         workspace: Workspace,
         serialized_data: List[OrderedDict],
@@ -90,5 +90,31 @@ class EnterpriseRolesDataType(MemberDataType):
                 member["user_id"], None
             )
             member["role_uid"] = role.uid
+
+        return serialized_data
+
+    def annotate_serialized_admin_users_data(
+        self,
+        user_ids: List[int],
+        serialized_data: List[OrderedDict],
+        user: AbstractUser,
+    ) -> List[OrderedDict]:
+        """
+        Responsible for annotating team data on `GroupUser` responses.
+        Primarily used to inform API consumers of which teams workspace members
+        belong to.
+        """
+
+        from baserow_premium.plugins import PremiumPlugin
+
+        from baserow.core.registries import plugin_registry
+
+        license_plugin = plugin_registry.get_by_type(PremiumPlugin).get_license_plugin()
+
+        usage = license_plugin.get_seat_usage_for_specific_users(user_ids)
+        if usage:
+            highest_role_per_user = usage.highest_role_per_user_id
+            for user in serialized_data:
+                user["highest_role_uid"] = highest_role_per_user.get(user["id"], None)
 
         return serialized_data

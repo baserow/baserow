@@ -72,6 +72,17 @@ class LicenseType(abc.ABC, Instance):
 
         return None
 
+    def get_seat_usage_summary_for_specific_users(
+        self, user_ids: List[int]
+    ) -> Optional[SeatUsageSummary]:
+        """
+        If it makes sense for specific user ids to have seat usage, then this should
+        return a summary of it. If it doesn't make sense for this license type then this
+        should return None.
+        """
+
+        return None
+
     @abc.abstractmethod
     def handle_seat_overflow(self, seats_taken: int, license_object: License):
         pass

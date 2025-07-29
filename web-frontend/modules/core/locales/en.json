@@ -626,6 +626,7 @@
         "role": "Default role",
         "highestRole": "Highest Role",
         "highestRoleHelpText": "The highest role this user assigned to them directly or from a team, on anything in this workspace",
+        "highestRoleInstanceHelpText": "The highest role this user has in the instance",
         "teams": "Teams"
       },
       "actions": {
