@@ -34,6 +34,16 @@ class AutomationNodeTrashableItemType(TrashableItemType):
 
         super().trash(item_to_trash, requesting_user, trash_entry)
 
+        # If the item we're trashing has an output, and there are nodes
+        # that follow, then we need to ensure the very next node inherits
+        # the output of the node we're trashing.
+        if item_to_trash.previous_node_output and next_nodes:
+            immediate_next_node = next_nodes[0]
+            immediate_next_node.previous_node_output = (
+                item_to_trash.previous_node_output
+            )
+            immediate_next_node.save(update_fields=["previous_node_output"])
+
         # As `item_to_trash` is trashed, we need to update the nodes that immediately
         # follow this node, to point to the node before `item_to_trash`.
         AutomationNodeHandler().update_previous_node(
@@ -55,6 +65,14 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         )
 
         super().restore(trashed_item, trash_entry)
+
+        # If the item we're trashing has an output, and there are nodes
+        # that follow, then we need to ensure the very next node inherits
+        # the output of the node we're trashing.
+        if trashed_item.previous_node_output and next_nodes:
+            immediate_next_node = next_nodes[0]
+            immediate_next_node.previous_node_output = ""
+            immediate_next_node.save(update_fields=["previous_node_output"])
 
         # Determine if this restored node has a node after it. If it does, we'll
         # need to update its previous_node_id to point to `trashed_item.id`
