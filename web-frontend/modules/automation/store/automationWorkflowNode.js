@@ -272,6 +272,10 @@ const actions = {
     }
   },
   async replace({ commit, dispatch, getters }, { workflow, nodeId, newType }) {
+    const node = getters.findById(workflow, nodeId)
+    const nextNodes = getters.getNextNodes(workflow, node)
+    const nextNode = nextNodes.length > 0 ? nextNodes[0] : null
+
     const { data: newNode } = await AutomationWorkflowNodeService(
       this.$client
     ).replace(nodeId, {
@@ -279,6 +283,16 @@ const actions = {
     })
     commit('DELETE_ITEM', { workflow, nodeId })
     commit('ADD_ITEM', { workflow, node: newNode })
+
+    // If the node that we replaced had a node after it, we need to update
+    // its `previous_node_id` to point to the new node ID.
+    if (nextNode) {
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: nextNode,
+        values: { previous_node_id: newNode.id },
+      })
+    }
     setTimeout(() => {
       dispatch('select', { workflow, node: newNode })
     })
