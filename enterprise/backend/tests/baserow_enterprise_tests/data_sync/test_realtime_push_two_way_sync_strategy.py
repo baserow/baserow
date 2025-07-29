@@ -105,7 +105,7 @@ def test_update_two_way_data_sync_strategy_without_enterprise_license(
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_update_row_is_retried_on_sync_error(
-    enterprise_data_fixture, create_postgresql_test_table, api_client
+    enterprise_data_fixture, create_postgresql_test_table, api_client, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
     default_database = settings.DATABASES["default"]
@@ -181,7 +181,7 @@ def test_update_row_is_retried_on_sync_error(
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_two_way_sync_is_notified_after_retries(
-    enterprise_data_fixture, create_postgresql_test_table, api_client
+    enterprise_data_fixture, create_postgresql_test_table, api_client, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
     default_database = settings.DATABASES["default"]
@@ -279,7 +279,7 @@ LINE 1: INSERT INTO "public"."test_table" ("text_col") VALUES ('text...
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_two_way_sync_is_deactivated_after_consecutive_failure(
-    enterprise_data_fixture, create_postgresql_test_table, api_client
+    enterprise_data_fixture, create_postgresql_test_table, api_client, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
     default_database = settings.DATABASES["default"]
