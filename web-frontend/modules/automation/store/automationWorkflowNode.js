@@ -313,7 +313,7 @@ const getters = {
     return workflow.orderedNodes
   },
   findById: (state) => (workflow, nodeId) => {
-    if (!workflow || !workflow.nodes) return null
+    if (!workflow || !workflow.nodes || !nodeId) return null
     const nodeIdStr = nodeId.toString()
     if (workflow.nodeMap && workflow.nodeMap[nodeIdStr]) {
       return workflow.nodeMap[nodeIdStr]
@@ -340,6 +340,26 @@ const getters = {
         )
       }
       return nextNodes
+    },
+  getPreviousNodes:
+    (state, getters) =>
+    (
+      workflow,
+      targetNode,
+      { targetFirst = false, includeSelf = false } = {}
+    ) => {
+      const getPreviousForNode = (node) => {
+        const previousNode = getters.findById(workflow, node.previous_node_id)
+        if (previousNode) {
+          return [...getPreviousForNode(previousNode), previousNode]
+        } else {
+          return []
+        }
+      }
+      const previous = includeSelf
+        ? [...getPreviousForNode(targetNode), targetNode]
+        : getPreviousForNode(targetNode)
+      return targetFirst ? previous.reverse() : previous
     },
 }
 
