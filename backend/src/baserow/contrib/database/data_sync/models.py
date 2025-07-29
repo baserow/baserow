@@ -47,7 +47,7 @@ class DataSync(
         db_default=False,
         help_text="If enabled, then it's possible to make changes to the synced "
         "table. They will automatically be synced with the source data. Note that "
-        "this is only possible if the data sync type has a two way sync strategy.",
+        "this is only possible if the data sync type has a two-way sync strategy.",
     )
     two_way_sync_consecutive_failures = models.PositiveSmallIntegerField(
         default=0,

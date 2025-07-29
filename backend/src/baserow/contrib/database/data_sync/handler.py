@@ -119,7 +119,7 @@ class DataSyncHandler:
         values = extract_allowed(kwargs, allowed_fields)
         values = data_sync_type.prepare_values(user, values)
 
-        # Validate two-way sync support
+        # Check if there is two-way support if it must be enabled.
         if values.get("two_way_sync"):
             strategy_type = data_sync_type.two_way_sync_strategy_type
             if not strategy_type:
@@ -247,7 +247,8 @@ class DataSyncHandler:
             "two_way_sync",
         ] + data_sync_type.allowed_fields
 
-        # Validate two-way sync support before setting attributes
+        # Check if there is two-way support if it must be enabled and wasn't enabled
+        # before.
         if "two_way_sync" in kwargs and kwargs["two_way_sync"]:
             strategy_type = data_sync_type.two_way_sync_strategy_type
             if not strategy_type:

@@ -110,6 +110,9 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
         if len(rows_to_update) == 0:
             return
 
+        # When creating a row, it's possible that the unique primary value was
+        # generated it was created. If the data sync returns a list of dict rows, it
+        # means that some values must be updated.
         with transaction.atomic():
             RowHandler().force_update_rows(
                 user=None,

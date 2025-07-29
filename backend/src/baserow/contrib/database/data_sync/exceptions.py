@@ -37,5 +37,6 @@ class SyncDataSyncTableAlreadyRunning(Exception):
 
 class TwoWayDataSyncNotSupported(Exception):
     """
-    Raised when two-way sync is enabled for a data sync type that doesn't support it.
+    Raised when two-way sync is being enabled for a data sync type that doesn't support
+    it.
     """

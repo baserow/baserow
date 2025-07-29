@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             field=models.BooleanField(
                 db_default=False,
                 default=False,
-                help_text="If enabled, then it's possible to make changes to the synced table. They will automatically be synced with the source data. Note that this is only possible if the data sync type has a two way sync strategy.",
+                help_text="If enabled, then it's possible to make changes to the synced table. They will automatically be synced with the source data. Note that this is only possible if the data sync type has a two-way sync strategy.",
             ),
         ),
         migrations.AddField(

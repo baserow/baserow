@@ -17,7 +17,17 @@ from .two_way_sync_strategy_types import RealtimePushTwoWaySyncStrategy
 
 
 class PostgreSQLDataSyncType(BaserowPostgreSQLDataSyncType):
+    """
+    This class extends the existing PostgreSQL data sync type and adds two-way sync
+    functionality to it.
+    """
+
     two_way_sync_strategy_type = RealtimePushTwoWaySyncStrategy.type
+    """
+    Chosen to go with the realtime_push sync strategy because we can only push data in
+    realtime to a PostgreSQL database. Unfortunately, we can't receive changes in
+    realtime, so that still depends on the manual or periodic sync.
+    """
 
     def _get_unique_primaries(self, properties):
         primaries = [p for p in properties if p.unique_primary]
@@ -85,6 +95,10 @@ class PostgreSQLDataSyncType(BaserowPostgreSQLDataSyncType):
             insert_query, params, data_sync, fetch_all=True
         )
 
+        # Because the unique primary values could be generated on INSERT by the
+        # PostgreSQL database, they must be updated in the Baserow table as well to
+        # make sure that the correct identifier is set for future updates to the row.
+        # The two-way sync strategy is responsible for making the actual update.
         return [
             {
                 **dict(
@@ -170,7 +184,6 @@ class PostgreSQLDataSyncType(BaserowPostgreSQLDataSyncType):
             sql.SQL(", ").join(pk_placeholders),
         )
 
-        # Final update query
         update_query = sql.SQL("UPDATE {}.{} SET {} WHERE {}").format(
             sql.Identifier(schema_name),
             sql.Identifier(table_name),
