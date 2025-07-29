@@ -1,5 +1,6 @@
 <template>
   <LocalBaserowServiceForm
+    ref="form"
     enable-row-id
     v-bind="$attrs"
     :enable-view-picker="false"
@@ -15,6 +16,11 @@ export default {
   name: 'LocalBaserowDeleteRowServiceForm',
   components: {
     LocalBaserowServiceForm,
+  },
+  methods: {
+    isFormValid() {
+      return this.$refs.form.isFormValid()
+    },
   },
 }
 </script>

@@ -15,11 +15,11 @@ from rest_framework import serializers
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreRouterService,
+    CoreRouterServiceEdge,
     CoreSMTPEmailService,
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
-    CoreRouterServiceEdge,
 )
 from baserow.core.formula.validator import ensure_array, ensure_email, ensure_string, ensure_boolean
 from baserow.core.registry import Instance

@@ -42,7 +42,9 @@
       />
       <WorkflowNodeContext
         :ref="`nodeContext-${slotProps.id}`"
-        @change="createNode($event, slotProps.data.nodeId)"
+        @change="
+          createNode($event, slotProps.data.nodeId, slotProps.data.outputUid)
+        "
       ></WorkflowNodeContext>
     </template>
 
@@ -68,8 +70,8 @@ import {
   useContext,
   nextTick,
   getCurrentInstance,
+  useStore,
 } from '@nuxtjs/composition-api'
-import { uuid } from '@baserow/modules/core/utils/string'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
 import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode'
 import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge'
@@ -101,11 +103,12 @@ const { value: selectedNodeId } = toRefs(props)
 
 const { app } = useContext()
 
-const nodesDraggable = ref(false)
+const nodesDraggable = ref(true)
 const zoomOnScroll = ref(false)
 const panOnScroll = ref(true)
 const zoomOnDoubleClick = ref(false)
 
+const workflowDebug = inject('workflowDebug')
 const workflowReadOnly = inject('workflowReadOnly')
 
 // Constants for positioning
@@ -113,7 +116,8 @@ const NODE_VERTICAL_SPACING = 144 // Vertical distance between the tops of conse
 const ADD_BUTTON_OFFSET_Y = 92 // Vertical offset of add button relative to the data node above it
 const INITIAL_Y_POS = 0
 const DATA_NODE_X_POS = 0
-const ADD_BUTTON_X_POS = 190
+const DATA_NODE_WIDTH = 380 // How wide is a node?
+const DATA_NODE_MIDDLE = DATA_NODE_WIDTH / 2 // The middle of a node.
 
 watch(
   selectedNodeId,
@@ -134,78 +138,178 @@ onMounted(() => {
 const automation = inject('automation')
 const displayNodes = computed(() => {
   const vueFlowNodes = []
-  // props.nodes should already be sorted by 'order' from the store getter
   const sortedDataNodes = [...props.nodes]
 
   if (sortedDataNodes.length > 0) {
     let currentY = INITIAL_Y_POS
-    sortedDataNodes.forEach((dataNode) => {
+
+    sortedDataNodes.forEach((dataNode, index) => {
+      const nextDataNode = sortedDataNodes[index + 1]
       const nodeType = app.$registry.get('node', dataNode.type)
-      vueFlowNodes.push({
+      const nodeEdges = nodeType.getNodeEdges({ node: dataNode })
+
+      // By default, the `x` position is set to the current
+      // value of DATA_NODE_X_POS.
+      let positionX = DATA_NODE_X_POS
+
+      // However... if we have a previous node (which all nodes do, except the trigger),
+      // we'll need to adjust the `x` position to be the same as the previous node's
+      // add button's position. This is to ensure that the nodes are aligned correctly.
+      const previousNode = sortedDataNodes.find((node) => {
+        return node.id === dataNode.previous_node_id
+      })
+      const previousNodeAddButton = vueFlowNodes.find((node) => {
+        return (
+          node.type === 'workflow-add-button-node' &&
+          node.data.outputUid === dataNode.previous_node_output &&
+          node.data.nodeId === previousNode.id
+        )
+      })
+      if (previousNodeAddButton) {
+        positionX = previousNodeAddButton.position.x - DATA_NODE_MIDDLE
+      }
+
+      const workflowNodePosition = {
+        x: positionX,
+        y: currentY,
+      }
+      const workflowNode = {
         type: 'workflow-node',
         label: nodeType.getLabel({
           automation: automation.value,
           node: dataNode,
         }),
         id: dataNode.id.toString(),
-        position: { x: DATA_NODE_X_POS, y: currentY },
+        position: workflowNodePosition,
         data: {
           nodeId: dataNode.id,
-          readOnly: workflowReadOnly.value,
+          position: workflowNodePosition,
           isTrigger: nodeType.isTrigger,
+          readOnly: workflowReadOnly.value,
+          debug: workflowDebug.value,
+          outputUid: dataNode.previous_node_output,
         },
+      }
+      vueFlowNodes.push(workflowNode)
+
+      // If we have more than one edge, then bump the Y position,
+      // otherwise we're quite close to the router node above it.
+      if (nodeEdges.length > 1) {
+        currentY += NODE_VERTICAL_SPACING / 2
+      }
+      nodeEdges.forEach((edge) => {
+        // When we want to position the add button's `x` position, we need to consider
+        // if the edge has an `uid` or not. If it does, we use the edge's position, as
+        // the edges are pre-configured with positions, and we want to use those values.
+        // If there's no `uid`, then it's a straightforward edge between non-branches nodes,
+        // and we can use the node's position
+        const positionX = edge.uid.length
+          ? edge.position.x
+          : workflowNode.position.x
+        vueFlowNodes.push({
+          id: `add-button-${dataNode.id}-${edge.uid}`,
+          type: 'workflow-add-button-node',
+          position: {
+            x: positionX + DATA_NODE_MIDDLE,
+            y: currentY + ADD_BUTTON_OFFSET_Y,
+          },
+          data: {
+            nodeId: dataNode.id,
+            outputUid: edge.uid,
+            debug: workflowDebug.value,
+            disabled: props.isAddingNode || workflowReadOnly.value,
+          },
+        })
       })
 
-      // Add an Add Node Button node below it
-      vueFlowNodes.push({
-        id: uuid(),
-        type: 'workflow-add-button-node',
-        position: {
-          x: ADD_BUTTON_X_POS,
-          y: currentY + ADD_BUTTON_OFFSET_Y,
-        },
-        data: {
-          nodeId: dataNode.id,
-          disabled: props.isAddingNode || workflowReadOnly.value,
-        },
-      })
-
-      // Increment Y for the next node
-      currentY += NODE_VERTICAL_SPACING
+      // Inspect the next data node. If it has a different previous_node_id,
+      // we need to bump the Y position to ensure that the next node sits below
+      // the current one. If the next node has the same previous_node_id, then
+      // we can keep the current Y position as they're from the same branch.
+      if (
+        nextDataNode &&
+        dataNode.previous_node_id !== nextDataNode.previous_node_id
+      ) {
+        currentY += NODE_VERTICAL_SPACING
+      }
     })
   }
   return vueFlowNodes
 })
 
+const store = useStore()
+const workflow = inject('workflow')
 const computedEdges = computed(() => {
   const edges = []
   const currentNodesToProcess = displayNodes.value
 
-  if (workflowReadOnly.value) {
-    const dataNodesOnly = displayNodes.value
-    for (let i = 0; i < dataNodesOnly.length - 1; i++) {
-      const sourceNode = dataNodesOnly[i]
-      const targetNode = dataNodesOnly[i + 1]
-      edges.push({
-        id: `e-${sourceNode.id}-${targetNode.id}`,
-        source: sourceNode.id,
-        target: targetNode.id,
-        type: 'workflow-edge',
-      })
-    }
-  } else {
-    for (let i = 0; i < currentNodesToProcess.length - 1; i++) {
-      const source = currentNodesToProcess[i]
-      const target = currentNodesToProcess[i + 1]
+  const processNode = (sourceDataNode) => {
+    const sourceDataNodeType = app.$registry.get('node', sourceDataNode.type)
+    sourceDataNodeType
+      .getNodeEdges({ node: sourceDataNode })
+      .forEach((edge, edgeIndex) => {
+        const targetDataNodes = store.getters[
+          'automationWorkflowNode/getNextNodes'
+        ](workflow.value, sourceDataNode, edge.uid)
 
-      edges.push({
-        id: `e-${source.id}-${target.id}`,
-        source: source.id,
-        target: target.id,
-        type: 'workflow-edge',
+        // Add the edge between `sourceDataNode` and the *add button* node.
+        const addButtonBelow = currentNodesToProcess.find((node) => {
+          // If a node has an outputUid, then we're looking for an add button
+          // associated with that branch.
+          if (node.data.outputUid) {
+            return (
+              node.data.outputUid === edge.uid &&
+              node.type === 'workflow-add-button-node'
+            )
+          } else {
+            // If a node does not have an outputUid, then we're looking for an add button
+            // that has the same nodeId as the sourceDataNode.
+            return (
+              node.data.nodeId === sourceDataNode.id &&
+              node.type === 'workflow-add-button-node'
+            )
+          }
+        })
+        edges.push({
+          id: `e-${workflowDebug.value}-${sourceDataNode.id}-${addButtonBelow.id}-${edge.uid}`,
+          source: sourceDataNode.id.toString(),
+          target: addButtonBelow.id.toString(),
+          data: { outputUid: edge.uid },
+          label: workflowDebug.value
+            ? `from:${sourceDataNode.id} to:addBtn${edgeIndex}`
+            : edge.label,
+          type: 'smoothstep',
+        })
+
+        // If there are nodes *after* `sourceDataNode`, we need to:
+        // 1. Create an edge between `addButtonBelow` and each of those nodes.
+        // 2. Process each of those nodes to create edges between them and their own add buttons.
+        // 3. Recursively process each of those nodes to find their own target data nodes.
+        if (targetDataNodes.length) {
+          for (const targetDataNode of targetDataNodes) {
+            // An edge between two data nodes OR a data node and an add button.
+            const source = addButtonBelow || sourceDataNode
+            edges.push({
+              id: `e-${workflowDebug.value}-${source.id}-${targetDataNode.id}`,
+              source: source.id.toString(),
+              target: targetDataNode.id.toString(),
+              data: { outputUid: edge.uid },
+              type: 'smoothstep',
+              label: workflowDebug.value
+                ? `from:${source.id} to:${targetDataNode.id}`
+                : '',
+            })
+            processNode(targetDataNode)
+          }
+        }
       })
-    }
   }
+
+  const triggerNode = currentNodesToProcess.find((node) => node.data.isTrigger)
+  const triggerDataNode = props.nodes.find(
+    (node) => node.id === triggerNode.data.nodeId
+  )
+  processNode(triggerDataNode)
 
   return edges
 })
@@ -246,10 +350,11 @@ const toggleCreateContext = async (nodeId) => {
   nodeContext.show(nodeAddBtn.$el, 'bottom', 'left', 10, -225)
 }
 
-const createNode = (nodeType, previousNodeId) => {
+const createNode = (nodeType, previousNodeId, previousNodeOutput) => {
   emit('add-node', {
     type: nodeType,
     previousNodeId,
+    previousNodeOutput,
   })
 }
 
