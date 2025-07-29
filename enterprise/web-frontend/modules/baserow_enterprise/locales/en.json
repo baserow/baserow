@@ -599,6 +599,6 @@
     "label": "Edit field permissions"
   },
   "enterpriseTwoWaySyncStrategyType": {
-    "realtimePushDescription": "Allows editing the cell values directly in Baserow, and pushes them in real-time to the data sync source. Note that the changes are not pulled in real-time because they rely on the (periodic) sync action to complete."
+    "realtimePushDescription": "Allows editing the cell values directly in Baserow, and pushes it in real-time to the data sync source. Note that the changes are not pulled in real-time because they rely on the (periodic) sync action to complete. It's highly recommended to create backups of the PostgreSQL database to avoid accidental changes."
   }
 }
