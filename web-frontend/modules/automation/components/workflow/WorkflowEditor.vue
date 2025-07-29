@@ -203,7 +203,7 @@ const displayNodes = computed(() => {
         // the edges are pre-configured with positions, and we want to use those values.
         // If there's no `uid`, then it's a straightforward edge between non-branches nodes,
         // and we can use the node's position
-        const positionX = edge.uid.length
+        const positionX = edge.position.x
           ? edge.position.x
           : workflowNode.position.x
         vueFlowNodes.push({
