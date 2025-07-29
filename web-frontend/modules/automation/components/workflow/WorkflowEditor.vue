@@ -201,10 +201,13 @@ const displayNodes = computed(() => {
         // When we want to position the add button's `x` position, we need to consider
         // if the edge has an `uid` or not. If it does, we use the edge's position, as
         // the edges are pre-configured with positions, and we want to use those values.
+        // Note however that the edge's `x` position is relative to the node's position,
+        // that way when the node itself is position *off the x axis*, the edge's position
+        // is still correct.
         // If there's no `uid`, then it's a straightforward edge between non-branches nodes,
         // and we can use the node's position
         const positionX = edge.position.x
-          ? edge.position.x
+          ? edge.position.x + workflowNode.position.x
           : workflowNode.position.x
         vueFlowNodes.push({
           id: `add-button-${dataNode.id}-${edge.uid}`,
