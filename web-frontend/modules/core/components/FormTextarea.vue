@@ -144,14 +144,15 @@ export default {
     },
   },
   watch: {
-    value() {
-      if (this.autoExpandable) this.resizeTextArea()
+    value: {
+      handler(newValue) {
+        if (this.autoExpandable) {
+          this.$nextTick(this.resizeTextArea)
+        }
+      },
+      immediate: true,
     },
   },
-  mounted() {
-    if (this.autoExpandable) this.resizeTextArea()
-  },
-
   methods: {
     focus() {
       this.$refs.textarea.focus()
@@ -160,10 +161,8 @@ export default {
       this.$refs.textarea.blur()
     },
     resizeTextArea() {
-      this.$nextTick(() => {
-        const textAreaElement = this.$refs.textarea
-        this.numTextAreaLines = this.calculateHeight(textAreaElement)
-      })
+      const textAreaElement = this.$refs.textarea
+      this.numTextAreaLines = this.calculateHeight(textAreaElement)
     },
     /**
      * Taken from https://stackoverflow.com/questions/1760629/how-to-get-number-of-rows-in-textarea-using-javascript/1761203#1761203

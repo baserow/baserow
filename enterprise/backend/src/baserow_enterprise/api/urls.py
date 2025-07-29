@@ -8,6 +8,7 @@ from .field_permissions import urls as field_permissions_urls
 from .role import urls as role_urls
 from .secure_file_serve import urls as secure_file_serve_urls
 from .teams import urls as teams_urls
+from .ai_assistant import urls as ai_assistant_urls
 
 app_name = "baserow_enterprise.api"
 
@@ -25,5 +26,9 @@ urlpatterns = [
     path(
         "custom_code/",
         include(custom_code_urls, namespace="custom_code"),
+    ),
+    path(
+        "ai-assistant/",
+        include(ai_assistant_urls, namespace="ai_assistant"),
     ),
 ]

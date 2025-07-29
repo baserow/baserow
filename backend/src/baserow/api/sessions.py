@@ -87,11 +87,11 @@ def get_client_undo_redo_action_group_id(user: AbstractUser):
     return getattr(user, UNDO_REDO_ACTION_GROUP_ID, None)
 
 
-def set_user_websocket_id(user, request):
-    _set_user_websocket_id(user, request.headers.get(settings.WEBSOCKET_ID_HEADER))
+def set_user_websocket_id_from_request(user, request):
+    set_user_websocket_id(user, request.headers.get(settings.WEBSOCKET_ID_HEADER))
 
 
-def _set_user_websocket_id(user, websocket_id):
+def set_user_websocket_id(user, websocket_id):
     user.web_socket_id = websocket_id
 
 
@@ -121,7 +121,7 @@ def set_user_session_data_from_request(user, request):
     :param request: The request from which the data should be extracted.
     """
 
-    set_user_websocket_id(user, request)
+    set_user_websocket_id_from_request(user, request)
     set_untrusted_client_session_id_from_request_or_raise_if_invalid(user, request)
     set_client_undo_redo_action_group_id_from_request_or_raise_if_invalid(user, request)
     set_user_remote_addr_ip_from_request(user, request)

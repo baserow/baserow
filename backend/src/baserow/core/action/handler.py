@@ -1,6 +1,7 @@
 import traceback
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Set, Tuple
+from uuid import UUID, uuid4
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -91,13 +92,20 @@ class ActionHandler(metaclass=baserow_trace_methods(tracer)):
             raise exc
 
     @classmethod
-    @baserow_trace(tracer)
     def undo(
         cls, user: AbstractUser, scopes: List[ActionScopeStr], session: str
     ) -> List[Action]:
-        # Un-set the web_socket_id so the user doing this undo will receive any
-        # events triggered by the action.
-        user.web_socket_id = None
+        """
+        Undo the latest action for the given user and session. If the latest action is
+        part of a group, all actions in the group will be undone. If the latest action
+        is not part of a group, only it will be undone. If no action is found, an empty
+        list will be returned, meaning no actions were undone.
+
+        :param user: The user who initiated the undo action.
+        :param scopes: The scopes to filter the actions by.
+        :param session: The session to filter the actions by.
+        :return: A list of actions that were undone.
+        """
 
         latest_not_undone_action = (
             Action.objects.filter(user=user, undone_at__isnull=True, session=session)
@@ -109,28 +117,43 @@ class ActionHandler(metaclass=baserow_trace_methods(tracer)):
         if latest_not_undone_action is None:
             return []
 
-        if latest_not_undone_action.action_group is None:
-            actions_being_undone = [latest_not_undone_action]
+        if latest_not_undone_action.action_group is None:  # single action
+            return cls._undo_actions(user, [latest_not_undone_action])
         else:
-            actions_being_undone = list(
-                Action.objects.filter(
-                    undone_at__isnull=True,
-                    action_group=latest_not_undone_action.action_group,
-                    session=session,
-                    user=user,
-                )
-                .order_by("-created_on", "-id")[
-                    : settings.MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP
-                ]
-                .select_for_update(of=("self",))
+            return cls.undo_action_group(
+                user, latest_not_undone_action.action_group, session
             )
 
+    @classmethod
+    def undo_action_group(
+        cls, user: AbstractUser, action_group: str | UUID, session: str
+    ) -> List[Action]:
+        actions_being_undone = list(
+            Action.objects.filter(
+                undone_at__isnull=True,
+                action_group=action_group,
+                session=session,
+                user=user,
+            )
+            .order_by("-created_on", "-id")[
+                : settings.MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP
+            ]
+            .select_for_update(of=("self",))
+        )
+        return cls._undo_actions(user, actions_being_undone)
+
+    @classmethod
+    def _undo_actions(cls, user: AbstractUser, actions: List[Action]) -> List[Action]:
+        # Un-set the web_socket_id so the user doing this undo will receive any
+        # events triggered by the action.
+        user.web_socket_id = None
+
         undone_at = datetime.now(tz=timezone.utc)
-        action_being_undone_ids = [action.id for action in actions_being_undone]
+        action_being_undone_ids = [action.id for action in actions]
         try:
             # Wrap all the action group to ensure any errors get rolled back.
             with transaction.atomic():
-                for action in actions_being_undone:
+                for action in actions:
                     cls._undo_action(user, action, undone_at)
         except LockConflict:
             raise

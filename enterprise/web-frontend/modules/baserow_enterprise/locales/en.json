@@ -332,6 +332,9 @@
   "auditLogSidebarWorkspace": {
     "title": "Audit log"
   },
+  "aiAssistantSidebarItem": {
+    "title": "AI assistant"
+  },
   "localBaserowUserSourceType": {
     "notConfigured": "Not configured"
   },
@@ -581,5 +584,24 @@
   },
   "fieldPermissionsMenuItem": {
     "label": "Edit field permissions"
+  },
+  "aiAssistantPanel": {
+    "title": "AI Assistant",
+    "emptyState": "Hey {name}, How can I help you today?",
+    "like": "Like",
+    "dislike": "Dislike",
+    "copy": "Copy",
+    "refresh": "Refresh",
+    "context": "Context",
+    "hideDetails": "Hide",
+    "showDetails": "Show",
+    "workingWith": "Working with",
+    "workspace": "Workspace",
+    "viewType": "View",
+    "field": "Field",
+    "placeholder": "Type your message...",
+    "toolsAvailable": "Tools available",
+    "copied": "Copied to clipboard",
+    "send": "Send message"
   }
 }

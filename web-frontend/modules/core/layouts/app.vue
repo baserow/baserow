@@ -13,9 +13,21 @@
           @set-col1-width="col1Width = $event"
         ></Sidebar>
       </div>
-      <div class="layout__col-2" :style="{ left: col1Width + 'px' }">
+      <div
+        class="layout__col-2"
+        :style="{ left: col1Width + 'px', right: col3Width + 'px' }"
+      >
         <nuxt />
       </div>
+      <div class="layout__col-3" :style="{ width: col3Width + 'px', right: 0 }">
+        <RightSidebar
+          :workspaces="workspaces"
+          :selected-workspace="selectedWorkspace"
+          :collapsed="col3.isCollapsed"
+          :width="col3Width"
+        ></RightSidebar>
+      </div>
+
       <HorizontalResize
         class="layout__resize"
         :width="col1Width"
@@ -38,6 +50,7 @@ import { mapGetters, mapState } from 'vuex'
 
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar'
+import RightSidebar from '@baserow/modules/core/components/sidebar/RightSidebar'
 import undoRedo from '@baserow/modules/core/mixins/undoRedo'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import GuidedTour from '@baserow/modules/core/components/guidedTour/GuidedTour'
@@ -53,6 +66,7 @@ export default {
     Sidebar,
     HorizontalResize,
     GuidedTour,
+    RightSidebar,
   },
   mixins: [undoRedo],
   middleware: [
@@ -64,6 +78,11 @@ export default {
   data() {
     return {
       col1Width: 240,
+      col3: {
+        expandedWidth: 480,
+        collapsedWidth: 48,
+        isCollapsed: false,
+      },
     }
   },
   computed: {
@@ -82,6 +101,11 @@ export default {
     ...mapGetters({
       applications: 'application/getAll',
     }),
+    col3Width() {
+      return this.col3.isCollapsed
+        ? this.col3.collapsedWidth
+        : this.col3.expandedWidth
+    },
   },
   created() {
     /*
@@ -150,6 +174,9 @@ export default {
     },
     resizeCol1(event) {
       this.col1Width = event
+    },
+    toggleCol3() {
+      this.col3.isCollapsed = !this.col3.isCollapsed
     },
   },
 }

@@ -1,0 +1,1288 @@
+.ai-assistant {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: $white;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.ai-assistant__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid $color-neutral-200;
+  flex-shrink: 0;
+  height: 51px;
+}
+
+.ai-assistant__header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-assistant__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-assistant__header-icon {
+  font-size: 20px;
+  color: $color-primary-500;
+}
+
+.ai-assistant__header-text {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: $color-neutral-900;
+}
+
+.ai-assistant__messages {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  min-height: 0;
+}
+
+.ai-assistant__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.ai-assistant__empty-icon-wrapper {
+  margin-bottom: 32px;
+}
+
+.ai-assistant__empty-icon-bg {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: $color-primary-500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background-color: rgba($color-primary-500, 0.1);
+    z-index: -1;
+  }
+}
+
+.ai-assistant__empty-icon {
+  font-size: 32px;
+  color: $white;
+}
+
+.ai-assistant__empty-title {
+  font-size: 20px;
+  margin: 0 0 12px 0;
+  line-height: 1.2;
+}
+
+.ai-assistant__empty-title-light {
+  color: $color-neutral-500;
+  font-weight: 400;
+}
+
+.ai-assistant__empty-title-bold {
+  color: $color-neutral-900;
+  font-weight: 600;
+}
+
+.ai-assistant__empty-subtitle {
+  font-size: 14px;
+  color: $color-neutral-600;
+  margin: 0 0 24px 0;
+  line-height: 1.4;
+  max-width: 400px;
+}
+
+.ai-assistant__suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.ai-assistant__suggestion-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  background-color: $white;
+  border: 1px solid $color-neutral-200;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+
+  &:hover {
+    border-color: $color-primary-300;
+    background-color: $color-primary-100;
+  }
+}
+
+.ai-assistant__suggestion-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  background-color: $color-neutral-100;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  i {
+    font-size: 16px;
+    color: $color-neutral-600;
+  }
+}
+
+.ai-assistant__suggestion-content {
+  flex: 1;
+}
+
+.ai-assistant__suggestion-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $color-neutral-900;
+  margin: 0 0 2px 0;
+  line-height: 1.3;
+}
+
+.ai-assistant__suggestion-description {
+  font-size: 13px;
+  color: $color-neutral-600;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.ai-assistant__message {
+  display: flex;
+  margin-bottom: 16px;
+
+  &--user {
+    justify-content: flex-end;
+  }
+
+  &--assistant {
+    justify-content: flex-start;
+  }
+}
+
+.ai-assistant__message-content {
+  max-width: 95%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+
+  .ai-assistant__message--user & {
+    align-items: flex-end;
+  }
+
+  .ai-assistant__message--assistant & {
+    align-items: flex-start;
+  }
+}
+
+.ai-assistant__message-bubble {
+  background-color: $white;
+  border: 1px solid $color-neutral-200;
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  word-wrap: break-word;
+  word-break: break-word; // Break long words
+  overflow-wrap: break-word; // Alternative for better browser support
+  max-width: 100%; // Ensure bubble doesn't exceed container
+  min-width: 0; // Allow shrinking
+  display: block; // Remove flex to prevent alignment issues
+
+  .ai-assistant__message--user & {
+    background-color: $color-neutral-100;
+    border-color: $color-neutral-100;
+  }
+}
+
+.ai-assistant__message-text {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  text-align: left;
+  display: block;
+  text-indent: 0;
+  border: 0;
+  outline: 0;
+
+  // Markdown styles
+  p {
+    margin: 0 0 8px 0;
+    color: $palette-neutral-1200;
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 12px 0 8px 0;
+    font-weight: 600;
+    line-height: 1.3;
+    color: $palette-neutral-1200;
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  h1 {
+    font-size: 1.5em;
+  }
+  h2 {
+    font-size: 1.3em;
+  }
+  h3 {
+    font-size: 1.15em;
+  }
+  h4 {
+    font-size: 1em;
+  }
+  h5 {
+    font-size: 0.95em;
+  }
+  h6 {
+    font-size: 0.9em;
+  }
+
+  ul,
+  ol {
+    margin: 8px 0;
+    padding-left: 20px;
+    color: $palette-neutral-1200;
+  }
+
+  li {
+    margin: 4px 0;
+    line-height: 1.5;
+    color: $palette-neutral-1200;
+  }
+
+  code {
+    background-color: $color-neutral-100;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 0.9em;
+  }
+
+  pre {
+    background-color: $color-neutral-100;
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 8px 0;
+
+    code {
+      background-color: transparent;
+      padding: 0;
+      font-size: 0.85em;
+    }
+  }
+
+  blockquote {
+    border-left: 3px solid $color-primary-300;
+    padding-left: 12px;
+    margin: 8px 0;
+    color: $color-neutral-600;
+  }
+
+  a {
+    color: $color-primary-500;
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid $color-neutral-200;
+    margin: 12px 0;
+  }
+
+  table {
+    border-collapse: collapse;
+    margin: 8px 0;
+    width: 100%;
+
+    th,
+    td {
+      border: 1px solid $color-neutral-200;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background-color: $color-neutral-100;
+      font-weight: 600;
+    }
+  }
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: wrap;
+
+  // Remove any inherited spacing
+  &:before,
+  &:after {
+    content: none;
+  }
+
+  code {
+    background-color: $color-neutral-100;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 13px;
+    word-break: break-all; // More aggressive breaking for code
+  }
+
+  .ai-assistant__message--user & code {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  em {
+    font-style: italic;
+  }
+}
+
+.ai-assistant__message-time {
+  font-size: 11px;
+  color: $color-neutral-400;
+}
+
+.ai-assistant__typing {
+  display: flex;
+  gap: 4px;
+  padding: 4px 0;
+
+  span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: $color-neutral-400;
+    animation: typing-bounce 1.4s infinite ease-in-out;
+
+    &:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+
+    &:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+  }
+}
+
+@keyframes typing-bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// Combined input section (in welcome state)
+.ai-assistant__input-section {
+  width: 100%;
+  margin-top: 24px;
+  
+  // Single bubble containing context and input
+  .ai-assistant__input-bubble {
+    background-color: $white;
+    border: 1px solid $color-neutral-200;
+    border-radius: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+  }
+  
+  // Context at top of bubble
+  .ai-assistant__context {
+    padding: 12px 16px;
+    border-bottom: 1px solid $color-neutral-100;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: $color-neutral-600;
+    background: $color-neutral-50;
+    
+    &-icon {
+      font-size: 16px;
+      color: $color-primary-500;
+    }
+    
+    &-text {
+      font-weight: 500;
+    }
+  }
+  
+  .ai-assistant__input-wrapper {
+    position: relative;
+    padding: 16px;
+    
+    .form-textarea {
+      flex: 1;
+      width: 100%;
+      padding-right: 52px; // Make room for the send button
+      
+      textarea {
+        line-height: 1.5;
+        overflow-y: auto;
+        border: none;
+        background: transparent;
+        font-size: 15px;
+        width: 100%;
+        
+        &::placeholder {
+          color: $color-neutral-400;
+        }
+        
+        &:focus {
+          outline: none;
+        }
+      }
+    }
+  }
+  
+  // Floating send button
+  .ai-assistant__send-button {
+    position: absolute;
+    right: 24px;
+    bottom: 24px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: $color-primary-500;
+    border: none;
+    color: $white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+    &:hover:not(:disabled) {
+      background-color: $color-primary-600;
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+
+    &--disabled {
+      background-color: $color-neutral-300;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    i {
+      font-size: 18px;
+    }
+
+    &--loading {
+      animation: spin 1s linear infinite;
+    }
+  }
+  
+  // Tools section - minimal at bottom
+  .ai-assistant__tools {
+    margin-top: 16px;
+    text-align: center;
+    
+    &-label {
+      font-size: 13px;
+      color: $color-neutral-600;
+      margin-bottom: 10px;
+      display: block;
+      font-weight: 500;
+    }
+    
+    &-list {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+  }
+  
+  .ai-assistant__tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background-color: $color-neutral-100;
+    border: 1px solid $color-neutral-200;
+    border-radius: 20px;
+    font-size: 13px;
+    color: $color-neutral-700;
+    transition: all 0.2s;
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+      background-color: $color-neutral-200;
+      border-color: $color-neutral-300;
+    }
+
+    &--selected {
+      background-color: $color-primary-100;
+      border-color: $color-primary-300;
+      color: $color-primary-700;
+
+      &:hover {
+        background-color: $color-primary-200;
+        border-color: $color-primary-400;
+      }
+    }
+
+    i {
+      font-size: 14px;
+    }
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Context section
+.ai-assistant__context {
+  padding: 12px 16px;
+  background-color: $color-neutral-50;
+  border-bottom: 1px solid $color-neutral-200;
+  flex-shrink: 0;
+}
+
+.ai-assistant__context-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: $color-neutral-600;
+  margin-bottom: 8px;
+}
+
+.ai-assistant__context-icon {
+  font-size: 14px;
+}
+
+.ai-assistant__context-content {
+  font-size: 13px;
+  color: $color-neutral-800;
+  line-height: 1.4;
+}
+
+// Tools section
+.ai-assistant__tools {
+  padding: 0 16px 12px;
+  background-color: $white;
+  flex-shrink: 0;
+}
+
+.ai-assistant__tools-header {
+  font-size: 12px;
+  color: $color-neutral-600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-assistant__tools-icon {
+  font-size: 14px;
+}
+
+.ai-assistant__tools-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-assistant__tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background-color: $white;
+  border: 1px solid $color-neutral-200;
+  border-radius: 16px;
+  font-size: 12px;
+  color: $color-neutral-700;
+  transition: all 0.2s;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background-color: $color-neutral-100;
+    border-color: $color-neutral-300;
+  }
+
+  &--selected {
+    background-color: $color-primary-100;
+    border-color: $color-primary-300;
+    color: $color-primary-700;
+
+    &:hover {
+      background-color: $color-primary-200;
+      border-color: $color-primary-400;
+    }
+  }
+
+  i {
+    font-size: 12px;
+  }
+}
+
+// Message footer (actions only)
+.ai-assistant__message-footer {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+
+  .ai-assistant__message--user & {
+    justify-content: flex-end;
+  }
+
+  .ai-assistant__message--assistant & {
+    justify-content: flex-start;
+  }
+}
+
+// Confirmation buttons
+.ai-assistant__confirmation {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid $color-neutral-200;
+}
+
+.ai-assistant__confirmation-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &--confirm {
+    background: $color-primary-100;
+    color: $color-primary-600;
+
+    &:hover {
+      background: $color-primary-200;
+    }
+  }
+
+  &--cancel {
+    background: $color-neutral-100;
+    color: $color-neutral-600;
+
+    &:hover {
+      background: $color-neutral-200;
+    }
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// Message actions
+.ai-assistant__message-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.ai-assistant__message-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: $color-neutral-400;
+  cursor: pointer;
+  transition: all 0.2s;
+  gap: 4px;
+
+  &:hover {
+    color: $color-neutral-600;
+    background-color: $color-neutral-100;
+  }
+
+  &:active {
+    color: $color-neutral-700;
+  }
+
+  i {
+    font-size: 14px;
+  }
+
+  // Undo button with text label
+  &--undo {
+    width: auto;
+    padding: 0 8px;
+    color: $color-warning-600;
+    font-size: 12px;
+    font-weight: 500;
+
+    &:hover {
+      color: $color-warning-700;
+      background-color: $color-warning-100;
+    }
+
+    &:active {
+      color: $color-warning-800;
+    }
+  }
+}
+
+// Context dropdown
+.ai-assistant__context-dropdown {
+  position: relative;
+  margin-left: auto;
+}
+
+.ai-assistant__context-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: $color-neutral-600;
+  background-color: transparent;
+  border: 1px solid $color-neutral-200;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: $color-neutral-100;
+    color: $color-neutral-800;
+  }
+
+  i {
+    font-size: 12px;
+  }
+}
+
+// New styles for welcome state and recent chats
+.ai-assistant__main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 20px;
+  padding-bottom: 0;
+}
+
+.ai-assistant__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 40px;
+}
+
+.ai-assistant__loading-icon {
+  font-size: 32px;
+  color: $color-primary-500;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+.ai-assistant__loading-text {
+  font-size: 14px;
+  color: $color-neutral-600;
+  margin: 0;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ai-assistant__welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+  
+  &-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, $color-primary-500 0%, lighten($color-primary-500, 10%) 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba($color-primary-500, 0.2);
+    
+    i {
+      font-size: 36px;
+      color: $white;
+    }
+  }
+  
+  &-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: $color-neutral-900;
+    margin: 0 0 12px 0;
+  }
+  
+  &-subtitle {
+    font-size: 13px;
+    color: $color-neutral-600;
+    line-height: 1.5;
+    margin: 0 0 32px 0;
+  }
+
+  &-title-greeting {
+    color: $palette-neutral-700;
+  }
+}
+
+.ai-assistant__messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 20px;
+}
+
+.ai-assistant__recent-chats {
+  padding: 24px 20px;
+  border-top: 1px solid $color-neutral-200;
+  background: white;
+  flex-shrink: 0;
+  
+  &-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    
+    h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: $color-neutral-900;
+      margin: 0;
+    }
+  }
+  
+  &-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+.ai-assistant__view-all-button {
+  font-size: 13px;
+  color: $color-primary-500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+  
+  &:hover {
+    background: rgba($color-primary-500, 0.1);
+  }
+}
+
+.ai-assistant__recent-chat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: $color-neutral-50;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 48px; // Fixed height for consistency
+  
+  &:hover:not(&--empty):not(&--deleting) {
+    background: $color-neutral-100;
+    
+    .ai-assistant__recent-chat-delete {
+      opacity: 1;
+    }
+  }
+  
+  // Loading state for individual items during deletion
+  &--deleting {
+    opacity: 0;
+    transform: translateX(20px);
+    pointer-events: none;
+    background: $color-neutral-100;
+  }
+  
+  
+  // Loading item state
+  &.ai-assistant__recent-chat-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: $color-neutral-600;
+    font-size: 14px;
+    cursor: default;
+    
+    i {
+      animation: spin 1s linear infinite;
+    }
+  }
+  
+  // Placeholder items during loading
+  &.ai-assistant__recent-chat-placeholder {
+    background: transparent;
+    cursor: default;
+    pointer-events: none;
+  }
+}
+
+.ai-assistant__recent-chat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-assistant__recent-chat-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: $color-neutral-900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.ai-assistant__recent-chat-delete {
+  opacity: 0;
+  transition: opacity 0.2s;
+  background: none;
+  border: none;
+  color: $color-neutral-500;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  
+  &:hover:not(:disabled) {
+    color: #e74c3c;
+    background: rgba(231, 76, 60, 0.1);
+  }
+  
+  &:disabled {
+    opacity: 1;
+    cursor: not-allowed;
+  }
+  
+  i {
+    font-size: 14px;
+    
+    &.ai-assistant__recent-chat-delete-loading {
+      animation: spin 1s linear infinite;
+      font-size: 12px;
+    }
+  }
+}
+
+// Smaller loading icon for recent chats list
+.ai-assistant__recent-chat-loading-icon {
+  font-size: 16px !important;
+  animation: spin 1s linear infinite;
+}
+
+.ai-assistant__no-chats {
+  text-align: center;
+  padding: 24px;
+  color: $color-neutral-500;
+  font-size: 14px;
+}
+
+.ai-assistant__bottom-input-section {
+  padding: 16px 20px;
+  border-top: 1px solid $color-neutral-200;
+  background: $white;
+  flex-shrink: 0;
+  
+  // Force hide resize handle for all textareas in this section
+  textarea {
+    resize: none !important;
+  }
+
+  .ai-assistant__input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    background: $white;
+    border: 1px solid $color-neutral-200;
+    border-radius: 12px;
+    padding: 12px;
+    transition: border-color 0.2s;
+    
+    &:focus-within {
+      border-color: $color-primary-500;
+      box-shadow: 0 0 0 3px rgba($color-primary-500, 0.1);
+    }
+    
+    // When context is present, add top padding to make space
+    &.has-context {
+      padding-top: 36px;
+    }
+    
+    .form-textarea {
+      flex: 1;
+      padding-right: 0;
+      
+      // Remove all inner styling from FormTextarea
+      border: none !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      resize: none !important;
+      
+      textarea {
+        border: none !important;
+        outline: none !important;
+        resize: none !important; // Hide resize handle
+        font-size: 15px;
+        line-height: 1.5;
+        padding: 0;
+        background: transparent !important;
+        box-shadow: none !important;
+        
+        &::placeholder {
+          color: $color-neutral-400;
+        }
+        
+        &:focus {
+          border: none !important;
+          outline: none !important;
+          box-shadow: none !important;
+        }
+      }
+      
+      // Target any nested textarea more specifically
+      & textarea,
+      & .form-textarea__textarea {
+        resize: none !important;
+      }
+    }
+  }
+
+  .ai-assistant__context-badge {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: $color-neutral-200;
+    border-radius: 6px;
+    font-size: 12px;
+    color: $color-neutral-800;
+    z-index: 1;
+    
+    .ai-assistant__context-icon {
+      font-size: 12px;
+      color: $color-primary-600;
+    }
+    
+    .ai-assistant__context-text {
+      font-weight: 600;
+    }
+  }
+
+  .ai-assistant__send-button {
+    position: static;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: $color-primary-500;
+    border: none;
+    color: $white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    box-shadow: none;
+    
+    i {
+      font-size: 16px;
+    }
+    
+    &:hover:not(:disabled) {
+      background: $color-primary-600;
+      transform: scale(1.05);
+    }
+    
+    &--disabled {
+      background: $color-neutral-300;
+      cursor: not-allowed;
+      
+      &:hover {
+        transform: none;
+      }
+    }
+    
+    &--loading i {
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  .ai-assistant__tools {
+    margin-top: 12px;
+    padding: 0;
+    background: transparent;
+  }
+}
+
+// History context dropdown styles
+.ai-assistant__history-context {
+  .context__menu {
+    max-height: 480px; // Fallback for older browsers
+    max-height: #{"min(480px, 50vh)"}; // CSS min() function - escaped for Sass
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+}
+
+.ai-assistant__history-menu {
+  max-height: 480px !important; // Fallback for older browsers
+  max-height: #{"min(480px, 50vh)"} !important; // CSS min() function - escaped for Sass
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  
+  // Custom scrollbar styling
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: $color-neutral-300;
+    border-radius: 3px;
+    
+    &:hover {
+      background: $color-neutral-400;
+    }
+  }
+}
+
+.ai-assistant__history-chat-loading {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  color: $color-neutral-600;
+  font-size: 14px;
+  justify-content: center;
+  padding: 16px !important;
+
+  i {
+    animation: spin 1s linear infinite;
+  }
+}
+
+.ai-assistant__history-empty {
+  text-align: center;
+  color: $color-neutral-500;
+  font-size: 14px;
+  padding: 16px !important;
+  font-style: italic;
+
+  span {
+    margin: 0;
+  }
+}

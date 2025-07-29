@@ -10,6 +10,8 @@ import EnterpriseSettingsOverrideDashboardHelp from '@baserow_enterprise/compone
 import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning.vue'
+import AiAssistantSidebarItem from '@baserow_enterprise/components/ai-assistant/AiAssistantSidebarItem.vue'
+import AiAssistantPanel from '@baserow_enterprise/components/ai-assistant/AiAssistantPanel.vue'
 
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {
@@ -18,11 +20,18 @@ export class EnterprisePlugin extends BaserowPlugin {
 
   getSidebarWorkspaceComponents(workspace) {
     const sidebarItems = []
+    sidebarItems.push(AiAssistantSidebarItem)
     if (!this.app.$config.BASEROW_DISABLE_SUPPORT) {
       sidebarItems.push(ChatwootSupportSidebarWorkspace)
     }
     sidebarItems.push(AuditLogSidebarWorkspace)
     return sidebarItems
+  }
+
+  getRightSidebarWorkspaceComponents(workspace) {
+    const rightSidebarItems = []
+    rightSidebarItems.push(AiAssistantPanel)
+    return rightSidebarItems
   }
 
   getAdditionalApplicationContextComponents(workspace, application) {

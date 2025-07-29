@@ -54,7 +54,7 @@ export default {
       event.preventDefault()
       const difference = event.clientX - this.mouseStart
       let newWidth = Math.max(this.startWidth + difference, this.min)
-      if (this.max) {
+      if (this.max !== null) {
         newWidth = Math.min(newWidth, this.max)
       }
 

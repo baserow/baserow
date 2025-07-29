@@ -6,6 +6,16 @@
 #
 advocate==1.0.0
     # via -r base.in
+aiohappyeyeballs==2.6.1
+    # via aiohttp
+aiohttp==3.12.14
+    # via
+    #   fsspec
+    #   litellm
+aiosignal==1.4.0
+    # via aiohttp
+alembic==1.14.1
+    # via optuna
 amqp==5.3.1
     # via kombu
 annotated-types==0.7.0
@@ -17,6 +27,8 @@ antlr4-python3-runtime==4.9.3
 anyio==4.8.0
     # via
     #   anthropic
+    #   asyncer
+    #   dspy
     #   httpx
     #   mcp
     #   openai
@@ -32,11 +44,13 @@ asgiref==3.8.1
     #   django
     #   django-cors-headers
     #   opentelemetry-instrumentation-asgi
-async-timeout==5.0.1
-    # via redis
+asyncer==0.0.8
+    # via dspy
 attrs==24.3.0
     # via
+    #   aiohttp
     #   jsonschema
+    #   referencing
     #   service-identity
     #   twisted
 autobahn==24.4.2
@@ -50,7 +64,9 @@ azure-core==1.32.0
 azure-storage-blob==12.24.0
     # via django-storages
 backoff==2.2.1
-    # via posthog
+    # via
+    #   dspy
+    #   posthog
 billiard==4.2.1
     # via celery
 boto3==1.34.162
@@ -62,7 +78,9 @@ botocore==1.34.162
 brotli==1.1.0
     # via -r base.in
 cachetools==5.5.0
-    # via google-auth
+    # via
+    #   dspy
+    #   google-auth
 celery[redis]==5.4.0
     # via
     #   -r base.in
@@ -98,6 +116,7 @@ click==8.1.8
     #   click-didyoumean
     #   click-plugins
     #   click-repl
+    #   litellm
     #   uvicorn
 click-didyoumean==0.3.1
     # via celery
@@ -105,6 +124,10 @@ click-plugins==1.1.1
     # via celery
 click-repl==0.3.0
     # via celery
+cloudpickle==3.1.1
+    # via dspy
+colorlog==6.9.0
+    # via optuna
 constantly==23.10.4
     # via twisted
 cron-descriptor==1.4.5
@@ -118,6 +141,8 @@ cryptography==44.0.0
     #   service-identity
 daphne==4.1.2
     # via channels
+datasets==4.0.0
+    # via dspy
 defusedxml==0.7.1
     # via pysaml2
 deprecated==1.2.15
@@ -125,6 +150,12 @@ deprecated==1.2.15
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-http
     #   opentelemetry-semantic-conventions
+dill==0.3.8
+    # via
+    #   datasets
+    #   multiprocess
+diskcache==5.6.3
+    # via dspy
 distro==1.9.0
     # via
     #   anthropic
@@ -175,7 +206,9 @@ djangorestframework==3.15.1
     #   drf-spectacular
 djangorestframework-simplejwt==5.3.1
     # via -r base.in
-drf-spectacular==0.27.2
+drf-spectacular==0.28.0
+    # via -r base.in
+dspy==3.0.0b3
     # via -r base.in
 elementpath==4.7.0
     # via xmlschema
@@ -186,11 +219,19 @@ eval-type-backport==0.2.2
 faker==25.0.1
     # via -r base.in
 filelock==3.16.1
-    # via huggingface-hub
+    # via
+    #   datasets
+    #   huggingface-hub
 flower==2.0.1
     # via -r base.in
-fsspec==2024.12.0
-    # via huggingface-hub
+frozenlist==1.7.0
+    # via
+    #   aiohttp
+    #   aiosignal
+fsspec[http]==2024.12.0
+    # via
+    #   datasets
+    #   huggingface-hub
 google-api-core==2.24.0
     # via
     #   google-cloud-core
@@ -214,8 +255,6 @@ googleapis-common-protos==1.66.0
     # via
     #   google-api-core
     #   opentelemetry-exporter-otlp-proto-http
-greenlet==3.1.1
-    # via sqlalchemy
 gunicorn==23.0.0
     # via -r base.in
 h11==0.16.0
@@ -231,7 +270,9 @@ httptools==0.6.4
 httpx==0.27.2
     # via
     #   anthropic
+    #   langgraph-sdk
     #   langsmith
+    #   litellm
     #   mcp
     #   mistralai
     #   ollama
@@ -239,7 +280,9 @@ httpx==0.27.2
 httpx-sse==0.4.0
     # via mcp
 huggingface-hub==0.27.1
-    # via tokenizers
+    # via
+    #   datasets
+    #   tokenizers
 humanize==4.11.0
     # via flower
 hyperlink==21.0.0
@@ -255,8 +298,11 @@ idna==3.10
     #   hyperlink
     #   requests
     #   twisted
+    #   yarl
 importlib-metadata==8.4.0
-    # via opentelemetry-api
+    # via
+    #   litellm
+    #   opentelemetry-api
 incremental==24.7.2
     # via twisted
 inflection==0.5.1
@@ -265,42 +311,88 @@ isodate==0.7.2
     # via azure-storage-blob
 itsdangerous==2.2.0
     # via -r base.in
+jinja2==3.1.6
+    # via litellm
 jira2markdown==0.3.7
     # via -r base.in
 jiter==0.8.2
-    # via anthropic
+    # via
+    #   anthropic
+    #   openai
 jmespath==1.0.1
     # via
     #   boto3
     #   botocore
+joblib==1.5.1
+    # via dspy
+json-repair==0.48.0
+    # via dspy
 jsonpatch==1.33
     # via langchain-core
 jsonpath-python==1.0.6
     # via mistralai
 jsonpointer==3.0.0
     # via jsonpatch
-jsonschema==4.17.3
+jsonschema==4.25.0
     # via
-    #   -r base.in
     #   drf-spectacular
+    #   litellm
+jsonschema-specifications==2025.4.1
+    # via jsonschema
 kombu==5.4.2
     # via celery
-langchain==0.3.21
+langchain==0.3.27
     # via -r base.in
-langchain-core==0.3.48
+langchain-core==0.3.72
     # via
     #   langchain
+    #   langchain-openai
     #   langchain-text-splitters
-langchain-text-splitters==0.3.7
+    #   langgraph
+    #   langgraph-checkpoint
+    #   langgraph-prebuilt
+    #   langgraph-supervisor
+langchain-openai==0.3.28
+    # via -r base.in
+langchain-text-splitters==0.3.9
     # via langchain
-langsmith==0.1.147
+langgraph==0.6.3
+    # via
+    #   -r base.in
+    #   langgraph-supervisor
+langgraph-checkpoint==2.1.1
+    # via
+    #   langgraph
+    #   langgraph-checkpoint-postgres
+    #   langgraph-prebuilt
+langgraph-checkpoint-postgres==2.0.23
+    # via -r base.in
+langgraph-prebuilt==0.6.3
+    # via langgraph
+langgraph-sdk==0.2.0
+    # via langgraph
+langgraph-supervisor==0.0.29
+    # via -r base.in
+langsmith==0.4.10
     # via
     #   langchain
     #   langchain-core
+lark==1.2.2
+    # via -r base.in
+litellm==1.74.9
+    # via dspy
 loguru==0.7.2
     # via -r base.in
+magicattr==0.1.6
+    # via dspy
+mako==1.3.10
+    # via alembic
 markdown-it-py==3.0.0
     # via rich
+markupsafe==3.0.2
+    # via
+    #   jinja2
+    #   mako
 mcp==1.6.0
     # via -r base.in
 mdurl==0.1.2
@@ -311,18 +403,34 @@ monotonic==1.6
     # via posthog
 msgpack==1.1.0
     # via channels-redis
+multidict==6.6.3
+    # via
+    #   aiohttp
+    #   yarl
+multiprocess==0.70.16
+    # via datasets
 mypy-extensions==1.0.0
     # via typing-inspect
 ndg-httpsclient==0.5.1
     # via advocate
 netifaces==0.11.0
     # via advocate
+numpy==2.3.2
+    # via
+    #   datasets
+    #   dspy
+    #   optuna
+    #   pandas
 oauthlib==3.2.2
     # via requests-oauthlib
 ollama==0.1.9
     # via -r base.in
-openai==1.30.1
-    # via -r base.in
+openai==1.91.0
+    # via
+    #   -r base.in
+    #   dspy
+    #   langchain-openai
+    #   litellm
 openpyxl==3.1.5
     # via -r base.in
 opentelemetry-api==1.29.0
@@ -431,14 +539,26 @@ opentelemetry-util-http==0.50b0
     #   opentelemetry-instrumentation-django
     #   opentelemetry-instrumentation-requests
     #   opentelemetry-instrumentation-wsgi
+optuna==4.4.0
+    # via dspy
 orjson==3.10.13
-    # via langsmith
+    # via
+    #   langgraph-checkpoint-postgres
+    #   langgraph-sdk
+    #   langsmith
+ormsgpack==1.10.0
+    # via langgraph-checkpoint
 packaging==23.2
     # via
+    #   datasets
     #   gunicorn
     #   huggingface-hub
     #   langchain-core
+    #   langsmith
     #   opentelemetry-instrumentation
+    #   optuna
+pandas==2.3.1
+    # via datasets
 pillow==10.3.0
     # via -r base.in
 posthog==3.5.0
@@ -447,6 +567,10 @@ prometheus-client==0.21.1
     # via flower
 prompt-toolkit==3.0.48
     # via click-repl
+propcache==0.3.2
+    # via
+    #   aiohttp
+    #   yarl
 prosemirror @ https://github.com/fellowapp/prosemirror-py/archive/refs/tags/v0.3.5.zip
     # via -r base.in
 proto-plus==1.25.0
@@ -459,8 +583,14 @@ protobuf==5.29.2
     #   proto-plus
 psutil==5.9.8
     # via -r base.in
+psycopg==3.2.9
+    # via langgraph-checkpoint-postgres
+psycopg-pool==3.2.6
+    # via langgraph-checkpoint-postgres
 psycopg2==2.9.10
     # via -r base.in
+pyarrow==21.0.0
+    # via datasets
 pyasn1==0.6.1
     # via
     #   advocate
@@ -477,9 +607,12 @@ pycparser==2.22
 pydantic==2.9.2
     # via
     #   anthropic
+    #   dspy
     #   langchain
     #   langchain-core
+    #   langgraph
     #   langsmith
+    #   litellm
     #   mcp
     #   mistralai
     #   openai
@@ -500,8 +633,6 @@ pyopenssl==24.3.0
     #   twisted
 pyparsing==3.2.1
     # via jira2markdown
-pyrsistent==0.20.0
-    # via jsonschema
 pysaml2==7.5.0
     # via -r base.in
 python-crontab==3.2.0
@@ -514,24 +645,29 @@ python-dateutil==2.8.2
     #   faker
     #   icalendar
     #   mistralai
+    #   pandas
     #   posthog
     #   pysaml2
     #   python-crontab
 python-dotenv==1.0.1
     # via
+    #   litellm
     #   pydantic-settings
     #   uvicorn
 pytz==2024.2
     # via
     #   flower
     #   icalendar
+    #   pandas
     #   pysaml2
 pyyaml==6.0.2
     # via
+    #   datasets
     #   drf-spectacular
     #   huggingface-hub
     #   langchain
     #   langchain-core
+    #   optuna
     #   uvicorn
 redis==5.0.4
     # via
@@ -541,13 +677,22 @@ redis==5.0.4
     #   celery-singleton
     #   channels-redis
     #   django-redis
+referencing==0.36.2
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 regex==2024.4.28
-    # via -r base.in
+    # via
+    #   -r base.in
+    #   dspy
+    #   tiktoken
 requests==2.32.3
     # via
     #   -r base.in
     #   advocate
     #   azure-core
+    #   datasets
+    #   dspy
     #   google-api-core
     #   google-cloud-storage
     #   huggingface-hub
@@ -558,12 +703,19 @@ requests==2.32.3
     #   pysaml2
     #   requests-oauthlib
     #   requests-toolbelt
+    #   tiktoken
 requests-oauthlib==2.0.0
     # via -r base.in
 requests-toolbelt==1.0.0
     # via langsmith
 rich==13.7.1
-    # via -r base.in
+    # via
+    #   -r base.in
+    #   dspy
+rpds-py==0.26.0
+    # via
+    #   jsonschema
+    #   referencing
 rsa==4.9
     # via google-auth
 s3transfer==0.10.4
@@ -587,7 +739,10 @@ sniffio==1.3.1
     #   httpx
     #   openai
 sqlalchemy==2.0.36
-    # via langchain
+    # via
+    #   alembic
+    #   langchain
+    #   optuna
 sqlparse==0.5.3
     # via django
 sse-starlette==2.2.1
@@ -599,9 +754,16 @@ starlette==0.46.1
 tenacity==8.5.0
     # via
     #   celery-redbeat
+    #   dspy
     #   langchain-core
+tiktoken==0.9.0
+    # via
+    #   langchain-openai
+    #   litellm
 tokenizers==0.21.0
-    # via anthropic
+    # via
+    #   anthropic
+    #   litellm
 tornado==6.5
     # via
     #   -r base.in
@@ -609,8 +771,11 @@ tornado==6.5
 tqdm==4.66.4
     # via
     #   -r base.in
+    #   datasets
+    #   dspy
     #   huggingface-hub
     #   openai
+    #   optuna
 twisted[tls]==24.3.0
     # via
     #   -r base.in
@@ -620,6 +785,8 @@ txaio==23.1.1
 typing-extensions==4.11.0
     # via
     #   -r base.in
+    #   aiosignal
+    #   alembic
     #   anthropic
     #   anyio
     #   azure-core
@@ -630,8 +797,11 @@ typing-extensions==4.11.0
     #   openai
     #   opentelemetry-sdk
     #   prosemirror
+    #   psycopg
+    #   psycopg-pool
     #   pydantic
     #   pydantic-core
+    #   referencing
     #   sqlalchemy
     #   twisted
     #   typing-inspect
@@ -643,6 +813,9 @@ tzdata==2024.1
     #   celery
     #   django-celery-beat
     #   kombu
+    #   pandas
+ujson==5.10.0
+    # via dspy
 unicodecsv==0.14.1
     # via -r base.in
 uritemplate==4.1.1
@@ -684,6 +857,12 @@ wrapt==1.17.0
     #   opentelemetry-instrumentation-redis
 xmlschema==2.5.1
     # via pysaml2
+xxhash==3.5.0
+    # via
+    #   datasets
+    #   langgraph
+yarl==1.20.1
+    # via aiohttp
 zipp==3.18.1
     # via
     #   -r base.in
@@ -692,6 +871,8 @@ zipstream-ng==1.8.0
     # via -r base.in
 zope-interface==7.2
     # via twisted
+zstandard==0.23.0
+    # via langsmith
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools

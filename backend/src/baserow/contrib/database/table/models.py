@@ -23,6 +23,7 @@ from baserow.contrib.database.fields.exceptions import (
     OrderByFieldNotFound,
     OrderByFieldNotPossible,
 )
+from baserow.core.mixins import BigAutoFieldMixin
 from baserow.contrib.database.fields.field_filters import (
     FILTER_TYPE_AND,
     FILTER_TYPE_OR,
@@ -777,7 +778,7 @@ def patch_meta_get_field(_meta):
     _meta.get_field = MethodType(get_field, _meta)
 
 
-class TableUsageUpdate(models.Model):
+class TableUsageUpdate(BigAutoFieldMixin, models.Model):
     """
     This table maintains an entry for each table where the 'row_count' or
     'storage_usage' has changed due to an operation on the table (e.g., a new row
@@ -801,9 +802,6 @@ class TableUsageUpdate(models.Model):
     file field references a newly uploaded file or not.
     """
 
-    id = models.BigAutoField(
-        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
-    )
     table = models.ForeignKey(
         "database.Table", on_delete=models.CASCADE, related_name="usage_update"
     )

@@ -377,6 +377,20 @@ class AbstractModelMeta(abc.ABCMeta, type(models.Model)):
     pass
 
 
+class BigAutoFieldMixin(models.Model):
+    """
+    This mixin introduces a BigAutoField as the primary key for the model.
+    It is useful for models that require a large number of unique IDs.
+    """
+
+    id = models.BigAutoField(
+        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+    )
+
+    class Meta:
+        abstract = True
+
+
 class HierarchicalModelMixin(models.Model, metaclass=AbstractModelMeta):
     """
     This mixin introduce some helpers for working with hierarchical models.

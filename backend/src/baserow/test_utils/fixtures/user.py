@@ -6,7 +6,7 @@ from django.contrib.auth.models import AbstractUser
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from baserow.api.sessions import (
-    _set_user_websocket_id,
+    set_user_websocket_id,
     set_client_undo_redo_action_group_id,
     set_untrusted_client_session_id,
 )
@@ -63,7 +63,7 @@ class UserFixtures:
 
         set_untrusted_client_session_id(user, session_id)
         set_client_undo_redo_action_group_id(user, action_group)
-        _set_user_websocket_id(user, web_socket_id)
+        set_user_websocket_id(user, web_socket_id)
 
         # add it to a specific workspace if it is given
         if "workspace" in kwargs:

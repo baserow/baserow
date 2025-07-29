@@ -4,23 +4,19 @@ from django.db import models
 
 from django_cte import CTEManager
 
+from baserow.core.mixins import BigAutoFieldMixin
+
 
 class PendingSearchValueUpdateTrashManager(CTEManager):
     def get_queryset(self):
         return super().get_queryset().filter(models.Q(deletion_workspace_id=None))
 
 
-class PendingSearchValueUpdate(models.Model):
+class PendingSearchValueUpdate(BigAutoFieldMixin, models.Model):
     """
     A table to collect pending updates for TSVector values.
     """
 
-    id = models.BigAutoField(
-        auto_created=True,
-        primary_key=True,
-        serialize=False,
-        verbose_name="ID",
-    )
     # DEPRECATED: Remove this FK in future versions. Use `field_id` instead.
     table = models.ForeignKey(
         "database.Table", on_delete=models.CASCADE, related_name="+", null=True
@@ -62,18 +58,12 @@ class PendingSearchValueUpdate(models.Model):
         ]
 
 
-class AbstractSearchValue(models.Model):
+class AbstractSearchValue(BigAutoFieldMixin, models.Model):
     """
     Abstract base model for a table containing TSVector search data,
     keyed by (row_id, field_id) and holding the TSVector in `value`.
     """
 
-    id = models.BigAutoField(
-        auto_created=True,
-        primary_key=True,
-        serialize=False,
-        verbose_name="ID",
-    )
     row_id = models.IntegerField(
         help_text="The ID of the row this value belongs to.",
     )
