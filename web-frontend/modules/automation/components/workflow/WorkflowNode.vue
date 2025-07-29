@@ -1,6 +1,13 @@
 <template>
   <div
     class="workflow-editor__node"
+    :title="
+      props.data.debug
+        ? `ID: ${props.id} | Previous: ${node.previous_node_id} | Output: ${
+            props.data.outputUid || 'None'
+          }`
+        : ''
+    "
     :data-before-label="
       data.isTrigger
         ? $t('workflowNode.beforeLabelTrigger')

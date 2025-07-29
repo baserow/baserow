@@ -142,6 +142,10 @@ export class NodeType extends Registerable {
     }
     return null
   }
+
+  getNodeEdges({ node }) {
+    return [{ uid: '', label: '', position: { x: null } }]
+  }
 }
 
 export class LocalBaserowNodeType extends NodeType {
@@ -473,5 +477,35 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
 
   get serviceType() {
     return this.app.$registry.get('service', CoreRouterServiceType.getType())
+  }
+
+  _getNodePositions(n, width = 360 + 100) {
+    if (n <= 0) return []
+
+    // for even n we move the whole row by width/2 so no node is on 0
+    const halfShift = n % 2 === 0 ? width / 2 : 0
+
+    // left‑most node
+    const start = -(Math.floor(n / 2) * width) + halfShift
+
+    // fill the array
+    const positions = []
+    for (let i = 0; i < n; i++) {
+      positions.push(start + i * width)
+    }
+    return positions
+  }
+
+  getNodeEdges({ node: { service } }) {
+    const edges = service?.edges || []
+    const positions = this._getNodePositions(edges.length)
+    return edges.map((edge, index) => {
+      return {
+        ...edge,
+        position: {
+          x: positions[index],
+        },
+      }
+    })
   }
 }

@@ -68,10 +68,6 @@ const mutations = {
     workflow.nodes = updatedNodes
     updateCachedValues(workflow)
   },
-  ADD_ITEM_AT(state, { workflow, node, index }) {
-    workflow.nodes.splice(index, 0, populateNode(node))
-    updateCachedValues(workflow)
-  },
   SELECT_ITEM(state, { workflow, node }) {
     workflow.selectedNodeId = node?.id || null
   },
@@ -97,56 +93,42 @@ const actions = {
   },
   async create(
     { commit, dispatch, getters },
-    { workflow, type, previousNodeId = null }
+    { workflow, type, previousNodeId = null, previousNodeOutput = null }
   ) {
-    // Get existing nodes to determine beforeId
-    const existingNodes = getters.getNodes(workflow)
-
-    let beforeId = null
-    let nodeIndex = 0
-
-    if (previousNodeId) {
-      // Find the previous node and get the next one as beforeId
-      const prevNodeIndex = existingNodes.findIndex(
-        (n) => n.id.toString() === previousNodeId.toString()
-      )
-
-      if (prevNodeIndex === -1) {
-        // Previous node not found, add at the end (beforeId = null)
-        beforeId = null
-        nodeIndex = existingNodes.length
-      } else {
-        // Add after the specified node
-        const nextNode = existingNodes[prevNodeIndex + 1]
-        beforeId = nextNode ? nextNode.id : null
-        nodeIndex = prevNodeIndex + 1
-      }
-    } else if (existingNodes.length > 0) {
-      // previousNodeId is null and there are existing nodes - add at the beginning
-      beforeId = existingNodes[0].id
-      nodeIndex = 0
-    }
+    // Using the `previousNodeId` and `previousNodeOutput` to determine
+    // what the `beforeId` should be. We will have `beforeId` if we're
+    // creating a node after `previousNodeId`, and `previousNodeId` has
+    // a node that follows it.
+    const previousNode = getters.findById(workflow, previousNodeId)
+    const nextNodes = getters.getNextNodes(
+      workflow,
+      previousNode,
+      previousNodeOutput
+    )
+    const beforeId = nextNodes.length > 0 ? nextNodes[0].id : null
 
     // Create a temporary node for optimistic UI
     const tempId = uuid()
     const tempNode = {
       id: tempId,
       type,
+      previous_node_id: previousNodeId,
+      previous_node_output: previousNodeOutput,
       workflow_id: workflow.id,
     }
 
     // Apply optimistic create
-    commit('ADD_ITEM_AT', { workflow, node: tempNode, index: nodeIndex })
+    commit('ADD_ITEM', { workflow, node: tempNode })
 
     try {
       // Send API request with beforeId
       const { data: node } = await AutomationWorkflowNodeService(
         this.$client
-      ).create(workflow.id, type, beforeId)
+      ).create(workflow.id, type, beforeId, previousNodeId, previousNodeOutput)
 
       // Remove temp node and add real one
       commit('DELETE_ITEM', { workflow, nodeId: tempId })
-      commit('ADD_ITEM_AT', { workflow, node, index: nodeIndex })
+      commit('ADD_ITEM', { workflow, node })
 
       setTimeout(() => {
         const populatedNode = getters.findById(workflow, node.id)
@@ -314,6 +296,20 @@ const getters = {
   getLoading: (state) => (node) => {
     return node._.loading
   },
+  getNextNodes:
+    (state, getters) =>
+    (workflow, targetNode, outputUid = null) => {
+      const nodes = getters.getNodes(workflow)
+      const nextNodes = nodes.filter(
+        (node) => node.previous_node_id === targetNode.id
+      )
+      if (outputUid !== null) {
+        return nextNodes.filter(
+          (node) => node.previous_node_output === outputUid
+        )
+      }
+      return nextNodes
+    },
 }
 
 export default {

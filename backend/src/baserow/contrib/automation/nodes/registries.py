@@ -37,8 +37,13 @@ class AutomationNodeType(
     parent_property_name = "workflow"
     id_mapping_name = "automation_workflow_nodes"
 
-    request_serializer_field_names = ["previous_node_output"]
+    request_serializer_field_names = ["previous_node_id", "previous_node_output"]
     request_serializer_field_overrides = {
+        "previous_node_id": serializers.IntegerField(
+            required=False,
+            default=None,
+            allow_null=True,
+        ),
         "previous_node_output": serializers.CharField(
             required=False,
             default="",
@@ -60,6 +65,7 @@ class AutomationNodeType(
     def allowed_fields(self):
         return super().allowed_fields + [
             "label",
+            "previous_node_id",
             "previous_node_output",
             "service",
         ]

@@ -342,6 +342,7 @@ class AutomationNodeService:
             workflow=node.workflow,
             before=node,
             order=node.order,
+            previous_node_output=node.previous_node_output,
             **prepared_values,
         )
 
