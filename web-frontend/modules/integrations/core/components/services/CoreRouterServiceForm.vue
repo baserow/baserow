@@ -6,7 +6,10 @@
       required
       class="margin-bottom-2"
     >
-      <FormInput v-model="values.default_edge_label" />
+      <FormInput
+        v-model="values.default_edge_label"
+        :placeholder="$t('nodeType.routerDefaultEdgeLabelFallback')"
+      />
     </FormGroup>
     <FormSection
       class="margin-bottom-2"

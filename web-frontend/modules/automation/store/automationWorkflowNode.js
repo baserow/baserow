@@ -109,7 +109,8 @@ const actions = {
       previousNode,
       previousNodeOutput
     )
-    const beforeId = nextNodes.length > 0 ? nextNodes[0].id : null
+    const beforeNode = nextNodes.length > 0 ? nextNodes[0] : null
+    const beforeId = beforeNode?.id || null
 
     // Create a temporary node for optimistic UI
     const tempId = uuid()
@@ -125,7 +126,6 @@ const actions = {
     commit('ADD_ITEM', { workflow, node: tempNode })
 
     try {
-      // Send API request with beforeId
       const { data: node } = await AutomationWorkflowNodeService(
         this.$client
       ).create(workflow.id, type, beforeId, previousNodeId, previousNodeOutput)
@@ -133,6 +133,19 @@ const actions = {
       // Remove temp node and add real one
       commit('DELETE_ITEM', { workflow, nodeId: tempId })
       commit('ADD_ITEM', { workflow, node })
+
+      // If we have a `beforeNode`, we need to update its `previous_node_id`
+      // and `previous_node_output`. The former so that it points to our newly
+      // created node, and the latter so that it has a blank output.
+      // This all happens in the backend, but we need the store to reflect the
+      // change immediately.
+      if (beforeNode) {
+        commit('UPDATE_ITEM', {
+          workflow,
+          node: beforeNode,
+          values: { previous_node_id: node.id, previous_node_output: '' },
+        })
+      }
 
       setTimeout(() => {
         const populatedNode = getters.findById(workflow, node.id)
@@ -232,9 +245,27 @@ const actions = {
   },
   async delete({ commit, dispatch, getters }, { workflow, nodeId }) {
     const node = getters.findById(workflow, nodeId)
+    // Note that when we fetch the next node, we don't pass in the output,
+    // this is because the next node in that scenario *won't have* an output.
+    const nextNodes = getters.getNextNodes(workflow, node)
+    const nextNode = nextNodes.length > 0 ? nextNodes[0] : null
     const originalNode = { ...node }
     if (getters.getSelected(workflow)?.id === nodeId) {
       dispatch('select', { workflow, node: null })
+    }
+    // If we have a node after the one we're deleting, we need to update its
+    // `previous_node_id` and `previous_node_output` to point to the node
+    // we're deleting.
+    if (nextNode) {
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: nextNode,
+        values: {
+          previous_node_id: node.previous_node_id,
+          previous_node_output: node.previous_node_output,
+        },
+      })
+      dispatch('select', { workflow, node: nextNode })
     }
     commit('DELETE_ITEM', { workflow, nodeId })
     try {
