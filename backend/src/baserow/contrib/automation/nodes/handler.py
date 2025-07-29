@@ -98,7 +98,7 @@ class AutomationNodeHandler:
         )
 
         if output_uid is not None:
-            queryset.filter(previous_node_output=output_uid)
+            queryset = queryset.filter(previous_node_output=output_uid)
 
         return self.get_nodes(workflow, base_queryset=queryset)
 
