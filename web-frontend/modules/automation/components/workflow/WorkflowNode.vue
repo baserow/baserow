@@ -1,6 +1,13 @@
 <template>
   <div
     class="workflow-editor__node"
+    :title="
+      props.data.debug
+        ? `ID: ${props.id} | Previous: ${node.previous_node_id} | Output: ${
+            props.data.outputUid || 'None'
+          }`
+        : ''
+    "
     :data-before-label="
       props.data.isTrigger
         ? $t('workflowNode.beforeLabelTrigger')
@@ -11,7 +18,7 @@
       <i :class="loading ? 'loading' : nodeType.iconClass"></i>
     </div>
 
-    <h1 class="workflow-editor__node-title">{{ props.label }}</h1>
+    <h1 class="workflow-editor__node-title">{{ label }}</h1>
 
     <Badge v-if="isInError" rounded color="yellow" size="large">
       {{ $t('workflowNode.actionConfigure') }}</Badge

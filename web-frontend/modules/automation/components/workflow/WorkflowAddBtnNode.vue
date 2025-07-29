@@ -3,7 +3,11 @@
     icon="iconoir-plus"
     size="small"
     :disabled="props.data.disabled"
-    title="Create automation node"
+    :title="
+      props.data.debug
+        ? `ID: ${props.id} | Output: ${props.data.outputUid || 'None'}`
+        : ''
+    "
     @click="handleClick"
   ></ButtonFloating>
 </template>
