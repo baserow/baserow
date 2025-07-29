@@ -163,10 +163,23 @@ class AutomationNodeHandler:
         # Are we creating a node as a child of another node?
         parent_node_id = allowed_prepared_values.get("parent_node_id", None)
 
-        nodes_to_relink = []
+        node_previous_ids_to_update = []
 
+        # Are we creating a node before another? If we are, the
+        # `previous_node_id` and `previous_node_output` fields
+        # need to be adjusted.
         if before:
-            nodes_to_relink = list(
+            # We're creating a node before another, and it has an
+            # output, so we need to re-use it for this new node.
+            if before.previous_node_output:
+                allowed_prepared_values[
+                    "previous_node_output"
+                ] = before.previous_node_output
+
+            # Find any nodes which have a `previous_node_id` matching the
+            # `previous_node_id` of the `before` node. These nodes will
+            # need to be relinked to the new node.
+            node_previous_ids_to_update = list(
                 AutomationNode.objects.filter(previous_node_id=before.previous_node_id)
             )
 
@@ -191,10 +204,15 @@ class AutomationNodeHandler:
         node = node_type.model_class(order=order, **allowed_prepared_values)
         node.save()
 
-        # If we've created a node before another, then that node's
-        # previous node ID should be updated to point to the new node.
-        if nodes_to_relink:
-            self.update_previous_node(node, nodes_to_relink)
+        # If we have `previous_node_id` to update, we need to adjust them.
+        if node_previous_ids_to_update:
+            self.update_previous_node(node, node_previous_ids_to_update)
+
+        # If we have a `before` node, and it had an output, then
+        # we need to clear it as `node` has now claimed it as its output.
+        if before and before.previous_node_output:
+            before.previous_node_output = ""
+            before.save(update_fields=["previous_node_output"])
 
         return node
 
