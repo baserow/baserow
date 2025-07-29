@@ -3,7 +3,6 @@ import pytest
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
-from baserow.contrib.integrations.core.models import CoreRouterService
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 
