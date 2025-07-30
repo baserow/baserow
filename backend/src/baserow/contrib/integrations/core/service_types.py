@@ -921,6 +921,47 @@ class CoreRouterServiceType(ServiceType):
                 ]
             )
 
+    def get_schema_name(self, service: CoreRouterService) -> str:
+        return f"CoreRouter{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreRouterService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Generates the schema for the router service.
+
+        :param service: The CoreRouterService instance to generate the schema for.
+        :param allowed_fields: Optional list of fields to include in the schema.
+        :return: A dictionary representing the schema.
+        """
+
+        properties = {}
+        if allowed_fields is None or "edge" in allowed_fields:
+            properties.update(
+                **{
+                    "edge": {
+                        "title": "Branch taken",
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "title": "Label",
+                                "description": "The label of the "
+                                "branch that matched the condition.",
+                            },
+                        },
+                    }
+                },
+            )
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
     def dispatch_data(
         self,
         service: CoreRouterService,
@@ -952,7 +993,7 @@ class CoreRouterServiceType(ServiceType):
                 if condition_result:
                     return {
                         "output_uid": str(edge.uid),
-                        "data": {"label": edge.label},
+                        "data": {"edge": {"label": edge.label}},
                     }
             except BaserowFormulaException as e:
                 raise ServiceImproperlyConfiguredDispatchException(
@@ -965,7 +1006,7 @@ class CoreRouterServiceType(ServiceType):
 
         return {
             "output_uid": "",
-            "data": {"label": service.default_edge_label},
+            "data": {"edge": {"label": service.default_edge_label}},
         }
 
     def dispatch_transform(
