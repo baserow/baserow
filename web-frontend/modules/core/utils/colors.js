@@ -279,3 +279,202 @@ export const colorContrast = (hexColor, amount = 10) => {
   }
   return conversionsMap.hsl.hex(hsl)
 }
+
+export const colorPalette = [
+  [
+    { color: '#D1E9FF' }, // blue 100
+    { color: '#B2DDFF' }, // blue 200
+    { color: '#84CAFF' }, // blue 300
+    { color: '#53B1FD' }, // blue 400
+    { color: '#2E90FA' }, // blue 500
+    { color: '#1570EF' }, // blue 600
+    { color: '#175CD3' }, // blue 700
+    { color: '#1849A9' }, // blue 800
+    { color: '#194185' }, // blue 900
+    { color: '#102A56' }, // blue 1000
+  ],
+  [
+    { color: '#FEF0C7' }, // orange 100
+    { color: '#FEDF89' }, // orange 200
+    { color: '#FEC84B' }, // orange 300
+    { color: '#FDB022' }, // orange 400
+    { color: '#F79009' }, // orange 500
+    { color: '#DC6803' }, // orange 600
+    { color: '#B54708' }, // orange 700
+    { color: '#93370D' }, // orange 800
+    { color: '#7A2E0E' }, // orange 900
+    { color: '#4E1D09' }, // orange 1000
+  ],
+  [
+    { color: '#F0FDF9' }, // teal 100
+    { color: '#CCFBEF' }, // teal 200
+    { color: '#99F6E0' }, // teal 300
+    { color: '#5FE9D0' }, // teal 400
+    { color: '#2ED3B7' }, // teal 500
+    { color: '#15B79E' }, // teal 600
+    { color: '#0E9384' }, // teal 700
+    { color: '#107569' }, // teal 800
+    { color: '#125D56' }, // teal 900
+    { color: '#134E48' }, // teal 1000
+  ],
+  [
+    { color: '#EFDCFB' }, // purple 100
+    { color: '#DFB9F7' }, // purple 200
+    { color: '#CF96F2' }, // purple 300
+    { color: '#BF73EE' }, // purple 400
+    { color: '#AF50EA' }, // purple 500
+    { color: '#9D48D3' }, // purple 600
+    { color: '#8C40BB' }, // purple 700
+    { color: '#7B38A4' }, // purple 800
+    { color: '#69308C' }, // purple 900
+    { color: '#582875' }, // purple 1000
+  ],
+  [
+    { color: '#D1E0FF' }, // dark blue 100
+    { color: '#B2CCFF' }, // dark blue 200
+    { color: '#84ADFF' }, // dark blue 300
+    { color: '#528BFF' }, // dark blue 400
+    { color: '#2970FF' }, // dark blue 500
+    { color: '#155EEF' }, // dark blue 600
+    { color: '#004EEB' }, // dark blue 700
+    { color: '#0040C1' }, // dark blue 800
+    { color: '#00359E' }, // dark blue 900
+    { color: '#002266' }, // dark blue 1000
+  ],
+  [
+    { color: '#FFF4DA' }, // yellow 100
+    { color: '#FFE9B4' }, // yellow 200
+    { color: '#FFDD8F' }, // yellow 300
+    { color: '#FFD269' }, // yellow 400
+    { color: '#FFC744' }, // yellow 500
+    { color: '#E5B33D' }, // yellow 600
+    { color: '#CC9F36' }, // yellow 700
+    { color: '#B28B30' }, // yellow 800
+    { color: '#997729' }, // yellow 900
+    { color: '#806422' }, // yellow 1000
+  ],
+  [
+    { color: '#FCE7F6' }, // pink 100
+    { color: '#FCCEEE' }, // pink 200
+    { color: '#FAA7E0' }, // pink 300
+    { color: '#F670C7' }, // pink 400
+    { color: '#EE46BC' }, // pink 500
+    { color: '#DD2590' }, // pink 600
+    { color: '#C11574' }, // pink 700
+    { color: '#9E165F' }, // pink 800
+    { color: '#851651' }, // pink 900
+    { color: '#4E0D30' }, // pink 1000
+  ],
+  [
+    { color: '#D0F6DC' }, // green 100
+    { color: '#A0EEBA' }, // green 200
+    { color: '#71E597' }, // green 300
+    { color: '#41DD75' }, // green 400
+    { color: '#12D452' }, // green 500
+    { color: '#10BF4A' }, // green 600
+    { color: '#0EAA42' }, // green 700
+    { color: '#0D9439' }, // green 800
+    { color: '#0B7F31' }, // green 900
+    { color: '#096A29' }, // green 1000
+  ],
+  [
+    { color: '#FEE4E2' }, // red 100
+    { color: '#FECDCA' }, // red 200
+    { color: '#FDA29B' }, // red 300
+    { color: '#F97066' }, // red 400
+    { color: '#F04438' }, // red 500
+    { color: '#D92D20' }, // red 600
+    { color: '#B42318' }, // red 700
+    { color: '#912018' }, // red 800
+    { color: '#7A271A' }, // red 900
+    { color: '#55160C' }, // red 1000
+  ],
+  [
+    { color: '#F3FEE7' }, // light green 100
+    { color: '#E3FBCC' }, // light green 200
+    { color: '#D0F8AB' }, // light green 300
+    { color: '#A6EF67' }, // light green 400
+    { color: '#85E13A' }, // light green 500
+    { color: '#4CA30D' }, // light green 600
+    { color: '#3B7C0F' }, // light green 700
+    { color: '#326212' }, // light green 800
+    { color: '#2B5314' }, // light green 900
+    { color: '#15290A' }, // light green 1000
+  ],
+  [
+    { color: '#FBE8FF' }, // fuchsia 100
+    { color: '#F6D0FE' }, // fuchsia 200
+    { color: '#EEAAFD' }, // fuchsia 300
+    { color: '#E478FA' }, // fuchsia 400
+    { color: '#D444F1' }, // fuchsia 500
+    { color: '#BA24D5' }, // fuchsia 600
+    { color: '#9F1AB1' }, // fuchsia 700
+    { color: '#821890' }, // fuchsia 800
+    { color: '#6F1877' }, // fuchsia 900
+    { color: '#47104C' }, // fuchsia 1000
+  ],
+  [
+    { color: '#D0F3FB' }, // cyan 100
+    { color: '#B5EBFA' }, // cyan 200
+    { color: '#7EDBF6' }, // cyan 300
+    { color: '#47CBF3' }, // cyan 400
+    { color: '#2BC3F1' }, // cyan 500
+    { color: '#26B3DC' }, // cyan 600
+    { color: '#21A3C6' }, // cyan 700
+    { color: '#16829C' }, // cyan 800
+    { color: '#117287' }, // cyan 900
+    { color: '#0C6271' }, // cyan 1000
+  ],
+  [
+    { color: '#FFE6D5' }, // dark orange 100
+    { color: '#FFD6AE' }, // dark orange 200
+    { color: '#FF9C66' }, // dark orange 300
+    { color: '#FF692E' }, // dark orange 400
+    { color: '#FF692E' }, // dark orange 500
+    { color: '#FF4405' }, // dark orange 600
+    { color: '#E62E05' }, // dark orange 700
+    { color: '#BC1B06' }, // dark orange 800
+    { color: '#97180C' }, // dark orange 900
+    { color: '#771A0D' }, // dark orange 1000
+  ],
+  [
+    { color: '#ECE9FE' }, // violet 100
+    { color: '#DDD6FE' }, // violet 200
+    { color: '#C3B5FD' }, // violet 300
+    { color: '#A48AFB' }, // violet 400
+    { color: '#875AF8' }, // violet 500
+    { color: '#7839EE' }, // violet 600
+    { color: '#6927DA' }, // violet 700
+    { color: '#5720B7' }, // violet 800
+    { color: '#491C96' }, // violet 900
+    { color: '#2E125E' }, // violet 1000
+  ],
+  [
+    { color: '#F5FBEE' }, // lime 100
+    { color: '#E6F4D7' }, // lime 200
+    { color: '#CEEAB0' }, // lime 300
+    { color: '#ACDC79' }, // lime 400
+    { color: '#86CB3C' }, // lime 500
+    { color: '#669F2A' }, // lime 600
+    { color: '#4F7A21' }, // lime 700
+    { color: '#3F621A' }, // lime 800
+    { color: '#335015' }, // lime 900
+    { color: '#2B4212' }, // lime 1000
+  ],
+  [
+    { color: '#DCDEFF' }, // indigo 100
+    { color: '#B8BEFF' }, // indigo 200
+    { color: '#959DFE' }, // indigo 300
+    { color: '#717DFE' }, // indigo 400
+    { color: '#4E5CFE' }, // indigo 500
+    { color: '#4653E5' }, // indigo 600
+    { color: '#3E4ACB' }, // indigo 700
+    { color: '#3740B2' }, // indigo 800
+    { color: '#2F3798' }, // indigo 900
+    { color: '#272E7F' }, // indigo 1000
+  ],
+]
+
+export const getBaseColors = () => {
+  return colorPalette.map((palette) => palette[4].color)
+}

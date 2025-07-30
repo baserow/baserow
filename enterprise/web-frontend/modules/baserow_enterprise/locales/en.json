@@ -472,6 +472,12 @@
     "bar": "Bar chart",
     "line": "Line chart"
   },
+  "pieChartWidget": {
+    "name": "Pie chart",
+    "pie": "Pie chart",
+    "doughnut": "Doughnut chart",
+    "polarArea": "Polar area chart"
+  },
   "groupedAggregateRowsDataSourceForm": {
     "series": "Series",
     "addSeries": "Add series",
@@ -486,7 +492,10 @@
     "deleteSeries": "Delete series",
     "chartType": "Chart type",
     "barChart": "Bar",
-    "lineChart": "Line"
+    "lineChart": "Line",
+    "pieChart": "Pie",
+    "doughnutChart": "Doughnut",
+    "polarAreaChart": "Polar area"
   },
   "aggregationGroupByForm": {
     "groupByFieldLabel": "Group by",

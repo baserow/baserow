@@ -248,7 +248,10 @@ class BaserowPremiumConfig(AppConfig):
         grouped_aggregation_group_by_registry.register(AutonumberFieldType())
         grouped_aggregation_group_by_registry.register(SingleSelectFieldType())
 
-        from baserow_premium.dashboard.widgets.widget_types import ChartWidgetType
+        from baserow_premium.dashboard.widgets.widget_types import (
+            ChartWidgetType,
+            PieChartWidgetType,
+        )
         from baserow_premium.integrations.local_baserow.service_types import (
             LocalBaserowGroupedAggregateRowsUserServiceType,
         )
@@ -260,3 +263,4 @@ class BaserowPremiumConfig(AppConfig):
             LocalBaserowGroupedAggregateRowsUserServiceType()
         )
         widget_type_registry.register(ChartWidgetType())
+        widget_type_registry.register(PieChartWidgetType())
