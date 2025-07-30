@@ -16,13 +16,20 @@ from baserow.contrib.database.data_sync.models import DataSync
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.notifications.models import Notification
 from baserow_enterprise.data_sync.handler import EnterpriseDataSyncHandler
-from baserow_enterprise.data_sync.models import PeriodicDataSyncInterval
+from baserow_enterprise.data_sync.models import (
+    DATA_SYNC_INTERVAL_DAILY,
+    DATA_SYNC_INTERVAL_MANUAL,
+    DEACTIVATION_REASON_FAILURE,
+    DEACTIVATION_REASON_LICENSE_UNAVAILABLE,
+    PeriodicDataSyncInterval,
+)
 from baserow_enterprise.data_sync.notification_types import (
     PeriodicDataSyncDeactivatedNotificationType,
 )
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_update_periodic_data_sync_interval_licence_check(enterprise_data_fixture):
     user = enterprise_data_fixture.create_user()
@@ -38,6 +45,7 @@ def test_update_periodic_data_sync_interval_licence_check(enterprise_data_fixtur
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_update_periodic_data_sync_interval_check_permissions(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -55,6 +63,7 @@ def test_update_periodic_data_sync_interval_check_permissions(enterprise_data_fi
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_update_periodic_data_sync_interval_create(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -93,6 +102,7 @@ def test_update_periodic_data_sync_interval_create(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_update_periodic_data_sync_interval_update(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -138,6 +148,7 @@ def test_update_periodic_data_sync_interval_update(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_update_periodic_data_sync_interval_update_automatically_disabled(
     enterprise_data_fixture,
@@ -166,6 +177,7 @@ def test_update_periodic_data_sync_interval_update_automatically_disabled(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_call_daily_periodic_data_sync_syncs(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -254,6 +266,7 @@ def test_call_daily_periodic_data_sync_syncs(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_call_hourly_periodic_data_sync_syncs(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -342,6 +355,7 @@ def test_call_hourly_periodic_data_sync_syncs(enterprise_data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @patch("baserow_enterprise.data_sync.handler.sync_periodic_data_sync")
 def test_call_periodic_data_sync_syncs_starts_task(
@@ -368,6 +382,7 @@ def test_call_periodic_data_sync_syncs_starts_task(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_skip_automatically_deactivated_periodic_data_syncs(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -392,6 +407,7 @@ def test_skip_automatically_deactivated_periodic_data_syncs(enterprise_data_fixt
 
 
 @pytest.mark.django_db(transaction=True, databases=["default", "default-copy"])
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_skip_locked_data_syncs(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -432,6 +448,7 @@ def test_skip_locked_data_syncs(enterprise_data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @patch("baserow_enterprise.data_sync.handler.sync_periodic_data_sync")
 def test_skip_syncing_data_syncs(
@@ -465,6 +482,7 @@ def test_skip_syncing_data_syncs(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_periodic_data_sync_deactivated(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -489,6 +507,7 @@ def test_sync_periodic_data_sync_deactivated(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_periodic_data_sync_already_syncing(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -516,6 +535,7 @@ def test_sync_periodic_data_sync_already_syncing(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_periodic_data_sync_consecutive_failed_count_increases(
@@ -547,6 +567,7 @@ def test_sync_periodic_data_sync_consecutive_failed_count_increases(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(
     DEBUG=True, BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS=2
 )
@@ -586,6 +607,7 @@ END:VCALENDAR""",
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_periodic_data_sync_deactivated_max_failure(enterprise_data_fixture):
@@ -618,6 +640,7 @@ def test_sync_periodic_data_sync_deactivated_max_failure(enterprise_data_fixture
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_periodic_data_sync_deactivated_max_failure_notification_send(
@@ -662,10 +685,12 @@ def test_sync_periodic_data_sync_deactivated_max_failure_notification_send(
         "table_name": periodic_data_sync.data_sync.table.name,
         "table_id": periodic_data_sync.data_sync.table.id,
         "database_id": periodic_data_sync.data_sync.table.database_id,
+        "deactivation_reason": DEACTIVATION_REASON_FAILURE,
     }
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_periodic_data_sync_authorized_user_is_none(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -689,6 +714,7 @@ def test_sync_periodic_data_sync_authorized_user_is_none(enterprise_data_fixture
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_periodic_data_sync(enterprise_data_fixture):
@@ -720,3 +746,83 @@ END:VCALENDAR""",
     periodic_data_sync.data_sync.refresh_from_db()
     assert periodic_data_sync.data_sync.last_sync is not None
     assert periodic_data_sync.data_sync.last_error is None
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
+@override_settings(DEBUG=True)
+def test_periodic_sync_disabled_on_license_loss_sends_notification(
+    enterprise_data_fixture, synced_roles
+):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval=DATA_SYNC_INTERVAL_DAILY,
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+
+    enterprise_data_fixture.delete_all_licenses()
+
+    with freeze_time("2024-10-10T12:15:00.00Z"):
+        with transaction.atomic():
+            EnterpriseDataSyncHandler.call_periodic_data_sync_syncs_that_are_due()
+
+    periodic_data_sync.refresh_from_db()
+    assert periodic_data_sync.interval == DATA_SYNC_INTERVAL_MANUAL
+    assert periodic_data_sync.automatically_deactivated is True
+    assert (
+        periodic_data_sync.deactivation_reason
+        == DEACTIVATION_REASON_LICENSE_UNAVAILABLE
+    )
+
+    notifications = Notification.objects.filter(
+        type=PeriodicDataSyncDeactivatedNotificationType.type
+    )
+    assert len(notifications) == 1
+
+    notification_data = notifications[0].data
+    assert notification_data["data_sync_id"] == periodic_data_sync.data_sync_id
+    assert notification_data["table_name"] == periodic_data_sync.data_sync.table.name
+    assert (
+        notification_data["deactivation_reason"]
+        == DEACTIVATION_REASON_LICENSE_UNAVAILABLE
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.data_sync
+@override_settings(DEBUG=True)
+def test_periodic_sync_failure_deactivation_shows_failure_message(
+    enterprise_data_fixture, synced_roles
+):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+
+    periodic_data_sync.consecutive_failed_count = 5
+    periodic_data_sync.automatically_deactivated = True
+    periodic_data_sync.deactivation_reason = DEACTIVATION_REASON_FAILURE
+    periodic_data_sync.save()
+
+    with transaction.atomic():
+        PeriodicDataSyncDeactivatedNotificationType.notify_authorized_user(
+            periodic_data_sync
+        )
+
+    notifications = Notification.objects.filter(
+        type=PeriodicDataSyncDeactivatedNotificationType.type
+    )
+    assert len(notifications) == 1
+    notification_data = notifications[0].data
+    assert notification_data["data_sync_id"] == periodic_data_sync.data_sync_id
+    assert notification_data["table_name"] == periodic_data_sync.data_sync.table.name
+    assert notification_data["deactivation_reason"] == DEACTIVATION_REASON_FAILURE

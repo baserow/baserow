@@ -11,7 +11,7 @@ from baserow.core.notifications.registries import (
     NotificationType,
 )
 
-from .models import PeriodicDataSyncInterval
+from .models import DEACTIVATION_REASON_LICENSE_UNAVAILABLE, PeriodicDataSyncInterval
 
 
 @dataclass
@@ -20,6 +20,7 @@ class DeactivatedPeriodicDataSyncData:
     table_name: str
     table_id: int
     database_id: int
+    deactivation_reason: Optional[str]
 
     @classmethod
     def from_periodic_data_sync(cls, periodic_data_sync: PeriodicDataSyncInterval):
@@ -28,6 +29,7 @@ class DeactivatedPeriodicDataSyncData:
             table_name=periodic_data_sync.data_sync.table.name,
             table_id=periodic_data_sync.data_sync.table.id,
             database_id=periodic_data_sync.data_sync.table.database_id,
+            deactivation_reason=periodic_data_sync.deactivation_reason,
         )
 
 
@@ -69,9 +71,17 @@ class PeriodicDataSyncDeactivatedNotificationType(
 
     @classmethod
     def get_notification_description_for_email(cls, notification, context):
-        return _(
-            "The periodic data sync failed more than %(max_failures)s consecutive times"
-            "and was therefore deactivated."
-        ) % {
-            "max_failures": settings.BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS,
-        }
+        deactivation_reason = notification.data.get("deactivation_reason")
+        if deactivation_reason == DEACTIVATION_REASON_LICENSE_UNAVAILABLE:
+            return _(
+                "The periodic data sync has been disabled because the workspace "
+                "no longer has a valid license for data sync features. "
+                "Please update your license to restore automatic syncing."
+            )
+        else:
+            return _(
+                "The periodic data sync failed more than %(max_failures)s consecutive times "
+                "and was therefore deactivated."
+            ) % {
+                "max_failures": settings.BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS,
+            }

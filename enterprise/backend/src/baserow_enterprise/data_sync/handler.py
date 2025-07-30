@@ -20,6 +20,9 @@ from baserow.core.handler import CoreHandler
 from baserow_enterprise.data_sync.models import (
     DATA_SYNC_INTERVAL_DAILY,
     DATA_SYNC_INTERVAL_HOURLY,
+    DATA_SYNC_INTERVAL_MANUAL,
+    DEACTIVATION_REASON_FAILURE,
+    DEACTIVATION_REASON_LICENSE_UNAVAILABLE,
     PeriodicDataSyncInterval,
 )
 from baserow_enterprise.features import DATA_SYNC
@@ -132,6 +135,8 @@ class EnterpriseDataSyncHandler:
         )
 
         updated_periodic_data_sync = []
+        periodic_syncs_to_disable = []
+
         for periodic_data_sync in all_to_trigger:
             workspace_has_feature = LicenseHandler.workspace_has_feature(
                 DATA_SYNC, periodic_data_sync.data_sync.table.database.workspace
@@ -159,13 +164,33 @@ class EnterpriseDataSyncHandler:
                     transaction.on_commit(
                         lambda: sync_periodic_data_sync.delay(periodic_data_sync.id)
                     )
+            else:
+                periodic_data_sync.interval = DATA_SYNC_INTERVAL_MANUAL
+                periodic_data_sync.automatically_deactivated = True
+                periodic_data_sync.deactivation_reason = (
+                    DEACTIVATION_REASON_LICENSE_UNAVAILABLE
+                )
+                periodic_syncs_to_disable.append(periodic_data_sync)
 
         # Update the last periodic sync so the periodic sync won't be triggerd the next
         # time this method is called.
         if len(updated_periodic_data_sync) > 0:
             PeriodicDataSyncInterval.objects.bulk_update(
-                all_to_trigger, fields=["last_periodic_sync"]
+                updated_periodic_data_sync, fields=["last_periodic_sync"]
             )
+
+        if len(periodic_syncs_to_disable) > 0:
+            PeriodicDataSyncInterval.objects.bulk_update(
+                periodic_syncs_to_disable,
+                fields=["interval", "automatically_deactivated", "deactivation_reason"],
+            )
+
+            for periodic_data_sync in periodic_syncs_to_disable:
+                transaction.on_commit(
+                    lambda pds=periodic_data_sync: PeriodicDataSyncDeactivatedNotificationType.notify_authorized_user(
+                        pds
+                    )
+                )
 
     @classmethod
     def sync_periodic_data_sync(cls, periodic_data_sync_id):
@@ -217,6 +242,7 @@ class EnterpriseDataSyncHandler:
                 >= settings.BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS
             ):
                 periodic_data_sync.automatically_deactivated = True
+                periodic_data_sync.deactivation_reason = DEACTIVATION_REASON_FAILURE
 
                 # Send a notification to the authorized user that the periodic data
                 # sync was deactivated.
