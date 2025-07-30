@@ -183,8 +183,8 @@ class AutomationNodeHandler:
                 AutomationNode.objects.filter(previous_node_id=before.previous_node_id)
             )
 
-        # If we don't already have a `previous_node_id` (users won't provide this)
-        if "previous_node_id" not in allowed_prepared_values:
+        # If we don't already have a `previous_node_id`...
+        if allowed_prepared_values.get("previous_node_id", None) is None:
             # Figure out what the previous node ID should be. If we've been given a
             # `before` node, then we'll use its previous node ID. If not, we'll use the
             # last node ID of the workflow, which is the last node in the hierarchy.
@@ -297,6 +297,10 @@ class AutomationNodeHandler:
         exported_node = self.export_node(node)
 
         exported_node["order"] = AutomationNode.get_last_order(node.workflow)
+        # The duplicated node can't have the same output as the source node.
+        exported_node["previous_node_output"] = ""
+        # The duplicated node can't have the same `previous_node_id` as the source node,
+        # so we find the last node in the workflow and parent scope.
         exported_node["previous_node_id"] = AutomationWorkflow.get_last_node_id(
             node.workflow, node.parent_node_id
         )
