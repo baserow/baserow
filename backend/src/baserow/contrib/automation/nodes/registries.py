@@ -142,9 +142,7 @@ class AutomationNodeType(
         **kwargs,
     ) -> Any:
         """
-        If the workflow action has a relation to a service, this method will
-        map the service's new `integration_id` and call `import_service` on
-        the serialized service values.
+        Responsible for deserializing a property of the node type.
 
         :param prop_name: the name of the property being transformed.
         :param value: the value of this property.
@@ -154,6 +152,9 @@ class AutomationNodeType(
 
         if prop_name in ["previous_node_id", "parent_node_id"] and value:
             return id_mapping["automation_workflow_nodes"][value]
+
+        if prop_name == "previous_node_output" and value:
+            return id_mapping["automation_edge_outputs"].get(value, value)
 
         if prop_name == "service" and value:
             integration = None
@@ -181,6 +182,23 @@ class AutomationNodeType(
             files_zip=files_zip,
             storage=storage,
             cache=cache,
+            **kwargs,
+        )
+
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[str, Any]],
+        **kwargs,
+    ):
+        if "automation_edge_outputs" not in id_mapping:
+            id_mapping["automation_edge_outputs"] = {}
+
+        return super().import_serialized(
+            parent,
+            serialized_values,
+            id_mapping,
             **kwargs,
         )
 

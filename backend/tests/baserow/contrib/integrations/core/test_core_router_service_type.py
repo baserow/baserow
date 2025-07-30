@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from baserow.contrib.automation.automation_dispatch_context import (
@@ -114,3 +116,48 @@ def test_core_router_service_type_generate_schema(data_fixture):
             }
         },
     }
+
+
+@pytest.mark.django_db
+def test_core_router_service_type_import_export(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    service = data_fixture.create_core_router_service(default_edge_label="Default")
+    data_fixture.create_core_router_action_node(workflow=workflow, service=service)
+    edge1 = data_fixture.create_core_router_service_edge(
+        service=service, label="Edge 1", condition="'false'"
+    )
+    edge2 = data_fixture.create_core_router_service_edge(
+        service=service, label="Edge 2", condition="'true'"
+    )
+
+    service_type = service.get_type()
+    serialized = json.loads(json.dumps(service_type.export_serialized(service)))
+
+    assert serialized == {
+        "id": service.id,
+        "integration_id": None,
+        "type": "router",
+        "edges": [
+            {
+                "label": edge1.label,
+                "uid": str(edge1.uid),
+                "condition": edge1.condition,
+            },
+            {
+                "label": edge2.label,
+                "uid": str(edge2.uid),
+                "condition": edge2.condition,
+            },
+        ],
+        "default_edge_label": service.default_edge_label,
+    }
+
+    new_service = service_type.import_serialized(
+        None, serialized, {"automation_edge_outputs": {}}, import_formula=lambda x, d: x
+    )
+
+    assert new_service.edges.count() == 2
+    new_edge1, new_edge2 = new_service.edges.all()
+    assert new_edge1.uid and new_edge1.uid != edge1.uid
+    assert new_edge1.uid and new_edge2.uid != edge2.uid

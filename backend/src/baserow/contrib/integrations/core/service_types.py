@@ -850,6 +850,67 @@ class CoreRouterServiceType(ServiceType):
             ),
         }
 
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[str, str]],
+        **kwargs,
+    ):
+        """
+        Responsible for importing the router service and its edges.
+
+        For each edge that we find, generate a new unique ID and store it in the
+        `id_mapping` dictionary under the key "automation_edge_outputs". Any nodes
+        with a `previous_node_output` that matches the edge's UID will be updated to
+        use the new unique ID in their own deserialization.
+        """
+
+        for edge in serialized_values["edges"]:
+            id_mapping["automation_edge_outputs"][edge["uid"]] = str(uuid.uuid4())
+
+        return super().import_serialized(
+            parent,
+            serialized_values,
+            id_mapping,
+            **kwargs,
+        )
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """
+        Responsible for creating the router service and its edges.
+        """
+
+        edges = serialized_values.pop("edges", [])
+        service = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+        CoreRouterServiceEdge.objects.bulk_create(
+            [
+                CoreRouterServiceEdge(
+                    service=service,
+                    label=edge["label"],
+                    condition=edge["condition"],
+                    uid=id_mapping["automation_edge_outputs"][edge["uid"]],
+                )
+                for edge in edges
+            ]
+        )
+        return service
+
     def serialize_property(
         self,
         service: CoreRouterService,
@@ -872,9 +933,7 @@ class CoreRouterServiceType(ServiceType):
             return [
                 {
                     "label": e.label,
-                    "uid": str(
-                        uuid.uuid4()
-                    ),  # todo: the nodes which rely on the uid need to be updated too
+                    "uid": str(e.uid),
                     "condition": e.condition,
                 }
                 for e in service.edges.all()

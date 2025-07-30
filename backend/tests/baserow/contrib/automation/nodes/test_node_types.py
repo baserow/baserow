@@ -1,3 +1,5 @@
+import json
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,6 +10,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.nodes.node_types import AutomationNodeTriggerType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.core.exceptions import InstanceTypeDoesNotExist
+from baserow.core.utils import MirrorDict
 
 
 def test_automation_node_type_is_replaceable_with():
@@ -228,3 +231,36 @@ def test_automation_node_type_delete_row_dispatch(mock_dispatch, data_fixture):
 
     assert result == mock_dispatch_result
     mock_dispatch.assert_called_once_with(node.service.specific, dispatch_context)
+
+
+@pytest.mark.django_db
+def test_automation_node_migrates_its_previous_node_output_on_import(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    service = data_fixture.create_core_router_service(default_edge_label="Default")
+    data_fixture.create_core_router_action_node(workflow=workflow, service=service)
+    edge = data_fixture.create_core_router_service_edge(
+        service=service, label="Do this", condition="'true'"
+    )
+    output_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, previous_node_output=str(edge.uid)
+    )
+    output_node_type = output_node.get_type()
+
+    serialized = json.loads(json.dumps(output_node_type.export_serialized(output_node)))
+    assert serialized["previous_node_output"] == str(edge.uid)
+
+    id_mapping = {
+        "integrations": MirrorDict(),
+        "automation_workflow_nodes": MirrorDict(),
+        "automation_edge_outputs": {str(edge.uid): str(uuid.uuid4())},
+    }
+    new_output_node = output_node_type.import_serialized(
+        workflow, serialized, id_mapping, import_formula=lambda x, d: x
+    )
+    assert (
+        new_output_node.previous_node_output
+        == id_mapping["automation_edge_outputs"][str(edge.uid)]
+    )
