@@ -74,7 +74,7 @@
     "localBaserowAggregateRowsLabel": "Summarize rows in {tableName}",
     "httpRequestLabel": "Send an HTTP request",
     "smtpEmailLabel": "Send an email",
-    "routerLabel": "Router",
+    "routerLabel": "Follow 1 of {edgeCount} branches",
     "routerDefaultEdgeLabelFallback": "Otherwise"
   },
   "workflowNode": {
