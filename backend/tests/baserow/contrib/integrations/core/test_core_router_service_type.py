@@ -88,3 +88,29 @@ def test_core_router_service_type_dispatch_data_using_default_edge(data_fixture)
         "output_uid": "",
         "data": {"label": service.default_edge_label},
     }
+
+
+@pytest.mark.django_db
+def test_core_router_service_type_generate_schema(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    service = data_fixture.create_core_router_service(default_edge_label="Default")
+    data_fixture.create_core_router_action_node(workflow=workflow, service=service)
+    assert service.get_type().generate_schema(service) == {
+        "title": f"CoreRouter{service.id}Schema",
+        "type": "object",
+        "properties": {
+            "edge": {
+                "title": "Branch taken",
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "title": "Label",
+                        "description": "The label of the "
+                        "branch that matched the condition.",
+                    }
+                },
+            }
+        },
+    }
