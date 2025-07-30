@@ -467,12 +467,29 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
     return 6
   }
 
-  get iconClass() {
-    return 'iconoir-git-fork'
+  getEdges({ service }) {
+    return [
+      ...service.edges,
+      {
+        uid: '', // The fallback edge has no uid.
+        label:
+          service.default_edge_label ||
+          this.app.i18n.t('nodeType.routerDefaultEdgeLabelFallback'),
+      },
+    ]
   }
 
-  get name() {
-    return this.app.i18n.t('nodeType.routerLabel')
+  getLabel({ node: { service } }) {
+    if (!service) return this.name
+    return service.edges.length
+      ? this.app.i18n.t('nodeType.routerLabel', {
+          edgeCount: this.getEdges({ service }).length,
+        })
+      : this.name
+  }
+
+  get iconClass() {
+    return 'iconoir-git-fork'
   }
 
   get serviceType() {
@@ -498,15 +515,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
 
   getNodeEdges({ node: { service } }) {
     if (!service?.edges.length) return []
-    const edges = [
-      ...service.edges,
-      {
-        uid: '', // The fallback edge has no uid.
-        label:
-          service.default_edge_label ||
-          this.app.i18n.t('nodeType.routerDefaultEdgeLabelFallback'),
-      },
-    ]
+    const edges = this.getEdges({ service })
     const positions = this._getNodePositions(edges.length)
     return edges.map((edge, index) => {
       return {
