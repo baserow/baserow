@@ -24,21 +24,19 @@ export default {
       type: Object,
       required: true,
     },
-    formValues: {
-      type: Object,
-      required: true,
+    fieldConstraints: {
+      type: Array,
+      required: false,
+      default: () => [],
     },
   },
-  methods: {
-    isDefaultValueFieldDisabled(defaultValue, formValues) {
-      if (
-        !formValues.field_constraints ||
-        formValues.field_constraints.length === 0
-      ) {
+  computed: {
+    isDefaultValueFieldDisabled() {
+      if (!this.fieldConstraints || this.fieldConstraints.length === 0) {
         return false
       }
 
-      return formValues.field_constraints.some(
+      return this.fieldConstraints.some(
         (constraint) =>
           constraint.type_name &&
           !this.$registry
@@ -47,7 +45,7 @@ export default {
               constraint.type_name,
               this.fieldType
             )
-            ?.canSupportDefaultValue()
+            .canSupportDefaultValue()
       )
     },
   },

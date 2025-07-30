@@ -1720,7 +1720,7 @@ export class NumberFieldType extends FieldType {
       return null
     }
     const decimalPlaces = field.number_decimal_places || 0
-    return Number(field.defaultValue).toFixed(decimalPlaces)
+    return new BigNumber(defaultValue).toFixed(decimalPlaces)
   }
 
   canUpsert() {

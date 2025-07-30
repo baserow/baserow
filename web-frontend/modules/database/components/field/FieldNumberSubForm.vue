@@ -78,12 +78,15 @@
         :error="fieldHasErrors('number_default')"
         type="text"
         :placeholder="$t('fieldNumberSubForm.defaultValuePlaceholder')"
-        :disabled="isDisabled"
+        :disabled="isDefaultValueFieldDisabled"
         @focus="onDefaultValueFocus"
         @blur="onDefaultValueBlur"
         @keypress="onKeyPress"
       ></FormInput>
-      <div v-if="isDisabled" class="control__messages padding-top-0">
+      <div
+        v-if="isDefaultValueFieldDisabled"
+        class="control__messages padding-top-0"
+      >
         <p
           class="control__helper-text control__helper-text--warning field-context__inner-element-width"
         >
@@ -163,12 +166,6 @@ export default {
         number_separator: this.values.number_separator,
         number_negative: this.values.number_negative,
       }
-    },
-    isDisabled() {
-      return this.isDefaultValueFieldDisabled(
-        this.values.number_default,
-        this.formValues
-      )
     },
   },
   watch: {

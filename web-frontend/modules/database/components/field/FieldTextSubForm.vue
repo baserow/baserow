@@ -5,9 +5,12 @@
       v-model="values.text_default"
       type="text"
       :placeholder="$t('fieldTextSubForm.placeholder')"
-      :disabled="isDisabled"
+      :disabled="isDefaultValueFieldDisabled"
     ></FormInput>
-    <div v-if="isDisabled" class="control__messages padding-top-0">
+    <div
+      v-if="isDefaultValueFieldDisabled"
+      class="control__messages padding-top-0"
+    >
       <p
         class="control__helper-text control__helper-text--warning field-context__inner-element-width"
       >
@@ -32,14 +35,6 @@ export default {
         text_default: '',
       },
     }
-  },
-  computed: {
-    isDisabled() {
-      return this.isDefaultValueFieldDisabled(
-        this.values.text_default,
-        this.formValues
-      )
-    },
   },
   methods: {
     isFormValid() {

@@ -93,7 +93,7 @@
               ref="childForm"
               :table="table"
               :field-type="values.type"
-              :form-values="getFormValues()"
+              :field-constraints="values.field_constraints"
               :view="view"
               :primary="primary"
               :all-fields-in-table="allFieldsInTable"
@@ -130,7 +130,7 @@
             :field="fieldForConstraints"
             :disabled="defaultValues.immutable_properties"
             :error="fieldConstraintError"
-            :form-values="getFormValues()"
+            :field-default-value="fieldDefaultValue"
           />
 
           <FormGroup
@@ -287,6 +287,13 @@ export default {
           ) ||
         this.isPrefilledWithSuggestedFieldName
       )
+    },
+    fieldDefaultValue() {
+      if (!this.values.type) return null
+
+      const fieldTypeClass = this.$registry.get('field', this.values.type)
+      const defaultValueFieldName = fieldTypeClass.getDefaultValueFieldName()
+      return this.getFormValues()[defaultValueFieldName] || null
     },
   },
   watch: {
