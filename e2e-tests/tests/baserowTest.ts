@@ -8,10 +8,14 @@ import { createBuilder } from "../fixtures/builder/builder";
 import { createAutomation } from "../fixtures/automation/automation";
 import { createAutomationWorkflow } from "../fixtures/automation/automationWorkflow";
 import { AutomationWorkflowPage } from "../pages/automation/automationWorkflowPage";
+import { createDatabase } from "../fixtures/database/database";
+import { createTable } from "../fixtures/database/table";
+import { TablePage } from "../pages/database/tablePage";
 
 // Declare the types of your fixtures.
 type BaserowFixtures = {
   workspacePage: WorkspacePage;
+  tablePage: TablePage;
   builderPagePage: BuilderPagePage;
   automationWorkflowPage: AutomationWorkflowPage;
 };
@@ -60,6 +64,24 @@ export const test = base.extend<BaserowFixtures>({
     const automationWorkflowPage = new AutomationWorkflowPage(page, automation, automationWorkflow);
 
     await use(automationWorkflowPage);
+  },
+  tablePage: async ({ page, workspacePage }, use) => {
+    const database = await createDatabase(
+      workspacePage.workspace.user,
+      "Database",
+      workspacePage.workspace
+    );
+    const table = await createTable(
+      workspacePage.workspace.user,
+      "Table",
+      database
+    );
+    const tablePage = new TablePage(page);
+    tablePage.user = workspacePage.workspace.user
+    tablePage.workspace = workspacePage.workspace
+    await tablePage.goToTable(table)
+    await use(tablePage);
+    await tablePage.removeAll();
   },
 });
 export { expect } from "@playwright/test";

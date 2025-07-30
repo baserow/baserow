@@ -29,6 +29,7 @@
             <Dropdown
               ref="fieldTypesDropdown"
               v-model="v$.values.type.$model"
+              data-testid="fieldTypesDropdown"
               :error="fieldHasErrors('type')"
               :fixed-items="true"
               :disabled="
