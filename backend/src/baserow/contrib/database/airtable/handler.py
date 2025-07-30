@@ -152,13 +152,18 @@ class AirtableFileImport:
 
     @contextmanager
     def open(self, name):
-        download_file = self.files_to_download.get(name)
-        if download_file is None:
+        if name is None:
             raise ValueError(f"No file with name {name} found.")
+
+        # Files for which check failed are excluded from the
+        # files_to_download dict
+        if name not in self.files_to_download:
+            yield None
+            return
 
         response = download_airtable_file(
             name=name,
-            download_file=download_file,
+            download_file=self.files_to_download[name],
             init_data=self.init_data,
             request_id=self.request_id,
             cookies=self.cookies,
@@ -590,6 +595,10 @@ class AirtableHandler:
         config: AirtableImportConfig,
         progress_builder: Optional[ChildProgressBuilder] = None,
         files_buffer: Union[None, IOBase] = None,
+        import_report: AirtableImportReport = None,
+        field_mapping_per_table: dict = None,
+        exported_tables: list = None,
+        row_id_mapping: Dict[str, Dict[str, int]] = None,
     ) -> BytesIO:
         """
         This method was used to download the files, but now it only collects
@@ -632,6 +641,49 @@ class AirtableHandler:
             cookies=cookies,
             headers=BASE_HEADERS,
         )
+
+        failed_files = []
+        for file_name, download_file in files_to_download.items():
+            headers = BASE_HEADERS.copy()
+            headers["Range"] = "bytes=0-5"
+
+            try:
+                download_airtable_file(
+                    file_name, download_file, init_data, request_id, cookies, headers
+                )
+            except FileDownloadFailed:
+                field_name = ""
+                table_name = ""
+                baserow_row_id = download_file.row_id
+
+                for table_id, field_mapping in field_mapping_per_table.items():
+                    if download_file.column_id in field_mapping:
+                        field_info = field_mapping[download_file.column_id]
+                        field_name = field_info["baserow_field"].name
+
+                        for exported_table in exported_tables:
+                            if exported_table["id"] == table_id:
+                                table_name = exported_table["name"]
+                                break
+
+                        if row_id_mapping and table_id in row_id_mapping:
+                            baserow_row_id = row_id_mapping[table_id].get(
+                                download_file.row_id, download_file.row_id
+                            )
+                        break
+
+                import_report.add_failed(
+                    "File",
+                    SCOPE_CELL,
+                    table_name,
+                    ERROR_TYPE_OTHER,
+                    f"Field: {field_name}, Row: {baserow_row_id}, File: {file_name}",
+                )
+                failed_files.append(file_name)
+
+        for file_name in failed_files:
+            files_to_download.pop(file_name, None)
+
         file_archive.add_files(files_to_download)
         progress.increment(state=AIRTABLE_EXPORT_JOB_DOWNLOADING_FILES)
 
@@ -886,45 +938,6 @@ class AirtableHandler:
         return exported_tables, files_to_download
 
     @classmethod
-    def check_files_are_downloadable(
-        cls,
-        files_to_download: dict,
-        init_data: dict,
-        request_id: str,
-        cookies: dict,
-        import_report: AirtableImportReport,
-    ):
-        """
-        Checks if the files are downloadable by making a request to the file url
-        and fetching few first bytes.
-
-        :param files_to_download: A dict containing the files to download.
-        :param init_data: The init_data, extracted from the initial page related to the
-            shared base.
-        :param request_id: The request_id returned by the initially requested shared
-            base.
-        :param cookies: The cookies dict returned by the initially requested shared
-            base.
-        """
-
-        for file_name, download_file in files_to_download.items():
-            headers = BASE_HEADERS.copy()
-            headers["Range"] = "bytes=0-5"
-
-            try:
-                download_airtable_file(
-                    file_name, download_file, init_data, request_id, cookies, headers
-                )
-            except FileDownloadFailed as exc:
-                import_report.add_failed(
-                    "File",
-                    SCOPE_CELL,
-                    "",
-                    ERROR_TYPE_OTHER,
-                    exc.message,
-                )
-
-    @classmethod
     def to_baserow_database_export(
         cls,
         init_data: dict,
@@ -1057,14 +1070,10 @@ class AirtableHandler:
             config,
             progress.create_child_builder(represents_progress=500),
             download_files_buffer,
-        )
-
-        cls.check_files_are_downloadable(
-            files_to_download,
-            init_data,
-            request_id,
-            cookies,
             import_report,
+            field_mapping_per_table,
+            exported_tables,
+            row_id_mapping,
         )
 
         import_report.append_items_to_exported_table(

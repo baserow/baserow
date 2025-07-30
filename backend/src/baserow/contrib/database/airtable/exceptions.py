@@ -27,7 +27,7 @@ class AirtableSkipFilter(Exception):
     """
 
 
-class FileDownloadFailed(OSError):
+class FileDownloadFailed(Exception):
     """Raised when a file download fails."""
 
     def __init__(self, message):

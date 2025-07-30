@@ -56,7 +56,6 @@ from dateutil.parser import ParserError
 from loguru import logger
 from rest_framework import serializers
 
-from baserow.contrib.database.airtable.exceptions import FileDownloadFailed
 from baserow.contrib.database.api.fields.errors import (
     ERROR_DATE_FORCE_TIMEZONE_OFFSET_ERROR,
     ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE,
@@ -3972,20 +3971,19 @@ class FileFieldType(FieldType):
             if files_zip is None:
                 files.append(file)
             else:
-                try:
-                    with files_zip.open(file["name"]) as stream:
-                        # Try to upload the user file with the original name
-                        # to make sure that if the was already uploaded, it will
-                        # not be uploaded again.
-                        user_file = user_file_handler.upload_user_file(
-                            None, file["original_name"], stream, storage=storage
-                        )
+                with files_zip.open(file["name"]) as stream:
+                    if stream is None:
+                        continue
+                    # Try to upload the user file with the original name
+                    # to make sure that if the was already uploaded, it will
+                    # not be uploaded again.
+                    user_file = user_file_handler.upload_user_file(
+                        None, file["original_name"], stream, storage=storage
+                    )
 
-                    value = user_file.serialize()
-                    value["visible_name"] = file["visible_name"]
-                    files.append(value)
-                except FileDownloadFailed:
-                    pass
+                value = user_file.serialize()
+                value["visible_name"] = file["visible_name"]
+                files.append(value)
 
         setattr(row, field_name, files)
 
