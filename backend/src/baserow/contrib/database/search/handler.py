@@ -28,7 +28,6 @@ from django.db.models import (
     Expression,
     F,
     Func,
-    IntegerField,
     Model,
     Q,
     QuerySet,
@@ -481,16 +480,6 @@ class SearchHandler(
             return escaped_query
 
     @classmethod
-    def after_field_created(cls, field: "Field", skip_search_updates: bool = False):
-        """
-        :param field: The Baserow field which was created in this table.
-        :param skip_search_updates: Whether to update search data after.
-        :return: None
-        """
-
-        cls.schedule_update_search_data(field.table, fields=[field])
-
-    @classmethod
     def all_fields_values_changed_or_created(cls, fields: Iterable["Field"]):
         """
         Called when many fields values have been changed or created.
@@ -509,12 +498,6 @@ class SearchHandler(
 
         for table, table_fields in fields_per_table.items():
             cls.schedule_update_search_data(table, fields=table_fields)
-
-    @classmethod
-    def after_field_moved_between_tables(
-        cls, moved_field: "Field", original_table_id: int
-    ):
-        cls.schedule_update_search_data(moved_field.table, fields=[moved_field])
 
     @classmethod
     def schedule_update_search_data(
@@ -769,7 +752,7 @@ class SearchHandler(
         """
 
         model = table.get_model()
-        qs: QuerySet = model.objects_and_trash.all()
+        qs: QuerySet = model.objects_and_trash.all().order_by()
         if row_ids is not None:
             qs = qs.filter(id__in=list(row_ids))
 
@@ -790,8 +773,8 @@ class SearchHandler(
 
         workspace_id = table.database.workspace_id
         search_model = cls.get_workspace_search_table_model(workspace_id)
-        field_querysets = []
 
+        field_querysets = []
         now = datetime.now(tz=timezone.utc)
         for field_id in field_ids:
             field = searchable_fields[field_id]
@@ -800,21 +783,35 @@ class SearchHandler(
             search_expr: Expression = field.get_type().get_search_expression(
                 field, field_qs
             )
-            field_qs = field_qs.annotate(
-                row_id=F("id"),
-                field_id=Value(field_id, output_field=IntegerField()),
-                value=LocalisedSearchVector(search_expr),
-                timestamp=Value(now, output_field=DateTimeField()),
+            search_qs = search_model.objects.filter(field_id=field_id)
+            if row_ids is not None:
+                search_qs = search_qs.filter(row_id__in=row_ids)
+            search_cte = With(search_qs.values("field_id", "row_id", "value"))
+
+            field_qs = (
+                search_cte.join(
+                    field_qs.annotate(
+                        new_value=LocalisedSearchVector(search_expr)
+                    ).values("id", "new_value"),
+                    id=search_cte.col.row_id,
+                    _join_type=LOUTER,
+                )
+                .with_cte(search_cte)
+                .annotate(
+                    field_id=Value(field.id),
+                    row_id=F("id"),
+                    timestamp=Value(now, output_field=DateTimeField()),
+                )
+                .filter(new_value__isdistinctfrom=search_cte.col.value)
+                .values("field_id", "row_id", "new_value", "timestamp")
             )
-            field_querysets.append(
-                field_qs.values("field_id", "row_id", "value", "timestamp")
-            )
+            field_querysets.append(field_qs)
 
         union_qs, *rest = field_querysets
         if rest:
             union_qs = union_qs.union(*rest)
 
-        sql, params = union_qs.order_by("field_id", "row_id").query.sql_with_params()
+        sql, params = union_qs.query.sql_with_params()
 
         with connection.cursor() as cursor:
             raw_sql = f"""
@@ -872,7 +869,7 @@ class SearchHandler(
         ).values_list("field_id", flat=True)
 
         # Balance between query efficiency and cpu-usage for complex search expressions.
-        fields_batch_size = 5
+        fields_batch_size = 3
 
         # First process full-field updates (row_id=None), removing any remaining
         # row-specific updates on the same field.

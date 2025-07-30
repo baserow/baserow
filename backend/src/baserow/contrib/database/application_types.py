@@ -415,7 +415,9 @@ class DatabaseApplicationType(ApplicationType):
                 id_mapping,
                 deferred_fk_update_collector,
             )
-            SearchHandler.after_field_created(external_field)
+            SearchHandler.schedule_update_search_data(
+                external_table, fields=[external_field]
+            )
             progress.increment()
 
         deferred_fk_update_collector.run_deferred_fk_updates(
