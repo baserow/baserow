@@ -7,6 +7,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from baserow.contrib.database.api.fields.errors import (
+    ERROR_FIELD_NOT_IN_TABLE,
     ERROR_INVALID_BASEROW_FIELD_NAME,
     ERROR_MAX_FIELD_COUNT_EXCEEDED,
     ERROR_MAX_FIELD_NAME_LENGTH_EXCEEDED,
@@ -19,6 +20,7 @@ from baserow.contrib.database.api.tables.errors import (
 )
 from baserow.contrib.database.db.atomic import read_committed_single_table_transaction
 from baserow.contrib.database.fields.exceptions import (
+    FieldNotInTable,
     InvalidBaserowFieldName,
     MaxFieldLimitExceeded,
     MaxFieldNameLengthExceeded,
@@ -58,6 +60,7 @@ class FileImportJobType(JobType):
         InitialTableDataDuplicateName: ERROR_INITIAL_TABLE_DATA_HAS_DUPLICATE_NAMES[2],
         ReservedBaserowFieldNameException: ERROR_RESERVED_BASEROW_FIELD_NAME[2],
         InvalidBaserowFieldName: ERROR_INVALID_BASEROW_FIELD_NAME[2],
+        FieldNotInTable: ERROR_FIELD_NOT_IN_TABLE[2],
     }
 
     serializer_field_names = [

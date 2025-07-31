@@ -1725,6 +1725,15 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         # Can raise InvalidRowLength
         update_handler.validate()
 
+        skipped_field_ids = configuration.get("skipped_fields", [])
+        try:
+            skipped_fields = [
+                model.get_field_object_by_id(field_id)["field"]
+                for field_id in skipped_field_ids
+            ]
+        except ValueError:
+            raise FieldNotInTable("The field ID is not found in the table.")
+
         fields = [
             field_object["field"]
             for field_object in model._field_objects.values()
@@ -1804,11 +1813,23 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         rows_values_to_create = []
         rows_values_to_update = []
         if update_map:
+            skipped_field_names = set()
+
+            if skipped_fields:
+                skipped_field_names = {field.db_column for field in skipped_fields}
+
             for current_idx, import_idx in original_row_index_mapping.items():
                 row = valid_rows[current_idx]
                 if update_idx := update_map.get(import_idx):
-                    row["id"] = update_idx
-                    rows_values_to_update.append(row)
+                    # For upsert operations, filter out skipped fields that were
+                    # explicitly marked to be ignored during import. This ensures
+                    # that existing values in those fields are preserved in the
+                    # database rather than being overwritten.
+                    filtered_row = {
+                        k: v for k, v in row.items() if k not in skipped_field_names
+                    }
+                    filtered_row["id"] = update_idx
+                    rows_values_to_update.append(filtered_row)
                 else:
                     rows_values_to_create.append(row)
         else:

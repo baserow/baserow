@@ -474,6 +474,17 @@ export default {
         importConfiguration.upsert_values = []
       }
 
+      const mappedFieldIds = Object.values(this.mapping).filter(
+        (id) => id !== 0
+      )
+      const skippedFieldIds = this.writableFields
+        .filter((field) => !mappedFieldIds.includes(field.id))
+        .map((field) => field.id)
+
+      if (skippedFieldIds.length > 0) {
+        importConfiguration.skipped_fields = skippedFieldIds
+      }
+
       if (typeof this.getData === 'function') {
         try {
           this.showProgressBar = true
