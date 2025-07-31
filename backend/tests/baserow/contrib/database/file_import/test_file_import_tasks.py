@@ -1592,7 +1592,4 @@ def test_run_file_import_task_with_upsert_and_invalid_skipped_fields(
     job.refresh_from_db()
 
     assert job.failed
-    assert (
-        job.error
-        == f"The following field IDs do not exist in table {table.id}: [99999]"
-    )
+    assert job.error == f"The field ID is not found in the table."
