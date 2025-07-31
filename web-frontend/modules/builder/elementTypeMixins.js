@@ -286,7 +286,7 @@ export const CollectionElementTypeMixin = (Base) =>
     }
 
     /**
-     * A collection element is in error if:
+     * A collection element is in error because of data source error if:
      *
      * - No parent (including self) collection elements have a valid data_source_id.
      * - The parent with the valid data_source_id points to a data_source
@@ -297,7 +297,7 @@ export const CollectionElementTypeMixin = (Base) =>
      * @param {Object} builder - The builder
      * @returns {Boolean} - Whether the element is in error.
      */
-    getErrorMessage({ workspace, page, element, builder }) {
+    getDataSourceErrorMessage({ workspace, page, element, builder }) {
       // We get all parents with a valid data_source_id
       const collectionAncestorsWithDataSource = this.app.store.getters[
         'element/getAncestors'
@@ -343,6 +343,23 @@ export const CollectionElementTypeMixin = (Base) =>
       // a schema_property
       if (parentWithDataSource.id !== element.id && !element.schema_property) {
         return this.app.i18n.t('elementType.errorSchemaPropertyMissing')
+      }
+      return null
+    }
+
+    /**
+     * Check data source errors.
+     */
+    getErrorMessage({ workspace, page, element, builder }) {
+      const dataSourceErrorMessage = this.getDataSourceErrorMessage({
+        workspace,
+        page,
+        element,
+        builder,
+      })
+
+      if (dataSourceErrorMessage) {
+        return dataSourceErrorMessage
       }
 
       return super.getErrorMessage({
