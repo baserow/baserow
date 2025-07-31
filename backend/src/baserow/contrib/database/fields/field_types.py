@@ -4736,7 +4736,8 @@ class MultipleSelectFieldType(
         return [
             index
             for index, option in enumerate(select_options)
-            if option["id"] in default
+            if option.get("id") in default
+            or option.get(UPSERT_OPTION_DICT_KEY) in default
         ]
 
     def get_options_by_index(self, field, index):
