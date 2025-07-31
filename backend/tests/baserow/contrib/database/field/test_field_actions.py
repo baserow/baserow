@@ -1534,3 +1534,100 @@ def test_can_undo_redo_change_primary_field(data_fixture):
     field_2.refresh_from_db()
     assert field_1.primary is False
     assert field_2.primary is True
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@pytest.mark.field_single_select
+def test_undo_single_select_conversion_with_default_value(data_fixture):
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+
+    option_field = data_fixture.create_single_select_field(user=user, name="priority")
+    option_a = data_fixture.create_select_option(
+        field=option_field, value="High", color="red"
+    )
+
+    field_handler = FieldHandler()
+    option_field = field_handler.update_field(
+        user=user, field=option_field, single_select_default=option_a.id
+    )
+
+    action_type_registry.get_by_type(UpdateFieldActionType).do(
+        user,
+        option_field,
+        select_options=[
+            {"value": "Low", "color": "green"},
+            {"value": "Medium", "color": "yellow"},
+        ],
+        single_select_default=None,
+    )
+
+    option_field.refresh_from_db()
+    assert option_field.select_options.count() == 2
+    assert option_field.single_select_default is None
+
+    actions = ActionHandler.undo(
+        user, [UpdateFieldActionType.scope(option_field.table_id)], session_id
+    )
+    assert_undo_redo_actions_are_valid(actions, [UpdateFieldActionType])
+
+    option_field.refresh_from_db()
+    assert option_field.select_options.count() == 1
+    restored_option = option_field.select_options.first()
+    assert restored_option.value == "High"
+    assert restored_option.color == "red"
+    assert option_field.single_select_default == restored_option.id
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@pytest.mark.field_multiple_select  # Fix the decorator
+def test_undo_multiple_select_conversion_with_default_value(data_fixture):
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+
+    option_field = data_fixture.create_multiple_select_field(user=user, name="tags")
+    option_a = data_fixture.create_select_option(
+        field=option_field, value="Important", color="red"
+    )
+    option_b = data_fixture.create_select_option(
+        field=option_field, value="Urgent", color="blue"
+    )
+
+    field_handler = FieldHandler()
+    option_field = field_handler.update_field(
+        user=user,
+        field=option_field,
+        multiple_select_default=[option_a.id, option_b.id],
+    )
+
+    action_type_registry.get_by_type(UpdateFieldActionType).do(
+        user,
+        option_field,
+        select_options=[
+            {"value": "Low", "color": "green"},
+            {"value": "Medium", "color": "yellow"},
+        ],
+        multiple_select_default=None,
+    )
+
+    option_field.refresh_from_db()
+    assert option_field.select_options.count() == 2
+    assert option_field.multiple_select_default == []
+
+    actions = ActionHandler.undo(
+        user, [UpdateFieldActionType.scope(option_field.table_id)], session_id
+    )
+    assert_undo_redo_actions_are_valid(actions, [UpdateFieldActionType])
+
+    option_field.refresh_from_db()
+    assert option_field.select_options.count() == 2
+    restored_options = list(option_field.select_options.all())
+
+    restored_values = [opt.value for opt in restored_options]
+    assert "Important" in restored_values
+    assert "Urgent" in restored_values
+
+    restored_ids = [opt.id for opt in restored_options]
+    assert set(option_field.multiple_select_default) == set(restored_ids)
