@@ -40,14 +40,6 @@ class AutomationNodeBeforeInvalid(Exception):
 class AutomationNodeMisconfiguredService(AutomationNodeError):
     """When the node's service is misconfigured."""
 
-    def __init__(self, node_id=None, *args, **kwargs):
-        self.node_id = node_id
-        super().__init__(
-            f"The node {node_id} has a misconfigured service.",
-            *args,
-            **kwargs,
-        )
-
 
 class AutomationTriggerModificationDisallowed(AutomationNodeError):
     """

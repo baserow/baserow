@@ -7,8 +7,12 @@ from django.utils import timezone
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeMisconfiguredService,
+)
 from baserow.contrib.automation.nodes.models import (
     AutomationActionNode,
+    AutomationNode,
     CoreHTTPRequestActionNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
@@ -116,6 +120,34 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
     type = "router"
     model_class = CoreRouterActionNode
     service_type = CoreRouterServiceType.type
+
+    def before_service_update(
+        self,
+        service: Service,
+        prepared_values: Dict,
+    ):
+        """
+        Before updating a router node's service, this method is called to allow us to
+        check if one or more edges have been removed. If so, we need to verify that
+        there are no automation node outputs pointing to those edges. If there are,
+        then an exception is raised to prevent the update.
+
+        :param service: The service instance we're about to update.
+        :param prepared_values: The prepared values that will be used to update the service.
+        """
+
+        prepared_uids = [edge["uid"] for edge in prepared_values["edges"]]
+        persisted_uids = [str(edge.uid) for edge in service.edges.only("uid")]
+        removed_uids = list(set(persisted_uids) - set(prepared_uids))
+        output_nodes_with_removed_uids = AutomationNode.objects.filter(
+            previous_node_output__in=removed_uids
+        ).exists()
+        if output_nodes_with_removed_uids:
+            raise AutomationNodeMisconfiguredService(
+                "One or more branches have been removed from the router node, "
+                "but they still point to output nodes. These nodes must be "
+                "trashed before the router can be updated."
+            )
 
 
 class AutomationNodeTriggerType(AutomationNodeType):

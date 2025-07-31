@@ -189,6 +189,8 @@
     "branchConditionPlaceholder": "Enter condition...",
     "addEdge": "Add branch",
     "edgeDefaultName": "Branch",
-    "noLabel": "No label"
+    "noLabel": "No label",
+    "edgeDeletionLastEdge": "You cannot delete the last branch.",
+    "edgeDeletionHasOutput": "A branch cannot be deleted if it has an output."
   }
 }

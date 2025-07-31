@@ -16,6 +16,7 @@
       :application="automation"
       enable-integration-picker
       :default-values="node.service"
+      :edge-in-use-fn="nodeEdgeInUseFn"
       class="margin-top-2"
       @values-changed="handleNodeServiceChange"
     />
@@ -100,4 +101,15 @@ const handleNodeServiceChange = async (newServiceChanges) => {
 const nodeLoading = computed(() => {
   return store.getters['automationWorkflowNode/getLoading'](node.value)
 })
+
+/**
+ * Responsible for informing the core router service form if an edge has an
+ * output. As the service form can't refer to automation nodes, we have to
+ * perform the check here, and pass the function as a prop into the form.
+ */
+const nodeEdgeInUseFn = (edge) => {
+  return store.getters['automationWorkflowNode/getNodes'](workflow.value).some(
+    (node) => node.previous_node_output === edge.uid
+  )
+}
 </script>
