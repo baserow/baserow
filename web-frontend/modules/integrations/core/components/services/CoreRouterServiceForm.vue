@@ -76,11 +76,14 @@
             </FormGroup>
           </template>
           <template #footer>
-            <template v-if="v$.values.edges.$model.length > 1">
-              <ButtonText icon="iconoir-bin" @click="removeEdge(edge)">
-                {{ $t('action.delete') }}
-              </ButtonText>
-            </template>
+            <ButtonText
+              v-tooltip="edgeDeletionTooltip(edge)"
+              :disabled="!edgeCanBeDeleted(edge)"
+              icon="iconoir-bin"
+              @click="removeEdge(edge)"
+            >
+              {{ $t('action.delete') }}
+            </ButtonText>
           </template>
         </SidebarExpandable>
       </div>
@@ -125,6 +128,11 @@ export default {
       required: false,
       default: null,
     },
+    edgeInUseFn: {
+      type: Function,
+      required: false,
+      default: () => () => false,
+    },
   },
   setup() {
     return { v$: useVuelidate() }
@@ -166,6 +174,17 @@ export default {
       this.v$.values.edges.$model = this.v$.values.edges.$model.filter(
         (item) => item !== edge
       )
+    },
+    edgeCanBeDeleted(edge) {
+      return this.v$.values.edges.$model.length > 1 && !this.edgeInUseFn(edge)
+    },
+    edgeDeletionTooltip(edge) {
+      if (this.v$.values.edges.$model.length === 1) {
+        return this.$t('routerForm.edgeDeletionLastEdge')
+      } else if (this.edgeInUseFn(edge)) {
+        return this.$t('routerForm.edgeDeletionHasOutput')
+      }
+      return null
     },
     getEdgeErrorMessage(edge) {
       return this.serviceType.getEdgeErrorMessage(edge)
