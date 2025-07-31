@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Add environnement variable to allow sending request to internal IPs with HTTP request action",
+    "message": "Add environment variable to allow sending request to internal IPs with HTTP request action",
     "domain": "builder",
     "issue_number": "",
     "bullet_points": [],

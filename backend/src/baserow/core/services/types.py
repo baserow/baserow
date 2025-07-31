@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import NamedTuple, NewType, Optional, TypedDict, TypeVar
 
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
+from baserow.core.formula.types import BaserowFormula
 from baserow.core.services.models import Service
 
 
@@ -41,7 +42,7 @@ class UpdatedService:
 
 class FormulaToResolve(NamedTuple):
     key: str
-    formula: str
+    formula: BaserowFormula
     ensurer: callable
     label: str
 
