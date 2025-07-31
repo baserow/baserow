@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from django.contrib.auth.models import AbstractUser
 
@@ -23,6 +23,7 @@ from baserow.core.registry import (
 )
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
 
 
@@ -69,6 +70,19 @@ class AutomationNodeType(
             "previous_node_output",
             "service",
         ]
+
+    def before_service_update(
+        self,
+        service: Service,
+        prepared_values: Dict,
+    ):
+        """
+        This hook is called right before the node's service is updated.
+
+        :param service: The service instance we're about to update.
+        :param prepared_values: The prepared values that will be used to update the service.
+        """
+        ...
 
     def get_service_type(self) -> Optional[ServiceTypeSubClass]:
         return (
@@ -233,6 +247,10 @@ class AutomationNodeType(
         prepared_service_values = service_type.prepare_values(
             service_values, user, service
         )
+
+        # Perform any last-minute checks on the prepared values.
+        # Some node types need to check the service values before updating.
+        self.before_service_update(service, prepared_service_values)
 
         # Update the service instance with any prepared service values.
         ServiceHandler().update_service(
