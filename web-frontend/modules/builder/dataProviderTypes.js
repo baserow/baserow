@@ -196,10 +196,11 @@ export class DataSourceDataProviderType extends DataProviderType {
         .map((dataSource, index) => {
           const dsSchema = this.getDataSourceSchema(dataSource)
           if (dsSchema) {
-            delete dsSchema.$schema
-            dsSchema.order = index
+            // We don't use the schema directly as it comes from the store and can't
+            // be mutated
+            return [dataSource.id, { ...dsSchema, order: index }]
           }
-          return [dataSource.id, dsSchema]
+          return [dataSource.id, null]
         })
         .filter(([, schema]) => schema)
     )
