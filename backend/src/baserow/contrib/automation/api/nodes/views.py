@@ -18,6 +18,7 @@ from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
 from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_BEFORE_INVALID,
     ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+    ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE,
     ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
     ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
     ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
@@ -43,6 +44,7 @@ from baserow.contrib.automation.nodes.actions import (
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
     AutomationNodeDoesNotExist,
+    AutomationNodeMisconfiguredService,
     AutomationNodeNotInWorkflow,
     AutomationNodeTypeNotReplaceable,
     AutomationTriggerModificationDisallowed,
@@ -208,6 +210,7 @@ class AutomationNodeView(APIView):
     @map_exceptions(
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+            AutomationNodeMisconfiguredService: ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE,
         }
     )
     @validate_body_custom_fields(
