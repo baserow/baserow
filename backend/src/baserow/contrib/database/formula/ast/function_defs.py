@@ -2418,7 +2418,17 @@ class BaserowCount(OneArgumentBaserowFunction):
         )
 
     def to_django_expression(self, arg: Expression) -> Expression:
-        return Count(arg, output_field=int_like_numeric_output_field())
+        """
+        Generate a Django COUNT expression for counting rows.
+
+        Uses COUNT(*) instead of COUNT(arg) to ensure we count all rows that match
+        the query criteria, regardless of whether any specific field values are NULL.
+
+        :param arg: The field expression that would be counted (ignored in favor of *)
+        :return: Django Count expression using COUNT(*)
+        """
+
+        return Count("*", output_field=int_like_numeric_output_field())
 
 
 class BaserowGetFileCount(OneArgumentBaserowFunction):
