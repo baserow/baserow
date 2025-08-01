@@ -727,9 +727,10 @@ class AutomationWorkflowHandler:
     def disable_workflow(self, workflow: AutomationWorkflow) -> None:
         """Disable the provided workflow, as well as related workflows."""
 
-        workflows = {workflow, self.get_original_workflow(workflow)}
-        now = timezone.now()
+        workflow_ids = {workflow.id}
+        if original_workflow := self.get_original_workflow(workflow):
+            workflow_ids.add(original_workflow.id)
 
-        for workflow in workflows:
-            workflow.disabled_on = now
-            workflow.save()
+        AutomationWorkflow.objects.filter(id__in=workflow_ids).update(
+            disabled_on=timezone.now()
+        )

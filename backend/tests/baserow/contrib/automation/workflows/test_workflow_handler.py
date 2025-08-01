@@ -572,3 +572,34 @@ def test_is_rate_limited_returns_true_if_above_limit():
         # This 6th attempt should be rate limited
         result = AutomationWorkflowHandler().is_rate_limited(100)
         assert result is True
+
+
+@pytest.mark.django_db
+def test_disable_workflow_disables_original_workflow(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+
+    now_str = "2025-08-01 14:00:00+00:00"
+    with freeze_time(now_str):
+        AutomationWorkflowHandler().disable_workflow(original_workflow)
+
+    original_workflow.refresh_from_db()
+    assert str(original_workflow.disabled_on) == now_str
+
+
+@pytest.mark.django_db
+def test_disable_workflow_disables_published_workflow(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    now_str = "2025-08-01 14:00:00+00:00"
+    with freeze_time(now_str):
+        AutomationWorkflowHandler().disable_workflow(published_workflow)
+
+    published_workflow.refresh_from_db()
+    original_workflow.refresh_from_db()
+
+    # Ensure both published and original workflows are disabled
+    assert str(published_workflow.disabled_on) == now_str
+    assert str(original_workflow.disabled_on) == now_str
