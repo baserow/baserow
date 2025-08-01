@@ -728,7 +728,9 @@ class AutomationWorkflowHandler:
         return False
 
     def disable_workflow(self, workflow: AutomationWorkflow) -> None:
-        """Disable the provided workflow, as well as related workflows."""
+        """
+        Disable the provided workflow, as well as the original workflow if it exists.
+        """
 
         workflow_ids = {workflow.id}
         if original_workflow := self.get_original_workflow(workflow):

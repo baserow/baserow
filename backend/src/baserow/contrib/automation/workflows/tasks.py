@@ -40,8 +40,7 @@ def run_workflow(
     )
 
     if workflow_handler.is_rate_limited(original_workflow.id):
-        now = timezone.now()
-        history.completed_on = now
+        history.completed_on = timezone.now()
         history.message = (
             f"The workflow {original_workflow.id} was rate limited and "
             "disabled due to too many recent runs."
