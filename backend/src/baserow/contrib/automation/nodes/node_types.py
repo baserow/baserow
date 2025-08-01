@@ -136,7 +136,7 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         :param prepared_values: The prepared values that will be used to update the service.
         """
 
-        prepared_uids = [edge["uid"] for edge in prepared_values["edges"]]
+        prepared_uids = [edge["uid"] for edge in prepared_values.get("edges", [])]
         persisted_uids = [str(edge.uid) for edge in service.edges.only("uid")]
         removed_uids = list(set(persisted_uids) - set(prepared_uids))
         output_nodes_with_removed_uids = AutomationNode.objects.filter(
