@@ -23,9 +23,7 @@ def run_workflow(
     event_payload: Optional[Union[Dict, List[Dict]]],
 ):
     from baserow.contrib.automation.history.handler import AutomationHistoryHandler
-    from baserow.contrib.automation.workflows.handler import (
-        AutomationWorkflowHandler,
-    )
+    from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
     workflow_handler = AutomationWorkflowHandler()
     workflow = workflow_handler.get_workflow(workflow_id)
@@ -51,8 +49,7 @@ def run_workflow(
         history.status = HistoryStatusChoices.DISABLED
         history.save()
 
-        workflow.disabled_on = now
-        workflow.save()
+        workflow_handler.disable_workflow(workflow)
 
         return
 

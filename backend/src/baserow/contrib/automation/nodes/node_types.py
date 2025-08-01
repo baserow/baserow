@@ -240,7 +240,11 @@ class AutomationNodeTriggerType(AutomationNodeType):
             )
             .filter(
                 Q(
-                    Q(workflow__published=True, workflow__paused=False)
+                    Q(
+                        workflow__published=True,
+                        workflow__paused=False,
+                        workflow__disabled_on__isnull=True,
+                    )
                     | Q(workflow__allow_test_run_until__gte=now)
                 ),
             )
