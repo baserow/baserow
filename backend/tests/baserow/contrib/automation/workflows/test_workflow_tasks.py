@@ -98,3 +98,43 @@ def test_run_workflow_unexpected_error_creates_workflow_history(
     )
     assert history.message == error_msg
     mock_logger.exception.assert_called_once_with(error_msg)
+
+
+@pytest.mark.django_db
+@patch(
+    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.is_rate_limited"
+)
+@patch("baserow.contrib.automation.workflows.tasks.AutomationWorkflowRunner.run")
+def test_run_workflow_rate_limiting_disables_workflow(
+    mock_run, mock_is_rate_limited, data_fixture
+):
+    mock_is_rate_limited.return_value = True
+
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+    data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=published_workflow
+    )
+
+    run_workflow(published_workflow.id, False, None)
+
+    mock_run.assert_not_called()
+
+    histories = AutomationWorkflowHistory.objects.filter(workflow=original_workflow)
+    assert len(histories) == 1
+    history = histories[0]
+    assert history.workflow == original_workflow
+    assert history.status == "disabled"
+    error_msg = (
+        f"The workflow {original_workflow.id} was rate limited and disabled "
+        "due to too many recent runs."
+    )
+    assert history.message == error_msg
+
+    original_workflow.refresh_from_db()
+    published_workflow.refresh_from_db()
+
+    assert bool(original_workflow.disabled_on) is True
+    assert bool(published_workflow.disabled_on) is True

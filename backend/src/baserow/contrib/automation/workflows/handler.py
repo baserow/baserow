@@ -41,6 +41,7 @@ from baserow.core.utils import (
 )
 
 WORKFLOW_RATE_LIMIT_CACHE_PREFIX = "automation_workflow_{}"
+AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS = 5
 
 
 class AutomationWorkflowHandler:
@@ -701,7 +702,9 @@ class AutomationWorkflowHandler:
         start_window = now - timedelta(seconds=expiry_seconds)
         cache_key = self.get_rate_limit_cache_key(workflow_id)
 
-        with cache.lock(f"{cache_key}_lock", timeout=5):
+        with cache.lock(
+            f"{cache_key}_lock", timeout=AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS
+        ):
             data = cache.get(cache_key, default=[])
 
             # Check the number of past runs that are in the window
