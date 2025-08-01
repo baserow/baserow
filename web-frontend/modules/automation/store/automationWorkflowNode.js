@@ -38,22 +38,19 @@ const mutations = {
     state,
     { workflow, node: nodeToUpdate, values, override = false }
   ) {
-    const index = workflow.nodes.findIndex(
-      (node) => node.id === nodeToUpdate.id
-    )
-    if (index === -1) {
-      // The node might have been deleted during the debounced update
-      return
-    }
+    workflow.nodes.forEach((node) => {
+      if (node.id === nodeToUpdate.id) {
+        const newValue = override
+          ? populateNode(values)
+          : {
+              ...node,
+              ...values,
+            }
+        Object.assign(node, newValue)
+      }
+    })
 
-    const newValue = override
-      ? populateNode(values)
-      : {
-          ...workflow.nodes[index],
-          ...values,
-        }
-
-    Object.assign(workflow.nodes[index], newValue)
+    updateCachedValues(workflow)
   },
   DELETE_ITEM(state, { workflow, nodeId }) {
     const nodeIdStr = nodeId.toString()
