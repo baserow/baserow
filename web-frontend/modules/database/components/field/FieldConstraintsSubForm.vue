@@ -8,8 +8,10 @@
     >
       <div class="control__elements flex justify-content-end">
         <ButtonText
-          v-if="!disabled && hasAvailableConstraints"
-          :disabled="allConstraintsAdded"
+          v-if="
+            !disabled && hasAvailableConstraints && !hasConflictingConstraints
+          "
+          :disabled="allConstraintsAdded || hasDisabledFieldConstraints"
           icon="iconoir-plus"
           @click.prevent="addConstraint"
         >
@@ -25,7 +27,26 @@
       >
         {{ $t('fieldConstraintsSubform.readonlyFieldMessage') }}
       </p>
-      <p v-else-if="hasAvailableConstraints" class="control__helper-text">
+      <p
+        v-else-if="hasConflictingConstraints"
+        class="control__helper-text control__helper-text--warning"
+      >
+        {{
+          $t('fieldConstraintsSubform.noConstraintsCompatibleWithDefaultValue')
+        }}
+      </p>
+      <p
+        v-else-if="hasDisabledFieldConstraints"
+        class="control__helper-text control__helper-text--warning"
+      >
+        {{
+          $t('fieldConstraintsSubform.noConstraintsCompatibleWithDefaultValue')
+        }}
+      </p>
+      <p
+        v-else-if="hasAvailableConstraints && !hasDisabledFieldConstraints"
+        class="control__helper-text"
+      >
         {{ $t('fieldConstraintsSubform.description') }}
       </p>
       <p v-else class="control__helper-text control__helper-text--warning">
@@ -34,17 +55,19 @@
     </div>
 
     <FieldConstraintItems
-      v-if="hasAvailableConstraints"
+      v-if="hasAvailableConstraints && !hasDisabledFieldConstraints"
       :value="value"
       :field="field"
       :disabled="disabled"
       :error="error"
+      :field-default-value="fieldDefaultValue"
       @input="$emit('input', $event)"
     />
   </div>
 </template>
 
 <script>
+import BigNumber from 'bignumber.js'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
 import FormGroup from '@baserow/modules/core/components/FormGroup'
 import FieldConstraintItems from '@baserow/modules/database/components/field/FieldConstraintItems.vue'
@@ -56,6 +79,11 @@ export default {
     value: {
       type: Array,
       required: true,
+    },
+    fieldDefaultValue: {
+      type: [String, Number, Boolean, BigNumber],
+      required: false,
+      default: null,
     },
     field: {
       type: Object,
@@ -86,12 +114,32 @@ export default {
     hasAvailableConstraints() {
       return this.allowedConstraintTypes.length > 0
     },
+    hasDisabledFieldConstraints() {
+      return false
+    },
     allConstraintsAdded() {
       const addedConstraintNames = this.value.map(
         (constraint) => constraint.type_name
       )
       return this.allowedConstraintTypes.every((constraintType) =>
         addedConstraintNames.includes(constraintType.getTypeName())
+      )
+    },
+    hasConflictingConstraints() {
+      const defaultValue = this.fieldDefaultValue
+
+      if (!defaultValue) {
+        return false
+      }
+
+      const constraintsThatSupportDefaultValue =
+        this.allowedConstraintTypes.filter((constraintType) =>
+          constraintType.canSupportDefaultValue()
+        )
+
+      return (
+        this.allowedConstraintTypes.length > 0 &&
+        constraintsThatSupportDefaultValue.length === 0
       )
     },
   },

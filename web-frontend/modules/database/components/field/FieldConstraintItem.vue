@@ -13,7 +13,9 @@
             :key="constraintType.type"
             :name="constraintType.getName()"
             :value="constraintType.getTypeName()"
-          ></DropdownItem>
+            :disabled="constraintType.isDisabled"
+          >
+          </DropdownItem>
         </Dropdown>
       </div>
 

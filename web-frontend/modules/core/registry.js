@@ -105,7 +105,7 @@ export class Registry {
     }
     if (!Object.prototype.hasOwnProperty.call(this.registry[namespace], type)) {
       throw new Error(
-        `The type ${type} is not found under namespace ${namespace} in the registry.`
+        `The type "${type}" is not found under namespace "${namespace}" in the registry.`
       )
     }
     return this.registry[namespace][type]

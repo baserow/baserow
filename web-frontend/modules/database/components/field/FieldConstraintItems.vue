@@ -17,6 +17,7 @@
 
 <script>
 import FieldConstraintItem from '@baserow/modules/database/components/field/FieldConstraintItem.vue'
+import BigNumber from 'bignumber.js'
 
 export default {
   name: 'FieldConstraintItems',
@@ -37,6 +38,11 @@ export default {
     },
     error: {
       type: String,
+      required: false,
+      default: null,
+    },
+    fieldDefaultValue: {
+      type: [String, Number, Boolean, BigNumber],
       required: false,
       default: null,
     },
@@ -62,23 +68,30 @@ export default {
     },
   },
   methods: {
-    getAvailableConstraintTypes(currentIndex) {
-      const selectedTypes = this.constraints
-        .map((constraint, index) => ({ type: constraint.type, index }))
-        .filter(({ type, index }) => type && index !== currentIndex)
-        .map(({ type }) => type)
+    getAvailableConstraintTypes(index) {
+      const selectedNames = this.constraints
+        .map((constraint, i) => (i === index ? null : constraint.type_name))
+        .filter((name) => name)
 
-      return this.allowedConstraintTypes.filter((constraintType) => {
-        return !selectedTypes.includes(constraintType.type)
+      return this.allowedConstraintTypes.map((constraintType) => {
+        const constraintName = constraintType.getTypeName()
+        const isSelected = selectedNames.includes(constraintName)
+        const isDisabled =
+          this.fieldDefaultValue && !constraintType.canSupportDefaultValue()
+
+        return Object.assign(constraintType, {
+          isDisabled: isSelected || isDisabled,
+        })
       })
     },
-    removeConstraint(index) {
-      this.constraints = this.constraints.filter((_, i) => i !== index)
-    },
-    updateConstraint(index, updates) {
+    updateConstraint(index, constraint) {
       const updatedConstraints = [...this.constraints]
-      updatedConstraints[index] = { ...updatedConstraints[index], ...updates }
-      this.constraints = updatedConstraints
+      updatedConstraints[index] = constraint
+      this.$emit('input', updatedConstraints)
+    },
+    removeConstraint(index) {
+      const updatedConstraints = this.constraints.filter((_, i) => i !== index)
+      this.$emit('input', updatedConstraints)
     },
   },
 }
