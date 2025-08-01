@@ -1,9 +1,11 @@
 from unittest.mock import MagicMock, patch
 
 from django.db.utils import IntegrityError
+from django.test import override_settings
 from django.utils import timezone
 
 import pytest
+from freezegun import freeze_time
 
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
@@ -516,3 +518,57 @@ def test_trashing_workflow_deletes_published_workflow(data_fixture):
 def test_get_rate_limit_cache_key(workflow_id):
     result = AutomationWorkflowHandler().get_rate_limit_cache_key(workflow_id)
     assert result == f"automation_workflow_{workflow_id}"
+
+
+def test_is_rate_limited_returns_false_if_empty_cache():
+    with freeze_time("2025-08-01 14:00:00"):
+        result = AutomationWorkflowHandler().is_rate_limited(100)
+        assert result is False
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
+    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=5,
+)
+def test_is_rate_limited_returns_false_if_below_limit():
+    with freeze_time("2025-08-01 14:00:00"):
+        for _ in range(4):
+            result = AutomationWorkflowHandler().is_rate_limited(100)
+            assert result is False
+
+        # This 5th attempt shouldn't be rate limited
+        result = AutomationWorkflowHandler().is_rate_limited(100)
+        assert result is False
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
+    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=5,
+)
+def test_is_rate_limited_returns_false_if_cache_expires():
+    with freeze_time("2025-08-01 14:00:00"):
+        for _ in range(5):
+            result = AutomationWorkflowHandler().is_rate_limited(100)
+            assert result is False
+
+    # 6 seconds after the first/initial cache entry
+    with freeze_time("2025-08-01 14:00:06"):
+        # The next 5 requests should not be rate limited
+        for _ in range(5):
+            result = AutomationWorkflowHandler().is_rate_limited(100)
+            assert result is False
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
+    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=5,
+)
+def test_is_rate_limited_returns_true_if_above_limit():
+    with freeze_time("2025-08-01 14:00:00"):
+        for _ in range(5):
+            result = AutomationWorkflowHandler().is_rate_limited(100)
+            assert result is False
+
+        # This 6th attempt should be rate limited
+        result = AutomationWorkflowHandler().is_rate_limited(100)
+        assert result is True

@@ -2,9 +2,9 @@ import json
 import uuid
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from django.utils import timezone
+
+import pytest
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -280,7 +280,7 @@ def test_on_event_excludes_disabled_workflows(mock_run_workflow, data_fixture):
     service = data_fixture.create_local_baserow_rows_created_service(
         table=table,
     )
-    
+
     # Create a Node + workflow that is disabled
     original_workflow = data_fixture.create_automation_workflow()
     workflow = data_fixture.create_automation_workflow(
@@ -293,7 +293,6 @@ def test_on_event_excludes_disabled_workflows(mock_run_workflow, data_fixture):
     node = data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow, service=service
     )
-
 
     service_queryset = service.get_type().model_class.objects.filter(table=table)
     event_payload = [
