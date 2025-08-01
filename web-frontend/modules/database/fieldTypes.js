@@ -1006,6 +1006,13 @@ export class FieldType extends Registerable {
   canHaveDbIndex(fieldValues) {
     return false
   }
+
+  /**
+   * Sanitizes any default values that reference values not available in the field.
+   * This is useful when field values have been filtered/restricted.
+   * Override this method in field types that have default values dependent on available values.
+   */
+  sanitizeDefaultValue(field) {}
 }
 
 class SelectOptionBaseFieldType extends FieldType {
@@ -1020,6 +1027,29 @@ class SelectOptionBaseFieldType extends FieldType {
       }
     )
     return updatedField
+  }
+
+  sanitizeDefaultValue(field) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+
+    if (!defaultValueFieldName || !field.select_options) {
+      return
+    }
+
+    const defaultValue = field[defaultValueFieldName]
+    if (defaultValue == null) {
+      return
+    }
+
+    const availableOptionIds = field.select_options.map((option) => option.id)
+
+    if (Array.isArray(defaultValue)) {
+      field[defaultValueFieldName] = defaultValue.filter((id) =>
+        availableOptionIds.includes(id)
+      )
+    } else if (!availableOptionIds.includes(defaultValue)) {
+      field[defaultValueFieldName] = null
+    }
   }
 
   getFormViewFieldOptionsComponent() {
@@ -3725,15 +3755,19 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     return value1Id === value2Id
   }
 
+  getDefaultValueFieldName() {
+    return 'single_select_default'
+  }
+
   getDefaultValue(field, flat) {
-    if (field.single_select_default != null) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    const defaultValue = field[defaultValueFieldName]
+    if (defaultValue != null) {
       if (flat) {
-        return field.single_select_default
+        return defaultValue
       }
 
-      return field.select_options.find(
-        (option) => option.id === field.single_select_default
-      )
+      return field.select_options.find((option) => option.id === defaultValue)
     }
     return this.getEmptyValue(field)
   }
@@ -3970,14 +4004,20 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
     return []
   }
 
+  getDefaultValueFieldName() {
+    return 'multiple_select_default'
+  }
+
   getDefaultValue(field, flat) {
-    if (!field.multiple_select_default) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    const defaultValue = field[defaultValueFieldName]
+    if (defaultValue != null) {
       return this.getEmptyValue(field)
     }
     if (flat) {
-      return field.multiple_select_default
+      return defaultValue
     }
-    return (field.multiple_select_default || [])
+    return (defaultValue || [])
       .map((id) => field.select_options.find((opt) => opt.id === id))
       .filter(Boolean)
   }
