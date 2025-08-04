@@ -19,7 +19,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
 
     def __init__(self, only_record_id=None):
         self.cache = {}  # can be used by data providers to save queries
-        self.only_record_id = (only_record_id,)
+        self.only_record_id = only_record_id
         super().__init__()
 
     @abstractmethod
