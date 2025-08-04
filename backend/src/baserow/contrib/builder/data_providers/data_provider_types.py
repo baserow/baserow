@@ -360,8 +360,7 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
         data_source_id = first_collection_element_ancestor.specific.data_source_id
 
         # Narrow down our range to just our record index.
-        dispatch_context = dispatch_context.from_context(
-            dispatch_context,
+        dispatch_context = dispatch_context.clone(
             offset=0,
             count=1,
             only_record_id=current_record_id,

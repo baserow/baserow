@@ -17,6 +17,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 from baserow.core.exceptions import PermissionException
 from baserow.core.services.exceptions import (
     DoesNotExist,
+    InvalidContextContentDispatchException,
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
@@ -392,7 +393,7 @@ def test_local_baserow_get_row_service_dispatch_validation_error(data_fixture):
         integration=integration, table=table, row_id="''"
     )
 
-    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
+    with pytest.raises(InvalidContextContentDispatchException):
         service_type.dispatch(service, dispatch_context)
 
     service = data_fixture.create_local_baserow_get_row_service(
@@ -455,18 +456,25 @@ def test_local_baserow_get_row_service_dispatch_data_no_row_id(data_fixture):
 
     assert dispatch_data["data"].id == rows[0].id
 
-    # If the `row_id` is a formula, and its resolved value is blank, ensure we're
-    # raising `ServiceImproperlyConfiguredDispatchException`. We don't want to use the
-    # "no row ID" behaviour of returning the first row if we're using formulas.
+    # If the `row_id` is a formula, and its resolved value is blank or invalid,
+    # ensure we're raising `InvalidContextContentDispatchException`.
+    # We don't want to use the "no row ID" behaviour of returning the first row if
+    # we're using formulas.
     service.row_id = 'get("page_parameter.id")'
     service.save()
     dispatch_context = FakeDispatchContext(context={"page_parameter": {"id": ""}})
-    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
+    with pytest.raises(InvalidContextContentDispatchException) as exc:
+        service_type.resolve_service_formulas(service, dispatch_context)
+
+    assert exc.value.args[0] == 'Value error for "row_id": The value is required'
+
+    dispatch_context = FakeDispatchContext(context={"page_parameter": {"id": "p"}})
+    with pytest.raises(InvalidContextContentDispatchException) as exc:
         service_type.resolve_service_formulas(service, dispatch_context)
 
     assert (
-        exc.value.args[0] == "The `row_id` value must "
-        "be an integer or convertible to an integer."
+        exc.value.args[0] == 'Value error for "row_id": '
+        "The value must be an integer or convertible to an integer."
     )
 
 
