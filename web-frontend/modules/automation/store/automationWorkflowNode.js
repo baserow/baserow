@@ -84,6 +84,8 @@ const actions = {
       this.$client
     ).get(workflow.id)
 
+    console.log('Nodes: ', nodes)
+
     if (!workflow.nodes) {
       workflow.nodes = []
     }
@@ -119,7 +121,7 @@ const actions = {
     }
 
     // Apply optimistic create
-    commit('ADD_ITEM', { workflow, node: tempNode })
+    // commit('ADD_ITEM', { workflow, node: tempNode })
 
     try {
       const { data: node } = await AutomationWorkflowNodeService(
@@ -127,7 +129,7 @@ const actions = {
       ).create(workflow.id, type, beforeId, previousNodeId, previousNodeOutput)
 
       // Remove temp node and add real one
-      commit('DELETE_ITEM', { workflow, nodeId: tempId })
+      // commit('DELETE_ITEM', { workflow, nodeId: tempId })
       commit('ADD_ITEM', { workflow, node })
 
       // If we have a `beforeNode`, we need to update its `previous_node_id`
@@ -344,7 +346,7 @@ const getters = {
   getNextNodes:
     (state, getters) =>
     (workflow, targetNode, outputUid = null) => {
-      const nodes = getters.getNodes(workflow)
+      const nodes = getters.getNodesOrdered(workflow)
       const nextNodes = nodes.filter(
         (node) => node.previous_node_id === targetNode.id
       )

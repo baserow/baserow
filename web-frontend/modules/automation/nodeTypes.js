@@ -144,7 +144,7 @@ export class NodeType extends Registerable {
   }
 
   getNodeEdges({ node }) {
-    return [{ uid: '', label: '', position: { x: null } }]
+    return [{ uid: '', label: '' }]
   }
 }
 
@@ -496,34 +496,8 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
     return this.app.$registry.get('service', CoreRouterServiceType.getType())
   }
 
-  _getNodePositions(n, width = 360 + 100) {
-    if (n <= 0) return []
-
-    // for even n we move the whole row by width/2 so no node is on 0
-    const halfShift = n % 2 === 0 ? width / 2 : 0
-
-    // left‑most node
-    const start = -(Math.floor(n / 2) * width) + halfShift
-
-    // fill the array
-    const positions = []
-    for (let i = 0; i < n; i++) {
-      positions.push(start + i * width)
-    }
-    return positions
-  }
-
   getNodeEdges({ node: { service } }) {
-    if (!service?.edges.length) return []
-    const edges = this.getEdges({ service })
-    const positions = this._getNodePositions(edges.length)
-    return edges.map((edge, index) => {
-      return {
-        ...edge,
-        position: {
-          x: positions[index],
-        },
-      }
-    })
+    if (!service) return []
+    return this.getEdges({ service })
   }
 }
