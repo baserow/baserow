@@ -30,7 +30,7 @@ import {
   setToken,
 } from '@baserow/modules/core/utils/auth'
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
-import RecursiveWrapper from '@baserow/modules/database/components/RecursiveWrapper'
+import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
