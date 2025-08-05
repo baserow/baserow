@@ -2614,26 +2614,36 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             updated_fields.append(field)
 
         dependant_fields = []
-        for (
-            dependant_field,
-            dependant_field_type,
-            path_to_starting_table,
-        ) in FieldDependencyHandler.get_all_dependent_fields_with_type(
-            table.id,
-            updated_field_ids,
-            field_cache,
-            associated_relations_changed=True,
-            database_id_prefilter=table.database_id,
-        ):
-            dependant_fields.append(dependant_field)
-            dependant_field_type.row_of_dependency_deleted(
-                dependant_field,
-                row,
-                update_collector,
+
+        # Get dependent fields grouped by their dependency level to ensure
+        # correct update order
+        all_dependent_fields_grouped_by_level = (
+            FieldDependencyHandler.group_all_dependent_fields_by_level(
+                table.id,
+                updated_field_ids,
                 field_cache,
-                path_to_starting_table,
+                associated_relations_changed=True,
+                database_id_prefilter=table.database_id,
             )
-        update_collector.apply_updates_and_get_updated_fields(field_cache)
+        )
+
+        for dependent_fields_level in all_dependent_fields_grouped_by_level:
+            for (
+                dependant_field,
+                dependant_field_type,
+                path_to_starting_table,
+            ) in dependent_fields_level:
+                dependant_fields.append(dependant_field)
+
+                dependant_field_type.row_of_dependency_deleted(
+                    dependant_field,
+                    row,
+                    update_collector,
+                    field_cache,
+                    path_to_starting_table,
+                )
+
+            update_collector.apply_updates_and_get_updated_fields(field_cache)
         return updated_fields, dependant_fields
 
     def delete_rows(
@@ -2755,26 +2765,28 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         field_cache = FieldCache()
         field_cache.cache_model(model)
         dependant_fields = []
-        for (
-            dependant_field,
-            dependant_field_type,
-            path_to_starting_table,
-        ) in FieldDependencyHandler.get_all_dependent_fields_with_type(
-            table.id,
-            updated_field_ids,
-            field_cache,
-            associated_relations_changed=True,
-            database_id_prefilter=table.database_id,
-        ):
-            dependant_fields.append(dependant_field)
-            dependant_field_type.row_of_dependency_deleted(
-                dependant_field,
-                rows,
-                update_collector,
+
+        all_dependent_fields_grouped_by_level = (
+            FieldDependencyHandler.group_all_dependent_fields_by_level_from_fields(
+                updated_fields,
                 field_cache,
-                path_to_starting_table,
+                associated_relations_changed=True,
+                database_id_prefilter=table.database_id,
             )
-        update_collector.apply_updates_and_get_updated_fields(field_cache)
+        )
+
+        for dependent_fields_level in all_dependent_fields_grouped_by_level:
+            for table_id, dependant_field in dependent_fields_level:
+                dependant_fields.append(dependant_field)
+                dependant_field_type = field_type_registry.get_by_model(dependant_field)
+                dependant_field_type.row_of_dependency_deleted(
+                    dependant_field,
+                    rows,
+                    update_collector,
+                    field_cache,
+                    None,  # No via path for this method
+                )
+            update_collector.apply_updates_and_get_updated_fields(field_cache)
 
         from baserow.contrib.database.views.handler import ViewHandler
 
