@@ -97,6 +97,16 @@ class AutomationNodeType(
                 "category. Triggers cannot be updated with actions, and vice-versa."
             )
 
+    def after_create(self, node: AutomationNode) -> Any:
+        """
+        A hook called just after a node is created. Can be
+        overridden by subclasses to implement specific logic.
+
+        :param node: The node instance that was just created.
+        """
+
+        ...
+
     def get_service_type(self) -> Optional[ServiceTypeSubClass]:
         return (
             service_type_registry.get(self.service_type) if self.service_type else None
