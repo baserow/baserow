@@ -31,7 +31,7 @@
         </defs>
       </svg>
       <svg
-        v-show="checked && indeterminate"
+        v-show="indeterminate"
         class="checkbox__tick-indeterminate"
         xmlns="http://www.w3.org/2000/svg"
         width="8"
@@ -126,6 +126,7 @@ export default {
       return {
         'checkbox--disabled': this.disabled,
         'checkbox--checked': this.checked,
+        'checkbox--indeterminate': this.indeterminate,
         'checkbox--error': this.error,
         'checkbox--small': this.size === 'small',
       }

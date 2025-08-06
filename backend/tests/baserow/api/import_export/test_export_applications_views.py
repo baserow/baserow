@@ -7,6 +7,7 @@ import pytest
 from freezegun import freeze_time
 from rest_framework.status import (
     HTTP_200_OK,
+    HTTP_202_ACCEPTED,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
@@ -362,3 +363,82 @@ def test_list_exports_for_valid_user(
     assert export["state"] == "finished"
     assert export["progress_percentage"] == 100
     assert export["url"] == f"http://localhost:8000/media/export_files/{file_name}"
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_export_specific_application_ids_filters_correctly(
+    data_fixture,
+    api_client,
+    tmpdir,
+    settings,
+    django_capture_on_commit_callbacks,
+    use_tmp_media_root,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    database1 = data_fixture.create_database_application(
+        workspace=workspace, name="Database 1"
+    )
+    database2 = data_fixture.create_database_application(
+        workspace=workspace, name="Database 2"
+    )
+
+    data_fixture.create_database_table(database=database1, name="Table 1")
+    data_fixture.create_database_table(database=database2, name="Table 2")
+
+    run_time = "2024-10-14T08:00:00Z"
+    with django_capture_on_commit_callbacks(execute=True), freeze_time(run_time):
+        token = data_fixture.generate_token(user)
+        response = api_client.post(
+            reverse(
+                "api:workspaces:export_workspace_async",
+                kwargs={"workspace_id": workspace.id},
+            ),
+            data={
+                "application_ids": [database1.id],
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_202_ACCEPTED
+    job_id = response.json()["id"]
+
+    token = data_fixture.generate_token(user)
+    response = api_client.get(
+        reverse("api:jobs:item", kwargs={"job_id": job_id}),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["state"] == "finished"
+    assert response_json["progress_percentage"] == 100
+
+    file_name = response_json["exported_file_name"].replace("export_", "")
+    file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, file_name)
+    assert file_path.isfile()
+
+    with zipfile.ZipFile(file_path, "r") as zip_ref:
+        assert MANIFEST_NAME in zip_ref.namelist()
+
+        with zip_ref.open(MANIFEST_NAME) as json_file:
+            manifest_data = json.load(json_file)
+
+            applications = manifest_data["applications"]
+            assert "database" in applications
+            database_items = applications["database"]["items"]
+            assert len(database_items) == 1
+
+            exported_db = database_items[0]
+            assert exported_db["name"] == "Database 1"
+            assert exported_db["name"] != "Database 2"
+
+            db_schema_path = exported_db["files"]["schema"]
+            with zip_ref.open(db_schema_path) as db_file:
+                db_data = json.load(db_file)
+                assert db_data["name"] == "Database 1"
+                assert len(db_data["tables"]) == 1
+                assert db_data["tables"][0]["name"] == "Table 1"

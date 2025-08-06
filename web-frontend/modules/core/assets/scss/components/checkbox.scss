@@ -60,6 +60,12 @@
     border: 1px solid $palette-blue-500;
   }
 
+  .checkbox--indeterminate:not(.checkbox--disabled) & {
+    background: $palette-blue-500;
+    box-shadow: none;
+    border: 1px solid $palette-blue-500;
+  }
+
   .checkbox:active:not(.checkbox--checked) & {
     background-color: $palette-neutral-50;
     box-shadow: none;
