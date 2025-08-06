@@ -15,10 +15,7 @@ from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GRO
 from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
-from baserow.contrib.database.api.fields.errors import (
-    ERROR_FIELD_DATA_CONSTRAINT,
-    ERROR_TRASH_ITEM_RESTORATION_DISALLOWED,
-)
+from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DATA_CONSTRAINT
 from baserow.contrib.database.fields.exceptions import FieldDataConstraintException
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import (
@@ -46,6 +43,7 @@ from .errors import (
     ERROR_PARENT_ID_MUST_BE_PROVIDED,
     ERROR_PARENT_ID_MUST_NOT_BE_PROVIDED,
     ERROR_TRASH_ITEM_DOES_NOT_EXIST,
+    ERROR_TRASH_ITEM_RESTORATION_DISALLOWED,
 )
 from .serializers import (
     TrashContentsSerializer,
