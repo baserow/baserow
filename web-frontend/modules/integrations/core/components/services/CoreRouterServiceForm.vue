@@ -77,7 +77,9 @@
           </template>
           <template #footer>
             <ButtonText
+              :key="edgeDeletionTooltip(edge)"
               v-tooltip="edgeDeletionTooltip(edge)"
+              tooltip-position="bottom-left"
               :disabled="!edgeCanBeDeleted(edge)"
               icon="iconoir-bin"
               @click="removeEdge(edge)"
