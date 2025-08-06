@@ -243,7 +243,9 @@ export default {
       el.removeTooltipOutsideClickCallback()
 
       if (el.tooltipElement) {
-        el.tooltipElement.parentNode.removeChild(el.tooltipElement)
+        if (el.tooltipElement.parentNode) {
+          el.tooltipElement.parentNode.removeChild(el.tooltipElement)
+        }
         el.tooltipElement = null
         el.tooltipContentElement = null
         el._tooltipContentEventsAdded = false
