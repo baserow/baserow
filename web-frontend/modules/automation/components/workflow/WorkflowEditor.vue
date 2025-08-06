@@ -139,7 +139,7 @@ const calculateNodeDimensions = (node) => {
   )
 
   // Then we compute the edge dimensions
-  const nodeEdges = nodeType.getNodeEdges({ node })
+  const nodeEdges = nodeType.getEdges({ node })
 
   const edgeDimensions = Object.assign(
     {},
@@ -215,7 +215,7 @@ const calculatePositions = (dimensions, node, { x = 0, y = 0 } = {}) => {
   let currentEdgeX = x - dimensions[node.id].outputLeft + DATA_NODE_MIDDLE
   let currentX = x - dimensions[node.id].outputLeft // As input is the number of pixel from the left
 
-  const nodeEdges = nodeType.getNodeEdges({ node })
+  const nodeEdges = nodeType.getEdges({ node })
   const oneEdge = nodeEdges.length === 1
 
   const addButtonPositions = []

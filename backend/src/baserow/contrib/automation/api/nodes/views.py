@@ -19,6 +19,7 @@ from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_BEFORE_INVALID,
     ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
     ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE,
+    ERROR_AUTOMATION_NODE_NOT_DELETABLE,
     ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
     ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
     ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
@@ -45,8 +46,9 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
     AutomationNodeDoesNotExist,
     AutomationNodeMisconfiguredService,
+    AutomationNodeNotDeletable,
     AutomationNodeNotInWorkflow,
-    AutomationNodeTypeNotReplaceable,
+    AutomationNodeNotReplaceable,
     AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -250,7 +252,7 @@ class AutomationNodeView(APIView):
     @map_exceptions(
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
-            AutomationTriggerModificationDisallowed: ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
+            AutomationNodeNotDeletable: ERROR_AUTOMATION_NODE_NOT_DELETABLE,
         }
     )
     @transaction.atomic
@@ -376,7 +378,7 @@ class ReplaceAutomationNodeView(APIView):
     @map_exceptions(
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
-            AutomationNodeTypeNotReplaceable: ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
+            AutomationNodeNotReplaceable: ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
         }
     )
     @validate_body(ReplaceAutomationNodeSerializer)
