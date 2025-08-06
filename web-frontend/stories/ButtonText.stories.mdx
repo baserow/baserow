@@ -3,6 +3,7 @@ import { config, withDesign } from 'storybook-addon-designs'
 import { action } from '@storybook/addon-actions'
 
 import ButtonText from '@baserow/modules/core/components/ButtonText'
+import tooltip from '@baserow/modules/core/directives/tooltip'
 
 <Meta
     title="Baserow/Buttons/Text"
@@ -111,3 +112,30 @@ export const designConfig = {
 ## Props
 
 <Props of={ButtonText} />
+
+## Tooltip Test
+
+export const TooltipTemplate = (args, { argTypes }) => ({
+    components: { ButtonText },
+    directives: { tooltip },
+    data() {
+        return {
+            test: false
+        }
+    },
+    template: `
+        <div>
+            <ButtonText v-tooltip="test ? null : 'hello'">
+                test {{ test ? 'without tooltip' : 'with tooltip' }}
+            </ButtonText>
+            <br><br>
+            <button @click="test = !test">Toggle Tooltip</button>
+        </div>
+    `,
+})
+
+<Canvas>
+    <Story name="With Tooltip">
+        {TooltipTemplate.bind({})}
+    </Story>
+</Canvas>
