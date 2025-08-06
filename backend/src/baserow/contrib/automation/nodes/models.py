@@ -5,10 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Manager, QuerySet
 
-from baserow.contrib.automation.workflows.models import (
-    AutomationWorkflow,
-    DuplicateAutomationWorkflowJob,
-)
+from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.db import get_unique_orders_before_item
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
@@ -19,19 +16,6 @@ from baserow.core.mixins import (
     WithRegistry,
 )
 from baserow.core.services.models import Service
-
-__all__ = [
-    "AutomationNode",
-    "AutomationWorkflow",
-    "DuplicateAutomationWorkflowJob",
-    "LocalBaserowRowsCreatedTriggerNode",
-    "LocalBaserowRowsUpdatedTriggerNode",
-    "LocalBaserowRowsDeletedTriggerNode",
-    "LocalBaserowCreateRowActionNode",
-    "LocalBaserowUpdateRowActionNode",
-    "LocalBaserowDeleteRowActionNode",
-    "CoreSMTPEmailActionNode",
-]
 
 
 def get_default_node_content_type():
