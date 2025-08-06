@@ -5,6 +5,7 @@ from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedE
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
 from django.conf import settings
+from django.utils.translation import gettext as _
 from django.core.mail import EmailMultiAlternatives, get_connection
 
 from advocate.connection import UnacceptableAddressException
@@ -1024,14 +1025,16 @@ class CoreRouterServiceType(ServiceType):
             properties.update(
                 **{
                     "edge": {
-                        "title": "Branch taken",
+                        "title": _("Branch taken"),
                         "type": "object",
                         "properties": {
                             "label": {
                                 "type": "string",
-                                "title": "Label",
-                                "description": "The label of the "
-                                "branch that matched the condition.",
+                                "title": _("Label"),
+                                "description": _(
+                                    "The label of the "
+                                    "branch that matched the condition."
+                                ),
                             },
                         },
                     }
