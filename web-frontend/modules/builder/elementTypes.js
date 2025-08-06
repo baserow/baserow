@@ -132,6 +132,7 @@ export class ElementType extends Registerable {
 
   get stylesAll() {
     return [
+      'css_classes',
       'style_padding_top',
       'style_padding_bottom',
       'style_padding_left',

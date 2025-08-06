@@ -54,6 +54,20 @@
         />
       </FormGroup>
     </FormSection>
+    <FormSection>
+      <FormGroup
+        :label="$t('defaultStyleForm.cssClasses')"
+        small-label
+        required
+        class="margin-bottom-2"
+        :helper-text="$t('defaultStyleForm.cssClassesHelp')"
+      >
+        <FormInput
+          v-model="v$.values.css_classes.$model"
+          :placeholder="$t('defaultStyleForm.cssClassesPlaceholder')"
+        />
+      </FormGroup>
+    </FormSection>
     <FormSection v-if="isStyleAllowed('style_width')">
       <FormGroup
         :label="$t('defaultStyleForm.widthLabel')"
@@ -131,6 +145,7 @@ export default {
   data() {
     return {
       values: {
+        css_classes: '',
         style_background: BACKGROUND_TYPES.NONE,
         style_background_color: '',
         style_background_file: null,
@@ -194,6 +209,7 @@ export default {
   validations() {
     return {
       values: {
+        css_classes: {},
         style_background: {},
         style_background_color: {},
         style_background_file: {},

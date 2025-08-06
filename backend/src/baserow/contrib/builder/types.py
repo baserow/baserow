@@ -13,6 +13,7 @@ class ElementDict(TypedDict):
     type: str
     parent_element_id: int
     place_in_container: str
+    css_classes: str
     visibility: str
     role_type: str
     roles: list
