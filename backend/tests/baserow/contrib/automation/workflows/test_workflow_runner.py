@@ -165,7 +165,7 @@ def test_run_workflow_with_router_action(data_fixture):
         service=router_service,
         label="Edge 2",
         condition="'true'",
-        node=edge2_output_node,
+        output_node=edge2_output_node,
     )
     edge2_output_node.previous_node_output = edge2.uid
     edge2_output_node.save()

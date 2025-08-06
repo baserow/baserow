@@ -85,8 +85,6 @@ const actions = {
       this.$client
     ).get(workflow.id)
 
-    console.log('Nodes: ', nodes)
-
     if (!workflow.nodes) {
       workflow.nodes = []
     }

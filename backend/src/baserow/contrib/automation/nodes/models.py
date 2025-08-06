@@ -134,7 +134,7 @@ class AutomationNode(
         return self.workflow
 
     def get_next_nodes(
-        self, output_uid: str | None = None
+        self, output_uid: str | None = None, specific: bool = False
     ) -> Iterable["AutomationNode"]:
         """
         Returns all nodes which follow this node in the workflow. A list of nodes
@@ -142,12 +142,13 @@ class AutomationNode(
         when there are multiple branches in the workflow.
 
         :param output_uid: filter nodes only for this output uid.
+        :param specific: If True, returns the specific node type.
         """
 
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
         return AutomationNodeHandler().get_next_nodes(
-            self.workflow, self, output_uid=output_uid
+            self.workflow, self, output_uid=output_uid, specific=specific
         )
 
     @classmethod

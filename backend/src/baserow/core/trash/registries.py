@@ -150,6 +150,18 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
     def get_owner(self, trashed_item: Any) -> Optional["AbstractUser"]:
         return None
 
+    def get_additional_restoration_data(self, trashed_item: Any) -> Dict[str, Any]:
+        """
+        Returns additional data that should be stored in the trash entry when restoring
+        this item. This can be used to store additional information that is needed
+        during the restoration process.
+
+        :param trashed_item: The item that is being restored.
+        :return: A dict with additional data that should be stored in the trash entry.
+        """
+
+        return {}
+
 
 class TrashableItemTypeRegistry(ModelRegistryMixin, Registry):
     """
