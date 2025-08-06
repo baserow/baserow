@@ -1132,6 +1132,13 @@ def test_sanitize_element_roles_removes_invalid_roles(
             # not valid, so we expect an empty list.
             [],
         ),
+        (
+            (100, 7777),
+            [f"{DEFAULT_USER_ROLE_PREFIX}100", f"{DEFAULT_USER_ROLE_PREFIX}900"],
+            [f"{DEFAULT_USER_ROLE_PREFIX}7777"],
+            # the 900 id is missing in the datasource map so we don't keep that one.
+            [f"{DEFAULT_USER_ROLE_PREFIX}7777"],
+        ),
     ],
 )
 def test_sanitize_element_roles_fixes_default_user_role(
