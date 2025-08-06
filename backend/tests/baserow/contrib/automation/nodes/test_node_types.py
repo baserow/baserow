@@ -7,10 +7,8 @@ import pytest
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
-from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeTriggerType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.utils import MirrorDict
 

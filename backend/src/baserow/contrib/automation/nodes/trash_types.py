@@ -9,6 +9,7 @@ from baserow.contrib.automation.nodes.signals import (
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.models import TrashEntry
+from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
 from baserow.core.trash.registries import TrashableItemType
 
 
@@ -22,6 +23,12 @@ class AutomationNodeTrashableItemType(TrashableItemType):
     def get_name(self, trashed_item: AutomationActionNode) -> str:
         return f"{trashed_item.get_type().type} ({trashed_item.id})"
 
+    def get_additional_restoration_data(self, trash_item: AutomationActionNode):
+        return {
+            node.id: {"previous_node_output": node.previous_node_output}
+            for node in trash_item.get_next_nodes()
+        }
+
     def trash(
         self,
         item_to_trash: AutomationActionNode,
@@ -34,20 +41,11 @@ class AutomationNodeTrashableItemType(TrashableItemType):
 
         super().trash(item_to_trash, requesting_user, trash_entry)
 
-        # If the item we're trashing has an output, and there are nodes
-        # that follow, then we need to ensure the very next node inherits
-        # the output of the node we're trashing.
-        if item_to_trash.previous_node_output and next_nodes:
-            immediate_next_node = next_nodes[0]
-            immediate_next_node.previous_node_output = (
-                item_to_trash.previous_node_output
-            )
-            immediate_next_node.save(update_fields=["previous_node_output"])
-
         # As `item_to_trash` is trashed, we need to update the nodes that immediately
-        # follow this node, to point to the node before `item_to_trash`.
+        # follow this node, to point to the node before `item_to_trash`, and ensure
+        # that the previous_node_output is set to the output of the node before.
         AutomationNodeHandler().update_previous_node(
-            item_to_trash.previous_node, next_nodes
+            item_to_trash.previous_node, next_nodes, item_to_trash.previous_node_output
         )
 
         automation_node_deleted.send(
@@ -58,27 +56,67 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         )
 
     def restore(self, trashed_item: AutomationActionNode, trash_entry: TrashEntry):
+        workflow = trashed_item.workflow
         next_nodes = list(
-            AutomationNodeHandler().get_next_nodes(
-                trashed_item.workflow, trashed_item.previous_node
-            )
+            AutomationNodeHandler().get_next_nodes(workflow, trashed_item.previous_node)
         )
+
+        # If this trashed item is a trigger, we need to ensure that there is no
+        # existing trigger in the workflow. This can currently only happen if
+        # the user *replaces* the trigger node type, and then goes to the trash
+        # modal to restore the initial (trashed) trigger node.
+        if (
+            trashed_item.get_type().is_workflow_trigger
+            and workflow.automation_workflow_nodes.filter(
+                previous_node_id=None
+            ).exists()
+        ):
+            raise TrashItemRestorationDisallowed(
+                "This trashed automation trigger cannot be restored "
+                "because there is already a trigger in the workflow."
+            )
+
+        # If we're restoring a node, and it has a previous node output, ensure that
+        # the output UUID matches one of the `uid` in the previous node's edges. If
+        # the output isn't found, it means that the edge was deleted whilst the noed
+        # was trashed, and we cannot restore the node because it would create a broken
+        # workflow.
+        if trashed_item.previous_node_output and trashed_item.previous_node_id:
+            previous_node = trashed_item.previous_node.specific
+            if not previous_node.service.specific.edges.filter(
+                uid=trashed_item.previous_node_output
+            ).exists():
+                raise TrashItemRestorationDisallowed(
+                    "This automation node cannot be "
+                    "restored as its branch has been deleted."
+                )
 
         super().restore(trashed_item, trash_entry)
 
-        # If the item we're trashing has an output, and there are nodes
-        # that follow, then we need to ensure the very next node inherits
-        # the output of the node we're trashing.
-        if trashed_item.previous_node_output and next_nodes:
-            immediate_next_node = next_nodes[0]
-            immediate_next_node.previous_node_output = ""
-            immediate_next_node.save(update_fields=["previous_node_output"])
-
         # Determine if this restored node has a node after it. If it does, we'll
         # need to update its previous_node_id to point to `trashed_item.id`
-        # TODO this works for now but as soon as we can add more branches, we'll have
-        #      to store somewhere the next nodes when we trash the item
-        AutomationNodeHandler().update_previous_node(trashed_item, next_nodes)
+        AutomationNodeHandler().update_previous_node(
+            trashed_item,
+            next_nodes,
+        )
+
+        # If the trashed item had any restoration data, then that means that
+        # we have `previous_node_output` from next nodes to update.
+        restoration_data = trash_entry.additional_restoration_data or {}
+        if restoration_data:
+            updates = []
+            for next_node in next_nodes:
+                # Do we have anything to restore for this next node? For defensive
+                # programming purposes we double-check that the next node is present
+                # in the old state's restoration data.
+                node_restoration_data = restoration_data.get(str(next_node.id), None)
+                if node_restoration_data is None:
+                    continue
+                next_node.previous_node_output = node_restoration_data[
+                    "previous_node_output"
+                ]
+                updates.append(next_node)
+            AutomationNode.objects.bulk_update(updates, ["previous_node_output"])
 
         automation_node_created.send(self, node=trashed_item, user=None)
 

@@ -566,6 +566,12 @@ class TrashEntry(models.Model):
     # this permits to trash items together with a single entry
     related_items = models.JSONField(default=dict, null=True)
 
+    # A field to store additional restoration data that can be used by the
+    # TrashableItemType.restore method to restore the item in a specific way.
+    # For example, if the item was trashed with and related data needs to be
+    # restored with a specific state.
+    additional_restoration_data = models.JSONField(default=dict, null=True)
+
     class Meta:
         constraints = [
             UniqueConstraint(

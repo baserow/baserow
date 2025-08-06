@@ -15,7 +15,10 @@ from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GRO
 from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
-from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DATA_CONSTRAINT
+from baserow.contrib.database.api.fields.errors import (
+    ERROR_FIELD_DATA_CONSTRAINT,
+    ERROR_TRASH_ITEM_RESTORATION_DISALLOWED,
+)
 from baserow.contrib.database.fields.exceptions import FieldDataConstraintException
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import (
@@ -32,6 +35,7 @@ from baserow.core.trash.exceptions import (
     ParentIdMustBeProvidedException,
     ParentIdMustNotBeProvidedException,
     RelatedTableTrashedException,
+    TrashItemRestorationDisallowed,
 )
 from baserow.core.trash.handler import TrashHandler
 
@@ -88,6 +92,7 @@ class TrashItemView(APIView):
             RelatedTableTrashedException: ERROR_CANT_RESTORE_AS_RELATED_TABLE_TRASHED,
             CannotRestoreItemNotOwnedByUser: ERROR_CANNOT_RESTORE_ITEM_NOT_OWNED_BY_USER,
             FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
+            TrashItemRestorationDisallowed: ERROR_TRASH_ITEM_RESTORATION_DISALLOWED,
         }
     )
     def patch(self, request, data):

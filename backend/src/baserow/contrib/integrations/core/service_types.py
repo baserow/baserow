@@ -34,7 +34,6 @@ from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
 
-from ..api.core.serializers import CoreRouterServiceEdgeSerializer
 from .constants import BODY_TYPE, HTTP_METHOD
 from .integration_types import SMTPIntegrationType
 
@@ -841,6 +840,10 @@ class CoreRouterServiceType(ServiceType):
 
     @property
     def serializer_field_overrides(self):
+        from baserow.contrib.integrations.api.core.serializers import (
+            CoreRouterServiceEdgeSerializer,
+        )
+
         return {
             **super().serializer_field_overrides,
             "edges": CoreRouterServiceEdgeSerializer(

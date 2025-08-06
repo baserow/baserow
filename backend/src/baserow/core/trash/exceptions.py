@@ -54,3 +54,10 @@ class CannotRestoreItemNotOwnedByUser(Exception):
     """
     Raised when attempting to restore an item that is not owned by the user.
     """
+
+
+class TrashItemRestorationDisallowed(Exception):
+    """
+    Raised when an item cannot be restored from the trash due to specific conditions.
+    This could be due to the item being in a state that does not allow restoration.
+    """

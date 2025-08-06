@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -80,8 +80,10 @@ class AutomationNodeType(
         This hook is called right before the node's service is updated.
 
         :param service: The service instance we're about to update.
-        :param prepared_values: The prepared values that will be used to update the service.
+        :param prepared_values: The prepared values that
+            will be used to update the service.
         """
+
         ...
 
     def get_service_type(self) -> Optional[ServiceTypeSubClass]:
