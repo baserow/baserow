@@ -116,6 +116,7 @@ const workflowReadOnly = inject('workflowReadOnly')
 const ADD_BUTTON_OFFSET_Y = 60 // Vertical offset of add button relative to the data node above it
 const DATA_NODE_WIDTH = 412 // How wide is a node?
 const DATA_NODE_MIDDLE = DATA_NODE_WIDTH / 2 // The middle of a node.
+const NODE_PADDING = 30 // Padding between node edege
 
 watch(
   selectedNodeId,
@@ -151,7 +152,9 @@ const calculateNodeDimensions = (node) => {
       if (nextNodesOnEdge.length) {
         const width = _.sum(
           nextNodesOnEdge.map(
-            (nextNode) => nextNodeDimensions[nextNode.id].width
+            (nextNode) =>
+              nextNodeDimensions[nextNode.id].width +
+              (nextNodesOnEdge.length - 1) * NODE_PADDING
           )
         )
 
@@ -170,13 +173,14 @@ const calculateNodeDimensions = (node) => {
         }
       }
       // The default width if we have no nodes on the edge.
-      return { [edge.uid]: { width: 200, input: 100 } }
+      return { [edge.uid]: { width: 100, input: 50 } }
     })
   )
 
-  const widthSum = _.sum(
-    nodeEdges.map((edge) => edgeDimensions[edge.uid].width)
-  )
+  const widthSum =
+    _.sum(nodeEdges.map((edge) => edgeDimensions[edge.uid].width)) +
+    (nodeEdges.length - 1) * NODE_PADDING
+
   const width = Math.max(widthSum, DATA_NODE_WIDTH)
 
   // We take the left and right edge to compute the input position for this node
@@ -196,6 +200,8 @@ const calculateNodeDimensions = (node) => {
     ...{
       [node.id]: {
         width,
+        // Sometimes the width of edges is smaller than the width of node
+        outputLeft: input - (width - widthSum) / 2,
         height,
         input,
         edges: edgeDimensions,
@@ -207,8 +213,8 @@ const calculateNodeDimensions = (node) => {
 const calculatePositions = (dimensions, node, { x = 0, y = 0 } = {}) => {
   const nodeType = app.$registry.get('node', node.type)
 
-  let currentEdgeX = x - dimensions[node.id].input + DATA_NODE_MIDDLE
-  let currentX = x - dimensions[node.id].input // As input is the number of pixel from the left
+  let currentEdgeX = x - dimensions[node.id].outputLeft + DATA_NODE_MIDDLE
+  let currentX = x - dimensions[node.id].outputLeft // As input is the number of pixel from the left
 
   const nodeEdges = nodeType.getNodeEdges({ node })
   const oneEdge = nodeEdges.length === 1
@@ -225,8 +231,6 @@ const calculatePositions = (dimensions, node, { x = 0, y = 0 } = {}) => {
 
       const noNodeOnEdge = nextNodesAlongEdge.length === 0
 
-      const edgeWidth = dimensions[node.id].edges[edge.uid].width
-
       const buttonKey = `edge-${node.id}-${edge.uid || 'default'}`
 
       // add edge between node and add button
@@ -241,32 +245,24 @@ const calculatePositions = (dimensions, node, { x = 0, y = 0 } = {}) => {
         type: oneEdge ? 'straight' : 'smoothstep',
       })
 
+      const edgeWidth = dimensions[node.id].edges[edge.uid].width
+
       // We define the position of the buttons
-      if (noNodeOnEdge && oneEdge) {
-        // Special case when we have one branch without node
-        addButtonPositions.push({
-          uid: edge.uid,
-          key: buttonKey,
-          x: x - 16 + DATA_NODE_MIDDLE, // half an add button width
-          y: y + 90,
-        })
-      } else {
-        addButtonPositions.push({
-          uid: edge.uid,
-          key: buttonKey,
-          x:
-            currentEdgeX -
-            16 + // half an add button width
-            dimensions[node.id].edges[edge.uid].input,
-          y: y + (oneEdge ? 90 : 130),
-        })
-      }
+      addButtonPositions.push({
+        uid: edge.uid,
+        key: buttonKey,
+        x:
+          currentEdgeX -
+          16 + // half an add button width
+          dimensions[node.id].edges[edge.uid].input,
+        y: y + (oneEdge ? 90 : 130),
+      })
 
       if (noNodeOnEdge) {
         // The currentX didn't change as we have no node but it has to increase
-        currentX += edgeWidth
+        currentX += edgeWidth + NODE_PADDING
       }
-      currentEdgeX += edgeWidth
+      currentEdgeX += edgeWidth + NODE_PADDING
 
       const nodesAlongEdgePositions = Object.assign(
         {},
@@ -285,7 +281,7 @@ const calculatePositions = (dimensions, node, { x = 0, y = 0 } = {}) => {
 
           const nextX = currentX + dimensions[nextNode.id].input // The next X is the input position of the next node
           const nextY = y + dimensions[node.id].height
-          currentX += dimensions[nextNode.id].width // Moving to next node
+          currentX += dimensions[nextNode.id].width + NODE_PADDING // Moving to next node
 
           return calculatePositions(dimensions, nextNode, {
             x: nextX,
