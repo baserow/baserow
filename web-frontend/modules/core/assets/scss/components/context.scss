@@ -108,7 +108,7 @@
       color: $palette-neutral-1300;
     }
 
-    &.context__menu-item-link--delete {
+    &.context__menu-item-link--delete:not(.disabled) {
       background: $palette-red-50;
       color: $palette-red-800;
 

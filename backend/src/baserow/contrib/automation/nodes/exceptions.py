@@ -49,9 +49,16 @@ class AutomationTriggerModificationDisallowed(AutomationNodeError):
     """
 
 
-class AutomationNodeTypeNotReplaceable(AutomationNodeError):
+class AutomationNodeNotDeletable(AutomationNodeError):
     """
-    Raised when an API consumer tries to update an automation node with a
-    new type, but the source type and update type are irreplaceable. This
-    happens, for example, if you try and replace a trigger node with an action.
+    Raised when an automation node is not deletable. This can happen if
+    the node's type dictates that it cannot be deleted.
+    """
+
+
+class AutomationNodeNotReplaceable(AutomationNodeError):
+    """
+    Raised when an automation node is not replaceable. This can happen if
+    the node's type dictates that it cannot be replaced, or if a trigger
+    is being replaced with an action, or vice versa.
     """
