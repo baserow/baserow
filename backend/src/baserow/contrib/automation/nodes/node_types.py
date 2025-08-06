@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Q, QuerySet
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -155,6 +156,16 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
                 "have one or more output nodes associated with them."
             )
 
+    def after_create(self, node: CoreRouterActionNode):
+        """
+        After a router node is created, this method will create
+        an initial edge for the user to start with.
+
+        :param node: The router node instance that was just created.
+        """
+
+        node.service.edges.create(label=_("Branch"))
+
     def prepare_values(
         self,
         values: Dict[str, Any],
@@ -175,7 +186,7 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
 
         if instance:
             service = instance.service.specific
-            prepared_uids = [edge["uid"] for edge in values.get("edges", [])]
+            prepared_uids = [edge["uid"] for edge in values["service"].get("edges", [])]
             persisted_uids = [str(edge.uid) for edge in service.edges.only("uid")]
             removed_uids = list(set(persisted_uids) - set(prepared_uids))
             output_nodes_with_removed_uids = AutomationNode.objects.filter(

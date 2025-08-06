@@ -147,6 +147,7 @@ class AutomationNodeService:
         new_node = self.handler.create_node(
             node_type, order=order, workflow=workflow, before=before, **prepared_values
         )
+        node_type.after_create(new_node)
 
         automation_node_created.send(
             self,

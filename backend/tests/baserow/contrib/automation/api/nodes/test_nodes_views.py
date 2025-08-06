@@ -633,6 +633,108 @@ def test_replace_node_type_with_replaceable_type(
 
 
 @pytest.mark.django_db
+def test_create_router_node(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
+    response = api_client.post(
+        url,
+        {"type": "router"},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "id": AnyInt(),
+        "order": AnyStr(),
+        "previous_node_id": None,
+        "previous_node_output": "",
+        "service": {
+            "context_data": None,
+            "context_data_schema": None,
+            "default_edge_label": "",
+            "edges": [
+                {
+                    "condition": "",
+                    "label": "Branch",
+                    "order": AnyStr(),
+                    "uid": AnyStr(),
+                },
+            ],
+            "id": AnyInt(),
+            "integration_id": None,
+            "schema": {
+                "properties": {
+                    "edge": {
+                        "properties": {
+                            "label": {
+                                "description": "The label of the branch that matched the condition.",
+                                "title": "Label",
+                                "type": "string",
+                            },
+                        },
+                        "title": "Branch taken",
+                        "type": "object",
+                    },
+                },
+                "title": AnyStr(),
+                "type": "object",
+            },
+            "type": "router",
+        },
+        "type": "router",
+        "workflow": workflow.id,
+    }
+
+
+@pytest.mark.django_db
+def test_updating_router_node_removing_edge_without_output_allowed(
+    api_client,
+    data_fixture,
+):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    service = data_fixture.create_core_router_service(default_edge_label="Default")
+    router = data_fixture.create_core_router_action_node(
+        workflow=workflow, service=service
+    )
+    first_edge = data_fixture.create_core_router_service_edge(
+        service=service, label="Do this", condition="'true'"
+    )
+    AutomationNode.objects.filter(previous_node_output=first_edge.uid).delete()
+    second_edge = data_fixture.create_core_router_service_edge(
+        service=service, label="Do that", condition="'true'"
+    )
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": router.id}),
+        {
+            "service": {
+                "type": "router",
+                "edges": [
+                    {
+                        "uid": second_edge.uid,
+                        "label": second_edge.label,
+                        "condition": second_edge.condition,
+                    }
+                ],
+            },
+            "type": "router",
+        },
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["service"]["edges"] == [
+        {
+            "uid": str(second_edge.uid),
+            "label": second_edge.label,
+            "order": "0.00000000000000000000",
+            "condition": second_edge.condition,
+        }
+    ]
+
+
+@pytest.mark.django_db
 def test_updating_router_node_with_edge_removals_when_they_have_output_nodes_disallowed(
     api_client,
     data_fixture,
