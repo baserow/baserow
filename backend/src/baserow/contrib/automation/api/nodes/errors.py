@@ -31,9 +31,14 @@ ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED = (
     "they can only be replaced with a different type.",
 )
 
+ERROR_AUTOMATION_NODE_NOT_DELETABLE = (
+    "ERROR_AUTOMATION_NODE_NOT_DELETABLE",
+    HTTP_400_BAD_REQUEST,
+    "{e}",
+)
+
 ERROR_AUTOMATION_NODE_NOT_REPLACEABLE = (
     "ERROR_AUTOMATION_NODE_NOT_REPLACEABLE",
     HTTP_400_BAD_REQUEST,
-    "Automation nodes can only be updated with a type of the same "
-    "category. Triggers cannot be updated with actions, and vice-versa.",
+    "{e}",
 )

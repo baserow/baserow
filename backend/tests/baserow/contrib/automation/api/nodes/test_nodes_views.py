@@ -382,7 +382,7 @@ def test_delete_trigger_node_disallowed(api_client, data_fixture):
     response = api_client.delete(delete_url, **api_kwargs)
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
-        "error": "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
+        "error": "ERROR_AUTOMATION_NODE_NOT_DELETABLE",
         "detail": "Triggers can not be created, deleted or duplicated, "
         "they can only be replaced with a different type.",
     }
@@ -599,9 +599,9 @@ def test_replace_node_type_with_irreplaceable_type(
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_NOT_REPLACEABLE",
         "detail": "Automation nodes can only be updated with a type of the same "
         "category. Triggers cannot be updated with actions, and vice-versa.",
-        "error": "ERROR_AUTOMATION_NODE_NOT_REPLACEABLE",
     }
 
 
@@ -663,4 +663,53 @@ def test_updating_router_node_with_edge_removals_when_they_have_output_nodes_dis
         "detail": "One or more branches have been removed from the router node, "
         "but they still point to output nodes. These nodes must be trashed before "
         "the router can be updated.",
+    }
+
+
+@pytest.mark.django_db
+def test_deleting_router_node_with_output_nodes_disallowed(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    service = data_fixture.create_core_router_service(default_edge_label="Default")
+    router = data_fixture.create_core_router_action_node(
+        workflow=workflow, service=service
+    )
+    edge = data_fixture.create_core_router_service_edge(
+        service=service, label="Do this", condition="'true'"
+    )
+    assert AutomationNode.objects.filter(previous_node_output=edge.uid).exists()
+    response = api_client.delete(
+        reverse(API_URL_ITEM, kwargs={"node_id": router.id}),
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_NOT_DELETABLE",
+        "detail": "Router nodes cannot be deleted if they "
+        "have one or more output nodes associated with them.",
+    }
+
+
+@pytest.mark.django_db
+def test_replacing_router_node_with_output_nodes_disallowed(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    service = data_fixture.create_core_router_service(default_edge_label="Default")
+    router = data_fixture.create_core_router_action_node(
+        workflow=workflow, service=service
+    )
+    edge = data_fixture.create_core_router_service_edge(
+        service=service, label="Do this", condition="'true'"
+    )
+    assert AutomationNode.objects.filter(previous_node_output=edge.uid).exists()
+    response = api_client.post(
+        reverse(API_URL_REPLACE, kwargs={"node_id": router.id}),
+        {"new_type": "create_row"},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_NOT_REPLACEABLE",
+        "detail": "Router nodes cannot be replaced if they "
+        "have one or more output nodes associated with them.",
     }

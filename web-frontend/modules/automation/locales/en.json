@@ -66,6 +66,7 @@
     "testRun": "Test"
   },
   "nodeType": {
+    "triggerDeletionError": "Triggers cannot be deleted, only replaced.",
     "localBaserowRowsCreatedLabel": "Rows are created in {tableName}",
     "localBaserowRowsUpdatedLabel": "Rows are updated in {tableName}",
     "localBaserowRowsDeletedLabel": "Rows are deleted in {tableName}",
@@ -78,7 +79,9 @@
     "httpRequestLabel": "Send an HTTP request",
     "smtpEmailLabel": "Send an email",
     "routerLabel": "Follow 1 of {edgeCount} branches",
-    "routerDefaultEdgeLabelFallback": "Otherwise"
+    "routerDefaultEdgeLabelFallback": "Otherwise",
+    "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
+    "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed."
   },
   "workflowNode": {
     "actionDelete": "Delete",

@@ -27,6 +27,7 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         return {
             node.id: {"previous_node_output": node.previous_node_output}
             for node in trash_item.get_next_nodes()
+            if node.previous_node_output
         }
 
     def trash(

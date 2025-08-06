@@ -8,6 +8,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.formula_importer import import_formula
+from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotReplaceable
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.integrations.models import Integration
@@ -23,7 +24,6 @@ from baserow.core.registry import (
 )
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.handler import ServiceHandler
-from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
 
 
@@ -71,20 +71,31 @@ class AutomationNodeType(
             "service",
         ]
 
-    def before_service_update(
-        self,
-        service: Service,
-        prepared_values: Dict,
-    ):
+    def before_delete(self, node: AutomationNode) -> Any:
         """
-        This hook is called right before the node's service is updated.
+        A hook called just before a node is deleted. Can be
+        overridden by subclasses to implement specific logic.
 
-        :param service: The service instance we're about to update.
-        :param prepared_values: The prepared values that
-            will be used to update the service.
+        :param node: The node instance to about to be deleted.
         """
 
         ...
+
+    def before_replace(self, node: AutomationNode, new_node_type: Instance) -> Any:
+        """
+        A hook called just before a node is replaced. Can be
+        overridden by subclasses to implement specific logic.
+
+        :param node: The node instance to about to be replaced.
+        :param new_node_type: The new node type that will
+            replace the current one.
+        """
+
+        if not node.get_type().is_replaceable_with(new_node_type):
+            raise AutomationNodeNotReplaceable(
+                "Automation nodes can only be updated with a type of the same "
+                "category. Triggers cannot be updated with actions, and vice-versa."
+            )
 
     def get_service_type(self) -> Optional[ServiceTypeSubClass]:
         return (
@@ -225,21 +236,21 @@ class AutomationNodeType(
         instance: AutomationNode = None,
     ) -> Dict[str, Any]:
         """
-        Responsible for preparing the service-based trigger node. By default,
+        Responsible for preparing the node's service. By default,
         the only step is to pass any `service` data into the service.
 
-        :param values: The full trigger node values to prepare.
+        :param values: The full node values to prepare.
         :param user: The user on whose behalf the change is made.
-        :param instance: A `AutomationServiceNode` subclass instance.
-        :return: The modified trigger node values, prepared.
+        :param instance: A `AutomationNode` instance.
+        :return: The modified node values, prepared.
         """
 
         service_type = service_type_registry.get(self.service_type)
 
         if not instance:
-            # If we haven't received a trigger node instance, we're preparing
-            # as part of creating a new node. If this happens, we need to create
-            # a new service.
+            # If we haven't received a node instance, we're preparing
+            # as part of creating a new node. If this happens, we need
+            # to create a new service.
             service = ServiceHandler().create_service(service_type)
         else:
             service = instance.service.specific
@@ -249,10 +260,6 @@ class AutomationNodeType(
         prepared_service_values = service_type.prepare_values(
             service_values, user, service
         )
-
-        # Perform any last-minute checks on the prepared values.
-        # Some node types need to check the service values before updating.
-        self.before_service_update(service, prepared_service_values)
 
         # Update the service instance with any prepared service values.
         ServiceHandler().update_service(

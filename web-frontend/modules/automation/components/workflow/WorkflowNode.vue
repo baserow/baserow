@@ -6,7 +6,7 @@
         ? `ID: ${props.id} | Previous: ${node.previous_node_id} | Output: ${
             props.data.outputUid || 'None'
           }`
-        : ''
+        : 'Create automation node'
     "
     :data-before-label="
       data.isTrigger
@@ -46,19 +46,25 @@
       <ul class="context__menu">
         <li class="context__menu-item">
           <a
+            :key="getReplaceErrorMessage"
+            v-tooltip="getReplaceErrorMessage || null"
             role="button"
             class="context__menu-item-link context__menu-item-link--switch"
-            @click="openReplaceContext()"
+            :class="{ disabled: getReplaceErrorMessage }"
+            @click="!getReplaceErrorMessage && openReplaceContext()"
           >
             <i class="context__menu-item-icon baserow-icon-history"></i>
             {{ $t('workflowNode.moreReplace') }}
           </a>
         </li>
-        <li v-if="!data.isTrigger" class="context__menu-item">
+        <li class="context__menu-item">
           <a
+            :key="getDeleteErrorMessage"
+            v-tooltip="getDeleteErrorMessage || null"
             role="button"
             class="context__menu-item-link context__menu-item-link--delete"
-            @click="emit('remove-node', id)"
+            :class="{ disabled: getDeleteErrorMessage }"
+            @click="!getDeleteErrorMessage && emit('remove-node', props.id)"
           >
             <i class="context__menu-item-icon iconoir-bin"></i>
             {{ $t('workflowNode.actionDelete') }}
@@ -164,6 +170,18 @@ const loading = computed(() => {
 })
 const isInError = computed(() => {
   return nodeType.value.isInError({ service: node.value.service })
+})
+const getReplaceErrorMessage = computed(() => {
+  return nodeType.value.getReplaceErrorMessage({
+    workflow: workflow.value,
+    node: node.value,
+  })
+})
+const getDeleteErrorMessage = computed(() => {
+  return nodeType.value.getDeleteErrorMessage({
+    workflow: workflow.value,
+    node: node.value,
+  })
 })
 
 const handleReplaceNode = (newType) => {
