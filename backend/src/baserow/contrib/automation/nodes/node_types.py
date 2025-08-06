@@ -133,7 +133,8 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         then an exception is raised to prevent the update.
 
         :param service: The service instance we're about to update.
-        :param prepared_values: The prepared values that will be used to update the service.
+        :param prepared_values: The prepared values that will
+            be used to update the service.
         """
 
         prepared_uids = [edge["uid"] for edge in prepared_values.get("edges", [])]

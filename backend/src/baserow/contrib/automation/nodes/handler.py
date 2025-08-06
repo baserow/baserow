@@ -81,7 +81,11 @@ class AutomationNodeHandler:
         return _get_nodes()
 
     def get_next_nodes(
-        self, workflow, node: None | AutomationNode, output_uid: str | None = None
+        self,
+        workflow,
+        node: None | AutomationNode,
+        output_uid: str | None = None,
+        specific: bool = False,
     ) -> Iterable["AutomationNode"]:
         """
         Returns all nodes which follow the given node in the workflow. A list of nodes
@@ -91,6 +95,7 @@ class AutomationNodeHandler:
         :param workflow: filter nodes for this workflow.
         :param node: this is the previous not. If null, first nodes are returned.
         :param output_uid: filter nodes only for this output uid.
+        :param specific: If True, returns the specific node type.
         """
 
         queryset = AutomationNode.objects.filter(
@@ -100,7 +105,7 @@ class AutomationNodeHandler:
         if output_uid is not None:
             queryset = queryset.filter(previous_node_output=output_uid)
 
-        return self.get_nodes(workflow, base_queryset=queryset)
+        return self.get_nodes(workflow, base_queryset=queryset, specific=specific)
 
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
@@ -127,16 +132,22 @@ class AutomationNodeHandler:
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
-    def update_previous_node(self, new_previous_node, nodes):
+    def update_previous_node(self, new_previous_node, nodes, previous_node_output=None):
         """
-        Relink all nodes to the given new previous node.
+        Relink all nodes to the given new previous node and ensure that we set the
+        previous node output correctly.
 
         :param new_previous_node: The new previous node.
         :param nodes: The nodes to relink.
+        :param previous_node_output: The output of the previous node, if any.
         """
 
+        update_kwargs = {"previous_node": new_previous_node}
+        if previous_node_output is not None:
+            update_kwargs["previous_node_output"] = previous_node_output
+
         AutomationNode.objects.filter(id__in=[n.id for n in nodes]).update(
-            previous_node=new_previous_node
+            **update_kwargs
         )
 
     def create_node(
