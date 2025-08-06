@@ -100,9 +100,9 @@ class ServiceFixtures:
         return self.create_service(CoreRouterService, **kwargs)
 
     def create_core_router_service_edge(self, service: CoreRouterService, **kwargs):
-        node = kwargs.pop("node", None)
+        output_node = kwargs.pop("output_node", None)
         edge = service.edges.create(**kwargs)
-        if node is None:
+        if output_node is None:
             router_node = service.automation_workflow_node
             self.create_local_baserow_create_row_action_node(
                 previous_node_output=edge.uid,
