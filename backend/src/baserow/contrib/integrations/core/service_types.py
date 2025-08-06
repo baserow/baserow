@@ -21,7 +21,12 @@ from baserow.contrib.integrations.core.models import (
     HTTPHeader,
     HTTPQueryParam,
 )
-from baserow.core.formula.validator import ensure_array, ensure_email, ensure_string, ensure_boolean
+from baserow.core.formula.validator import (
+    ensure_array,
+    ensure_boolean,
+    ensure_email,
+    ensure_string,
+)
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -946,6 +951,21 @@ class CoreRouterServiceType(ServiceType):
             service, prop_name, files_zip=files_zip, storage=storage, cache=cache
         )
 
+    def formulas_to_resolve(self, service: CoreRouterService) -> list[FormulaToResolve]:
+        """
+        Returns the formula to resolve for this service.
+        """
+
+        return [
+            FormulaToResolve(
+                f"edge_{edge.uid}",
+                edge.condition,
+                ensure_boolean,
+                f'edge "{edge.label}" condition',
+            )
+            for edge in service.edges.all()
+        ]
+
     def formula_generator(
         self, service: CoreRouterService
     ) -> Generator[str | Instance, str, None]:
@@ -1044,27 +1064,12 @@ class CoreRouterServiceType(ServiceType):
         """
 
         for edge in service.edges.all():
-            try:
-                condition_result = ensure_boolean(
-                    resolve_formula(
-                        edge.condition,
-                        formula_runtime_function_registry,
-                        dispatch_context,
-                    )
-                )
-                if condition_result:
-                    return {
-                        "output_uid": str(edge.uid),
-                        "data": {"edge": {"label": edge.label}},
-                    }
-            except BaserowFormulaException as e:
-                raise ServiceImproperlyConfiguredDispatchException(
-                    f"Error in formula for edge {edge.label}: {str(e)}"
-                ) from e
-            except Exception as e:
-                raise UnexpectedDispatchException(
-                    f"Unknown error in formula for edge {edge.label}: {str(e)}"
-                ) from e
+            condition_result = resolved_values[f"edge_{edge.uid}"]
+            if condition_result:
+                return {
+                    "output_uid": str(edge.uid),
+                    "data": {"edge": {"label": edge.label}},
+                }
 
         return {
             "output_uid": "",
