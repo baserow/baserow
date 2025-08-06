@@ -1006,13 +1006,6 @@ export class FieldType extends Registerable {
   canHaveDbIndex(fieldValues) {
     return false
   }
-
-  /**
-   * Sanitizes any default values that reference values not available in the field.
-   * This is useful when field values have been filtered/restricted.
-   * Override this method in field types that have default values dependent on available values.
-   */
-  sanitizeDefaultValue(field) {}
 }
 
 class SelectOptionBaseFieldType extends FieldType {
@@ -1027,29 +1020,6 @@ class SelectOptionBaseFieldType extends FieldType {
       }
     )
     return updatedField
-  }
-
-  sanitizeDefaultValue(field) {
-    const defaultValueFieldName = this.getDefaultValueFieldName()
-
-    if (!defaultValueFieldName || !field.select_options) {
-      return
-    }
-
-    const defaultValue = field[defaultValueFieldName]
-    if (defaultValue == null) {
-      return
-    }
-
-    const availableOptionIds = field.select_options.map((option) => option.id)
-
-    if (Array.isArray(defaultValue)) {
-      field[defaultValueFieldName] = defaultValue.filter((id) =>
-        availableOptionIds.includes(id)
-      )
-    } else if (!availableOptionIds.includes(defaultValue)) {
-      field[defaultValueFieldName] = null
-    }
   }
 
   getFormViewFieldOptionsComponent() {
@@ -3767,7 +3737,10 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
         return defaultValue
       }
 
-      return field.select_options.find((option) => option.id === defaultValue)
+      const foundOption = field.select_options.find(
+        (option) => option.id === defaultValue
+      )
+      return foundOption || this.getEmptyValue(field)
     }
     return this.getEmptyValue(field)
   }
@@ -4011,7 +3984,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
   getDefaultValue(field, flat) {
     const defaultValueFieldName = this.getDefaultValueFieldName()
     const defaultValue = field[defaultValueFieldName]
-    if (defaultValue != null) {
+    if (defaultValue == null) {
       return this.getEmptyValue(field)
     }
     if (flat) {

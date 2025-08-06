@@ -107,7 +107,6 @@ export default {
 
       const prefill = prefillField(field, prefills)
 
-      fieldType.sanitizeDefaultValue(field.field)
       values[`field_${field.field.id}`] = fieldType.getDefaultValue(field.field)
       if (
         prefill !== undefined &&
