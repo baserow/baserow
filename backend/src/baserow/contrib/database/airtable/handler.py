@@ -157,9 +157,9 @@ class AirtableFileImport:
 
         # Files for which check failed are excluded from the
         # files_to_download dict
+        # Those missing files are already included in the import report
         if name not in self.files_to_download:
-            yield None
-            return
+            raise KeyError(f"File '{name}' not found in files_to_download")
 
         response = download_airtable_file(
             name=name,
