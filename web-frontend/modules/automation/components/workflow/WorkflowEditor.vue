@@ -113,10 +113,9 @@ const workflowDebug = inject('workflowDebug')
 const workflowReadOnly = inject('workflowReadOnly')
 
 // Constants for positioning
-const ADD_BUTTON_OFFSET_Y = 60 // Vertical offset of add button relative to the data node above it
 const DATA_NODE_WIDTH = 412 // How wide is a node?
 const DATA_NODE_MIDDLE = DATA_NODE_WIDTH / 2 // The middle of a node.
-const NODE_PADDING = 30 // Padding between node edege
+const NODE_PADDING = 30 // Padding between node edges
 
 watch(
   selectedNodeId,
