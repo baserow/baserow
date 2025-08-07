@@ -24,6 +24,7 @@
             enabled: true,
             handle: '[data-sortable-handle]',
           }"
+          :default-expanded="index === 0"
           toggle-on-click
         >
           <template #title>

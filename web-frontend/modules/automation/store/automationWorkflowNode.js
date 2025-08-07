@@ -100,6 +100,7 @@ const actions = {
     // what the `beforeId` should be. We will have `beforeId` if we're
     // creating a node after `previousNodeId`, and `previousNodeId` has
     // a node that follows it.
+    const nodeType = this.$registry.get('node', type)
     const previousNode = getters.findById(workflow, previousNodeId)
     const nextNodes = getters.getNextNodes(
       workflow,
@@ -111,16 +112,17 @@ const actions = {
 
     // Create a temporary node for optimistic UI
     const tempId = uuid()
-    const tempNode = {
+
+    const tempNode = nodeType.getDefaultValues({
       id: tempId,
       type,
       previous_node_id: previousNodeId,
       previous_node_output: previousNodeOutput,
       workflow_id: workflow.id,
-    }
+    })
 
     // Apply optimistic create
-    // commit('ADD_ITEM', { workflow, node: tempNode })
+    commit('ADD_ITEM', { workflow, node: tempNode })
 
     try {
       const { data: node } = await AutomationWorkflowNodeService(
@@ -128,7 +130,7 @@ const actions = {
       ).create(workflow.id, type, beforeId, previousNodeId, previousNodeOutput)
 
       // Remove temp node and add real one
-      // commit('DELETE_ITEM', { workflow, nodeId: tempId })
+      commit('DELETE_ITEM', { workflow, nodeId: tempId })
       commit('ADD_ITEM', { workflow, node })
 
       // If we have a `beforeNode`, we need to update its `previous_node_id`
