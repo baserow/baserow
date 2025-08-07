@@ -251,6 +251,9 @@ class ServiceType(
 
         return None
 
+    def get_edges(self, service: ServiceSubClass):
+        return [{"label": "", "uid": ""}]
+
     def formulas_to_resolve(self, service: ServiceSubClass) -> list[FormulaToResolve]:
         return []
 
