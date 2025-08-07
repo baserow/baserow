@@ -187,11 +187,13 @@ class AutomationNodeHandler:
                     "previous_node_output"
                 ] = before.previous_node_output
 
-            # Find any nodes which have a `previous_node_id` matching the
-            # `previous_node_id` of the `before` node. These nodes will
-            # need to be relinked to the new node.
+            # Find any nodes which have a previous node ID and output
+            # that match the before node's previous node ID and output.
             node_previous_ids_to_update = list(
-                AutomationNode.objects.filter(previous_node_id=before.previous_node_id)
+                AutomationNode.objects.filter(
+                    previous_node_id=before.previous_node_id,
+                    previous_node_output=before.previous_node_output,
+                )
             )
 
         # If we don't already have a `previous_node_id`...
