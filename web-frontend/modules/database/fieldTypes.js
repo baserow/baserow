@@ -3725,15 +3725,20 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     return value1Id === value2Id
   }
 
-  getDefaultValue(field, flat) {
-    if (field.single_select_default != null) {
-      if (flat) {
-        return field.single_select_default
-      }
+  getDefaultValueFieldName() {
+    return 'single_select_default'
+  }
 
-      return field.select_options.find(
-        (option) => option.id === field.single_select_default
+  getDefaultValue(field, flat) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    const defaultValue = field[defaultValueFieldName]
+    if (defaultValue != null) {
+      const defaultValueOption = field.select_options.find(
+        (option) => option.id === defaultValue
       )
+      if (defaultValueOption) {
+        return flat ? defaultValue : defaultValueOption
+      }
     }
     return this.getEmptyValue(field)
   }
@@ -3970,14 +3975,20 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
     return []
   }
 
+  getDefaultValueFieldName() {
+    return 'multiple_select_default'
+  }
+
   getDefaultValue(field, flat) {
-    if (!field.multiple_select_default) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    const defaultValue = field[defaultValueFieldName]
+    if (defaultValue == null) {
       return this.getEmptyValue(field)
     }
     if (flat) {
-      return field.multiple_select_default
+      return defaultValue
     }
-    return (field.multiple_select_default || [])
+    return (defaultValue || [])
       .map((id) => field.select_options.find((opt) => opt.id === id))
       .filter(Boolean)
   }
