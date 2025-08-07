@@ -94,6 +94,15 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * Allow to hook into default values for this node type at node creation.
+   * @param {object} values the current values for the node to create.
+   * @returns an object containing values updated with the default values.
+   */
+  getDefaultValues(values) {
+    return values
+  }
+
+  /**
    * Returns whether the node is in-error or not.
    * By default, this is derived from the service type's `isInError`
    * method, but can be overridden by the node type.
@@ -457,7 +466,7 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   getOrder() {
-    return 4
+    return 7
   }
 
   get iconClass() {
@@ -482,7 +491,7 @@ export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   getOrder() {
-    return 5
+    return 8
   }
 
   get iconClass() {
@@ -504,7 +513,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   getOrder() {
-    return 6
+    return 9
   }
 
   getLabel({ node }) {
@@ -522,6 +531,18 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
 
   get serviceType() {
     return this.app.$registry.get('service', CoreRouterServiceType.getType())
+  }
+
+  /**
+   * Allow to hook into default values for this node type at node creation.
+   * @param {object} values the current values for the node to create.
+   * @returns an object containing values updated with the default values.
+   */
+  getDefaultValues(values) {
+    return {
+      ...values,
+      service: { edges: [] },
+    }
   }
 
   /**
@@ -587,6 +608,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
       ...node.service.edges,
       {
         uid: '', // The fallback edge has no uid.
+        condition: '',
         label:
           node.service.default_edge_label ||
           this.app.i18n.t('nodeType.routerDefaultEdgeLabelFallback'),

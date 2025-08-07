@@ -6,7 +6,7 @@
     :title="
       props.data.debug
         ? `ID: ${props.id} | Output: ${props.data.outputUid || 'None'}`
-        : ''
+        : 'Create automation node'
     "
     @click="handleClick"
   ></ButtonFloating>
