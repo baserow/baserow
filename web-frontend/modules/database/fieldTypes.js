@@ -3733,14 +3733,12 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     const defaultValueFieldName = this.getDefaultValueFieldName()
     const defaultValue = field[defaultValueFieldName]
     if (defaultValue != null) {
-      if (flat) {
-        return defaultValue
-      }
-
-      const foundOption = field.select_options.find(
+      const defaultValueOption = field.select_options.find(
         (option) => option.id === defaultValue
       )
-      return foundOption || this.getEmptyValue(field)
+      if (defaultValueOption) {
+        return flat ? defaultValue : defaultValueOption
+      }
     }
     return this.getEmptyValue(field)
   }
