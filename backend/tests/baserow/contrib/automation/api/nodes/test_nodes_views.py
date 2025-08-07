@@ -86,6 +86,49 @@ def test_create_node_before(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_node_before_router_edge_output(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    service = data_fixture.create_core_router_service()
+    router = data_fixture.create_core_router_action_node(
+        service=service, workflow=workflow
+    )
+    edge1 = data_fixture.create_core_router_service_edge(
+        service=service, label="Edge 1", condition="'true'"
+    )
+    edge1_output = AutomationNode.objects.get(
+        previous_node_id=router.id, previous_node_output=edge1.uid
+    )
+    edge2 = data_fixture.create_core_router_service_edge(
+        service=service, label="Edge 2", condition="'true'"
+    )
+    edge2_output = AutomationNode.objects.get(
+        previous_node_id=router.id, previous_node_output=edge2.uid
+    )
+
+    url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
+    response = api_client.post(
+        url,
+        {"type": "router", "before_id": edge2_output.id},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["previous_node_id"] == router.id
+    assert response_json["previous_node_output"] == str(edge2.uid)
+
+    # edge1's output should be *unaffected*.
+    edge1_output.refresh_from_db()
+    assert edge1_output.previous_node_id == router.id
+    assert edge1_output.previous_node_output == str(edge1.uid)
+
+    # edge2's output is now after the node we just created.
+    edge2_output.refresh_from_db()
+    assert edge2_output.previous_node_id == response_json["id"]
+    assert edge2_output.previous_node_output == ""
+
+
+@pytest.mark.django_db
 def test_create_node_before_invalid(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
