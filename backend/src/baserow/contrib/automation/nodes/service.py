@@ -333,6 +333,7 @@ class AutomationNodeService:
             previous_node_output=node.previous_node_output,
             **prepared_values,
         )
+        new_node_type.after_create(new_node)
 
         # After the node creation, the replaced node has changed
         node.refresh_from_db()
