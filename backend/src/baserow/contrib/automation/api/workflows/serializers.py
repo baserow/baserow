@@ -6,7 +6,10 @@ from baserow.contrib.automation.models import (
     AutomationWorkflow,
     AutomationWorkflowHistory,
 )
-from baserow.contrib.automation.workflows.constants import ALLOW_TEST_RUN_MINUTES
+from baserow.contrib.automation.workflows.constants import (
+    ALLOW_TEST_RUN_MINUTES,
+    WorkflowState,
+)
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
 
@@ -40,7 +43,7 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.STR)
     def get_state(self, obj):
         published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
-        return published_workflow.state
+        return published_workflow.state if published_workflow else WorkflowState.DRAFT
 
 
 class CreateAutomationWorkflowSerializer(serializers.ModelSerializer):
