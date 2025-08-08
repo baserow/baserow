@@ -55,6 +55,19 @@ def run_workflow(
 
         return
 
+    if workflow_handler.has_too_many_errors(original_workflow):
+        history.completed_on = timezone.now()
+        history.message = (
+            f"The workflow {original_workflow.id} was disabled "
+            "due to too many consecutive errors."
+        )
+        history.status = HistoryStatusChoices.DISABLED
+        history.save()
+
+        workflow_handler.disable_workflow(workflow)
+
+        return
+
     try:
         AutomationWorkflowRunner().run(workflow, dispatch_context)
     except DispatchException as e:

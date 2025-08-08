@@ -15,6 +15,8 @@ from baserow.contrib.automation.constants import (
     IMPORT_SERIALIZED_IMPORTING,
     WORKFLOW_NAME_MAX_LEN,
 )
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
@@ -727,6 +729,33 @@ class AutomationWorkflowHandler:
             )
 
         return False
+
+    def has_too_many_errors(self, workflow: AutomationWorkflow) -> bool:
+        """
+        Returns True if the workflow has too may consecutive errors,
+        False otherwise.
+        """
+
+        max_errors = settings.AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS
+
+        statuses = (
+            AutomationWorkflowHistory.objects.filter(workflow=workflow).order_by(
+                "-started_on"
+            )
+            # +1 because we will ignore the latest entry, since the workflow may
+            # have just started.
+            .values_list("status", flat=True)[: max_errors + 1]
+        )
+
+        # Ignore the latest status if it is 'started'
+        if statuses and statuses[0] == HistoryStatusChoices.STARTED:
+            statuses = statuses[1:]
+
+        # Not enough history to exceed threshold
+        if len(statuses) < max_errors:
+            return False
+
+        return all(status == HistoryStatusChoices.ERROR for status in statuses)
 
     def disable_workflow(self, workflow: AutomationWorkflow) -> None:
         """
