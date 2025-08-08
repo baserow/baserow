@@ -1,29 +1,29 @@
 <template>
   <Context class="workflow-node__context">
-    <ul class="select__items">
+    <ul class="context__menu">
       <li
         v-for="nodeType in nodeTypes"
         :key="nodeType.getType()"
-        class="select__item"
+        class="context__menu-item"
       >
-        <a class="select__item-link" @click="onChange(nodeType.getType())"
-          ><div class="select__item-name">
+        <a
+          class="context__menu-item-link context__menu-item-link--with-desc"
+          @click="onChange(nodeType.getType())"
+          ><span class="context__menu-item-title" :title="nodeType.name">
             <i
               v-if="!nodeType.image"
-              class="select__item-icon"
+              class="context__menu-item-icon"
               :class="nodeType.iconClass"
             />
             <img
               v-else
               :alt="nodeType.name"
               :src="nodeType.image"
-              class="select__item-image"
+              class="context__menu-item-icon"
             />
-            <span :title="nodeType.name" class="select__item-name-text">{{
-              nodeType.name
-            }}</span>
-          </div>
-          <div class="select__item-description">
+            {{ nodeType.name }}
+          </span>
+          <div class="context__menu-item-description">
             {{ nodeType.description }}
           </div></a
         >

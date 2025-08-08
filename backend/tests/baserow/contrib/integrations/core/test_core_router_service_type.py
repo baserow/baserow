@@ -64,11 +64,9 @@ def test_core_router_service_type_dispatch_data_with_a_truthful_edge(data_fixtur
 
     service_type = service.get_type()
     dispatch_context = AutomationDispatchContext(workflow, None)
-    result = service_type.dispatch_data(service, {}, dispatch_context)
-    assert result == {
-        "output_uid": str(edge2.uid),
-        "data": {"label": edge2.label},
-    }
+    dispatch_result = service_type.dispatch(service, dispatch_context)
+    assert dispatch_result.output_uid == str(edge2.uid)
+    assert dispatch_result.data == {"edge": {"label": edge2.label}}
 
 
 @pytest.mark.django_db
@@ -85,11 +83,9 @@ def test_core_router_service_type_dispatch_data_using_default_edge(data_fixture)
 
     service_type = service.get_type()
     dispatch_context = AutomationDispatchContext(workflow, None)
-    result = service_type.dispatch_data(service, {}, dispatch_context)
-    assert result == {
-        "output_uid": "",
-        "data": {"label": service.default_edge_label},
-    }
+    dispatch_result = service_type.dispatch(service, dispatch_context)
+    assert dispatch_result.output_uid == ""
+    assert dispatch_result.data == {"edge": {"label": service.default_edge_label}}
 
 
 @pytest.mark.django_db
