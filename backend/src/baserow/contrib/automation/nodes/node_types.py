@@ -1,7 +1,8 @@
 from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
-from django.db.models import Q, QuerySet
+from django.db.models import CharField, Q, QuerySet
+from django.db.models.functions import Cast
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -134,10 +135,11 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         :return: A list of output nodes that are connected to the router node's edges.
         """
 
-        edge_uids = list(node.service.specific.edges.values_list("uid", flat=True))
         return node.workflow.automation_workflow_nodes.filter(
             previous_node_id=node.id,
-            previous_node_output__in=edge_uids,
+            previous_node_output__in=node.service.specific.edges.values_list(
+                Cast("uid", output_field=CharField()), flat=True
+            ),
         )
 
     def before_delete(self, node: CoreRouterActionNode):
@@ -190,7 +192,7 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
             persisted_uids = [str(edge.uid) for edge in service.edges.only("uid")]
             removed_uids = list(set(persisted_uids) - set(prepared_uids))
             output_nodes_with_removed_uids = AutomationNode.objects.filter(
-                previous_node_output__in=removed_uids
+                previous_node_id=instance.id, previous_node_output__in=removed_uids
             ).exists()
             if output_nodes_with_removed_uids:
                 raise AutomationNodeMisconfiguredService(
