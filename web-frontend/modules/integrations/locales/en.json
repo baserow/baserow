@@ -38,7 +38,7 @@
     "coreRouterEdgesRequired": "At least one edge is required",
     "coreRouterEdgeLabelRequired": "A branch label is required.",
     "coreRouterEdgeConditionRequired": "A branch condition is required.",
-    "coreRouterDescription": "Routes the workflow to the next step based on conditions.",
+    "coreRouterDescription": "Routes the workflow to the next branch based on a condition.",
     "coreSMTPEmailDescription": "Sends an email using SMTP configuration.",
     "errorFromEmailMissing": "Missing From Email property",
     "errorToEmailsMissing": "Missing To Emails property",
