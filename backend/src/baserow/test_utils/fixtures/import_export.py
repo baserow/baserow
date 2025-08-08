@@ -1,5 +1,6 @@
 from django.core.files.storage import Storage
 
+from baserow.core.handler import CoreHandler
 from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.models import ImportExportResource, ImportExportTrustedSource
 from baserow.core.storage import _create_storage_dir_if_missing_and_open
@@ -30,3 +31,8 @@ class ImportExportWorkspaceFixtures:
             private_key=TEST_IMPORT_EXPORT_PRIVATE_KEY,
             public_key=TEST_IMPORT_EXPORT_PUBLIC_KEY,
         )
+
+    def disable_import_signature_verification(self):
+        core_settings = CoreHandler().get_settings()
+        core_settings.verify_import_signature = False
+        core_settings.save()

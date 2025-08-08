@@ -23,3 +23,9 @@ ERROR_UNTRUSTED_PUBLIC_KEY = (
     HTTP_400_BAD_REQUEST,
     "The public key is not trusted.",
 )
+
+ERROR_APPLICATION_IDS_NOT_FOUND = (
+    "ERROR_APPLICATION_IDS_NOT_FOUND",
+    HTTP_400_BAD_REQUEST,
+    "One or more of the specified application IDs were not found in the export file.",
+)
