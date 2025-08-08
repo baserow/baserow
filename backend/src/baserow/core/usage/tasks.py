@@ -7,11 +7,17 @@ from celery_singleton import Singleton
 from baserow.config.celery import app
 from baserow.core.handler import CoreHandler
 
+CALCULATE_STORAGE_MINUTES = 30
+CALCULATE_STORAGE_TIME_LIMIT = 60 * CALCULATE_STORAGE_MINUTES
+
 
 @app.task(
     base=Singleton,
     queue=settings.BASEROW_GROUP_STORAGE_USAGE_QUEUE,
     raise_on_duplicate=False,
+    soft_time_limit=CALCULATE_STORAGE_TIME_LIMIT,
+    time_limit=CALCULATE_STORAGE_TIME_LIMIT,
+    lock_expiry=CALCULATE_STORAGE_TIME_LIMIT,
 )
 def run_calculate_storage():
     """
@@ -28,6 +34,6 @@ def run_calculate_storage():
 @app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(
-        timedelta(minutes=30),
+        timedelta(minutes=CALCULATE_STORAGE_MINUTES),
         run_calculate_storage.s(),
     )

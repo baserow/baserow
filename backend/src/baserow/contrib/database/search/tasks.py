@@ -13,6 +13,9 @@ from baserow.config.celery import app
 from baserow.contrib.database.search.models import PendingSearchValueUpdate
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 
+PERIODIC_CHECK_MINUTES = 15
+PERIODIC_CHECK_TIME_LIMIT = 60 * PERIODIC_CHECK_MINUTES  # 15 minutes.
+
 
 class PendingSearchUpdateFlag:
     """
@@ -171,7 +174,14 @@ def update_search_data(table_id: int):
         schedule_update_search_data.delay(table_id)
 
 
-@app.task(queue="export", base=Singleton, raise_on_duplicate=False)
+@app.task(
+    queue="export",
+    base=Singleton,
+    raise_on_duplicate=False,
+    soft_time_limit=PERIODIC_CHECK_TIME_LIMIT,
+    time_limit=PERIODIC_CHECK_TIME_LIMIT,
+    lock_expiry=PERIODIC_CHECK_TIME_LIMIT,
+)
 def periodic_check_pending_search_data():
     """
     Periodically checks for any pending search data updates and processes them.
@@ -217,5 +227,6 @@ def periodic_check_pending_search_data():
 @app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(
-        timedelta(minutes=15), periodic_check_pending_search_data.s()
+        timedelta(minutes=PERIODIC_CHECK_MINUTES),
+        periodic_check_pending_search_data.s(),
     )
