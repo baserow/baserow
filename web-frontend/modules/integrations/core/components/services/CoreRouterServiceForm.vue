@@ -53,10 +53,7 @@
                   ?.$message
               "
             >
-              <FormInput
-                v-model="v$.values.edges.$model[index].label"
-                class="table-element-form__field-label"
-              >
+              <FormInput v-model="v$.values.edges.$model[index].label">
               </FormInput>
             </FormGroup>
             <FormGroup
@@ -65,10 +62,6 @@
               required
               class="margin-bottom-2"
               :label="$t('routerForm.branchConditionLabel')"
-              :error-message="
-                v$.values.edges.$each.$response?.$errors[index]?.condition[0]
-                  ?.$message
-              "
             >
               <InjectedFormulaInput
                 v-model="v$.values.edges.$model[index].condition"
@@ -217,7 +210,6 @@ export default {
                 maxLength(50)
               ),
             },
-            condition: { required },
           }),
         },
       },
