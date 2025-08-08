@@ -7,6 +7,7 @@ from django.utils import timezone
 import pytest
 from freezegun import freeze_time
 
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.workflows.constants import WorkflowState
@@ -620,3 +621,62 @@ def test_disable_workflow_disables_published_workflow(data_fixture):
     # Ensure both published and original workflows are disabled
     assert published_workflow.state == WorkflowState.DISABLED
     assert original_workflow.state == WorkflowState.DISABLED
+
+
+@override_settings(AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS=5)
+@pytest.mark.django_db
+def test_has_too_many_errors_returns_true_if_above_limit(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+
+    for _ in range(4):
+        data_fixture.create_automation_workflow_history(
+            workflow=original_workflow,
+            status=HistoryStatusChoices.ERROR,
+        )
+
+    result = AutomationWorkflowHandler().has_too_many_errors(original_workflow)
+    assert result is False
+
+    # This 6th error should cause True to be returned
+    data_fixture.create_automation_workflow_history(
+        workflow=original_workflow,
+        status=HistoryStatusChoices.ERROR,
+    )
+    result = AutomationWorkflowHandler().has_too_many_errors(original_workflow)
+    assert result is True
+
+
+@override_settings(AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS=5)
+@pytest.mark.django_db
+def test_has_too_many_errors_returns_false_if_below_limit(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+
+    for _ in range(4):
+        data_fixture.create_automation_workflow_history(
+            workflow=original_workflow,
+            status=HistoryStatusChoices.ERROR,
+        )
+
+    result = AutomationWorkflowHandler().has_too_many_errors(original_workflow)
+    assert result is False
+
+    # The next history is not an error, which should break the
+    # consecutive count.
+    data_fixture.create_automation_workflow_history(
+        workflow=original_workflow,
+        status=HistoryStatusChoices.SUCCESS,
+    )
+
+    result = AutomationWorkflowHandler().has_too_many_errors(original_workflow)
+    assert result is False
+
+    # Create another 4 errors
+    for _ in range(4):
+        data_fixture.create_automation_workflow_history(
+            workflow=original_workflow,
+            status=HistoryStatusChoices.ERROR,
+        )
+
+    # This should still be False, because it is below the threshold of 5
+    result = AutomationWorkflowHandler().has_too_many_errors(original_workflow)
+    assert result is False

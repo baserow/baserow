@@ -112,7 +112,7 @@ def test_run_workflow_unexpected_error_creates_workflow_history(
     "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.is_rate_limited"
 )
 @patch("baserow.contrib.automation.workflows.tasks.AutomationWorkflowRunner.run")
-def test_run_workflow_rate_limiting_disables_workflow(
+def test_run_workflow_disables_workflow_if_rate_limited(
     mock_run, mock_is_rate_limited, data_fixture
 ):
     mock_is_rate_limited.return_value = True
@@ -139,6 +139,48 @@ def test_run_workflow_rate_limiting_disables_workflow(
     error_msg = (
         f"The workflow {original_workflow.id} was rate limited and disabled "
         "due to too many recent runs."
+    )
+    assert history.message == error_msg
+
+    original_workflow.refresh_from_db()
+    published_workflow.refresh_from_db()
+
+    assert original_workflow.state == WorkflowState.DISABLED
+    assert published_workflow.state == WorkflowState.DISABLED
+
+
+@pytest.mark.django_db
+@patch(
+    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.has_too_many_errors"
+)
+@patch("baserow.contrib.automation.workflows.tasks.AutomationWorkflowRunner.run")
+def test_run_workflow_disables_workflow_if_too_many_consecutive_errors(
+    mock_run, mock_has_too_many_errors, data_fixture
+):
+    mock_has_too_many_errors.return_value = True
+
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+    data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=published_workflow
+    )
+
+    run_workflow(published_workflow.id, False, None)
+
+    mock_run.assert_not_called()
+
+    histories = AutomationWorkflowHistory.objects.filter(workflow=original_workflow)
+    assert len(histories) == 1
+    history = histories[0]
+    assert history.workflow == original_workflow
+    assert history.status == "disabled"
+    error_msg = (
+        f"The workflow {original_workflow.id} was disabled "
+        "due to too many consecutive errors."
     )
     assert history.message == error_msg
 
