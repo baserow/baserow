@@ -154,6 +154,7 @@
     "description": "You can import an existing Baserow data by uploading the .zip file from other Baserow instance.",
     "import": "Import data",
     "upload": "Upload",
+    "uploadAndImport": "Upload & Import",
     "cancel": "Cancel",
     "done": "Done",
     "close": "Close",
@@ -175,6 +176,9 @@
     "importingState": "Importing...",
     "importingTableStructure": "Creating: {table}",
     "importingTableData": "Importing data: {table}"
+  },
+  "importWorkspaceForm": {
+    "selectApplicationsToImport": "Select applications to import"
   },
   "dashboardWorkspace": {
     "createApplication": "Create new"
