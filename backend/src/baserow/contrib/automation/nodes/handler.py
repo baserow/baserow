@@ -132,7 +132,12 @@ class AutomationNodeHandler:
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
-    def update_previous_node(self, new_previous_node, nodes, previous_node_output=None):
+    def update_previous_node(
+        self,
+        new_previous_node: AutomationNode,
+        nodes: List[AutomationNode],
+        previous_node_output: Optional[str] = None,
+    ):
         """
         Relink all nodes to the given new previous node and ensure that we set the
         previous node output correctly.

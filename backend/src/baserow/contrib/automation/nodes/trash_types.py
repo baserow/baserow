@@ -79,7 +79,7 @@ class AutomationNodeTrashableItemType(TrashableItemType):
 
         # If we're restoring a node, and it has a previous node output, ensure that
         # the output UUID matches one of the `uid` in the previous node's edges. If
-        # the output isn't found, it means that the edge was deleted whilst the noed
+        # the output isn't found, it means that the edge was deleted whilst the node
         # was trashed, and we cannot restore the node because it would create a broken
         # workflow.
         if trashed_item.previous_node_output and trashed_item.previous_node_id:
@@ -94,8 +94,8 @@ class AutomationNodeTrashableItemType(TrashableItemType):
 
         super().restore(trashed_item, trash_entry)
 
-        # Determine if this restored node has a node after it. If it does, we'll
-        # need to update its previous_node_id to point to `trashed_item.id`
+        # Determine if this restored node has one or more nodes after it. If it does,
+        # we'll need to update their previous_node_id to point to `trashed_item.id`
         AutomationNodeHandler().update_previous_node(
             trashed_item,
             next_nodes,

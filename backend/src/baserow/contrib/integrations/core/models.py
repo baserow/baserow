@@ -5,7 +5,6 @@ from django.db import models
 
 from baserow.core.formula.field import FormulaField
 from baserow.core.integrations.models import Integration
-from baserow.core.mixins import TrashableModelMixin
 from baserow.core.services.models import Service
 
 from .constants import BODY_TYPE, HTTP_METHOD
@@ -130,7 +129,7 @@ class CoreRouterService(Service):
     )
 
 
-class CoreRouterServiceEdge(TrashableModelMixin):
+class CoreRouterServiceEdge(models.Model):
     uid = models.UUIDField(default=uuid.uuid4)
     label = models.CharField(
         blank=True,
