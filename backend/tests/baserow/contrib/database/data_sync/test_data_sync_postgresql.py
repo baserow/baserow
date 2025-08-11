@@ -70,7 +70,7 @@ def test_create_postgresql_data_sync(data_fixture, create_postgresql_test_table)
 
     fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
     assert len(fields) == 12
-    assert fields[0].name == "id"
+    assert fields[0].name == "id 2"
     assert isinstance(fields[0], NumberField)
     assert fields[0].primary is True
     assert fields[0].read_only is True

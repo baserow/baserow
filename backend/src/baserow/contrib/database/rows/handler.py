@@ -1186,7 +1186,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if model is None:
             model = table.get_model()
 
-        if not signal_params:
+        if signal_params is None:
             signal_params = {}
 
         user_id = user and user.id
@@ -1643,7 +1643,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if not rows_values:
             return [], {}
 
-        if not signal_params:
+        if signal_params is None:
             signal_params = {}
 
         progress.increment(state=ROW_IMPORT_CREATION)
@@ -2025,6 +2025,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             instances, the original row values and the updated fields metadata.
         """
 
+        if signal_params is None:
+            signal_params = {}
+
         if model is None:
             model = table.get_model()
 
@@ -2273,7 +2276,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_webhook_events=send_webhook_events,
             fields=[f for f in updated_fields if f.id in updated_field_ids],
             dependant_fields=dependant_fields,
-            signal_params=signal_params,
+            **signal_params,
         )
 
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
@@ -2743,7 +2746,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
-        if not signal_params:
+        if signal_params is None:
             signal_params = {}
 
         workspace = table.database.workspace

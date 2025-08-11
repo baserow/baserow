@@ -180,6 +180,13 @@ The installation methods referred to in the variable descriptions are:
 | BASEROW\_DEADLOCK\_INITIAL\_BACKOFF                                 | The initial backoff time for database deadlock retries.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 2                      |
 | BASEROW\_DEADLOCK\_MAX\_RETRIES                                     | The maximum number of database deadlock retries.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | 1                      |
 
+### Data sync configuration
+
+| Name                                                | Description                                                                                                          | Defaults |
+|-----------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|----------|
+| BASEROW\_TWO\_WAY\_SYNC\_MAX\_CONSECUTIVE\_FAILURES | Indicates the maximum number of consecutive two-way data sync updates before deactivating the two-way sync.          | 8        |
+| BASEROW\_TWO\_WAY\_SYNC\_MAX_RETRIES                | Indicates the maximum of or two-way data sync create, update, or delete row retries before considering it a failure. | 3        |
+
 ### Backend Application Builder Configuration
 | Name                      | Description                                                                                                              | Defaults               |
 |---------------------------|--------------------------------------------------------------------------------------------------------------------------|------------------------|

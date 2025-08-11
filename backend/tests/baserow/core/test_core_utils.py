@@ -222,6 +222,11 @@ def test_unused_names_with_max_length():
     )
 
 
+def test_unused_names_with_reserved_names():
+    assert find_unused_name(["test"], [""], reserved_names={"test"}) == "test 2"
+    assert find_unused_name(["test"], ["test"], reserved_names={"test 2"}) == "test 3"
+
+
 def test_grouper():
     assert list(grouper(2, [1, 2, 3, 4, 5])) == [(1, 2), (3, 4), (5,)]
 

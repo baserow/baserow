@@ -1251,6 +1251,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             field_names_to_try,
             existing_field_name_collisions,
             max_length=max_field_name_length,
+            reserved_names=RESERVED_BASEROW_FIELD_NAMES,
         )
 
     def restore_field(

@@ -58,7 +58,6 @@ def test_create_two_way_data_sync_strategy_without_enterprise_license(
 
 
 @pytest.mark.django_db(transaction=True)
-@override_settings(DEBUG=True)
 def test_update_two_way_data_sync_strategy_without_enterprise_license(
     enterprise_data_fixture, create_postgresql_test_table, api_client
 ):
@@ -269,7 +268,8 @@ LINE 1: INSERT INTO "public"."test_table" ("text_col") VALUES ('text...
     data_sync.refresh_from_db()
     assert data_sync.two_way_sync_consecutive_failures == 1
 
-    # Rename the table, so that the rows_created call will fail.
+    # Change the table name back, so that it will properly be deleted when this test
+    # finishes.
     with connection.cursor() as cursor:
         cursor.execute(
             f"ALTER TABLE {create_postgresql_test_table}_tmp RENAME TO {create_postgresql_test_table};"
@@ -375,7 +375,8 @@ def test_two_way_sync_is_deactivated_after_consecutive_failure(
     # Should be equal to one because we created one independant writable field.
     assert Field.objects.filter(read_only=False).count() == 1
 
-    # Rename the table, so that the rows_created call will fail.
+    # Change the table name back, so that it will properly be deleted when this test
+    # finishes.
     with connection.cursor() as cursor:
         cursor.execute(
             f"ALTER TABLE {create_postgresql_test_table}_tmp RENAME TO {create_postgresql_test_table};"

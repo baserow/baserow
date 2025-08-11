@@ -163,7 +163,9 @@ export default {
       (p) => p.key
     )
     this.autoAddNewProperties = this.table.data_sync.auto_add_new_properties
-    this.twoWayDataSync = this.table.data_sync.two_way_sync
+    this.twoWayDataSync = this.isTwoWaySyncDeactivated
+      ? false
+      : this.table.data_sync.two_way_sync
     this.fetchExistingProperties(this.table)
   },
   methods: {

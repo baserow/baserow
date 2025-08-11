@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import transaction
 
 from baserow_premium.license.handler import LicenseHandler
@@ -36,7 +37,7 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
         LicenseHandler.raise_if_workspace_doesnt_have_feature(DATA_SYNC, workspace)
 
     def retry_of_fail_with_notification(self, sync_error, task_context, data_sync):
-        if task_context.request.retries > 2:
+        if task_context.request.retries >= settings.BASEROW_TWO_WAY_SYNC_MAX_RETRIES:
             data_sync.two_way_sync_consecutive_failures += 1
             data_sync.save()
 
@@ -47,7 +48,10 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
             # If the update failed 8 consecutive times, excluding the retries,
             # then there is a problem with the two-way data sync, and we want to
             # disable it.
-            if data_sync.two_way_sync_consecutive_failures > 7:
+            if (
+                data_sync.two_way_sync_consecutive_failures
+                >= settings.BASEROW_TWO_WAY_SYNC_MAX_CONSECUTIVE_FAILURES
+            ):
                 with transaction.atomic():
                     # Do a select_for_update to avoid creating multiple notifications if
                     # errors occur concurrently.
@@ -89,6 +93,10 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
         data_sync_type = data_sync_type_registry.get_by_model(data_sync.specific_class)
 
         try:
+            # This creates the row in the data sync source using the protocol of the
+            # data sync type. Note that the returned list can contain a list of changes
+            # that must be applied in the Baserow table. This can be the case when the
+            # unique ID is managed by the data source.
             rows_to_update = data_sync_type.create_rows(serialized_rows, data_sync)
         except SyncError as sync_error:
             return self.retry_of_fail_with_notification(
@@ -111,13 +119,14 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
             return
 
         # When creating a row, it's possible that the unique primary value was
-        # generated it was created. If the data sync returns a list of dict rows, it
-        # means that some values must be updated.
+        # generated. If the data sync returns a list of dict rows, it means that some
+        # values must be updated.
         with transaction.atomic():
             RowHandler().force_update_rows(
                 user=None,
                 table=data_sync.table,
                 rows_values=rows_to_update,
+                signal_params={"skip_two_way_sync": True},
             )
 
     def rows_updated(self, task_context, serialized_rows, data_sync, updated_field_ids):

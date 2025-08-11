@@ -124,8 +124,6 @@ class PostgreSQLDataSyncType(BaserowPostgreSQLDataSyncType):
             serialized_rows, unique_primaries
         )
 
-        # If there are no rows to update, then there is no point is doing the update
-        # query.
         if len(serialized_rows) == 0:
             return
 
@@ -153,7 +151,6 @@ class PostgreSQLDataSyncType(BaserowPostgreSQLDataSyncType):
             if not cases:
                 continue
 
-            # CASE (pk1, pk2, ...) WHEN (...) THEN ... ELSE column END
             case_expr = sql.SQL("CASE ({}) ").format(
                 sql.SQL(", ").join(sql.Identifier(p.key) for p in unique_primaries)
             )

@@ -73,6 +73,14 @@ class DataSyncHandler:
                 f"Data sync with ID {data_sync_id} does not exist."
             )
 
+    def _get_two_way_sync_strategy_type(self, data_sync_type):
+        strategy_type = data_sync_type.two_way_sync_strategy_type
+        if not strategy_type:
+            raise TwoWayDataSyncNotSupported(
+                "Two-way sync is not supported for this data sync type."
+            )
+        return two_way_sync_strategy_type_registry.get(strategy_type)
+
     def create_data_sync_table(
         self,
         user: AbstractUser,
@@ -121,14 +129,7 @@ class DataSyncHandler:
 
         # Check if there is two-way support if it must be enabled.
         if values.get("two_way_sync"):
-            strategy_type = data_sync_type.two_way_sync_strategy_type
-            if not strategy_type:
-                raise TwoWayDataSyncNotSupported(
-                    "Two-way sync is not supported for this data sync type."
-                )
-            two_way_sync_strategy = two_way_sync_strategy_type_registry.get(
-                strategy_type
-            )
+            two_way_sync_strategy = self._get_two_way_sync_strategy_type(data_sync_type)
             two_way_sync_strategy.before_enable(database.workspace)
 
         # Create an empty table where we're going to sync the data into, and add it to
@@ -155,6 +156,7 @@ class DataSyncHandler:
 
         properties_to_create = []
         has_primary = False
+        field_handler = FieldHandler()
         for index, synced_property in enumerate(synced_properties):
             data_sync_property = next(
                 (p for p in data_sync_properties if p.key == synced_property), None
@@ -167,6 +169,10 @@ class DataSyncHandler:
                 )
 
             baserow_field = data_sync_property.to_baserow_field()
+            baserow_field.name = field_handler.find_next_unused_field_name(
+                table,
+                [baserow_field.name],
+            )
             baserow_field.order = index
             baserow_field.table = table
             baserow_field.read_only = (
@@ -247,17 +253,10 @@ class DataSyncHandler:
             "two_way_sync",
         ] + data_sync_type.allowed_fields
 
-        # Check if there is two-way support if it must be enabled and wasn't enabled
+        # Check if there is two-way support, if it must be enabled and wasn't enabled
         # before.
         if "two_way_sync" in kwargs and kwargs["two_way_sync"]:
-            strategy_type = data_sync_type.two_way_sync_strategy_type
-            if not strategy_type:
-                raise TwoWayDataSyncNotSupported(
-                    "Two-way sync is not supported for this data sync type."
-                )
-            two_way_sync_strategy = two_way_sync_strategy_type_registry.get(
-                strategy_type
-            )
+            two_way_sync_strategy = self._get_two_way_sync_strategy_type(data_sync_type)
             two_way_sync_strategy.before_enable(data_sync.table.database.workspace)
             if not data_sync.two_way_sync:
                 # If the two-way sync is enabled, but wasn't before, then reset the
@@ -660,6 +659,7 @@ class DataSyncHandler:
                 data_sync.table,
                 [field_kwargs.pop("name")],
             )
+            print(new_name)
             field = handler.create_field(
                 user=user,
                 table=data_sync.table,

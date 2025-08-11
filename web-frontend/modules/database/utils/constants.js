@@ -1,4 +1,4 @@
-// Please keep in sync with src/baserow/contrib/database/fields/handler.py:30
+// Please keep in sync with src/baserow/contrib/database/fields/constants.py::5
 export const RESERVED_BASEROW_FIELD_NAMES = ['id', 'order']
 export const MAX_FIELD_NAME_LENGTH = 255
 

@@ -1368,6 +1368,8 @@ def test_find_next_free_field_name(data_fixture):
         == "regex like field [0-9] 3"
     )
 
+    assert handler.find_next_unused_field_name(table, ["id"]) == "id 2"
+
 
 @pytest.mark.django_db
 def test_find_next_free_field_name_returns_strings_with_max_length(data_fixture):
