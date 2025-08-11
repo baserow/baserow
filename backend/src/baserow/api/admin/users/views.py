@@ -24,6 +24,7 @@ from baserow.api.admin.users.serializers import (
 from baserow.api.admin.views import AdminListingView
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.schemas import get_error_schema
+from baserow.api.user.registries import member_data_registry
 from baserow.api.user.schemas import authenticate_user_schema
 from baserow.api.user.serializers import get_all_user_data_serialized
 from baserow.core.admin.users.exceptions import (
@@ -35,7 +36,6 @@ from baserow.core.admin.users.handler import UserAdminHandler
 from baserow.core.user.exceptions import DeactivatedUserException, UserAlreadyExist
 from baserow.core.user.utils import generate_session_tokens_for_user
 
-from ...user.registries import member_data_registry
 from .serializers import BaserowImpersonateAuthTokenSerializer
 
 User = get_user_model()

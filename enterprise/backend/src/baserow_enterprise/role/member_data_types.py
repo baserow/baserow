@@ -3,13 +3,14 @@ from typing import Dict, List, OrderedDict, Union
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 
+from baserow_premium.plugins import PremiumPlugin
 from rest_framework import serializers
 
 from baserow.api.user.registries import MemberDataType
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.operations import ListWorkspaceUsersWorkspaceOperationType
-from baserow.core.registries import permission_manager_type_registry
+from baserow.core.registries import permission_manager_type_registry, plugin_registry
 from baserow_enterprise.api.role.serializers import RoleField
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -54,10 +55,6 @@ class EnterpriseRolesDataType(MemberDataType):
         Primarily used to inform API consumers of which teams workspace members
         belong to.
         """
-
-        from baserow_premium.plugins import PremiumPlugin
-
-        from baserow.core.registries import plugin_registry
 
         if (
             "role" not in settings.PERMISSION_MANAGERS
@@ -104,10 +101,6 @@ class EnterpriseRolesDataType(MemberDataType):
         Primarily used to inform API consumers of which teams workspace members
         belong to.
         """
-
-        from baserow_premium.plugins import PremiumPlugin
-
-        from baserow.core.registries import plugin_registry
 
         license_plugin = plugin_registry.get_by_type(PremiumPlugin).get_license_plugin()
 
