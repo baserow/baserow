@@ -330,6 +330,28 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
   }
 }
 
+export class PeriodicTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'periodic'
+  }
+
+  getOrder() {
+    return 4
+  }
+
+  get iconClass() {
+    return 'iconoir-timer'
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.periodicTriggerLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', 'periodic_trigger')
+  }
+}
+
 export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {

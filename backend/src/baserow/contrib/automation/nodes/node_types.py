@@ -30,8 +30,12 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
     LocalBaserowUpdateRowActionNode,
+    PeriodicTriggerNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
+from baserow.contrib.automation.periodic_trigger.service_types import (
+    PeriodicTriggerServiceType,
+)
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
@@ -324,3 +328,9 @@ class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
     type = "rows_deleted"
     model_class = LocalBaserowRowsDeletedTriggerNode
     service_type = LocalBaserowRowsDeletedTriggerServiceType.type
+
+
+class PeriodicTriggerNodeType(AutomationNodeTriggerType):
+    type = "periodic"
+    model_class = PeriodicTriggerNode
+    service_type = PeriodicTriggerServiceType.type

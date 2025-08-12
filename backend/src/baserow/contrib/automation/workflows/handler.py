@@ -69,7 +69,7 @@ class AutomationWorkflowHandler:
         """
         Runs the provided workflow.
 
-        :param workflow_id: The AutomationWorkflow ID that should be executed.
+        :param workflow: The AutomationWorkflow ID that should be executed.
         :param event_payload: The payload from the action.
         """
 

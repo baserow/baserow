@@ -83,6 +83,7 @@
     "routerDefaultEdgeLabelFallback": "Default",
     "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
     "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed."
+    "periodicTriggerLabel": "Periodic trigger"
   },
   "workflowNode": {
     "actionDelete": "Delete",

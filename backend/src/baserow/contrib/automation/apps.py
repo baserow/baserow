@@ -32,6 +32,7 @@ class AutomationConfig(AppConfig):
             LocalBaserowRowsDeletedNodeTriggerType,
             LocalBaserowRowsUpdatedNodeTriggerType,
             LocalBaserowUpdateRowNodeType,
+            PeriodicTriggerNodeType,
         )
         from baserow.contrib.automation.nodes.object_scopes import (
             AutomationNodeObjectScopeType,
@@ -58,6 +59,9 @@ class AutomationConfig(AppConfig):
             OrderAutomationWorkflowsOperationType,
         )
         from baserow.contrib.automation.trash_types import AutomationTrashableItemType
+        from baserow.contrib.automation.periodic_trigger.service_types import (
+            PeriodicTriggerServiceType,
+        )
         from baserow.contrib.automation.workflows.actions import (
             CreateAutomationWorkflowActionType,
             DeleteAutomationWorkflowActionType,
@@ -94,6 +98,7 @@ class AutomationConfig(AppConfig):
             object_scope_type_registry,
             operation_type_registry,
         )
+        from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
 
         if feature_flag_is_enabled(FF_AUTOMATION):
@@ -142,6 +147,8 @@ class AutomationConfig(AppConfig):
 
             action_scope_registry.register(WorkflowActionScopeType())
 
+            service_type_registry.register(PeriodicTriggerServiceType())
+
             automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
             automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
             automation_node_type_registry.register(LocalBaserowDeleteRowNodeType())
@@ -160,6 +167,7 @@ class AutomationConfig(AppConfig):
             automation_node_type_registry.register(
                 LocalBaserowRowsDeletedNodeTriggerType()
             )
+            automation_node_type_registry.register(PeriodicTriggerNodeType())
 
             from baserow.contrib.automation.data_providers.data_provider_types import (
                 PreviousNodeProviderType,
@@ -186,6 +194,7 @@ class AutomationConfig(AppConfig):
             # The signals must always be imported last because they use
             # the registries which need to be filled first.
             import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401
+            import baserow.contrib.automation.periodic_trigger.tasks  # noqa: F403, F401
             import baserow.contrib.automation.workflows.signals  # noqa: F403, F401
             import baserow.contrib.automation.workflows.ws.signals  # noqa: F403, F401
             from baserow.contrib.automation.nodes.receivers import (
