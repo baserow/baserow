@@ -9,7 +9,7 @@ found in the root of the Baserow repo.
 
 - See [running the dev environment](running-the-dev-environment.md) for a
   step-by-step guide on how to set-up the dev env.
-- See [baserow docker api](../technical/baserow-docker-api.md) for more detail on how
+- See [baserow docker api](../installation/install-with-docker.md) for more detail on how
   Baserow's docker setup can be used and configured.
 - See [dev.sh](dev_sh.md) for further detail on the CLI tool for managing
   the dev environment.
