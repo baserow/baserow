@@ -32,8 +32,6 @@ asgiref==3.8.1
     #   django
     #   django-cors-headers
     #   opentelemetry-instrumentation-asgi
-async-timeout==5.0.1
-    # via redis
 attrs==24.3.0
     # via
     #   jsonschema
@@ -255,6 +253,8 @@ idna==3.10
     #   hyperlink
     #   requests
     #   twisted
+ijson==3.3.0
+    # via -r base.in
 importlib-metadata==8.4.0
     # via opentelemetry-api
 incremental==24.7.2
