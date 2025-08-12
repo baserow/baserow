@@ -98,6 +98,7 @@ import { defineComponent, ref, computed } from 'vue'
 import { useStore, inject, useContext } from '@nuxtjs/composition-api'
 import { HistoryEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { WORKFLOW_STATES } from '@baserow/modules/automation/components/enums'
 
 export default defineComponent({
   name: 'AutomationHeader',
@@ -161,15 +162,21 @@ export default defineComponent({
     })
 
     const statusSwitch = computed(() => {
-      return (publishedOn.value && !workflow.value?.state === 'paused') || false
+      return (
+        (publishedOn.value &&
+          !workflow.value?.state === WORKFLOW_STATES.PAUSED) ||
+        false
+      )
     })
 
     const isPaused = computed(() => {
-      return publishedOn.value && workflow.value?.state === 'paused'
+      return (
+        publishedOn.value && workflow.value?.state === WORKFLOW_STATES.PAUSED
+      )
     })
 
     const isDisabled = computed(() => {
-      return workflow.value?.state === 'disabled'
+      return workflow.value?.state === WORKFLOW_STATES.DISABLED
     })
 
     const activeSidePanel = computed(() => {
@@ -189,7 +196,10 @@ export default defineComponent({
 
     const toggleStatusSwitch = async () => {
       const oldValue = workflow.value.state
-      const newValue = oldValue === 'paused' ? 'live' : 'paused'
+      const newValue =
+        oldValue === WORKFLOW_STATES.PAUSED
+          ? WORKFLOW_STATES.LIVE
+          : WORKFLOW_STATES.PAUSED
       workflow.value.state = newValue
 
       try {
@@ -230,7 +240,7 @@ export default defineComponent({
         await store.dispatch('automationWorkflow/publishWorkflow', {
           workflow: workflow.value,
         })
-        workflow.value.state = 'live'
+        workflow.value.state = WORKFLOW_STATES.LIVE
       } catch (error) {
         workflow.value.state = originalState
         notifyIf(error, 'automationWorkflow')
