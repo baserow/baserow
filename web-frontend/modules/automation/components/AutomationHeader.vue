@@ -162,11 +162,7 @@ export default defineComponent({
     })
 
     const statusSwitch = computed(() => {
-      return (
-        (publishedOn.value &&
-          !workflow.value?.state === WORKFLOW_STATES.PAUSED) ||
-        false
-      )
+      return workflow.value?.state === WORKFLOW_STATES.LIVE
     })
 
     const isPaused = computed(() => {
