@@ -19,4 +19,4 @@ support compatibility for.
 **Note**: Baserow will stop creating images for PostgreSQL 11 starting with Baserow 
 v1.30.1. It will always be possible to upgrade Postgres to version 15 following the 
 instructions here:
-[Upgrading postgresql from a previous version](../installation%2Finstall-with-docker.md#upgrading-postgresql-database-from-a-previous-version)
+[Upgrading postgresql from a previous version](../installation/install-with-docker.md#upgrading-postgresql-database-from-a-previous-version)

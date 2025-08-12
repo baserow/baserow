@@ -149,6 +149,6 @@ For further reading on how to work with docker containers and django check out:
 
 - See [introduction](../technical/introduction.md) for more details on Baserow's
   architecture.
-- See [baserow docker api](../technical/baserow-docker-api.md) for more detail on how
+- See [baserow docker api](../installation/install-with-docker.md) for more detail on how
   Baserow's docker setup can be used and configured.
 - See [dev.sh](dev_sh.md) for further detail on what dev.sh does and why
