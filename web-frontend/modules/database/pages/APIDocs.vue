@@ -57,6 +57,14 @@ export default {
   head() {
     return {
       title: 'REST API documentation',
+      link: [
+        {
+          rel: 'canonical',
+          href:
+            this.$config.PUBLIC_WEB_FRONTEND_URL +
+            this.$router.resolve({ name: 'database-api-docs' }).href,
+        },
+      ],
     }
   },
   computed: {
