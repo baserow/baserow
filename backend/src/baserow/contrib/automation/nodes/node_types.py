@@ -127,12 +127,15 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
     model_class = CoreRouterActionNode
     service_type = CoreRouterServiceType.type
 
-    def get_output_nodes(self, node: CoreRouterActionNode):
+    def get_output_nodes(
+        self, node: CoreRouterActionNode
+    ) -> QuerySet[AutomationActionNode]:
         """
         Given a router node, this method returns the output nodes that are
         along the edges of the router node.
         :param node: The router node instance.
-        :return: A list of output nodes that are connected to the router node's edges.
+        :return: A QuerySet of output nodes that are connected to the
+            router node's edges.
         """
 
         return node.workflow.automation_workflow_nodes.filter(
