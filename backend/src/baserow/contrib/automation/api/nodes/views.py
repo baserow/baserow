@@ -109,10 +109,7 @@ class AutomationNodesView(APIView):
             AutomationTriggerModificationDisallowed: ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
         }
     )
-    @validate_body_custom_fields(
-        automation_node_type_registry,
-        base_serializer_class=CreateAutomationNodeSerializer,
-    )
+    @validate_body(CreateAutomationNodeSerializer)
     def post(self, request, data: Dict, workflow_id: int):
         type_name = data.pop("type")
         node_type = automation_node_type_registry.get(type_name)
@@ -257,6 +254,8 @@ class AutomationNodeView(APIView):
     )
     @transaction.atomic
     def delete(self, request, node_id: int):
+        node = AutomationNodeService().get_node(request.user, node_id)
+        node.get_type().before_delete(node)
         DeleteAutomationNodeActionType.do(request.user, node_id)
 
         return Response(status=204)

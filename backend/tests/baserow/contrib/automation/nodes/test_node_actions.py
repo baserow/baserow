@@ -10,6 +10,7 @@ from baserow.contrib.automation.nodes.actions import (
 )
 from baserow.contrib.automation.nodes.node_types import (
     LocalBaserowCreateRowNodeType,
+    LocalBaserowRowsUpdatedNodeTriggerType,
     LocalBaserowUpdateRowNodeType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -74,18 +75,19 @@ def test_create_node_action(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_replace_automation_node_type(data_fixture):
+def test_replace_automation_action_node_type(data_fixture):
     session_id = str(uuid.uuid4())
     user = data_fixture.create_user(session_id=session_id)
     workspace = data_fixture.create_workspace(user=user)
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(automation=automation)
+    data_fixture.create_local_baserow_rows_created_trigger_node(workflow=workflow)
     node = data_fixture.create_automation_node(
         workflow=workflow,
         type=LocalBaserowCreateRowNodeType.type,
     )
     node_after = data_fixture.create_automation_node(
-        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, previous_node=node
+        workflow=workflow, type=LocalBaserowCreateRowNodeType.type
     )
 
     with local_cache.context():
@@ -125,6 +127,63 @@ def test_replace_automation_node_type(data_fixture):
     replaced_node.refresh_from_db(fields=["trashed"])
     assert not replaced_node.trashed
     assert node_after.previous_node_id == replaced_node.id
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_replace_automation_trigger_node_type(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(automation=automation)
+    original_trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow
+    )
+    action_node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type=LocalBaserowCreateRowNodeType.type,
+    )
+
+    with local_cache.context():
+        replaced_trigger = ReplaceAutomationNodeActionType.do(
+            user, original_trigger.id, LocalBaserowRowsUpdatedNodeTriggerType.type
+        )
+
+    # The original trigger is trashed, we have a new trigger of the new type.
+    original_trigger.refresh_from_db(fields=["trashed"])
+    action_node.refresh_from_db()
+    assert original_trigger.trashed
+    assert isinstance(
+        replaced_trigger, LocalBaserowRowsUpdatedNodeTriggerType.model_class
+    )
+    assert action_node.previous_node_id == replaced_trigger.id
+
+    with local_cache.context():
+        ActionHandler.undo(
+            user, [WorkflowActionScopeType.value(workflow.id)], session_id
+        )
+
+    # The original trigger is restored, the new trigger is trashed.
+    original_trigger.refresh_from_db(fields=["trashed"])
+    action_node.refresh_from_db()
+    assert not original_trigger.trashed
+    replaced_trigger.refresh_from_db(fields=["trashed"])
+    assert replaced_trigger.trashed
+    assert action_node.previous_node_id == original_trigger.id
+
+    with local_cache.context():
+        ActionHandler.redo(
+            user, [WorkflowActionScopeType.value(workflow.id)], session_id
+        )
+
+    # The original trigger is trashed again, the new trigger is restored.
+    original_trigger.refresh_from_db(fields=["trashed"])
+    action_node.refresh_from_db()
+    assert original_trigger.trashed
+    replaced_trigger.refresh_from_db(fields=["trashed"])
+    assert not replaced_trigger.trashed
+    assert action_node.previous_node_id == replaced_trigger.id
 
 
 @pytest.mark.django_db
