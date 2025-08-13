@@ -183,7 +183,9 @@
   "routerForm": {
     "defaultEdgeLabelLabel": "Default branch label",
     "defaultEdgeLabelPlaceholder": "Default",
+    "defaultEdgeLabelDescription": "Optionally choose the label to display on the default branch.",
     "branchesHeading": "Branches",
+    "branchesDescription": "Branches allow you to only execute nodes when a condition is met. Branches are executed left to right until a condition is met, otherwise the default branch will be executed. ",
     "branchLabel": "Label",
     "branchConditionLabel": "Condition",
     "branchConditionPlaceholder": "Enter condition...",
