@@ -256,14 +256,15 @@ def test_create_trigger_node_disallowed(api_client, data_fixture):
 def test_create_node_undo_redo(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user, name="test")
-    assert workflow.automation_workflow_nodes.count() == 0
+    data_fixture.create_local_baserow_rows_created_trigger_node(workflow=workflow)
+    assert workflow.automation_workflow_nodes.count() == 1
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
     api_kwargs = get_api_kwargs(token)
     response = api_client.post(url, {"type": "create_row"}, **api_kwargs)
     assert response.status_code == HTTP_200_OK
 
-    assert workflow.automation_workflow_nodes.count() == 1
+    assert workflow.automation_workflow_nodes.count() == 2
 
     payload = {
         "scopes": {
@@ -275,11 +276,11 @@ def test_create_node_undo_redo(api_client, data_fixture):
     }
     response = api_client.patch(reverse(API_URL_UNDO), payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
-    assert workflow.automation_workflow_nodes.count() == 0
+    assert workflow.automation_workflow_nodes.count() == 1
 
     response = api_client.patch(reverse(API_URL_REDO), payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
-    assert workflow.automation_workflow_nodes.count() == 1
+    assert workflow.automation_workflow_nodes.count() == 2
 
 
 @pytest.mark.django_db
@@ -445,12 +446,13 @@ def test_delete_node_invalid_node(api_client, data_fixture):
 def test_delete_node_undo_redo(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
+    data_fixture.create_local_baserow_rows_created_trigger_node(workflow=workflow)
     node = data_fixture.create_automation_node(user=user, workflow=workflow)
 
     api_kwargs = get_api_kwargs(token)
     delete_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
     response = api_client.delete(delete_url, **api_kwargs)
-    assert workflow.automation_workflow_nodes.count() == 0
+    assert workflow.automation_workflow_nodes.count() == 1
 
     payload = {
         "scopes": {
@@ -462,11 +464,11 @@ def test_delete_node_undo_redo(api_client, data_fixture):
     }
     response = api_client.patch(reverse(API_URL_UNDO), payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
-    assert workflow.automation_workflow_nodes.count() == 1
+    assert workflow.automation_workflow_nodes.count() == 2
 
     response = api_client.patch(reverse(API_URL_REDO), payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
-    assert workflow.automation_workflow_nodes.count() == 0
+    assert workflow.automation_workflow_nodes.count() == 1
 
 
 @pytest.mark.django_db

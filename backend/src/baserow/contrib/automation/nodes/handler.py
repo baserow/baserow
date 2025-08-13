@@ -195,14 +195,14 @@ class AutomationNodeHandler:
             # Find any nodes which have a previous node ID and output
             # that match the before node's previous node ID and output.
             node_previous_ids_to_update = list(
-                AutomationNode.objects.filter(
+                workflow.automation_workflow_nodes.filter(
                     previous_node_id=before.previous_node_id,
                     previous_node_output=before.previous_node_output,
                 )
             )
 
         # If we don't already have a `previous_node_id`...
-        if allowed_prepared_values.get("previous_node_id", None) is None:
+        if "previous_node_id" not in allowed_prepared_values:
             # Figure out what the previous node ID should be. If we've been given a
             # `before` node, then we'll use its previous node ID. If not, we'll use the
             # last node ID of the workflow, which is the last node in the hierarchy.
