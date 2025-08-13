@@ -25,7 +25,7 @@ class EnterpriseMemberTeamsDataType(MemberDataType):
             "workspace user belongs to in this workspace.",
         )
 
-    def annotate_serialized_data(
+    def annotate_serialized_workspace_members_data(
         self,
         workspace: Workspace,
         serialized_data: List[OrderedDict],

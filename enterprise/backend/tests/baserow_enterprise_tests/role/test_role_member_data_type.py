@@ -41,7 +41,7 @@ def test_roles_member_data_type(data_fixture, enterprise_data_fixture, synced_ro
 
     users = [admin, builder, editor, viewer, viewer_plus, builder_less, no_access]
 
-    result = EnterpriseRolesDataType().annotate_serialized_data(
+    result = EnterpriseRolesDataType().annotate_serialized_workspace_members_data(
         workspace_1,
         [
             {
@@ -99,7 +99,7 @@ def test_roles_member_data_type(data_fixture, enterprise_data_fixture, synced_ro
         },
     ]
 
-    result = EnterpriseRolesDataType().annotate_serialized_data(
+    result = EnterpriseRolesDataType().annotate_serialized_workspace_members_data(
         workspace_2,
         [
             {
@@ -195,7 +195,7 @@ def test_roles_member_data_type_doesnt_expose_to_users_without_read_role(
         }
         for u in users
     ]
-    result = EnterpriseRolesDataType().annotate_serialized_data(
+    result = EnterpriseRolesDataType().annotate_serialized_workspace_members_data(
         workspace_1,
         list(serialized_users_pre_annotation),
         viewer,

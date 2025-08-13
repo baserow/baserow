@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.models import License
@@ -72,6 +72,13 @@ class AdvancedLicenseType(LicenseType):
     ) -> Optional[SeatUsageSummary]:
         return RoleBasedSeatUsageSummaryCalculator.get_seat_usage_for_workspace(
             workspace
+        )
+
+    def get_seat_usage_summary_for_specific_users(
+        self, user_ids: List[int]
+    ) -> Optional[SeatUsageSummary]:
+        return RoleBasedSeatUsageSummaryCalculator.get_seat_usage_for_specific_users(
+            user_ids
         )
 
     def handle_seat_overflow(self, seats_taken: int, license_object: License):

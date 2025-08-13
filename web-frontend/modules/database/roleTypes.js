@@ -19,7 +19,7 @@ class RoleType extends Registerable {
   }
 
   // Indicates whether the role is billable.
-  getIsBillable(workspaceId) {
+  getIsBillable() {
     return false
   }
 

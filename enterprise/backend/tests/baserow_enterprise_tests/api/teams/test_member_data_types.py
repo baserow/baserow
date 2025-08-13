@@ -9,8 +9,10 @@ def test_teams_member_datatype_workspaceuser_without_subjects(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     serializer = WorkspaceUserSerializer(workspace.workspaceuser_set.all(), many=True)
-    serialized_data = EnterpriseMemberTeamsDataType().annotate_serialized_data(
-        workspace, serializer.data, user
+    serialized_data = (
+        EnterpriseMemberTeamsDataType().annotate_serialized_workspace_members_data(
+            workspace, serializer.data, user
+        )
     )
     assert serialized_data[0]["teams"] == []
 
@@ -24,8 +26,10 @@ def test_teams_member_datatype_workspaceuser_with_subject(
     team = enterprise_data_fixture.create_team(workspace=workspace)
     enterprise_data_fixture.create_subject(team=team, subject=user)
     serializer = WorkspaceUserSerializer(workspace.workspaceuser_set.all(), many=True)
-    serialized_data = EnterpriseMemberTeamsDataType().annotate_serialized_data(
-        workspace, serializer.data, user
+    serialized_data = (
+        EnterpriseMemberTeamsDataType().annotate_serialized_workspace_members_data(
+            workspace, serializer.data, user
+        )
     )
     assert serialized_data[0]["teams"] == [{"id": team.id, "name": team.name}]
 
@@ -42,8 +46,10 @@ def test_teams_member_datatype_workspaceuser_with_subjects_across_workspaces(
     team_workspace_b = enterprise_data_fixture.create_team(workspace=workspace_b)
     enterprise_data_fixture.create_subject(team=team_workspace_b, subject=user)
     serializer = WorkspaceUserSerializer(workspace_a.workspaceuser_set.all(), many=True)
-    serialized_data = EnterpriseMemberTeamsDataType().annotate_serialized_data(
-        workspace_a, serializer.data, user
+    serialized_data = (
+        EnterpriseMemberTeamsDataType().annotate_serialized_workspace_members_data(
+            workspace_a, serializer.data, user
+        )
     )
     assert serialized_data[0]["teams"] == [
         {"id": team_workspace_a.id, "name": team_workspace_a.name}
