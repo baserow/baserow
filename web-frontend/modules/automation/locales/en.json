@@ -87,6 +87,8 @@
     "actionConfigure": "Configure",
     "beforeLabelTrigger": "Starts when",
     "beforeLabelAction": "Then",
+    "beforeLabelCondition": "If condition is met",
+    "beforeLabelConditionDefault": "If no condition(s) are met",
     "moreEdit": "Edit",
     "moreReplace": "Replace",
     "nodeOptions": "Node options",
