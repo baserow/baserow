@@ -53,7 +53,7 @@ class AutomationNodeTrashableItemType(TrashableItemType):
             self,
             workflow=item_to_trash.workflow,
             node_id=item_to_trash.id,
-            user=None,
+            user=requesting_user,
         )
 
     def restore(self, trashed_item: AutomationActionNode, trash_entry: TrashEntry):
