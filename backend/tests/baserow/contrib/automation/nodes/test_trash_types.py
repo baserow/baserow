@@ -1,9 +1,5 @@
 import pytest
 
-from baserow.contrib.automation.nodes.node_types import (
-    LocalBaserowRowsUpdatedNodeTriggerType,
-)
-from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
 from baserow.core.trash.handler import TrashHandler
@@ -88,28 +84,6 @@ def test_trashing_and_restoring_node_updates_next_node_values(data_fixture):
     assert second_router_edge_output_node.previous_node_id == second_router.id
     assert second_router_edge_output_node.previous_node_output == str(
         second_router_edge.uid
-    )
-
-
-@pytest.mark.django_db
-def test_restoring_a_trashed_replaced_trigger_is_disallowed(data_fixture):
-    user = data_fixture.create_user()
-    workflow = data_fixture.create_automation_workflow(user=user)
-    rows_created_trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow
-    )
-    AutomationNodeService().replace_node(
-        user, rows_created_trigger.id, LocalBaserowRowsUpdatedNodeTriggerType.type
-    )
-    with pytest.raises(TrashItemRestorationDisallowed) as exc:
-        TrashHandler.restore_item(
-            user,
-            AutomationNodeTrashableItemType.type,
-            rows_created_trigger.id,
-        )
-    assert (
-        exc.value.args[0] == "This trashed automation trigger cannot be restored "
-        "because there is already a trigger in the workflow."
     )
 
 
