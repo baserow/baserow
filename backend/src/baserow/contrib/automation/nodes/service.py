@@ -203,7 +203,6 @@ class AutomationNodeService:
             context=node,
         )
 
-        node.get_type().before_delete(node)
         automation = node.workflow.automation
         TrashHandler.trash(user, automation.workspace, automation, node)
 
