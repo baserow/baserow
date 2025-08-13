@@ -62,21 +62,6 @@ class AutomationNodeTrashableItemType(TrashableItemType):
             AutomationNodeHandler().get_next_nodes(workflow, trashed_item.previous_node)
         )
 
-        # If this trashed item is a trigger, we need to ensure that there is no
-        # existing trigger in the workflow. This can currently only happen if
-        # the user *replaces* the trigger node type, and then goes to the trash
-        # modal to restore the initial (trashed) trigger node.
-        if (
-            trashed_item.get_type().is_workflow_trigger
-            and workflow.automation_workflow_nodes.filter(
-                previous_node_id=None
-            ).exists()
-        ):
-            raise TrashItemRestorationDisallowed(
-                "This trashed automation trigger cannot be restored "
-                "because there is already a trigger in the workflow."
-            )
-
         # If we're restoring a node, and it has a previous node output, ensure that
         # the output UUID matches one of the `uid` in the previous node's edges. If
         # the output isn't found, it means that the edge was deleted whilst the node
@@ -110,7 +95,7 @@ class AutomationNodeTrashableItemType(TrashableItemType):
                 # Do we have anything to restore for this next node? For defensive
                 # programming purposes we double-check that the next node is present
                 # in the old state's restoration data.
-                node_restoration_data = restoration_data.get(str(next_node.id), None)
+                node_restoration_data = restoration_data.get(str(next_node.id))
                 if node_restoration_data is None:
                     continue
                 next_node.previous_node_output = node_restoration_data[
