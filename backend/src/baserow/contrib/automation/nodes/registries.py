@@ -71,7 +71,7 @@ class AutomationNodeType(
             "service",
         ]
 
-    def before_delete(self, node: AutomationNode) -> Any:
+    def before_delete(self, node: AutomationNode) -> None:
         """
         A hook called just before a node is deleted. Can be
         overridden by subclasses to implement specific logic.
@@ -81,7 +81,7 @@ class AutomationNodeType(
 
         ...
 
-    def before_replace(self, node: AutomationNode, new_node_type: Instance) -> Any:
+    def before_replace(self, node: AutomationNode, new_node_type: Instance) -> None:
         """
         A hook called just before a node is replaced. Can be
         overridden by subclasses to implement specific logic.
@@ -97,7 +97,7 @@ class AutomationNodeType(
                 "category. Triggers cannot be updated with actions, and vice-versa."
             )
 
-    def after_create(self, node: AutomationNode) -> Any:
+    def after_create(self, node: AutomationNode) -> None:
         """
         A hook called just after a node is created. Can be
         overridden by subclasses to implement specific logic.
