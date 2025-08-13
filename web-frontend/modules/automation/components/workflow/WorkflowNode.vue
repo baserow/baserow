@@ -2,11 +2,7 @@
   <div
     class="workflow-editor__node"
     :title="label"
-    :data-before-label="
-      props.data.isTrigger
-        ? $t('workflowNode.beforeLabelTrigger')
-        : $t('workflowNode.beforeLabelAction')
-    "
+    :data-before-label="getDataBeforeLabel"
   >
     <div class="workflow-editor__node-icon">
       <i
@@ -91,6 +87,7 @@ import { useVueFlow } from '@vue2-flow/core'
 import { useStore, useContext, inject, computed } from '@nuxtjs/composition-api'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
 import flushPromises from 'flush-promises'
+import { CoreRouterNodeType } from '@baserow/modules/automation/nodeTypes'
 
 const { onMove } = useVueFlow()
 const props = defineProps({
@@ -228,6 +225,34 @@ const getDeleteErrorMessage = computed(() => {
     workflow: workflow.value,
     node: node.value,
   })
+})
+
+/**
+ * This computed property determines the label that should be displayed
+ * before the node label in the workflow editor. It checks the previous node
+ * in the workflow to determine if it is a router node or if the current node
+ * is an output node. Based on these conditions, it returns the appropriate
+ * label for the node.
+ * @returns {string} - The label to display before the node label.
+ */
+const getDataBeforeLabel = computed(() => {
+  const previousNode = store.getters['automationWorkflowNode/getPreviousNode'](
+    workflow.value,
+    node.value
+  )
+  const previousNodeIsRouter =
+    previousNode?.type === CoreRouterNodeType.getType()
+  const isOutputNode = node.value.previous_node_output.length > 0
+  switch (true) {
+    case props.data.isTrigger:
+      return app.i18n.t('workflowNode.beforeLabelTrigger')
+    case isOutputNode:
+      return app.i18n.t('workflowNode.beforeLabelCondition')
+    case previousNodeIsRouter && !isOutputNode:
+      return app.i18n.t('workflowNode.beforeLabelConditionDefault')
+    default:
+      return app.i18n.t('workflowNode.beforeLabelAction')
+  }
 })
 
 const handleReplaceNode = (newType) => {

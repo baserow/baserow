@@ -377,6 +377,9 @@ const getters = {
       }
       return nextNodes
     },
+  getPreviousNode: (state, getters) => (workflow, node) => {
+    return getters.findById(workflow, node?.previous_node_id)
+  },
   getPreviousNodes:
     (state, getters) =>
     (
@@ -385,7 +388,7 @@ const getters = {
       { targetFirst = false, includeSelf = false } = {}
     ) => {
       const getPreviousForNode = (node) => {
-        const previousNode = getters.findById(workflow, node.previous_node_id)
+        const previousNode = getters.getPreviousNode(workflow, node)
         if (previousNode) {
           return [...getPreviousForNode(previousNode), previousNode]
         } else {
