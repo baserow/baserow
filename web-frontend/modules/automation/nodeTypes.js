@@ -20,6 +20,7 @@ import {
   CoreRouterServiceType,
   CoreSMTPEmailServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
+import { uuid } from '@baserow/modules/core/utils/string'
 
 export class NodeType extends Registerable {
   /**
@@ -543,13 +544,24 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
 
   /**
    * Allow to hook into default values for this node type at node creation.
+   * The fallback edge is deliberately omitted as the goal is to replicate
+   * what the API returns when creating a router node.
    * @param {object} values the current values for the node to create.
    * @returns an object containing values updated with the default values.
    */
   getDefaultValues(values) {
     return {
       ...values,
-      service: { edges: [] },
+      service: {
+        edges: [
+          {
+            uid: uuid(),
+            order: 0,
+            condition: '',
+            label: this.app.i18n.t('routerForm.edgeDefaultName'),
+          },
+        ],
+      },
     }
   }
 

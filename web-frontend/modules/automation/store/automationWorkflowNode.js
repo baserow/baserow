@@ -106,22 +106,34 @@ const actions = {
       previousNode,
       previousNodeOutput
     )
+
     const beforeNode = nextNodes.length > 0 ? nextNodes[0] : null
     const beforeId = beforeNode?.id || null
+    const beforeOldValues = beforeNode
+      ? {
+          previous_node_id: beforeNode.previous_node_id,
+          previous_node_output: beforeNode.previous_node_output,
+        }
+      : {}
 
-    // Create a temporary node for optimistic UI
-    const tempId = uuid()
-
+    // Apply optimistic create
     const tempNode = nodeType.getDefaultValues({
-      id: tempId,
+      id: uuid(),
       type,
       previous_node_id: previousNodeId,
       previous_node_output: previousNodeOutput,
-      workflow_id: workflow.id,
+      workflow: workflow.id,
     })
-
-    // Apply optimistic create
     commit('ADD_ITEM', { workflow, node: tempNode })
+
+    // Apply optimistic beforeNode update.
+    if (beforeNode) {
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: beforeNode,
+        values: { previous_node_id: tempNode.id, previous_node_output: '' },
+      })
+    }
 
     try {
       const { data: node } = await AutomationWorkflowNodeService(
@@ -129,7 +141,7 @@ const actions = {
       ).create(workflow.id, type, beforeId, previousNodeId, previousNodeOutput)
 
       // Remove temp node and add real one
-      commit('DELETE_ITEM', { workflow, nodeId: tempId })
+      commit('DELETE_ITEM', { workflow, nodeId: tempNode.id })
       commit('ADD_ITEM', { workflow, node })
 
       // If we have a `beforeNode`, we need to update its `previous_node_id`
@@ -153,7 +165,15 @@ const actions = {
       return node
     } catch (error) {
       // If API fails, remove the temporary node
-      commit('DELETE_ITEM', { workflow, nodeId: tempId })
+      commit('DELETE_ITEM', { workflow, nodeId: tempNode.id })
+      // And restore the previous `beforeNode` values.
+      if (beforeNode) {
+        commit('UPDATE_ITEM', {
+          workflow,
+          node: beforeNode,
+          values: beforeOldValues,
+        })
+      }
       throw error
     }
   },
