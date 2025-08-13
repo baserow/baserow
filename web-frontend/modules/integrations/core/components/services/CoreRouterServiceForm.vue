@@ -6,6 +6,9 @@
       required
       class="margin-bottom-2"
     >
+      <p class="margin-top-0 margin-bottom-1">
+        {{ $t('routerForm.defaultEdgeLabelDescription') }}
+      </p>
       <FormInput
         v-model="values.default_edge_label"
         :placeholder="$t('nodeType.routerDefaultEdgeLabelFallback')"
@@ -14,7 +17,10 @@
     <FormSection
       class="margin-bottom-2"
       :title="$t('routerForm.branchesHeading')"
-      ><div>
+      ><p class="margin-top-0 margin-bottom-1">
+        {{ $t('routerForm.branchesDescription') }}
+      </p>
+      <div>
         <SidebarExpandable
           v-for="(edge, index) in v$.values.edges.$model"
           :key="edge.uid"
