@@ -79,7 +79,7 @@
     "httpRequestLabel": "Send an HTTP request",
     "smtpEmailLabel": "Send an email",
     "routerLabel": "Follow 1 of {edgeCount} branches",
-    "routerDefaultEdgeLabelFallback": "Otherwise",
+    "routerDefaultEdgeLabelFallback": "Default",
     "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
     "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed."
   },
