@@ -23,12 +23,12 @@ class AutomationTrashableItemType(TrashableItemType):
     ):
         """
         When an Automation application is trashed, ensure that all
-        related workflows are unpublished.
+        related workflows are deleted.
         """
 
         AutomationWorkflow.objects.filter(
             automation__published_from__automation=item_to_trash, published=True
-        ).update(published=False)
+        ).delete()
 
         super().trash(item_to_trash, requesting_user, trash_entry)
 
