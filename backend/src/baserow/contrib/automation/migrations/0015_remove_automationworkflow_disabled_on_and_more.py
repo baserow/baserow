@@ -2,6 +2,25 @@
 
 from django.db import migrations, models
 
+from baserow.contrib.automation.workflows.constants import WorkflowState
+
+
+def forwards_fill_state(apps, schema_editor):
+    AutomationWorkflow = apps.get_model("automation", "AutomationWorkflow")
+
+    for workflow in AutomationWorkflow.objects.only(
+        "id", "published", "paused", "disabled_on"
+    ):
+        new_state = WorkflowState.DRAFT
+        if workflow.disabled_on:
+            new_state = WorkflowState.DISABLED
+        elif workflow.paused:
+            new_state = WorkflowState.PAUSED
+        elif workflow.published:
+            new_state = WorkflowState.LIVE
+
+        AutomationWorkflow.objects.filter(id=workflow.id).update(state=new_state)
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -9,6 +28,29 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Add field first since we need to populate the state from
+        # existing data.
+        migrations.AddField(
+            model_name="automationworkflow",
+            name="state",
+            field=models.CharField(
+                choices=[
+                    ("draft", "Draft"),
+                    ("live", "Live"),
+                    ("paused", "Paused"),
+                    ("disabled", "Disabled"),
+                ],
+                max_length=20,
+                null=True,
+            ),
+        ),
+
+        # Run a data migration to fill the state.
+        migrations.RunPython(
+            forwards_fill_state, reverse_code=migrations.RunPython.noop
+        ),
+
+        # Safely remove old fields.
         migrations.RemoveField(
             model_name="automationworkflow",
             name="disabled_on",
@@ -21,7 +63,9 @@ class Migration(migrations.Migration):
             model_name="automationworkflow",
             name="published",
         ),
-        migrations.AddField(
+
+        # Make the state field not nullable.
+        migrations.AlterField(
             model_name="automationworkflow",
             name="state",
             field=models.CharField(
@@ -31,8 +75,10 @@ class Migration(migrations.Migration):
                     ("paused", "Paused"),
                     ("disabled", "Disabled"),
                 ],
-                db_default="draft",
                 default="draft",
+                db_default="draft",
+                max_length=20,
+                null=False,
             ),
         ),
     ]
