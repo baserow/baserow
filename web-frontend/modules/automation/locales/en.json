@@ -51,6 +51,9 @@
   "dataProviderType": {
     "previousNode": "Previous node"
   },
+  "nodeSidePanel": {
+    "labelTitle": "Label"
+  },
   "historySidePanel": {
     "title": "History",
     "noRunsTitle": "No runs yet",

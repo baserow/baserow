@@ -32,13 +32,23 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * If the workflow designer doesn't provide a `label` for the node,
+   * this method is used to generate a default label.
+   * By default, it returns the node type's name.
+   * @param node - The node for which the default label is being generated.
+   * @returns {string} - The default label for the node.
+   */
+  getDefaultLabel({ node }) {
+    return this.name
+  }
+
+  /**
    * The display label of the node type, we use this value
-   * in the editor when rendering the node. By default, it
-   * just returns the name, but can be overridden.
+   * in the editor when rendering the node.
    * @returns {string} - The display label for the node.
    */
-  getLabel({ node }) {
-    return this.name
+  getLabel({ automation, node }) {
+    return node.label || this.getDefaultLabel({ automation, node })
   }
 
   /**
@@ -156,15 +166,13 @@ export class LocalBaserowNodeType extends NodeType {
   }
 
   /**
-   * Responsible for returning this Local Baserow node's label, which is
-   * displayed in the editor.
-   *
+   * If the workflow designer doesn't provide a `label` for the node,
+   * this method is used to generate a default label.
    * @param automation - The automation the node belongs to.
-   * @param node - The node for which the label is being retrieved.
-   * @returns {string} - if a table name is found, it returns the label
-   *  referencing the table name, otherwise it returns the node's `name`.
+   * @param node - The node for which the default label is being generated.
+   * @returns {string} - The default label for the node.
    */
-  getLabel({ automation, node }) {
+  getDefaultLabel({ automation, node }) {
     const { tableName } = this.getLabelContext({ automation, node })
     return tableName
       ? this.app.i18n.t(this.labelTemplateName, { tableName })

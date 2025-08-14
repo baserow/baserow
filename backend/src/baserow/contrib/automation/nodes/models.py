@@ -73,6 +73,13 @@ class AutomationNode(
     typically have a Trigger Node and one or more Action Nodes.
     """
 
+    label = models.CharField(
+        blank=True,
+        default="",
+        db_default="",
+        max_length=75,
+        help_text="A label to use when displaying this node in a graph.",
+    )
     content_type = models.ForeignKey(
         ContentType,
         verbose_name="content type",
