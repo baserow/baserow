@@ -205,7 +205,6 @@ class AutomationWorkflowView(APIView):
             AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
         }
     )
-    @transaction.atomic
     def delete(self, request, workflow_id: int):
         DeleteAutomationWorkflowActionType.do(request.user, workflow_id)
 
