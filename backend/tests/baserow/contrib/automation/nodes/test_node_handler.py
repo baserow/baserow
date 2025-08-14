@@ -144,11 +144,12 @@ def test_update_node(data_fixture):
 
 @pytest.mark.django_db
 def test_export_prepared_values(data_fixture):
-    node = data_fixture.create_automation_node()
+    node = data_fixture.create_automation_node(label="My node")
 
     values = node.get_type().export_prepared_values(node)
 
     assert values == {
+        "label": "My node",
         "service": AnyDict(),
         "workflow": node.workflow_id,
         "previous_node_output": "",
@@ -245,6 +246,7 @@ def test_export_node(data_fixture):
 
     assert result == {
         "id": node.id,
+        "label": node.label,
         "order": str(node.order),
         "parent_node_id": None,
         "previous_node_id": None,
