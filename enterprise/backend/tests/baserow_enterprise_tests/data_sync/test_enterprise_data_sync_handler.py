@@ -830,7 +830,7 @@ def test_periodic_sync_failure_deactivation_shows_failure_message(
     assert notification_data["deactivation_reason"] == DEACTIVATION_REASON_FAILURE
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.table.signals.table_created.send")
 def test_create_two_way_data_sync_table(

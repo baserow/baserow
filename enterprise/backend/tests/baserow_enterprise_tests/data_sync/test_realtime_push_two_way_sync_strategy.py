@@ -102,6 +102,7 @@ def test_update_two_way_data_sync_strategy_without_enterprise_license(
 
 
 @pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
 def test_update_row_is_retried_on_sync_error(
     enterprise_data_fixture, create_postgresql_test_table, api_client, synced_roles
 ):
