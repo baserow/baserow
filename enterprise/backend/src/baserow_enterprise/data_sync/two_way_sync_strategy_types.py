@@ -11,6 +11,7 @@ from baserow.contrib.database.data_sync.registries import (
 )
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.table.signals import table_updated
 from baserow_enterprise.features import DATA_SYNC
 
 from .notification_types import (
@@ -35,6 +36,23 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
 
     def before_enable(self, workspace):
         LicenseHandler.raise_if_workspace_doesnt_have_feature(DATA_SYNC, workspace)
+
+    def _deactivate_two_way_sync(self, data_sync):
+        data_sync.two_way_sync = False
+        data_sync.save()
+        # Change all the fields to read only because it should not be
+        # possible to change the cell value after the two-way sync is
+        # disabled.
+        Field.objects.filter(
+            id__in=DataSyncSyncedProperty.objects.filter(
+                data_sync=data_sync,
+                field__read_only=False,
+            ).values_list("field_id", flat=True)
+        ).update(read_only=True)
+        TwoWaySyncDeactivatedNotificationType.notify_admins_in_workspace(data_sync)
+        table_updated.send(
+            self, table=data_sync.table, user=None, force_table_refresh=False
+        )
 
     def retry_of_fail_with_notification(self, sync_error, task_context, data_sync):
         if task_context.request.retries >= settings.BASEROW_TWO_WAY_SYNC_MAX_RETRIES:
@@ -61,20 +79,7 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
                         .first()
                     )
                     if data_sync:
-                        data_sync.two_way_sync = False
-                        data_sync.save()
-                        # Change all the fields to read only because it should not be
-                        # possible to change the cell value after the two-way sync is
-                        # disabled.
-                        Field.objects.filter(
-                            id__in=DataSyncSyncedProperty.objects.filter(
-                                data_sync=data_sync,
-                                field__read_only=False,
-                            ).values_list("field_id", flat=True)
-                        ).update(read_only=True)
-                        TwoWaySyncDeactivatedNotificationType.notify_admins_in_workspace(
-                            data_sync
-                        )
+                        self._deactivate_two_way_sync(data_sync)
         else:
             # Retries the task with an exponential backoff.
             task_context.retry(countdown=2**task_context.request.retries)

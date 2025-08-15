@@ -217,6 +217,14 @@ export default {
         })
         await this.syncTable(this.createdTable)
       } catch (error) {
+        if (error.handler && error.handler.code === 'ERROR_SYNC_ERROR') {
+          this.showError(
+            this.$t('dataSyncType.syncError'),
+            error.handler.detail
+          )
+          error.handler.handled()
+          return
+        }
         this.handleError(error)
       } finally {
         this.creatingTable = false

@@ -235,9 +235,6 @@ class DataSyncHandler:
         :return: The updated data sync.
         """
 
-        if not isinstance(data_sync, DataSync):
-            raise ValueError("The table is not an instance of Table")
-
         CoreHandler().check_permissions(
             user,
             UpdateDatabaseTableOperationType.type,
