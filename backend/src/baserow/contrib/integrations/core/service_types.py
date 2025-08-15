@@ -66,7 +66,7 @@ class CoreHTTPRequestServiceType(ServiceType):
         "body_type",
         "body_content",
         "timeout",
-        "response_sample",
+        "sample_data",
     ]
 
     request_serializer_field_names = [
@@ -89,7 +89,7 @@ class CoreHTTPRequestServiceType(ServiceType):
         body_type: str
         body_content: str
         timeout: int
-        response_sample: dict
+        sample_data: dict
 
     simple_formula_fields = ["body_content", "url"]
 

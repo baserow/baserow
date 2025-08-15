@@ -393,7 +393,7 @@ def test_core_http_request_export_import():
         "body_type": "none",
         "body_content": "'body'",
         "timeout": 30,
-        "response_sample": None,
+        "sample_data": None,
     }
 
     new_service = service_type.import_serialized(None, serialized, {}, lambda x, d: x)
