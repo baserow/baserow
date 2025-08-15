@@ -98,8 +98,8 @@
 
 .application-selector__title {
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   color: $color-neutral-900;
 }
 
@@ -124,19 +124,27 @@
 }
 
 .application-selector__tree {
-  border: 1px solid $color-neutral-200;
-  border-radius: 4px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $color-neutral-50;
   overflow: hidden;
   max-height: 400px;
   overflow-y: auto;
+
+  @include rounded($rounded-md);
+}
+
+.application-selector__group:last-child::after {
+  content: '';
+  width: 100%;
+  height: 20px;
+  display: block;
 }
 
 .application-selector__group-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background-color: $color-neutral-50;
+  padding: 20px 20px 12px;
 }
 
 .application-selector__group-left {
@@ -147,29 +155,24 @@
 .application-selector__group-arrow {
   width: 16px;
   height: 16px;
-  color: $color-neutral-500;
+  color: $palette-neutral-700;
   transition: transform 0.2s ease;
   cursor: pointer;
 
   &:hover {
-    color: $color-neutral-700;
+    color: $palette-neutral-900;
   }
 }
 
 .application-selector__group-title {
   margin-left: 8px;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 13px;
   color: $color-neutral-800;
   cursor: pointer;
-
-  &:hover {
-    color: $color-primary-600;
-  }
 }
 
 .application-selector__group-items {
-  background-color: $color-neutral-50;
   overflow-y: auto;
   position: relative;
 }
@@ -180,55 +183,30 @@
   &::before {
     content: '';
     position: absolute;
-    left: 24px;
+    left: 28px;
     top: 0;
     bottom: 0;
     width: 1px;
-    background: $color-neutral-200;
+    background: $palette-neutral-200;
     pointer-events: none;
     z-index: 1;
-  }
-
-  // For the last node, stop the vertical trunk at the checkbox row
-  &:last-child::before {
-    bottom: 50%;
   }
 }
 
 .application-selector__item-main {
   display: flex;
   align-items: center;
-  padding: 8px 16px 8px 48px;
+  padding: 7px 16px 7px 46px;
   cursor: pointer;
   position: relative;
   z-index: 0;
-
-  &:hover {
-    background-color: $color-neutral-50;
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    left: 24px;
-    top: 50%;
-    width: 16px;
-    height: 1px;
-    background: $color-neutral-200;
-    transform: translateY(-50%);
-    z-index: 1;
-  }
 }
 
 .application-selector__item-name {
   margin-left: 8px;
   font-size: 13px;
-  color: $color-neutral-700;
+  color: $palette-neutral-1200;
   cursor: pointer;
-
-  &:hover {
-    color: $color-primary-600;
-  }
 }
 
 .application-selector--disabled {
