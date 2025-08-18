@@ -212,44 +212,4 @@
 .application-selector--disabled {
   opacity: 0.6;
   pointer-events: none;
-
-  .application-selector__action-btn {
-    cursor: not-allowed;
-
-    &:hover {
-      text-decoration: none;
-    }
-  }
-
-  .application-selector__group-arrow {
-    cursor: not-allowed;
-
-    &:hover {
-      color: $color-neutral-500;
-    }
-  }
-
-  .application-selector__group-title {
-    cursor: not-allowed;
-
-    &:hover {
-      color: $color-neutral-800;
-    }
-  }
-
-  .application-selector__item-main {
-    cursor: not-allowed;
-
-    &:hover {
-      background-color: transparent;
-    }
-  }
-
-  .application-selector__item-name {
-    cursor: not-allowed;
-
-    &:hover {
-      color: $color-neutral-700;
-    }
-  }
 }

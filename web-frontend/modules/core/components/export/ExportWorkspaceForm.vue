@@ -18,14 +18,15 @@
         </h4>
         <FormGroup small-label class="export-workspace-form__setting">
           <div class="export-workspace__structure-wrapper">
-            <Checkbox v-model="values.only_structure"></Checkbox>
-            <div class="export-workspace__structure-label">
+            <Checkbox v-model="values.only_structure">
               {{ $t('exportWorkspaceForm.onlyStructureLabel') }}
               <HelpIcon
                 class="margin-left-1"
                 :tooltip="$t('exportWorkspaceForm.onlyStructureDescription')"
+                @mousedown.native.stop
+                @click.native.stop
               />
-            </div>
+            </Checkbox>
           </div>
         </FormGroup>
       </div>
