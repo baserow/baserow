@@ -171,13 +171,14 @@
         </li>
         <li
           v-if="
+            hasSelectedView &&
             hasCompatibleDecorator &&
-            !readOnly &&
-            $hasPermission(
-              'database.table.view.decoration.update',
-              view,
-              database.workspace.id
-            )
+            (adhocDecorations ||
+              $hasPermission(
+                'database.table.view.create_decoration',
+                view,
+                database.workspace.id
+              ))
           "
           class="header__filter-item"
         >
@@ -186,7 +187,7 @@
             :view="view"
             :table="table"
             :fields="fields"
-            :read-only="readOnly"
+            :read-only="adhocDecorations"
             :disable-sort="disableSort"
             @changed="refresh()"
           ></ViewDecoratorMenu>
@@ -432,6 +433,24 @@ export default {
         ) &&
         !this.$hasPermission(
           'database.table.view.create_sort',
+          this.view,
+          this.database.workspace.id
+        )
+      )
+    },
+    adhocDecorations() {
+      if (this.readOnly) {
+        return true
+      }
+
+      return (
+        this.$hasPermission(
+          'database.table.view.list_decoration',
+          this.view,
+          this.database.workspace.id
+        ) &&
+        !this.$hasPermission(
+          'database.table.view.create_decoration',
           this.view,
           this.database.workspace.id
         )

@@ -116,6 +116,9 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             ReadViewFilterGroupOperationType.type,
             UpdateViewFilterGroupOperationType.type,
             DeleteViewFilterGroupOperationType.type,
+            CreateViewDecorationOperationType.type,
+            UpdateViewDecorationOperationType.type,
+            DeleteViewDecorationOperationType.type,
         ]
         # This list controls operations that for personal views, should only be allowed
         # to be performed by the creator of the personal view BUT should only be
