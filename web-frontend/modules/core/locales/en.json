@@ -143,6 +143,9 @@
   },
   "exportWorkspaceForm": {
     "exportSettingsLabel": "Export settings",
+    "selectDataToExport": "Select data to export",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
     "onlyStructureLabel": "Export structure only",
     "onlyStructureDescription": "If enabled, only the structure of the applications will be exported. The data will not be included."
   },

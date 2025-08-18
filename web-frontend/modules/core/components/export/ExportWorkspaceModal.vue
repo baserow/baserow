@@ -13,32 +13,46 @@
     ></component>
     <Error :error="error"></Error>
     <div>
-      <h4 class="margin-bottom-2">
-        {{ $t('exportWorkspaceForm.exportSettingsLabel') }}
-      </h4>
-      <ExportWorkspaceForm ref="form" @submitted="submitted">
-        <template v-if="jobIsRunning || jobIsFinished" #select-applications>
-          <div class="margin-right-2">
-            <ProgressBar
-              :value="job.progress_percentage"
-              :status="jobHumanReadableState"
-            />
-          </div>
-        </template>
-        <template #default>
-          <Button
-            v-if="!createFinished"
-            size="large"
-            :loading="createLoading"
-            :disabled="createLoading || exportJobLoading"
-          >
-            {{ $t('exportWorkspaceModal.export') }}
-          </Button>
-          <Button v-else type="secondary" tag="a" size="large" @click="reset()">
-            {{ $t('exportWorkspaceModal.reset') }}
-          </Button>
-        </template>
-      </ExportWorkspaceForm>
+      <ExportWorkspaceForm
+        ref="form"
+        :workspace="workspace"
+        :disabled="jobIsRunning"
+        @submitted="submitted"
+        @update="updateSelectedApplications"
+      />
+
+      <!-- Export button section -->
+      <div
+        class="export-workspace__button-section"
+        :class="{
+          'export-workspace__button-section--with-progress':
+            jobIsRunning || jobIsFinished,
+        }"
+      >
+        <div
+          v-if="jobIsRunning || jobIsFinished"
+          class="export-workspace__progress"
+        >
+          <ProgressBar
+            :value="job.progress_percentage"
+            :status="jobHumanReadableState"
+          />
+        </div>
+        <Button
+          v-if="!createFinished"
+          size="large"
+          :loading="createLoading"
+          :disabled="
+            createLoading || exportJobLoading || !hasSelectedApplications
+          "
+          @click="submitForm"
+        >
+          {{ $t('exportWorkspaceModal.export') }}
+        </Button>
+        <Button v-else type="secondary" tag="a" size="large" @click="reset()">
+          {{ $t('exportWorkspaceModal.reset') }}
+        </Button>
+      </div>
       <div class="export-workspace__list">
         <div
           v-if="exportJobLoading"
@@ -98,6 +112,7 @@ export default {
       createFinished: false,
       exportJobLoading: false,
       exportJobs: [],
+      selectedApplicationIds: [],
     }
   },
   computed: {
@@ -108,12 +123,21 @@ export default {
         )
         .filter((component) => component !== null)
     },
+    hasSelectedApplications() {
+      return this.selectedApplicationIds.length > 0
+    },
   },
   methods: {
     show(...args) {
       this.reset()
       this.loadExports()
       modal.methods.show.bind(this)(...args)
+    },
+    submitForm() {
+      this.$refs.form.submit()
+    },
+    updateSelectedApplications(applicationIds) {
+      this.selectedApplicationIds = [...applicationIds]
     },
     async submitted(values) {
       this.createLoading = true
