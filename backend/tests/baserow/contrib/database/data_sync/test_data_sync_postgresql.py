@@ -12,7 +12,11 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
-from baserow.contrib.database.data_sync.models import PostgreSQLDataSync
+from baserow.contrib.database.data_sync.models import (
+    DataSync,
+    PostgreSQLDataSync,
+    SyncDataSyncTableJob,
+)
 from baserow.contrib.database.data_sync.postgresql_data_sync_type import (
     TextPostgreSQLSyncProperty,
 )
@@ -846,3 +850,78 @@ def test_create_data_sync_via_api_without_a_primary_property(
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_UNIQUE_PRIMARY_PROPERTY_NOT_FOUND"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_data_sync_with_negative_int_and_positive_baserow_number_field(
+    data_fixture, api_client, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "postgresql",
+            "synced_properties": ["id", "int_col"],
+            "postgresql_host": default_database["HOST"],
+            "postgresql_username": default_database["USER"],
+            "postgresql_password": default_database["PASSWORD"],
+            "postgresql_port": default_database["PORT"],
+            "postgresql_database": default_database["NAME"],
+            "postgresql_table": create_postgresql_test_table,
+            "postgresql_sslmode": default_database["OPTIONS"].get("sslmode", "prefer"),
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    data_sync_id = response.json()["id"]
+
+    data_sync = DataSync.objects.get(pk=data_sync_id)
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 2
+
+    FieldHandler().update_field(user=user, field=fields[1], number_negative=False)
+
+    # Inserts a couple of random rows for testing purposes.
+    insert_sql = f"""
+    INSERT INTO {create_postgresql_test_table} (int_col)
+    VALUES (%s)
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            insert_sql,
+            (-10,),
+        )
+
+    transaction.commit()
+
+    api_client.post(
+        reverse(
+            "api:database:data_sync:sync_table",
+            kwargs={"data_sync_id": data_sync_id},
+        ),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    job = SyncDataSyncTableJob.objects.all().first()
+
+    response = api_client.get(
+        reverse(
+            "api:jobs:item",
+            kwargs={"job_id": job.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    job = response.json()
+    assert job["state"] == "failed"
+    assert job["type"] == "sync_data_sync_table"
+    assert job["progress_percentage"] > 0
+    assert job["data_sync"]["id"] == data_sync_id
+    assert job["human_readable_error"] == "The value for field 2 cannot be negative."
