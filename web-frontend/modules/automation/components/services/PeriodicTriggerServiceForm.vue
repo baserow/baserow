@@ -1,5 +1,5 @@
 <template>
-  <form @submit.prevent="submit">
+  <form @submit.prevent>
     <FormGroup
       :error="fieldHasErrors('interval')"
       :label="$t('periodicTriggerServiceForm.intervalLabel')"
@@ -12,38 +12,37 @@
         <DropdownItem
           :name="$t('periodicTriggerServiceForm.everyMinute')"
           value="MINUTE"
-        ></DropdownItem>
+        />
         <DropdownItem
           :name="$t('periodicTriggerServiceForm.everyHour')"
           value="HOUR"
-        ></DropdownItem>
+        />
         <DropdownItem
           :name="$t('periodicTriggerServiceForm.everyDay')"
           value="DAY"
-        ></DropdownItem>
+        />
         <DropdownItem
           :name="$t('periodicTriggerServiceForm.everyWeek')"
           value="WEEK"
-        ></DropdownItem>
+        />
         <DropdownItem
           :name="$t('periodicTriggerServiceForm.everyMonth')"
           value="MONTH"
-        ></DropdownItem>
+        />
       </Dropdown>
     </FormGroup>
 
     <div v-if="values.interval !== null">
-      <div class="flex align-items-end margin-bottom-2">
+      <div class="flex align-items-start margin-bottom-2">
         <FormGroup
           v-if="showHourField"
           small-label
           :label="$t('periodicTriggerServiceForm.hour')"
-          :error="fieldHasErrors('hour')"
           required
           class="margin-right-1"
         >
           <FormInput
-            v-model="v$.values.hour.$model"
+            v-model="v$.user.hour.$model"
             size="large"
             type="number"
             :min="0"
@@ -55,11 +54,10 @@
           v-if="showMinuteField"
           small-label
           :label="$t('periodicTriggerServiceForm.minute')"
-          :error="fieldHasErrors('minute')"
           required
         >
           <FormInput
-            v-model="v$.values.minute.$model"
+            v-model="v$.user.minute.$model"
             size="large"
             type="number"
             :min="0"
@@ -67,49 +65,52 @@
             :placeholder="$t('periodicTriggerServiceForm.minutePlaceholder')"
           />
         </FormGroup>
-        <div v-if="fieldHasErrors('hour')" class="error">
-          {{ v$.values.hour.$errors[0].$message }}
-        </div>
-        <div v-if="fieldHasErrors('minute')" class="error">
-          {{ v$.values.minute.$errors[0].$message }}
-        </div>
       </div>
+
+      <div v-if="fieldHasLocalErrors('hour')" class="error margin-bottom-2">
+        {{ v$.user.hour.$errors[0].$message }}
+      </div>
+      <div v-if="fieldHasLocalErrors('minute')" class="error margin-bottom-2">
+        {{ v$.user.minute.$errors[0].$message }}
+      </div>
+
       <FormGroup
         v-if="values.interval === 'WEEK'"
-        :error="fieldHasErrors('day_of_week')"
+        :error="fieldHasLocalErrors('day_of_week')"
         :label="$t('periodicTriggerServiceForm.dayOfWeek')"
         required
         small-label
         class="margin-bottom-2"
       >
-        <Dropdown v-model="values.day_of_week" size="large">
+        <Dropdown v-model="user.day_of_week" size="large">
           <DropdownItem
             v-for="(value, key) in daysOfWeek"
             :key="key"
             :name="value"
             :value="parseInt(key)"
-          ></DropdownItem>
+          />
         </Dropdown>
       </FormGroup>
+
       <FormGroup
         v-if="values.interval === 'MONTH'"
-        :error="fieldHasErrors('day_of_month')"
+        :error="fieldHasLocalErrors('day_of_month')"
         :label="$t('periodicTriggerServiceForm.dayOfMonth')"
         required
         small-label
         class="margin-bottom-2"
       >
         <FormInput
-          v-model="v$.values.day_of_month.$model"
+          v-model="v$.user.day_of_month.$model"
           size="large"
           type="number"
           :min="1"
           :max="31"
           :placeholder="$t('periodicTriggerServiceForm.dayOfMonthPlaceholder')"
-          @blur="v$.values.day_of_month.$touch()"
+          @blur="v$.user.day_of_month.$touch()"
         />
         <template #error>
-          {{ v$.values.day_of_month.$errors[0].$message }}
+          {{ v$.user.day_of_month.$errors[0].$message }}
         </template>
       </FormGroup>
 
@@ -128,7 +129,6 @@
         </template>
       </p>
     </div>
-
     <slot></slot>
   </form>
 </template>
@@ -136,13 +136,11 @@
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import { between, required, helpers } from '@vuelidate/validators'
-
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'PeriodicTriggerServiceForm',
   mixins: [form],
-  props: {},
   setup() {
     return { v$: useVuelidate() }
   },
@@ -156,12 +154,20 @@ export default {
         'day_of_week',
         'day_of_month',
       ],
+      // The values stored in UTC timezone (observed by backend).
       values: {
         interval: 'HOUR',
         minute: 0,
         hour: 0,
-        day_of_week: 0,
-        day_of_month: 1,
+        day_of_week: 0, // Monday=0..Sunday=6 (UTC)
+        day_of_month: 1, // 1..31 (UTC)
+      },
+      // User-facing values in local timezone.
+      user: {
+        minute: 0,
+        hour: 0,
+        day_of_week: 0, // Monday=0..Sunday=6 (LOCAL)
+        day_of_month: 1, // 1..31 (LOCAL)
       },
     }
   },
@@ -193,6 +199,8 @@ export default {
             required
           ),
         },
+      },
+      user: {
         minute: {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
@@ -219,12 +227,205 @@ export default {
             required
           ),
           between: helpers.withMessage(
-            this.$t('error.minMaxValueField', { min: 0, max: 20 }),
-            between(0, 31)
+            this.$t('error.minMaxValueField', { min: 1, max: 31 }),
+            between(1, 31)
           ),
         },
       },
     }
+  },
+  watch: {
+    'user.minute': 'syncValuesFromUser',
+    'user.hour': 'syncValuesFromUser',
+    'user.day_of_week': 'syncValuesFromUser',
+    'user.day_of_month': 'syncValuesFromUser',
+    'values.interval': 'syncValuesFromUser',
+  },
+  mounted() {
+    this.syncUserFromValues()
+  },
+  methods: {
+    fieldHasErrors(name) {
+      const seg = this.v$.values?.[name]
+      return !!(seg && seg.$error)
+    },
+    fieldHasLocalErrors(name) {
+      const seg = this.v$.user?.[name]
+      return !!(seg && seg.$error)
+    },
+    toMondayIndexFromSundayZero(sunZero) {
+      return (sunZero + 6) % 7
+    },
+    localDateForWeekly(monZero, hour, minute) {
+      const now = new Date()
+      const todayMonZero = (now.getDay() + 6) % 7
+      const diff = monZero - todayMonZero
+      const d = new Date(now)
+      d.setDate(now.getDate() + diff)
+      d.setHours(hour, minute, 0, 0)
+      return d
+    },
+    utcPartsFromLocalDate(d) {
+      return {
+        minute: d.getUTCMinutes(),
+        hour: d.getUTCHours(),
+        day_of_week: this.toMondayIndexFromSundayZero(d.getUTCDay()),
+        day_of_month: d.getUTCDate(),
+      }
+    },
+    syncValuesFromUser() {
+      this.v$.$touch()
+      if (this.v$.values.interval.$invalid) return
+      if (this.showMinuteField && this.v$.user.minute.$invalid) return
+      if (this.showHourField && this.v$.user.hour.$invalid) return
+      if (
+        this.values.interval === 'MONTH' &&
+        this.v$.user.day_of_month.$invalid
+      )
+        return
+
+      const { interval } = this.values
+      const {
+        minute,
+        hour,
+        day_of_week: dayOfWeek,
+        day_of_month: dayOfMonth,
+      } = this.user
+
+      if (interval === 'MINUTE') {
+        this.values = { ...this.values, interval }
+        return
+      }
+
+      if (interval === 'HOUR') {
+        this.values = { ...this.values, interval, minute }
+        return
+      }
+
+      if (interval === 'DAY') {
+        const base = new Date()
+        base.setHours(hour, minute, 0, 0)
+        const utc = this.utcPartsFromLocalDate(base)
+        this.values = {
+          ...this.values,
+          interval,
+          hour: utc.hour,
+          minute: utc.minute,
+        }
+        return
+      }
+
+      if (interval === 'WEEK') {
+        const d = this.localDateForWeekly(dayOfWeek, hour, minute)
+        const utc = this.utcPartsFromLocalDate(d)
+        this.values = {
+          ...this.values,
+          interval,
+          day_of_week: utc.day_of_week,
+          hour: utc.hour,
+          minute: utc.minute,
+        }
+        return
+      }
+
+      if (interval === 'MONTH') {
+        const now = new Date()
+        const d = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          Math.min(dayOfMonth, 31),
+          hour,
+          minute,
+          0,
+          0
+        )
+        const utc = this.utcPartsFromLocalDate(d)
+        this.values = {
+          ...this.values,
+          interval,
+          day_of_month: utc.day_of_month,
+          hour: utc.hour,
+          minute: utc.minute,
+        }
+      }
+    },
+
+    // ---- One-time UTC → LOCAL (on mount) ----
+    syncUserFromValues() {
+      const {
+        interval,
+        minute,
+        hour,
+        day_of_week: dayOfWeek,
+        day_of_month: dayOfMonth,
+      } = this.values
+
+      if (interval === 'MINUTE') {
+        return
+      }
+
+      if (interval === 'HOUR') {
+        this.user.minute = minute
+        return
+      }
+
+      if (interval === 'DAY') {
+        const now = new Date()
+        const d = new Date(
+          Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate(),
+            hour,
+            minute,
+            0,
+            0
+          )
+        )
+        this.user.hour = d.getHours() // local
+        this.user.minute = d.getMinutes() // local
+        return
+      }
+
+      if (interval === 'WEEK') {
+        const now = new Date()
+        const todayUtcMonZero = (now.getUTCDay() + 6) % 7
+        const diff = dayOfWeek - todayUtcMonZero
+        const utcCandidate = new Date(
+          Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate() + diff,
+            hour,
+            minute,
+            0,
+            0
+          )
+        )
+        this.user.day_of_week = (utcCandidate.getDay() + 6) % 7 // local Mon=0..Sun=6
+        this.user.hour = utcCandidate.getHours()
+        this.user.minute = utcCandidate.getMinutes()
+        return
+      }
+
+      if (interval === 'MONTH') {
+        const now = new Date()
+        const utcCandidate = new Date(
+          Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            dayOfMonth,
+            hour,
+            minute,
+            0,
+            0
+          )
+        )
+        this.user.day_of_month = utcCandidate.getDate() // local date (may shift)
+        this.user.hour = utcCandidate.getHours()
+        this.user.minute = utcCandidate.getMinutes()
+      }
+    },
   },
 }
 </script>
