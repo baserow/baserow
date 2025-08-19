@@ -14,6 +14,9 @@ from baserow.contrib.automation.periodic_trigger.models import (
     PERIODIC_INTERVAL_WEEK,
     PeriodicTriggerService,
 )
+from baserow.contrib.automation.periodic_trigger.utils import (
+    get_periodic_trigger_payload,
+)
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
 
@@ -105,7 +108,7 @@ class PeriodicTriggerHandler:
             # TODO add comment in MR stating that if no `event_payload` is provided,
             # the PreviousNodeProviderType fails with `The previous node id is not
             # present in the dispatch context results`
-            workflow_handler.run_workflow(workflow, {"triggered_at": now.isoformat()})
+            workflow_handler.run_workflow(workflow, get_periodic_trigger_payload(now))
 
         if periodic_services:
             PeriodicTriggerService.objects.bulk_update(

@@ -194,6 +194,7 @@ class AutomationConfig(AppConfig):
             # The signals must always be imported last because they use
             # the registries which need to be filled first.
             import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401
+            import baserow.contrib.automation.periodic_trigger.receivers  # noqa: F403, F401
             import baserow.contrib.automation.periodic_trigger.tasks  # noqa: F403, F401
             import baserow.contrib.automation.workflows.signals  # noqa: F403, F401
             import baserow.contrib.automation.workflows.ws.signals  # noqa: F403, F401
