@@ -133,8 +133,8 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
 
     mock_run_workflow.delay.assert_has_calls(
         [
-            call(workflow.id, False, None),
-            call(workflow_2.id, False, None),
+            call(workflow.id, False, {"triggered_at": "2025-02-15T10:30:45+00:00"}),
+            call(workflow_2.id, False, {"triggered_at": "2025-02-15T10:30:45+00:00"}),
         ]
     )
 
@@ -517,14 +517,19 @@ def test_call_periodic_triggers_that_are_due(
         with transaction.atomic():
             PeriodicTriggerHandler.call_periodic_triggers_that_are_due()
 
+    trigger_node.refresh_from_db()
+    service = trigger_node.service.specific
+    service.refresh_from_db()
+
     if should_be_called:
-        mock_run_workflow.delay.assert_called_once_with(workflow.id, False, None)
+        mock_run_workflow.delay.assert_called_once_with(
+            workflow.id,
+            False,
+            {"triggered_at": service.last_periodic_trigger.isoformat()},
+        )
     else:
         mock_run_workflow.delay.assert_not_called()
 
     if should_be_called:
-        trigger_node.refresh_from_db()
-        service = trigger_node.service.specific
-        service.refresh_from_db()
         target_date = datetime.fromisoformat(frozen_time).replace(tzinfo=timezone.utc)
         assert service.last_periodic_trigger == target_date

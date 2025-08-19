@@ -8,7 +8,6 @@ from baserow.contrib.automation.periodic_trigger.models import PeriodicTriggerSe
 from baserow.contrib.automation.periodic_trigger.utils import (
     get_periodic_trigger_payload,
 )
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.signals import automation_workflow_updated
 
