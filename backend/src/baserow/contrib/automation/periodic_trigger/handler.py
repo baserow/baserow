@@ -105,9 +105,6 @@ class PeriodicTriggerHandler:
         for service in periodic_services:
             service.last_periodic_trigger = now
             workflow = service.automation_workflow_node.workflow
-            # TODO add comment in MR stating that if no `event_payload` is provided,
-            # the PreviousNodeProviderType fails with `The previous node id is not
-            # present in the dispatch context results`
             workflow_handler.run_workflow(workflow, get_periodic_trigger_payload(now))
 
         if periodic_services:

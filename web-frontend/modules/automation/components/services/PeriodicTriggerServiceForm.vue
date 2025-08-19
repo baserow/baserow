@@ -349,8 +349,6 @@ export default {
         }
       }
     },
-
-    // ---- One-time UTC → LOCAL (on mount) ----
     syncUserFromValues() {
       const {
         interval,
@@ -382,8 +380,8 @@ export default {
             0
           )
         )
-        this.user.hour = d.getHours() // local
-        this.user.minute = d.getMinutes() // local
+        this.user.hour = d.getHours()
+        this.user.minute = d.getMinutes()
         return
       }
 
@@ -402,7 +400,7 @@ export default {
             0
           )
         )
-        this.user.day_of_week = (utcCandidate.getDay() + 6) % 7 // local Mon=0..Sun=6
+        this.user.day_of_week = (utcCandidate.getDay() + 6) % 7
         this.user.hour = utcCandidate.getHours()
         this.user.minute = utcCandidate.getMinutes()
         return
@@ -421,7 +419,7 @@ export default {
             0
           )
         )
-        this.user.day_of_month = utcCandidate.getDate() // local date (may shift)
+        this.user.day_of_month = utcCandidate.getDate()
         this.user.hour = utcCandidate.getHours()
         this.user.minute = utcCandidate.getMinutes()
       }
