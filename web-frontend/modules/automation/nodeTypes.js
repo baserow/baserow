@@ -350,6 +350,22 @@ export class PeriodicTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
   get serviceType() {
     return this.app.$registry.get('service', 'periodic_trigger')
   }
+
+  getLabel({ node }) {
+    if (!node.service) {
+      return this.name
+    }
+
+    const intervalLabels = {
+      MINUTE: this.app.i18n.t('periodicTriggerServiceForm.everyMinute'),
+      HOUR: this.app.i18n.t('periodicTriggerServiceForm.everyHour'),
+      DAY: this.app.i18n.t('periodicTriggerServiceForm.everyDay'),
+      WEEK: this.app.i18n.t('periodicTriggerServiceForm.everyWeek'),
+      MONTH: this.app.i18n.t('periodicTriggerServiceForm.everyMonth'),
+    }
+
+    return intervalLabels[node.service.interval] || this.name
+  }
 }
 
 export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
