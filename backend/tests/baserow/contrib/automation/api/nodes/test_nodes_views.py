@@ -44,6 +44,7 @@ def test_create_node(api_client, data_fixture):
         "service": AnyDict(),
         "type": "create_row",
         "workflow": AnyInt(),
+        "simulate_dispatch_trigger": False,
     }
 
 
@@ -73,6 +74,7 @@ def test_create_node_before(api_client, data_fixture):
         "service": AnyDict(),
         "type": "create_row",
         "workflow": workflow.id,
+        "simulate_dispatch_trigger": False,
     }
 
     new_node = AutomationNode.objects.get(id=response.json()["id"])
@@ -301,7 +303,8 @@ def test_get_nodes(api_client, data_fixture):
             "previous_node_output": "",
             "service": AnyDict(),
             "type": "create_row",
-            "workflow": workflow.id,
+            "workflow": node.workflow.id,
+            "simulate_dispatch_trigger": False,
         },
     ]
 
@@ -537,6 +540,7 @@ def test_update_node(api_client, data_fixture):
         "previous_node_output": "foo",
         "type": "create_row",
         "workflow": workflow.id,
+        "simulate_dispatch_trigger": False,
     }
 
 
@@ -644,6 +648,7 @@ def test_replace_node_type_with_replaceable_type(
         "order": AnyStr(),
         "service": AnyDict(),
         "previous_node_output": "",
+        "simulate_dispatch_trigger": False,
     }
 
 
