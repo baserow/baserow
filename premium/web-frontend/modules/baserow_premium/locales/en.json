@@ -369,5 +369,9 @@
     "true": "true",
     "false": "false",
     "other": "Other"
+  },
+  "viewOwnershipType": {
+    "personal": "Personal",
+    "personalDescription": "Only you can see the view."
   }
 }

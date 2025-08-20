@@ -1402,6 +1402,16 @@ class ViewOwnershipType(Instance):
 
         raise PermissionDenied()
 
+    def view_created(self, user: AbstractUser, view: "View", workspace: Workspace):
+        """
+        Hook that is called after a view is created. This can be used to introduce
+        additional permissions checks, for example.
+
+        :param user: The user that created the view.
+        :param view: The view that was created.
+        :param workspace: The workspace where the view was created in.
+        """
+
 
 class ViewOwnershipTypeRegistry(Registry):
     """

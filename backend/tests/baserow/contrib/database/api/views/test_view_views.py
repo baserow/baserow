@@ -625,7 +625,7 @@ def test_patch_view_field_options_as_template(api_client, data_fixture):
 
 @override_settings(PERMISSION_MANAGERS=["basic"])
 @pytest.mark.django_db
-def test_patch_view_validate_ownerhip_type_invalid_type(api_client, data_fixture):
+def test_patch_view_validate_ownership_type_invalid_type(api_client, data_fixture):
     """A test to make sure that if an invalid `ownership_type` string is passed
     when updating the view, the `ownership_type` is not updated and this results
     in status 400 error with an error message.
@@ -653,7 +653,8 @@ def test_patch_view_validate_ownerhip_type_invalid_type(api_client, data_fixture
     assert view.ownership_type == previous_ownership_type
     assert (
         response_data["detail"]["ownership_type"][0]["error"]
-        == "Ownership type must be one of the above: 'collaborative','personal'."
+        == "Ownership type must be one of the above: 'collaborative','personal'"
+        ",'restricted'."
     )
 
 

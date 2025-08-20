@@ -86,6 +86,7 @@ import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContex
 import { DateDepencencyContextItemType } from '@baserow_enterprise/dateDependencyContextItemTypes'
 import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
+import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -263,5 +264,10 @@ export default (context) => {
   app.$registry.register(
     'twoWaySyncStrategy',
     new RealtimePushTwoWaySyncStrategyType(context)
+  )
+
+  app.$registry.register(
+    'viewOwnershipType',
+    new RestrictedViewOwnershipType(context)
   )
 }
