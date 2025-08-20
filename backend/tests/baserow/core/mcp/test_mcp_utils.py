@@ -98,10 +98,10 @@ def test_polymorphic_serializer_to_openapi_inline():
                         "x-spec-enum-id": "bc45559484b1f708",
                     },
                     "ownership_type": {
-                        "enum": ["collaborative", "personal"],
+                        "enum": ["collaborative", "personal", "restricted"],
                         "type": "string",
-                        "description": "* `collaborative` - collaborative\n* `personal` - personal",
-                        "x-spec-enum-id": "d4dd2da3edbad2e6",
+                        "description": "* `collaborative` - collaborative\n* `personal` - personal\n* `restricted` - restricted",
+                        "x-spec-enum-id": "c917b297d9d9ef1b",
                         "default": "collaborative",
                     },
                     "filter_type": {
@@ -156,10 +156,10 @@ def test_polymorphic_serializer_to_openapi_inline():
                         "x-spec-enum-id": "bc45559484b1f708",
                     },
                     "ownership_type": {
-                        "enum": ["collaborative", "personal"],
+                        "enum": ["collaborative", "personal", "restricted"],
                         "type": "string",
-                        "description": "* `collaborative` - collaborative\n* `personal` - personal",
-                        "x-spec-enum-id": "d4dd2da3edbad2e6",
+                        "description": "* `collaborative` - collaborative\n* `personal` - personal\n* `restricted` - restricted",
+                        "x-spec-enum-id": "c917b297d9d9ef1b",
                         "default": "collaborative",
                     },
                     "filter_type": {
@@ -207,10 +207,10 @@ def test_polymorphic_serializer_to_openapi_inline():
                         "x-spec-enum-id": "bc45559484b1f708",
                     },
                     "ownership_type": {
-                        "enum": ["collaborative", "personal"],
+                        "enum": ["collaborative", "personal", "restricted"],
                         "type": "string",
-                        "description": "* `collaborative` - collaborative\n* `personal` - personal",
-                        "x-spec-enum-id": "d4dd2da3edbad2e6",
+                        "description": "* `collaborative` - collaborative\n* `personal` - personal\n* `restricted` - restricted",
+                        "x-spec-enum-id": "c917b297d9d9ef1b",
                         "default": "collaborative",
                     },
                     "filter_type": {
@@ -396,10 +396,10 @@ def test_polymorphic_serializer_to_openapi_inline():
                         "x-spec-enum-id": "bc45559484b1f708",
                     },
                     "ownership_type": {
-                        "enum": ["collaborative", "personal"],
+                        "enum": ["collaborative", "personal", "restricted"],
                         "type": "string",
-                        "description": "* `collaborative` - collaborative\n* `personal` - personal",
-                        "x-spec-enum-id": "d4dd2da3edbad2e6",
+                        "description": "* `collaborative` - collaborative\n* `personal` - personal\n* `restricted` - restricted",
+                        "x-spec-enum-id": "c917b297d9d9ef1b",
                         "default": "collaborative",
                     },
                     "filter_type": {
@@ -448,10 +448,10 @@ def test_polymorphic_serializer_to_openapi_inline():
                         "x-spec-enum-id": "bc45559484b1f708",
                     },
                     "ownership_type": {
-                        "enum": ["collaborative", "personal"],
+                        "enum": ["collaborative", "personal", "restricted"],
                         "type": "string",
-                        "description": "* `collaborative` - collaborative\n* `personal` - personal",
-                        "x-spec-enum-id": "d4dd2da3edbad2e6",
+                        "description": "* `collaborative` - collaborative\n* `personal` - personal\n* `restricted` - restricted",
+                        "x-spec-enum-id": "c917b297d9d9ef1b",
                         "default": "collaborative",
                     },
                     "filter_type": {
@@ -505,10 +505,10 @@ def test_polymorphic_serializer_to_openapi_inline():
                         "x-spec-enum-id": "bc45559484b1f708",
                     },
                     "ownership_type": {
-                        "enum": ["collaborative", "personal"],
+                        "enum": ["collaborative", "personal", "restricted"],
                         "type": "string",
-                        "description": "* `collaborative` - collaborative\n* `personal` - personal",
-                        "x-spec-enum-id": "d4dd2da3edbad2e6",
+                        "description": "* `collaborative` - collaborative\n* `personal` - personal\n* `restricted` - restricted",
+                        "x-spec-enum-id": "c917b297d9d9ef1b",
                         "default": "collaborative",
                     },
                     "filter_type": {

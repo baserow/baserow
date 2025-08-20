@@ -290,6 +290,13 @@ class BaserowEnterpriseConfig(AppConfig):
         notification_type_registry.register(TwoWaySyncUpdateFailedNotificationType())
         notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
 
+        from baserow.contrib.database.views.registries import (
+            view_ownership_type_registry,
+        )
+        from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
+
+        view_ownership_type_registry.register(RestrictedViewOwnershipType())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow_enterprise.audit_log.signals  # noqa: F

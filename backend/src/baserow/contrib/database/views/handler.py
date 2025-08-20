@@ -898,6 +898,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         view_type.view_created(view=instance)
+        view_ownership_type.view_created(user=user, view=instance, workspace=workspace)
         view_created.send(self, view=instance, user=user, type_name=type_name)
 
         return instance

@@ -297,7 +297,7 @@
     "sso": "Single Sign On",
     "ssoContent": "Enable secure and seamless logins with SAML, Google, Facebook, GitHub, GitLab, or OpenID Connect. Supports multiple providers at once. Note that both Baserow as a tool, and the application builder authentication system support SSO.",
     "rbac": "Role-based access control",
-    "rbacContent": "Manage permissions with precision. Assign roles like admin, builder,  editor, commenter, or viewer at the workspace, database, or table level. You can also manage access by team.",
+    "rbacContent": "Manage permissions with precision. Assign roles like admin, builder,  editor, commenter, or viewer at the workspace, database, table and view level. You can also manage access by team.",
     "auditLogs": "Audit logs",
     "auditLogsContent": "Track everything that happens. View a full history of actions across your instance or workspace, filterable by user, action, and more.",
     "dataSync": "Data sync",
@@ -600,5 +600,9 @@
   },
   "enterpriseTwoWaySyncStrategyType": {
     "realtimePushDescription": "Allows editing the cell values directly in Baserow, and pushes it in real-time to the data sync source. Note that the changes are not pulled in real-time because they rely on the (periodic) sync action to complete. It's highly recommended to create backups of the PostgreSQL database to avoid accidental changes."
+  },
+  "viewOwnershipType": {
+    "restricted": "Restricted",
+    "restrictedDescription": "Editors and lower can only see the filtered data and visible fields. It’s possible to manage the members."
   }
 }

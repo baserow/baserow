@@ -1,5 +1,5 @@
 <template>
-  <li class="context__menu-item">
+  <li v-if="isVisible" class="context__menu-item">
     <a
       v-if="!changeOwnershipTypeIsDeactivated"
       class="context__menu-item-link"
@@ -50,14 +50,20 @@ export default {
     },
   },
   computed: {
+    isVisible() {
+      return [
+        CollaborativeViewOwnershipType.getType(),
+        PersonalViewOwnershipType.getType(),
+      ].includes(this.view.ownership_type)
+    },
     changeOwnershipTypeOptions() {
       const collaborativeOwnershipType = this.$registry.get(
         'viewOwnershipType',
-        new CollaborativeViewOwnershipType().getType()
+        CollaborativeViewOwnershipType.getType()
       )
       const personalOwnershipType = this.$registry.get(
         'viewOwnershipType',
-        new PersonalViewOwnershipType().getType()
+        PersonalViewOwnershipType.getType()
       )
       const workspaceId = this.database.workspace.id
 
