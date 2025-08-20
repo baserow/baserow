@@ -347,6 +347,13 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(ListWorkflowsToolType())
         assistant_tool_registry.register(WorkflowToolFactoryToolType())
 
+        from baserow.contrib.database.views.registries import (
+            view_ownership_type_registry,
+        )
+        from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
+
+        view_ownership_type_registry.register(RestrictedViewOwnershipType())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow_enterprise.assistant.tasks  # noqa: F

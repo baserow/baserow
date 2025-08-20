@@ -644,11 +644,11 @@
   },
   "viewForm": {
     "name": "Name",
-    "whoCanEdit": "Who can edit"
+    "whoCanEdit": "Who can edit this view?"
   },
   "viewOwnershipType": {
     "collaborative": "Collaborative",
-    "personal": "Personal"
+    "collaborativeDescription": "Everyone can see all the data and change the properties if they have the permissions."
   },
   "galleryViewHeader": {
     "customizeCards": "Customize cards"

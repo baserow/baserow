@@ -7,7 +7,7 @@ from baserow_premium.views.models import (
     KanbanViewFieldOptions,
     TimelineViewFieldOptions,
 )
-from rest_framework.status import HTTP_200_OK
+from rest_framework.status import HTTP_200_OK, HTTP_402_PAYMENT_REQUIRED
 
 from baserow.contrib.database.rows.handler import RowHandler
 
@@ -250,3 +250,47 @@ def test_can_limit_linked_items_in_premium_public_views(
     resp = api_client.get(f"{timeline_url}?limit_linked_items=2", format="json")
     assert resp.status_code == HTTP_200_OK
     assert len(resp.json()["results"][0][link_a_to_b.db_column]) == 2
+
+
+@pytest.mark.django_db
+def test_create_personal_grid_view_without_license(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token()
+    table = premium_data_fixture.create_database_table(user=user)
+
+    response = api_client.post(
+        reverse("api:database:views:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Test 1",
+            "type": "grid",
+            "ownership_type": "personal",
+            "filter_type": "OR",
+            "filters_disabled": True,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_402_PAYMENT_REQUIRED
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_create_personal_grid_view_with_license(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+
+    response = api_client.post(
+        reverse("api:database:views:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Test 1",
+            "type": "grid",
+            "ownership_type": "personal",
+            "filter_type": "OR",
+            "filters_disabled": True,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["ownership_type"] == "personal"

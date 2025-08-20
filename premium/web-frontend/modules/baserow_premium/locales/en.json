@@ -400,5 +400,9 @@
   },
   "jobType": {
     "generateAIValues": "Regenerate AI field values"
+  },
+  "viewOwnershipType": {
+    "personal": "Personal",
+    "personalDescription": "Only you can see the view."
   }
 }
