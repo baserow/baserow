@@ -218,6 +218,11 @@ class ServiceType(
 
         return None
 
+    def get_sample_data(self, service: ServiceSubClass) -> Optional[Dict[Any, Any]]:
+        """Return the sample data for this service."""
+
+        return service.sample_data
+
     def get_context_data_schema(self, service: ServiceSubClass):
         """Return the schema for the context data."""
 
@@ -329,6 +334,15 @@ class ServiceType(
         """
 
         resolved_values = self.resolve_service_formulas(service, dispatch_context)
+
+        # If simulated, try to return existing sample data
+        if getattr(dispatch_context, "is_simulated", False) and not getattr(
+            dispatch_context, "re_test", False
+        ):
+            if data := self.get_sample_data(service):
+                return DispatchResult(data=data)
+
+        # This is a real dispatch or there is no sample data
         data = self.dispatch_data(service, resolved_values, dispatch_context)
         return self.dispatch_transform(data)
 

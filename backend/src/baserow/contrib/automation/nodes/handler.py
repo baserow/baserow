@@ -4,12 +4,17 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
+    AutomationNodeError,
     AutomationNodeNotInWorkflow,
+    AutomationNodeSimulateDispatchError,
 )
-from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.types import (
@@ -18,6 +23,7 @@ from baserow.contrib.automation.nodes.types import (
     NextAutomationNodeValues,
     UpdatedAutomationNode,
 )
+from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
@@ -494,3 +500,24 @@ class AutomationNodeHandler:
         )
 
         return node_instance
+
+    def simulate_dispatch_node(self, node: AutomationActionNode, re_test: bool) -> None:
+        if node.get_type().is_workflow_trigger:
+            node.service.sample_data = None
+            node.service.save()
+            node.simulate_dispatch = True
+            node.save()
+            return
+
+        dispatch_context = AutomationDispatchContext(
+            node.workflow,
+            None,
+            is_simulated=True,
+            simulate_until_node=node.specific,
+            re_test=re_test,
+        )
+
+        try:
+            AutomationWorkflowRunner().run(node.workflow, dispatch_context)
+        except AutomationNodeError as e:
+            raise AutomationNodeSimulateDispatchError(str(e))

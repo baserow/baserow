@@ -12,6 +12,7 @@ from advocate.connection import UnacceptableAddressException
 from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
+from genson import SchemaBuilder
 
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
@@ -419,6 +420,20 @@ class CoreHTTPRequestServiceType(ServiceType):
                 },
             )
 
+        schema_builder = SchemaBuilder()
+
+        if service.sample_data:
+            try:
+                sample_data = json.loads(service.sample_data["raw_body"])
+            except json.decoder.JSONDecodeError:
+                raise
+
+            schema_builder.add_object(sample_data)
+            schema = schema_builder.to_schema()
+
+            if schema_properties := schema.get("properties", None):
+                properties.update(**schema_properties)
+
         return {
             "title": self.get_schema_name(service),
             "type": "object",
@@ -552,12 +567,22 @@ class CoreHTTPRequestServiceType(ServiceType):
         # Extract the response headers
         response_headers = {key: value for key, value in response.headers.items()}
 
+        schema = self.generate_schema(service)
+        schema_keys = schema["properties"].keys()
+
+        dynamic_data = {}
+        if isinstance(response_body, dict):
+            for key, value in response_body.items():
+                if key in schema_keys:
+                    dynamic_data[key] = value
+
         return {
             "data": {
                 # For now we always convert the body to a string
                 "raw_body": ensure_string(response_body, allow_empty=True),
                 "headers": response_headers,
                 "status_code": response.status_code,
+                **dynamic_data,
             },
         }
 

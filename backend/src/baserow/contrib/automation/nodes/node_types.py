@@ -252,6 +252,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 Q(
                     Q(workflow__state=WorkflowState.LIVE)
                     | Q(workflow__allow_test_run_until__gte=now)
+                    | Q(simulate_dispatch=True)
                 ),
             )
             .select_related("workflow__automation__workspace")
@@ -266,6 +267,12 @@ class AutomationNodeTriggerType(AutomationNodeType):
             if workflow.allow_test_run_until:
                 workflow.allow_test_run_until = None
                 workflow.save(update_fields=["allow_test_run_until"])
+
+            if trigger.simulate_dispatch and not workflow.published:
+                trigger.service.sample_data = event_payload
+                trigger.service.save()
+                trigger.simulate_dispatch = False
+                trigger.save(update_fields=["simulate_dispatch"])
 
     def after_register(self):
         service_type_registry.get(self.service_type).start_listening(self.on_event)

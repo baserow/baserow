@@ -347,3 +347,13 @@ class AutomationNodeService:
             original_node_id=node.id,
             original_node_type=node_type.type,
         )
+
+    def simulate_dispatch_node(
+        self, user: AbstractUser, node_id: int, re_test: bool = False
+    ) -> None:
+        node = self.get_node(user, node_id)
+
+        # TODO: Maybe add a specific operation type for
+        # dispatching and check here
+
+        self.handler.simulate_dispatch_node(node, re_test)

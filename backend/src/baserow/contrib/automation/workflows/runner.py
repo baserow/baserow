@@ -38,6 +38,11 @@ class AutomationWorkflowRunner:
             dispatch_result = node_type.dispatch(node, dispatch_context)
             dispatch_context.after_dispatch(node, dispatch_result)
 
+            # Return early if this is a simulated dispatch
+            if until_node := getattr(dispatch_context, "simulate_until_node", None):
+                if until_node == node:
+                    return
+
             next_nodes = node.get_next_nodes(dispatch_result.output_uid)
 
             for next_node in next_nodes:

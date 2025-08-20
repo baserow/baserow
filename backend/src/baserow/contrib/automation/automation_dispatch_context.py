@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 from baserow.contrib.automation.data_providers.registries import (
     automation_data_provider_type_registry,
 )
-from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.models import Service
@@ -18,6 +18,9 @@ class AutomationDispatchContext(DispatchContext):
         self,
         workflow: AutomationWorkflow,
         event_payload: Optional[Union[Dict, List[Dict]]] = None,
+        is_simulated: bool = False,
+        simulate_until_node: Optional[AutomationActionNode] = None,
+        re_test: bool = False,
     ):
         """
         The `DispatchContext` implementation for automations. This context is provided
@@ -32,6 +35,9 @@ class AutomationDispatchContext(DispatchContext):
         self.workflow = workflow
         self.previous_nodes_results: Dict[int, Any] = {}
         self.dispatch_history: List[int] = []
+        self.is_simulated = is_simulated
+        self.simulate_until_node = simulate_until_node
+        self.re_test = re_test
         self._initialize_trigger_results(event_payload)
         super().__init__()
 
@@ -75,6 +81,10 @@ class AutomationDispatchContext(DispatchContext):
 
         self.dispatch_history.append(node.id)
         self._register_node_result(node, dispatch_result.data)
+
+        if self.is_simulated:
+            node.service.sample_data = dispatch_result.data
+            node.service.save()
 
     def range(self, service: Service):
         pass
