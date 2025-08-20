@@ -204,8 +204,15 @@ class AutomationNodeService:
             context=node,
         )
 
+        next_nodes = self.handler.get_next_nodes(node.workflow, node)
+
         automation = node.workflow.automation
         TrashHandler.trash(user, automation.workspace, automation, node)
+
+        # Since the deleted node was the basis for the sample data in
+        # subsequent nodes, all subsequent nodes sample data needs to
+        # be reset.
+        self.handler.reset_sample_data(next_nodes)
 
         automation_node_deleted.send(
             self,

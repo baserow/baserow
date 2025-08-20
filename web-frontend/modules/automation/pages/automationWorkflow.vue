@@ -181,6 +181,10 @@ export default defineComponent({
         })
 
         workflow.value = { ...workflow.value }
+
+        await store.dispatch('automationWorkflowNode/fetchNodesAndSelect', {
+          workflow: workflow.value,
+        })
       } catch (err) {
         console.error('Failed to delete node:', err)
       }
