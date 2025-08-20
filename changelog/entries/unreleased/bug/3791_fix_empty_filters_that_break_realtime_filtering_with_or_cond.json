@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix empty filters that break real-time filtering with OR condition",
+    "domain": "database",
+    "issue_number": 3791,
+    "bullet_points": [],
+    "created_at": "2025-08-22"
+}

@@ -243,6 +243,11 @@ export const TreeGroupNode = class {
         field,
         fieldType
       )
+
+      if (matches === null) {
+        continue
+      }
+
       if (filterType === 'AND' && !matches) {
         // With an `AND` filter type, the row must match all the filters, so if
         // one of the filters doesn't match we can mark it as invalid.

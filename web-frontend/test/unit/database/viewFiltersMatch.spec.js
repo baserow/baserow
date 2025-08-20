@@ -2842,3 +2842,108 @@ describe('Multiple collaborators view filters', () => {
     }
   )
 })
+
+const emptyFilterValueCases = [
+  {
+    filterType: 'equal',
+    rowValue: 'test',
+    filterValue: '',
+    expected: null,
+  },
+  {
+    filterType: 'not_equal',
+    rowValue: 'test',
+    filterValue: '',
+    expected: null,
+  },
+  {
+    filterType: 'higher_than',
+    rowValue: 5,
+    filterValue: '',
+    expected: null,
+  },
+  {
+    filterType: 'higher_than_or_equal',
+    rowValue: 5,
+    filterValue: '',
+    expected: null,
+  },
+  {
+    filterType: 'lower_than',
+    rowValue: 5,
+    filterValue: '',
+    expected: null,
+  },
+  {
+    filterType: 'lower_than_or_equal',
+    rowValue: 5,
+    filterValue: '',
+    expected: null,
+  },
+]
+
+const emptyFilterValueSingleSelectCases = [
+  {
+    filterType: 'single_select_equal',
+    rowValue: { id: 1, value: 'Option A', color: 'blue' },
+    filterValue: '',
+    expected: null,
+  },
+  {
+    filterType: 'single_select_not_equal',
+    rowValue: { id: 1, value: 'Option A', color: 'blue' },
+    filterValue: '',
+    expected: null,
+  },
+]
+
+describe('Empty filter value tests', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test.each(emptyFilterValueCases)(
+    'Filter type %s with empty value should return null',
+    (values) => {
+      const filterClass = testApp._app.$registry.get(
+        'viewFilter',
+        values.filterType
+      )
+      const result = filterClass.matches(
+        values.rowValue,
+        values.filterValue,
+        { type: 'text' },
+        {
+          getMatchesParsedValues: (rowValue, filterValue) => ({
+            rowVal: rowValue,
+            filterVal: filterValue,
+          }),
+        }
+      )
+      expect(result).toBe(values.expected)
+    }
+  )
+
+  test.each(emptyFilterValueSingleSelectCases)(
+    'Filter type %s with empty value should return null',
+    (values) => {
+      const filterClass = testApp._app.$registry.get(
+        'viewFilter',
+        values.filterType
+      )
+      const result = filterClass.matches(
+        values.rowValue,
+        values.filterValue,
+        { type: 'single_select' },
+        {}
+      )
+      expect(result).toBe(values.expected)
+    }
+  )
+})
