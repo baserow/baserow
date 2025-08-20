@@ -40,6 +40,8 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 const { app } = useContext()
 const store = useStore()
 
+const workflow = inject('workflow')
+
 const props = defineProps({
   node: {
     type: Object,
@@ -58,8 +60,6 @@ const nodeIsInError = computed(() => {
   if (nodeType.isInError({ service: props.node.service })) {
     return 'The Node must be configured before it can be tested.'
   }
-
-  const workflow = inject('workflow')
 
   for (const node of workflow.value.orderedNodes) {
     const nodeType = app.$registry.get('node', node.type)
@@ -102,11 +102,26 @@ const isActionNode = computed(() => {
 
 const simulateDispatchNode = async () => {
   isSimulatingDispatch.value = true
+  const currentSelectedNodeId = workflow.value.selectedNodeId
 
   try {
     await store.dispatch('automationWorkflowNode/simulateDispatch', {
       nodeId: props.node.id,
       reTest: hasSampleData.value,
+    })
+    await store.dispatch('automationWorkflowNode/fetch', {
+      workflow: workflow.value,
+    })
+    workflow.value = { ...workflow.value }
+
+    // restore the selected node after refreshing the nodes
+    const nodeToSelect = store.getters['automationWorkflowNode/findById'](
+      workflow.value,
+      currentSelectedNodeId
+    )
+    store.dispatch('automationWorkflowNode/select', {
+      workflow: workflow.value,
+      node: nodeToSelect,
     })
   } catch (error) {
     notifyIf(error, 'automationWorkflow')
