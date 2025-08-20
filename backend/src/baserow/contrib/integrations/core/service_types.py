@@ -9,10 +9,10 @@ from django.core.mail import EmailMultiAlternatives, get_connection
 from django.utils.translation import gettext as _
 
 from advocate.connection import UnacceptableAddressException
+from genson import SchemaBuilder
 from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
-from genson import SchemaBuilder
 
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,

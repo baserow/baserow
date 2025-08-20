@@ -36,5 +36,10 @@ export default (client) => {
     replace(nodeId, values) {
       return client.post(`automation/node/${nodeId}/replace/`, values)
     },
+    simulateDispatch(nodeId, reTest) {
+      return client.post(`automation/node/${nodeId}/simulate-dispatch/`, {
+        re_test: reTest,
+      })
+    },
   }
 }

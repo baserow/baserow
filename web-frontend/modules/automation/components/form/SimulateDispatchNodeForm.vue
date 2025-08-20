@@ -1,0 +1,117 @@
+<template>
+  <div class="simulate-dispatch-node">
+    <div class="simulate-dispatch-node__header">
+      <div class="simulate-dispatch-node__header-title">
+        <template v-if="isActionNode"> Test Action Node </template>
+        <template v-else> Test Trigger Node </template>
+      </div>
+
+      <Button
+        :loading="isSimulatingDispatch"
+        :disabled="isDisabled"
+        size="small"
+        @click="simulateDispatchNode()"
+      >
+        {{ buttonLabel }}
+      </Button>
+    </div>
+
+    <div v-if="nodeIsInError">
+      {{ nodeIsInError }}
+    </div>
+
+    <div v-if="hasSampleData">
+      <div class="simulate-dispatch-node__sample-data-label">Sample Data:</div>
+      <pre><code class="simulate-dispatch-node__sample-data-code">{{ node.service.sample_data }}</code></pre>
+    </div>
+    <div v-else-if="node.simulate_dispatch_trigger">
+      This trigger node is waiting for an event.
+    </div>
+    <div v-else>This Node has not been tested.</div>
+  </div>
+</template>
+
+<script setup>
+import { computed, ref } from 'vue'
+
+import { inject, useContext, useStore } from '@nuxtjs/composition-api'
+import { notifyIf } from '@baserow/modules/core/utils/error'
+
+const { app } = useContext()
+const store = useStore()
+
+const props = defineProps({
+  node: {
+    type: Object,
+    required: true,
+  },
+})
+
+const isSimulatingDispatch = ref(false)
+
+/**
+ * All previous nodes must have been tested, i.e. they must have sample
+ * data and shouldn't be in error.
+ */
+const nodeIsInError = computed(() => {
+  const nodeType = app.$registry.get('node', props.node.type)
+  if (nodeType.isInError({ service: props.node.service })) {
+    return 'The Node must be configured before it can be tested.'
+  }
+
+  const workflow = inject('workflow')
+
+  for (const node of workflow.value.orderedNodes) {
+    const nodeType = app.$registry.get('node', node.type)
+
+    if (node.order >= props.node.order) continue
+
+    if (nodeType.isInError({ service: node.service })) {
+      return 'All previous nodes must be configured.'
+    }
+
+    if (!node.service?.sample_data) {
+      return 'All previous nodes must be tested.'
+    }
+  }
+
+  return ''
+})
+
+const isDisabled = computed(() => {
+  return (
+    Boolean(nodeIsInError.value) ||
+    isSimulatingDispatch.value ||
+    (props.node.simulate_dispatch_trigger &&
+      props.node.service.sample_data === null)
+  )
+})
+
+const hasSampleData = computed(() => {
+  return Boolean(props.node.service.sample_data)
+})
+
+const buttonLabel = computed(() => {
+  return hasSampleData.value ? 'Re-test Node' : 'Test Node'
+})
+
+const isActionNode = computed(() => {
+  const nodeType = app.$registry.get('node', props.node.type)
+  return nodeType.isWorkflowAction
+})
+
+const simulateDispatchNode = async () => {
+  isSimulatingDispatch.value = true
+
+  try {
+    await store.dispatch('automationWorkflowNode/simulateDispatch', {
+      nodeId: props.node.id,
+      reTest: hasSampleData.value,
+    })
+  } catch (error) {
+    notifyIf(error, 'automationWorkflow')
+  }
+
+  isSimulatingDispatch.value = false
+}
+</script>
