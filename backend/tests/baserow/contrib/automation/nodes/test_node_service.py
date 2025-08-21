@@ -440,16 +440,13 @@ def test_simulate_dispatch_node_trigger(data_fixture):
 @pytest.mark.django_db
 def test_simulate_dispatch_node_action(data_fixture):
     user, _ = data_fixture.create_user_and_token()
-    action_node = data_fixture.create_automation_node(user=user)
-
-    assert action_node.service.sample_data is None
+    node = data_fixture.create_automation_node(user=user)
 
     table, fields, _ = data_fixture.build_table(
         user=user,
         columns=[("Name", "text")],
         rows=[],
     )
-
     action_service = data_fixture.create_local_baserow_upsert_row_service(
         table=table,
         integration=data_fixture.create_local_baserow_integration(user=user),
@@ -460,10 +457,12 @@ def test_simulate_dispatch_node_action(data_fixture):
     )
     action_node = data_fixture.create_automation_node(
         user=user,
-        workflow=action_node.workflow,
+        workflow=node.workflow,
         type="create_row",
         service=action_service,
     )
+
+    assert action_node.service.sample_data is None
 
     AutomationNodeService().simulate_dispatch_node(user, action_node.id)
 

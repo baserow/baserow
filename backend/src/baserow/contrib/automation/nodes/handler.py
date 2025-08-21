@@ -502,6 +502,18 @@ class AutomationNodeHandler:
         return node_instance
 
     def simulate_dispatch_node(self, node: AutomationActionNode, re_test: bool) -> None:
+        """
+        Simulates a dispatch of the provided node. This will cause the node's
+        `service.sample_data` to be populated.
+
+        If the sample data already exists, the cached value is used. However,
+        if `re_test=True` the sample data will be re-generated and the cache
+        will be updated.
+
+        :param nodes: List of AutomationNode instances.
+        :return: None.
+        """
+
         if node.get_type().is_workflow_trigger:
             node.service.sample_data = None
             node.service.save()
@@ -523,6 +535,13 @@ class AutomationNodeHandler:
             raise AutomationNodeSimulateDispatchError(str(e))
 
     def reset_sample_data(self, nodes: List[AutomationNode]) -> None:
+        """
+        Given a list of nodes, sets each node services' sample_data to None.
+
+        :param nodes: List of AutomationNode instances.
+        :return: None.
+        """
+
         services_to_update = []
         for node in nodes:
             if node.service.sample_data is not None:

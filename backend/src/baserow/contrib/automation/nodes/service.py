@@ -364,7 +364,14 @@ class AutomationNodeService:
     def simulate_dispatch_node(
         self, user: AbstractUser, node_id: int, re_test: bool = False
     ) -> None:
-        """Simulates the dispatch of an automation node."""
+        """
+        Simulates the dispatch of an automation node.
+
+        :param user: The user trying to simulate the node dispatch.
+        :param node_id: The ID of the node to dispatch.
+        :param re_test: Whether to force a re-test of the node.
+        :return: None.
+        """
 
         node = self.get_node(user, node_id)
 

@@ -336,11 +336,12 @@ class ServiceType(
         resolved_values = self.resolve_service_formulas(service, dispatch_context)
 
         # If simulated, try to return existing sample data
-        if getattr(dispatch_context, "is_simulated", False) and not getattr(
-            dispatch_context, "re_test", False
+        if (
+            getattr(dispatch_context, "is_simulated", False)
+            and not getattr(dispatch_context, "re_test", False)
+            and service.sample_data is not None
         ):
-            if data := self.get_sample_data(service):
-                return DispatchResult(data=data)
+            return DispatchResult(data=self.get_sample_data(service))
 
         # This is a real dispatch or there is no sample data
         data = self.dispatch_data(service, resolved_values, dispatch_context)

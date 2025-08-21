@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 
 from baserow.contrib.automation.nodes.exceptions import (
@@ -316,3 +318,204 @@ def test_import_node_only(data_fixture):
         "automation_workflow_nodes": {node.id: new_node.id},
         "services": {node.service_id: new_node.service_id},
     }
+
+
+@pytest.mark.django_db
+def test_reset_sample_data(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow
+    )
+    action_node_1 = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="create_row",
+    )
+    action_node_2 = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="create_row",
+    )
+    action_node_3 = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="create_row",
+    )
+
+    nodes = [trigger_node, action_node_1, action_node_2, action_node_3]
+
+    # Set initial fake data
+    for node in nodes:
+        node.service.sample_data = {"foo": "bar"}
+        node.service.save()
+
+    AutomationNodeHandler().reset_sample_data(nodes)
+
+    for node in nodes:
+        node.refresh_from_db()
+        assert node.service.sample_data is None
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.automation.nodes.handler.AutomationWorkflowRunner.run")
+def test_simulate_dispatch_node_trigger(mock_run, data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow
+    )
+    assert trigger_node.simulate_dispatch is False
+    action_node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="create_row",
+    )
+
+    # Set initial fake data for the action_node, since we want to test
+    # that it is not affected.
+    action_node.service.sample_data = {"foo": "bar"}
+    action_node.service.save()
+
+    AutomationNodeHandler().simulate_dispatch_node(trigger_node, False)
+
+    mock_run.assert_not_called()
+
+    trigger_node.refresh_from_db()
+    assert trigger_node.simulate_dispatch is True
+    assert trigger_node.service.sample_data is None
+
+    action_node.refresh_from_db()
+    assert action_node.service.sample_data == {"foo": "bar"}
+
+
+def create_action_node(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    node = data_fixture.create_automation_node(user=user)
+
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    action_service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    action_service.field_mappings.create(
+        field=fields[0],
+        value="'A new row'",
+    )
+    action_node = data_fixture.create_automation_node(
+        user=user,
+        workflow=node.workflow,
+        type="create_row",
+        service=action_service,
+    )
+
+    return {
+        "action_node": action_node,
+        "table": table,
+        "fields": fields,
+        "user": user,
+    }
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_node_action(data_fixture):
+    data = create_action_node(data_fixture)
+    action_node = data["action_node"]
+    table = data["table"]
+    fields = data["fields"]
+
+    assert action_node.service.sample_data is None
+
+    AutomationNodeHandler().simulate_dispatch_node(action_node, False)
+
+    action_node.refresh_from_db()
+    row = table.get_model().objects.first()
+
+    assert action_node.service.sample_data == {
+        f"field_{fields[0].id}": "A new row",
+        "id": row.id,
+        "order": str(row.order),
+    }
+
+
+@pytest.mark.django_db
+@patch("baserow.core.services.registries.ServiceType.get_sample_data")
+def test_simulate_dispatch_node_action_with_re_test(mock_get_sample_data, data_fixture):
+    data = create_action_node(data_fixture)
+    action_node = data["action_node"]
+    table = data["table"]
+    fields = data["fields"]
+
+    assert action_node.service.sample_data is None
+
+    AutomationNodeHandler().simulate_dispatch_node(action_node, False)
+
+    # Since a real dispatch happened, the get_sample_data() shouldn't
+    # have been called.
+    mock_get_sample_data.assert_not_called()
+
+    action_node.refresh_from_db()
+    row = table.get_model().objects.first()
+
+    assert action_node.service.sample_data == {
+        f"field_{fields[0].id}": "A new row",
+        "id": row.id,
+        "order": str(row.order),
+    }
+
+    existing_mapping = action_node.service.field_mappings.get(field=fields[0])
+    existing_mapping.value = "'Chocolate donut'"
+    existing_mapping.save()
+
+    # Set re-test to True
+    AutomationNodeHandler().simulate_dispatch_node(action_node, True)
+
+    latest_row = table.get_model().objects.order_by("-id")[0]
+
+    mock_get_sample_data.assert_not_called()
+    action_node.refresh_from_db()
+
+    # The updated field mappings should be used in the sample data
+    assert action_node.service.sample_data == {
+        f"field_{fields[0].id}": "Chocolate donut",
+        "id": latest_row.id,
+        "order": str(latest_row.order),
+    }
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_node_action_with_simulate_until_node(data_fixture):
+    data = create_action_node(data_fixture)
+    action_node_1 = data["action_node"]
+    table = data["table"]
+    fields = data["fields"]
+
+    action_node_2 = data_fixture.create_automation_node(
+        workflow=action_node_1.workflow,
+        type="create_row",
+    )
+    action_node_3 = data_fixture.create_automation_node(
+        workflow=action_node_1.workflow,
+        type="create_row",
+    )
+
+    nodes = [action_node_1, action_node_2, action_node_3]
+    for node in nodes:
+        assert node.service.sample_data is None
+
+    AutomationNodeHandler().simulate_dispatch_node(action_node_1, False)
+
+    # Only the first action nodes dispatch should be simulated
+    action_node_1.refresh_from_db()
+    row = table.get_model().objects.first()
+    assert action_node_1.service.sample_data == {
+        f"field_{fields[0].id}": "A new row",
+        "id": row.id,
+        "order": str(row.order),
+    }
+
+    # Due to the simulate_until_node param in the dispatch context, the
+    # other nodes should not be dispatched.
+    for node in [action_node_2, action_node_3]:
+        node.refresh_from_db()
+        assert node.service.sample_data is None
