@@ -73,6 +73,7 @@
     "@vue2-flow/core": "^0.6.0",
     "@vuelidate/core": "^2.0.3",
     "@vuelidate/validators": "^2.0.4",
+    "@zip.js/zip.js": "^2.7.45",
     "antlr4": "4.9.3",
     "async-mutex": "0.4.0",
     "axios": "^1.8.2",

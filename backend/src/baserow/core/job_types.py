@@ -17,6 +17,7 @@ from baserow.api.errors import (
     ERROR_USER_NOT_IN_GROUP,
 )
 from baserow.api.import_export.errors import (
+    ERROR_APPLICATION_IDS_NOT_FOUND,
     ERROR_RESOURCE_DOES_NOT_EXIST,
     ERROR_RESOURCE_IS_INVALID,
 )
@@ -49,6 +50,7 @@ from baserow.core.exceptions import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
+    ImportExportApplicationIdsNotFound,
     ImportExportResourceDoesNotExist,
     ImportExportResourceInvalidFile,
 )
@@ -371,18 +373,30 @@ class ImportApplicationsJobType(JobType):
         ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
         ImportExportResourceDoesNotExist: ERROR_RESOURCE_DOES_NOT_EXIST,
         ImportExportResourceInvalidFile: ERROR_RESOURCE_IS_INVALID,
+        ImportExportApplicationIdsNotFound: ERROR_APPLICATION_IDS_NOT_FOUND,
     }
 
     job_exceptions_map = {
         ImportExportResourceDoesNotExist: ImportExportResourceDoesNotExist.message,
         ImportExportResourceInvalidFile: ImportExportResourceInvalidFile.message,
+        ImportExportApplicationIdsNotFound: ImportExportApplicationIdsNotFound.message,
     }
 
-    request_serializer_field_names = ["resource_id"]
+    request_serializer_field_names = ["resource_id", "application_ids"]
     request_serializer_field_overrides = {
         "resource_id": serializers.IntegerField(
             min_value=1,
             help_text="The ID of the import resource that contains the applications.",
+        ),
+        "application_ids": serializers.ListField(
+            allow_null=True,
+            allow_empty=True,
+            required=False,
+            child=serializers.IntegerField(),
+            help_text=(
+                "The application IDs to import from the resource. If not provided, all the applications in "
+                "the resource will be imported."
+            ),
         ),
     }
 
@@ -420,9 +434,12 @@ class ImportApplicationsJobType(JobType):
                 "Import file is invalid or corrupted."
             )
 
+        application_ids = values.get("application_ids") or []
+
         return {
             "workspace": workspace,
             "resource": resource,
+            "application_ids": application_ids,
         }
 
     def run(self, job: ImportApplicationsJob, progress: Progress):
@@ -440,6 +457,7 @@ class ImportApplicationsJobType(JobType):
             job.user,
             workspace=workspace,
             resource=job.resource,
+            application_ids=job.application_ids,
             progress_builder=progress_builder,
         )
 
