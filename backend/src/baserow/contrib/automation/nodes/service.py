@@ -364,9 +364,15 @@ class AutomationNodeService:
     def simulate_dispatch_node(
         self, user: AbstractUser, node_id: int, re_test: bool = False
     ) -> None:
+        """Simulates the dispatch of an automation node."""
+
         node = self.get_node(user, node_id)
 
-        # TODO: Maybe add a specific operation type for
-        # dispatching and check here
+        CoreHandler().check_permissions(
+            user,
+            UpdateAutomationNodeOperationType.type,
+            workspace=node.workflow.automation.workspace,
+            context=node,
+        )
 
         self.handler.simulate_dispatch_node(node, re_test)
