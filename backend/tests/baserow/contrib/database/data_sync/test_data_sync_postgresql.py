@@ -878,7 +878,7 @@ def test_create_data_sync_with_negative_int_and_positive_baserow_number_field(
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    data_sync_id = response.json()["id"]
+    data_sync_id = response.json()["data_sync"]["id"]
 
     data_sync = DataSync.objects.get(pk=data_sync_id)
     fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
@@ -924,4 +924,7 @@ def test_create_data_sync_with_negative_int_and_positive_baserow_number_field(
     assert job["type"] == "sync_data_sync_table"
     assert job["progress_percentage"] > 0
     assert job["data_sync"]["id"] == data_sync_id
-    assert job["human_readable_error"] == "The value for field 2 cannot be negative."
+    assert (
+        job["human_readable_error"]
+        == f"The value for field {fields[1].id} cannot be negative."
+    )
