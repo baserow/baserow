@@ -2369,7 +2369,7 @@ class SubmitFormActionType(ActionType):
         :return: The created row instance.
         """
 
-        if form.table.is_data_synced_table:
+        if form.table.is_read_only_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )

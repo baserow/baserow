@@ -1157,6 +1157,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_webhook_events: bool = True,
         generate_error_report: bool = False,
         skip_search_update: bool = False,
+        signal_params: Optional[Dict] = None,
     ) -> CreatedRowsData:
         """
         Creates new rows for a given table without checking permissions. It also calls
@@ -1177,12 +1178,16 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param skip_search_update: If you want to instead trigger the search handler
             cells update later on after many create_rows calls then set this to True
             but make sure you trigger it eventually.
+        :param signal_params: Additional parameters that are added to the signal.
         :return: The created row instances.
 
         """
 
         if model is None:
             model = table.get_model()
+
+        if signal_params is None:
+            signal_params = {}
 
         user_id = user and user.id
 
@@ -1321,6 +1326,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 fields=updated_fields,
                 dependant_fields=dependant_fields,
                 before_return=before_return,
+                **signal_params,
             )
 
         return CreatedRowsData(rows_to_return, report)
@@ -1336,6 +1342,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_webhook_events: bool = True,
         generate_error_report: bool = False,
         skip_search_update: bool = False,
+        signal_params: Optional[Dict] = None,
     ) -> CreatedRowsData:
         """
         Creates new rows for a given table if the user
@@ -1356,9 +1363,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param skip_search_update: If you want to instead trigger the search handler
             cells update later on after many create_rows calls then set this to True
             but make sure you trigger it eventually.
-        :param values_already_prepared: Whether or not the values are already sanitized
-            and validated for every field and can be used directly by the handler
-            without any further check.
+        :param signal_params: Additional parameters that are added to the signal.
         :return: The created row instances.
 
         """
@@ -1386,6 +1391,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_webhook_events,
             generate_error_report,
             skip_search_update,
+            signal_params=signal_params,
         )
 
     def update_dependencies_of_rows_created(
@@ -1555,6 +1561,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         rows_values: List[Dict[str, Any]],
         progress: Optional[Progress] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
+        signal_params: Optional[Dict] = None,
     ) -> Tuple[List[GeneratedTableModel], Dict[str, Dict[str, Any]]]:
         """
         Creates rows by batch and generates an error report instead of failing on first
@@ -1592,6 +1599,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 # Don't trigger loads of search updates for every batch of rows we
                 # create but instead a single one for this entire table at the end.
                 skip_search_update=True,
+                signal_params=signal_params,
             )
 
             for valid_index, field_errors in creation_report.items():
@@ -1617,6 +1625,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         rows_values: List[Dict[str, Any]],
         progress: Progress,
         model: Optional[Type[GeneratedTableModel]] = None,
+        signal_params: Optional[Dict] = None,
     ) -> Tuple[List[Dict[str, Any] | None], Dict[str, Dict[str, Any]]]:
         """
         Updates rows by batch and generates an error report instead of failing on first
@@ -1627,11 +1636,15 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param rows_values: List of rows values for rows that need to be updated.
         :param progress: Give a progress instance to track the progress of the import.
         :param model: Optional model to prevent recomputing table model.
+        :param signal_params: Additional parameters that are added to the signal.
         :return: The updated rows and the error report.
         """
 
         if not rows_values:
             return [], {}
+
+        if signal_params is None:
+            signal_params = {}
 
         progress.increment(state=ROW_IMPORT_CREATION)
 
@@ -1653,6 +1666,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                         send_realtime_update=False,
                         send_webhook_events=False,
                         generate_error_report=True,
+                        signal_params=signal_params,
                     )
                     report.update(result.errors)
                     all_updated_rows.extend(result.updated_rows)
@@ -1980,6 +1994,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_webhook_events: bool = True,
         skip_search_update: bool = False,
         generate_error_report: bool = False,
+        signal_params: Optional[Dict] = None,
     ) -> UpdatedRowsData:
         """
         Updates field values in batch based on provided rows with the new
@@ -2001,6 +2016,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             cells update later on after many create_rows calls then set this to True
             but make sure you trigger it eventually.
         :param generate_error_report: Generate error report if set to True.
+        :param signal_params: Additional parameters that are added to the signal.
         :raises RowIdsNotUnique: When trying to update the same row multiple
             times.
         :raises RowDoesNotExist: When any of the rows don't exist.
@@ -2008,6 +2024,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :return: An UpdatedRow named tuple containing the updated rows
             instances, the original row values and the updated fields metadata.
         """
+
+        if signal_params is None:
+            signal_params = {}
 
         if model is None:
             model = table.get_model()
@@ -2257,6 +2276,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_webhook_events=send_webhook_events,
             fields=[f for f in updated_fields if f.id in updated_field_ids],
             dependant_fields=dependant_fields,
+            **signal_params,
         )
 
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
@@ -2290,6 +2310,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_webhook_events: bool = True,
         skip_search_update: bool = False,
         generate_error_report: bool = False,
+        signal_params: Optional[Dict] = None,
     ) -> UpdatedRowsData:
         """
         Updates field values in batch based on provided rows with the new
@@ -2309,7 +2330,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             triggered. Defaults to true.
         :param skip_search_update: If you want to instead trigger the search handler
             cells update later on after many create_rows calls then set this to True
-            but make sure you trigger it eventually.
+            but make sure you trigger it eventually.'
+        :param generate_error_report: @TODO
+        :param signal_params: Additional parameters that are added to the signal.
         :raises RowIdsNotUnique: When trying to update the same row multiple
             times.
         :raises RowDoesNotExist: When any of the rows don't exist.
@@ -2339,6 +2362,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_webhook_events,
             skip_search_update,
             generate_error_report=generate_error_report,
+            signal_params=signal_params,
         )
 
     def _extract_field_ids_from_row_values(
@@ -2655,6 +2679,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
         permanently_delete: bool = False,
+        signal_params: Optional[Dict] = None,
     ) -> TrashedRows:
         """
         Trashes existing rows of the given table based on row_ids.
@@ -2670,6 +2695,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             triggered. Defaults to true.
         :param permanently_delete: If `true` the rows will be permanently deleted
             instead of trashed.
+        :param signal_params: Additional parameters that are added to the signal.
         """
 
         workspace = table.database.workspace
@@ -2687,6 +2713,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_realtime_update=send_realtime_update,
             send_webhook_events=send_webhook_events,
             permanently_delete=permanently_delete,
+            signal_params=signal_params,
         )
 
     def force_delete_rows(
@@ -2698,6 +2725,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
         permanently_delete: bool = False,
+        signal_params: Optional[Dict] = None,
     ) -> TrashedRows:
         """
         Trashes existing rows of the given table based on row_ids, without checking
@@ -2714,8 +2742,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             triggered. Defaults to true.
         :param permanently_delete: If `true` the rows will be permanently deleted
             instead of trashed.
+        :param signal_params: Additional parameters that are added to the signal.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
+
+        if signal_params is None:
+            signal_params = {}
 
         workspace = table.database.workspace
         if model is None:
@@ -2803,6 +2835,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_webhook_events=send_webhook_events,
             fields=updated_fields,
             dependant_fields=dependant_fields,
+            **signal_params,
         )
 
         return trashed_rows

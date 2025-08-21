@@ -4,6 +4,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
+from celery.app.task import Context
+
 from baserow.contrib.database.data_sync.export_serialized import (
     DataSyncExportSerializedStructure,
 )
@@ -102,6 +104,14 @@ class DataSyncProperty(ABC):
 class DataSyncType(
     ModelInstanceMixin, CustomFieldsInstanceMixin, ImportExportMixin, Instance, ABC
 ):
+    two_way_sync_strategy_type = None
+    """
+    By default, a data sync type is one way, allowing data to be pulled into Baserow.
+    This property indicates which two-way sync strategy could be used. There can be a
+    difference between strategy depending on the data source. If none, then only a
+    one-way data sync is possible.
+    """
+
     def prepare_values(self, user: AbstractUser, values: Dict) -> Dict:
         """
         A hook that can validate or changes the provided values.
@@ -160,10 +170,64 @@ class DataSyncType(
         - Which rows exist, but not in this list, delete those.
 
         :param instance: The data sync instance of which the rows must be fetched.
+        :param progress_builder: Optionally indicate the progress.
         :raises SyncError: If something goes wrong, but don't want to fail hard and
             expose the error via the API.
         :return: Iterable of all rows in the data sync source.
         """
+
+    def create_rows(
+        self, serialized_rows: List[dict], data_sync: "DataSync"
+    ) -> (List)[dict]:
+        """
+        If a `two_way_sync_strategy_type` is set, and `data_sync.two_way_sync` is True,
+        then this method is called when a rows are created is the data sync table. Its
+        purpose is to make the needed change in the data sync source immediately.
+
+        :param serialized_rows: List containing the serialized rows that were created.
+        :param data_sync: The data sync object of the table where the rows were created.
+        :return: A list of row dicts that must be updated. This is typically used to
+            set the newly created unique primary.
+        """
+
+        raise NotImplementedError(
+            "A two-way data sync must implement the `create_rows` method."
+        )
+
+    def update_rows(
+        self,
+        serialized_rows: List[dict],
+        data_sync: "DataSync",
+        updated_field_ids: List[int],
+    ):
+        """
+        If a `two_way_sync_strategy_type` is set, and `data_sync.two_way_sync` is True,
+        then this method is called when a rows are updated is the data sync table. Its
+        purpose is to make the needed change in the data sync source immediately.
+
+        :param serialized_rows: List containing the serialized rows that were updated.
+        :param data_sync: The data sync object of the table where the rows were updated.
+        :param updated_field_ids: Contains the field ids that actually changed.
+        """
+
+        raise NotImplementedError(
+            "A two-way data sync must implement the `update_rows` method."
+        )
+
+    def delete_rows(self, serialized_rows: List[dict], data_sync: "DataSync"):
+        """
+        If a `two_way_sync_strategy_type` is set, and `data_sync.two_way_sync` is True,
+        then this method is called when a rows are updated is the data sync table. Its
+        purpose is to make the needed change in the data sync source immediately.
+
+        :param serialized_rows: List containing the serialized rows that were updated.
+        :param data_sync: The data sync object of the table where the rows were updated.
+        :param updated_field_ids: Contains the field ids that actually changed.
+        """
+
+        raise NotImplementedError(
+            "A two-way data sync must implement the `delete_rows` method."
+        )
 
     def export_serialized(self, instance: "DataSync"):
         """
@@ -239,4 +303,75 @@ class DataSyncTypeRegistry(ModelRegistryMixin, CustomFieldsRegistryMixin, Regist
     name = "data_sync"
 
 
+class TwoWaySyncStrategy(Instance, ABC):
+    """
+    The two-way sync strategy sits in between a celery task that's called when rows are
+    created, updated, or deleted in the data sync table, and the update in the source
+    data. It's not supposed to update the source data, but it does determine how and
+    when the data is updated. It could for make changes in real-time or queue them up.
+    """
+
+    def before_enable(self):
+        """
+        Hook that is called before a two-way sync is created or updated, and the two-way
+        sync is enabled.
+        """
+
+    def rows_created(
+        self, task_context: Context, serialized_rows: List[dict], data_sync: DataSync
+    ):
+        """
+        Called when rows are created in the data sync table. These are by default
+        routed through a celery task.
+
+        :param task_context: The context object of the task. Can be used for retrying.
+        :param serialized_rows: List containing the serialized rows that were created.
+        :param data_sync: The data sync object of the table where the rows were created.
+        """
+
+        raise NotImplementedError(
+            "Two-way sync strategy must implement the `rows_created` method."
+        )
+
+    def rows_updated(
+        self,
+        task_context: Context,
+        serialized_rows: List[dict],
+        data_sync: DataSync,
+        updated_field_ids: List[int],
+    ):
+        """
+        Called when rows are updated in the data sync table. These are by default
+        routed through a celery task.
+
+        :param task_context: The context object of the task. Can be used for retrying.
+        :param serialized_rows: List containing the serialized rows that were updated.
+        :param data_sync: The data sync object of the table where the rows were updated.
+        :param updated_field_ids: Contains the field ids that actually changed.
+        """
+
+        raise NotImplementedError(
+            "Two-way sync strategy must implement the `rows_updated` method."
+        )
+
+    def rows_deleted(self, serialized_rows: List[dict], data_sync: DataSync):
+        """
+        Called when rows are deleted in the data sync table. These are by default
+        routed through a celery task.
+
+        :param task_context: The context object of the task. Can be used for retrying.
+        :param serialized_rows: List containing the serialized rows that were deleted.
+        :param data_sync: The data sync object of the table where the rows were deleted.
+        """
+
+        raise NotImplementedError(
+            "Two-way sync strategy must implement the `rows_deleted` method."
+        )
+
+
+class TwoWaySyncStrategyTypeRegistry(Registry):
+    name = "two_way_sync_strategy"
+
+
 data_sync_type_registry = DataSyncTypeRegistry()
+two_way_sync_strategy_type_registry = TwoWaySyncStrategyTypeRegistry()

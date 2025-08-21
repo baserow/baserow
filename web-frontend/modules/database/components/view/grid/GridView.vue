@@ -191,7 +191,7 @@
         <li
           v-if="
             !readOnly &&
-            !table.data_sync &&
+            (!table.data_sync || table.data_sync.two_way_sync) &&
             $hasPermission(
               'database.table.delete_row',
               table,
@@ -223,7 +223,7 @@
         <li
           v-if="
             !readOnly &&
-            !table.data_sync &&
+            (!table.data_sync || table.data_sync.two_way_sync) &&
             $hasPermission(
               'database.table.create_row',
               table,
@@ -243,7 +243,7 @@
         <li
           v-if="
             !readOnly &&
-            !table.data_sync &&
+            (!table.data_sync || table.data_sync.two_way_sync) &&
             $hasPermission(
               'database.table.create_row',
               table,
@@ -263,7 +263,7 @@
         <li
           v-if="
             !readOnly &&
-            !table.data_sync &&
+            (!table.data_sync || table.data_sync.two_way_sync) &&
             $hasPermission(
               'database.table.create_row',
               table,
@@ -304,7 +304,7 @@
         <li
           v-if="
             !readOnly &&
-            !table.data_sync &&
+            (!table.data_sync || table.data_sync.two_way_sync) &&
             $hasPermission(
               'database.table.delete_row',
               table,

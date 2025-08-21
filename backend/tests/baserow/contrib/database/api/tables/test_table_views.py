@@ -316,6 +316,7 @@ def test_list_tables_with_data_sync(api_client, data_fixture):
             "last_sync": None,
             "last_error": None,
             "auto_add_new_properties": False,
+            "two_way_sync": False,
             "synced_properties": [
                 {"field_id": fields[0].id, "key": "uid", "unique_primary": True},
                 {"field_id": fields[1].id, "key": "dtstart", "unique_primary": False},

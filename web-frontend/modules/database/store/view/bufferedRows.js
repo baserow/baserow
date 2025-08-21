@@ -176,6 +176,8 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     // key was pressed.
     draggingOriginalBefore: null,
     activeSearchTerm: '',
+    // Indicates whether row(s) are currently being created.
+    creating: false,
   })
 
   const mutations = {
@@ -294,6 +296,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     },
     SET_ADHOC_SORTING(state, adhocSorting) {
       state.adhocSorting = adhocSorting
+    },
+    SET_CREATING(state, value) {
+      state.creating = value
     },
   }
 
@@ -700,10 +705,12 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     ) {
       const preparedRow = prepareRowForRequest(values, fields, this.$registry)
 
+      commit('SET_CREATING', true)
       const { data } = await RowService(this.$client).create(
         table.id,
         preparedRow
       )
+      commit('SET_CREATING', false)
       return await dispatch('afterNewRowCreated', {
         view,
         fields,
@@ -1244,6 +1251,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     },
     getAdhocSorting(state) {
       return state.adhocSorting
+    },
+    getCreating(state) {
+      return state.creating
     },
   }
 

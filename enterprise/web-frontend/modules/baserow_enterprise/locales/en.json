@@ -301,7 +301,7 @@
     "auditLogs": "Audit logs",
     "auditLogsContent": "Track everything that happens. View a full history of actions across your instance or workspace, filterable by user, action, and more.",
     "dataSync": "Data sync",
-    "dataSyncContent": "Automatically keep tables up to date by syncing with other Baserow tables, or external sources like Jira, GitHub, GitLab, or HubSpot.",
+    "dataSyncContent": "Automatically keep tables up to date by syncing with other Baserow tables, or external sources like Jira, GitHub, GitLab, or HubSpot. It also allows to sync periodically, and enables two-way data sync for supported data sync types.",
     "coBranding": "Co-branding logo replacement",
     "coBrandingContent": "Customize the Baserow interface with your own logo. Note that \"powered by Baserow\" is added.",
     "support": "Direct support",
@@ -512,6 +512,12 @@
     "failure": "{name} periodic data sync has been deactivated because it failed too many times consecutively.",
     "licenseUnavailable": "{name} periodic data sync has been disabled because the workspace no longer has a valid license. Please update your license to restore automatic syncing."
   },
+  "twoWaySyncUpdateFailed": {
+    "title": "{name} two-way sync update failed: {error}"
+  },
+  "twoWaySyncDeactivated": {
+    "title": "{name} two-way sync deactivated because an update failed too many times consecutively. Please manually sync, and reactivate when the problem is resolved."
+  },
   "webhook": {
     "rowsEnterVieweventType": "Rows enter view"
   },
@@ -591,5 +597,8 @@
   },
   "fieldPermissionsMenuItem": {
     "label": "Edit field permissions"
+  },
+  "enterpriseTwoWaySyncStrategyType": {
+    "realtimePushDescription": "Allows editing the cell values directly in Baserow, and pushes it in real-time to the data sync source. Note that the changes are not pulled in real-time because they rely on the (periodic) sync action to complete. It's highly recommended to create backups of the PostgreSQL database to avoid accidental changes."
   }
 }

@@ -1,3 +1,5 @@
+from django.core.exceptions import ValidationError
+
 from rest_framework import serializers
 
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
@@ -28,6 +30,10 @@ from .operations import SyncTableOperationType
 from .registries import data_sync_type_registry
 
 
+def validation_error_to_human_readable_string(e):
+    return "\n".join(e.messages)
+
+
 class SyncDataSyncTableJobType(JobType):
     type = "sync_data_sync_table"
     model_class = SyncDataSyncTableJob
@@ -41,6 +47,7 @@ class SyncDataSyncTableJobType(JobType):
         UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         SyncDataSyncTableAlreadyRunning: ERROR_SYNC_DATA_SYNC_ALREADY_RUNNING[2],
         SyncError: ERROR_SYNC_ERROR[2],
+        ValidationError: validation_error_to_human_readable_string,
     }
     request_serializer_field_names = ["data_sync_id"]
     request_serializer_field_overrides = {

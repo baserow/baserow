@@ -26,3 +26,8 @@ ERROR_UNIQUE_PRIMARY_PROPERTY_NOT_FOUND = (
     "The configured data sync does not have a unique primary column to identify the "
     "row.",
 )
+ERROR_TWO_WAY_DATA_SYNC_NOT_SUPPORTED = (
+    "ERROR_TWO_WAY_DATA_SYNC_NOT_SUPPORTED",
+    HTTP_400_BAD_REQUEST,
+    "Two-way sync is not supported for this data sync type.",
+)

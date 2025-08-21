@@ -4,12 +4,10 @@ from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.license.models import License
 from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
 from baserow_enterprise.field_permissions.models import FieldPermissionsRoleEnum
@@ -426,8 +424,7 @@ def test_if_license_expires_field_permissions_are_ignored(
     assert len(rows) == 1
     assert getattr(rows[0], text_field.db_column) is None
 
-    License.objects.all().delete()
-    local_cache.clear()
+    enterprise_data_fixture.delete_all_licenses()
 
     _update_row_with_field_value(text_field, "nobody")
     _create_row_with_field_value(text_field, "nobody")

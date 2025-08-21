@@ -60,3 +60,13 @@ export class DuplicateTableJobType extends JobType {
     store.dispatch('job/forceDelete', job)
   }
 }
+
+export class SyncDataSyncTableJobType extends JobType {
+  static getType() {
+    return 'sync_data_sync_table'
+  }
+
+  getName() {
+    return 'syncDataSyncTable'
+  }
+}

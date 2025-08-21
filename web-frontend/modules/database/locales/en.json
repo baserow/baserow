@@ -660,6 +660,7 @@
     "sortField": "Sort",
     "hideField": "Hide field",
     "dataSyncField": "The field is read only and part of the table's data sync.",
+    "dataSyncFieldTwoWaySync": "The field is synchronized with the table's data sync.",
     "noWriteValues": "Changes to this field are restricted."
   },
   "gridViewRow": {
@@ -1079,8 +1080,8 @@
     "create": "Create and sync table",
     "error": "Something went wrong during the sync",
     "autoAddLabel": "Auto add new properties",
-    "autoAddHelper": "Automatically adds and synchronizes newly available properties to the table. Note that in order for this to work, all properties must be synced."
-
+    "autoAddHelper": "Automatically adds and synchronizes newly available properties from the data source into the Baserow table. Note that in order for this to work, all properties must be synced.",
+    "twoWaySyncLabel": "Two-way sync"
   },
   "syncTableModal": {
     "title": "Sync {name}",

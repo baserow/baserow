@@ -57,9 +57,14 @@ import {
   GitHubIssuesDataSyncType,
   GitLabIssuesDataSyncType,
   HubspotContactsDataSyncType,
+  PostgreSQLDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
-import { PeriodicDataSyncDeactivatedNotificationType } from '@baserow_enterprise/notificationTypes'
+import {
+  PeriodicDataSyncDeactivatedNotificationType,
+  TwoWayDataSyncUpdateFiledNotificationType,
+  TwoWaySyncDeactivatedNotificationType,
+} from '@baserow_enterprise/notificationTypes'
 import { RowsEnterViewWebhookEventType } from '@baserow_enterprise/webhookEventTypes'
 import {
   AdvancedWebhooksPaidFeature,
@@ -76,6 +81,7 @@ import {
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
 import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
+import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -171,6 +177,8 @@ export default (context) => {
   app.$registry.register('element', new AuthFormElementType(context))
   app.$registry.register('element', new FileInputElementType(context))
 
+  app.$registry.unregister('dataSync', PostgreSQLDataSyncType.getType())
+  app.$registry.register('dataSync', new PostgreSQLDataSyncType(context))
   app.$registry.register('dataSync', new LocalBaserowTableDataSyncType(context))
   app.$registry.register('dataSync', new JiraIssuesDataSyncType(context))
   app.$registry.register('dataSync', new GitHubIssuesDataSyncType(context))
@@ -180,6 +188,14 @@ export default (context) => {
   app.$registry.register(
     'notification',
     new PeriodicDataSyncDeactivatedNotificationType(context)
+  )
+  app.$registry.register(
+    'notification',
+    new TwoWayDataSyncUpdateFiledNotificationType(context)
+  )
+  app.$registry.register(
+    'notification',
+    new TwoWaySyncDeactivatedNotificationType(context)
   )
 
   app.$registry.register(
@@ -230,5 +246,10 @@ export default (context) => {
   app.$registry.register(
     'builderSettings',
     new CustomCodeBuilderSettingType(context)
+  )
+
+  app.$registry.register(
+    'twoWaySyncStrategy',
+    new RealtimePushTwoWaySyncStrategyType(context)
   )
 }

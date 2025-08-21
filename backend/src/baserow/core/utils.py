@@ -583,6 +583,7 @@ def find_unused_name(
     existing_names: Iterable[str],
     max_length: int = None,
     suffix: str = " {0}",
+    reserved_names: Optional[Set] = None,
 ):
     """
     Finds an unused name among the existing names. If no names in the provided
@@ -596,8 +597,12 @@ def find_unused_name(
     :param max_length: Set this value if you have a length limit to the new name.
     :param suffix: The suffix you want to append to the name to avoid
       duplicate. The string is going to be formated with a number.
+    :param reserved_names: Set of names that can never be used.
     :return: The first available unused name.
     """
+
+    if reserved_names is None:
+        reserved_names = set()
 
     existing_names_set = set(existing_names)
 
@@ -611,7 +616,7 @@ def find_unused_name(
         # variant_to_try, so we always return the first available name and
         # not any.
         for name in variants_to_try:
-            if name in remaining_names:
+            if name in remaining_names and name not in reserved_names:
                 return name
 
     # None of the names in the param list are available, now using the last one lets
@@ -634,7 +639,7 @@ def find_unused_name(
         else:
             name = f"{original_name}{suffix_to_append}"
 
-        if name not in existing_names_set:
+        if name not in existing_names_set and name not in reserved_names:
             return name
 
         i += 1
