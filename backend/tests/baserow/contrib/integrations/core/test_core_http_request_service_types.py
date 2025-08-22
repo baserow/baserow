@@ -4,6 +4,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from baserow.contrib.integrations.core.exceptions import (
+    ServiceTypeSchemaGenerationError,
+)
 from baserow.contrib.integrations.core.models import BODY_TYPE, HTTP_METHOD
 from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
 from baserow.core.services.exceptions import UnexpectedDispatchException
@@ -460,3 +463,126 @@ def test_core_http_request_generate_schema():
     assert service_type.generate_schema(
         service, ["raw_body", "headers", "status_code"]
     ) == service_type.generate_schema(service, None)
+
+
+def get_raw_sample_data():
+    sample_data = {
+        "fighters": {
+            "Ryu": {
+                "power": "Hadogen",
+                "country": "Japan",
+            },
+            "Guile": {"power": "Sonic boom", "country": "United States"},
+            "Blanka": {"power": "Electric thunder", "country": "Brazil"},
+        }
+    }
+    return json.dumps(sample_data)
+
+
+@pytest.mark.django_db
+def test_core_http_request_generate_schema_with_sample_data():
+    service = ServiceHandler().create_service(
+        CoreHTTPRequestServiceType(),
+        url="'http://example.com'",
+        body_content="'body'",
+        headers=[{"key": "key", "value": "'value1'"}],
+        query_params=[{"key": "key", "value": "'value2'"}],
+        form_data=[{"key": "key", "value": "'value3'"}],
+    )
+
+    service.sample_data = {"raw_body": get_raw_sample_data()}
+    service.save()
+
+    service_type = service.get_type()
+
+    assert service_type.generate_schema(service)["properties"]["fighters"] == {
+        "properties": {
+            "Blanka": {
+                "properties": {
+                    "country": {"type": "string"},
+                    "power": {"type": "string"},
+                },
+                "required": ["country", "power"],
+                "type": "object",
+            },
+            "Guile": {
+                "properties": {
+                    "country": {"type": "string"},
+                    "power": {"type": "string"},
+                },
+                "required": ["country", "power"],
+                "type": "object",
+            },
+            "Ryu": {
+                "properties": {
+                    "country": {"type": "string"},
+                    "power": {"type": "string"},
+                },
+                "required": ["country", "power"],
+                "type": "object",
+            },
+        },
+        "required": ["Blanka", "Guile", "Ryu"],
+        "type": "object",
+    }
+
+
+@pytest.mark.django_db
+def test_core_http_request_generate_schema_invalid_sample_data():
+    service = ServiceHandler().create_service(
+        CoreHTTPRequestServiceType(),
+        url="'http://example.com'",
+        body_content="'body'",
+        headers=[{"key": "key", "value": "'value1'"}],
+        query_params=[{"key": "key", "value": "'value2'"}],
+        form_data=[{"key": "key", "value": "'value3'"}],
+    )
+
+    service.sample_data = {"raw_body": ""}
+    service.save()
+
+    service_type = service.get_type()
+
+    with pytest.raises(ServiceTypeSchemaGenerationError) as e:
+        assert service_type.generate_schema(service)
+
+    assert str(e.value) == "The response is not valid JSON."
+
+
+@pytest.mark.django_db
+def test_core_http_request_dispatch_data_with_sample_data(
+    data_fixture,
+):
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15, http_method=HTTP_METHOD.POST
+    )
+    service.sample_data = {"raw_body": get_raw_sample_data()}
+    service.save()
+
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext()
+
+    # Use the patch context manager to mock `advocate.request`
+    with mock_advocate_request(
+        {"fighters": {"Ryu": {"power": "Hadogen"}}},
+        status_code=204,
+        headers={"test": "header"},
+    ) as mock_request:
+        dispatch_data = service_type.dispatch(service, dispatch_context)
+
+        mock_request.assert_called_once_with(
+            **{
+                "headers": {"user-agent": AnyStr()},
+                "method": HTTP_METHOD.POST,
+                "params": {},
+                "timeout": 15,
+                "url": "http://example.notexist/",
+            }
+        )
+
+    assert dispatch_data.data == {
+        "fighters": {"Ryu": {"power": "Hadogen"}},
+        "raw_body": '{"fighters": {"Ryu": {"power": "Hadogen"}}}',
+        "headers": {"Content-Type": "application/json", "test": "header"},
+        "status_code": 204,
+    }

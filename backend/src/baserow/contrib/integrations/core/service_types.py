@@ -42,6 +42,7 @@ from baserow.core.services.types import DispatchResult, FormulaToResolve, Servic
 from baserow.version import VERSION as BASEROW_VERSION
 
 from .constants import BODY_TYPE, HTTP_METHOD
+from .exceptions import ServiceTypeSchemaGenerationError
 from .integration_types import SMTPIntegrationType
 
 
@@ -426,7 +427,9 @@ class CoreHTTPRequestServiceType(ServiceType):
             try:
                 sample_data = json.loads(service.sample_data["raw_body"])
             except json.decoder.JSONDecodeError:
-                raise
+                raise ServiceTypeSchemaGenerationError(
+                    "The response is not valid JSON."
+                )
 
             schema_builder.add_object(sample_data)
             schema = schema_builder.to_schema()
@@ -558,11 +561,16 @@ class CoreHTTPRequestServiceType(ServiceType):
             logger.exception("Error while dispatching HTTP request")
             raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
 
-        response_body = (
-            response.json()
-            if response.headers.get("Content-Type") == "application/json"
-            else response.text
-        )
+        try:
+            response_body = (
+                response.json()
+                if response.headers.get("Content-Type") == "application/json"
+                else response.text
+            )
+        except request_exceptions.JSONDecodeError:
+            raise UnexpectedDispatchException(
+                "The response doesn't contain valid JSON."
+            )
 
         # Extract the response headers
         response_headers = {key: value for key, value in response.headers.items()}

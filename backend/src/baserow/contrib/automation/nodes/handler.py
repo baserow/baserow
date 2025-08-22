@@ -24,9 +24,13 @@ from baserow.contrib.automation.nodes.types import (
     UpdatedAutomationNode,
 )
 from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
+from baserow.contrib.integrations.core.exceptions import (
+    ServiceTypeSchemaGenerationError,
+)
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.services.exceptions import UnexpectedDispatchException
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.storage import ExportZipFile
@@ -531,7 +535,11 @@ class AutomationNodeHandler:
 
         try:
             AutomationWorkflowRunner().run(node.workflow, dispatch_context)
-        except AutomationNodeError as e:
+        except (
+            AutomationNodeError,
+            ServiceTypeSchemaGenerationError,
+            UnexpectedDispatchException,
+        ) as e:
             raise AutomationNodeSimulateDispatchError(str(e))
 
     def reset_sample_data(self, nodes: List[AutomationNode]) -> None:
