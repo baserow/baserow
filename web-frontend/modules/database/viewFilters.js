@@ -402,7 +402,10 @@ export class EqualViewFilterType extends SpecificFieldFilterType {
       fieldType
     )
 
-    return filterVal === '' || rowVal === filterVal
+    if (filterVal === '') {
+      return null
+    }
+    return rowVal === filterVal
   }
 }
 
@@ -449,7 +452,12 @@ export class NotEqualViewFilterType extends SpecificFieldFilterType {
       field,
       fieldType
     )
-    return filterVal === '' || rowVal !== filterVal
+
+    if (filterVal === '') {
+      return null
+    }
+
+    return rowVal !== filterVal
   }
 }
 
@@ -2046,7 +2054,7 @@ export class HigherThanViewFilterType extends NumericComparisonViewFilterType {
 
   matches(rowValue, filterValue, field, fieldType) {
     if (filterValue === '') {
-      return true
+      return null
     }
 
     const { rowVal, filterVal } = this.getMatchesParsedValues(
@@ -2075,7 +2083,7 @@ export class HigherThanOrEqualViewFilterType extends NumericComparisonViewFilter
 
   matches(rowValue, filterValue, field, fieldType) {
     if (filterValue === '') {
-      return true
+      return null
     }
 
     const { rowVal, filterVal } = this.getMatchesParsedValues(
@@ -2104,7 +2112,7 @@ export class LowerThanViewFilterType extends NumericComparisonViewFilterType {
 
   matches(rowValue, filterValue, field, fieldType) {
     if (filterValue === '') {
-      return true
+      return null
     }
     const { rowVal, filterVal } = this.getMatchesParsedValues(
       rowValue,
@@ -2133,7 +2141,7 @@ export class LowerThanOrEqualViewFilterType extends NumericComparisonViewFilterT
 
   matches(rowValue, filterValue, field, fieldType) {
     if (filterValue === '') {
-      return true
+      return null
     }
 
     const { rowVal, filterVal } = this.getMatchesParsedValues(
@@ -2209,10 +2217,11 @@ export class SingleSelectEqualViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    return (
-      filterValue === '' ||
-      (rowValue !== null && rowValue.id === parseInt(filterValue))
-    )
+    if (filterValue === '') {
+      return null
+    }
+
+    return rowValue !== null && rowValue.id === parseInt(filterValue)
   }
 }
 
@@ -2242,8 +2251,11 @@ export class SingleSelectNotEqualViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
+    if (filterValue === '') {
+      return null
+    }
+
     return (
-      filterValue === '' ||
       rowValue === null ||
       (rowValue !== null && rowValue.id !== parseInt(filterValue))
     )

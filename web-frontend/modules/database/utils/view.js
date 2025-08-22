@@ -231,6 +231,7 @@ export const TreeGroupNode = class {
       }
     }
     const filterType = this.filterType
+    let hasValidFilter = false
     for (const filter of this.filters) {
       const filterValue = String(filter.value ?? '')
       const field = fields.find((f) => f.id === filter.field)
@@ -243,6 +244,13 @@ export const TreeGroupNode = class {
         field,
         fieldType
       )
+
+      if (matches === null) {
+        continue
+      }
+
+      hasValidFilter = true
+
       if (filterType === 'AND' && !matches) {
         // With an `AND` filter type, the row must match all the filters, so if
         // one of the filters doesn't match we can mark it as invalid.
@@ -258,9 +266,9 @@ export const TreeGroupNode = class {
       // filters and therefore we can mark it as valid.
       return true
     } else if (filterType === 'OR') {
-      // At this point with an `OR` condition none of the filters matched and
-      // therefore we can mark it as invalid.
-      return false
+      // If no valid filters were found, return true (no filtering should be applied).
+      // If there were valid filters but none matched, return false.
+      return !hasValidFilter
     }
   }
 }
