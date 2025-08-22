@@ -264,6 +264,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 workflow,
                 event_payload,
             )
+
             save_sample_data = False
             if workflow.allow_test_run_until:
                 workflow.allow_test_run_until = None
