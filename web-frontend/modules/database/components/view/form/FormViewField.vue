@@ -36,6 +36,9 @@
             @change="$emit('updated-field-options', { name: $event.value })"
             @editing="editingName = $event"
           ></Editable>
+          <span v-if="fieldOptions.required" class="form-view__field-required">
+            *
+          </span>
           <a
             v-if="!readOnly"
             class="form-view__edit form-view-field-edit"

@@ -502,6 +502,10 @@
   line-height: 20px;
 }
 
+.form-view__field-required {
+  color: $palette-red-600;
+}
+
 .form-view__field-description {
   font-size: 13px;
   line-height: 160%;

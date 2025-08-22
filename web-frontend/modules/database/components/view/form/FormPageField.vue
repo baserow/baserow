@@ -4,6 +4,7 @@
       <div class="form-view__field-inner">
         <div class="form-view__field-name">
           {{ field.name }}
+          <span v-if="field.required" class="form-view__field-required">*</span>
         </div>
         <!-- prettier-ignore -->
         <div v-if="field.description" class="form-view__field-description whitespace-pre-wrap">{{ field.description }}</div>
