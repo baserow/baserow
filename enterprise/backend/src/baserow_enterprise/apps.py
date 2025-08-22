@@ -70,9 +70,11 @@ class BaserowEnterpriseConfig(AppConfig):
             AssignRoleWorkspaceOperationType,
             ReadRoleApplicationOperationType,
             ReadRoleTableOperationType,
+            ReadRoleViewOperationType,
             ReadRoleWorkspaceOperationType,
             UpdateRoleApplicationOperationType,
             UpdateRoleTableOperationType,
+            UpdateRoleViewOperationType,
         )
         from .teams.subjects import TeamSubjectType
 
@@ -127,6 +129,8 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(ListWorkspaceAuditLogEntriesOperationType())
         operation_type_registry.register(UpdateFieldPermissionsOperationType())
         operation_type_registry.register(ReadFieldPermissionsOperationType())
+        operation_type_registry.register(ReadRoleViewOperationType())
+        operation_type_registry.register(UpdateRoleViewOperationType())
 
         from baserow.core.registries import subject_type_registry
 

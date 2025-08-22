@@ -148,6 +148,14 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display multiple additional context items in the
+   * view context displayed in the context menu of a view.
+   */
+  getAdditionalViewContextComponents(workspace, table, view) {
+    return []
+  }
+
+  /**
    * If set, `getExtraSnapshotModalComponents` will allow plugins to decide what kind of
    * copy is shown in the snapshots modal's Alert box.
    */
