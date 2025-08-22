@@ -264,15 +264,20 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 workflow,
                 event_payload,
             )
+            save_sample_data = False
             if workflow.allow_test_run_until:
                 workflow.allow_test_run_until = None
                 workflow.save(update_fields=["allow_test_run_until"])
+                save_sample_data = True
 
             if trigger.simulate_dispatch and not workflow.published:
-                trigger.service.sample_data = event_payload
-                trigger.service.save()
                 trigger.simulate_dispatch = False
                 trigger.save(update_fields=["simulate_dispatch"])
+                save_sample_data = True
+
+            if save_sample_data:
+                trigger.service.sample_data = event_payload
+                trigger.service.save()
 
     def after_register(self):
         service_type_registry.get(self.service_type).start_listening(self.on_event)

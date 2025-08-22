@@ -21,15 +21,20 @@ class AutomationDispatchContext(DispatchContext):
         is_simulated: bool = False,
         simulate_until_node: Optional[AutomationActionNode] = None,
         re_test: bool = False,
+        is_test_run: bool = False,
     ):
         """
         The `DispatchContext` implementation for automations. This context is provided
         to nodes, and can be modified so that following nodes are aware of a proceeding
         node's changes.
 
+        :param workflow: The workflow that this dispatch context is associated with.
         :param event_payload: The event data from the trigger node, if any was
             provided, as this is optional.
-        :param workflow: The workflow that this dispatch context is associated with.
+        :param is_simulated: Whether the node dispatch is simulated or not.
+        :param simulate_until_node: The last node to simulate the dispatch of.
+        :param re_test: Execute a real disaptch during simulation.
+        :param is_test_run: Whether the current workflow run is a test run.
         """
 
         self.workflow = workflow
@@ -38,6 +43,7 @@ class AutomationDispatchContext(DispatchContext):
         self.is_simulated = is_simulated
         self.simulate_until_node = simulate_until_node
         self.re_test = re_test
+        self.is_test_run = is_test_run
         self._initialize_trigger_results(event_payload)
         super().__init__()
 
@@ -82,7 +88,7 @@ class AutomationDispatchContext(DispatchContext):
         self.dispatch_history.append(node.id)
         self._register_node_result(node, dispatch_result.data)
 
-        if self.is_simulated:
+        if self.is_simulated or self.is_test_run:
             node.service.sample_data = dispatch_result.data
             node.service.save()
 
