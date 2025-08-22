@@ -283,9 +283,11 @@ from baserow_enterprise.role.operations import (
     AssignRoleWorkspaceOperationType,
     ReadRoleApplicationOperationType,
     ReadRoleTableOperationType,
+    ReadRoleViewOperationType,
     ReadRoleWorkspaceOperationType,
     UpdateRoleApplicationOperationType,
     UpdateRoleTableOperationType,
+    UpdateRoleViewOperationType,
 )
 from baserow_enterprise.teams.operations import (
     CreateTeamOperationType,
@@ -569,5 +571,7 @@ default_roles[ADMIN_ROLE_UID].extend(
         DeleteApplicationSnapshotOperationType,
         RestoreDomainOperationType,
         ListWorkspaceAuditLogEntriesOperationType,
+        ReadRoleViewOperationType,
+        UpdateRoleViewOperationType,
     ]
 )

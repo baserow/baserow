@@ -3,6 +3,19 @@
     <div class="context__menu-title">{{ view.name }} ({{ view.id }})</div>
     <ul class="context__menu">
       <li
+        v-for="(component, index) in additionalContextComponents"
+        :key="index"
+        class="context__menu-item"
+        @click="$refs.context.hide()"
+      >
+        <component
+          :is="component"
+          :table="table"
+          :view="view"
+          :database="database"
+        ></component>
+      </li>
+      <li
         v-if="
           hasValidExporter &&
           $hasPermission(
@@ -192,6 +205,21 @@ export default {
         .map((viewOwnershipType) => {
           return viewOwnershipType.getChangeOwnershipTypeMenuItemComponent()
         })
+        .filter((component) => component !== null)
+    },
+    additionalContextComponents() {
+      return Object.values(this.$registry.getAll('plugin'))
+        .reduce(
+          (components, plugin) =>
+            components.concat(
+              plugin.getAdditionalViewContextComponents(
+                this.database.workspace,
+                this.table,
+                this.view
+              )
+            ),
+          []
+        )
         .filter((component) => component !== null)
     },
   },

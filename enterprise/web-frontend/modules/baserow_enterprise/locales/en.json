@@ -194,7 +194,8 @@
   },
   "memberRolesModal": {
     "memberRolesDatabaseTabTitle": "Database",
-    "memberRolesTableTabTitle": "Current Table",
+    "memberRolesTableTabTitle": "Table",
+    "memberRolesViewTabTitle": "View",
     "error": {
       "title": "Could not fetch data",
       "description": "An error occurred while fetching the member data."

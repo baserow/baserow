@@ -3,17 +3,19 @@ import ChatwootSupportSidebarWorkspace from '@baserow_enterprise/components/Chat
 import AuditLogSidebarWorkspace from '@baserow_enterprise/components/AuditLogSidebarWorkspace'
 import MemberRolesDatabaseContextItem from '@baserow_enterprise/components/member-roles/MemberRolesDatabaseContextItem'
 import MemberRolesTableContextItem from '@baserow_enterprise/components/member-roles/MemberRolesTableContextItem'
+import MemberRolesViewContextItem from '@baserow_enterprise/components/member-roles/MemberRolesViewContextItem'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import SnapshotModalWarning from '@baserow_enterprise/components/SnapshotModalWarning'
 import EnterpriseSettings from '@baserow_enterprise/components/EnterpriseSettings'
 import EnterpriseSettingsOverrideDashboardHelp from '@baserow_enterprise/components/EnterpriseSettingsOverrideDashboardHelp'
 import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
-import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
 import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
+import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
+import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {
@@ -71,6 +73,21 @@ export class EnterprisePlugin extends BaserowPlugin {
     const out = []
     out.push(DateDependencyFieldTypeIcon)
     return out
+  }
+
+  getAdditionalViewContextComponents(workspace, table, view) {
+    if (
+      this.app.$hasPermission(
+        'database.table.view.read_role',
+        view,
+        workspace.id
+      ) &&
+      view.ownership_type === RestrictedViewOwnershipType.getType()
+    ) {
+      return [MemberRolesViewContextItem]
+    } else {
+      return []
+    }
   }
 
   getExtraSnapshotModalComponents(workspace) {

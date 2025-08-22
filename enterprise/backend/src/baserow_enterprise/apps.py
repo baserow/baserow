@@ -73,9 +73,11 @@ class BaserowEnterpriseConfig(AppConfig):
             AssignRoleWorkspaceOperationType,
             ReadRoleApplicationOperationType,
             ReadRoleTableOperationType,
+            ReadRoleViewOperationType,
             ReadRoleWorkspaceOperationType,
             UpdateRoleApplicationOperationType,
             UpdateRoleTableOperationType,
+            UpdateRoleViewOperationType,
         )
         from .teams.subjects import TeamSubjectType
 
@@ -131,6 +133,8 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(UpdateFieldPermissionsOperationType())
         operation_type_registry.register(ReadFieldPermissionsOperationType())
         operation_type_registry.register(ChatAssistantChatOperationType())
+        operation_type_registry.register(ReadRoleViewOperationType())
+        operation_type_registry.register(UpdateRoleViewOperationType())
 
         from baserow.contrib.database.field_rules.registries import (
             field_rules_type_registry,
