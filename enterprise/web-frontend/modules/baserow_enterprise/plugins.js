@@ -14,10 +14,7 @@ import AssistantSidebarItem from '@baserow_enterprise/components/assistant/Assis
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
-import {
-  FF_DATE_DEPENDENCY,
-  FF_ASSISTANT,
-} from '@baserow/modules/core/plugins/featureFlags'
+import { FF_ASSISTANT } from '@baserow/modules/core/plugins/featureFlags'
 
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {
@@ -67,25 +64,18 @@ export class EnterprisePlugin extends BaserowPlugin {
     ) {
       out.push(MemberRolesTableContextItem)
     }
-    if (this.app.$featureFlagIsEnabled(FF_DATE_DEPENDENCY)) {
-      out.push(DateDependencyMenuItem)
-    }
-
+    out.push(DateDependencyMenuItem)
     return out
   }
 
   getAdditionalViewContextComponents(workspace, view) {
-    if (this.app.$featureFlagIsEnabled(FF_DATE_DEPENDENCY)) {
-      return [DateDependencyMenuItem]
-    }
-    return []
+    return [DateDependencyMenuItem]
   }
 
   getGridViewFieldTypeIconsBefore(workspace, view, field) {
-    if (this.app.$featureFlagIsEnabled(FF_DATE_DEPENDENCY)) {
-      return [DateDependencyFieldTypeIcon]
-    }
-    return []
+    const out = []
+    out.push(DateDependencyFieldTypeIcon)
+    return out
   }
 
   getExtraSnapshotModalComponents(workspace) {

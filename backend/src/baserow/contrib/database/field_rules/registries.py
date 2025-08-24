@@ -38,6 +38,25 @@ class FieldRuleValidity(NamedTuple):
 
 
 class FieldRuleType(ModelInstanceMixin, CustomFieldsInstanceMixin, Instance, ABC):
+    """
+    Base class for field rule type hierarchy.
+
+    A subclass defines a behavior of a specific field rule type. A field rule is a
+    defined dependency between one or more fields in the table, similar to formulas,
+    but allowing the user to change values in fields involved.
+
+    A field rule is attached to a specific table, and one table can contain multiple
+    rules. However, not all rules may be usable in a specific moment. Only active and
+    valid rules should be used at specific time. Rules in other states should be
+    ignored in the processing.
+
+    A user can disable or enable the rule. This is handled by a general update
+    mechanism.
+
+    A rule can be marked as invalid. Type handler should provide a method to validate
+    a rule.
+    """
+
     model_class = FieldRule
 
     serializer_field_names = [
@@ -45,7 +64,6 @@ class FieldRuleType(ModelInstanceMixin, CustomFieldsInstanceMixin, Instance, ABC
         "type",
     ]
 
-    # TableHandler.get_table()
     def enrich_table_queryset(self, queryset) -> QuerySet:
         """
         Allows to modify table queryset with additional related models
@@ -53,7 +71,6 @@ class FieldRuleType(ModelInstanceMixin, CustomFieldsInstanceMixin, Instance, ABC
 
         return queryset
 
-    # RowHandler.force_update_rows()
     def before_row_updated(
         self, row: GeneratedTableModel, rule: FieldRule, updated_values: dict
     ) -> RowRuleChanges | None:

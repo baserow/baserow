@@ -43,12 +43,18 @@ dep = FakeDateDependency()
 
 
 def test_date_values_fields_api():
-    dv = DateValues(dep, *prep_values(["2025-01-01", "2025-01-03", timedelta(days=2)]))
-    dv2 = DateValues(dep, *prep_values(["2025-01-01", "2025-01-03", timedelta(days=2)]))
+    dv = DateValues(dep, *prep_values(["2025-01-01", "2025-01-03", timedelta(days=3)]))
+    dv2 = DateValues(dep, *prep_values(["2025-01-01", "2025-01-03", timedelta(days=3)]))
+    dv3 = DateValues(dep, *prep_values(["2025-01-01", "2025-01-03", timedelta(days=4)]))
 
-    dv3 = DateValues(dep, *prep_values(["2025-01-01", "2025-01-03", timedelta(days=3)]))
-
+    # invalid value types
     dv4 = DateValues(dep, *prep_values([None, NO_VALUE, "invalid"]))
+    # end date before start date
+    dv5 = DateValues(dep, *prep_values(["2025-01-20", "2025-01-03", timedelta(days=4)]))
+    # negative duration
+    dv6 = DateValues(
+        dep, *prep_values(["2025-01-01", "2025-01-03", timedelta(days=-3)])
+    )
 
     assert dv == dv2
     assert dv != dv3
@@ -56,14 +62,20 @@ def test_date_values_fields_api():
     assert dv.to_dict() == {
         "start_date": date(2025, 1, 1),
         "end_date": date(2025, 1, 3),
-        "duration": timedelta(days=2),
+        "duration": timedelta(days=3),
     }
     assert dv.is_valid()
-    assert dv.has_valid_values()
+    assert dv.has_valid_value_types()
     assert dv.get_none_fields() == []
     assert dv.get_no_values_fields() == []
     assert dv.get_values_fields() == ["start_date", "end_date", "duration"]
     assert dv.get_changed_fields() == ["start_date", "end_date", "duration"]
+
+    assert dv.get("start_date") == date(2025, 1, 1)
+    assert dv.get("end_date") == date(2025, 1, 3)
+    assert dv.get("duration") == timedelta(days=3)
+    with pytest.raises(ValueError):
+        dv.get("invalid")
 
     assert dv4.to_dict() == {
         "start_date": None,
@@ -71,17 +83,23 @@ def test_date_values_fields_api():
         "duration": "invalid",
     }
     assert not dv4.is_valid()
-    assert not dv4.has_valid_values()
+    assert not dv4.has_valid_value_types()
     assert dv4.get_none_fields() == ["start_date"]
     assert dv4.get_no_values_fields() == ["end_date"]
     assert dv4.get_values_fields() == ["duration"]
     assert dv4.get_changed_fields() == ["start_date", "duration"]
 
-    assert dv.get("start_date") == date(2025, 1, 1)
-    assert dv.get("end_date") == date(2025, 1, 3)
-    assert dv.get("duration") == timedelta(days=2)
-    with pytest.raises(ValueError):
-        dv.get("invalid")
+    assert not dv5.is_valid()
+    assert dv5.has_valid_value_types()
+    assert dv5.get_none_fields() == []
+    assert dv5.get_no_values_fields() == []
+    assert dv5.get_values_fields() == ["start_date", "end_date", "duration"]
+
+    assert not dv6.is_valid()
+    assert dv6.has_valid_value_types()
+    assert dv6.get_none_fields() == []
+    assert dv6.get_no_values_fields() == []
+    assert dv6.get_values_fields() == ["start_date", "end_date", "duration"]
 
 
 @pytest.mark.parametrize(
@@ -280,6 +298,57 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
 
 
 @pytest.mark.parametrize(
+    "test_value,expected_before,expected_after",
+    [
+        # this case is the only one correct, because duration matches dates + 1 day
+        (
+            ["2025-01-01", "2025-01-03", timedelta(days=3)],
+            timedelta(days=2),
+            timedelta(days=3),
+        ),
+        # * duration doesn't match to dates
+        # * adjust_duration_before will decrease by one blindly
+        # * adjust_duration_after will not increase, because the duration
+        #   doesn't match dates anyway.
+        (
+            ["2025-01-01", "2025-01-03", timedelta(days=2)],
+            timedelta(days=1),
+            timedelta(days=1),
+        ),
+        # mind that duration doesn't match time span, so it's invalid anyway
+        # so we don't change it
+        (
+            ["2025-01-01", "2025-01-03", timedelta(days=1)],
+            timedelta(days=0),
+            timedelta(days=0),
+        ),
+        (
+            [None, None, None],
+            None,
+            None,
+        ),
+        (["aaa", "bbb", "ccc"], "ccc", "ccc"),
+    ],
+)
+def test_date_dependency_adjust_before_after(
+    test_value, expected_before, expected_after
+):
+    """
+    Test if DateDependencyCalculator will correctly shift duration value before and
+    after calculations.
+    """
+
+    calc = DateDependencyCalculator(None, None, False)
+
+    input_value = DateValues(dep, *prep_values(test_value))
+    before = calc.adjust_duration_before(input_value)
+
+    assert before.duration == expected_before
+    after = calc.adjust_duration_after(input_value)
+    assert after.duration == expected_after
+
+
+@pytest.mark.parametrize(
     "old_values,new_values,expected_result,include_weekends",
     [
         # nothing changed, no value
@@ -331,7 +400,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2020-01-01",
                 "2020-01-10",
-                timedelta(days=9),
+                timedelta(days=10),
             ),
             False,
         ),
@@ -349,7 +418,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-01",
                 "2025-01-06",
-                timedelta(days=5),
+                timedelta(days=6),
             ),
             True,
         ),
@@ -367,7 +436,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-01",
                 "2025-01-05",
-                timedelta(days=4),
+                timedelta(days=5),
             ),
             False,
         ),
@@ -385,7 +454,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2020-01-01",
                 "2020-01-10",
-                timedelta(days=9),
+                timedelta(days=10),
             ),
             False,
         ),
@@ -404,7 +473,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-01",
                 "2025-01-05",
-                timedelta(days=4),
+                timedelta(days=5),
             ),
             False,
         ),
@@ -422,7 +491,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-01",
                 "2025-01-06",
-                timedelta(days=5),
+                timedelta(days=6),
             ),
             True,
         ),
@@ -440,7 +509,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-01",
                 "2025-01-05",
-                timedelta(days=4),
+                timedelta(days=5),
             ),
             False,
         ),
@@ -458,7 +527,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-01",
                 "2025-01-06",
-                timedelta(days=5),
+                timedelta(days=6),
             ),
             True,
         ),
@@ -607,7 +676,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             ),
             (
                 "2025-01-01",
-                "2025-01-02",
+                "2025-01-01",
                 timedelta(days=1),
             ),
             False,
@@ -625,7 +694,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             ),
             (
                 "2025-01-01",
-                "2025-01-02",
+                "2025-01-01",
                 timedelta(days=1),
             ),
             True,
@@ -644,7 +713,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-03",
                 "2025-01-04",
-                timedelta(days=1),
+                timedelta(days=2),
             ),
             False,
         ),
@@ -664,7 +733,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-03",
                 "2025-01-04",
-                timedelta(days=1),
+                timedelta(days=2),
             ),
             True,
         ),
@@ -673,7 +742,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-01",
                 "2025-01-05",
-                timedelta(days=5),
+                timedelta(days=3),
             ),
             (
                 "2025-01-01",
@@ -683,7 +752,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-01",
                 "2025-01-05",
-                timedelta(days=4),
+                timedelta(days=5),
             ),
             False,
         ),
@@ -691,7 +760,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-01",
                 "2025-01-05",
-                timedelta(days=5),
+                timedelta(days=3),
             ),
             (
                 "2025-01-01",
@@ -701,7 +770,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-01",
                 "2025-01-06",
-                timedelta(days=5),
+                timedelta(days=6),
             ),
             True,
         ),
@@ -756,7 +825,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             ),
             (
                 "2025-01-02",
-                "2025-01-04",
+                "2025-01-03",
                 timedelta(days=2),
             ),
             False,
@@ -774,8 +843,8 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             ),
             (
                 "2025-01-02",
-                "2025-01-06",
-                timedelta(days=4),
+                "2025-01-03",
+                timedelta(days=2),
             ),
             True,
         ),
@@ -794,7 +863,7 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-01",
                 "2025-01-04",
-                timedelta(days=3),
+                timedelta(days=4),
             ),
             False,
         ),
@@ -812,9 +881,70 @@ def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_
             (
                 "2025-01-01",
                 "2025-01-04",
-                timedelta(days=3),
+                timedelta(days=4),
             ),
             True,
+        ),
+        # we move end_date down, but after start_date, so this should decrease
+        # duration value. Note, despite this has include_weekends set, we don't
+        # adjust end date, because the end date is being changed by the user.
+        (
+            (
+                "2025-01-01",
+                "2025-01-06",
+                timedelta(days=6),
+            ),
+            (
+                NO_VALUE,
+                "2025-01-04",
+                NO_VALUE,
+            ),
+            (
+                "2025-01-01",
+                "2025-01-04",
+                timedelta(days=4),
+            ),
+            True,
+        ),
+        # we move end_date down, but after start_date, so this should decrease
+        # duration value.
+        (
+            (
+                "2025-01-01",
+                "2025-01-06",
+                timedelta(days=6),
+            ),
+            (
+                NO_VALUE,
+                "2025-01-04",
+                NO_VALUE,
+            ),
+            (
+                "2025-01-01",
+                "2025-01-04",
+                timedelta(days=4),
+            ),
+            False,
+        ),
+        # we move end_date before start_date, so this should result in start_date shift
+        # down by duration value
+        (
+            (
+                "2025-02-01",
+                "2025-02-06",
+                timedelta(days=6),
+            ),
+            (
+                NO_VALUE,
+                "2025-01-30",
+                NO_VALUE,
+            ),
+            (
+                "2025-01-25",
+                "2025-01-30",
+                timedelta(days=6),
+            ),
+            False,
         ),
     ],
 )

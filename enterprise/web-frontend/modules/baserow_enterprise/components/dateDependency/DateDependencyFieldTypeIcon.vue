@@ -1,11 +1,11 @@
 <template>
   <span
     v-if="usedInDeps"
-    v-tooltip:[tooltipOptions]="$t('dateDependency.dependencyFieldTooltip')"
+    v-tooltip="tooltipText"
     class="date-dependency__help-icon"
   >
     <a
-      class="help-icon baserow-icon-dependancy"
+      class="help-icon baserow-icon-dependency"
       :class="{ 'color-error': hasError }"
       @click="openModal"
     >
@@ -15,13 +15,21 @@
       :workspace-id="workspace.id"
       :table="table"
     />
+
+    <PaidFeaturesModal
+      ref="paidFeaturesModal"
+      initial-selected-type="date_dependency"
+      :workspace="workspace"
+    ></PaidFeaturesModal>
   </span>
 </template>
 <script>
 import DateDependencyModal from '@baserow_enterprise/components/dateDependency/DateDependencyModal'
+import EnterpriseFeatures from '@baserow_enterprise/features'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
-  components: { DateDependencyModal },
+  components: { DateDependencyModal, PaidFeaturesModal },
 
   props: {
     table: { type: Object, required: true },
@@ -33,12 +41,30 @@ export default {
       usedInDeps: false,
       deps: [],
       hasError: false,
-
+      errorText: null,
       tooltipOptions: {
         duration: 0.8,
         contentIsHtml: false,
       },
     }
+  },
+  computed: {
+    deactivated() {
+      return !this.$hasFeature(
+        EnterpriseFeatures.DATE_DEPENDENCY,
+        this.workspace.id
+      )
+    },
+    tooltipText() {
+      if (this.hasError) {
+        return (
+          this.errorText ||
+          this.$t('dateDependencyModal.dependencyFieldTooltipError')
+        )
+      } else {
+        return this.$t('dateDependencyModal.dependencyFieldTooltip')
+      }
+    },
   },
   watch: {
     deps: function () {
@@ -54,6 +80,7 @@ export default {
       this.usedInDeps = false
       this.deps = []
       this.hasError = false
+      this.errorText = ''
     },
     calculateState() {
       const fieldId = this.field.id
@@ -69,6 +96,7 @@ export default {
         }
         if (!dep.is_valid && dep.is_active) {
           this.hasError = true
+          this.errorText = dep.error_text
         }
       })
     },
@@ -86,7 +114,11 @@ export default {
       this.calculateState()
     },
     openModal() {
-      this.$refs.modal.show()
+      if (this.deactivated) {
+        this.$refs.paidFeaturesModal.show()
+      } else {
+        this.$refs.modal.show()
+      }
     },
   },
 }

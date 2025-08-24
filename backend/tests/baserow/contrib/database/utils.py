@@ -5,9 +5,16 @@ from typing import Callable, Iterable
 
 from django.contrib.auth.models import AbstractUser
 from django.db import OperationalError
+from django.db.models import QuerySet
 
 from channels.testing import WebsocketCommunicator
 
+from baserow.contrib.database.field_rules.models import FieldRule
+from baserow.contrib.database.field_rules.registries import (
+    FieldRuleType,
+    FieldRuleValidity,
+    RowRuleValidity,
+)
 from baserow.contrib.database.fields.models import (
     Field,
     FormulaField,
@@ -311,3 +318,27 @@ def get_deadlock_error(message: str = "Deadlock detected"):
     error = OperationalError(message)
     error.__cause__ = errors.DeadlockDetected()
     return error
+
+
+class DummyFieldRuleType(FieldRuleType):
+    type = "dummy"
+    model_class = FieldRule
+
+    def validate_row(
+        self, row: GeneratedTableModel, rule: FieldRule
+    ) -> RowRuleValidity:
+        return RowRuleValidity(row_id=row.id, rule_id=rule.id, is_valid=True)
+
+    def validate_rows(
+        self, table: Table, rule: FieldRule, queryset: QuerySet | None = None
+    ):
+        return
+
+    def validate_rule(self, rule: FieldRule) -> FieldRuleValidity:
+        return FieldRuleValidity(
+            table_id=rule.table_id,
+            rule_id=rule.id,
+            # one can inject rule validity by setting rule.set_is_valid
+            is_valid=getattr(rule, "set_is_valid", True),
+            error_text="",
+        )

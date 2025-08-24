@@ -21,7 +21,7 @@ export const actions = {
 
       return getters.getRules({ tableId })
     } catch (error) {
-      dispatch('toast/error', error, { root: true })
+      // dispatch('toast/error', error, { root: true })
     } finally {
       commit('SET_LOADING', { tableId, value: false })
     }
@@ -34,9 +34,10 @@ export const actions = {
         rule
       )
       commit('ADD_RULE', { tableId, rule: data })
+      this.$bus.$emit('fieldRules/updated', data)
       return getters.getRuleById({ tableId, ruleId: data.id })
     } catch (error) {
-      dispatch('toast/error', error, { root: true })
+      // dispatch('toast/error', error, { root: true })
     } finally {
       commit('SET_LOADING', { tableId, value: false })
     }
@@ -61,7 +62,7 @@ export const actions = {
       // commit('UPDATE_RULE', { tableId, ruleId, rule: data })
       return getters.getRuleById({ tableId, ruleId: data.id })
     } catch (error) {
-      dispatch('toast/error', error, { root: true })
+      // dispatch('toast/error', error, { root: true })
     } finally {
       commit('SET_LOADING', { tableId, value: false })
     }
@@ -164,7 +165,6 @@ export const getters = {
       return rule
     }
   },
-
   getCurrentOpen(state) {
     return () => {
       return state.current
@@ -174,14 +174,6 @@ export const getters = {
     return ({ tableId, ruleType }) => {
       const rules = state.tables[tableId]?.rules || []
       return rules.filter((r) => r.type === ruleType)
-    }
-  },
-  getRulesForFields(state) {
-    return ({ tableId, fieldIds }) => {
-      const rules = state.tables[tableId]?.rules || []
-      return rules.filter((rule) => {
-        return fieldIds.includes(rule.id)
-      })
     }
   },
   getInvalidRules(state) {

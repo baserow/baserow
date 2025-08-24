@@ -1,5 +1,5 @@
 <template>
-  <div class="context__menu-item">
+  <div v-if="showEntry" class="context__menu-item">
     <div>
       <a
         class="context__menu-item-link"
@@ -13,7 +13,7 @@
           }
         "
       >
-        <i class="context__menu-item-icon baserow-icon-dependancy"></i>
+        <i class="context__menu-item-icon baserow-icon-dependency"></i>
         {{ $t('dateDependencyModal.contextMenuItemLabel') }}
         <div v-if="deactivated" class="deactivated-label">
           <i class="iconoir-lock"></i>
@@ -57,6 +57,11 @@ export default {
       type: Object,
       required: true,
     },
+    field: {
+      type: Object,
+      required: false,
+      default: null,
+    },
   },
   computed: {
     deactivated() {
@@ -67,6 +72,15 @@ export default {
     },
     tableObject() {
       return this.table || this.view.table
+    },
+    showEntry() {
+      if (!this.field) {
+        return true
+      }
+      return (
+        (this.field.type === 'date' && !this.field.date_include_time) ||
+        (this.field.type === 'duration' && this.field.duration_format === 'd h')
+      )
     },
   },
 }

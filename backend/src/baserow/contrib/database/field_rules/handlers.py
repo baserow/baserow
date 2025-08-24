@@ -18,7 +18,8 @@ from .signals import field_rule_created, field_rule_deleted, field_rule_updated
 
 class FieldRuleHandler:
     """
-    FieldRuleHandler provides interface to manage field rules.
+    FieldRuleHandler provides an interface to operate on field rules attached to the
+    table.
     """
 
     STATE_COLUMN_NAME = "field_rules_are_valid"
@@ -28,17 +29,34 @@ class FieldRuleHandler:
         self.user = user
 
     def emit_signal(self, signal: Signal, rule):
+        """
+        Shortcut method that emits a field rules-specific signal after
+        a field rule operation.
+        """
+
         signal.send(sender=self.__class__, table=self.table, rule=rule, user=self.user)
 
     def has_field_rules(self) -> bool:
+        """
+        Returns `True` if the table contains active field rules.
+        """
+
         if not self.table.field_rules_validity_column_added:
             return False
         return self._get_bare_rules_queryset().exists()
 
     def get_type_handler(self, rule_type_name: str) -> FieldRuleType:
+        """
+        Returns rule type-specific handler based on a type name.
+        """
+
         return self.registry.get(rule_type_name)
 
     def get_rule(self, rule_id: int) -> FieldRule:
+        """
+        Returns a specific rule for a table.
+        """
+
         qs = self._get_bare_rules_queryset()
         try:
             return specific_iterator(qs.filter(id=rule_id))[0].specific
@@ -46,6 +64,10 @@ class FieldRuleHandler:
             raise NoRuleError()
 
     def _get_bare_rules_queryset(self) -> models.QuerySet:
+        """
+        Returns a basic queryset to get table rules.
+        """
+
         field_rule_types_filter = self._get_active_field_rule_types_filter()
         qs = (
             self.table.field_rules.get_queryset()
@@ -55,16 +77,29 @@ class FieldRuleHandler:
         return qs
 
     def _get_rules_queryset(self) -> models.QuerySet:
+        """
+        Returns optimized queryset to get table rules.
+        """
+
         qs = specific_iterator(self._get_bare_rules_queryset())
         return qs
 
     def get_rules(self) -> list[FieldRule]:
+        """
+        Returns a list of active rules for a table.
+        """
+
         return [r.specific for r in self._get_rules_queryset()]
 
-    def get_state_column(self):
+    def get_state_column(self) -> models.BooleanField:
+        """
+        Returns a field to be added to table definition to store information if
+        field rule validity column was added to table model.
+        """
+
         return models.BooleanField(
             null=False,
-            default=False,
+            default=True,
             db_index=True,
             help_text="Stores information if a field rules validity column is added",
         )
@@ -97,7 +132,6 @@ class FieldRuleHandler:
 
         :param rule: FieldRule instance
         :param to_value: target .is_active value
-        :return:
         """
 
         if rule.is_active == to_value:
@@ -113,18 +147,48 @@ class FieldRuleHandler:
         self.on_table_change()
 
     def enable_rule(self, rule):
+        """
+        Enables a rule.
+        """
+
         self._toggle_rule(rule, True)
 
     def disable_rule(self, rule):
+        """
+        Disables a rule.
+        """
+
         self._toggle_rule(rule, False)
 
     @property
     def registry(self) -> FieldRulesTypeRegistry:
+        """
+        A shortcut to get field rule type registry.
+        """
+
         return field_rules_type_registry
 
     def create_rule(
         self, rule_type_name: str, in_data: dict, primary_key_value: int | None = None
     ) -> FieldRule:
+        """
+        Creates a rule of a given type.
+
+        This method creates an instance of a field rule. Field rule type is provided
+        in `rule_type_name` param. Each field rule type should validate additional
+        rule params provided in `in_data` dictionary.
+
+        If `primary_key_value` is provided, the model will receive this specific .id.
+        This is used in undo/redo operations, because we want to preserve
+        rule identification.
+
+        :param rule_type_name: registered rule type name .
+        :param in_data: a dictionary with all rule params.
+        :param primary_key_value: (optional) the primary key value for the rule (if
+            the instance is being restored).
+        :return: rule instance.
+        """
+
         rule_type = self.get_type_handler(rule_type_name)
         model_class = rule_type.model_class
 
@@ -149,6 +213,10 @@ class FieldRuleHandler:
         return field_rule
 
     def _update_rule(self, rule: FieldRule, in_data: dict) -> FieldRule:
+        """
+        Internal update rule routine.
+        """
+
         rule_type: FieldRuleType = rule.get_type()
         rule_data = rule_type.prepare_values_for_update(rule, in_data)
         rule.is_active = in_data["is_active"]
@@ -159,6 +227,13 @@ class FieldRuleHandler:
         return rule
 
     def update_rule(self, rule: FieldRule, in_data: dict) -> FieldRule:
+        """
+        Update a specific rule.
+
+        This will call specific rule type handler to get update params, and will
+        revalidate all rules in the table.
+        """
+
         if self.table != rule.table:
             raise FieldRuleTableMismatch(
                 f"Table {self.table} and rule's table {rule.table} don't match"
@@ -171,6 +246,18 @@ class FieldRuleHandler:
         return updated
 
     def on_table_change(self):
+        """
+        Called when the table schema changes to recheck existing rules, if they are
+        still valid.
+
+        A field rule can refer to specific fields in the table, assuming that those
+        fields are of a proper type. If any field used by a rule is modified in a way,
+        that it's not suitable for the rule, we should mark that the rule is no longer
+        valid.
+
+        It will be valid again, if the table will be changed back to proper state.
+        """
+
         rules = self.get_applicable_rules_with_types()
         for rule, rule_type in rules:
             rule_valid = rule_type.validate_rule(rule)
@@ -181,18 +268,31 @@ class FieldRuleHandler:
                 self.emit_signal(field_rule_updated, rule)
 
     def _delete_rule(self, rule: FieldRule):
+        """
+        Internal delete rule routine.
+        """
+
         rule_type = rule.get_type()
         rule.delete()
         rule_type.after_rule_deleted(rule)
 
     def delete_rule(self, rule):
+        """
+        Deletes a rule.
+        """
+
         table = rule.table
         if table != self.table:
             raise FieldRuleTableMismatch()
         self._delete_rule(rule)
         self.emit_signal(field_rule_deleted, rule)
 
-    def _get_active_field_rule_types_filter(self):
+    def _get_active_field_rule_types_filter(self) -> Q:
+        """
+        Returns a filter for field rules query that will return field rules that are
+        currently supported.
+        """
+
         params = []
         for app_label, model_name in self.registry.get_model_names():
             params.append(
@@ -202,6 +302,15 @@ class FieldRuleHandler:
         return Q(*params, _connector=Q.OR)
 
     def get_applicable_rules_with_types(self) -> list[tuple[FieldRule, FieldRuleType]]:
+        """
+        Returns a list of field rules and rule types that are usable.
+
+        Note: because of pluggability, this may not return rules that are present in the
+        database, but have no field rule type registered. A situation like this may
+        happen if a field rule was provided by a plugin, that has been removed from
+        the deployment.
+        """
+
         out = []
         field_rule_types = self._get_active_field_rule_types_filter()
         for field_rule in (
@@ -213,21 +322,50 @@ class FieldRuleHandler:
         return out
 
     def check_table_invalid_rows(self):
+        """
+        Calls each rule attached to the table to recheck table rows if they are valid
+        for those rules.
+        """
+
         rules = self.get_applicable_rules_with_types()
         for rule, rule_type in rules:
             rule_type.validate_rows(self.table, rule)
 
     def _get_model(self):
+        """
+        A shortcut to get the table model.
+        """
+
         return self.table.get_model()
 
     def get_invalid_rows(self) -> models.QuerySet:
+        """
+        Returns a queryset with rows that have been marked as invalid by any active
+        field rule in the table.
+
+        Note: the queryset is optimized to return .id values only.
+        """
+
         return self._get_invalid_rows_query().only("id")
 
-    def _get_invalid_rows_query(self):
+    def _get_invalid_rows_query(self) -> models.QuerySet:
+        """
+        Returns a queryset with all invalid rows from the table..
+        """
+
         model = self._get_model()
         return model.objects.filter(**{self.STATE_COLUMN_NAME: False})
 
     def on_row_create(self, row_data) -> RowRuleChanges:
+        """
+        Called when a row has been created to run all field rules attached to the
+        table on that row.
+
+        A rule may change any field in the row, but we don't want to change the row
+        directly, so each field rule may return an object with changes that should be
+        applied. This method will accumulate those changes into one return value.
+        """
+
         rules = self.get_applicable_rules_with_types()
         values = {}
         field_ids = set()
@@ -245,7 +383,19 @@ class FieldRuleHandler:
 
         return change
 
-    def on_row_update(self, row, updated_values) -> RowRuleChanges:
+    def on_row_update(
+        self, row: GeneratedTableModel, updated_values: dict
+    ) -> RowRuleChanges:
+        """
+        When a row is about to be updated, this method will run all field rules attached
+        to the table, to process the change.
+
+        A rule may change any field in the row or in the update, but we don't want to
+        change the row directly, so each field rule may return an object with changes
+        that should be applied. This method will accumulate those changes into one
+        return value.
+        """
+
         rules = self.get_applicable_rules_with_types()
         values = {}
         field_ids = set()
@@ -265,17 +415,34 @@ class FieldRuleHandler:
     def process_row_update(
         self, updated_values: dict, updated_field_ids: set[int], change: RowRuleChanges
     ):
+        """
+        Ensures that all fields modified by field rules are added to a provided list of
+        updated fields.
+
+        This method is a subsequent part of on_row_create()/on_row_update() calls, if
+        the caller requires additional processing of changed row values.
+        """
+
         updated_values.update(change.updated_values)
         for updated_field_id in change.updated_field_ids:
             updated_field_ids.add(updated_field_id)
 
     def validate_row(self, row: GeneratedTableModel) -> bool:
+        """
+        Validates if a row conforms all active rules for the table.
+
+        Field rule type handler checks if row values are valid in the context of
+        each rule attached to the table. If not, .field_rules_are_valid marker field
+        will be set to False for the row. If all rules are valid, the marker will be
+        set to True.
+        """
+
         rules = self.get_applicable_rules_with_types()
 
         for rule, rule_type in rules:
             valid = rule_type.validate_row(row, rule)
             if valid is None:
-                return False
+                continue
             if not valid.is_valid:
                 setattr(row, self.STATE_COLUMN_NAME, False)
                 return False
@@ -286,6 +453,10 @@ class FieldRuleHandler:
     def validate_rows_for_rule(
         self, rule: FieldRule, queryset: models.QuerySet | None = None
     ):
+        """
+        Validates all rows in the table with a given rule.
+        """
+
         rule_type: FieldRuleType = rule.get_type()
         if not rule.is_active:
             return False
@@ -295,9 +466,17 @@ class FieldRuleHandler:
         return rule_type.validate_rows(self.table, rule, queryset=queryset)
 
     def export_rule(self, rule: FieldRule):
+        """
+        Exports a rule.
+        """
+
         return rule.specific.to_dict()
 
     def import_rule(self, rule_data: dict, id_mapping: dict) -> FieldRule:
+        """
+        Import rules to a table.
+        """
+
         rule_type_name = rule_data.pop("type")
         rule_type = self.get_type_handler(rule_type_name)
         # remove values that are provided as defaults during rule creation

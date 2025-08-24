@@ -208,6 +208,10 @@
 
 .select__item-name-text {
   @extend %ellipsis;
+
+  &--forced-height {
+    height: 16px;
+  }
 }
 
 .select__item-icon {

@@ -1068,10 +1068,12 @@ class DatabaseConfig(AppConfig):
             UpdateFieldRuleActionType,
         )
         from baserow.contrib.database.field_rules.operations import (
+            ReadFieldRuleOperationType,
             SetFieldRuleOperationType,
         )
 
         operation_type_registry.register(SetFieldRuleOperationType())
+        operation_type_registry.register(ReadFieldRuleOperationType())
         action_type_registry.register(CreateFieldRuleActionType())
         action_type_registry.register(UpdateFieldRuleActionType())
         action_type_registry.register(DeleteFieldRuleActionType())

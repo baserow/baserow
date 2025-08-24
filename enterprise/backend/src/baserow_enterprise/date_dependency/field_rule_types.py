@@ -52,19 +52,31 @@ class DateValues:
     end_date: datetime | None | Sentinel
     duration: timedelta | None | Sentinel
 
-    def has_valid_values(self):
+    def has_valid_value_types(self):
         return (
             isinstance(self.end_date, date)
             and isinstance(self.start_date, date)
             and isinstance(self.duration, timedelta)
         )
 
+    def has_valid_duration(self):
+        return (
+            # start/end dates match the duration + 1 day
+            self.end_date == (self.start_date + (self.duration - timedelta(1)))
+            # duration is positive
+            and self.duration.total_seconds() > 0
+            # duration is aligned to days
+            and int(self.duration.total_seconds() / self.duration.days)
+            * self.duration.days
+            == self.duration.total_seconds()
+        )
+
     def is_valid(self):
         if len(self.get_values_fields()) != 3:
             return False
-        if not self.has_valid_values():
+        if not self.has_valid_value_types():
             return False
-        return self.end_date == self.start_date + self.duration
+        return self.has_valid_duration()
 
     def get_no_values_fields(self) -> list[str]:
         return [fname for fname in self.FIELDS if self.get(fname) is NO_VALUE]
@@ -191,23 +203,40 @@ class DateDependencyCalculator:
         result_value_fields = result.get_values_fields()
         none_in_result = result.get_none_fields()
 
+        # NOTE on duration calculation: the feature specifies that
+        # duration = start_date + end_date + 1 day.
+
         # update scenario
         if len(changed_fields) == 1 and changed_fields[0] in result_value_fields:
             changed_field = changed_fields[0]
             if changed_field == "start_date" and "duration" in result_value_fields:
+                self.adjust_duration_before(result)
                 result.end_date = result.start_date + result.duration
                 self.adjust_end_date(result)
+                self.adjust_duration_after(result)
 
             elif changed_field == "start_date" and "end_date" in result_value_fields:
                 result.duration = result.end_date - result.start_date
+                self.adjust_duration_after(result)
             elif changed_field == "end_date" and "start_date" in result_value_fields:
-                result.duration = result.end_date - result.start_date
+                # if end date is below start date, we shift the start date
+                if result.end_date - result.start_date < timedelta(days=0):
+                    self.adjust_duration_before(result)
+                    result.start_date = result.end_date - result.duration
+                else:
+                    result.duration = result.end_date - result.start_date
+                self.adjust_duration_after(result)
             elif changed_field == "duration" and "start_date" in result_value_fields:
+                self.adjust_duration_before(result)
                 result.end_date = result.start_date + result.duration
                 self.adjust_end_date(result)
+                self.adjust_duration_after(result)
+
             elif changed_field == "duration" and "end_date" in result_value_fields:
+                self.adjust_duration_before(result)
                 result.start_date = result.end_date - result.duration
                 self.adjust_end_date(result)
+                self.adjust_duration_after(result)
         # insert/paste values scenario - calculate duration only, if it's possible
         elif (
             len(changed_fields) > 1
@@ -217,19 +246,72 @@ class DateDependencyCalculator:
         ):
             result.duration = result.end_date - result.start_date
             self.adjust_end_date(result)
+            self.adjust_duration_after(result)
 
         return result
 
-    def adjust_end_date(self, result: DateValues) -> None:
-        if not self.include_weekends or result.end_date is None:
-            return
+    def adjust_duration_before(self, in_values: DateValues) -> DateValues:
+        """
+        Decrease .duration value by 1 day to adjust duration before any calculations.
+        This should be called before any calculations that are changing fields other
+        than .duration in the in_values.
 
-        wday = result.end_date.weekday()
+        See .adjust_duration_after() for details.
+        """
+
+        try:
+            in_values.duration = in_values.duration - timedelta(days=1)
+        except (TypeError, ValueError):
+            pass
+        return in_values
+
+    def adjust_duration_after(self, in_values: DateValues) -> DateValues:
+        """
+        Adjusts duration value after any recalculation. This will adjust duration to
+        match the formula:
+
+          duration = end date - start date + 1 day
+
+        This formula simulates a calculation equivalent roughly to
+
+          duration = end date at 23:59:59 - start date at 0:00
+
+        but since we're using dates, we have to adjust the duration value after any
+        recalculation.
+
+        The adjust will happen only if the current duration value is equal to
+
+            end_date - start_date
+
+        formula. Any other value should be considered as invalid, and should not
+        be changed.
+        """
+
+        if not in_values.has_valid_value_types():
+            return in_values
+        duration = in_values.end_date - in_values.start_date
+        if duration == in_values.duration:
+            in_values.duration = duration + timedelta(days=1)
+        return in_values
+
+    def adjust_end_date(self, in_values: DateValues) -> DateValues:
+        """
+        Adjusts end date if the configuration was set to include weekends and
+        end date was a weekend.
+
+        This will move end date to the nearest next workday, if it's required.
+        """
+
+        if not self.include_weekends or in_values.end_date is None:
+            return in_values
+
+        wday = in_values.end_date.weekday()
         if wday > 4:
             days_diff = 7 - wday
-            new_end_date = result.end_date + timedelta(days=days_diff)
-            result.end_date = new_end_date
-            result.duration = result.end_date - result.start_date
+            new_end_date = in_values.end_date + timedelta(days=days_diff)
+            in_values.end_date = new_end_date
+            in_values.duration = in_values.end_date - in_values.start_date
+        return in_values
 
 
 class DateDependencyFieldRuleType(FieldRuleType):
@@ -252,6 +334,10 @@ class DateDependencyFieldRuleType(FieldRuleType):
     ]
 
     def _check_license(self, table):
+        """
+        A shortcut to check the license.
+        """
+
         LicenseHandler.raise_if_workspace_doesnt_have_feature(
             DATE_DEPENDENCY, table.database.workspace
         )
@@ -287,10 +373,14 @@ class DateDependencyFieldRuleType(FieldRuleType):
     def before_row_created(
         self, model: GeneratedTableModel, row_data: dict, rule: FieldRule
     ) -> RowRuleChanges | None:
+        """
+        Calculates start/end/duration values if possible for a new row.
+        """
+
         try:
             self._check_license(model.get_parent())
         except FeaturesNotAvailableError:
-            logger.debug("no license!", model.get_parent(), model)
+            logger.debug(f"No license for {model.get_parent()}.")
             return
 
         if not (rule.is_active and rule.is_valid):
@@ -332,10 +422,14 @@ class DateDependencyFieldRuleType(FieldRuleType):
     def before_row_updated(
         self, row: GeneratedTableModel, rule: FieldRule, updated_values: dict
     ) -> RowRuleChanges | None:
+        """
+        Calculates start/end/duration values if possible for a row with updated values.
+        """
+
         try:
             self._check_license(row.__class__.get_parent())
         except FeaturesNotAvailableError:
-            logger.debug("no license!", row.__class__.get_parent(), row.__class__)
+            logger.debug(f"No license for {row.__class__.get_parent()}.")
             return
 
         if not (rule.is_active and rule.is_valid):
@@ -378,9 +472,14 @@ class DateDependencyFieldRuleType(FieldRuleType):
     def validate_row(
         self, row: GeneratedTableModel, rule: FieldRule
     ) -> RowRuleValidity | None:
+        """
+        Validate if row's state conforms the rule.
+        """
+
         try:
             self._check_license(rule.table)
         except FeaturesNotAvailableError:
+            logger.debug(f"No license for {rule.table}.")
             return
         if not (rule.is_valid and rule.is_active):
             return
@@ -390,9 +489,14 @@ class DateDependencyFieldRuleType(FieldRuleType):
     def validate_rows(
         self, table: Table, rule: FieldRule, queryset: QuerySet | None = None
     ) -> list[RowRuleValidity]:
+        """
+        Validates if selected rows conform the rule.
+        """
+
         try:
             self._check_license(table)
         except FeaturesNotAvailableError:
+            logger.debug(f"No license for {table}.")
             return
         if queryset is None:
             queryset = table.get_model().objects.all()
@@ -406,6 +510,10 @@ class DateDependencyFieldRuleType(FieldRuleType):
     def prepare_values_for_create(
         self, table: Table, in_data: dict
     ) -> DateDepenencyDict:
+        """
+        Returns a dictionary with values needed to create a new rule.
+        """
+
         self._check_license(table)
 
         return DateDepenencyDict(
@@ -426,6 +534,10 @@ class DateDependencyFieldRuleType(FieldRuleType):
     def prepare_values_for_update(
         self, rule: DateDependency, in_data: dict
     ) -> DateDepenencyDict:
+        """
+        Returns a dictionary with values needed to update a rule.
+        """
+
         self._check_license(rule.table)
 
         return DateDepenencyDict(
@@ -444,10 +556,25 @@ class DateDependencyFieldRuleType(FieldRuleType):
         )
 
     def before_rule_deleted(self, rule):
-        self._check_license(rule.table)
+        pass
 
     def validate_rule(self, rule: FieldRule) -> FieldRuleValidity:
-        self._check_license(rule.table)
+        """
+        Checks if table's state still allow to use the rule. Internally, this will
+        run validation if fields referenced by the rule are of valid types (field's id
+        will not change, but field's parameters may be not usable anymore).
+
+        This method should be called each time table schema is modified.
+        """
+
+        try:
+            self._check_license(rule.table)
+        except FeaturesNotAvailableError:
+            logger.debug(f"No license for {rule.table}.")
+            return FieldRuleValidity(
+                is_valid=True, rule_id=rule.id, table_id=rule.table_id, error_text=None
+            )
+
         serializer_cls = self.get_serializer_class(request_serializer=True)
 
         data = rule.specific.to_dict()
@@ -461,6 +588,14 @@ class DateDependencyFieldRuleType(FieldRuleType):
         )
 
     def recalculate_rows(self, rule, model):
+        """
+        Runs full-table rows recalculation to fill missing values where possible,
+        and mark rows that are not valid for the rule.
+
+        Depending on a table, this may take a significant amount of time, thus this
+        method acts as a shim to schedule a task that actually recalculates the table.
+        """
+
         # we can exit early if the rule is somehow invalid
         if not (rule.is_active and rule.is_valid):
             return
@@ -491,8 +626,6 @@ class DateDependencyFieldRuleType(FieldRuleType):
 
     def after_rule_deleted(self, rule):
         pass
-        # model = rule.table.get_model()
-        # return self.recalculate_rows(model)
 
     def after_rule_updated(self, rule):
         model = rule.table.get_model()

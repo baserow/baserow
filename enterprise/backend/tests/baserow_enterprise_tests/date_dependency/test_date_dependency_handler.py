@@ -47,7 +47,7 @@ def test_date_dependency_handler_create_rule_serializer(
     )
     end_date_field = data_fixture.create_date_field(table=table, name="end_date_field")
     duration_field = data_fixture.create_duration_field(
-        table=table, name="duration_field"
+        table=table, name="duration_field", duration_format="d h"
     )
 
     text_field = data_fixture.create_text_field(table=table, name="text_field")
@@ -222,47 +222,63 @@ def test_date_dependency_handler_validate_rule_after_field_removed(
                 "a": (
                     date(2025, 1, 1),
                     date(2025, 1, 5),
-                    timedelta(days=4),
+                    timedelta(days=5),
+                    True,
                 ),
                 "b": (
                     None,
                     date(2025, 1, 5),
                     None,
+                    False,
                 ),
                 "c": (
                     date(2025, 1, 1),
                     None,
                     None,
+                    False,
                 ),
                 "d": (
                     date(2025, 1, 1),
                     date(2025, 1, 5),
-                    timedelta(days=4),
+                    timedelta(days=5),
+                    True,
                 ),
                 "e": (
                     date(2025, 1, 1),
                     date(2025, 1, 5),
-                    timedelta(days=4),
+                    timedelta(days=5),
+                    True,
                 ),
                 "f": (
                     None,
                     date(2025, 1, 5),
                     timedelta(days=4),
+                    False,
                 ),
                 "g": (
                     date(2025, 1, 5),
                     None,
                     timedelta(days=4),
+                    False,
                 ),
                 "h": (
                     None,
                     None,
                     timedelta(days=4),
+                    False,
                 ),
                 "i": (
                     None,
                     None,
                     None,
+                    False,
+                ),
+                "j": (date(2025, 1, 10), date(2025, 1, 5), timedelta(days=5), False),
+                "k": (
+                    date(2025, 1, 1),
+                    date(2025, 1, 5),
+                    timedelta(days=5),
+                    True,
                 ),
             },
         ),
@@ -272,47 +288,63 @@ def test_date_dependency_handler_validate_rule_after_field_removed(
                 "a": (
                     date(2025, 1, 1),
                     date(2025, 1, 5),
-                    timedelta(days=4),
+                    timedelta(days=5),
+                    True,
                 ),
                 "b": (
                     None,
                     date(2025, 1, 5),
                     None,
+                    False,
                 ),
                 "c": (
                     date(2025, 1, 1),
                     None,
                     None,
+                    False,
                 ),
                 "d": (
                     date(2025, 1, 1),
                     date(2025, 1, 5),
-                    timedelta(days=4),
+                    timedelta(days=5),
+                    True,
                 ),
                 "e": (
                     date(2025, 1, 1),
                     date(2025, 1, 5),
-                    timedelta(days=4),
+                    timedelta(days=5),
+                    True,
                 ),
                 "f": (
                     None,
                     date(2025, 1, 5),
                     timedelta(days=4),
+                    False,
                 ),
                 "g": (
                     date(2025, 1, 5),
                     None,
                     timedelta(days=4),
+                    False,
                 ),
                 "h": (
                     None,
                     None,
                     timedelta(days=4),
+                    False,
                 ),
                 "i": (
                     None,
                     None,
                     None,
+                    False,
+                ),
+                "j": (date(2025, 1, 10), date(2025, 1, 5), timedelta(days=5), False),
+                "k": (
+                    date(2025, 1, 1),
+                    date(2025, 1, 5),
+                    timedelta(days=5),
+                    True,
                 ),
             },
         ),
@@ -348,6 +380,8 @@ def test_date_dependency_handler_create_rule_and_populate_rows(
         ["g", "2025-01-05", None, "4d 0h"],
         ["h", None, None, "4d 0h"],
         ["i", None, None, None],
+        ["j", "2025-01-10", "2025-01-05", "5d 0h"],
+        ["k", "2025-01-01", "2025-01-05", "-5d 0h"],
     ]
     model = table.get_model()
     RowHandler().import_rows(
@@ -388,6 +422,13 @@ def test_date_dependency_handler_create_rule_and_populate_rows(
         start_date = getattr(row, start_date_field.db_column)
         end_date = getattr(row, end_date_field.db_column)
         duration = getattr(row, duration_field.db_column)
+        is_valid = getattr(row, "field_rules_are_valid")
 
         expected_row = expected.get(row_id)
-        assert (row_id, start_date, end_date, duration) == (row_id, *expected_row)
+        assert (
+            row_id,
+            start_date,
+            end_date,
+            duration,
+            is_valid,
+        ) == (row_id, *expected_row)

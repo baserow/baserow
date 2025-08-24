@@ -1,64 +1,15 @@
-from unittest import mock
-
-from django.db.models import QuerySet
 from django.urls import reverse
 
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_404_NOT_FOUND
 
 from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
-from baserow.contrib.database.field_rules.models import FieldRule
-from baserow.contrib.database.field_rules.registries import (
-    FieldRulesTypeRegistry,
-    FieldRuleType,
-    FieldRuleValidity,
-    RowRuleValidity,
-)
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.test_utils.helpers import AnyInt
 
 
-class DummyFieldRuleType(FieldRuleType):
-    type = "dummy"
-    model_class = FieldRule
-
-    def validate_row(
-        self, row: GeneratedTableModel, rule: FieldRule
-    ) -> RowRuleValidity:
-        return RowRuleValidity(row_id=row.id, rule_id=rule.id, is_valid=True)
-
-    def validate_rows(
-        self, table: Table, rule: FieldRule, queryset: QuerySet | None = None
-    ):
-        return
-
-    def validate_rule(self, rule: FieldRule) -> FieldRuleValidity:
-        return FieldRuleValidity(
-            table_id=rule.table_id,
-            rule_id=rule.id,
-            # one can inject rule validity by setting rule.set_is_valid
-            is_valid=getattr(rule, "set_is_valid", True),
-            error_text="",
-        )
-
-
-# field_rules_type_registry.register(DummyFieldRuleType())
-
-local_field_rules_registry = FieldRulesTypeRegistry()
-local_field_rules_registry.register(DummyFieldRuleType())
-
-
-@mock.patch(
-    "baserow.contrib.database.field_rules.handlers.FieldRuleHandler.registry",
-    new=local_field_rules_registry,
-)
-@mock.patch(
-    "baserow.contrib.database.field_rules.registries.field_rules_type_registry",
-    new=local_field_rules_registry,
-)
 @pytest.mark.django_db
-def test_create_field_rule(data_fixture, api_client):
+def test_create_field_rule(data_fixture, api_client, fake_field_rule_registry):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user)
 
@@ -122,16 +73,10 @@ def test_create_field_rule(data_fixture, api_client):
         {"type": "invalid"},
     ],
 )
-@mock.patch(
-    "baserow.contrib.database.field_rules.handlers.FieldRuleHandler.registry",
-    new=local_field_rules_registry,
-)
-@mock.patch(
-    "baserow.contrib.database.field_rules.registries.field_rules_type_registry",
-    new=local_field_rules_registry,
-)
 @pytest.mark.django_db
-def test_create_rule_invalid_payloads(data_fixture, api_client, payload):
+def test_create_rule_invalid_payloads(
+    data_fixture, api_client, payload, fake_field_rule_registry
+):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user)
 
@@ -152,16 +97,8 @@ def test_create_rule_invalid_payloads(data_fixture, api_client, payload):
     assert response.status_code == HTTP_404_NOT_FOUND
 
 
-@mock.patch(
-    "baserow.contrib.database.field_rules.handlers.FieldRuleHandler.registry",
-    new=local_field_rules_registry,
-)
-@mock.patch(
-    "baserow.contrib.database.field_rules.registries.field_rules_type_registry",
-    new=local_field_rules_registry,
-)
 @pytest.mark.django_db
-def test_field_rule_update(data_fixture, api_client):
+def test_field_rule_update(data_fixture, api_client, fake_field_rule_registry):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user)
 
@@ -213,16 +150,8 @@ def test_field_rule_update(data_fixture, api_client):
     assert response_json == expected
 
 
-@mock.patch(
-    "baserow.contrib.database.field_rules.handlers.FieldRuleHandler.registry",
-    new=local_field_rules_registry,
-)
-@mock.patch(
-    "baserow.contrib.database.field_rules.registries.field_rules_type_registry",
-    new=local_field_rules_registry,
-)
 @pytest.mark.django_db
-def test_field_rule_delete(data_fixture, api_client):
+def test_field_rule_delete(data_fixture, api_client, fake_field_rule_registry):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user)
 
@@ -274,16 +203,8 @@ def test_field_rule_delete(data_fixture, api_client):
     assert table.field_rules.all().count() == 0
 
 
-@mock.patch(
-    "baserow.contrib.database.field_rules.handlers.FieldRuleHandler.registry",
-    new=local_field_rules_registry,
-)
-@mock.patch(
-    "baserow.contrib.database.field_rules.registries.field_rules_type_registry",
-    new=local_field_rules_registry,
-)
 @pytest.mark.django_db
-def test_field_rule_list_invalid(data_fixture, api_client):
+def test_field_rule_list_invalid(data_fixture, api_client, fake_field_rule_registry):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user)
     text_field = data_fixture.create_text_field(user, table=table)

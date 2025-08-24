@@ -2111,9 +2111,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 updated_values = prepared_rows_values_by_id[row.id]
                 change = field_rules_handler.on_row_update(row, updated_values)
 
+                # we split detection of changed fields to a separate call for
+                # better granularity.
                 field_rules_handler.process_row_update(
                     updated_values, updated_field_ids, change
                 )
+
                 field_rules_handler.validate_row(row)
 
         field_objects_to_always_update = model.get_field_objects_to_always_update()

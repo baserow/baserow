@@ -10,7 +10,7 @@
       :show-search="true"
       :fixed-items="true"
       :error="error"
-      :error-message="error"
+      :disabled="disabled"
       size="regular"
       @change="$emit('change', $event)"
     >
@@ -20,9 +20,9 @@
         :name="r.name"
         :value="r.id"
         :icon="r.id ? icon : null"
-        :description="r.description != undefined ? r.description : r.name"
       ></DropdownItem>
     </Dropdown>
+    <slot name="error"></slot>
   </FormGroup>
 </template>
 <script>
@@ -58,10 +58,11 @@ export default {
       default: null,
     },
     error: {
-      type: [Object, String, Boolean],
+      type: Boolean,
       required: false,
       default: null,
     },
+    disabled: { type: Boolean, required: false, default: false },
   },
   methods: {},
 }

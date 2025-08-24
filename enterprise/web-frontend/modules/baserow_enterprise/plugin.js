@@ -1,6 +1,5 @@
 import { registerRealtimeEvents } from '@baserow_enterprise/realtime'
 import {
-  DateDependencyPermissionManagerType,
   RolePermissionManagerType,
   WriteFieldValuesPermissionManagerType,
 } from '@baserow_enterprise/permissionManagerTypes'
@@ -87,8 +86,6 @@ import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContex
 import { DateDepencencyContextItemType } from '@baserow_enterprise/dateDependencyContextItemTypes'
 import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
-
-import { FF_DATE_DEPENDENCY } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -240,20 +237,12 @@ export default (context) => {
     'paidFeature',
     new BuilderFileInputElementPaidFeature(context)
   )
-  if (app.$featureFlagIsEnabled(FF_DATE_DEPENDENCY)) {
-    app.$registry.register(
-      'paidFeature',
-      new DateDependencyPaidFeature(context)
-    )
-    app.$registry.register(
-      'fieldContextItem',
-      new DateDepencencyContextItemType(context)
-    )
-    app.$registry.register(
-      'permissionManager',
-      new DateDependencyPermissionManagerType(context)
-    )
-  }
+
+  app.$registry.register('paidFeature', new DateDependencyPaidFeature(context))
+  app.$registry.register(
+    'fieldContextItem',
+    new DateDepencencyContextItemType(context)
+  )
 
   // Register builder page decorator namespace and types
   app.$registry.register(

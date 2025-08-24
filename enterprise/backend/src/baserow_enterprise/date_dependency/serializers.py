@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import timedelta
 from typing import Callable
 
 from rest_framework import serializers
@@ -10,12 +11,35 @@ from baserow.contrib.database.api.field_rules.serializers import (
 )
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import (
+    DateField,
+    DurationField,
+    LinkRowField,
+)
 from baserow_enterprise.date_dependency.models import (
     DateDependency,
     DependencyBufferType,
     DependencyConnectionType,
     DependencyLinkrowType,
 )
+
+
+def _valid_duration_format(field: DurationField):
+    if field.duration_format != "d h":
+        raise ValidationError("Duration format must be 'd h'")
+    return field
+
+
+def _valid_date_field(field: DateField):
+    if field.date_include_time:
+        raise ValidationError("Date field must not include time")
+    return field
+
+
+def _check_self_reference(field: LinkRowField):
+    if not field.is_self_referencing:
+        raise ValidationError("Field should reference self")
+    return
 
 
 class RequestDateDependencySerializer(serializers.ModelSerializer):
@@ -61,6 +85,7 @@ class RequestDateDependencySerializer(serializers.ModelSerializer):
     dependency_buffer = serializers.DurationField(
         required=False,
         allow_null=True,
+        min_value=timedelta(seconds=0),
         help_text="Time buffer to be injected between dependent rows.",
     )
     include_weekends = serializers.BooleanField(
@@ -79,7 +104,7 @@ class RequestDateDependencySerializer(serializers.ModelSerializer):
         if self.initial_data.get("is_active") is False:
             return value
         try:
-            field = FieldHandler().get_field(value)
+            field = FieldHandler().get_field(value).specific
         except FieldDoesNotExist:
             raise ValidationError("Field doesn't exist")
 
@@ -94,21 +119,16 @@ class RequestDateDependencySerializer(serializers.ModelSerializer):
         return value
 
     def validate_start_date_field_id(self, value):
-        return self._validate_field(value, "date")
+        return self._validate_field(value, "date", _valid_date_field)
 
     def validate_end_date_field_id(self, value):
-        return self._validate_field(value, "date")
+        return self._validate_field(value, "date", _valid_date_field)
 
     def validate_duration_field_id(self, value):
-        return self._validate_field(value, "duration")
+        return self._validate_field(value, "duration", _valid_duration_format)
 
     def validate_dependency_linkrow_field_id(self, value):
         if value is None:
-            return
-
-        def _check_self_reference(field):
-            if not field.specific.is_self_referencing:
-                raise ValidationError("Field should reference self")
             return
 
         val = self._validate_field(value, "link_row", _check_self_reference)
@@ -183,6 +203,7 @@ class ResponseDateDependencySerializer(serializers.ModelSerializer):
     dependency_buffer = serializers.DurationField(
         required=False,
         allow_null=True,
+        min_value=timedelta(seconds=0),
         help_text="Time buffer to be injected between dependent rows.",
     )
     include_weekends = serializers.BooleanField(

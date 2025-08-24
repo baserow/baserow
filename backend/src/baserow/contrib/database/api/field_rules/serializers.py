@@ -32,11 +32,6 @@ class ResponseFieldRuleSerializer(RequestFieldRuleSerializer):
             "error_text",
         )
 
-    # id = serializers.IntegerField(read_only=True)
-    # table_id = serializers.IntegerField(read_only=True)
-    # is_valid = serializers.BooleanField(read_only=True)
-    # error_text = serializers.CharField(read_only=True)
-
     type = serializers.CharField(required=False, help_text="The type of the rule.")
 
 

@@ -326,14 +326,14 @@ export class DateDependencyPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.dateDependencyFeature')
+    return this.app.i18n.t('enterpriseFeatures.dateDependency')
   }
 
   getImage() {
-    return '/img/features/field_level_permissions.png'
+    return '/img/features/date_dependency.png'
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.dateDependencyFeatureContent')
+    return this.app.i18n.t('enterpriseFeatures.dateDependencyContent')
   }
 }

@@ -23,7 +23,10 @@ from baserow.contrib.database.field_rules.actions import (
 )
 from baserow.contrib.database.field_rules.exceptions import NoRuleError
 from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
-from baserow.contrib.database.field_rules.operations import SetFieldRuleOperationType
+from baserow.contrib.database.field_rules.operations import (
+    ReadFieldRuleOperationType,
+    SetFieldRuleOperationType,
+)
 from baserow.contrib.database.field_rules.registries import (
     FieldRuleType,
     field_rules_type_registry,
@@ -88,7 +91,7 @@ class FieldRulesView(APIView):
         workspace = table.database.workspace
         CoreHandler().check_permissions(
             request.user,
-            SetFieldRuleOperationType.type,
+            ReadFieldRuleOperationType.type,
             workspace=workspace,
             context=table,
         )
@@ -372,7 +375,7 @@ class InvalidRowsView(APIView):
         workspace = table.database.workspace
         CoreHandler().check_permissions(
             request.user,
-            SetFieldRuleOperationType.type,
+            ReadFieldRuleOperationType.type,
             workspace=workspace,
             context=table,
         )
