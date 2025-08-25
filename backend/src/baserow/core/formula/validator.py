@@ -168,6 +168,29 @@ def ensure_array(value: Any, allow_empty: bool = True) -> List[Any]:
     return [value]
 
 
+def ensure_array_cast_integers(value: Any) -> List[Any]:
+    """
+    Convert the value to a list with special treatment for numeric strings.
+
+    - Numeric strings are converted to integers to allow database ID lookup.
+    - All other items are returned unchanged.
+
+    :param value: The value to normalize into a list containing integers.
+    :return: A list of items.
+    :raises ValidationError: If the value can't be converted to a list.
+    """
+
+    result = []
+
+    for item in ensure_array(value):
+        if isinstance(item, str) and item.isdigit():
+            result.append(int(item))
+        else:
+            result.append(item)
+
+    return result
+
+
 def ensure_email(value: Any) -> str:
     """
     Ensures that the value is an email or can be converted to an email.
