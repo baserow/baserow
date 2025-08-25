@@ -116,7 +116,7 @@ export default {
     },
     canManageView() {
       return (
-        this.table &&
+        this.view &&
         this.$hasPermission(
           'database.table.view.read_role',
           this.view,
