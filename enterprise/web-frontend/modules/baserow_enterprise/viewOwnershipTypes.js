@@ -45,8 +45,4 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
   getListViewTypeSort() {
     return 30
   }
-
-  userCanTryCreate() {
-    return true
-  }
 }
