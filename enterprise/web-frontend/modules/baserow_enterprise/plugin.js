@@ -271,8 +271,10 @@ export default (context) => {
     new RealtimePushTwoWaySyncStrategyType(context)
   )
 
-  app.$registry.register(
-    'viewOwnershipType',
-    new RestrictedViewOwnershipType(context)
-  )
+  if (app.$featureFlagIsEnabled('view_permissions')) {
+    app.$registry.register(
+      'viewOwnershipType',
+      new RestrictedViewOwnershipType(context)
+    )
+  }
 }
