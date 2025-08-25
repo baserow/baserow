@@ -1,12 +1,11 @@
 import pytest
+from baserow_premium.permission_manager import ViewOwnershipPermissionManagerType
 
+from baserow.core.registries import object_scope_type_registry, operation_type_registry
 from baserow_enterprise.role.operations import (
     ReadRoleViewOperationType,
     UpdateRoleViewOperationType,
 )
-from baserow_premium.permission_manager import ViewOwnershipPermissionManagerType
-
-from baserow.core.registries import object_scope_type_registry, operation_type_registry
 
 
 @pytest.mark.view_ownership

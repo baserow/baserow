@@ -8,13 +8,21 @@ from baserow.core.mixins import CreatedAndUpdatedOnMixin
 from baserow.core.models import Operation, Workspace
 
 
-class RoleManager(models.Manager):
-    """
-    A manager that adds the `.get_by_natural_key()` to `Role` class.
-    """
-
+class RoleQuerySet(models.QuerySet):
     def get_by_natural_key(self, uid):
         return self.get(uid=uid)
+
+
+class RoleManager(models.Manager):
+    """
+    A manager that adds `.get_by_natural_key()` to both Manager and QuerySet.
+    """
+
+    def get_queryset(self):
+        return RoleQuerySet(self.model, using=self._db)
+
+    def get_by_natural_key(self, uid):
+        return self.get_queryset().get_by_natural_key(uid)
 
 
 class Role(CreatedAndUpdatedOnMixin):
@@ -37,6 +45,12 @@ class Role(CreatedAndUpdatedOnMixin):
     default = models.BooleanField(
         default=False,
         help_text="True if this role is a default role. The default role are the roles you can use by default.",
+    )
+    hidden = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Hidden roles are not visible to the user and cannot be set. These "
+        "are used for internal purposes.",
     )
 
     workspace = models.ForeignKey(

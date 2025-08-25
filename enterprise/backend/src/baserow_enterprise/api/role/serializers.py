@@ -70,7 +70,8 @@ class ScopeTypeField(serializers.ChoiceField):
 
 @extend_schema_field(OpenApiTypes.STR)
 class RoleField(NaturalKeyRelatedField):
-    pass
+    def get_queryset(self):
+        return super().get_queryset().filter(hidden=False)
 
 
 class CreateRoleAssignmentSerializer(serializers.Serializer):
