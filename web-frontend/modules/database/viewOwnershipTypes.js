@@ -79,7 +79,11 @@ export class ViewOwnershipType extends Registerable {
   }
 
   userCanTryCreate(table, workspaceId) {
-    return false
+    return this.app.$hasPermission(
+      'database.table.create_view',
+      table,
+      workspaceId
+    )
   }
 }
 
@@ -100,13 +104,5 @@ export class CollaborativeViewOwnershipType extends ViewOwnershipType {
 
   getIconClass() {
     return 'iconoir-group'
-  }
-
-  userCanTryCreate(table, workspaceId) {
-    return this.app.$hasPermission(
-      'database.table.create_view',
-      table,
-      workspaceId
-    )
   }
 }
