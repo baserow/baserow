@@ -277,6 +277,7 @@ from baserow_enterprise.role.constants import (
     EDITOR_ROLE_UID,
     NO_ACCESS_ROLE_UID,
     NO_ROLE_LOW_PRIORITY_ROLE_UID,
+    READ_ONLY_ROLE_UID,
     VIEWER_ROLE_UID,
 )
 from baserow_enterprise.role.operations import (
@@ -308,9 +309,14 @@ default_roles = {
     EDITOR_ROLE_UID: [],
     COMMENTER_ROLE_UID: [],
     VIEWER_ROLE_UID: [],
+    READ_ONLY_ROLE_UID: [],
     NO_ACCESS_ROLE_UID: [],
     NO_ROLE_LOW_PRIORITY_ROLE_UID: [],
 }
+# Virtual roles are only used in-code, and it's not possible for the user to use these.
+# The reader role is used give to the user when they don't have access to a lower level
+# object scope, but have access a higher one.
+hidden_roles = [READ_ONLY_ROLE_UID]
 
 if settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED not in default_roles:
     raise ImproperlyConfigured(
@@ -323,7 +329,12 @@ default_roles[settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED].append(
     CreateAndUsePersonalViewOperationType
 )
 
-default_roles[VIEWER_ROLE_UID].extend(
+# Note that the reader role can automatically be assigned to the user if they have a
+# role assigned on a higher level. If the user for example does not have access to a
+# database, but has been given editor permissions to the table, then they will
+# automatically get the viewer role of the database. The individual endpoints or filter
+# queryset rules must prevent accidental data exposure.
+default_roles[READ_ONLY_ROLE_UID].extend(
     default_roles[NO_ACCESS_ROLE_UID]
     + [
         ReadWorkspaceOperationType,
@@ -361,13 +372,18 @@ default_roles[VIEWER_ROLE_UID].extend(
         ListWidgetsOperationType,
         ListDashboardDataSourcesOperationType,
         ReadDashboardDataSourceOperationType,
-        DispatchDashboardDataSourceOperationType,
+    ]
+)
+default_roles[VIEWER_ROLE_UID].extend(
+    default_roles[READ_ONLY_ROLE_UID]
+    + [
         ReadMCPEndpointOperationType,
         CreateMCPEndpointOperationType,
         UpdateMCPEndpointOperationType,
         DeleteMCPEndpointOperationType,
         ChatAssistantChatOperationType,
         ReadFieldRuleOperationType,
+        DispatchDashboardDataSourceOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(

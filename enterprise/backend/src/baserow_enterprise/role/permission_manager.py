@@ -22,6 +22,7 @@ from baserow.core.types import PermissionCheck
 from baserow_enterprise.features import RBAC
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 
+from .constants import READ_ONLY_ROLE_UID
 from .models import Role
 
 User = get_user_model()
@@ -67,7 +68,9 @@ class RolePermissionManagerType(PermissionManagerType):
 
         return set(
             op.name
-            for op in RoleAssignmentHandler().get_role_by_uid("VIEWER").operations.all()
+            for op in RoleAssignmentHandler()
+            .get_role_by_uid(READ_ONLY_ROLE_UID)
+            .operations.all()
         )
 
     def check_multiple_permissions(

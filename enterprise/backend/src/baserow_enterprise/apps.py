@@ -322,7 +322,7 @@ class BaserowEnterpriseConfig(AppConfig):
 def sync_default_roles_after_migrate(sender, **kwargs):
     from baserow.core.db import LockedAtomicTransaction
 
-    from .role.default_roles import default_roles
+    from .role.default_roles import default_roles, hidden_roles
 
     apps = kwargs.get("apps", None)
 
@@ -344,6 +344,7 @@ def sync_default_roles_after_migrate(sender, **kwargs):
                 for role_name, role_operations in tqdm(
                     default_roles.items(), desc="Syncing default roles"
                 ):
+                    is_hidden = role_name in hidden_roles
                     # Create any missing role or update existing ones
                     role = all_old_roles.get(role_name, None)
                     if role is None:
@@ -351,11 +352,17 @@ def sync_default_roles_after_migrate(sender, **kwargs):
                             uid=role_name,
                             name=f"role.{role_name}",
                             default=True,
+                            hidden=is_hidden,
                         )
-                    elif not role.default or role.name != f"role.{role_name}":
+                    elif (
+                        not role.default
+                        or role.name != f"role.{role_name}"
+                        or role.hidden != is_hidden
+                    ):
                         role.name = f"role.{role_name}"
                         role.default = True
-                        role.save(update_fields=["name", "default"])
+                        role.hidden = is_hidden
+                        role.save(update_fields=["name", "default", "hidden"])
 
                     # Create any missing operations for the role
                     new_ops = Operation.objects.bulk_create(
