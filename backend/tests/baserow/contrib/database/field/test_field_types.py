@@ -970,6 +970,31 @@ def test_number_field_type_export_with_nan_value(data_fixture):
 
 
 @pytest.mark.django_db
+def test_number_field_type_export_with_nan_value_and_formatting(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field_handler = FieldHandler()
+
+    number_field = field_handler.create_field(
+        user=user,
+        table=table,
+        type_name="number",
+        name="number",
+        number_decimal_places=0,
+        number_prefix="$",
+        number_suffix=" USD",
+        number_separator="SPACE_COMMA",
+    )
+
+    field_type = field_type_registry.get_by_model(number_field)
+    field_object = {"field": number_field, "type": field_type, "name": "number"}
+    value = float("nan")
+    export_value = field_type.get_export_value(value, field_object)
+
+    assert export_value == "NaN"
+
+
+@pytest.mark.django_db
 def test_all_fields_with_db_index_have_index(data_fixture):
     table, user, row, blank_row, context = setup_interesting_test_table(data_fixture)
     field_handler = FieldHandler()

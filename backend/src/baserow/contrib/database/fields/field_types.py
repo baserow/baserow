@@ -697,6 +697,10 @@ class NumberFieldType(FieldType):
             return self.get_serializer_field(instance).to_representation(value)
 
         formatted_value = self.get_serializer_field(instance).to_representation(value)
+
+        if formatted_value == "NaN":
+            return "NaN"
+
         fractional_part = ""
         if instance.number_decimal_places == 0:
             integer_part = formatted_value.split(".")[0]
