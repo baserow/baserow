@@ -825,8 +825,22 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 user if user and user.id else None
             )
 
+        field_rules_handler = FieldRuleHandler(table, user)
+
+        has_field_rules = field_rules_handler.has_field_rules()
+        change = None
+        if has_field_rules:
+            change = field_rules_handler.on_row_create(row_values)
+            if change:
+                row_values.update(change.updated_values)
+
+        instance = model(**row_values)
+
+        if change:
+            field_rules_handler.validate_row(instance)
+
         try:
-            instance = model.objects.create(**row_values)
+            instance.save(force_insert=True)
             rows_created_counter.add(1)
         except Exception as exc:
             if is_unique_violation_error(exc):
@@ -2116,9 +2130,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 field_rules_handler.process_row_update(
                     updated_values, updated_field_ids, change
                 )
-
-                field_rules_handler.validate_row(row)
-
         field_objects_to_always_update = model.get_field_objects_to_always_update()
         rows_relationships = []
         for obj in rows_to_update:
@@ -2163,6 +2174,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     field_name,
                     model._meta.get_field(field_name).pre_save(obj, add=False),
                 )
+
+            if has_field_rules:
+                field_rules_handler.validate_row(obj)
 
         m2m_values_to_add = defaultdict(list)
         m2m_values_to_delete = {}

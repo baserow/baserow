@@ -8,3 +8,7 @@ class FieldRuleTableMismatch(FieldRuleError):
 
 class NoRuleError(FieldRuleError):
     pass
+
+
+class FieldRuleAlreadyExistsError(FieldRuleError):
+    pass

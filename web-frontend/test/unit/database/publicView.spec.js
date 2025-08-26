@@ -17,9 +17,6 @@ describe('Public View Page Tests', () => {
   afterEach(() => testApp.afterEach())
 
   test('Can see a publicly shared grid view', async () => {
-    // undefined because table mock has no .id
-    mockServer.mock.onGet(`/database/field_rules/undefined/`).reply(200, [])
-
     const slug = 'testSlug'
     const gridViewName = 'my public grid view name'
     givenAPubliclySharedGridViewWithSlug(gridViewName, slug)

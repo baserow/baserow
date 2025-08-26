@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-25 07:49+0000\n"
+"POT-Creation-Date: 2025-08-26 10:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,16 +26,15 @@ msgstr ""
 #: src/baserow/contrib/database/action/scopes.py:13
 #, python-format
 msgid ""
-"in table \"%(table_name)s\" (%(table_id)s) of database "
-"\"%(database_name)s\" (%(database_id)s)."
+"in table \"%(table_name)s\" (%(table_id)s) of database \"%(database_name)s\" "
+"(%(database_id)s)."
 msgstr ""
 
 #: src/baserow/contrib/database/action/scopes.py:19
 #, python-format
 msgid ""
-"in view \"%(view_name)s\" (%(view_id)s) of table "
-"\"%(table_name)s\" (%(table_id)s) in database "
-"\"%(database_name)s\" (%(database_id)s)."
+"in view \"%(view_name)s\" (%(view_id)s) of table \"%(table_name)s\" "
+"(%(table_id)s) in database \"%(database_name)s\" (%(database_id)s)."
 msgstr ""
 
 #: src/baserow/contrib/database/airtable/actions.py:23
@@ -45,12 +44,12 @@ msgstr ""
 #: src/baserow/contrib/database/airtable/actions.py:25
 #, python-format
 msgid ""
-"Imported database "
-"\"%(installed_application_name)s\" (%(installed_application_id)s) from "
-"Airtable share ID \"%(airtable_share_id)s\""
+"Imported database \"%(installed_application_name)s\" "
+"(%(installed_application_id)s) from Airtable share ID "
+"\"%(airtable_share_id)s\""
 msgstr ""
 
-#: src/baserow/contrib/database/application_types.py:288
+#: src/baserow/contrib/database/application_types.py:302
 msgid "Table"
 msgstr ""
 
@@ -80,7 +79,7 @@ msgstr ""
 msgid "The data sync synchronized"
 msgstr ""
 
-#: src/baserow/contrib/database/data_sync/handler.py:185
+#: src/baserow/contrib/database/data_sync/handler.py:209
 #: src/baserow/contrib/database/table/handler.py:476
 msgid "Grid"
 msgstr ""
@@ -97,6 +96,35 @@ msgstr ""
 #: src/baserow/contrib/database/export/actions.py:89
 #, python-format
 msgid "Table \"%(table_name)s\" (%(table_id)s) exported to %(export_type)s"
+msgstr ""
+
+#: src/baserow/contrib/database/field_rules/actions.py:26
+msgid "Create Field Rule"
+msgstr ""
+
+#: src/baserow/contrib/database/field_rules/actions.py:27
+#, python-format
+msgid "Table \"%(table_name)s\": created \"%(rule_type)s\" field rule"
+msgstr ""
+
+#: src/baserow/contrib/database/field_rules/actions.py:98
+msgid "Update field rule"
+msgstr ""
+
+#: src/baserow/contrib/database/field_rules/actions.py:99
+#, python-format
+msgid ""
+"Table \"%(table_name)s\": updated \"%(rule_type)s\" field rule [%(rule_id)s]"
+msgstr ""
+
+#: src/baserow/contrib/database/field_rules/actions.py:180
+msgid "Delete Field rule"
+msgstr ""
+
+#: src/baserow/contrib/database/field_rules/actions.py:181
+#, python-format
+msgid ""
+"Table \"%(table_name)s\": deleted \"%(rule_type)s\" field rule [%(rule_id)s]"
 msgstr ""
 
 #: src/baserow/contrib/database/fields/actions.py:40
@@ -222,74 +250,74 @@ msgstr ""
 msgid "Cellular Automata"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:82
+#: src/baserow/contrib/database/rows/actions.py:86
 msgid "Create row"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:82
+#: src/baserow/contrib/database/rows/actions.py:86
 #, python-format
 msgid "Row (%(row_id)s) created"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:195
+#: src/baserow/contrib/database/rows/actions.py:199
 msgid "Create rows"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:195
+#: src/baserow/contrib/database/rows/actions.py:199
 #, python-format
 msgid "Rows (%(row_ids)s) created"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:311
+#: src/baserow/contrib/database/rows/actions.py:316
 msgid "Import rows"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:311
+#: src/baserow/contrib/database/rows/actions.py:316
 #, python-format
 msgid "Rows (%(row_ids)s) imported"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:402
+#: src/baserow/contrib/database/rows/actions.py:407
 msgid "Delete row"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:402
+#: src/baserow/contrib/database/rows/actions.py:407
 #, python-format
 msgid "Row (%(row_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:496
+#: src/baserow/contrib/database/rows/actions.py:501
 msgid "Delete rows"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:496
+#: src/baserow/contrib/database/rows/actions.py:501
 #, python-format
 msgid "Rows (%(row_ids)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:666
+#: src/baserow/contrib/database/rows/actions.py:671
 msgid "Move row"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:666
+#: src/baserow/contrib/database/rows/actions.py:671
 #, python-format
 msgid "Row (%(row_id)s) moved"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:784
+#: src/baserow/contrib/database/rows/actions.py:789
 msgid "Update row"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:784
+#: src/baserow/contrib/database/rows/actions.py:789
 #, python-format
 msgid "Row (%(row_id)s) updated"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:884
+#: src/baserow/contrib/database/rows/actions.py:889
 msgid "Update rows"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:884
+#: src/baserow/contrib/database/rows/actions.py:889
 #, python-format
 msgid "Rows (%(row_ids)s) updated"
 msgstr ""
@@ -646,24 +674,24 @@ msgid ""
 "to %(webhook_url)s\" updated"
 msgstr ""
 
-#: src/baserow/contrib/database/webhooks/notification_types.py:92
+#: src/baserow/contrib/database/webhooks/notification_types.py:57
 #, python-format
 msgid "%(name)s webhook has been deactivated."
 msgstr ""
 
-#: src/baserow/contrib/database/webhooks/notification_types.py:99
+#: src/baserow/contrib/database/webhooks/notification_types.py:64
 #, python-format
 msgid ""
 "The webhook failed more than %(max_failures)s consecutive times and was "
 "therefore deactivated."
 msgstr ""
 
-#: src/baserow/contrib/database/webhooks/notification_types.py:155
+#: src/baserow/contrib/database/webhooks/notification_types.py:120
 #, python-format
 msgid "%(name)s webhook payload too large."
 msgstr ""
 
-#: src/baserow/contrib/database/webhooks/notification_types.py:162
+#: src/baserow/contrib/database/webhooks/notification_types.py:127
 #, python-format
 msgid ""
 "The payload for the %(name)s webhook with event ID %(event_id)s was too "

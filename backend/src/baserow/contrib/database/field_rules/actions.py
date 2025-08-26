@@ -7,6 +7,7 @@ from baserow.contrib.database.action.scopes import (
     TABLE_ACTION_CONTEXT,
     TableActionScopeType,
 )
+from baserow.contrib.database.field_rules.exceptions import FieldRuleTableMismatch
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
 from baserow.core.action.models import Action
@@ -118,7 +119,7 @@ class UpdateFieldRuleActionType(UndoableActionType):
 
     @classmethod
     def do(
-        cls, user: AbstractUser, table: Table, rule_id: int, in_rule_data: dict
+        cls, user: AbstractUser, table: Table, rule: FieldRule, in_rule_data: dict
     ) -> FieldRule:
         """
         Updates the field permissions for a given field, setting the role and whether
@@ -131,7 +132,8 @@ class UpdateFieldRuleActionType(UndoableActionType):
         """
 
         handler = FieldRuleHandler(table, user)
-        rule = handler.get_rule(rule_id)
+        if rule.table != table:
+            raise FieldRuleTableMismatch()
         rule_before = rule.to_dict()
 
         updated = handler.update_rule(rule, in_rule_data)
@@ -140,7 +142,7 @@ class UpdateFieldRuleActionType(UndoableActionType):
             table_name=table.name,
             database_id=table.database.id,
             database_name=table.database.name,
-            rule_id=rule_id,
+            rule_id=rule.id,
             rule_type=rule.get_type().type,
             rule_before=rule_before,
             rule_after=updated.to_dict(),

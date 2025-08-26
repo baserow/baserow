@@ -10,7 +10,7 @@ import baserow.core.mixins
 class Migration(migrations.Migration):
     dependencies = [
         ("contenttypes", "0002_remove_content_type_name"),
-        ("database", "0196_datasync_two_way_sync"),
+        ("database", "0198_pendingsearchvalueupdate_pendingsearchvaluedeletion_frd"),
     ]
 
     operations = [
@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
             model_name="table",
             name="field_rules_validity_column_added",
             field=models.BooleanField(
-                default=False,
+                db_default=False,
                 help_text="Indicates whether the table has had the field_rules_are_valid column added.",
                 null=True,
             ),

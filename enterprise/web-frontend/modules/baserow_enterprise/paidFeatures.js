@@ -322,7 +322,7 @@ export class DateDependencyPaidFeature extends PaidFeature {
   }
 
   getIconClass() {
-    return 'iconoir-lock'
+    return 'baserow-icon-dependency'
   }
 
   getName() {

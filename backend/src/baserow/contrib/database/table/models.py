@@ -878,7 +878,7 @@ class Table(
         help_text="Indicates whether the table has had the created_by column added.",
     )
     field_rules_validity_column_added = models.BooleanField(
-        default=False,
+        db_default=False,
         null=True,
         help_text="Indicates whether the table has had the field_rules_are_valid column added.",
     )
@@ -1173,9 +1173,9 @@ class Table(
     def _add_field_rules_valid(self, field_attrs, indexes):
         from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
 
-        fh = FieldRuleHandler(self, None)
-        column = fh.get_state_column()
-        field_attrs[fh.STATE_COLUMN_NAME] = column
+        field_rules_handler = FieldRuleHandler(self, None)
+        column = field_rules_handler.get_state_column()
+        field_attrs[field_rules_handler.STATE_COLUMN_NAME] = column
         return field_attrs
 
     @baserow_trace(tracer)

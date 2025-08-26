@@ -1,10 +1,16 @@
 from django.urls import reverse
 
 import pytest
-from rest_framework.status import HTTP_200_OK, HTTP_404_NOT_FOUND
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_204_NO_CONTENT,
+    HTTP_400_BAD_REQUEST,
+    HTTP_409_CONFLICT,
+)
 
 from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.feature_flags import FF_DATE_DEPENDENCY_V2, feature_flag_is_enabled
 from baserow.test_utils.helpers import AnyInt
 
 
@@ -65,6 +71,56 @@ def test_create_field_rule(data_fixture, api_client, fake_field_rule_registry):
     assert response_json[0]["table_id"] == response_json[1]["table_id"]
 
 
+@pytest.mark.django_db
+def test_create_field_rule_uniq(data_fixture, api_client, fake_field_rule_registry):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user)
+
+    url = reverse("api:database:field_rules:list", kwargs={"table_id": table.id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json == []
+
+    rule_payload = {"type": "dummy_uniq", "is_active": True}
+    response = api_client.post(
+        url,
+        data=rule_payload,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    expected = {
+        "id": AnyInt(),
+        "table_id": AnyInt(),
+        "error_text": None,
+        "is_valid": True,
+        "is_active": True,
+        "type": "dummy",
+    }
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json == expected
+
+    # add another, but fail because the type doesn't allow more than one
+    response = api_client.post(
+        url,
+        data=rule_payload,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_409_CONFLICT
+    assert response_json == {
+        "error": "ERROR_RULE_ALREADY_EXISTS",
+        "detail": "The requested rule already exists.",
+    }
+
+
 @pytest.mark.parametrize(
     "payload",
     [
@@ -94,7 +150,7 @@ def test_create_rule_invalid_payloads(
         "error": "ERROR_RULE_TYPE_DOES_NOT_EXIST",
         "detail": "The requested rule type does not exist.",
     }
-    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.status_code == HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.django_db
@@ -199,55 +255,59 @@ def test_field_rule_delete(data_fixture, api_client, fake_field_rule_registry):
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_200_OK
+    assert response.status_code == HTTP_204_NO_CONTENT
     assert table.field_rules.all().count() == 0
 
 
-@pytest.mark.django_db
-def test_field_rule_list_invalid(data_fixture, api_client, fake_field_rule_registry):
-    user, token = data_fixture.create_user_and_token()
-    table = data_fixture.create_database_table(user)
-    text_field = data_fixture.create_text_field(user, table=table)
+if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
 
-    model = table.get_model()
-    fid = text_field.db_column
-    fh = FieldRuleHandler(table, user)
-    rule = fh.create_rule("dummy", {"is_active": True})
+    @pytest.mark.django_db
+    def test_field_rule_list_invalid(
+        data_fixture, api_client, fake_field_rule_registry
+    ):
+        user, token = data_fixture.create_user_and_token()
+        table = data_fixture.create_database_table(user)
+        text_field = data_fixture.create_text_field(user, table=table)
 
-    insert_rows = [
-        {fid: "a"},
-        {fid: "b"},
-        {fid: "c"},
-        {fid: "d"},
-        {fid: "e"},
-        {fid: "f"},
-    ]
-    # rows = data_fixture.create_rows_in_table(table, insert_rows)
+        model = table.get_model()
+        fid = text_field.db_column
+        field_rules_handler = FieldRuleHandler(table, user)
+        rule = field_rules_handler.create_rule("dummy", {"is_active": True})
 
-    rows = (
-        RowHandler()
-        .create_rows(
-            user=user,
-            table=table,
-            rows_values=insert_rows,
-            send_realtime_update=False,
-            send_webhook_events=False,
+        insert_rows = [
+            {fid: "a"},
+            {fid: "b"},
+            {fid: "c"},
+            {fid: "d"},
+            {fid: "e"},
+            {fid: "f"},
+        ]
+        # rows = data_fixture.create_rows_in_table(table, insert_rows)
+
+        rows = (
+            RowHandler()
+            .create_rows(
+                user=user,
+                table=table,
+                rows_values=insert_rows,
+                send_realtime_update=False,
+                send_webhook_events=False,
+            )
+            .created_rows
         )
-        .created_rows
-    )
 
-    assert len(rows) == model.objects.all().count() == len(insert_rows)
-    updated_rows = list(model.objects.filter(**{f"{fid}__in": ["a", "b", "c"]}))
-    assert len(updated_rows) == 3
+        assert len(rows) == model.objects.all().count() == len(insert_rows)
+        updated_rows = list(model.objects.filter(**{f"{fid}__in": ["a", "b", "c"]}))
+        assert len(updated_rows) == 3
 
-    model.objects.filter(**{f"{fid}__in": ["a", "b", "c"]}).update(
-        field_rules_are_valid=False
-    )
+        model.objects.filter(**{f"{fid}__in": ["a", "b", "c"]}).update(
+            field_rules_are_valid=False
+        )
 
-    url = reverse(
-        "api:database:field_rules:invalid_rows", kwargs={"table_id": table.id}
-    )
-    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
-    assert response.status_code == HTTP_200_OK
-    response_json = response.json()
-    assert response_json["results"] == [{"id": r.id} for r in updated_rows]
+        url = reverse(
+            "api:database:field_rules:invalid_rows", kwargs={"table_id": table.id}
+        )
+        response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == HTTP_200_OK
+        response_json = response.json()
+        assert response_json["results"] == [{"id": r.id} for r in updated_rows]

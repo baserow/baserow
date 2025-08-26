@@ -393,7 +393,6 @@ default_roles[EDITOR_ROLE_UID].extend(
         ListTeamSubjectsOperationType,
         ReadTeamSubjectOperationType,
         CanReceiveNotificationOnSubmitFormViewOperationType,
-        SetFieldRuleOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(
@@ -533,6 +532,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         OrderAutomationNodeOperationType,
         RestoreAutomationNodeOperationType,
         DuplicateAutomationNodeOperationType,
+        SetFieldRuleOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(

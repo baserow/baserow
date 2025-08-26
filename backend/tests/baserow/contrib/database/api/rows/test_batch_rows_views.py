@@ -9,6 +9,7 @@ from django.test.utils import CaptureQueriesContext
 
 import pytest
 from freezegun import freeze_time
+from pytest_unordered import unordered
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_204_NO_CONTENT,
@@ -21,7 +22,7 @@ from rest_framework.status import (
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.tokens.handler import TokenHandler
-from baserow.test_utils.helpers import AnyList, AnyStr, is_dict_subset
+from baserow.test_utils.helpers import AnyStr, is_dict_subset
 from tests.baserow.contrib.database.utils import get_deadlock_error
 
 # Create
@@ -1355,7 +1356,7 @@ def test_batch_update_rows(api_client, data_fixture, include_metadata):
     }
     if include_metadata:
         expected_response_body["metadata"] = {
-            "updated_field_ids": AnyList(
+            "updated_field_ids": unordered(
                 [text_field.id, number_field.id, boolean_field.id]
             )
         }
@@ -1432,7 +1433,7 @@ def test_batch_update_rows_with_different_fields(
     }
     if include_metadata:
         expected_response_body["metadata"] = {
-            "updated_field_ids": AnyList(
+            "updated_field_ids": unordered(
                 [text_field.id, number_field.id, boolean_field.id]
             )
         }

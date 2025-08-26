@@ -9,7 +9,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("baserow_enterprise", "0050_periodicdatasyncinterval_deactivation_reason"),
-        ("database", "0197_field_rules"),
+        ("database", "0199_field_rules"),
     ]
 
     operations = [
@@ -67,7 +67,7 @@ class Migration(migrations.Migration):
                     "dependency_buffer",
                     models.DurationField(default=datetime.timedelta(0), null=True),
                 ),
-                ("include_weekends", models.BooleanField(default=False)),
+                ("include_weekends", models.BooleanField(default=True)),
                 (
                     "dependency_linkrow_field",
                     models.ForeignKey(

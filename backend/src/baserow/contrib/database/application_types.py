@@ -182,10 +182,13 @@ class DatabaseApplicationType(ApplicationType):
                 serialized_data_sync = data_sync_type.export_serialized(data_sync)
 
             if hasattr(table, "field_rules"):
-                fh = FieldRuleHandler(table, None)
+                field_rules_handler = FieldRuleHandler(table)
 
-                for rule, rule_type in fh.get_applicable_rules_with_types():
-                    exported_field_rule = fh.export_rule(rule)
+                for (
+                    rule,
+                    rule_type,
+                ) in field_rules_handler.applicable_rules_with_types:
+                    exported_field_rule = field_rules_handler.export_rule(rule)
                     serialized_field_rules.append(exported_field_rule)
 
             structure = DatabaseExportSerializedStructure.table(
@@ -624,10 +627,12 @@ class DatabaseApplicationType(ApplicationType):
             if not serialized_table.get("field_rules", None):
                 continue
             table = serialized_table["_object"]
-            fh = FieldRuleHandler(table, None)
+            field_rules_handler = FieldRuleHandler(table)
             serialized_rules = serialized_table["field_rules"]
             for serialized_rule in serialized_rules:
-                fh.import_rule(serialized_rule, id_mapping["database_fields"])
+                field_rules_handler.import_rule(
+                    serialized_rule, id_mapping["database_fields"]
+                )
 
     def _import_table_rows(
         self,

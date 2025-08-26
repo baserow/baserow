@@ -579,7 +579,10 @@ export class GridViewType extends ViewType {
       clone(view.group_bys)
     )
 
-    if (!store.getters['fieldRules/hasRules']({ tableId: view.table_id })) {
+    if (
+      !isPublic &&
+      !store.getters['fieldRules/hasRules']({ tableId: view.table_id })
+    ) {
       await store.dispatch('fieldRules/fetchInitial', {
         tableId: view.table_id,
       })

@@ -5,7 +5,6 @@ export const state = () => ({ tables: {}, current: null })
 
 export const actions = {
   async fetchInitial({ commit, dispatch, getters }, { tableId }) {
-    // another fetch is in progress
     if (getters.getLoading({ tableId }) === true) {
       return
     }
@@ -20,8 +19,6 @@ export const actions = {
       })
 
       return getters.getRules({ tableId })
-    } catch (error) {
-      // dispatch('toast/error', error, { root: true })
     } finally {
       commit('SET_LOADING', { tableId, value: false })
     }
@@ -36,8 +33,6 @@ export const actions = {
       commit('ADD_RULE', { tableId, rule: data })
       this.$bus.$emit('fieldRules/updated', data)
       return getters.getRuleById({ tableId, ruleId: data.id })
-    } catch (error) {
-      // dispatch('toast/error', error, { root: true })
     } finally {
       commit('SET_LOADING', { tableId, value: false })
     }
@@ -59,10 +54,7 @@ export const actions = {
       )
 
       await dispatch('ruleChanged', { tableId, ruleId, rule: data })
-      // commit('UPDATE_RULE', { tableId, ruleId, rule: data })
       return getters.getRuleById({ tableId, ruleId: data.id })
-    } catch (error) {
-      // dispatch('toast/error', error, { root: true })
     } finally {
       commit('SET_LOADING', { tableId, value: false })
     }
@@ -73,8 +65,6 @@ export const actions = {
       await FieldRulesService(this.$client).deleteRule(tableId, ruleId)
 
       commit('REMOVE_RULE', { tableId, ruleId })
-    } catch (error) {
-      dispatch('toast/error', error, { root: true })
     } finally {
       commit('SET_LOADING', { tableId, value: false })
     }
@@ -117,7 +107,6 @@ export const mutations = {
     rules.splice(index, 1)
   },
   SET_LOADING(state, { tableId, value }) {
-    // no .rules here
     const table = state.tables[tableId] || { loading: value }
     state.tables[tableId] = table
   },

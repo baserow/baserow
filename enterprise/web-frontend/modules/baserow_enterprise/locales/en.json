@@ -630,6 +630,7 @@
     "realtimePushDescription": "Allows editing the cell values directly in Baserow, and pushes it in real-time to the data sync source. Note that the changes are not pulled in real-time because they rely on the (periodic) sync action to complete. It's highly recommended to create backups of the PostgreSQL database to avoid accidental changes."
   },
   "dateDependencyModal": {
+    "errorTitle": "Date dependency",
     "dependencyFieldTooltip": "Configure date dependencies",
     "dependencyFieldTooltipError": "A field rule contains an error",
     "contextMenuItemLabel": "Configure date dependencies",
@@ -646,6 +647,8 @@
     "durationBufferLabel": "Time buffer",
     "dependencyConnectionTypeLabel": "Type",
     "advancedSettingsLabel": "Advanced settings",
-    "includeWeekendsLabel": "Include weekends when calculating durations"
+    "includeWeekendsLabel": "Include weekends when calculating durations",
+    "dependencyFieldForReaderTooltip": "This field is included in date dependency field rule",
+    "fieldInvalidTitle": "Date dependency field error"
   }
 }

@@ -5,23 +5,28 @@ from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+from rest_framework.status import HTTP_204_NO_CONTENT
 from rest_framework.views import APIView
 
 from baserow.api.decorators import map_exceptions, require_request_data_type
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
+from baserow.api.exceptions import RequestBodyValidationException
 from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
-from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
 from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIST
 from baserow.contrib.database.field_rules.actions import (
     CreateFieldRuleActionType,
     DeleteFieldRuleActionType,
     UpdateFieldRuleActionType,
 )
-from baserow.contrib.database.field_rules.exceptions import NoRuleError
+from baserow.contrib.database.field_rules.exceptions import (
+    FieldRuleAlreadyExistsError,
+    NoRuleError,
+)
 from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
 from baserow.contrib.database.field_rules.operations import (
     ReadFieldRuleOperationType,
@@ -31,14 +36,18 @@ from baserow.contrib.database.field_rules.registries import (
     FieldRuleType,
     field_rules_type_registry,
 )
-from baserow.contrib.database.fields.handler import FieldDoesNotExist
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import InstanceTypeDoesNotExist, UserNotInWorkspace
+from baserow.core.feature_flags import FF_DATE_DEPENDENCY_V2, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 
-from .errors import ERROR_RULE_DOES_NOT_EXIST, ERROR_RULE_TYPE_DOES_NOT_EXIST
+from .errors import (
+    ERROR_RULE_ALREADY_EXISTS,
+    ERROR_RULE_DOES_NOT_EXIST,
+    ERROR_RULE_TYPE_DOES_NOT_EXIST,
+)
 from .serializers import (
     InvalidRowSerializer,
     RequestFieldRuleSerializer,
@@ -69,19 +78,17 @@ class FieldRulesView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",
-                    "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
-            404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
+            404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
         },
     )
     @map_exceptions(
         {
-            FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
+            TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
-    @transaction.atomic
     def get(self, request: Request, table_id: int) -> Response:
         """
         Get a list of field rules for the given table.
@@ -117,11 +124,7 @@ class FieldRulesView(APIView):
         ],
         tags=["Field rules"],
         operation_id="create_field_rule",
-        description=(
-            "Create a field rule for a table"
-            "\n\nNote, that some field rule types"
-            "require **enterprise** license."
-        ),
+        description=("Create a field rule for a table"),
         request=DiscriminatorCustomFieldsMappingSerializer(
             field_rules_type_registry,
             base_class=RequestFieldRuleSerializer,
@@ -136,15 +139,19 @@ class FieldRulesView(APIView):
                 [
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_RULE_TYPE_DOES_NOT_EXIST",
                 ]
             ),
-            404: get_error_schema(["ERROR_RULE_TYPE_DOES_NOT_EXIST"]),
+            404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
+            409: get_error_schema(["ERROR_RULE_ALREADY_EXISTS"]),
         },
     )
     @map_exceptions(
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             InstanceTypeDoesNotExist: ERROR_RULE_TYPE_DOES_NOT_EXIST,
+            TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
+            FieldRuleAlreadyExistsError: ERROR_RULE_ALREADY_EXISTS,
         }
     )
     @require_request_data_type(dict)
@@ -173,15 +180,17 @@ class FieldRulesView(APIView):
             data=request.data,
             context={"table": table, "user": request.user, "request": request},
         )
+        try:
+            serializer.is_valid(raise_exception=True)
 
-        serializer.is_valid(raise_exception=True)
-
-        rule = action_type_registry.get(CreateFieldRuleActionType.type).do(
-            request.user,
-            table=table,
-            rule_type=rule_type_name,
-            in_rule_data=serializer.validated_data,
-        )
+            rule = action_type_registry.get(CreateFieldRuleActionType.type).do(
+                request.user,
+                table=table,
+                rule_type=rule_type_name,
+                in_rule_data=serializer.validated_data,
+            )
+        except ValidationError as e:
+            raise RequestBodyValidationException(detail=e.detail)
 
         serializer = rule_type.get_serializer(
             rule,
@@ -210,10 +219,7 @@ class FieldRuleView(APIView):
         ],
         tags=["Field rules"],
         operation_id="update_field_rule",
-        description=(
-            "Update a specific field rule\n\nNote, that operating on certain "
-            "rule types may require **enterprise** license."
-        ),
+        description=("Update a specific field rule."),
         request=DiscriminatorCustomFieldsMappingSerializer(
             field_rules_type_registry, base_class=RequestUpdateFieldRuleSerializer
         ),
@@ -229,13 +235,16 @@ class FieldRuleView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
-            404: get_error_schema(["ERROR_RULE_DOES_NOT_EXIST"]),
+            404: get_error_schema(
+                ["ERROR_RULE_DOES_NOT_EXIST", "ERROR_TABLE_DOES_NOT_EXIST"]
+            ),
         },
     )
     @map_exceptions(
         {
             NoRuleError: ERROR_RULE_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
         }
     )
     @transaction.atomic
@@ -263,15 +272,17 @@ class FieldRuleView(APIView):
             data=request.data,
             context={"table": table, "user": request.user, "request": request},
         )
+        try:
+            serializer.is_valid(raise_exception=True)
 
-        serializer.is_valid(raise_exception=True)
-
-        rule = action_type_registry.get(UpdateFieldRuleActionType.type).do(
-            request.user,
-            table=table,
-            rule_id=rule_id,
-            in_rule_data=serializer.validated_data,
-        )
+            rule = action_type_registry.get(UpdateFieldRuleActionType.type).do(
+                request.user,
+                table=table,
+                rule=rule,
+                in_rule_data=serializer.validated_data,
+            )
+        except ValidationError as e:
+            raise RequestBodyValidationException(detail=e.detail)
 
         serializer = rule_type.get_serializer(
             rule,
@@ -301,14 +312,13 @@ class FieldRuleView(APIView):
         operation_id="delete_field_rule",
         description=("Delete a field rule."),
         responses={
-            200: ResponseFieldRuleSerializer,
+            204: None,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",
-                    "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
-            404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
+            404: get_error_schema(["ERROR_RULE_DOES_NOT_EXIST"]),
         },
     )
     @map_exceptions(
@@ -332,59 +342,62 @@ class FieldRuleView(APIView):
             context=table,
         )
 
-        rule = action_type_registry.get(DeleteFieldRuleActionType.type).do(
+        action_type_registry.get(DeleteFieldRuleActionType.type).do(
             request.user, table=table, rule_id=rule_id
         )
-        rule_type = rule.get_type()
-        serializer = rule_type.get_serializer(rule, request=True)
-        return Response(serializer.data)
+        return Response(status=HTTP_204_NO_CONTENT)
 
 
-class InvalidRowsView(APIView):
-    @extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name="table_id",
-                location=OpenApiParameter.PATH,
-                type=OpenApiTypes.INT,
-                description="The ID of the table to get a list of invalid row ids.",
-            ),
-        ],
-        tags=["Field rules"],
-        operation_id="get_invalid_rows",
-        description=("Get a list of invalid rows"),
-        responses={
-            200: get_example_pagination_serializer_class(InvalidRowSerializer),
-            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-            404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
-        },
-    )
-    @map_exceptions(
-        {
-            TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
-            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
-        }
-    )
-    @transaction.atomic
-    def get(self, request: Request, table_id: int) -> Response:
-        """
-        Get a list of field rules for the given table.
-        """
+if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
 
-        table = TableHandler().get_table(table_id)
-        workspace = table.database.workspace
-        CoreHandler().check_permissions(
-            request.user,
-            ReadFieldRuleOperationType.type,
-            workspace=workspace,
-            context=table,
+    class InvalidRowsView(APIView):
+        @extend_schema(
+            parameters=[
+                OpenApiParameter(
+                    name="table_id",
+                    location=OpenApiParameter.PATH,
+                    type=OpenApiTypes.INT,
+                    description="The ID of the table to get a list of invalid row ids.",
+                ),
+            ],
+            tags=["Field rules"],
+            operation_id="get_invalid_rows",
+            description=("Get a list of invalid rows"),
+            responses={
+                200: get_example_pagination_serializer_class(InvalidRowSerializer),
+                400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+                404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
+            },
         )
+        @map_exceptions(
+            {
+                TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
+                UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            }
+        )
+        @transaction.atomic
+        def get(self, request: Request, table_id: int) -> Response:
+            """
+            Get a list of row ids that has been marked as invalid by any field rule
+            that was defined for the table.
+            """
 
-        handler = FieldRuleHandler(table, request.user)
-        invalid_rows_queryset = handler.get_invalid_rows()
+            table = TableHandler().get_table(table_id)
+            workspace = table.database.workspace
+            CoreHandler().check_permissions(
+                request.user,
+                ReadFieldRuleOperationType.type,
+                workspace=workspace,
+                context=table,
+            )
 
-        paginator = PageNumberPagination(limit_page_size=settings.ROW_PAGE_SIZE_LIMIT)
-        page = paginator.paginate_queryset(invalid_rows_queryset, request, self)
-        serializer = InvalidRowSerializer(page, many=True)
+            handler = FieldRuleHandler(table, request.user)
+            invalid_rows_queryset = handler.get_invalid_rows()
 
-        return paginator.get_paginated_response(serializer.data)
+            paginator = PageNumberPagination(
+                limit_page_size=settings.ROW_PAGE_SIZE_LIMIT
+            )
+            page = paginator.paginate_queryset(invalid_rows_queryset, request, self)
+            serializer = InvalidRowSerializer(page, many=True)
+
+            return paginator.get_paginated_response(serializer.data)

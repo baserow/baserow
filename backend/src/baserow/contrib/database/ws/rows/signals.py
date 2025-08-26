@@ -26,11 +26,13 @@ def serialize_rows_values(
     table,
     model,
     updated_field_ids,
-    use_fields_subset: bool = False,
+    serialize_only_updated_fields: bool = False,
     **kwargs,
 ):
     return serialize_rows_for_response(
-        rows, model, field_ids=updated_field_ids if use_fields_subset else None
+        rows,
+        model,
+        field_ids=updated_field_ids if serialize_only_updated_fields else None,
     )
 
 
@@ -78,7 +80,7 @@ def rows_updated(
     before_return,
     updated_field_ids,
     send_realtime_update=True,
-    use_fields_subset: bool = False,
+    serialize_only_updated_fields: bool = False,
     **kwargs,
 ):
     if not send_realtime_update:
@@ -95,7 +97,12 @@ def rows_updated(
                     model,
                     RowSerializer,
                     is_response=True,
-                    field_ids=updated_field_ids if use_fields_subset else None,
+                    # in some cases the caller may want to serialize just the fields
+                    # that were provided in updated_field_ids list (i.e. field rules).
+                    # Otherwise, we need to serialize all fields (i.e. in webhooks).
+                    field_ids=updated_field_ids
+                    if serialize_only_updated_fields
+                    else None,
                 )(rows, many=True).data,
                 # Broadcast a list of updated fields so that the listener can take
                 # action even if the value didn't change.

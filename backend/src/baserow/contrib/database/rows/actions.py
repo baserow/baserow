@@ -21,11 +21,7 @@ from baserow.contrib.database.rows.handler import (
     GeneratedTableModelForUpdate,
     RowHandler,
 )
-from baserow.contrib.database.rows.types import (
-    CreatedRowsData,
-    FileImportDict,
-    UpdatedRowsData,
-)
+from baserow.contrib.database.rows.types import FileImportDict, UpdatedRowsData
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import (
     FieldObject,
@@ -224,7 +220,7 @@ class CreateRowsActionType(UndoableActionType):
         before_row: Optional[GeneratedTableModel] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
         send_webhook_events: bool = True,
-    ) -> CreatedRowsData:
+    ) -> List[GeneratedTableModel]:
         """
         Creates rows for a given table with the provided values if the user
         belongs to the related workspace. It also calls the rows_created signal.

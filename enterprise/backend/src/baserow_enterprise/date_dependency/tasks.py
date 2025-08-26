@@ -1,7 +1,6 @@
 import typing
 
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist
 from django.db import connection
 
 from baserow.config.celery import app
@@ -22,21 +21,17 @@ def date_dependency_recalculate_rows(rule_id, table_id):
     Runs table recalculation in the background for date dependency.
     """
 
-    # we can exit early if the rule is somehow invalid
-
+    # we can exit early if the rule is invalid
     table = TableHandler().get_table(table_id)
-    fh = FieldRuleHandler(table, None)
-    rule = fh.get_rule(rule_id)
+    field_rules_handler = FieldRuleHandler(table)
+    rule = field_rules_handler.get_rule(rule_id)
 
     if not (rule.is_active and rule.is_valid):
         return
 
     rule: "DateDependency" = rule.specific
     model = table.get_model()
-    try:
-        row_count = table.usage.row_count
-    except ObjectDoesNotExist:
-        row_count = model.objects.all().count()
+    row_count = model.objects.all().count()
 
     # determine if it's a small or big table.
     above_row_count_limit = row_count > settings.FIELD_RULE_ROWS_LIMIT
@@ -114,7 +109,12 @@ def date_dependency_recalculate_rows(rule_id, table_id):
         with connection.cursor() as cursor:
             cursor.execute(recalculation_query)
             cursor.execute(validation_query)
-        table_updated.send(fh, table=table, user=fh.user, force_table_refresh=True)
+        table_updated.send(
+            field_rules_handler,
+            table=table,
+            user=field_rules_handler.user,
+            force_table_refresh=True,
+        )
 
     # the table is below the limit, so we want to return all affected rows.
     else:
@@ -161,7 +161,7 @@ def date_dependency_recalculate_rows(rule_id, table_id):
                 table,
                 model,
                 [rule.duration_field.id],
-                use_fields_subset=True,
+                serialize_only_updated_fields=True,
             ),
             public_before_rows_update: public_before_rows_update(
                 None,
@@ -187,6 +187,6 @@ def date_dependency_recalculate_rows(rule_id, table_id):
                 send_webhook_events=True,
                 fields=[rule.duration_field],
                 dependant_fields=[],
-                use_fields_subset=True,
+                serialize_only_updated_fields=True,
             )
     SearchHandler.schedule_update_search_data(table, [rule.duration_field])

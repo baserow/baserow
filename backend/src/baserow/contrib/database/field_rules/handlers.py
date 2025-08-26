@@ -1,6 +1,8 @@
-from django.db import connection, models, transaction
+from django.contrib.auth.models import AbstractUser
+from django.db import connection, models
 from django.db.models import Q
 from django.dispatch import Signal
+from django.utils.functional import cached_property
 
 from baserow.contrib.database.field_rules.registries import (
     FieldRulesTypeRegistry,
@@ -24,7 +26,7 @@ class FieldRuleHandler:
 
     STATE_COLUMN_NAME = "field_rules_are_valid"
 
-    def __init__(self, table: Table, user):
+    def __init__(self, table: Table, user: AbstractUser | None = None):
         self.table = table
         self.user = user
 
@@ -71,8 +73,8 @@ class FieldRuleHandler:
         field_rule_types_filter = self._get_active_field_rule_types_filter()
         qs = (
             self.table.field_rules.get_queryset()
-            .filter(field_rule_types_filter)
             .select_related()
+            .filter(field_rule_types_filter)
         )
         return qs
 
@@ -99,7 +101,7 @@ class FieldRuleHandler:
 
         return models.BooleanField(
             null=False,
-            default=True,
+            db_default=True,
             db_index=True,
             help_text="Stores information if a field rules validity column is added",
         )
@@ -126,9 +128,9 @@ class FieldRuleHandler:
         model = self._get_model()
         return model
 
-    def _toggle_rule(self, rule, to_value: bool):
+    def _set_rule_is_active(self, rule, to_value: bool):
         """
-        Handle a case when a rule is enabled.
+        Update rule.is_active flag value.
 
         :param rule: FieldRule instance
         :param to_value: target .is_active value
@@ -143,22 +145,22 @@ class FieldRuleHandler:
 
         rule.is_active = to_value
         rule.save(update_fields=["is_active"])
-        self.emit_signal(field_rule_updated, rule)
         self.on_table_change()
+        self.emit_signal(field_rule_updated, rule)
 
     def enable_rule(self, rule):
         """
         Enables a rule.
         """
 
-        self._toggle_rule(rule, True)
+        self._set_rule_is_active(rule, True)
 
     def disable_rule(self, rule):
         """
         Disables a rule.
         """
 
-        self._toggle_rule(rule, False)
+        self._set_rule_is_active(rule, False)
 
     @property
     def registry(self) -> FieldRulesTypeRegistry:
@@ -192,20 +194,22 @@ class FieldRuleHandler:
         rule_type = self.get_type_handler(rule_type_name)
         model_class = rule_type.model_class
 
-        with transaction.atomic():
-            self.add_state_column()
-            rule_data = rule_type.prepare_values_for_create(self.table, in_data)
-            is_active = rule_data.pop("is_active", True)
+        rule_data = rule_type.prepare_values_for_create(self.table, in_data)
+        rule_type.before_rule_created(self.table, rule_data)
 
-            field_rule = model_class.objects.create(
-                pk=primary_key_value,
-                table=self.table,
-                is_active=is_active,
-                is_valid=True,
-                error_text=None,
-                **rule_data,
-            )
-            rule_type.after_rule_created(field_rule)
+        self.add_state_column()
+
+        is_active = rule_data.pop("is_active", True)
+
+        field_rule = model_class.objects.create(
+            pk=primary_key_value,
+            table=self.table,
+            is_active=is_active,
+            is_valid=True,
+            error_text=None,
+            **rule_data,
+        )
+        rule_type.after_rule_created(field_rule)
 
         self.on_table_change()
         self.emit_signal(field_rule_created, field_rule)
@@ -258,7 +262,8 @@ class FieldRuleHandler:
         It will be valid again, if the table will be changed back to proper state.
         """
 
-        rules = self.get_applicable_rules_with_types()
+        self._clear_cache()
+        rules = self.applicable_rules_with_types
         for rule, rule_type in rules:
             rule_valid = rule_type.validate_rule(rule)
             if rule.is_valid != rule_valid.is_valid:
@@ -285,6 +290,7 @@ class FieldRuleHandler:
         if table != self.table:
             raise FieldRuleTableMismatch()
         self._delete_rule(rule)
+        self._clear_cache()
         self.emit_signal(field_rule_deleted, rule)
 
     def _get_active_field_rule_types_filter(self) -> Q:
@@ -301,7 +307,8 @@ class FieldRuleHandler:
         # model names don't contain `_`
         return Q(*params, _connector=Q.OR)
 
-    def get_applicable_rules_with_types(self) -> list[tuple[FieldRule, FieldRuleType]]:
+    @cached_property
+    def applicable_rules_with_types(self) -> list[tuple[FieldRule, FieldRuleType]]:
         """
         Returns a list of field rules and rule types that are usable.
 
@@ -313,13 +320,22 @@ class FieldRuleHandler:
 
         out = []
         field_rule_types = self._get_active_field_rule_types_filter()
-        for field_rule in (
+        queryset = (
             self.table.field_rules.get_queryset()
             .filter(field_rule_types, is_active=True)
             .select_related()
-        ):
+        )
+
+        for field_rule in specific_iterator(queryset):
             out.append((field_rule.specific, field_rule.get_type()))
         return out
+
+    def _clear_cache(self):
+        """
+        Clears internal cache for field rules.
+        """
+
+        self.__dict__.pop("applicable_rules_with_types", None)
 
     def check_table_invalid_rows(self):
         """
@@ -327,7 +343,7 @@ class FieldRuleHandler:
         for those rules.
         """
 
-        rules = self.get_applicable_rules_with_types()
+        rules = self.applicable_rules_with_types
         for rule, rule_type in rules:
             rule_type.validate_rows(self.table, rule)
 
@@ -366,7 +382,7 @@ class FieldRuleHandler:
         applied. This method will accumulate those changes into one return value.
         """
 
-        rules = self.get_applicable_rules_with_types()
+        rules = self.applicable_rules_with_types
         values = {}
         field_ids = set()
         row_id = None
@@ -396,7 +412,7 @@ class FieldRuleHandler:
         return value.
         """
 
-        rules = self.get_applicable_rules_with_types()
+        rules = self.applicable_rules_with_types
         values = {}
         field_ids = set()
         row_id = row.id
@@ -437,7 +453,7 @@ class FieldRuleHandler:
         set to True.
         """
 
-        rules = self.get_applicable_rules_with_types()
+        rules = self.applicable_rules_with_types
 
         for rule, rule_type in rules:
             valid = rule_type.validate_row(row, rule)
@@ -470,7 +486,9 @@ class FieldRuleHandler:
         Exports a rule.
         """
 
-        return rule.specific.to_dict()
+        rule_type = rule.get_type()
+        rule_data = rule.specific.to_dict()
+        return rule_type.prepare_values_for_export(rule_data)
 
     def import_rule(self, rule_data: dict, id_mapping: dict) -> FieldRule:
         """

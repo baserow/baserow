@@ -4,6 +4,7 @@ from unittest import mock
 import pytest
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
+from baserow.contrib.database.field_rules.exceptions import FieldRuleAlreadyExistsError
 from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
@@ -20,8 +21,8 @@ def test_date_dependency_handler_create_rule_serializer(
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
 
-    fh = FieldRuleHandler(table, user)
-    rule_type = fh.get_type_handler("date_dependency")
+    field_rules_handler = FieldRuleHandler(table, user)
+    rule_type = field_rules_handler.get_type_handler("date_dependency")
     assert isinstance(rule_type, DateDependencyFieldRuleType)
     serializer_cls = rule_type.get_serializer_class(request_serializer=True)
     serializer = serializer_cls(context={"table": table}, data={})
@@ -76,7 +77,7 @@ def test_date_dependency_handler_create_rule_no_license(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
 
-    fh = FieldRuleHandler(table, user)
+    field_rules_handler = FieldRuleHandler(table, user)
 
     start_date_field = data_fixture.create_date_field(
         table=table, name="start_date_field"
@@ -93,7 +94,45 @@ def test_date_dependency_handler_create_rule_no_license(data_fixture):
     }
 
     with pytest.raises(FeaturesNotAvailableError):
-        fh.create_rule("date_dependency", valid_payload)
+        field_rules_handler.create_rule("date_dependency", valid_payload)
+
+
+@pytest.mark.django_db
+def test_date_dependency_handler_create_rule_no_duplicate(
+    data_fixture, enable_enterprise, django_assert_num_queries
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    field_rules_handler = FieldRuleHandler(table, user)
+
+    start_date_field = data_fixture.create_date_field(
+        table=table, name="start_date_field"
+    )
+    end_date_field = data_fixture.create_date_field(table=table, name="end_date_field")
+    duration_field = data_fixture.create_duration_field(
+        table=table, name="duration_field", duration_format="d h"
+    )
+
+    valid_payload = {
+        "start_date_field_id": start_date_field.id,
+        "end_date_field_id": end_date_field.id,
+        "duration_field_id": duration_field.id,
+    }
+    assert table.field_rules.count() == 0
+    rule = field_rules_handler.create_rule("date_dependency", valid_payload)
+
+    assert rule
+    assert table.field_rules.count() == 1
+
+    # 4 queries:
+    # * one to check if there's a rule
+    # * one per field in serializer to get field's details
+    with django_assert_num_queries(4) as queries:
+        with pytest.raises(FieldRuleAlreadyExistsError):
+            field_rules_handler.create_rule("date_dependency", valid_payload)
+
+    assert table.field_rules.count() == 1
 
 
 @pytest.mark.django_db
@@ -102,14 +141,14 @@ def test_date_dependency_handler_create_rule(data_fixture, enable_enterprise):
 
     table = data_fixture.create_database_table(user=user)
 
-    fh = FieldRuleHandler(table, user)
+    field_rules_handler = FieldRuleHandler(table, user)
 
     start_date_field = data_fixture.create_date_field(
         table=table, name="start_date_field"
     )
     end_date_field = data_fixture.create_date_field(table=table, name="end_date_field")
     duration_field = data_fixture.create_duration_field(
-        table=table, name="duration_field"
+        table=table, name="duration_field", duration_format="d h"
     )
 
     valid_payload = {
@@ -118,7 +157,8 @@ def test_date_dependency_handler_create_rule(data_fixture, enable_enterprise):
         "duration_field_id": duration_field.id,
     }
 
-    rule = fh.create_rule("date_dependency", valid_payload)
+    rule = field_rules_handler.create_rule("date_dependency", valid_payload)
+
     assert isinstance(rule, DateDependency)
     assert rule.is_active
     assert rule.is_valid
@@ -135,14 +175,14 @@ def test_date_dependency_handler_validate_rule_after_field_change(
 
     table = data_fixture.create_database_table(user=user)
 
-    fh = FieldRuleHandler(table, user)
+    field_rules_handler = FieldRuleHandler(table, user)
 
     start_date_field = data_fixture.create_date_field(
         table=table, name="start_date_field"
     )
     end_date_field = data_fixture.create_date_field(table=table, name="end_date_field")
     duration_field = data_fixture.create_duration_field(
-        table=table, name="duration_field"
+        table=table, name="duration_field", duration_format="d h"
     )
 
     valid_payload = {
@@ -151,7 +191,7 @@ def test_date_dependency_handler_validate_rule_after_field_change(
         "duration_field_id": duration_field.id,
     }
 
-    rule = fh.create_rule("date_dependency", valid_payload)
+    rule = field_rules_handler.create_rule("date_dependency", valid_payload)
     assert isinstance(rule, DateDependency)
     assert rule.is_active
     assert rule.is_valid
@@ -172,20 +212,20 @@ def test_date_dependency_handler_validate_rule_after_field_change(
 
 @pytest.mark.django_db
 def test_date_dependency_handler_validate_rule_after_field_removed(
-    data_fixture, enable_enterprise
+    data_fixture, enable_enterprise, django_assert_num_queries
 ):
     user = data_fixture.create_user()
 
     table = data_fixture.create_database_table(user=user)
 
-    fh = FieldRuleHandler(table, user)
+    field_rules_handler = FieldRuleHandler(table, user)
 
     start_date_field = data_fixture.create_date_field(
         table=table, name="start_date_field"
     )
     end_date_field = data_fixture.create_date_field(table=table, name="end_date_field")
     duration_field = data_fixture.create_duration_field(
-        table=table, name="duration_field"
+        table=table, name="duration_field", duration_format="d h"
     )
 
     valid_payload = {
@@ -194,7 +234,7 @@ def test_date_dependency_handler_validate_rule_after_field_removed(
         "duration_field_id": duration_field.id,
     }
 
-    rule = fh.create_rule("date_dependency", valid_payload)
+    rule = field_rules_handler.create_rule("date_dependency", valid_payload)
     assert isinstance(rule, DateDependency)
     assert rule.is_active
     assert rule.is_valid
@@ -217,7 +257,7 @@ def test_date_dependency_handler_validate_rule_after_field_removed(
     "include_weekends,expected",
     [
         (
-            False,
+            True,
             {
                 "a": (
                     date(2025, 1, 1),
@@ -283,7 +323,7 @@ def test_date_dependency_handler_validate_rule_after_field_removed(
             },
         ),
         (
-            True,
+            False,
             {
                 "a": (
                     date(2025, 1, 1),
@@ -358,7 +398,7 @@ def test_date_dependency_handler_create_rule_and_populate_rows(
 
     table = data_fixture.create_database_table(user=user)
 
-    fh = FieldRuleHandler(table, user)
+    field_rules_handler = FieldRuleHandler(table, user)
 
     text_field = data_fixture.create_text_field(
         table=table, name="text_field", primary=True
@@ -399,7 +439,7 @@ def test_date_dependency_handler_create_rule_and_populate_rows(
     with mock.patch(
         "baserow_enterprise.date_dependency.field_rule_types.DateDependencyFieldRuleType.schedule_recalculate"
     ) as mocked_task:
-        rule = fh.create_rule("date_dependency", valid_payload)
+        rule = field_rules_handler.create_rule("date_dependency", valid_payload)
         mocked_task.assert_called_once()
 
     from baserow_enterprise.date_dependency.tasks import (

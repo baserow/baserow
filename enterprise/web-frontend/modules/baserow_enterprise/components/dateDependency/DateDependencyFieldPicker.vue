@@ -4,13 +4,15 @@
     :required="required"
     :small-label="true"
     :helper-text="helperText"
+    :error="hasError"
+    :error-message="errorMessageStr"
   >
     <Dropdown
       :value="value"
       :show-search="true"
       :fixed-items="true"
-      :error="error"
       :disabled="disabled"
+      :error="hasError"
       size="regular"
       @change="$emit('change', $event)"
     >
@@ -22,7 +24,6 @@
         :icon="r.id ? icon : null"
       ></DropdownItem>
     </Dropdown>
-    <slot name="error"></slot>
   </FormGroup>
 </template>
 <script>
@@ -57,13 +58,20 @@ export default {
       required: false,
       default: null,
     },
-    error: {
-      type: Boolean,
+    errorMessage: {
+      type: [String, Array],
       required: false,
       default: null,
     },
     disabled: { type: Boolean, required: false, default: false },
   },
-  methods: {},
+  computed: {
+    errorMessageStr() {
+      return (this.errorMessage || []).join('\n')
+    },
+    hasError() {
+      return this.errors && this.errors.length > 0
+    },
+  },
 }
 </script>

@@ -3,13 +3,17 @@ from unittest import mock
 import pytest
 
 from baserow.contrib.database.field_rules.registries import FieldRulesTypeRegistry
-from tests.baserow.contrib.database.utils import DummyFieldRuleType
+from tests.baserow.contrib.database.utils import (
+    DummyFieldRuleType,
+    DummyUniqueFieldRuleType,
+)
 
 
 @pytest.fixture
 def fake_field_rule_registry():
     local_field_rules_registry = FieldRulesTypeRegistry()
     local_field_rules_registry.register(DummyFieldRuleType())
+    local_field_rules_registry.register(DummyUniqueFieldRuleType())
 
     with (
         mock.patch(

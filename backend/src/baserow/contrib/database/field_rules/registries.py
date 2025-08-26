@@ -59,10 +59,17 @@ class FieldRuleType(ModelInstanceMixin, CustomFieldsInstanceMixin, Instance, ABC
 
     model_class = FieldRule
 
-    serializer_field_names = [
+    allowed_fields = [
         "is_active",
         "type",
     ]
+    serializer_field_names = [
+        "is_active",
+        "error_text",
+        "is_valid",
+        "type",
+    ]
+    request_serializer_field_names = ["is_active", "type"]
 
     def enrich_table_queryset(self, queryset) -> QuerySet:
         """
@@ -147,6 +154,14 @@ class FieldRuleType(ModelInstanceMixin, CustomFieldsInstanceMixin, Instance, ABC
 
         return in_data
 
+    def before_rule_created(self, table: Table, in_data: dict):
+        """
+        Called before rule creation.
+
+        Allows field rule type handler to perform additional checks before a rule is
+        created.
+        """
+
     def before_rule_deleted(self, rule):
         """
         Called before a rule removal.
@@ -160,6 +175,13 @@ class FieldRuleType(ModelInstanceMixin, CustomFieldsInstanceMixin, Instance, ABC
         """
 
         raise NotImplementedError()
+
+    def prepare_values_for_export(self, rule_data: dict) -> dict:
+        """
+        Returns export representation for the rule
+        """
+
+        return rule_data
 
 
 class FieldRulesTypeRegistry(

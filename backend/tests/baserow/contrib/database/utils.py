@@ -9,6 +9,7 @@ from django.db.models import QuerySet
 
 from channels.testing import WebsocketCommunicator
 
+from baserow.contrib.database.field_rules.exceptions import FieldRuleAlreadyExistsError
 from baserow.contrib.database.field_rules.models import FieldRule
 from baserow.contrib.database.field_rules.registries import (
     FieldRuleType,
@@ -342,3 +343,11 @@ class DummyFieldRuleType(FieldRuleType):
             is_valid=getattr(rule, "set_is_valid", True),
             error_text="",
         )
+
+
+class DummyUniqueFieldRuleType(DummyFieldRuleType):
+    type = "dummy_uniq"
+
+    def before_rule_created(self, table: Table, in_data: dict):
+        if table.field_rules.all().exists():
+            raise FieldRuleAlreadyExistsError()

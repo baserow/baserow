@@ -1,5 +1,6 @@
 <template>
   <Modal
+    v-if="isAllowed"
     ref="modal"
     :small="true"
     :content-padding="false"
@@ -20,7 +21,6 @@
           <SwitchInput
             class="margin-bottom-2"
             small
-            :disabled="!isAllowed"
             :value="dependency.is_active"
             @input="toggleDateDependency()"
           >
@@ -33,62 +33,49 @@
         <div class="row date-dependency__container">
           <div class="col col-6">
             <DateDependencyFieldPicker
+              ref="start_date_field_id"
               :value="dependency.start_date_field_id"
               :fields="startDateFields"
               :required="true"
               icon="iconoir-calendar"
-              :disabled="!isAllowed"
-              :error="v$.dependency?.start_date_field_id.$error"
+              :error-message="errors.start_date_field_id"
               :field-name="$t('dateDependencyModal.startDateFieldLabel')"
               @change="onDependencyFieldChange('start_date_field_id', $event)"
-            >
-              <template #error>
-                {{ v$.dependency?.start_date_field_id.$errors[0]?.$message }}
-              </template>
-            </DateDependencyFieldPicker>
+            />
           </div>
           <div class="col col-6">
             <DateDependencyFieldPicker
+              ref="end_date_field_id"
               :value="dependency.end_date_field_id"
               :fields="endDateFields"
               :required="true"
-              :disabled="!isAllowed"
-              :error="v$.dependency?.end_date_field_id.$error"
+              :error-message="errors.end_date_field_id"
               icon="iconoir-calendar"
               :field-name="$t('dateDependencyModal.endDateFieldLabel')"
               @change="onDependencyFieldChange('end_date_field_id', $event)"
-            >
-              <template #error>
-                {{ v$.dependency?.end_date_field_id.$errors[0]?.$message }}
-              </template>
-            </DateDependencyFieldPicker>
+            />
           </div>
         </div>
         <div class="row date-dependency__container">
           <div class="col col-6">
             <DateDependencyFieldPicker
+              ref="duration_field_id"
               :value="dependency.duration_field_id"
               :fields="durationFields"
               :required="true"
-              :disabled="!isAllowed"
-              :error="v$.dependency?.duration_field_id.$error"
+              :error-message="errors.duration_field_id"
               icon="iconoir-clock-rotate-right"
               :field-name="$t('dateDependencyModal.durationFieldLabel')"
               :helper-text="$t('dateDependencyModal.durationFieldHint')"
               @change="onDependencyFieldChange('duration_field_id', $event)"
-            >
-              <template #error>
-                {{ v$.dependency?.duration_field_id.$errors[0]?.$message }}
-              </template>
-            </DateDependencyFieldPicker>
+            />
           </div>
           <div class="col col-6">
             <DateDependencyFieldPicker
               v-if="v2Enabled"
               :value="dependency.dependency_linkrow_field_id"
               :fields="dependencyFields"
-              :disabled="!isAllowed"
-              :error="v$.dependency?.dependency_linkrow_field_id.$error"
+              :error-message="getFieldError('dependency_linkrow_field_id')"
               icon="iconoir-ev-plug"
               :field-name="$t('dateDependencyModal.dependencyFieldLabel')"
               :helper-text="$t('dateDependencyModal.dependencyFieldHint')"
@@ -104,9 +91,8 @@
             <SegmentControl
               ref="linkRowRoleControl"
               size="regular"
-              :disabled="!isAllowed"
               :segments="dependencyLinkRowRoles"
-              :error="v$.dependency?.dependency_linkrow_role.$error"
+              :error-message="getFieldError('dependency_linkrow_role')"
               :initial-active-index="linkrowFieldRoleIdx"
               @update:activeIndex="linkRowFieldRoleChanged($event)"
             />
@@ -117,11 +103,9 @@
           <!-- rescheduling logic: flexible/fixed/none -->
           <div class="col col-12">
             <DateDependencyFieldPicker
-              class="noop"
               :value="dependency.dependency_buffer_type"
               :fields="dependencyBufferTypes"
-              :disabled="!isAllowed"
-              :error="v$.dependency?.dependency_buffer_type.$error"
+              :error-message="getFieldError('dependency_buffer_type')"
               :required="dependency.dependency_linkrow_field_id !== null"
               :field-name="$t('dateDependencyModal.dependencyBufferTypeLabel')"
               @change="
@@ -136,24 +120,13 @@
               :label="$t('dateDependencyModal.durationBufferLabel')"
               :small-label="true"
               :required="dependency.dependency_linkrow_field_id !== null"
+              :error-message="getFieldError('dependency_buffer')"
               class="field-duration"
             >
-              <!--      :placeholder="field.duration_format"-->
-              <!--      :error="touched && !valid"-->
-              <!--      :disabled="readOnly"-->
-              <!--      class="field-duration"-->
-              <!--      @keypress="onKeyPress(field, $event)"-->
-              <!--      @keyup.enter="$refs.input.blur()"-->
-              <!--      @keyup="updateCopy(field, $event.target.value)"-->
-              <!--      @focus="select()"-->
-              <!--      @blur="unselect()"-->
-
               <FormInput
                 ref="dateDependencyDuration"
                 :value="dependencyBufferValue"
-                :error="v$.dependency?.dependency_buffer.$error"
                 size="regular"
-                :disabled="!isAllowed"
                 class="field-duration"
                 @blur="onTimeBufferChange"
               />
@@ -164,8 +137,7 @@
             <DateDependencyFieldPicker
               :value="dependency.dependency_connection_type"
               :fields="dependencyConnectionTypes"
-              :error="v$.dependency?.dependency_connection_type?.$error"
-              :disabled="!isAllowed"
+              :error-message="getFieldError('dependency_connection_type')"
               :required="dependency.dependency_linkrow_field_id !== null"
               :field-name="
                 $t('dateDependencyModal.dependencyConnectionTypeLabel')
@@ -177,12 +149,11 @@
           </div>
         </div>
 
-        <div class="row date-dependency__container">
+        <div v-if="v2Enabled" class="row date-dependency__container">
           <div class="col">
             <Checkbox
               :checked="dependency.include_weekends"
-              :error="v$.dependency?.include_weekends?.$error"
-              :disabled="!isAllowed"
+              :error-message="getFieldError('include_weekends')"
               :title="$t('dateDependencyModal.advancedSettingsLabel')"
               @input="onDependencyFieldChange('include_weekends', $event)"
             >
@@ -199,8 +170,8 @@
             </span>
 
             <Button
-              :loading="loading && valid"
-              :disabled="!valid || !isAllowed"
+              :loading="loading && isValid"
+              :disabled="!isValid"
               @click.prevent.stop="submit"
             >
               {{ $t('action.save') }}
@@ -217,8 +188,8 @@
               }}</a>
             </span>
             <Button
-              :loading="loading && valid"
-              :disabled="!valid || !isAllowed"
+              :loading="loading && isValid"
+              :disabled="!isValid"
               @click.prevent.stop="submit"
             >
               {{ $t('action.save') }}
@@ -252,6 +223,7 @@ import {
 import { useVuelidate } from '@vuelidate/core'
 import { required, requiredIf } from '@vuelidate/validators'
 import { FF_DATE_DEPENDENCY_V2 } from '@baserow/modules/core/plugins/featureFlags'
+import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 
 export default {
   name: 'DateDependencyModal',
@@ -290,14 +262,18 @@ export default {
         dependency_linkrow_role: DependencyLinkRowRoles.PREDECESSORS,
         dependency_buffer_type: DependencyBufferType.FLEXIBLE,
         dependency_buffer: 0,
-        include_weekends: false,
+        include_weekends: true,
         dependency_connection_type: DependencyConnectionTypes.END_TO_START,
       },
       loading: false,
       fieldsLoaded: false,
       valid: true,
       fields: [],
-      localValue: true,
+      errors: {
+        start_date_field_id: null,
+        end_date_field_id: null,
+        duration_field_id: null,
+      },
     }
   },
   validations() {
@@ -358,29 +334,35 @@ export default {
   },
   computed: {
     isAllowed() {
-      const database = this.$store.getters['application/getSelected']
       return this.$hasPermission(
         'database.table.field_rules.set_field_rules',
-        database,
+        this.table,
         this.workspaceId
       )
     },
-    startDateFields() {
-      const endDateFieldId = this.dependency.end_date_field_id
+    endDateFields() {
+      // we want to exclude field that is used in start date field
+      const excludeId = this.dependency.start_date_field_id
       return this.getFieldsForType(this.fields, 'date', (f) => {
-        return f.id !== endDateFieldId && !f.date_include_time
+        return !(f.id === excludeId || f.date_include_time)
       })
     },
-    endDateFields() {
-      const startDateFieldId = this.dependency.start_date_field_id
+    startDateFields() {
+      // we want to exclude field that is used in end date field
+      const excludeId = this.dependency.end_date_field_id
       return this.getFieldsForType(this.fields, 'date', (f) => {
-        return f.id !== startDateFieldId && !f.date_include_time
+        return !(f.id === excludeId || f.date_include_time)
       })
     },
     durationFields() {
-      return this.getFieldsForType(this.fields, 'duration', (f) => {
-        return f.duration_format === 'd h'
-      })
+      return this.getFieldsForType(
+        this.fields,
+        'duration',
+        (f) => {
+          return f.duration_format === 'd h'
+        },
+        false
+      )
     },
 
     v2Enabled() {
@@ -413,6 +395,9 @@ export default {
         },
       ])
     },
+    isValid() {
+      return this.valid && _.every(Object.values(this.errors), _.isEmpty)
+    },
   },
   methods: {
     async getFields(tableId) {
@@ -430,15 +415,59 @@ export default {
       const val = DependencyLinkRowRoles.toLabels()[newIndex].label
       this.onDependencyFieldChange('dependency_linkrow_role', val)
     },
-    getDurationField() {
-      const durationFieldId = this.dependency.duration_field_id
-      const out = this.getFieldsForType(this.fields, 'duration', (x) => {
-        return x.id === durationFieldId
+    /**
+     * checks if a field id value is present in the fields list, and resets to null,
+     * if not.
+     *
+     * This covers a case, where a preexisting dependency is present, but field ids
+     * point to fields that are not available (i.e. fields with wrong type or
+     * parameters), so the state seems to be valid, but it is not.
+     */
+    validateFieldIds() {
+      const fieldsToCheck = [
+        {
+          fieldName: 'start_date_field_id',
+          expectedType: 'date',
+          extraChecks: (f) => {
+            return !f.date_include_time
+          },
+        },
+        {
+          fieldName: 'end_date_field_id',
+          expectedType: 'date',
+          extraChecks: (f) => {
+            return !f.date_include_time
+          },
+        },
+        {
+          fieldName: 'duration_field_id',
+          expectedType: 'duration',
+          extraChecks: (f) => {
+            return f.duration_format === 'd h'
+          },
+        },
+      ]
+      const that = this
+
+      fieldsToCheck.forEach((definition) => {
+        const fieldIdValue = that.dependency[definition.fieldName]
+        const fields = that.getFieldsForType(
+          that.fields,
+          definition.expectedType,
+          (f) => {
+            return definition.extraChecks(f) && f.id === fieldIdValue
+          },
+          false
+        )
+
+        if (fields.length === 0) {
+          // We want to set null value only, validation will be performed
+          // after this call.
+          that.dependency[definition.fieldName] = null
+        }
       })
-      if (out.length === 1) {
-        return out[0]
-      }
     },
+
     getFieldsForType(
       fields,
       expectedType,
@@ -464,8 +493,8 @@ export default {
     },
 
     async init() {
-      this.localValue = false
       try {
+        this.resetErrors()
         this.fields = await this.getFields(this.table.id)
         if (
           !this.$store.getters['fieldRules/hasRules']({
@@ -482,7 +511,6 @@ export default {
         })
         if (deps.length > 0) {
           Object.assign(this.dependency, deps[0])
-          this.localValue = false
         }
       } catch (err) {
         await this.$store.dispatch('toast/error', err)
@@ -491,17 +519,37 @@ export default {
         tableId: this.dependency.table_id,
         ruleId: this.dependency.id,
       })
-      await this.validate()
+
+      // validate if the rule is persisted. This allows us to show errors
+      // for rules that are invalid.
+      if (this.dependency.id) {
+        this.validateFieldIds()
+        await this.validate()
+      }
     },
     toggleDateDependency() {
       this.onDependencyFieldChange('is_active', !this.dependency.is_active)
     },
-    async onDependencyFieldChange(fieldName, value) {
+    async onDependencyFieldChange(fieldName, value, validate = true) {
       this.dependency[fieldName] = value
-      await this.validate()
+      if (validate) {
+        await this.validate()
+      }
     },
     async validate() {
       this.valid = await this.v$.$validate()
+      const dep = this.v$.dependency
+      const errors = {}
+      this.resetErrors()
+      Object.keys(this.dependency).forEach((key) => {
+        const _errors = []
+        ;(dep[key]?.$errors || []).forEach((error) => {
+          _errors.push(error.$message || error)
+        })
+        errors[key] = _errors
+      })
+
+      this.setErrors(errors)
     },
     getDependencyBufferFormattedValue(value) {
       const inValue = value
@@ -521,19 +569,34 @@ export default {
         this.onDependencyFieldChange('dependency_buffer', outValue)
       }
     },
+    resetErrors() {
+      const that = this
+      Object.keys(this.dependency).forEach((key) => {
+        that.errors[key] = []
+      })
+    },
+    setErrors(errors) {
+      const baseErrors = this.errors
+      Object.keys(this.dependency).forEach((key) => {
+        const errList = _.uniq([].concat(baseErrors[key] || [], errors[key]))
+        baseErrors[key] = errList
+      })
+      this.errors = baseErrors
+    },
 
     async submit() {
       this.loading = true
       this.valid = true
+      this.resetErrors()
+
       try {
         await this.validate()
         if (!this.valid) {
           this.loading = false
           return
         }
-      } catch (err) {
-        this.$store.dispatch('toast/error', err)
-        return
+      } catch (error) {
+        return this.handleError(error)
       }
       try {
         const sendData = Object.assign({}, this.dependency)
@@ -543,18 +606,24 @@ export default {
           'd h'
         )
         let updated = null
-        if (this.dependency.id === null) {
-          updated = await this.$store.dispatch('fieldRules/addRule', {
-            tableId: this.table.id,
-            rule: sendData,
-          })
-        } else {
-          updated = await this.$store.dispatch('fieldRules/updateRule', {
-            tableId: this.table.id,
-            ruleId: this.dependency.id,
-            rule: sendData,
-          })
+        try {
+          if (this.dependency.id === null) {
+            updated = await this.$store.dispatch('fieldRules/addRule', {
+              tableId: this.table.id,
+              rule: sendData,
+            })
+          } else {
+            updated = await this.$store.dispatch('fieldRules/updateRule', {
+              tableId: this.table.id,
+              ruleId: this.dependency.id,
+              rule: sendData,
+            })
+          }
+        } catch (error) {
+          this.handleError(error)
+          return
         }
+
         const stored = this.$store.getters['fieldRules/getRuleById']({
           tableId: this.table.id,
           ruleId: updated.id,
@@ -563,8 +632,8 @@ export default {
         if (this.$refs.modal !== undefined) {
           this.$refs.modal.hide()
         }
-      } catch (err) {
-        this.$store.dispatch('toast/error', err)
+      } catch (error) {
+        return this.handleError(error)
       } finally {
         this.loading = false
       }
@@ -574,6 +643,48 @@ export default {
     },
     onModalClose() {
       this.$store.dispatch('fieldRules/unsetCurrent')
+    },
+
+    handleError(error) {
+      if (!error.handler || !!error.handler?.isHandled) {
+        return
+      }
+
+      // Request body validation errors should be shown on the form
+      if (error.handler.hasRequestBodyValidationError()) {
+        this.valid = false
+
+        this.resetErrors()
+        this.setErrors(error.handler.detail)
+        return
+      }
+
+      // Other errors we show as a toas
+      const $t = this.$t.bind(this)
+
+      const requestErrorsMap = {
+        ERROR_RULE_DOES_NOT_EXIST: new ResponseErrorMessage(
+          $t('fieldRule.errorTitle'),
+          $t('fieldRule.ruleDoesNotExist')
+        ),
+        ERROR_RULE_TYPE_DOES_NOT_EXIST: new ResponseErrorMessage(
+          $t('fieldRule.errorTitle'),
+          $t('fieldRule.ruleTypeDoesNotExist')
+        ),
+        ERROR_RULE_ALREADY_EXIST: new ResponseErrorMessage(
+          $t('fieldRule.errorTitle'),
+          $t('fieldRule.ruleAlreadyExists')
+        ),
+      }
+
+      const msg =
+        error.handler?.getMessage(
+          $t('dateDependencyModal.errorTitle'),
+          requestErrorsMap,
+          {}
+        ) || {}
+      this.$store.dispatch('toast/error', msg)
+      error.handler?.handled()
     },
   },
 }

@@ -70,7 +70,7 @@ class DateDependency(FieldRule):
 
     dependency_buffer = models.DurationField(null=True, default=timedelta(0))
 
-    include_weekends = models.BooleanField(null=False, default=False)
+    include_weekends = models.BooleanField(null=False, default=True)
 
     def to_dict(self) -> dict:
         base_dict = super().to_dict()
