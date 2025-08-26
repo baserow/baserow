@@ -44,7 +44,8 @@
     "integrationType": {
         "localBaserow": "Lokaal Baserow",
         "localBaserowSummary": "Lokaal Baserow - {name}, {username}",
-        "localBaserowWarning": "Door jouw account te autoriseren krijgt iedereen die bewerkingsrechten heeft voor de applicatie volledige toegang tot de gegevens waar jij toegang tot hebt. Het is mogelijk om een tweede gebruiker aan te maken, de juiste rechten te geven en die te gebruiken."
+        "localBaserowWarning": "Door jouw account te autoriseren krijgt iedereen die bewerkingsrechten heeft voor de applicatie volledige toegang tot de gegevens waar jij toegang tot hebt. Het is mogelijk om een tweede gebruiker aan te maken, de juiste rechten te geven en die te gebruiken.",
+        "smtp": "SMTP e-mail"
     },
     "serviceType": {
         "localBaserowGetRow": "Rij ophalen",
@@ -71,7 +72,14 @@
         "errorFilterInError": "Ten minste één filter is verkeerd geconfigureerd",
         "errorSortingInError": "Ten minste één sortering is verkeerd geconfigureerd",
         "errorNoFieldSelected": "Geen veld geselecteerd",
-        "errorNoAggregationTypeSelected": "Geen aggregatietype geselecteerd"
+        "errorNoAggregationTypeSelected": "Geen aggregatietype geselecteerd",
+        "localBaserowGetRowDescription": "Lees een enkele rij uit een Baserow tabel.",
+        "localBaserowListRowsDescription": "Leest meerdere rijen uit een Baserow-tabel.",
+        "localBaserowAggregateRowsDescription": "Vat een veld samen in een Baserow-tabel.",
+        "coreSMTPEmail": "Verstuur e-mail",
+        "coreSMTPEmailDescription": "Verstuurt een e-mail met SMTP-configuratie.",
+        "errorFromEmailMissing": "Ontbreekt in e-maileigenschap",
+        "errorToEmailsMissing": "Naar Email Eigenschap Ontbreekt"
     },
     "userSourceType": {
         "localBaserow": "Baserow tabel authenticatie"
@@ -132,5 +140,48 @@
         "httpMethod": "HTTP methode",
         "timeout": "Time-out",
         "name": "Naam"
+    },
+    "serviceRefinementForms": {
+        "filterTabTitle": "Filter | 1 Filter | {count} Filters",
+        "sortTabTitle": "Sorteren | 1 Sortering | {count} Sorteringen",
+        "searchTabTitle": "Zoeken | 1 Zoekopdracht | {aantal} Zoekopdrachten",
+        "searchFieldPlaceHolder": "Voer een zoekterm in...",
+        "noTableChosenForFiltering": "Kies een tabel om te beginnen met het gebruik van gegevensbronfilters.",
+        "noTableChosenForSorting": "Kies een tabel om te beginnen met het sorteren van gegevensbronnen.",
+        "refinements": "Verfijningen"
+    },
+    "smtpIntegrationType": {
+        "smtpSummary": "SMTP - {host}:{port}"
+    },
+    "smtpForm": {
+        "host": "SMTP Host",
+        "hostPlaceholder": "smtp.gmail.com",
+        "port": "SMTP-poort",
+        "portPlaceholder": "587",
+        "useTls": "TLS gebruiken",
+        "username": "Gebruikersnaam",
+        "usernamePlaceholder": "your-email@example.com",
+        "password": "Wachtwoord",
+        "passwordPlaceholder": "je wachtwoord"
+    },
+    "smtpEmailForm": {
+        "integrationDropdownLabel": "Integraties",
+        "fromEmail": "Van e-mail",
+        "fromEmailPlaceholder": "sender@example.com",
+        "fromName": "Van Naam",
+        "fromNamePlaceholder": "Je Naam",
+        "toEmails": "Naar E-mails",
+        "toEmailsPlaceholder": "ontvanger1@voorbeeld.com,ontvanger2@voorbeeld.com",
+        "ccEmails": "CC E-mails",
+        "ccEmailsPlaceholder": "cc1@voorbeeld.com,cc2@voorbeeld.com",
+        "bccEmails": "BCC E-mails",
+        "bccEmailsPlaceholder": "bcc1@voorbeeld.com,bcc2@voorbeeld.com",
+        "subject": "Onderwerp",
+        "subjectPlaceholder": "Het onderwerp van je e-mail",
+        "bodyType": "Body Type",
+        "bodyTypePlain": "Platte Tekst",
+        "bodyTypeHtml": "HTML",
+        "body": "Body",
+        "bodyPlaceholder": "De inhoud van je e-mail..."
     }
 }
