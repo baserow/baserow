@@ -1,5 +1,42 @@
 # Changelog
 
+## Released 1.35.0
+
+### New features
+* [Database] Show an asterisk (*) to indicate required fields in forms [#2704](https://gitlab.com/baserow/baserow/-/issues/2704)
+* [Dashboard] Add pie and doughnut charts [#3552](https://gitlab.com/baserow/baserow/-/issues/3552)
+* [Database] Allow application selection during workspace export [#3734](https://gitlab.com/baserow/baserow/-/issues/3734)
+* [Builder] Add environment variable to allow sending request to internal IPs with HTTP request action [#](https://gitlab.com/baserow/baserow/-/issues/)
+* [Core] Show highest role on admin user listing page. [#3754](https://gitlab.com/baserow/baserow/-/issues/3754)
+
+### Bug fixes
+* [Database] Deactivate data sync and notify user when no proper license is available [#3562](https://gitlab.com/baserow/baserow/-/issues/3562)
+* [Database] Skipped fields during CSV import will not overwrite table data [#3652](https://gitlab.com/baserow/baserow/-/issues/3652)
+* [Builder] Properly handle error in HTTP request action [#3749](https://gitlab.com/baserow/baserow/-/issues/3749)
+* [Builder] Don't show an error message for unused data source [#3760](https://gitlab.com/baserow/baserow/-/issues/3760)
+* [Database] Fix undo for single select with default value [#3762](https://gitlab.com/baserow/baserow/-/issues/3762)
+* [Builder] Resolved an issue which prevented application builder data sources from being able to read from data-synced tables. [#3763](https://gitlab.com/baserow/baserow/-/issues/3763)
+* [Builder] Fix stuck in loading state after field configuration is fixed [#3765](https://gitlab.com/baserow/baserow/-/issues/3765)
+* [Database] Fix form single select and multiple select default values when options are restricted [#3769](https://gitlab.com/baserow/baserow/-/issues/3769)
+* [Database] Fix count formula for link row fields with null values [#3770](https://gitlab.com/baserow/baserow/-/issues/3770)
+* [Database] Fix formula field dependency ordering on row deletion [#3772](https://gitlab.com/baserow/baserow/-/issues/3772)
+* [Builder] Allow ISO string as value for date fields [#3776](https://gitlab.com/baserow/baserow/-/issues/3776)
+* [Database] Fix empty filters that break real-time filtering with OR condition [#3791](https://gitlab.com/baserow/baserow/-/issues/3791)
+* [Database] Fix for skipped_fields being None [#3796](https://gitlab.com/baserow/baserow/-/issues/3796)
+* [Database] Do not pass SelectOptionDoesNotBelongToField to sentry [#3797](https://gitlab.com/baserow/baserow/-/issues/3797)
+* [Database] Fix duplicated results from OR filters [#3799](https://gitlab.com/baserow/baserow/-/issues/3799)
+* [Database] Handle NaN in export_value for NumberField [#3800](https://gitlab.com/baserow/baserow/-/issues/3800)
+* [Database] Fix adhoc row coloring and permissions bug.
+* [Database] Fix broken export/import with broken via dependency
+* [Builder] Fix crash when toggling the share status of a used data source
+* [Builder] Fix error while duplicating an application referencing a default role for a deleted data source
+* [Database] Two-way PostgreSQL data sync. [#3082](https://gitlab.com/baserow/baserow/-/issues/3082)
+
+### Refactors
+* [Core] Fix grammar in workspace invitation related emails. [#3775](https://gitlab.com/baserow/baserow/-/issues/3775)
+* [Core] All lock_expiry to add singleton celery tasks.
+
+
 ## Released 1.34.5
 
 ### Bug fixes
