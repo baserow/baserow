@@ -596,72 +596,6 @@ build-heroku-image:
     DOCKERFILE_PATH: $HEROKU_DOCKERFILE_PATH
     BUILD_FROM_IMAGE: $TESTED_ALLINONE_CI_IMAGE
 
-# ================================== OSS-ONLY BUILDS ==================================
-
-# Build OSS-only backend image
-build-final-backend-oss-only-image:
-  extends: .build-final-baserow-image
-  needs:
-    - job: backend-test-group-1
-    - job: backend-test-group-2
-    - job: backend-test-group-3
-    - job: backend-test-group-4
-    - job: backend-test-group-5
-    - job: backend-test-group-6
-    - job: backend-test-group-7
-    - job: backend-test-group-8
-    - job: backend-test-group-9
-    - job: backend-lint
-  only:
-    variables:
-      - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
-      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
-      - $BUILD_ALL_IN_ONE == "true"
-      - $CI_COMMIT_MESSAGE =~ /\[build-all]/
-  variables:
-    IMAGE_NAME: $BACKEND_IMAGE_NAME-oss
-    DEV_IMAGE_NAME: $BACKEND_DEV_IMAGE_NAME
-    DOCKERFILE_PATH: $BACKEND_DOCKERFILE_PATH
-    EXTRA_BUILD_ARGS: "--target local-oss"
-
-# Build OSS-only web-frontend image
-build-final-web-frontend-oss-only-image:
-  extends:
-    - .build-final-baserow-image
-  needs:
-    - job: web-frontend-test
-  only:
-    variables:
-      - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
-      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
-      - $BUILD_ALL_IN_ONE == "true"
-      - $CI_COMMIT_MESSAGE =~ /\[build-all]/
-  variables:
-    IMAGE_NAME: $WEBFRONTEND_IMAGE_NAME-oss
-    DEV_IMAGE_NAME: $WEBFRONTEND_DEV_IMAGE_NAME
-    DOCKERFILE_PATH: $WEBFRONTEND_DOCKERFILE_PATH
-    EXTRA_BUILD_ARGS: "--target local-oss"
-
-# Build OSS-only all-in-one image
-build-all-in-one-oss-only-image:
-  extends: .build-final-baserow-image
-  needs:
-    - job: build-final-web-frontend-oss-only-image
-    - job: build-final-backend-oss-only-image
-  tags:
-    - saas-linux-medium-amd64
-  only:
-    variables:
-      - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
-      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
-      - $BUILD_ALL_IN_ONE == "true"
-      - $CI_COMMIT_MESSAGE =~ /\[build-all]/
-  variables:
-    IMAGE_NAME: $ALLINONE_IMAGE_NAME-oss
-    DOCKERFILE_PATH: $ALLINONE_DOCKERFILE_PATH
-    BUILD_FROM_BACKEND_IMAGE: $CI_IMAGE_REPO/$BACKEND_IMAGE_NAME-oss:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
-    BUILD_FROM_WEBFRONTEND_IMAGE: $CI_IMAGE_REPO/$WEBFRONTEND_IMAGE_NAME-oss:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
-
 # ================================== TRIGGER SAAS =====================================
 
 # Triggers a special pipeline in dependant project and passes various variables to it.
@@ -873,56 +807,6 @@ publish-cloudron-release-tagged-image:
     TARGET_REGISTRY_USER: $RELEASE_REGISTRY_USER
 
 # We don't push any heroku images as Heroku itself will build and use heroku.Dockerfile
-
-# ================================ PUSHING OSS-ONLY ALL-IN-ONE ===============================
-
-# Push baserow/baserow:develop-latest-oss
-publish-all-in-one-oss-only-develop-latest-image:
-  extends: .publish-baserow-image
-  only:
-    variables:
-      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
-  dependencies: []
-  variables:
-    SKIP_IF_NOT_LATEST_COMMIT_ON_BRANCH: $DEVELOP_BRANCH_NAME
-    SOURCE_IMAGE: $CI_IMAGE_REPO/$ALLINONE_IMAGE_NAME-oss:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
-    TARGET_IMAGE: "$RELEASE_IMAGE_REPO/$ALLINONE_IMAGE_NAME:$DEVELOP_LATEST_TAG-oss"
-    TARGET_REGISTRY: $RELEASE_REGISTRY
-    TARGET_REGISTRY_PASSWORD: $RELEASE_REGISTRY_PASSWORD
-    TARGET_REGISTRY_USER: $RELEASE_REGISTRY_USER
-
-# Push baserow/baserow:$VERSION_GIT_TAG-oss
-publish-all-in-one-oss-only-release-tagged-image:
-  extends: .publish-baserow-image
-  only:
-    refs:
-      - tags
-  dependencies: []
-  variables:
-    SKIP_IF_TAG_NOT_ON_BRANCH: $MASTER_BRANCH_NAME
-    SOURCE_IMAGE: $CI_IMAGE_REPO/$ALLINONE_IMAGE_NAME-oss:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
-    TARGET_IMAGE: "$RELEASE_IMAGE_REPO/$ALLINONE_IMAGE_NAME:$CI_COMMIT_TAG-oss"
-    TARGET_REGISTRY: $RELEASE_REGISTRY
-    TARGET_REGISTRY_PASSWORD: $RELEASE_REGISTRY_PASSWORD
-    TARGET_REGISTRY_USER: $RELEASE_REGISTRY_USER
-
-# Push baserow/baserow:latest-oss
-publish-all-in-one-oss-only-latest-release-image:
-  extends: .publish-baserow-image
-  only:
-    refs:
-      - tags
-    variables:
-      - $CI_COMMIT_TAG =~ /^[0-9.]+$/
-  dependencies: []
-  variables:
-    SKIP_IF_NOT_LATEST_COMMIT_ON_BRANCH: $MASTER_BRANCH_NAME
-    SKIP_IF_TAG_NOT_ON_BRANCH: $MASTER_BRANCH_NAME
-    SOURCE_IMAGE: $CI_IMAGE_REPO/$ALLINONE_IMAGE_NAME-oss:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
-    TARGET_IMAGE: "$RELEASE_IMAGE_REPO/$ALLINONE_IMAGE_NAME:latest-oss"
-    TARGET_REGISTRY: $RELEASE_REGISTRY
-    TARGET_REGISTRY_PASSWORD: $RELEASE_REGISTRY_PASSWORD
-    TARGET_REGISTRY_USER: $RELEASE_REGISTRY_USER
 
 # ================================ MISC LINTS ===============================
 
