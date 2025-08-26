@@ -316,7 +316,7 @@ const actions = {
       })
     }
 
-    await dispatch('select', { workflow, node: newNode })
+    dispatch('select', { workflow, node: newNode })
   },
   async order({ commit }, { workflow, order, oldOrder }) {
     commit('ORDER_ITEMS', { workflow, order })
