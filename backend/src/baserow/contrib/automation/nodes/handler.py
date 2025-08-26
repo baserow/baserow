@@ -515,10 +515,15 @@ class AutomationNodeHandler:
         will be updated.
 
         :param nodes: List of AutomationNode instances.
+        :param re_test: Whether to ignore existing sample data and force a
+            real dispatch.
         :return: None.
         """
 
         if node.get_type().is_workflow_trigger:
+            # To simulate the dispatch of a trigger node, its simulate_dispatch
+            # is set to True. This ensures that the new sample data is saved
+            # when the trigger node is executed.
             node.service.sample_data = None
             node.service.save()
             node.simulate_dispatch = True
@@ -544,7 +549,7 @@ class AutomationNodeHandler:
 
     def reset_sample_data(self, nodes: List[AutomationNode]) -> None:
         """
-        Given a list of nodes, sets each node services' sample_data to None.
+        Given a list of nodes, sets the sample_data to None for each node's service.
 
         :param nodes: List of AutomationNode instances.
         :return: None.

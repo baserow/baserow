@@ -209,7 +209,7 @@ class AutomationNodeService:
         automation = node.workflow.automation
         TrashHandler.trash(user, automation.workspace, automation, node)
 
-        # Since the deleted node was the basis for the sample data in
+        # Because the deleted node was the basis for the sample data in
         # subsequent nodes, all subsequent nodes sample data needs to
         # be reset.
         self.handler.reset_sample_data(next_nodes)
@@ -349,7 +349,7 @@ class AutomationNodeService:
         automation = node.workflow.automation
         TrashHandler.trash(user, automation.workspace, automation, node)
 
-        # The new node has a new service that isn't configured yet. Since
+        # The new node has a new service that isn't configured yet. Because
         # the deleted node was the basis for the sample data in subsequent
         # nodes, all subsequent nodes sample data needs to be reset.
         next_nodes = self.handler.get_next_nodes(node.workflow, new_node)
