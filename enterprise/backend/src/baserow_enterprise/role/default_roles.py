@@ -329,11 +329,11 @@ default_roles[settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED].append(
     CreateAndUsePersonalViewOperationType
 )
 
-# Note that the reader role can automatically be assigned to the user if they have a
-# role assigned on a higher level. If the user for example does not have access to a
-# database, but has been given editor permissions to the table, then they will
-# automatically get the viewer role of the database. The individual endpoints or filter
-# queryset rules must prevent accidental data exposure.
+# Note that the read only role can automatically be assigned to the user if they have a
+# role assigned on a higher scope. If the user for example has `NO_ACCESS` to a
+# database, but has been given `EDITOR` role to the table, then they will automatically
+# get the viewer role of the database. The individual endpoints or filter queryset
+# rules must prevent accidental data exposure.
 default_roles[READ_ONLY_ROLE_UID].extend(
     default_roles[NO_ACCESS_ROLE_UID]
     + [

@@ -593,7 +593,7 @@ def test_batch_assign_role_to_database_view(data_fixture, api_client):
         {
             "id": AnyInt(),
             "role": editor_role.uid,
-            "scope_id": table.id,
+            "scope_id": view.id,
             "scope_type": "database_view",
             "subject_id": user2.id,
             "subject_type": UserSubjectType.type,

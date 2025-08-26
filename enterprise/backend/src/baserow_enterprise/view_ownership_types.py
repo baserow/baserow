@@ -13,16 +13,11 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
     """
     Represents view that are shared between all users, but users without the
     permissions to create/update/delete filters not be able to see the rows not
-    matching the filters.
+    matching the filters. This is used to give some users only access to part of the
+    rows in a table.
     """
 
     type = "restricted"
-
-    # def should_broadcast_signal_to(self, view):
-    #     if view.owned_by is None:
-    #         return "", None
-    #
-    #     return "users", [view.owned_by_id]
 
     def change_ownership_type(self, user: AbstractUser, view: View) -> View:
         # It's not possible to change to and from restricted view type because that

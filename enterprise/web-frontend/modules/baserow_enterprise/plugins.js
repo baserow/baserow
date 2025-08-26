@@ -82,6 +82,8 @@ export class EnterprisePlugin extends BaserowPlugin {
         view,
         workspace.id
       ) &&
+      // Assigning a role to a user on view level only actually does something for
+      // the restricted view. So we're only showing the modal there.
       view.ownership_type === RestrictedViewOwnershipType.getType()
     ) {
       return [MemberRolesViewContextItem]
