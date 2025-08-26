@@ -366,6 +366,7 @@ def test_simulate_dispatch_node_trigger(mock_run, data_fixture):
     action_node = data_fixture.create_automation_node(
         workflow=workflow,
         type="create_row",
+        previous_node_id=trigger_node.id,
     )
 
     # Set initial fake data for the action_node, since we want to test
@@ -382,7 +383,7 @@ def test_simulate_dispatch_node_trigger(mock_run, data_fixture):
     assert trigger_node.service.sample_data is None
 
     action_node.refresh_from_db()
-    assert action_node.service.sample_data == {"foo": "bar"}
+    assert action_node.service.sample_data is None
 
 
 def create_action_node(data_fixture):
@@ -519,3 +520,65 @@ def test_simulate_dispatch_node_action_with_simulate_until_node(data_fixture):
     for node in [action_node_2, action_node_3]:
         node.refresh_from_db()
         assert node.service.sample_data is None
+
+
+@pytest.mark.django_db
+def test_get_all_subsequent_nodes(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow
+    )
+
+    action_node_1_a = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="create_row",
+        previous_node_id=trigger_node.id,
+    )
+    action_node_1_b = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="create_row",
+        previous_node_id=action_node_1_a.id,
+    )
+    action_node_1_c = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="create_row",
+        previous_node_id=action_node_1_b.id,
+    )
+
+    action_node_2_a = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="create_row",
+        previous_node_id=trigger_node.id,
+    )
+    action_node_2_b = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="create_row",
+        previous_node_id=action_node_2_a.id,
+    )
+    action_node_2_c = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="create_row",
+        previous_node_id=action_node_2_b.id,
+    )
+
+    # Only the children of action_node_1_a should be returned
+    nodes = AutomationNodeHandler().get_all_subsequent_nodes(action_node_1_a)
+    assert nodes == [action_node_1_b, action_node_1_c]
+
+    # Only the children of action_node_2_a should be returned
+    nodes = AutomationNodeHandler().get_all_subsequent_nodes(action_node_2_a)
+    assert nodes == [action_node_2_b, action_node_2_c]
+
+    # All child nodes should be returned
+    nodes = AutomationNodeHandler().get_all_subsequent_nodes(trigger_node)
+    assert sorted([n.id for n in nodes]) == sorted(
+        [
+            action_node_1_a.id,
+            action_node_1_b.id,
+            action_node_1_c.id,
+            action_node_2_a.id,
+            action_node_2_b.id,
+            action_node_2_c.id,
+        ]
+    )
