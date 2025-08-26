@@ -475,7 +475,8 @@
         "errorJobAlreadyRunningTitle": "Al aan de gang",
         "errorJobAlreadyRunningDescription": "Er loopt al een andere importjob. U moet wachten tot die klaar is voordat u een andere start.",
         "errorJobCannotBeCancelledTitle": "Kan niet annuleren",
-        "errorJobCannotBeCancelledDescription": "Het is niet mogelijk om de taak te annuleren omdat deze al is voltooid.\nVerwijder de eerste snapshot in de onderstaande lijst om deze te verwijderen."
+        "errorJobCannotBeCancelledDescription": "Het is niet mogelijk om de taak te annuleren omdat deze al is voltooid.\nVerwijder de eerste snapshot in de onderstaande lijst om deze te verwijderen.",
+        "stateCanceled": "Geannuleerd"
     },
     "pastingNotification": {
         "title": "Plakken...",
@@ -507,7 +508,8 @@
                 "name": "Naam",
                 "teams": "Teams",
                 "highestRole": "Hoogste rol",
-                "highestRoleHelpText": "De hoogste rol die deze gebruiker rechtstreeks of vanuit een team aan hem is toegekend, op alles in deze werkruimte"
+                "highestRoleHelpText": "De hoogste rol die deze gebruiker rechtstreeks of vanuit een team aan hem is toegekend, op alles in deze werkruimte",
+                "highestRoleInstanceHelpText": "De hoogste rol die deze gebruiker heeft in de instantie"
             },
             "actions": {
                 "copyEmail": "E-mail kopiëren",
@@ -883,7 +885,10 @@
     "exportWorkspaceForm": {
         "exportSettingsLabel": "Export instellingen",
         "onlyStructureDescription": "Als ingeschakeld, wordt alleen de structuur van de applicaties geëxporteerd. De data wordt niet meegenomen.",
-        "onlyStructureLabel": "Alleen structuur exporteren"
+        "onlyStructureLabel": "Alleen structuur exporteren",
+        "selectDataToExport": "Gegevens selecteren om te exporteren",
+        "selectAll": "Selecteer alles",
+        "deselectAll": "Deselecteer alles"
     },
     "importWorkspaceModal": {
         "title": "Baserow data importeren",
@@ -910,7 +915,8 @@
         "untrustedPublicKeyMessage": "Het geleverde bestand is ondertekend met een onbetrouwbare openbare sleutel. Vraag je beheerder om de openbare sleutel toe te voegen aan de lijst van vertrouwde sleutels of de handtekeningverificatie uit te schakelen om dit bestand te kunnen importeren.",
         "importingState": "Importeren",
         "importingTableStructure": "Aanmaken: {table}",
-        "importingTableData": "Gegevens importeren: {tabel}"
+        "importingTableData": "Gegevens importeren: {tabel}",
+        "uploadAndImport": "Uploaden en importeren"
     },
     "user": {
         "isStaff": "Is personeel",
@@ -1065,5 +1071,8 @@
         "windsurfInstructions": "Twee eenvoudige stappen om MCP in te stellen met Cascase in Windsurf.\n\n1. Navigeer naar Windsurf - Settings -> Advanced Settings of Command Palette -> Open Windsurf settings page.\n1. Scroll naar beneden naar de Cascade sectie en je zult de optie vinden om een nieuwe server toe te voegen, bestaande servers te bekijken en een knop om het ruwe JSON config bestand `mcp_config.json` te bekijken. Voeg daar het volgende aan toe:",
         "endpointURLIntro": "De MCP (Model Context Protocol) server URL kan worden toegevoegd aan elke client die MCP-servers ondersteunt. Het is een uniek eindpunt dat de LLM directe toegang geeft om namens jou acties uit te voeren in de werkruimte.",
         "cursorInstructions": "Drie eenvoudige stappen om aan de slag te gaan met Cursor en het Baserow MCP.\n\n1. Cursorinstellingen openen (⇧+⌘+J)\n1. Navigeer naar het tabblad \"MCP\" en klik op \"Add MCP Server\" (MCP-server toevoegen)\n1. Voeg de volgende JSON-configuratie toe."
+    },
+    "importWorkspaceForm": {
+        "selectApplicationsToImport": "Applicaties selecteren om te importeren"
     }
 }

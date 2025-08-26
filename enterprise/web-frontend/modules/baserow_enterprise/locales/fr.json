@@ -497,7 +497,10 @@
         "deleteSeries": "Supprimer la série",
         "lineChart": "Ligne",
         "barChart": "Barre",
-        "chartType": "Type de graphique"
+        "chartType": "Type de graphique",
+        "pieChart": "Diagramme circulaire",
+        "doughnutChart": "Graphique en anneau",
+        "polarAreaChart": "Graphique polaire"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Grouper par",
@@ -511,7 +514,9 @@
         "sortByFieldLabel": "Trier par"
     },
     "periodicDataSyncDeactivatedNotification": {
-        "body": "La synchronisation périodique des données de {name} a été désactivée car elle a échoué consécutivement trop de fois."
+        "body": "La synchronisation périodique des données de {name} a été désactivée car elle a échoué consécutivement trop de fois.",
+        "failure": "La synchronisation périodique des données {name} a été désactivée car elle a échoué trop de fois consécutives.",
+        "licenseUnavailable": "La synchronisation périodique des données {name} a été désactivée car l'espace de travail ne dispose plus d'une licence valide. Veuillez mettre à jour votre licence pour rétablir la synchronisation automatique."
     },
     "webhook": {
         "rowsEnterVieweventType": "Des lignes entrent dans la vue"
@@ -521,7 +526,9 @@
         "triggerWhenRowsEnterView": "Déclenché lorsque de nouvelles lignes entrent dans la vue."
     },
     "chartWidget": {
-        "name": "Graphique"
+        "name": "Graphique",
+        "bar": "Graphique à barres",
+        "line": "Graphique linéaire"
     },
     "fieldPermissionModal": {
         "description": "Choisissez qui peut modifier les valeurs de {fieldName}.",
@@ -598,5 +605,20 @@
     "elementType": {
         "errorUserSourceHasNoLoginOption": "La source d'utilisateurs sélectionnée n'a pas d'option de connexion",
         "errorUserSourceMissing": "Aucune source utilisateur sélectionnée"
+    },
+    "pieChartWidget": {
+        "name": "Diagramme circulaire",
+        "pie": "Diagramme circulaire",
+        "doughnut": "Graphique en anneau",
+        "polarArea": "Graphique polaire"
+    },
+    "twoWaySyncUpdateFailed": {
+        "title": "Échec de la mise à jour de la synchronisation bidirectionnelle {name} : {error}"
+    },
+    "twoWaySyncDeactivated": {
+        "title": "La synchronisation bidirectionnelle {name} a été désactivée car une mise à jour a échoué trop de fois consécutives. Veuillez synchroniser manuellement et réactiver lorsque le problème sera résolu."
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Permet de modifier les valeurs des cellules directement dans Baserow et de les envoyer en temps réel à la source de synchronisation des données. Notez que les modifications ne sont pas récupérées en temps réel, car elles dépendent de l'action de synchronisation (périodique) pour être effectuées. Il est fortement recommandé de créer des sauvegardes de la base de données PostgreSQL afin d'éviter toute modification accidentelle."
     }
 }

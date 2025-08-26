@@ -1181,5 +1181,18 @@
     "previewPublishGuidedTourStep": {
         "title": "Je app bekijken en publiceren",
         "content": "Klik op **Preview** om je app privé te testen. Als je klaar bent, klik je op **Publiceer** om de app te delen met het publiek via een domein."
+    },
+    "builderToast": {
+        "details": "Details",
+        "defaultTitle": "Onverwachte fout",
+        "defaultMessage": "Er is een onverwachte fout opgetreden. Probeer het later nog eens.",
+        "invalidContextTitle": "Ongeldig verzoek",
+        "invalidContextMessage": "Het verzoek is ongeldig.",
+        "InvalidContentTitle": "Ongeldig formulier",
+        "invalidContentMessage": "Een of meer velden bevatten ongeldige waarden.",
+        "serviceMisconfiguredTitle": "Onvolledige configuratie",
+        "serviceMisconfiguredMessage": "Controleer de configuratie.",
+        "errorWorkflowActionDispatch": "De actie \"{naam}\" is mislukt: ",
+        "errorDataSourceDispatch": "Mislukt bij het laden van \"{name}\" gegevens: "
     }
 }

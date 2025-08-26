@@ -127,7 +127,26 @@
         "ratingDescription": "평가 요소",
         "ratingInputDescription": "평가 입력 요소",
         "fileInput": "파일 선택",
-        "fileInputDescription": "파일을 업로드하기 위한 입력란"
+        "fileInputDescription": "파일을 업로드하기 위한 입력란",
+        "errorValueMissing": "누락된 값 속성",
+        "errorEmptyContainer": "이 컨테이너는 비어 있습니다",
+        "errorParentWithDataSourceMissing": "요소 또는 부모 컨테이너에서 선택된 데이터 소스가 없습니다",
+        "errorDataSourceMissing": "선택된 데이터 소스가 없습니다",
+        "errorSchemaPropertyMissing": "스키마 속성이 선택되지 않았습니다",
+        "errorWorkflowActionInError": "적어도 하나의 작업이 잘못 구성되었습니다",
+        "errorCollectionFieldInError": "적어도 하나의 필드가 잘못 구성되었습니다",
+        "errorNavigateToPageMissing": "이동 속성이 누락되었습니다",
+        "errorPageParameterInError": "하나 이상의 페이지 매개변수가 잘못 구성되었습니다",
+        "errorNavigationUrlMissing": "네비게이션 URL 속성이 없습니다",
+        "errorImageFileMissing": "이미지 파일이 없습니다",
+        "errorImageUrlMissing": "이미지 URL 속성이 누락되었습니다",
+        "errorNoWorkflowAction": "워크플로 작업이 구성되지 않았습니다",
+        "errorOptionsMissing": "옵션이 구성되지 않았습니다",
+        "errorIframeUrlMissing": "IFrame URL 속성이 없습니다",
+        "errorIframeContentMissing": "IFrame 콘텐츠가 누락되었습니다",
+        "errorNoMenuItem": "메뉴 항목이 구성되지 않았습니다",
+        "errorMenuItemInError": "최소한 하나의 메뉴가 잘못 구성되었습니다",
+        "errorSubMenuItemInError": "적어도 하나의 하위 메뉴가 잘못 구성되었습니다"
     },
     "addElementButton": {
         "label": "요소"
@@ -618,7 +637,8 @@
         "orientationHorizontal": "수평",
         "orientationVertical": "수직",
         "buttonLoadMoreLabel": "더 보기 표시",
-        "propertySelectorMissingArrays": "행으로 사용할 다중 값 필드를 찾을 수 없습니다."
+        "propertySelectorMissingArrays": "행으로 사용할 다중 값 필드를 찾을 수 없습니다.",
+        "noName": "이름 없음"
     },
     "tableElement": {
         "showMore": "더 보기"
@@ -692,7 +712,11 @@
         "deleteRowLabel": "행 삭제",
         "logoutLabel": "로그아웃",
         "refreshDataSourceLabel": "데이터 소스 새로 고침",
-        "httpRequest": "HTTP 요청 보내기"
+        "httpRequest": "HTTP 요청 보내기",
+        "errorNavigateToPageMissing": "이동대상 속성이 누락되었습니다",
+        "errorPageParameterInError": "하나 이상의 페이지 매개변수가 잘못 구성되었습니다",
+        "errorNavigationUrlMissing": "네비게이션 URL 속성이 없습니다",
+        "errorDataSourceMissing": "선택된 데이터 소스가 없습니다"
     },
     "notificationWorkflowActionForm": {
         "titleLabel": "제목",
@@ -1058,5 +1082,18 @@
     "previewPublishGuidedTourStep": {
         "title": "앱 미리 보기 및 게시",
         "content": "**미리보기**를 클릭하여 앱을 비공개로 테스트해 보세요. 준비가 되면 **게시**를 클릭하여 도메인을 통해 모든 사람과 공유하세요."
+    },
+    "builderToast": {
+        "details": "세부",
+        "defaultTitle": "예기치 않은 오류",
+        "defaultMessage": "예기치 않은 오류가 발생했습니다. 나중에 다시 시도해 주세요.",
+        "invalidContextTitle": "잘못된 요청",
+        "invalidContextMessage": "요청이 잘못되었습니다.",
+        "InvalidContentTitle": "잘못된 형식",
+        "invalidContentMessage": "하나 이상의 필드에 잘못된 값이 포함되어 있습니다.",
+        "serviceMisconfiguredTitle": "구성이 완료되지 않았습니다",
+        "serviceMisconfiguredMessage": "구성을 확인하세요.",
+        "errorWorkflowActionDispatch": "\"{name}\" 작업이 실패했습니다. ",
+        "errorDataSourceDispatch": "\"{name}\" 데이터를 로드하는 데 실패했습니다. "
     }
 }

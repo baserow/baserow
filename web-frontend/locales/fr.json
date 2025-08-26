@@ -16,7 +16,8 @@
         "summarize": "Résumer",
         "or": "ou",
         "and": "et",
-        "optional": "Optionel"
+        "optional": "Optionel",
+        "alpha": "Alpha"
     },
     "action": {
         "upload": "Envoyer",
@@ -628,7 +629,9 @@
         "readonlyFieldMessage": "Les contraintes ne peuvent pas être appliquées aux champs en lecture seule.",
         "errorGenericData": "Impossible d'appliquer la contrainte de champ en raison de conflits de données existants.",
         "errorUniqueOrEmpty": "Certaines valeurs de ce champ sont dupliquées. Supprimez ou modifiez les doublons avant d'appliquer cette contrainte.",
-        "errorInvalidConstraint": "Cette contrainte de champ n'est pas prise en charge pour ce type de champ."
+        "errorInvalidConstraint": "Cette contrainte de champ n'est pas prise en charge pour ce type de champ.",
+        "errorDoesNotSupportDefaultValue": "Impossible de définir cette contrainte lorsque la valeur par défaut est définie.",
+        "noConstraintsCompatibleWithDefaultValue": "Aucune contrainte n'est compatible lorsqu'une valeur par défaut est activée."
     },
     "fieldConstraintParametersText": {
         "placeholder": "Saisir la valeur de la contrainte"
