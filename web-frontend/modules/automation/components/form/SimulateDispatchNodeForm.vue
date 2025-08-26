@@ -2,7 +2,9 @@
   <div class="simulate-dispatch-node">
     <div class="simulate-dispatch-node__header">
       <div class="simulate-dispatch-node__header-title">
-        <template v-if="isActionNode">{{ $t('simulateDispatch.testActionNode') }}</template>
+        <template v-if="isActionNode">{{
+          $t('simulateDispatch.testActionNode')
+        }}</template>
         <template v-else>{{ $t('simulateDispatch.testTriggerNode') }}</template>
       </div>
 
@@ -21,7 +23,9 @@
     </div>
 
     <div v-if="hasSampleData">
-      <div class="simulate-dispatch-node__sample-data-label">{{ $t('simulateDispatch.sampleDataLabel') }}:</div>
+      <div class="simulate-dispatch-node__sample-data-label">
+        {{ $t('simulateDispatch.sampleDataLabel') }}:
+      </div>
       <pre><code class="simulate-dispatch-node__sample-data-code">{{ node.service.sample_data }}</code></pre>
     </div>
     <div v-else-if="node.simulate_dispatch_trigger">
@@ -92,7 +96,9 @@ const hasSampleData = computed(() => {
 })
 
 const buttonLabel = computed(() => {
-  return hasSampleData.value ? app.i18n.t('simulateDispatch.buttonLabelReTest') : app.i18n.t('simulateDispatch.buttonLabelTest')
+  return hasSampleData.value
+    ? app.i18n.t('simulateDispatch.buttonLabelReTest')
+    : app.i18n.t('simulateDispatch.buttonLabelTest')
 })
 
 const isActionNode = computed(() => {
