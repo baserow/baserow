@@ -1224,9 +1224,9 @@ class ManyToManyHasBaseViewFilter(ViewFilterType):
         remote_model = remote_field.model
         filter_dict = {"id__in": value} if isinstance(value, list) else {"id": value}
         return Q(
-            id__in=remote_model.objects.filter(**filter_dict)
-            .values(f"{remote_field.related_name}__id")
-            .distinct()
+            id__in=remote_model.objects.filter(**filter_dict).values(
+                f"{remote_field.related_name}__id"
+            )
         )
 
     def _get_formula_filter(field_name, value, model_field, field):
@@ -1392,9 +1392,9 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         remote_field = model_field.remote_field
         remote_model = remote_field.model
         return Q(
-            id__in=remote_model.objects.filter(id__in=option_ids)
-            .values(f"{remote_field.related_name}__id")
-            .distinct()
+            id__in=remote_model.objects.filter(id__in=option_ids).values(
+                f"{remote_field.related_name}__id"
+            )
         )
 
     @staticmethod

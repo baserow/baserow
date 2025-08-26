@@ -168,10 +168,10 @@ class FilterBuilder:
             self._q_filters
         )
 
-        if self._filter_type == FILTER_TYPE_OR:
-            filtered_queryset = filtered_queryset.distinct()
-
-        return filtered_queryset
+        # When using OR conditions in filters that involve joined tables, the SQL query
+        # may produce duplicate rows because multiple join paths can match the same
+        # record. Applying distinct() ensures we return only unique results.
+        return filtered_queryset.distinct()
 
     def get_filters_and_annotations(self) -> Tuple[Q, Dict[str, Any]]:
         """
