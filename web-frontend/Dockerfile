@@ -79,3 +79,12 @@ FROM base AS local
 RUN yarn run build-local && rm -rf node_modules && yarn install --production && yarn cache clean
 CMD ["nuxt-local"]
 
+
+FROM base AS local-oss
+
+ENV BASEROW_OSS_ONLY=true
+
+# Run the nuxt build and then remove all dev dependencies as we don't need them after.
+RUN yarn run build-local && rm -rf node_modules && yarn install --production && yarn cache clean
+CMD ["nuxt-local"]
+

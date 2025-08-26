@@ -135,3 +135,8 @@ FROM core AS local
 ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.base'
 CMD ["gunicorn"]
 
+FROM core AS local-oss
+
+ENV BASEROW_OSS_ONLY=true
+ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.base'
+CMD ["gunicorn"]
