@@ -117,3 +117,15 @@ def test_extract_properties():
 
     result = service_type.extract_properties(["foo"])
     assert result == []
+
+
+def test_get_sample_data():
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+    service = MagicMock()
+    service.sample_data = {"foo": "bar"}
+
+    result = service_type.get_sample_data(service)
+
+    assert result == {"foo": "bar"}
