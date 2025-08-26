@@ -12,6 +12,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_MAX_FIELD_COUNT_EXCEEDED,
     ERROR_MAX_FIELD_NAME_LENGTH_EXCEEDED,
     ERROR_RESERVED_BASEROW_FIELD_NAME,
+    ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
 )
 from baserow.contrib.database.api.tables.errors import (
     ERROR_INITIAL_TABLE_DATA_HAS_DUPLICATE_NAMES,
@@ -25,6 +26,7 @@ from baserow.contrib.database.fields.exceptions import (
     MaxFieldLimitExceeded,
     MaxFieldNameLengthExceeded,
     ReservedBaserowFieldNameException,
+    SelectOptionDoesNotBelongToField,
 )
 from baserow.contrib.database.rows.actions import ImportRowsActionType
 from baserow.contrib.database.rows.exceptions import ReportMaxErrorCountExceeded
@@ -61,6 +63,9 @@ class FileImportJobType(JobType):
         ReservedBaserowFieldNameException: ERROR_RESERVED_BASEROW_FIELD_NAME[2],
         InvalidBaserowFieldName: ERROR_INVALID_BASEROW_FIELD_NAME[2],
         FieldNotInTable: ERROR_FIELD_NOT_IN_TABLE[2],
+        SelectOptionDoesNotBelongToField: ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD[
+            2
+        ],
     }
 
     serializer_field_names = [
