@@ -497,7 +497,10 @@
         "aggregationFieldLabel": "Veld",
         "chartType": "Grafiektype",
         "barChart": "Staaf",
-        "lineChart": "Lijn"
+        "lineChart": "Lijn",
+        "pieChart": "Cirkel",
+        "doughnutChart": "Donut",
+        "polarAreaChart": "Poolgebied"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Groep door",
@@ -511,7 +514,9 @@
         "descending": "Aflopend"
     },
     "periodicDataSyncDeactivatedNotification": {
-        "body": "{name} periodieke gegevenssynchronisatie is gedeactiveerd omdat het te vaak achter elkaar mislukte."
+        "body": "{name} periodieke gegevenssynchronisatie is gedeactiveerd omdat het te vaak achter elkaar mislukte.",
+        "failure": "{name} periodieke gegevenssynchronisatie is gedeactiveerd omdat het te vaak achter elkaar mislukte.",
+        "licenseUnavailable": "{name} periodieke gegevenssynchronisatie is uitgeschakeld omdat de werkruimte geen geldige licentie meer heeft. Werk je licentie bij om de automatische synchronisatie te herstellen."
     },
     "webhook": {
         "rowsEnterVieweventType": "Rij komt in weergave"
@@ -521,7 +526,9 @@
         "helpTriggerWhenRowsEnterView": "Triggert alleen wanneer `Rijen in de weergave komen` is geselecteerd en rijen die nu overeenkomen met de filters worden weergegeven."
     },
     "chartWidget": {
-        "name": "Grafiek"
+        "name": "Grafiek",
+        "bar": "Staafdiagram",
+        "line": "Lijndiagram"
     },
     "fileInputElementForm": {
         "helpTextTitle": "Help-tekst",
@@ -598,5 +605,20 @@
     "elementType": {
         "errorUserSourceHasNoLoginOption": "De geselecteerde gebruikersbron heeft geen aanmeldingsoptie",
         "errorUserSourceMissing": "Geen gebruikersbron geselecteerd"
+    },
+    "pieChartWidget": {
+        "name": "Cirkeldiagram",
+        "pie": "Cirkeldiagram",
+        "doughnut": "Donut diagram",
+        "polarArea": "Poolgebiedgrafiek"
+    },
+    "twoWaySyncUpdateFailed": {
+        "title": "{name} bidirectionele synchronisatie update mislukt: {error}"
+    },
+    "twoWaySyncDeactivated": {
+        "title": "Tweewegsynchronisatie {name} gedeactiveerd omdat een update te vaak achter elkaar mislukte. Synchroniseer handmatig en activeer opnieuw wanneer het probleem is opgelost."
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Hiermee kunnen de celwaarden direct in Baserow worden bewerkt en in realtime naar de gegevenssynchronisatiebron worden gepusht. Merk op dat de wijzigingen niet in real-time worden opgehaald omdat ze afhankelijk zijn van de (periodieke) synchronisatie actie om te voltooien. Het wordt sterk aangeraden om back-ups te maken van de PostgreSQL database om onbedoelde wijzigingen te voorkomen."
     }
 }
